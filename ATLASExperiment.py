@@ -134,6 +134,11 @@ class ATLASExperiment(Experiment):
         cmtconfig_alternatives = getCmtconfigAlternatives(cmtconfig, swbase)
         tolog("Found alternatives to cmtconfig: %s (the first item is the default cmtconfig value)" % str(cmtconfig_alternatives))
 
+        # Update the job parameters --input option for Merge trf's (to protect against potentially too long file lists)
+#        if "--input=" in job.jobPars and "Merge_tf" in job.trf:
+#            tolog("Will update input file list in job parameters and create input file list for merge job")
+#            job.jobPars = self.updateJobParameters4Input(job.jobPars)
+
         # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...')
         if job.atlasEnv :
 
@@ -1788,6 +1793,7 @@ class ATLASExperiment(Experiment):
                         siteroot = os.path.join(os.path.join(swbase, cmtconfig), release)
                     else:
                         siteroot = os.path.join(swbase, release)
+
                 siteroot = siteroot.replace('//','/')
 
                 # make sure that the path actually exists
@@ -2267,8 +2273,9 @@ class ATLASExperiment(Experiment):
         failed = out_of_memory # failed boolean used below
 
         # Always look for the max and average VmPeak?
-        setup = getSourceSetup(runCommandList[0])
-        job.vmPeakMax, job.vmPeakMean, job.RSSMean = findVmPeaks(setup)
+        if not self.__analysisJob:
+            setup = getSourceSetup(runCommandList[0])
+            job.vmPeakMax, job.vmPeakMean, job.RSSMean = findVmPeaks(setup)
 
         # A killed job can have empty output but still transExitCode == 0
         no_payload_output = False
@@ -2368,6 +2375,59 @@ class ATLASExperiment(Experiment):
             tolog("JEM is not allowed")
 
         return allowjem
+
+    # Optional
+    def doSpecialLogFileTransfer(self):
+        """ Should the log file be transfered to a special SE? """
+
+        # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file
+        # If this method returns True, the JobLog class will attempt to store the log file in a secondary SE after the transfer of
+        # the log to the primary/normal SE. Additional information about the secondary SE is required and can be specified in
+        # another optional method defined in the *Experiment classes
+
+        return True
+
+    def extractInputOption(self, jobParameters):
+        """ Extract the entire input file list from the job parameters including the input option """
+        # jobParameters = .. --input=file1,file2,file3 ..
+        # -> --input=file1,file2,file3
+        # The string is later replaced with a "@file.txt" argparser directive (necessary in case the file list
+        # is too long which would lead to an "argument list too long"-error)
+
+        inputOption = ""
+
+        # define the regexp pattern for the input option extraction
+        pattern = re.compile(r'(\-\-input\=[^\s]*)')
+        _option = re.findall(pattern, jobParameters)
+        if _option != []:
+            inputOption = _option[0]
+
+        return inputOption
+
+    def updateJobParameters4Input(self, jobParameters):
+        """ Replace '--input=..' with @file argparser instruction """
+
+        inputOption = self.extractInputOption(jobParameters)
+        if inputOption == "":
+            tolog("!!WARNING!!1223!! Option --file=.. could not be extracted from: %s" % (jobParameters))
+        else:
+            tolog("Extracted input option = %s" % (inputOption))
+
+            # Put the extracted info in a file (to be automatically read by the argparser when the trf is executed)
+            filename = "input_file_list.txt"
+            try:
+                f = open(filename, "w")
+            except IOError, e:
+                tolog("!!WARNING!!1234!! Failed to open input file list: %s" % (e))
+            else:
+                f.write(inputOption)
+                f.close()
+                tolog("Wrote extracted input file list to file %s" % (filename))
+
+                jobParameters = jobParameters.replace(inputOption, "@%s" % (filename))
+                tolog("updated job parameters = %s" % (jobParameters))
+
+        return jobParameters
 
     def cleanupAthenaMP(self, workdir):
         """ Cleanup AthenaMP sud directories prior to log file creation """

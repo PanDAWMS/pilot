@@ -281,7 +281,6 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
         error = PilotErrors()
         pilotErrorDiag = ""
 
-
         # Get input parameters from pdict
         alt = pdict.get('alt', False)
         lfn = pdict.get('lfn', '')
@@ -299,7 +298,6 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
         # get the site information object
         si = getSiteInformation(experiment)
 
-        tolog("put_data received prodSourceLabel=%s" % (prodSourceLabel))
         if prodSourceLabel == 'ddm' and analysisJob:
             tolog("Treating PanDA Mover job as a production job during stage-out")
             analysisJob = False
@@ -405,8 +403,8 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             _cmd_str = '%s lcg-cp --vo atlas --verbose -b %s -U srmv2 file://%s %s' % (envsetup, timeout_option, source, full_surl)
 
         #PN
-#        if not ".log." in full_surl and not alt and not analysisJob:
-#            _cmd_str = _cmd_str.replace("lcg-cp", "lcg-cpXXX")
+        #if not ".log." in full_surl and not alt and not analysisJob:
+        #    _cmd_str = _cmd_str.replace("lcg-cp", "lcg-cpXXX")
 
         tolog("Executing command: %s" % (_cmd_str))
         ec = -1

@@ -6,6 +6,11 @@ from xml.dom import minidom
 from xml.dom.minidom import Document
 from xml.dom.minidom import parse, parseString
 
+# Initialize the configuration singleton
+import environment
+env = environment.set_environment()
+#env = Configuration()
+
 # exit code
 EC_Failed = 255
 
@@ -24,7 +29,17 @@ except:
     pass
 
 # all files that need to be copied to the workdir
-fileList = commands.getoutput('ls *.py').split()
+#fileList = commands.getoutput('ls *.py').split()
+def getFileList(dir=None):
+    try:
+	if dir is None:
+	    dir = env['pilot_initdir']
+        file_list = filter(lambda x: x.endswith('.py'), os.listdir(dir))
+        file_list.append('PILOTVERSION')
+        tolog("Copying: %s" % str(file_list))
+	return file_list
+    except KeyError:
+	return []
 
 # default pilot log files
 pilotlogFilename = "pilotlog.out"
@@ -484,9 +499,11 @@ def stageInPyModules(initdir, workdir):
 
     status = True
     ec = 0
+    tolog('initdir is %s '%initdir)
+    tolog('workdir is %s '%workdir)
 
     if workdir and initdir:
-        for k in fileList:
+        for k in getFileList():
             if os.path.isfile("%s/%s" % (initdir, k)):
                 try:
                     shutil.copy2("%s/%s" % (initdir, k), workdir)
@@ -510,9 +527,9 @@ def removePyModules(dir):
     """ Remove pilot python modules from workdir """
 
     if dir:
-        for k in fileList:
+        for k in getFileList(dir=dir):
             try:
-                os.system("rm -rf %s/%s %s/*.pyc"%(dir,k,dir))
+                os.system("rm -rf %s/%s*"%(dir,k))
             except:
                 pass
 
@@ -2069,7 +2086,7 @@ def toPandaLogger(data):
     # instantiate curl
     curl = _Curl()
     url = 'http://pandamon.cern.ch/system/loghandler'
-
+    
     curlstat, response = curl.get(url, data, os.getcwd())
     
     try:
@@ -3363,12 +3380,12 @@ def getProperTimeout(paths):
 
     return _timeout
 
-def getPilotVersion():
+def getPilotVersion(initdir):
     """ Load the pilot version string from file VERSION """
  
     version = "SULU"
     try:
-        f = open("PILOTVERSION", "r")
+        f = open(os.path.join(initdir, "PILOTVERSION"), "r")
     except Exception, e:
         print "!!WARNING!!0000!! Could not read pilot version from file: %s" % (e )
     else:
@@ -3385,6 +3402,10 @@ def getPilotVersion():
             version = _version
 
     return version
+
+# Necessary to initiate pilot version at this point, after the function declaration
+# Note: this cannot be done in environment.py due to cyclic dependence of pUtil module
+env['version'] = getPilotVersion(env['pilot_initdir'])
 
 def getExperiment(experiment):
     """ Return a reference to an experiment class """
@@ -3445,6 +3466,20 @@ def setPilotPythonVersion():
         tolog("ATLAS_PYTHON_PILOT set to %s" % (which_python))
     else:
         tolog("!!WARNING!!1111!! Could not set ATLAS_PYTHON_PILOT to %s" % (which_python))
+
+def dumpPilotInfo(version, pilot_version_tag, pilotId, jobSchedulerId, pilot_initdir, tofile=True):
+    """ Pilot info """
+
+    tolog("Panda Pilot, version %s" % (version), tofile=tofile)
+    tolog("Version tag = %s" % (pilot_version_tag))
+    tolog("PilotId = %s, jobSchedulerId = %s" % (str(pilotId), str(jobSchedulerId)), tofile=tofile)
+    tolog("Current time: %s" % (timeStamp()), tofile=tofile)
+    tolog("Run by Python %s" % (sys.version), tofile=tofile)
+    tolog("%s bit OS" % (OSBitsCheck()), tofile=tofile)
+    tolog("Pilot init dir: %s" % (pilot_initdir), tofile=tofile)
+    if tofile:
+        tolog("All output written to file: %s" % (getPilotlogFilename()))
+    tolog("Pilot executed by: %s" % (commands.getoutput("whoami")), tofile=tofile)
 
 def removePattern(_string, _pattern):
     """ Remove the regexp pattern from the given string """
@@ -3562,6 +3597,622 @@ def stripDQ2FromLFN(lfn):
 
     return lfn
 
+def fastCleanup(workdir, pilot_initdir, rmwkdir):
+    """ Cleanup the site workdir """
+
+    print "fastCleanup() called"
+
+    # return to the pilot init dir, otherwise wrapper will not find curl.config
+    chdir(pilot_initdir)
+
+    if rmwkdir or rmwkdir == None:
+        if os.path.exists(workdir):
+            try:
+                rc, rs = commands.getstatusoutput("rm -rf %s" % (workdir))
+            except Exception, e:
+                print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, str(e))
+            else:
+                if rc == 0:
+                    print "Removed site workdir: %s" % (workdir)
+                else:
+                    print "!!WARNING!!1999!! Could not remove site workdir: %s, %d, %s" % (workdir, rc, rs)
+                    s = 3*60
+                    max_attempts = 2
+                    attempt = 0
+                    while attempt < max_attempts:
+                        print "Sleeping %d seconds before trying again (re-attempt %d/%d)" % (s, attempt+1, max_attempts)
+                        time.sleep(s)
+                        try:
+                            rc, rs = commands.getstatusoutput("rm -rf %s" % (workdir))
+                        except Exception, e:
+                            print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, str(e))
+                        else:
+                            if rc == 0:
+                                print "Removed site workdir: %s" % (workdir)
+                            else:
+                                print "!!WARNING!!1999!! Could not remove site workdir: %s, %d, %s" % (workdir, rc, rs)
+                                dir_list = os.listdir(workdir)
+                                print str(dir_list)
+                                for f in dir_list:
+                                    if ".nfs" in f:
+                                        fname = os.path.join(workdir, f)
+                                        print "Found NFS lock file: %s" % (fname)
+                                        cmd = "lsof %s" % (fname)
+                                        print "Executing command: %s" % (cmd)
+                                        out = commands.getoutput(cmd)
+                                        print out
+
+                                        pid = None
+                                        pattern = re.compile('sh\s+([0-9]+)')
+                                        lines = out.split('\n')
+                                        for line in lines:
+                                            _pid = pattern.search(line)
+                                            if _pid:
+                                                pid = _pid.group(1)
+                                                break
+                                        if pid:
+                                            print "Attempting to kill pid=%s" % (pid)
+                                            cmd = "kill -9 %s" % (pid)
+                                            out = commands.getoutput(cmd)
+                                            print out
+                                cmd = 'ps -fwu %s' % (commands.getoutput("whoami"))
+                                print "%s: %s" % (cmd + '\n', commands.getoutput(cmd))
+                        attempt += 1
+        else:
+            print "Nothing to cleanup (site workdir does not exist: %s)" % (workdir)
+    else:
+        print "rmwkdir flag set to False - will not delete %s" % (workdir)
+
+    # flush buffers
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+def getStdoutDictionary(jobDic):
+    """ Create a dictionary with the tails of all running payloads """
+
+    stdout_dictionary = {}
+    number_of_lines = 20 # tail -20 filename
+
+    # loop over all parallel jobs
+    # (after multitasking was removed from the pilot, there is actually only one job)
+    for k in jobDic.keys():
+
+        jobId = jobDic[k][1].jobId
+
+        # abort if not debug mode, but save an empty entry in the dictionary
+        if jobDic[k][1].debug.lower() != "true":
+            stdout_dictionary[jobId] = ""
+            continue
+
+        # is this a multi-trf job?
+        nJobs = jobDic[k][1].jobPars.count("\n") + 1
+        for _i in range(nJobs):
+            _stdout = jobDic[k][1].stdout
+            if nJobs > 1:
+                _stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
+
+            filename = "%s/%s" % (jobDic[k][1].workdir, _stdout)
+            if os.path.exists(filename):
+                try:
+                    # get the tail
+                    cmd = "tail -%d %s" % (number_of_lines, filename)
+                    tolog("Executing command: %s" % (cmd))
+                    stdout = commands.getoutput(cmd)
+                except Exception, e:
+                    tolog("!!WARNING!!1999!! Tail command threw an exception: %s" % (e))
+                    stdout_dictionary[jobId] = "(no stdout, caught exception: %s) % (e)"
+                else:
+                    if stdout == "":
+                        tolog("!!WARNING!!1999!! Tail revealed empty stdout for file %s" % (filename))
+                        stdout_dictionary[jobId] = "(no stdout)"
+                    else:
+                        # add to tail dictionary
+                        stdout_dictionary[jobId] = stdout
+
+                # add the number of lines (later this should always be sent)
+                pattern = re.compile(r"(\d+) [\S+]")
+                cmd = "wc -l %s" % (filename)
+                try:
+                    _nlines = commands.getoutput(cmd)
+                except Exception, e:
+                    pilotErrorDiag = "wc command threw an exception: %s" % (e)
+                    tolog("!!WARNING!!1999!! %s" % (pilotErrorDiag))
+                    nlines = pilotErrorDiag
+                else:
+                    try:
+                        nlines = re.findall(pattern, _nlines)[0]
+                    except Exception, e:
+                        pilotErrorDiag = "re.findall threw an exception: %s" % (e)
+                        tolog("!!WARNING!!1999!! %s" % (pilotErrorDiag))
+                        nlines = pilotErrorDiag
+                stdout_dictionary[jobId] += "\n[%s]" % (nlines)
+            else:
+                tolog("(Skipping tail of payload stdout file (%s) since it has not been created yet)" % (_stdout))
+                stdout_dictionary[jobId] = "(stdout not available yet)"
+
+    tolog("Returning tail stdout dictionary with %d entries" % len(stdout_dictionary.keys()))
+    return stdout_dictionary
+
+def getStagingRetry(staging):
+    """ Return a proper stage-in/out retry option """
+
+    if staging == "stage-in":
+        _STAGINGRETRY = readpar("stageinretry")
+        _stagingTries = env['stageinretry'] # default value (2)
+    else:
+        _STAGINGRETRY = readpar("stageoutretry")
+        _stagingTries = env['stageoutretry'] # default value (2)
+
+    if _STAGINGRETRY != "":
+        try:
+            _stagingTries = int(_STAGINGRETRY)
+        except Exception, e:
+            tolog("!!WARNING!!1113!! Problematic %s retry number: %s, %s" % (staging, _STAGINGRETRY, e))
+        else:
+            stagingTries = _stagingTries
+            tolog("Updated %s retry number to %d" % (staging, stagingTries))
+    else:
+        stagingTries = _stagingTries
+        tolog("Updated %s retry number to %d" % (staging, stagingTries))
+
+    return stagingTries
+
+
+def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experiment, forceDownload = False, forceDevpilot = False):
+    """ handle the queuedata download and post-processing """
+
+    tolog("Processing queuedata")
+
+    # get the site information object
+    si = getSiteInformation(_experiment)
+
+    # get the experiment object
+    thisExperiment = getExperiment(_experiment)
+
+    # (re-)download the queuedata
+    ec, hasQueuedata = si.getQueuedata(_queuename, forceDownload=forceDownload)
+    if ec != 0:
+        return ec, thisSite, _jobrec, hasQueuedata
+
+    if hasQueuedata:
+        # update queuedata and thisSite if necessary
+        ec, _thisSite, _jobrec = si.postProcessQueuedata(_queuename, _pshttpurl, thisSite, _jobrec, forceDevpilot)
+        if ec != 0:
+            return error.ERR_GENERALERROR, thisSite, _jobrec, hasQueuedata
+        else:
+            thisSite = _thisSite
+
+        # should the server or the pilot do the LFC registration?
+        if readpar("lfcregister") == "server":
+            env['lfcRegistration'] = False
+            tolog("File registration will be done by server")
+
+            # special check for storm sites
+            _copytool = readpar('copytool')
+            _copytoolin = readpar('copytoolin')
+            if _copytool == "storm" and _copytoolin == "":
+                _copytool = "lcgcp2"
+                _copytoolin = "storm"
+                tolog("!!WARNING!!1112!! Found schedconfig misconfiguration: Forcing queuedata update for storm site: copytool=%s, copytoolin=%s" % (_copytool, _copytoolin))
+                ec = si.replaceQueuedataField("copytool", _copytool)
+                ec = si.replaceQueuedataField("copytoolin", _copytoolin)
+        else:
+            # since lfcregister is not set, make sure that copytool is not set to lcgcp2
+            if readpar("copytool") == "lcgcp2" or readpar("copytool") == "lcg-cp2" and readpar('region') != 'US':
+                tolog("!!FAILED!!1111!! Found schedconfig misconfiguration: Site cannot use copytool=lcgcp2 without lfcregister=server")
+                return error.ERR_GENERALERROR, thisSite, _jobrec, hasQueuedata
+
+            tolog("LFC registration will be done by pilot")
+
+        # should the number of stage-in/out retries be updated?
+        env['stageinretry'] = getStagingRetry("stage-in")
+        env['stageoutretry'] = getStagingRetry("stage-out")
+
+    # does the application directory exist?
+    ec = thisExperiment.verifySwbase(readpar('appdir'))
+    if ec != 0:
+        return ec, thisSite, _jobrec, hasQueuedata
+
+    # update experiment for Nordugrid
+    global experiment
+    if readpar('region').lower() == "nordugrid":
+        experiment = "Nordugrid-ATLAS"
+
+    # reset site.appdir
+    thisSite.appdir = readpar('appdir')
+
+    if readpar('glexec') == "True" or readpar('glexec') == "test":
+        env['glexec'] = True
+    else:
+        env['glexec'] = False
+
+    return ec, thisSite, _jobrec, hasQueuedata
+
+def postJobTask(job, thisSite, thisNode, experiment, jr=False, ra=0, stdout_tail=None):
+    """
+    update Panda server with output info (xml) and make/save the tarball of the job workdir,
+    only for finished or failed jobs.
+    jr = job recovery
+    ra = recovery attempt
+    """
+
+    # create and instantiate the job log object
+    from JobLog import JobLog
+    joblog = JobLog()
+
+    # create the log
+    joblog.postJobTask(job, thisSite, experiment, thisNode, jr=jr, ra=ra)
+
+def verifyRecoveryDir(recoveryDir):
+    """
+    make sure that the recovery directory actually exists
+    """
+
+    # does the recovery dir actually exists?
+    if recoveryDir != "":
+        if os.path.exists(recoveryDir):
+            tolog("Recovery directory exists: %s" % (recoveryDir))
+        else:
+            tolog("!!WARNING!!1190!! Recovery directory does not exist: %s (will not be used)" % (recoveryDir))
+            recoveryDir = ""
+
+    return recoveryDir
+
+def removeTestFiles(job_state_files, mode="default"):
+    """
+    temporary code for removing test files or standard job state files
+    """
+    # for mode="default", normal jobState-<jobId>.pickle files will be returned
+    # for mode="test", jobState-<jobId>-test.pickle files will be returned
+
+    new_job_state_files = []
+    if mode == "default":
+        for f in job_state_files:
+            if not "-test.pickle" in f:
+                new_job_state_files.append(f)
+    else:
+        for f in job_state_files:
+            if "-test.pickle" in f:
+                new_job_state_files.append(f)
+
+    return new_job_state_files
+
+def moveToExternal(workdir, recoveryDir):
+    """
+    move job state file(s), and remaining log/work dir(s) to an external dir for later recovery
+    also updates the job state file with the new info
+    """
+    from JobState import JobState
+
+    status = True
+
+    # make sure the recovery directory actually exists
+    recoveryDir = verifyRecoveryDir(recoveryDir)
+    if recoveryDir == "":
+        tolog("!!WARNING!!1190!! verifyRecoveryDir failed")
+        return False
+
+    tolog("Using workdir: %s, recoveryDir: %s" % (workdir, recoveryDir))
+    JS = JobState()
+
+    # grab all job state files from the workdir
+    job_state_files = glob("%s/jobState-*.pickle" % (workdir))
+
+    # purge any test job state files (testing for new job rec algorithm)
+    job_state_files = removeTestFiles(job_state_files, mode="default")
+
+    _n = len(job_state_files)
+    tolog("Number of found jobState files: %d" % (_n))
+    if _n == 0:
+        return False
+
+    for job_state_file in job_state_files:
+        # read back all job info n order to update it with the new recovery dir info
+        if JS.get(job_state_file):
+            # decode the job state info
+            _job, _site, _node, _recoveryAttempt = JS.decode()
+            _basenameSiteWorkdir = os.path.basename(_site.workdir)
+            _basenameJobWorkdir = os.path.basename(_job.workdir)
+            _basenameJobDatadir = os.path.basename(_job.datadir)
+            siteworkdir = _site.workdir
+
+            # create the site work dir on the external disk
+            externalDir = "%s/%s" % (recoveryDir, _basenameSiteWorkdir)
+            tolog("Using external dir: %s" % (externalDir))
+            # does the external dir already exist? (e.g. when $HOME is used)
+            if os.path.exists(externalDir):
+                tolog("External dir already exists")
+            else:
+                # group rw permission added as requested by LYON
+                # ec, rv = commands.getstatusoutput("mkdir -m g+rw %s" % (externalDir))
+                # 770 at the request of QMUL/Alessandra Forti?
+                ec, rv = commands.getstatusoutput("mkdir -m 770 %s" % (externalDir))
+                if ec != 0:
+                    if rv.find("changing permissions") >= 0 and rv.find("Operation not permitted") >= 0:
+                        tolog("!!WARNING!!1190!! Was not allowed to created recovery dir with g+rw")
+                        if os.path.exists(externalDir):
+                            tolog("!!WARNING!!1190!! Recovery dir was nevertheless created: %s (will continue)" % (externalDir))
+                        else:
+                            tolog("!!WARNING!!1190!! Could not create dir on external disk: %s" % (rv))
+                            return False
+                    else:
+                        tolog("!!WARNING!!1190!! Could not create dir on external disk: %s" % (rv))
+                        return False
+                else:
+                    tolog("Successfully created external dir with g+rw")
+
+            logfile = os.path.join(_site.workdir, _job.logFile)
+            logfile_copied = os.path.join(_site.workdir, "LOGFILECOPIED")
+            logfile_registered = os.path.join(_site.workdir, "LOGFILEREGISTERED")
+            metadatafile1 = "metadata-%d.xml" % _job.jobId
+            metadatafile2 = "metadata-%d.xml.PAYLOAD" % _job.jobId
+            surlDictionary = os.path.join(_site.workdir, "surlDictionary-%s.%s" % (_job.jobId, getExtension()))
+            moveDic = {"workdir" : _job.workdir, "datadir" : _job.datadir, "logfile" : logfile, "logfile_copied" : logfile_copied,
+                       "logfile_registered" : logfile_registered, "metadata1" : metadatafile1,
+                       "metadata2" : metadatafile2, "surlDictionary" : surlDictionary }
+            tolog("Using moveDic: %s" % str(moveDic))
+            failures = 0
+            successes = 0
+            for item in moveDic.keys():
+                # does the item actually exists?
+                # (e.g. the workdir should be tarred into the log and should not exist at this point)
+                if os.path.exists(moveDic[item]):
+
+                    # move the work dir to the external dir
+                    ec, rv = commands.getstatusoutput("mv %s %s" % (moveDic[item], externalDir))
+                    if ec != 0:
+                        tolog("!!WARNING!!1190!! Could not move item (%s) to external dir (%s): %s" % (moveDic[item], externalDir, rv))
+                        failures += 1
+                    else:
+                        tolog("Moved holding job item (%s) to external dir (%s)" % (moveDic[item], externalDir))
+                        successes += 1
+
+                        # set a new path for the item
+                        if item == "workdir":
+                            # probably the work dir has already been tarred
+                            _job.workdir = os.path.join(recoveryDir, _basenameJobWorkdir)
+                            tolog("Updated job workdir: %s" % (_job.workdir))
+                        elif item == "datadir":
+                            _job.datadir = os.path.join(externalDir, _basenameJobDatadir)
+                            tolog("Updated job datadir: %s" % (_job.datadir))
+                        else:
+                            tolog("(Nothing to update in job state file for %s)" % (item))
+                else:
+                    # if the log is present, there will not be a workdir
+                    tolog("Item does not exist: %s" % (moveDic[item]))
+
+                    # set a new path for the item
+                    if item == "workdir":
+                        # probably the work dir has already been tarred
+                        _job.workdir = os.path.join(recoveryDir, _basenameJobWorkdir)
+                        tolog("Updated job workdir: %s" % (_job.workdir))
+
+            # update the job state file with the new state information if any move above was successful
+            if successes > 0:
+                _site.workdir = externalDir
+                tolog("Updated site workdir: %s" % (_site.workdir))
+                _retjs = updateJobState(_job, _site, _node)
+                if not _retjs:
+                    tolog("!!WARNING!!1190!! Could not create job state file in external dir: %s" % (externalDir))
+                    tolog("!!WARNING!!1190!! updateJobState failed at critical stage")
+                    failures += 1
+                else:
+                    tolog("Created a new job state file in external dir")
+
+                    # remove the LOCKFILE since it can disturb any future recovery
+                    if os.path.exists("%s/LOCKFILE" % (siteworkdir)):
+                        ec, rv = commands.getstatusoutput("rm %s/LOCKFILE" % (siteworkdir))
+                        if ec != 0:
+                            tolog("!!WARNING!!1190!! Could not remove LOCKFILE - can disturb future recovery")
+                        else:
+                            tolog("Removed LOCKFILE from work dir: %s" % (siteworkdir))
+
+            if failures > 0:
+                tolog("!!WARNING!!1190!! Since at least one move to the external disk failed, the original work area")
+                tolog("!!WARNING!!1190!! will not be removed and should be picked up by a later pilot doing the recovery")
+                status = False
+            else:
+                tolog("All files were successfully transferred to the external recovery area")
+        else:
+            tolog("!!WARNING!!1190!! Could not open job state file: %s" % (job_state_file))
+            status = False
+
+    return status
+
+
+def cleanup(wd, initdir, wrflag, rmwkdir):
+    """ cleanup function """
+
+    tolog("Overall cleanup function is called")
+    # collect any zombie processes
+    wd.collectZombieJob(tn=10)
+    tolog("Collected zombie processes")
+
+    # get the current work dir
+    wkdir = readStringFromFile(os.path.join(initdir, "CURRENT_SITEWORKDIR"))
+
+    # is there an exit code?
+    ec = readCodeFromFile(os.path.join(wkdir, "EXITCODE"))
+
+    # is there a process id
+    pid = readCodeFromFile(os.path.join(wkdir, "PROCESSID"))
+    if pid != 0:
+        tolog("Found process id %d in PROCESSID file, will now attempt to kill all of its subprocesses" % (pid))
+        killProcesses(pid)
+
+    if rmwkdir == None or rmwkdir == False:
+
+        # in case of multi-jobs, the workdir will already be deleted
+        if os.path.exists(wkdir):
+
+            # does the job work dir contain a lock file for this job?
+            if os.path.exists("%s/LOCKFILE" % (wkdir)):
+                tolog("Lock file found: will not delete %s!" % (wkdir))
+                lockfile = True
+                try:
+                    os.system("chmod -R g+w %s" % (initdir))
+                except Exception, e:
+                    tolog("Failed to chmod pilot init dir: %s" % str(e))
+                    pass
+                else:
+                    tolog("Successfully changed permission on pilot init dir (for later pilots that may be run by different users)")
+            else:
+                lockfile = False
+
+            # remove the work dir only when there are no job state files
+            if not lockfile and rmwkdir == None:
+                tolog("Attempting to remove the pilot workdir %s now!" % (wkdir))
+                try:
+                    chdir(initdir)
+                    os.system("rm -rf %s" % (wkdir))
+                except Exception, e:
+                    tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+            else:
+                if lockfile:
+                    # check if the workdir+job state file should be moved to an external directory
+                    # check queuedata for external recovery directory
+                    recoveryDir = ""
+                    try:
+                        recoveryDir = readpar('recoverdir')
+                    except:
+                        pass
+                    else:
+                        if recoveryDir != "":
+                            if not moveToExternal(wkdir, recoveryDir):
+                                tolog("Will not cleanup work area since move to external area at least partially failed")
+                            else:
+                                # cleanup work dir unless user do not want to
+                                if rmwkdir == None:
+                                    tolog("Removing the pilot workdir %s now! " % (wkdir))
+                                    try:
+                                        chdir("/")
+                                        os.system("rm -rf %s" % (wkdir))
+                                    except Exception, e:
+                                        tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+                                try:
+                                    os.system("chmod -R g+w %s" % (recoveryDir))
+                                except Exception, e:
+                                    tolog("Failed to chmod recovery dir: %s" % str(e))
+                                    pass
+                                else:
+                                    tolog("Successfully changed permission on external recovery dir (for later pilots that may be run by different users)")
+
+                if rmwkdir == False:
+                    tolog("rmwkdir flag set to False - will not delete %s" % (wkdir))
+
+        else:
+            tolog("Work dir already deleted by multi-job loop: %s" % (wkdir))
+
+    # always remove the workdir if the rmwkdir was set at the pilot launch
+    elif rmwkdir:
+        if os.path.exists(wkdir):
+            tolog("Removing the pilot workdir %s now! " % (wkdir))
+            try:
+                chdir("/")
+                os.system("rm -rf %s" % (wkdir))
+            except Exception,e:
+                tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+        else:
+            tolog("Work dir already deleted by multi-job loop: %s" % (wkdir))
+
+    else:
+        tolog("rmwkdir flag set to False - will not delete %s" % (wkdir))
+
+    tolog("Pilot cleanup has finished")
+
+    # wait for the stdout to catch up (otherwise the full log is cut off in the batch stdout dump)
+    time.sleep(10)
+
+    # return exit code to wrapper (or caller, runMain())
+    if wrflag:
+        tolog("Done, returning %d to wrapper" % (ec))
+        # flush buffers
+        sys.stdout.flush()
+        sys.stderr.flush()
+        return ec
+    else:
+        tolog("Done, using system exit to quit")
+        # flush buffers
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0) # need to call this to clean up the socket, thread etc resources
+
+def updatePandaServer(job, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, stdout_tail=""):
+    """ Update the panda server with the latest job info """
+
+    # create and instantiate the client object
+    from PandaServerClient import PandaServerClient
+    client = PandaServerClient(pilot_version = env['version'], pilot_version_tag = env['pilot_version_tag'],
+                               pilot_initdir = env['pilot_initdir'], jobSchedulerId = env['jobSchedulerId'],
+                               pilotId = env['pilotId'], updateServer = env['updateServerFlag'],
+                               jobrec = env['jobrec'], pshttpurl = env['pshttpurl'])
+
+    # update the panda server
+    return client.updatePandaServer(job, env['thisSite'], env['workerNode'], env['psport'],
+                                    xmlstr = xmlstr, spaceReport = spaceReport, log = log, ra = ra, jr = jr,
+                                    useCoPilot = env['useCoPilot'], stdout_tail = stdout_tail)
+
+def sig2exc(sig, frm):
+    """ Signal handler """
+
+    error = PilotErrors()
+
+    errorText = "!!FAILED!!1999!! [pilot] Signal %s is caught in pilot parent process!" % str(sig)
+    tolog(errorText)
+    ec = error.ERR_KILLSIGNAL
+    # send to stderr
+    print >> sys.stderr, errorText
+
+    # here add the kill function to kill all the real jobs processes
+    for k in env['jobDic'].keys():
+        tmp = env['jobDic'][k][1].result[0]
+        if tmp != "finished" and tmp != "failed" and tmp != "holding":
+            if sig == signal.SIGTERM:
+                ec = error.ERR_SIGTERM
+            elif sig == signal.SIGQUIT:
+                ec = error.ERR_SIGQUIT
+            elif sig == signal.SIGSEGV:
+                ec = error.ERR_SIGSEGV
+            elif sig == signal.SIGXCPU:
+                ec = error.ERR_SIGXCPU
+            elif sig == signal.SIGBUS:
+                ec = error.ERR_SIGBUS
+            elif sig == signal.SIGUSR1:
+                ec = error.ERR_SIGUSR1
+            else:
+                ec = error.ERR_KILLSIGNAL
+
+            env['jobDic'][k][1].result[0] = "failed"
+            env['jobDic'][k][1].currentState = env['jobDic'][k][1].result[0]
+            # do not overwrite any previous error
+            if env['jobDic'][k][1].result[2] == 0:
+                env['jobDic'][k][1].result[2] = ec
+            if not env['logTransferred']:
+                env['jobDic'][k][1].pilotErrorDiag = "Job killed by signal %s: Signal handler has set job result to FAILED, ec = %d" %\
+                                              (str(sig), ec)
+                logMsg = "!!FAILED!!1999!! %s\n%s" % (env['jobDic'][k][1].pilotErrorDiag, env['version'])
+                tolog(logMsg)
+
+                ret, retNode = updatePandaServer(env['jobDic'][k][1], log = logMsg)
+                if ret == 0:
+                    tolog("Successfully updated panda server at %s" % timeStamp())
+            else:
+                # log should have been transferred
+                env['jobDic'][k][1].pilotErrorDiag = "Job killed by signal %s: Signal handler has set job result to FAILED, ec = %d" %\
+                                              (str(sig), ec)
+                logMsg = "!!FAILED!!1999!! %s\n%s" % (env['jobDic'][k][1].pilotErrorDiag, env['version'])
+                tolog(logMsg)
+
+            killProcesses(env['jobDic'][k][0])
+            # most of the time there is not enough time to build the log
+            # postJobTask(env['jobDic'][k][1], globalSite, globalWorkNode, env['experiment'], jr=False)
+
+    # touch a KILLED file which will be seen by the multi-job loop, to prevent further jobs from being started
+    createLockFile(False, env['globalSite'].workdir, "KILLED")
+
+    writeToFile(os.path.join(env['globalSite'].workdir, "EXITCODE"), str(ec))
+    raise SystemError(sig) # this one will trigger the cleanup function to be called
+
 def extractPattern(source, pattern):
     """ Extract 'pattern' from 'source' using a regular expression """
 
@@ -3577,3 +4228,27 @@ def extractPattern(source, pattern):
         extracted = _extracted[0]
 
     return extracted
+
+def getEventService(experiment):
+    """ Return a reference to an EventService class """
+
+    # The EventServiceFactory ensures that the returned object is a Singleton
+    # Usage:
+    #    _exp = getEventService(readpar('experiment')) # or from pilot option
+    #    if _exp:
+    #        _exp.somemethod("Hello")
+    #    else:
+    #        tolog("!!WARNING!!1111!! Failed to instantiate EventService class")
+
+    from EventServiceFactory import EventServiceFactory
+    factory = EventServiceFactory()
+    _exp = None
+
+    try:
+        eventServiceClass = factory.newEventService(experiment)
+    except Exception, e:
+        tolog("!!WARNING!!1114!! EventService factory threw an exception: %s" % (e))
+    else:
+        _exp = eventServiceClass()
+
+    return _exp

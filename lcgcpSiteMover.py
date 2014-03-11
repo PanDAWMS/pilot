@@ -459,6 +459,8 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             surl = putfile
             _cmd_str = '%s which lcg-cr; lcg-cr --version; lcg-cr --verbose --vo atlas %s -l %s -g %s -d %s file:%s' % (envsetup, timeout_option, lfclfn, guid, surl, fppfn)
         
+        # GoeGrid testing: _cmd_str = '%s which lcg-cr; lcg-cr --version; lcg-crXXX --verbose --vo atlas %s -l %s -g %s -d %s file:%s' % (envsetup, timeout_option, lfclfn, guid, surl, fppfn)
+
         tolog("Executing command: %s" % (_cmd_str))
         s = -1
         t0 = os.times()

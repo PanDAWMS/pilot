@@ -113,6 +113,7 @@ class PilotErrors:
     ERR_DAFSNOTALLOWED = 1214
     ERR_NOTCPCONNECTION = 1215
     ERR_NOPILOTTCPSERVER = 1216
+    ERR_RUNEVENTEXC = 1217
     ERR_UNKNOWN = 1220
 
     # internal error codes
@@ -233,6 +234,7 @@ class PilotErrors:
         ERR_DAFSNOTALLOWED : "Site does not allow requested direct access or file stager",
         ERR_NOTCPCONNECTION : "Failed to open TCP connection to localhost (worker node network problem)",
         ERR_NOPILOTTCPSERVER : "Pilot TCP server has died",
+        ERR_RUNEVENTEXC : "Exception caught by runEvent", 
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)"
         }
 

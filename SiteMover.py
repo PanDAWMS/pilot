@@ -435,14 +435,14 @@ class SiteMover(object):
             self.__sendReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
+        #dst_loc_pfn = os.path.join(dst_loc_sedir, filename)
+        dst_gpfn = dst_prefix + dst_loc_pfn
+
         try:
             SiteMover.mkdirWperm(os.path.dirname(dst_loc_pfn))
             #SiteMover.mkdirWperm(dst_loc_sedir)
         except Exception, e:
             tolog("!!WARNING!!2999!! Could not create dir: %s, %s" % (dst_loc_sedir, str(e)))
-
-        #dst_loc_pfn = os.path.join(dst_loc_sedir, filename)
-        dst_gpfn = dst_prefix + dst_loc_pfn
 
         if testLevel == "1":
            source = "thisisjustatest"
@@ -504,8 +504,8 @@ class SiteMover(object):
                 return SiteMover.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
 
         self.__sendReport('DONE', report)
-        return 0, pilotErrorDiag, dst_gpfn, fsize, fchecksum, ARCH_DEFAULT
-    
+        return 0, pilotErrorDiag, str(dst_gpfn), fsize, fchecksum, ARCH_DEFAULT # Eddie added str, unicode protection
+
     def getLCGPaths(self, destination, dsname, filename, lfcpath):
         """ return the proper paths for lcg-cp/cr file transfer and registration """
 
@@ -542,29 +542,29 @@ class SiteMover(object):
 
         return destination, lfcdir
 
-    def getPreDestination(self, analJob, token, prodSourceLabel):
-        """ get the pre destination (proper se[prod]path using token) """
+    def getPreDestination(self, analyJob, token, prodSourceLabel, alt=False):
+        """ get the pre destination """
 
         destination = ""
-        if not analJob:
+        if not analyJob:
             # process the destination path with getDirList since it can have a complex structure
             # as well as be a list of destination paths matching a corresponding space token
-            if prodSourceLabel == 'ddm' and readpar('seprodpath') == '':
-                sepath = readpar('sepath')
+            if prodSourceLabel == 'ddm' and readpar('seprodpath', alt=alt) == '':
+                sepath = readpar('sepath', alt=alt)
             else:
-                sepath = readpar('seprodpath')
+                sepath = readpar('seprodpath', alt=alt)
             destinationList = self.getDirList(sepath)
 
             # decide which destination path to use depending on the space token for the current file
             if token:
                 # find the proper path
-                destination = self.getMatchingDestinationPath(token, destinationList)
+                destination = self.getMatchingDestinationPath(token, destinationList, alt=alt)
                 if destination == "":
                     tolog("!!WARNING!!2990!! seprodpath not properly defined: seprodpath = %s, destinationList = %s, using sepath instead" %\
                           (sepath, str(destinationList)))
-                    sepath = readpar('sepath')
+                    sepath = readpar('sepath', alt=alt)
                     destinationList = self.getDirList(sepath)
-                    destination = self.getMatchingDestinationPath(token, destinationList)
+                    destination = self.getMatchingDestinationPath(token, destinationList, alt=alt)
                     if destination == "":
                         tolog("!!WARNING!!2990!! sepath not properly defined: sepath = %s, destinationList = %s" %\
                               (sepath, str(destinationList)))
@@ -572,13 +572,13 @@ class SiteMover(object):
                 # space tokens are not used
                 destination = destinationList[0]
         else:
-            sepath = readpar('sepath')
+            sepath = readpar('sepath', alt=alt)
             destinationList = self.getDirList(sepath)
 
             # decide which destination path to use depending on the space token for the current file
             if token:
                 # find the proper path
-                destination = self.getMatchingDestinationPath(token, destinationList)
+                destination = self.getMatchingDestinationPath(token, destinationList, alt=alt)
                 if destination == "":
                     tolog("!!WARNING!!2990!! sepath not properly defined: sepath = %s, destinationList = %s" %\
                           (sepath, str(destinationList)))
@@ -616,7 +616,7 @@ class SiteMover(object):
             pilotErrorDiag = "put_data encountered an unexpected dataset name format: %s" % (dsname)
             tolog('!!WARNING!!2990!! %s' % (pilotErrorDiag))
 
-        return 0, pilotErrorDiag, destination, lfcdir
+        return 0, pilotErrorDiag, destination, str(lfcdir) # Eddie added str, unicode protection
 
     getUserLFCDir = staticmethod(getUserLFCDir)
 
@@ -638,7 +638,7 @@ class SiteMover(object):
 
         return se_path
 
-    def getFinalLCGPaths(self, analJob, destination, dsname, filename, lfcpath, token, prodSourceLabel, scope=""):
+    def getFinalLCGPaths(self, analyJob, destination, dsname, filename, lfcpath, token, prodSourceLabel, scope="", alt=False):
         """
         set up paths differently for analysis and production jobs
         use conventional LFC paths or production jobs
@@ -652,7 +652,7 @@ class SiteMover(object):
         else:
             useRucio = False
 
-        if analJob: # for analysis jobs
+        if analyJob: # for analysis jobs
             ec, pilotErrorDiag, destination, lfcdir = self.getUserLFCDir(destination, lfcpath, dsname)
             if ec != 0:
                 return ec, pilotErrorDiag, dst_gpfn, lfcdir
@@ -670,7 +670,7 @@ class SiteMover(object):
             dst_gpfn = self.getPathFromScope(scope, filename)
 
             # correct for a potentially missing sepath
-            sepath = self.getPreDestination(analJob, token, prodSourceLabel)
+            sepath = self.getPreDestination(analyJob, token, prodSourceLabel, alt=alt)
             if not sepath in dst_gpfn:
                 dst_gpfn = os.path.join(sepath, dst_gpfn)
                 # correct for possible double rucio substring
@@ -1593,7 +1593,10 @@ class SiteMover(object):
         os.environ['LFC_HOST'] = readpar('lfchost')
         try:
             stat = lfc.lfc_filestatg()
-            rc = lfc.lfc_statg(lfn, "", stat)
+            # Eddie
+            # Make sure lfn is not unicode due to a bug in LFC libs that returns the following error:
+            # 'lfc_statg', argument 1 of type 'char const *'
+            rc = lfc.lfc_statg(str(lfn), "", stat)
         except Exception, e:
             pilotErrorDiag = "lfc function failed in addFileInfo(): %s" % str(e)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
@@ -2125,10 +2128,10 @@ class SiteMover(object):
         return True
     isProd = staticmethod(isProd)
 
-    def getLFCDir(analJob, destination, dsname, lfn):
+    def getLFCDir(analyJob, destination, dsname, lfn):
         """ setup the lfc path """
 
-        lfcpath, pilotErrorDiag = SiteMover.getLFCPath(analJob)
+        lfcpath, pilotErrorDiag = SiteMover.getLFCPath(analyJob)
         if lfcpath == "":
             return lfcpath, pilotErrorDiag
 
@@ -2137,7 +2140,7 @@ class SiteMover(object):
         # set up paths differently for analysis and production jobs
         # use conventional LFC paths or production jobs
         # use OSG style for analysis jobs (for the time being)
-        if not analJob:
+        if not analyJob:
             # return full lfc file path (beginning lfcpath might need to be replaced)
             native_lfc_path = SiteMover.to_native_lfn(dsname, lfn)
             # /grid/atlas/dq2/testpanda/testpanda.destDB.b7cd4b56-1b5e-465a-a5d7-38d5e2609724_sub01000457/
@@ -2318,8 +2321,8 @@ class SiteMover(object):
 #     where files is dictionary mapping guid to another dictionary with
 #     lfn(scope:lfn), surl. lfn is still concatenated with scope.
 
-    def registerFileInCatalog(host, analJob, destination, scope, dsname, lfn, gpfn, guid, fchecksum, fsize):
-        """ Register file in file catalog """
+    def registerFileInCatalog(host, analyJob, destination, scope, dsname, lfn, gpfn, guid, fchecksum, fsize):
+        """ Register file in catalog """
 
         error = PilotErrors()
         pilotErrorDiag = ""
@@ -2344,17 +2347,17 @@ class SiteMover(object):
         hostname = SiteMover.extractHostname(se)
         if hostname == "":
             hostname = os.getenv("LFC_HOST")
-        tolog("LFC registration using host: %s" % (hostname))
+        tolog("File registration using host: %s" % (hostname))
 
         try:
             import lfc
         except Exception, e:
-            pilotErrorDiag = "registerFile() could not import lfc module: %s (unrecoverable)" % str(e)
+            pilotErrorDiag = "registerFileInCatalog() could not import lfc module: %s (unrecoverable)" % str(e)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             return error.ERR_PUTLFCIMPORT, pilotErrorDiag
 
         # prepare for LFC registration
-        lfcdir, pilotErrorDiag = SiteMover.getLFCDir(analJob, destination, dsname, lfn)
+        lfcdir, pilotErrorDiag = SiteMover.getLFCDir(analyJob, destination, dsname, lfn)
         if lfcdir == "":
             pilotErrorDiag += " (unrecoverable)"
             return error.ERR_FAILEDLFCREG, pilotErrorDiag
@@ -2405,11 +2408,11 @@ class SiteMover(object):
         f_type = 'D'
         tolog("lfc_addreplica called with gpfn: %s, status: %s, f_type: %s" % (gpfn, status, f_type))
         try:
-            tolog("guid = %s (type=%s)" % (guid, str(type(guid))))
-            tolog("hostname = %s (type=%s)" % (hostname, str(type(hostname))))
-            tolog("gpfn = %s (type=%s)" % (gpfn, str(type(gpfn))))
-            tolog("status = %s (type=%s)" % (status, str(type(status))))
-            tolog("f_type = %s (type=%s)" % (f_type, str(type(f_type))))
+            tolog("guid = %s (type=%s)" % (guid, type(guid)))
+            tolog("hostname = %s (type=%s)" % (hostname, type(hostname)))
+            tolog("gpfn = %s (type=%s)" % (gpfn, type(gpfn)))
+            tolog("status = %s (type=%s)" % (status, type(status)))
+            tolog("f_type = %s (type=%s)" % (f_type, type(f_type)))
             exitcode = lfc.lfc_addreplica(guid, None, hostname, gpfn, status, f_type, "", "")
         except Exception, e:
             pilotErrorDiag = "lfc_addreplica threw an exception: %s (unrecoverable)" % str(e)
@@ -2440,13 +2443,13 @@ class SiteMover(object):
         return ec, pilotErrorDiag
     registerFileInCatalog = staticmethod(registerFileInCatalog)
 
-    def getLFCPath(analJob, alt=False):
+    def getLFCPath(analyJob, alt=False):
         """ return the proper schedconfig lfcpath """
 
         lfcpath = ""
         pilotErrorDiag = ""
 
-        if not analJob:
+        if not analyJob:
             lfcpath = readpar('lfcprodpath', alt=alt)
             if lfcpath == "":
                 lfcpath = readpar('lfcpath', alt=alt)
@@ -2481,13 +2484,13 @@ class SiteMover(object):
         return t
     getModTime = staticmethod(getModTime)
 
-    def getDestination(analJob, token):
+    def getDestination(analyJob, token):
         """ get the destination path """
 
         # for production jobs, the SE path is stored in seprodpath
         # for analysis jobs, the SE path is stored in sepath
         destination = ""
-        if not analJob:
+        if not analyJob:
             # process the destination path with getDirList since it can have a complex
             # structure as well as be a list of destination paths matching a corresponding
             # space token
@@ -3297,7 +3300,7 @@ class SiteMover(object):
         hash_hex = hash.hexdigest()[:6]
         return  'rucio/%s/%s/%s/%s' % (correctedscope, hash_hex[0:2], hash_hex[2:4], lfn)
 
-    def getFullPath(self, scope, spacetoken, lfn, analyJob, prodSourceLabel):
+    def getFullPath(self, scope, spacetoken, lfn, analyJob, prodSourceLabel, alt=False):
         """ Construct a full PFN using site prefix, space token, scope and LFN """
 
         # <protocol>://<hostname>:<port>/<protocol_prefix>/ + <site_prefix>/<space_token>/rucio/<scope>/md5(<scope>:<lfn>)[0:2]/md5(<scope:lfn>)[2:4]/<lfn>
@@ -3305,7 +3308,7 @@ class SiteMover(object):
         full_path = ""
 
         # Get the SE info
-        se = readpar('se').split(",")[0]
+        se = readpar('se', alt=alt).split(",")[0]
         _spacetoken, se = SiteMover.extractSE(se)
         tolog("Extracted spacetoken=%s, se=%s" % (_spacetoken, se))
 
@@ -3323,7 +3326,7 @@ class SiteMover(object):
 
         # Get the SE path from se[prod]path
         # E.g. /dpm/grid.sinica.edu.tw/home/atlas/atlasscratchdisk/
-        destination = self.getPreDestination(analyJob, spacetoken, prodSourceLabel)
+        destination = self.getPreDestination(analyJob, spacetoken, prodSourceLabel, alt=alt)
         tolog("Full path will use source/destination: %s" % (destination))
 
         # if the source/destination already has a trailing /rucio, remove it since it will be added by the scope path below
@@ -3340,3 +3343,10 @@ class SiteMover(object):
 
         return full_path
 
+    def getGlobalFilePaths(self, surl, dataset):
+        """ Get the global file paths """
+
+        # Note: this method depends on the site mover used, so should be defined there, and as virtual here
+        # (see e.g. FAXSiteMover, aria2cSiteMover for implementations)
+
+        return []

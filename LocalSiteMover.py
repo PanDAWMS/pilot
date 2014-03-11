@@ -17,8 +17,9 @@ class LocalSiteMover(SiteMover.SiteMover):
     __warningStr = '!!WARNING!!2995!! %s'
     __spacetoken = '-t %s' # space token descriptor
     __localget = '%s lsm-get %s %s %s' # environment, options, lfn, target directory
-    __localgetBAD = '%s lsm-getXXX %s %s %s' # environment, options, lfn, target directory
+#    __localget = '%s lsm-getXXX %s %s %s' # environment, options, lfn, target directory
     __localput = '%s lsm-put %s %s %s' # environment, space token (optional), source directory, destination
+    __localputBAD = '%s lsm-put %s %s %s' # environment, space token (optional), source directory, destination
     __localspace = '%s lsm-df %s %s' # environment, space token (optional), storage end-point
     __localerror = 'lsm-error %d' # error code
     __par_filesize = ' --size %s' # filesize in bytes
@@ -282,7 +283,11 @@ class LocalSiteMover(SiteMover.SiteMover):
         # add the guid option
         _params += " --guid %s" % (guid)
 
-        execStr = self.__localput % (envsetup, _params, source, dst_gpfn)
+        # PN
+        if ".log." in dst_gpfn:
+            execStr = self.__localput % (envsetup, _params, source, dst_gpfn)
+        else:
+            execStr = self.__localputBAD % (envsetup, _params, source, dst_gpfn)
         tolog("Executing command: %s" % (execStr))
         report['transferStart'] = time()
         try:

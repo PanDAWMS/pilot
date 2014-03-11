@@ -409,6 +409,49 @@ class FAXSiteMover(xrdcpSiteMover):
 
         error = PilotErrors()
 
+        # Get input parameters from pdict
+        lfn = pdict.get('lfn', '')
+        guid = pdict.get('guid', '')
+        logPath = pdict.get('logPath', '')
+
+        # get the DQ2 tracing report
+        report = self.getStubTracingReport(pdict['report'], 'fax', lfn, guid)
+        report['filesize'] = fsize
+
+        # get the DQ2 site name from ToA
+        try:
+            _dq2SiteName = self.getDQ2SiteName(surl=logPath)
+        except Exception, e:
+            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+        else:
+            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
+            tolog("DQ2 site name: %s" % (_dq2SiteName))
+
+        # setup ROOT locally
+        _setup_str = self.getLocalROOTSetup()
+
+        # is this a special log file transfer?
+        if logPath != "":
+            tolog("Special log file transfer")
+
+            cmd = "%s xrdcp -f -adler %s %s" % (_setup_str, source, logPath)
+
+            report['transferStart'] = time()
+
+            # transfer the file
+            rc, rs, pilotErrorDiag = self.copy(cmd)
+            if rc != 0:
+                self.__sendReport('COPY_FAIL', report)
+                pilotErrorDiag += " (failed to remove file) " # i.e. do not retry stage-out
+                return self.put_data_retfail(rc, pilotErrorDiag)
+            else:
+                tolog("Successfully transferred file")
+
+            pilotErrorDiag = ""
+            return 0, pilotErrorDiag, logPath, fsize, fchecksum, ARCH_DEFAULT
+
+        self.__sendReport('DONE', report)
+
         pilotErrorDiag = "Put function not implemented"
         tolog("!!FAILED!!2222!! %s" % (pilotErrorDiag))
         return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
@@ -416,6 +459,18 @@ class FAXSiteMover(xrdcpSiteMover):
     def __sendReport(self, state, report):
         tolog("Skipping sending tracing report during testing")
         pass
+
+    def __sendReport(self, state, report):
+        """
+        Send DQ2 tracing report. Set the client exit state and finish
+        """
+        if report.has_key('timeStart'):
+            # finish instrumentation
+            report['timeEnd'] = time()
+            report['clientState'] = state
+            # send report
+            tolog("Updated tracing report: %s" % str(report))
+            self.sendTrace(report)
 
 if __name__ == '__main__':
 

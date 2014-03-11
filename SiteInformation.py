@@ -7,6 +7,7 @@ import os
 import re
 import commands
 from pUtil import tolog, getExtension, replace, readpar
+from pUtil import getExperiment as getExperimentObject
 from PilotErrors import PilotErrors
 
 class SiteInformation(object):
@@ -29,7 +30,7 @@ class SiteInformation(object):
         pass
 
     def readpar(self, par, alt=False):
-        """ Read par variable from queuedata """
+        """ Read parameter variable from queuedata """
 
         value = ""
         fileName = self.getQueuedataFileName(alt=alt)
@@ -222,7 +223,7 @@ class SiteInformation(object):
                 continue
 
     def verifyQueuedata(self, queuename, filename, _i, _N, url):
-        """ Check if the downloaded queuedata has the proper format """
+        """ Verify the consistency of the queuedata """
 
         hasQueuedata = False
         try:
@@ -252,7 +253,7 @@ class SiteInformation(object):
 
         return hasQueuedata
 
-    def getQueuedata(self, queuename, forceDownload=False, alt=False, url='http://pandaserver.cern.ch'):
+    def getQueuedata(self, queuename, forceDownload=False, alt=False, url=""):
         """ Download the queuedata if not already downloaded """
 
         # Queuedata means the dump of all geometrical data for a given site. This method downloads and stores queuedata in a JSON or pickle
@@ -268,6 +269,11 @@ class SiteInformation(object):
         #         but it will not overwrite the old queuedata)
         # Returns:
         #   error code (int), status for queuedata download (boolean)
+
+        if url == "":
+            exp = getExperimentObject(self.__experiment)
+            url = exp.getPanDAServerURL()
+            tolog("Will use server url = %s" % (url))
 
         if not os.environ.has_key('PilotHomeDir'):
             os.environ['PilotHomeDir'] = commands.getoutput('pwd')
@@ -682,21 +688,30 @@ class SiteInformation(object):
             else:
                 tolog("Got plain appdir: %s" % (_appdir))
 
-        # verify the existence of appdir
-        if os.path.exists(_appdir):
-            tolog("Software directory %s exists" % (_appdir))
+        # should the software directory be verified? (at the beginning of the pilot)
+        if self.verifySoftwareDirectory():
+            # verify the existence of appdir
+            if os.path.exists(_appdir):
+                tolog("Software directory %s exists" % (_appdir))
 
-            # force queuedata update
-            _ec = self.replaceQueuedataField("appdir", _appdir)
-            del _ec
-        else:
-            if _appdir != "":
-                tolog("!!FAILED!!1999!! Software directory does not exist: %s" % (_appdir))
+                # force queuedata update
+                _ec = self.replaceQueuedataField("appdir", _appdir)
+                del _ec
             else:
-                tolog("!!FAILED!!1999!! Software directory (appdir) is not set")
-            ec = self.__error.ERR_NOSOFTWAREDIR
+                if _appdir != "":
+                    tolog("!!FAILED!!1999!! Software directory does not exist: %s" % (_appdir))
+                else:
+                    tolog("!!FAILED!!1999!! Software directory (appdir) is not set")
+                ec = self.__error.ERR_NOSOFTWAREDIR
+        else:
+            tolog("WARNING: Software directory will not be verified")
 
         return ec, _appdir
+
+    def verifySoftwareDirectory(self):
+        """ Should the software directory (schedconfig.appdir) be verified? """
+
+        return True
 
     def getExperiment(self):
         """ Return a string with the experiment name """
@@ -735,7 +750,7 @@ class SiteInformation(object):
         return sslCertificatesDirectory
 
     def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
-        """ Return proper paths for the storage element """
+        """ Return proper paths for the storage element used during stage-out """
 
         # Implement in sub-class
 

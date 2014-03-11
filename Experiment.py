@@ -16,6 +16,7 @@ from pUtil import getCmtconfig             # cmtconfig (move to subclass)
 from pUtil import getDirectAccessDic       # Get the direct access dictionary
 from pUtil import isBuildJob               # Is the current job a build job?
 from pUtil import remove                   # Used to remove redundant file before log file creation
+from pUtil import getPilotlogFilename      # Used in the subprocess arguments method
 
 class Experiment(object):
 
@@ -145,6 +146,8 @@ class Experiment(object):
         """ Implement special checks here """
         # Return False if fatal failure, otherwise return True
         # The pilot will abort if this method returns a False
+
+        # On an HPC system, it might be good to skip certain checks (e.g. CVMFS, LFC, etc). Refer to schedconfig.resourcetype, set to 'hpc' on an HPC queue
 
         status = False
 
@@ -655,3 +658,103 @@ class Experiment(object):
         #   exeError
 
         return job
+
+    def getSubprocessName(self, eventService):
+        """ Select which subprocess is to be run by the Monitor """
+
+        # The default subprocess is runJob (which performs payload setup, stage-in, payload execution and stage-out).
+        # An alternative subprocess is the runEvent module which downloads events from an Event Server, executes a payload
+        # and stages ou output files asynchronously as they are ready.
+        # Note: send the entire job object to this method since there might be other subprocesses created at a later time which
+        # will be identified by this method using some other job data member
+
+        # Default subprocess name
+        name = "runJob"
+
+        # Select alternative subprocess names depending on defined job data members
+        if eventService:
+            tolog("Encountered an event service job")
+            name = "runEvent"
+
+        tolog("Selected subprocess: %s" % (name))
+
+        return name
+
+    def getSubprocessArguments(self, env, port, subprocessName="runJob"):
+        """ Argument list needed to launch the subprocess by the pilot/Monitor """
+
+        # The pilot/Monitor is forking a subprocess which will be monitored for work dir size, hanging processes etc
+        # This method returns the arguments needed to execute the subprocess (python <subprocess name> <arguments>)
+        # By default the pilot has implementations for runJob.py (standard job) and runEvent.py (event server job)
+        # If a new subprocess module is added, it startup arguments need to be specified here
+
+        jobargs = None
+
+        # Get the environment object
+        #import environment
+        #env = environment.set_environment()
+
+        tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
+        if subprocessName == "runJob":
+            jobargs = [env['pyexe'], "runJob.py", 
+                       "-a", env['thisSite'].appdir,
+                       "-d", env['jobDic']["prod"][1].workdir,
+                       "-l", env['pilot_initdir'],
+                       "-q", env['thisSite'].dq2url,
+                       "-p", str(port),
+                       "-s", env['thisSite'].sitename,
+                       "-o", env['thisSite'].workdir,
+                       "-h", env['queuename'],
+                       "-i", env['jobDic']["prod"][1].tarFileGuid,
+                       "-b", str(env['debugLevel']),
+                       "-t", str(env['proxycheckFlag']),
+                       "-k", getPilotlogFilename(),
+                       "-x", str(env['stageinretry']),
+                       "-v", str(env['testLevel']),
+                       "-g", env['inputDir'],
+                       "-m", env['outputDir'],
+                       "-B", str(env['lfcRegistration']),
+                       "-E", str(env['stageoutretry']),
+                       "-F", env['experiment']]
+        elif subprocessName == "runEvent":
+            jobargs = [env['pyexe'], "runEvent.py", 
+                       "-a", env['thisSite'].appdir,
+                       "-d", env['jobDic']["prod"][1].workdir,
+                       "-l", env['pilot_initdir'],
+                       "-q", env['thisSite'].dq2url,
+                       "-p", str(port),
+                       "-s", env['thisSite'].sitename,
+                       "-o", env['thisSite'].workdir,
+                       "-h", env['queuename'],
+                       "-i", env['jobDic']["prod"][1].tarFileGuid,
+                       "-b", str(env['debugLevel']),
+                       "-t", str(env['proxycheckFlag']),
+                       "-k", getPilotlogFilename(),
+                       "-x", str(env['stageinretry']),
+                       "-v", str(env['testLevel']),
+                       "-g", env['inputDir'],
+                       "-m", env['outputDir'],
+                       "-B", str(env['lfcRegistration']),
+                       "-E", str(env['stageoutretry']),
+                       "-F", env['experiment']]
+        else:
+            tolog("!!WARNING!!3333!! Unknown subprocess type: %s" % (subprocessName))
+
+        return jobargs
+
+    # Optional
+    def doSpecialLogFileTransfer(self):
+        """ Should the log file be transfered to a special SE? """
+
+        # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file
+        # If this method returns True, the JobLog class will attempt to store the log file in a secondary SE after the transfer of
+        # the log to the primary/normal SE. Additional information about the secondary SE is required and can be specified in
+        # another optional method defined in the *Experiment classes
+
+        return False
+
+    # Optional
+    def getPanDAServerURL(self, protocol="http://"):
+        """ Define the URL for the PanDA server"""
+
+        return protocol + "pandaserver.cern.ch"

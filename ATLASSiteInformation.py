@@ -326,7 +326,7 @@ class ATLASSiteInformation(SiteInformation):
         tolog("LFC path = %s" % (lfcpath))
         # /grid/atlas/users/pathena
 
-        ec, pilotErrorDiag, dst_gpfn, lfcdir = sitemover.getFinalLCGPaths(analyJob, destination, dsname, filename, lfcpath, token, prodSourceLabel, scope=scope)
+        ec, pilotErrorDiag, dst_gpfn, lfcdir = sitemover.getFinalLCGPaths(analyJob, destination, dsname, filename, lfcpath, token, prodSourceLabel, scope=scope, alt=alt)
         if ec != 0:
             tracer_error = 'UNKNOWN_DSN_FORMAT'
             return ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl
@@ -336,7 +336,7 @@ class ATLASSiteInformation(SiteInformation):
 
         # Define the SURL
         if "/rucio" in destination:
-            surl = sitemover.getFullPath(scope, token, filename, analyJob, prodSourceLabel)
+            surl = sitemover.getFullPath(scope, token, filename, analyJob, prodSourceLabel, alt=alt)
         else:
             surl = "%s%s" % (se, dst_gpfn)
         tolog("SURL = %s" % (surl))
@@ -426,10 +426,12 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("status", "online")
             #ec = self.replaceQueuedataField("seprodpath", "/xrd/atlasproddisk/rucio")
             ec = self.replaceQueuedataField("allowfax", "True")
+            ec = self.replaceQueuedataField("timefloor", "60")
+            ec = self.replaceQueuedataField("copytool", "lsm")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
-            ec = self.replaceQueuedataField("seprodpath", "/xrd/atlasproddisk")
-#            ec = self.replaceQueuedataField("seprodpath", "/xrd/atlasproddisk/rucio")
-            #ec = self.replaceQueuedataField("copytool", "lsm")
+
+        #if thisSite.sitename == "GoeGrid":
+        #    ec = self.replaceQueuedataField("copytool", "lcgcp")
 
         _status = self.readpar('status')
         if _status != None and _status != "":

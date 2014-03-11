@@ -4,7 +4,7 @@ import time
 import pUtil
 
 class Job:
-    """ real job definition """
+    """ Job definition """
 
     def __init__(self):
         self.jobId = 0                     # panda job id
@@ -13,6 +13,7 @@ class Job:
         self.inFiles = None                # list of input files
         self.dispatchDblock = None         #
         self.prodDBlockToken = []          # used to send file info to the pilot (if input files should be directly accessed or not)
+        self.prodDBlockTokenForOutput = [] # used for object store info
         self.dispatchDBlockToken = []      # used to send space tokens to the pilot (for input files)
         self.dispatchDBlockTokenForOut = None # used for chirp file destination, including server name
         self.destinationDBlockToken = []   # used to send space tokens to the pilot (for output files)
@@ -89,7 +90,17 @@ class Job:
         self.scopeLog = []                 # Rucio scope for log file
         self.experiment = "undefined"      # Which experiment this job belongs to
 
-        # walltime counting for different steps
+        # event service objects
+        self.eventService = False          # True for event service jobs
+        self.eventRanges = None            # Event ranges dictionary
+#        self.eventRangeID = None           # Set for event service jobs
+#        self.startEvent = None             # Set for event service jobs
+#        self.lastEvent = None              # Set for event service jobs
+#        self.lfn = None                    # LFNs of input files to be read by the Event Server (NOT by the pilot)
+#        self.guid = None                   # GUIDs of input files to be read by the Event Server (NOT by the pilot)
+        # self.attemptNr = ""              # (defined above)
+
+        # walltime counting for various steps
         self.timeSetup = 0
         self.timeGetJob = 0
         self.timeStageIn = 0
@@ -105,8 +116,8 @@ class Job:
             _spsetup = self.spsetup
         else:
             _spsetup = "(not defined)"
-        pUtil.tolog("\nPandaID=%d\nAtlasRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s" %\
-                    (self.jobId, self.atlasRelease, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlockToken, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType))
+        pUtil.tolog("\nPandaID=%d\nAtlasRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s" %\
+                    (self.jobId, self.atlasRelease, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType))
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -182,6 +193,9 @@ class Job:
         prodDBlockToken = data.get('prodDBlockToken', '')
         self.prodDBlockToken = prodDBlockToken.split(",")
 
+        prodDBlockTokenForOutput = data.get('prodDBlockTokenForOutput', '')
+        self.prodDBlockTokenForOutput = prodDBlockTokenForOutput.split(",")
+
         dispatchDBlockToken = data.get('dispatchDBlockToken', '')
         self.dispatchDBlockToken = dispatchDBlockToken.split(",") 
 
@@ -207,6 +221,33 @@ class Job:
             self.inFilesGuids = data['GUID'].split(",")
         else:
             self.inFilesGuids = []
+
+        # Event Service variables
+        if data.has_key('eventService'):
+            if data.get('eventService', '').lower() == "true":
+                self.eventService = True
+            else:
+                self.eventService = False
+            pUtil.tolog("eventService = %s" % str(self.eventService))
+        else:
+            pUtil.tolog("Normal job (not an eventService job)")
+        if data.has_key('eventRanges'):
+            self.eventRanges = data.get('eventRanges', None)
+            pUtil.tolog("eventRanges = %s" % str(self.eventRanges))
+#        self.eventRangeID = data.get('eventRangeID', None)
+#        self.startEvent = data.get('startEvent', None)
+#        self.lastEvent = data.get('lastEvent', None)
+#        pUtil.tolog("eventRangeID = %s" % str(self.eventRangeID))
+#        pUtil.tolog("startEvent = %s" % str(self.startEvent))
+#        pUtil.tolog("lastEvent = %s" % str(self.lastEvent))
+#        if data.has_key('lfn'):
+#            self.lfn = data['lfn'].split(",")
+#        else:
+#            self.lfn = []
+#        if data.has_key('guid'):
+#            self.guid = data['guid'].split(",")
+#        else:
+#            self.guid = []
 
         # Rucio scopes
         if data.has_key('scopeIn'):

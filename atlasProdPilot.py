@@ -674,10 +674,6 @@ def getrunpars(queuedata, workdir, puser, countrygroup, allowothercountry, libco
     return runpars, jobstat
 
 def runMain(runpars):
-
-        runpars.append('-G')
-        runpars.append('5')
-
         # If things still OK, run job
         print "--- Run job script", time.strftime("%a %b %d %H:%M:%S %Y", time.gmtime(time.time()))
         sys.path.append('.')

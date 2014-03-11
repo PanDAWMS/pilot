@@ -1,15 +1,18 @@
-import os, commands
+import os
+import re
+import commands
 from time import localtime
 from glob import glob
 from shutil import copy2, rmtree
 
 import Mover as mover
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment
+from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
 from JobRecovery import JobRecovery
+from Configuration import Configuration
 
 class JobLog:
     """
@@ -17,67 +20,12 @@ class JobLog:
     """
 
     # private data members
-    __error = PilotErrors() # PilotErrors object
-    __pilot_version_tag = ""
-    __pilot_initdir = ""
-    __jobSchedulerId = ""
-    __pilotId = ""
-    __updateServer = True
-    __jobrec = False
-    __pshttpurl = ""
-    __errorLabel = "WARNING"
-    __testLevel = "0"
-    __proxycheckFlag = True
-    __outputDir = ""
-    __psport = 25443
-    __lfcRegistration = True
-    __jobIds = None
-    __logFileDir = ""
-    __useCoPilot = False
-    __stageoutTries = 2
-    __stdout_tail = ""
+    __error = PilotErrors()   # PilotErrors object
 
-    def __init__(self, \
-                 pilot_version="", \
-                 pilot_version_tag="", \
-                 pilot_initdir="", \
-                 jobSchedulerId=None, \
-                 pilotId=None, \
-                 updateServer=True, \
-                 jobrec=False, \
-                 pshttpurl="", \
-                 testLevel="0", \
-                 proxycheckFlag=True, \
-                 outputDir="", \
-                 psport=25443, \
-                 lfcreg=True, \
-                 jobIds=None, \
-                 logFileDir="", \
-                 errorLabel="WARNING", \
-                 useCoPilot=False, \
-                 stageoutTries=2, \
-                 stdout_tail=""):
+    def __init__(self):
         """ Default initialization """
 
-        self.__pilot_version_tag = pilot_version_tag
-        self.__pilot_initdir = pilot_initdir
-        self.__jobSchedulerId = jobSchedulerId
-        self.__pilotId = pilotId
-        self.__updateServer = updateServer
-        self.__jobrec = jobrec
-        self.__pshttpurl = pshttpurl
-        self.__pilot_version = pilot_version
-        self.__testLevel = testLevel
-        self.__proxycheckFlag = proxycheckFlag
-        self.__outputDir = outputDir
-        self.__psport = psport
-        self.__lfcRegistration = lfcreg
-        self.__jobIds = jobIds
-        self.__logFileDir = logFileDir
-        self.__errorLabel = errorLabel
-        self.__useCoPilot = useCoPilot
-        self.__stageoutTries = stageoutTries
-        self.__stdout_tail = stdout_tail
+        self.__env = Configuration()
 
     def getLogFileGuid(self, tarFileGuid, logFile, jobId, workdir):
         """ return the proper log file guid """
@@ -139,8 +87,57 @@ class JobLog:
             tolog("Removed directory: %s" % (_dir))
 
     def transferLogFile(self, job, site, experiment, dq2url=None, dest=None, jr=False):
+        """ """
+        
+        status = True
+
+        # transfer log file to special log SE (CERN via xrdcp)
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+        if site.sitename == "GoeGrid":
+            s = True
+        else:
+            s = False
+        s = False
+        if s: #thisExperiment.doSpecialLogFileTransfer():
+            tolog("Preparing for log file transfer to special SE")
+
+            # get the site information object
+            si = getSiteInformation(experiment)
+
+            # first backup some schedconfig fields that need to be modified for the secondary transfer
+            copytool_org = readpar('copytool')
+
+            # temporarily modify the schedconfig fields with values for the secondary SE
+            tolog("Temporarily modifying queuedata for log file transfer to secondary SE")
+            ec = si.replaceQueuedataField("copytool", "fax")
+
+            # do log transfer
+            tolog("Attempting log file transfer to special SE")
+            ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr, specialTransfer=True)
+            if not ret:
+                tolog("!!%s!!1600!! Could not transfer log file to primary SE" % (self.__env['errorLabel']))
+                status = False
+
+            # finally restore the modified schedconfig fields
+            tolog("Restoring queuedata fields")
+            ec = si.replaceQueuedataField("copytool", copytool_org)
+
+        else:
+            tolog("Special log file transfer not required")
+
+        # register/copy log file
+        tolog("Attempting log file transfer to primary SE")
+        ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr)
+        if not ret:
+            tolog("!!%s!!1600!! Could not transfer log file to primary SE" % (self.__env['errorLabel']))
+            status = False
+
+        return status, job
+
+    def transferActualLogFile(self, job, site, experiment, dq2url=None, dest=None, jr=False, specialTransfer=False):
         """
-        save log tarball into DDM and register it to catalog, or copy it to 'dest'.
+        Save log tarball in DDM and register it to catalog, or copy it to 'dest'.
         the job recovery will use the current site info known by the current
         pilot and will override the old jobs' site.dq2url in case the dq2url
         has been updated
@@ -151,10 +148,11 @@ class JobLog:
         N_filesNormalStageOut = 0
         N_filesAltStageOut = 0
 
-        if not self.__jobrec:
-            self.__errorLabel = "FAILED"
+        if not self.__env['jobrec']:
+            self.__env['errorLabel'] = "FAILED"
 
-        if isLogfileCopied(site.workdir):
+        # only check for performed log transfer for normal stage-out (not for any special transfers)
+        if isLogfileCopied(site.workdir) and not specialTransfer:
             tolog("Log file already transferred")
             return status, job
 
@@ -189,166 +187,181 @@ class JobLog:
         # the cmtconfig is needed by at least the xrdcp site mover
         cmtconfig = getCmtconfig(job.cmtconfig)
 
-        # for backwards compatibility
-        try:
-            experiment = job.experiment
-        except:
-            experiment = "unknown"
-
-        # create the xml needed for the registration
+        # create the xml needed for the registration if it doesn't exist already (for a secondary log transfer)
         WDTxml = "%s.xml" % (job.newDirNM)
-        try:
-            guids_status = PFCxml(experiment, WDTxml, fntag="pfn", alog=job.logFile, alogguid=job.tarFileGuid, jr=jr)
-        except Exception, e:
-            # update the current file state
-            updateFileState(job.logFile, site.workdir, job.jobId, mode="file_state", state="not_transferred")
-            tolog("!!WARNING!!1500!! Could not generate xml for log file: %s" % str(e))
-            status = False
+        if not os.path.exists(WDTxml):
+            guids_status = PFCxml(job.experiment, WDTxml, fntag="pfn", alog=job.logFile, alogguid=job.tarFileGuid, jr=jr)
         else:
-            dblock = job.logDblock
-            if dblock and dblock != 'NULL' and dblock != ' ':
-                dsname = dblock
+            tolog("Log XML already exists: %s" % (WDTxml))
+
+        dblock = job.logDblock
+        if dblock and dblock != 'NULL' and dblock != ' ':
+            dsname = dblock
+        else:
+            dsname = "%s-%s-%s" % (localtime()[0:3]) # pass it a random name
+        rmflag = 1
+        ec = 0
+        _state = ""
+        _msg = ""
+        latereg = False
+
+        # determine the file path for special log transfers
+        if specialTransfer:
+            logPath = self.getLogPath(str(job.jobId), job.logFile)
+            tolog("Special log transfer: %s" % (logPath))
+        else:
+            logPath = ""
+
+        try:
+            rc, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (WDTxml),
+                                                                  dsname,
+                                                                  site.sitename,
+                                                                  ub = dq2url,
+                                                                  analysisJob = analyJob,
+                                                                  scopeLog = job.scopeLog,
+                                                                  testLevel = self.__env['testLevel'],
+                                                                  proxycheck = self.__env['proxycheckFlag'],
+                                                                  spsetup = job.spsetup,
+                                                                  token = job.destinationDBlockToken,
+                                                                  pinitdir = self.__env['pilot_initdir'],
+                                                                  datasetDict = None,
+                                                                  prodSourceLabel = job.prodSourceLabel,
+                                                                  outputDir = self.__env['outputDir'],
+                                                                  jobId = job.jobId,
+                                                                  jobWorkDir = job.workdir,
+                                                                  DN = job.prodUserID,
+                                                                  logFile = job.logFile,
+                                                                  jobCloud = job.cloud,
+                                                                  dispatchDBlockTokenForOut = job.dispatchDBlockTokenForOut,
+                                                                  lfcreg = self.__env['lfcRegistration'],
+                                                                  stageoutTries = self.__env['stageoutretry'],
+                                                                  cmtconfig = cmtconfig,
+                                                                  recoveryWorkDir = site.workdir,
+                                                                  experiment = job.experiment,
+                                                                  fileDestinationSE = job.fileDestinationSE,
+                                                                  logPath = logPath)
+        except Exception, e:
+            rmflag = 0 # don't remove the tarball
+            status = False
+            import traceback
+            if 'format_exc' in traceback.__all__:
+                trace = traceback.format_exc()
+                pilotErrorDiag = "Exception caught when saving the log tarball: %s, %s" % (str(e), trace)
             else:
-                dsname = "%s-%s-%s" % (localtime()[0:3]) # pass it a random name
-            tolog("dblock = %s" % (dblock))
-            tolog("dsname = %s" % (dsname))
-            rmflag = 1
-            ec = 0
-            _state = ""
-            _msg = ""
-            latereg = False
-    
-            try:
-                rc, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (WDTxml),\
-                                                                  dsname, site.sitename, ub=dq2url, analysisJob=analyJob, scopeLog=job.scopeLog,\
-                                                                  testLevel=self.__testLevel, proxycheck=self.__proxycheckFlag, spsetup=job.spsetup,\
-                                                                  token=job.destinationDBlockToken, pinitdir=self.__pilot_initdir, datasetDict=None,\
-                                                                  prodSourceLabel=job.prodSourceLabel, outputDir=self.__outputDir, jobId=job.jobId,\
-                                                                  jobWorkDir=job.workdir, DN=job.prodUserID, logFile=job.logFile, jobCloud=job.cloud,\
-                                                                  dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, lfcreg=self.__lfcRegistration,\
-                                                                  stageoutTries=self.__stageoutTries, cmtconfig=cmtconfig, recoveryWorkDir=site.workdir,\
-                                                                  experiment=experiment, fileDestinationSE=job.fileDestinationSE)
-            except Exception, e:
+                tolog("traceback.format_exc() not available in this python version")
+                pilotErrorDiag = "Exception caught when saving the log tarball: %s" % (str(e))
+            tolog("!!%s!!1500!! %s" % (self.__env['errorLabel'], pilotErrorDiag))
+        else:
+            tolog("mover_put_data finished with EC = %s" % str(rc))
+
+            # update transfer numbers in case alt stage-out has been used
+            if N_filesAltStageOut > 0:
+                job.filesNormalStageOut += N_filesNormalStageOut # only reported to jobMetrics in case of alt stage-out
+                job.filesAltStageOut += N_filesAltStageOut
+                tolog("Updated stage-out numbers:")
+                tolog("..filesNormalStageOut = %d" % (job.filesNormalStageOut))
+                tolog(".....filesAltStageOut = %d" % (job.filesAltStageOut))
+
+            if rc != 0:
                 rmflag = 0 # don't remove the tarball
-                status = False
-                import traceback
-                if 'format_exc' in traceback.__all__:
-                    trace = traceback.format_exc()
-                    pilotErrorDiag = "Exception caught when saving the log tarball: %s, %s" % (str(e), trace)
+                job.result[0] = "holding"
+
+                # remove any trailing "\r" or "\n" (there can be two of them)
+                if rs != None:
+                    rs = rs.rstrip()
+                    tolog("Error string: %s" % (rs))
+
+                # is the job recoverable?
+                if self.__error.isRecoverableErrorCode(rc):
+                    _state = "holding"
+                    _msg = "WARNING"
                 else:
-                    tolog("traceback.format_exc() not available in this python version")
-                    pilotErrorDiag = "Exception caught when saving the log tarball: %s" % (str(e))
-                tolog("!!%s!!1500!! %s" % (self.__errorLabel, pilotErrorDiag))
+                    _state = "failed"
+                    _msg = self.__env['errorLabel']
+
+                # look for special error in the error string
+                if rs == "Error: string Limit exceeded 250":
+                    tolog("!!%s!!3000!! Put error: file name string limit exceeded 250" % (_msg))
+                    ec = self.__error.ERR_LRCREGSTRSIZE
+                else:
+                    ec = rc
+
             else:
-                tolog("mover_put_data finished with EC = %s" % str(rc))
+                # create a weak lock file for the log transfer (but not for any special transfer, ie the log transfer to the special/secondary log area)
+                if not specialTransfer:
+                    createLockFile(self.__env['jobrec'], site.workdir, lockfile="LOGFILECOPIED")
 
-                # update transfer numbers in case alt stage-out has been used
-                if N_filesAltStageOut > 0:
-                    job.filesNormalStageOut += N_filesNormalStageOut # only reported to jobMetrics in case of alt stage-out
-                    job.filesAltStageOut += N_filesAltStageOut
-                    tolog("Updated stage-out numbers:")
-                    tolog("..filesNormalStageOut = %d" % (job.filesNormalStageOut))
-                    tolog(".....filesAltStageOut = %d" % (job.filesAltStageOut))
+                # file transfer worked, now register the output files in the LRC
+                ub = site.dq2url
+                lfchost = readpar('lfchost')
+                islogfile = True
 
-                if rc != 0:
-                    rmflag = 0 # don't remove the tarball
-                    job.result[0] = "holding"
-    
-                    # remove any trailing "\r" or "\n" (there can be two of them)
-                    if rs != None:
-                        rs = rs.rstrip()
-                        tolog("Error string: %s" % (rs))
-
-                    # is the job recoverable?
-                    if self.__error.isRecoverableErrorCode(rc):
-                        _state = "holding"
-                        _msg = "WARNING"
-                    else:
-                        _state = "failed"
-                        _msg = self.__errorLabel
-
-                    # look for special error in the error string
-                    if rs == "Error: string Limit exceeded 250":
-                        tolog("!!%s!!3000!! Put error: file name string limit exceeded 250" % (_msg))
-                        ec = self.__error.ERR_LRCREGSTRSIZE
-                    else:
-                        ec = rc
-
-                else:
-                    # create a weak lock file for the log transfer
-                    createLockFile(self.__jobrec, site.workdir, lockfile="LOGFILECOPIED")
-
-                    # file transfer worked, now register the output files in the LRC
-                    ub = site.dq2url
-                    lfchost = readpar('lfchost')
-                    islogfile = True
-
-                    if ub != "None" and ub != None and ub != "" and lfchost == "": # ub is 'None' outside the US
-                        # Perform the LRC file registration
-                        from FileRegistration import FileRegistration
-                        filereg = FileRegistration()
-                        ec, pilotErrorDiag, _state, _msg, latereg = filereg.registerFilesLRC(ub, rf, islogfile, self.__jobrec, site.workdir, self.__errorLabel)
-                        if ec != 0:
-                            job.result[0] = _state
-                        else:
-                            # update the current file state
-                            updateFileState(job.logFile, site.workdir, job.jobId, mode="reg_state", state="registered")
-                            dumpFileStates(site.workdir, job.jobId)
-                    else:
-                        if lfchost != "":
-                            tolog("No LRC file registration since lfchost is set")
-                        else:
-                            tolog("No LRC file registration since dq2url is not set")
-
-                # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
-                if job.result[2] == 0:
-                    job.result[2] = ec
-                    job.pilotErrorDiag = pilotErrorDiag
-                else:
-                    # there was a previous error
+                if ub != "None" and ub != None and ub != "" and lfchost == "": # ub is 'None' outside the US
+                    # Perform the LRC file registration
+                    from FileRegistration import FileRegistration
+                    filereg = FileRegistration()
+                    ec, pilotErrorDiag, _state, _msg, latereg = filereg.registerFilesLRC(ub, rf, islogfile, self.__env['jobrec'], site.workdir, self.__env['errorLabel'])
                     if ec != 0:
-                        # is the new log transfer error of the same type as the earlier error?
-                        if ec == job.result[2]:
-                            tolog("!!WARNING!!1105!! Previous error same as new error: %d" % (ec))
-                        else:
-                            tolog("!!WARNING!!1105!! Previous error (%d) will not be overwritten by the new error (%d)" % (job.result[2], ec))
-                        # ignore holding state for log transfer if previous earlier error was a get error
-                        if job.result[0] == "holding" and not self.__error.isRecoverableErrorCode(job.result[2]):
-                            tolog("!!WARNING!!1105!! Resetting HOLDING to FAILED since the previous error is not recoverable")
-                            job.result[0] = "failed"
+                        job.result[0] = _state
+                    else:
+                        # update the current file state
+                        updateFileState(job.logFile, site.workdir, job.jobId, mode="reg_state", state="registered")
+                        dumpFileStates(site.workdir, job.jobId)
+                else:
+                    if lfchost != "":
+                        tolog("No LRC file registration since lfchost is set")
+                    else:
+                        tolog("No LRC file registration since dq2url is not set")
 
-            # in case the log file could not be registered, store the relevant info in the job state file
-            if latereg:
-                job.log_latereg = "True"
-                job.log_field = rf
+            # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
+            if job.result[2] == 0:
+                job.result[2] = ec
+                job.pilotErrorDiag = pilotErrorDiag
             else:
-                job.log_latereg = "False"
-                job.log_field = None
+                # there was a previous error
+                if ec != 0:
+                    # is the new log transfer error of the same type as the earlier error?
+                    if ec == job.result[2]:
+                        tolog("!!WARNING!!1105!! Previous error same as new error: %d" % (ec))
+                    else:
+                        tolog("!!WARNING!!1105!! Previous error (%d) will not be overwritten by the new error (%d)" % (job.result[2], ec))
+                    # ignore holding state for log transfer if previous earlier error was a get error
+                    if job.result[0] == "holding" and not self.__error.isRecoverableErrorCode(job.result[2]):
+                        tolog("!!WARNING!!1105!! Resetting HOLDING to FAILED since the previous error is not recoverable")
+                        job.result[0] = "failed"
 
-            # tarball is saved to DDM successfully, so remove everything except the log file which might
-            # still be needed (for creating metadata for failed jobs)
-            if rmflag == 1:
+        # in case the log file could not be registered, store the relevant info in the job state file
+        if latereg:
+            job.log_latereg = "True"
+            job.log_field = rf
+        else:
+            job.log_latereg = "False"
+            job.log_field = None
+
+        # tarball is saved to DDM successfully, so remove everything except the log file which might
+        # still be needed (for creating metadata for failed jobs)
+        if rmflag == 1:
+            if os.path.isdir(job.newDirNM):
+                self.removeTree(job.newDirNM)
+            try:
+                os.remove(WDTxml)
+            except Exception, e:
+                tolog("!!WARNING!!1500!! Could not remove %s: %s" % (WDTxml, str(e)))
+                #status = False
+            else:
+                tolog("%s removed" % (WDTxml))
+        elif rmflag == 0: # something bad happened during put, save the tarball on worker node for further debugging
+            if job.result[0] == 'holding':
+                tolog("Will leave log file %s for later recovery" % (job.logFile))
+                status = False
                 if os.path.isdir(job.newDirNM):
                     self.removeTree(job.newDirNM)
-                try:
-                    os.remove(WDTxml)
-                except Exception, e:
-                    tolog("!!WARNING!!1500!! Could not remove %s: %s" % (WDTxml, str(e)))
-                    #status = False
-                else:
-                    tolog("%s removed" % (WDTxml))
-            elif rmflag == 0: # something bad happened during put, save the tarball on worker node for further debugging
-                if job.result[0] == 'holding':
-                    tolog("Will leave log file %s for later recovery" % (job.logFile))
-                    status = False
-                    if os.path.isdir(job.newDirNM):
-                        self.removeTree(job.newDirNM)
-            elif os.path.isdir(job.workdir) and (not job.logFile or job.logFile == ''):
-                try:
-                    rmtree(job.workdir)
-                except Exception, e:
-                    tolog("!!WARNING!!1500!! Could not remove %s: %s" % (job.workdir, str(e)))
-                    pass
+        elif os.path.isdir(job.workdir) and (not job.logFile or job.logFile == ''):
+            try:
+                rmtree(job.workdir)
+            except Exception, e:
+                tolog("!!WARNING!!1500!! Could not remove %s: %s" % (job.workdir, str(e)))
+                pass
 
         # do not overwrite any existing pilotErrorDiag (from a get operation e.g.)
         if job.pilotErrorDiag != "" and job.pilotErrorDiag != None:
@@ -650,11 +663,11 @@ class JobLog:
                 # (actually it can be transferred with the mv site mover just like it is done for CERNVM, skip for now)
                 if readpar('region') == 'Nordugrid':
                     try:
-                        copy2(fname, self.__pilot_initdir)
+                        copy2(fname, self.__env['pilot_initdir'])
                     except Exception, e:
                         tolog("!!WARNING!!1600!! Exception caught: Could not copy NG metadata file to init dir: %s" % str(e))
                     else:
-                        tolog("Successfully copied NG metadata file to pilot init dir: %s" % (self.__pilot_initdir))
+                        tolog("Successfully copied NG metadata file to pilot init dir: %s" % (self.__env['pilot_initdir']))
             else:
                 tolog("updateMetadata returned: %d" % (ec))
 
@@ -692,11 +705,11 @@ class JobLog:
             tolog("Failed to write log extracts to file: %s" % str(e))
         else:
             try:
-                copy2(fname, self.__pilot_initdir)
+                copy2(fname, self.__env['pilot_initdir'])
             except Exception, e:
                 tolog("!!WARNING!!1600!! Exception caught: Could not copy log extracts file to init dir for NG: %s" % str(e))
             else:
-                tolog("Successfully copied log extracts file to pilot init dir for NG: %s" % (self.__pilot_initdir))
+                tolog("Successfully copied log extracts file to pilot init dir for NG: %s" % (self.__env['pilot_initdir']))
 
     def transferAdditionalCERNVMFiles(self, job, site, experiment):
         """ Transfer additional files for CERNVM """
@@ -730,7 +743,7 @@ class JobLog:
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
         # removes any work directory after the LSF job finishes which of course makes job recovery impossible)
-        if not self.__jobrec:
+        if not self.__env['jobrec']:
             if job.result[0] == 'holding':
                 job.result[0] = 'failed'
                 tolog("This site does not support job recovery: HOLDING state reset to FAILED")
@@ -776,7 +789,7 @@ class JobLog:
 
             if not jr:
                 # Make the job summary report
-                makeJobReport(job, logMsg, foundCoreDump, self.__pilot_version, self.__jobIds)
+                makeJobReport(job, logMsg, foundCoreDump, self.__env['version'], self.__env['jobIds'])
 
             # overwrite any pilotErrorDiag at this point with exeErrorDiag if set
             # (for the job page error info)
@@ -806,7 +819,7 @@ class JobLog:
             tolog("Preparing to create log file")
     
             # protect the work dir until the log has been registered
-            createLockFile(self.__jobrec, site.workdir)
+            createLockFile(self.__env['jobrec'], site.workdir)
             # create log file and register it
             if not self.createLogFile(job):
                 tolog("!!WARNING!!1600!! Could not create log file")
@@ -830,9 +843,9 @@ class JobLog:
                     _retjs = JR.updateJobStateTest(job, site, workerNode, mode="test")
     
                 # register/copy log file
-                ret, job = self.transferLogFile(job, site, experiment, dest=self.__logFileDir, jr=jr)
+                ret, job = self.transferLogFile(job, site, experiment, dest=self.__env['logFileDir'], jr=jr)
                 if not ret:
-                    tolog("!!%s!!1600!! Could not transfer log file" % (self.__errorLabel))
+                    tolog("!!%s!!1600!! Could not transfer log file" % (self.__env['errorLabel']))
                     job.result[0] = "holding"
                 else:
                     # the log file has been created and transferred, so it's now safe to remove the lock file
@@ -847,7 +860,7 @@ class JobLog:
                 # transfer additional files for CERNVM (below, after the final server update which update the job state file with the metadata XML)
                 # note: only needed in CoPilot mode
                 fname = os.path.join(site.workdir, job.outputFilesXML)
-                if os.path.exists(fname) and ("CERNVM" in site.sitename and self.__useCoPilot):
+                if os.path.exists(fname) and ("CERNVM" in site.sitename and self.__env['useCoPilot']):
                     transferAdditional = True
 
                 # update the job state file
@@ -868,7 +881,7 @@ class JobLog:
         # update the SURLs info
         if strXML and strXML != "":
             tolog("Updating metadata XML with SURLs prior to PanDA server update")
-            strXML = updateXMLWithSURLs(experiment, strXML, site.workdir, job.jobId, self.__jobrec) # do not use format 'NG' here (even for NG)
+            strXML = updateXMLWithSURLs(experiment, strXML, site.workdir, job.jobId, self.__env['jobrec']) # do not use format 'NG' here (even for NG)
             tolog("Updated XML:\n%s" % (strXML))
 
             # replace the metadata-<jobId>.xml file
@@ -886,9 +899,13 @@ class JobLog:
             expSpecificMetadata = ""
 
         # update panda server
-        ret, retNode = self.updatePandaServer(job, site, workerNode, self.__psport, xmlstr=strXML, log=logMsg, ra=ra, jr=jr,\
-                                              schedulerID=self.__jobSchedulerId, pilotID=self.__pilotId, updateServer=self.__updateServer,\
-                                              stdout_tail=self.__stdout_tail, additionalMetadata=expSpecificMetadata)
+        ret, retNode = self.updatePandaServer(job, site, workerNode, self.__env['psport'],
+                                              xmlstr = strXML, log = logMsg, ra = ra, jr = jr,
+                                              schedulerID = self.__env['jobSchedulerId'],
+                                              pilotID = self.__env['pilotId'],
+                                              updateServer = self.__env['updateServerFlag'],
+                                              stdout_tail = self.__env['stdout_tail'],
+                                              additionalMetadata = expSpecificMetadata)
         if ret == 0:
             tolog("Successfully updated panda server at %s" % timeStamp())
 
@@ -920,7 +937,7 @@ class JobLog:
             # and properly updates the job status
 
             # create a weak lock file to prevent cleanup from deleting the work directory
-            createLockFile(self.__jobrec, site.workdir)
+            createLockFile(self.__env['jobrec'], site.workdir)
 
             if retNode:
                 # store the metadata xml
@@ -945,22 +962,27 @@ class JobLog:
         else:
             tolog("No available log extracts")
 
-    def updatePandaServer(self, job, site, workerNode, port, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, schedulerID=None, pilotID=None, updateServer=True, stdout_tail="", additionalMetadata=None):
+    def updatePandaServer(self, job, site, workerNode, port, xmlstr = None, spaceReport = False,
+                          log = None, ra = 0, jr = False, schedulerID = None, pilotID = None,
+                          updateServer = True, stdout_tail = "", additionalMetadata = None):
         """ Update the PanDA server """
 
         # create and instantiate the client object
         from PandaServerClient import PandaServerClient
-        client = PandaServerClient(pilot_version=self.__pilot_version, \
-                                   pilot_version_tag=self.__pilot_version_tag, \
-                                   pilot_initdir=self.__pilot_initdir, \
-                                   jobSchedulerId=self.__jobSchedulerId, \
-                                   pilotId=self.__pilotId, \
-                                   updateServer=self.__updateServer, \
-                                   jobrec=self.__jobrec, \
-                                   pshttpurl=self.__pshttpurl)
+        client = PandaServerClient(pilot_version = self.__env['version'],
+                                   pilot_version_tag = self.__env['pilot_version_tag'],
+                                   pilot_initdir = self.__env['pilot_initdir'],
+                                   jobSchedulerId = self.__env['jobSchedulerId'],
+                                   pilotId = self.__env['pilotId'],
+                                   updateServer = self.__env['updateServerFlag'],
+                                   jobrec = self.__env['jobrec'],
+                                   pshttpurl = self.__env['pshttpurl'])
 
         # update the panda server
-        return client.updatePandaServer(job, site, workerNode, port, xmlstr=xmlstr, spaceReport=spaceReport, log=log, ra=ra, jr=jr, useCoPilot=self.__useCoPilot, stdout_tail=stdout_tail, additionalMetadata=additionalMetadata)
+        return client.updatePandaServer(job, site, workerNode, port,
+                                        xmlstr = xmlstr, spaceReport = spaceReport, log = log, ra = ra, jr = jr,
+                                        useCoPilot = self.__env['useCoPilot'],
+                                        stdout_tail = stdout_tail, additionalMetadata = additionalMetadata)
 
     def transferAdditionalFile(self, job, site, experiment, fileName):
         """
@@ -1022,15 +1044,27 @@ class JobLog:
             _state = ""
             _msg = ""
             try:
-                ec, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (filename_xml),\
-                                                                  dsname, site.sitename, analysisJob=analyJob,\
-                                                                  testLevel=self.__testLevel, proxycheck=self.__proxycheckFlag, spsetup=job.spsetup,\
-                                                                  token=job.destinationDBlockToken, pinitdir=self.__pilot_initdir, datasetDict=None,\
-                                                                  prodSourceLabel=job.prodSourceLabel, outputDir=self.__outputDir, jobId=job.jobId,\
-                                                                  jobWorkDir=job.workdir, DN=job.prodUserID, jobCloud=job.cloud, logFile=job.logFile,\
-                                                                  dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, lfcreg=self.__lfcRegistration,\
-                                                                  stageoutTries=self.__stageoutTries, cmtconfig=cmtconfig, experiment=experiment,\
-                                                                  fileDestinationSE=job.fileDestinationSE)
+                ec, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (filename_xml),
+                                                                  dsname, site.sitename, analysisJob = analyJob,
+                                                                  testLevel = self.__env['testLevel'],
+                                                                  proxycheck = self.__env['proxycheckFlag'],
+                                                                  spsetup = job.spsetup,
+                                                                  token = job.destinationDBlockToken,
+                                                                  pinitdir = self.__env['pilot_initdir'],
+                                                                  datasetDict = None,
+                                                                  prodSourceLabel = job.prodSourceLabel,
+                                                                  outputDir = self.__env['outputDir'],
+                                                                  jobId = job.jobId,
+                                                                  jobWorkDir = job.workdir,
+                                                                  DN = job.prodUserID,
+                                                                  jobCloud = job.cloud,
+                                                                  logFile = job.logFile,
+                                                                  dispatchDBlockTokenForOut = job.dispatchDBlockTokenForOut,
+                                                                  lfcreg = self.__env['lfcRegistration'],
+                                                                  stageoutTries = self.__env['stageoutTries'],
+                                                                  cmtconfig = cmtconfig,
+                                                                  experiment = experiment,
+                                                                  fileDestinationSE = job.fileDestinationSE)
             except Exception, e:
                 status = False
                 import traceback
@@ -1040,7 +1074,7 @@ class JobLog:
                 else:
                     tolog("traceback.format_exc() not available in this python version")
                     pilotErrorDiag = "Exception caught when saving the log tarball: %s" % (str(e))
-                tolog("!!%s!!1500!! %s" % (self.__errorLabel, pilotErrorDiag))
+                tolog("!!%s!!1500!! %s" % (self.__env['errorLabel'], pilotErrorDiag))
             else:
                 tolog("mover_put_data finished with EC = %s" % str(ec))
                 if ec != 0:
@@ -1057,7 +1091,7 @@ class JobLog:
                         _msg = "WARNING"
                     else:
                         _state = "failed"
-                        _msg = self.__errorLabel
+                        _msg = self.__env['errorLabel']
                 else:
                     updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="file_state", state="transferred")
                     if site.sitename != "CERNVM":
@@ -1123,7 +1157,7 @@ class JobLog:
         # try to remove the lock file
         # do not bother if the site doesn't allow for job recovery
         f = "%s/%s" % (workdir, lockfile)
-        if self.__jobrec:
+        if self.__env['jobrec']:
             try:
                 os.remove(f)
             except Exception, e:
@@ -1133,3 +1167,72 @@ class JobLog:
                     tolog("Lock file removed (job work dir will be removed)")
                 else:
                     tolog("Lock file removed: %s" % (f))
+
+    def constructPathFromJobid(self, jobId):
+        """ Split a jobId into sub directories """
+
+        # Used by getLogPath() to generate subdirectories from a job id for the full path for PanDA job logs (centrally stored)
+        # E.g. 1838566890 -> 18/38/56/68/90
+
+        # Handle odd length strings
+        if len(jobId)%2 != 0:
+            # save the last character and add it separately below
+            last_char = jobId[-1]
+        else:
+            last_char = ""
+
+        # Create a list of sub directories, e.g. ['18', '38', '56', '68', '90']
+        sub_dirs = re.findall('(\d\d)', jobId)
+
+        if sub_dirs != "":
+            # Add the last char to the list, if any
+            if last_char != "":
+                sub_dirs.append(last_char)
+
+            # '18/38/56/68/90'
+            path = '/'.join(sub_dirs)
+        else:
+            tolog("!!WARNING!!4444!! Sub directories could not be created for jobId=%s" % (jobId))
+
+        return path
+
+    def getLogPath(self, jobId, logFile, primary=True):
+        """ Get the standard path for PanDA job logs """
+
+        # This path determines where the log will be transferred to.
+        # The host and base path is read from schedconfig, and can be a ,-separated list.
+        # If the "primary"-boolean is True, the first location will be selected. False means the second location, if any
+        # In case there is only one host defined in the schedconfig.logPath, primary=False is meaningless (abort).
+
+        # Standard path
+        # logPaths = readpar('logPath')
+        # logPaths = "root://eos.cern.ch/atlas/logs,dav://bnldav.cern.ch/atlas/logs"
+        # logPaths = "root://eosatlas.cern.ch/atlas/logs"
+        logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
+
+        # Handle multiple paths (primary and secondary log paths)
+        if "," in logPaths:
+            _logPaths = logPaths.split(",")
+            if primary:
+                _logPath = _logPaths[0]
+            else:
+                _logPath = _logPaths[1]
+        else:
+            if primary:
+                _logPath = logPaths
+            else:
+                tolog("No secondary log path is defined")
+                _logPath = ""
+    
+        # Create the full path
+        if _logPath != "":
+            # Use the job id to generate sub directories
+            path = self.constructPathFromJobid(jobId)
+
+            # Put it all together
+            logPath = os.path.join(_logPath, os.path.join(path, logFile))
+        else:
+            logPath = ""
+
+        return logPath
+
