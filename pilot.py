@@ -2378,6 +2378,15 @@ def runMain(runpars):
         env['workerNode'] = Node.Node()
         env['workerNode'].setNodeName(getProperNodeName(os.uname()[1]))
 
+        # PN
+        try:
+            import yampl
+        except Exception, e:
+            pUtil.tolog("!!WARNING!!1122!! Caught exception: %s" % (e))
+            pUtil.tolog("Failed to import yampl!")
+        else:
+            pUtil.tolog("Successfully import yampl!")
+
         # collect WN info .........................................................................................
         # do not include the basename in the path since it has not been created yet
         # i.e. remove Panda_Pilot* from the workdir path

@@ -1,63 +1,54 @@
 import yampl
 import signal
-import threading
-from time import sleep
-from pUtil import tolog
+#from pUtil import tolog
 
-class PilotYamplServer(threading.Thread):
+def tolog(s): print s
+
+class PilotYamplServer(object):
     """ Yampl server used to send yampl messages from runEvent to AthenaMP """
 
-    def __init__(self, name='PilotYamplServer'):
+    def __init__(self, name='PilotYamplServer', socketname='EventService_EventRanges', context='local'):
         """ Constructor, setting initial variables """
 
         self.srv = None
         self.receivedMessage = ""
         self.sendMessage = ""
 
-        #
+        # Default signals
         signal.signal(signal.SIGINT, signal.SIG_DFL)
 
         # Create the server socket
         try:
-            self.srv = yampl.ServerSocket("service", "local_pipe")
+            self.srv = yampl.ServerSocket(socketname, context)
         except Exception, e:
             tolog("!!WARNING!!2222!! Could not create Yampl server socket")
         else:
             tolog("Created a Yampl server socket")
 
-            self._stopevent = threading.Event() 
-            threading.Thread.__init__(self, name=name)
+    def alive(self):
+        """ Is the server alive? """
 
-    def run(self):
-        """ Main control loop """
-
-        tolog("%s starts" % str((self.getName(),)))
-        while not self._stopevent.isSet():
-            # Will wait until a message has been received
-            self.receivedMessage = self.receive()
-
-    def join(self, timeout=None):
-        """ Stop the thread and wait for it to end. """
-
-        tolog("Join called on thread %s" % self.getName())
-        self._stopevent.set() # signal thread to stop
-        threading.Thread.join(self, timeout) # wait until the thread terminates or timeout occurs
+        if self.srv:
+            return True
+        else:
+            return False
 
     def send(self, message):
         """ Send a yampl message """
 
-        self.srv.send(message)
+        if self.alive():
+            self.srv.send_raw(message)
+        else:
+            tolog("!!WARNING!!2221!! Yampl server not available (not created) - cannot send Yampl message")
 
     def receive(self):
         """ Receive a yampl message """
 
-        size, buf = self.srv.recv()
-        return buf
+        if self.alive():
+            size, buf = self.srv.try_recv_raw()
+        else:
+            tolog("!!WARNING!!2221!! Yampl server not available (not created) - cannot receive any Yampl messages")
+            buf = ""
+            size = 0
 
-    def getReceivedMessage():
-        """ """
-
-        return self.receivedMessage
-
-# yamplthread = PilotYamplServer()
-# yamplthread.start()
+        return size, buf

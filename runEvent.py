@@ -46,6 +46,27 @@ experiment = "ATLAS"               # Current experiment (can be set with pilot o
 event_loop_running = False         #
 output_file_dictionary = {}
 
+yampl_received_message = ""
+yampl_server = None
+yampl_context = "local"
+yampl_thread = None
+athenamp_is_ready = False
+stageout_queue = []
+stageout_thread = None
+
+class StoppableThread(threading.Thread):
+    """ Thread class with a stop() method. The thread itself has to check regularly for the stopped() condition """
+
+    def __init__(self, target=None, name='StoppableThread'):
+        threading.Thread.__init__(self, target=target, name=name)
+        self._stop = threading.Event()
+
+    def stop(self):
+        self._stop.set()
+
+    def stopped(self):
+        return self._stop.isSet()
+
 def usage():
     """
     usage: python runEvent.py -s <sitename> -d <workdir> -a <appdir> -l <pilotinitdir> -w <url> -p <port> -q <dq2url> -g <inputdir> -m <outputdir> -o <pworkdir> -i <guid> -b <debuglevel> -k <pilotlogfilename> -x <stageintries> -v <testlevel> -t <proxycheckflag> -B <lfcRegistration> -E <stageouttries -F <experiment>
@@ -802,7 +823,7 @@ def stageOut(job, jobSite, outs, pilot_initdir, testLevel, analysisJob, dsname, 
 
     return rc, job, rf, latereg
 
-def asynchronousOutputStager():
+def asynchronousOutputStagerOld():
     print threading.currentThread().getName(), 'Starting'
 
     from os import listdir
@@ -859,6 +880,12 @@ def asynchronousOutputStager():
             # ..
 
     print threading.currentThread().getName(), 'Exiting'
+
+def asynchronousOutputStager():
+    """ """
+
+    pass
+
 
 # main process starts here
 if __name__ == "__main__":
@@ -960,8 +987,6 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(job.trf.split(",")[0])
 
         # stage-in .........................................................................................
-
-        # note: only files like DBRelease will be staged in, no data files
 
         # update the job state file
         job.jobState = "stagein"

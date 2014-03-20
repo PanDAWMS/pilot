@@ -303,6 +303,8 @@ def getReplicaDictionaryFromRucio(lfn_dict, scope_dict, host):
 
     tolog("surl_guid_dictionary=%s"%str(surl_guid_dictionary))
 
+    # DO NOT RETURN HERE IF THERE IS AT LEAST ONE VERIFIED REPLICA, CONTINUE LOOP BELOW TO CREATE
+    # THE replicas_dic WHICH SHOULD BE REUSED IN THE NEXT ITERATION OVER CATALOG HOSTS, FAX CASE
     # verify the rucio replica dictionary
     pilotErrorDiag = verifySURLGUIDDictionary(surl_guid_dictionary)
     if pilotErrorDiag != "":

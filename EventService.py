@@ -11,6 +11,7 @@
 import os
 import re
 import commands
+from subprocess import Popen
 
 from PilotErrors import PilotErrors
 from pUtil import tolog                    # Dump to pilot log
@@ -126,22 +127,33 @@ class EventService(object):
 
         return event_range
 
-def createPFC4TRF(pfc_name, guidfname):
-    """ Create PFC to be used by trf/runAthena """
+    def createPFC4TRF(self, pfc_name, guidfname):
+        """ Create PFC to be used by trf/runAthena """
 
-    # First create a SURL based PFC then convert to TURL based?
+        # First create a SURL based PFC then convert to TURL based?
 
-    tolog("Creating %s" % (pfc_name))
+        tolog("Creating %s" % (pfc_name))
 
-    # get the PFC from the proper source
-    ec, pilotErrorDiag, _xml_from_PFC, _xml_source, replicas_dic = \
-        getPoolFileCatalog(lfchost, ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
-                               DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
-                               sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
+        # get the PFC from the proper source
+        ec, pilotErrorDiag, _xml_from_PFC, _xml_source, replicas_dic = \
+            getPoolFileCatalog(lfchost, ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
+                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
+                                   sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
 
+        return ec, pilotErrorDiag, replicas_dic
 
+    def getSubprocess(self, cmd):
+        """ Execute and return a subprocess """
 
-    return ec, pilotErrorDiag, replicas_dic
+        try:
+            tolog("Executing command: %s" % (cmd))
+            process = Popen(cmd, shell=True)
+        except Exception, e:
+            tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
+        else:
+            tolog("Subprocess is running")
+
+        return process
 
 if __name__ == "__main__":
 
