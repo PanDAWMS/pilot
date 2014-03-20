@@ -2441,6 +2441,16 @@ class ATLASExperiment(Experiment):
                         tolog("Cleaning up %s" % (path))
                         os.unlink(path)
 
+    def getJobExecutionCommand4EventService(self, pilot_initdir):
+        """ Define and test the command(s) that will be used to execute the payload for the event service """
+        # E.g. cmd = ["source <path>/setup.sh; <path>/python <script>"]
+        # The command returned from this method is executed using subprocess.Popen() from the runEvent module
+
+        # The actual command must be declared as a list since that is expected by Popen()
+        cmd = ["python %s/client_test.py 1>AthenaMP_stdout.txt 2>AthenaMP_stderr.txt" % (pilot_initdir)]
+
+        return cmd
+
 if __name__ == "__main__":
 
     a=ATLASExperiment()

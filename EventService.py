@@ -11,7 +11,6 @@
 import os
 import re
 import commands
-from subprocess import Popen
 
 from PilotErrors import PilotErrors
 from pUtil import tolog                    # Dump to pilot log
@@ -141,19 +140,6 @@ class EventService(object):
                                    sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
 
         return ec, pilotErrorDiag, replicas_dic
-
-    def getSubprocess(self, cmd):
-        """ Execute and return a subprocess """
-
-        try:
-            tolog("Executing command: %s" % (cmd))
-            process = Popen(cmd, shell=True)
-        except Exception, e:
-            tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
-        else:
-            tolog("Subprocess is running")
-
-        return process
 
 if __name__ == "__main__":
 

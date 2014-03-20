@@ -8,6 +8,7 @@
 import os
 import re
 import commands
+from subprocess import Popen
 
 from PilotErrors import PilotErrors
 from pUtil import tolog                    # Dump to pilot log
@@ -41,7 +42,7 @@ class Experiment(object):
 
     def getJobExecutionCommand(self):
         """ Define and test the command(s) that will be used to execute the payload """
-        # E.g. cmd = "source <path>/setup.sh; <path>/python "
+        # E.g. cmd = "source <path>/setup.sh; <path>/python <script>"
 
         cmd = ""
 
@@ -758,3 +759,32 @@ class Experiment(object):
         """ Define the URL for the PanDA server"""
 
         return protocol + "pandaserver.cern.ch"
+
+    # Optional
+    def getSubprocess(self, cmd):
+        """ Execute and return a subprocess """
+
+        process = None
+        try:
+            tolog("Executing command: %s" % (cmd))
+            process = Popen(cmd, shell=True)
+        except Exception, e:
+            tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
+        else:
+            tolog("Subprocess is running")
+
+        return process
+
+    # Optional
+    def getJobExecutionCommand4EventService(self):
+        """ Define and test the command(s) that will be used to execute the payload for the event service """
+        # E.g. cmd = ["source <path>/setup.sh; <path>/python <script>"]
+        # The command returned from this method is executed using subprocess.Popen() from the runEvent module
+
+        # Note: this optional method only need to be defined in case the event service is to be used
+        # As of March 2014, this is not yet functional or documented.
+
+        # The actual command must be declared as a list since that is expected by Popen()
+        cmd = [""]
+
+        return cmd

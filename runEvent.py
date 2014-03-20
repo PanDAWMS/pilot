@@ -8,21 +8,29 @@
 # Execute runEvent module like this:
 # > python runEvent.py ..
 
-import os, sys, commands, getopt, time
-import traceback
-import atexit, signal
+import os
+import sys
+import time
 import stat
-import threading
-import Site, pUtil, Job, Node, RunJobUtilities
+import getopt
+import atexit
+import signal
+import commands
+import traceback
+from shutil import copy2
+
+import Job
+import Node
+import Site
+import pUtil
+import RunJobUtilities
 import Mover as mover
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getAtlasRelease, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, addToJobSetupScript, processDBRelease, getCmtconfig, getExtension, getExperiment, getEventService
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
-from ProxyGuard import ProxyGuard
-from shutil import copy2
+from StoppableThread import StoppableThread
+from PilotYamplServer import PilotYamplServer
 
 # global variables
 pilotserver = "localhost"          # default server
@@ -46,26 +54,12 @@ experiment = "ATLAS"               # Current experiment (can be set with pilot o
 event_loop_running = False         #
 output_file_dictionary = {}
 
-yampl_received_message = ""
 yampl_server = None
-yampl_context = "local"
 yampl_thread = None
 athenamp_is_ready = False
 stageout_queue = []
-stageout_thread = None
-
-class StoppableThread(threading.Thread):
-    """ Thread class with a stop() method. The thread itself has to check regularly for the stopped() condition """
-
-    def __init__(self, target=None, name='StoppableThread'):
-        threading.Thread.__init__(self, target=target, name=name)
-        self._stop = threading.Event()
-
-    def stop(self):
-        self._stop.set()
-
-    def stopped(self):
-        return self._stop.isSet()
+asyncOutputStager_thread = None
+output_area = "" # REMOVE LATER
 
 def usage():
     """
@@ -824,7 +818,6 @@ def stageOut(job, jobSite, outs, pilot_initdir, testLevel, analysisJob, dsname, 
     return rc, job, rf, latereg
 
 def asynchronousOutputStagerOld():
-    print threading.currentThread().getName(), 'Starting'
 
     from os import listdir
     from os.path import isfile, join
@@ -879,13 +872,151 @@ def asynchronousOutputStagerOld():
             tolog("File %s was not staged out, move to recovery directory")
             # ..
 
-    print threading.currentThread().getName(), 'Exiting'
-
 def asynchronousOutputStager():
-    """ """
+    """ Transfer output files to stage-out area asynchronously """
 
-    pass
+    # Note: this is run as a thread
 
+    while not asyncOutputStager_thread.stopped():
+
+        if len(stageout_queue) > 0:
+            for f in stageout_queue:
+                tolog("Will transfer file %s to %s" % (f, output_area))
+                cmd = "mv %s %s" % (f, output_area)
+                try:
+                    process = Popen(cmd, shell=True)
+                    stdout, stderr = process.communicate()
+                except Exception, e:
+                    tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
+                else:
+                    tolog("Transfer has finished (removing %s from queue)" % (f))
+                    stageout_queue.remove(f)
+
+        time.sleep(1)
+
+def yamplListener():
+    """ Listen for yampl messages """
+
+    # Note: this is run as a thread
+
+    global athenamp_is_ready
+
+    # Listen for messages as long as the thread is not stopped
+    while not yampl_thread.stopped():
+
+        try:
+            # Receive a message
+            tolog("Are there any new messages?")
+            size, buf = yampl_server.receive()
+            while size == -1 and not yampl_thread.stopped():
+                time.sleep(1)
+                size, buf = yampl_server.receive()
+            tolog("Server received: %s" % buf)
+
+            # Interpret the message and take the appropriate action
+            if buf == "Ready for events":
+                tolog("AthenaMP is ready for events")
+                athenamp_is_ready = True
+
+            elif buf.startswith('/'):
+                tolog("Received a filename from client:%s" % (buf))
+
+                if buf not in stageout_queue:
+                    stageout_queue.append(buf)
+                    tolog("File %s has been added to the stage-out queue" % (buf))
+
+            else:
+                tolog("Pilot received message:%s" % buf)
+        except Exception,e:
+            tolog("Caught exception:%s" % e)
+        time.sleep(1)
+
+    tolog("yamplListener has finished")
+
+def getTokenExtractorProcess(thisExperiment, input_tag_file):
+    """ Execute the TokenExtractor """
+
+    cmd = "TokenExtractor -src PFN:%s" % (input_tag_file)
+
+    # Execute and return the TokenExtractor subprocess object
+    return thisExperiment.getSubprocess(cmd)
+
+def getAthenaMPProcess(thisExperiment, pilot_initdir):
+    """ Execute AthenaMP """
+
+    # Execute and return the AthenaMP subprocess object
+    return thisExperiment.getSubprocess(thisExperiment.getJobExecutionCommand4EventService(pilot_initdir))
+
+def createYamplServer():
+    """ Create the yampl server socket object """
+
+    global yampl_server
+    status = False
+
+    # Create the server socket
+    yampl_server = PilotYamplServer(socketname='EventService_EventRanges', context='local')
+
+    # is the server alive?
+    if not yampl_server.alive():
+        # destroy the object
+        yampl_server = None
+    else:
+        status = True
+
+    return status
+
+def getTAGFile(inFiles):
+    """ Extract the TAG file from the input files list """
+
+    # Note: assume that there is only one TAG file
+    tag_file = ""
+    for f in inFiles:
+        if ".TAG." in f:
+            tag_file = f
+            break
+
+    return tag_file
+
+def sendYamplMessage(message):
+    """ Send a yampl message """
+
+    yampl_server.send(message)
+    tolog("Sent %s" % message)
+
+# TEST VERSION
+def downloadNewEventRange(n):
+    """ Download an event range from the Event Server """
+
+    # Return the server response (instruction to AthenaMP)
+    tolog("Server: Downloading new event range..")
+    time.sleep(3)
+    if n < 1:
+        tolog("Server: Done")
+        message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]%d" % (n)
+    else:
+        tolog("Server: No more events")
+        message = "No more events"
+
+    return message
+
+# REMOVE AFTER TESTING
+def createSEDir():
+    """ Create a dir to represent the SE """
+    # The pilot will stage-out files to this directory
+
+    d = os.path.join(os.getcwd(), "output_area")
+    if not os.path.exists(d):
+        os.makedirs(d)
+
+    return d
+
+# REMOVE AFTER TESTING
+def setOutputArea():
+    """ Set the global output area """
+
+    global output_area
+    output_area = createSEDir()
+    tolog("Files will be transferred to %s" % (output_area))
 
 # main process starts here
 if __name__ == "__main__":
@@ -986,6 +1117,21 @@ if __name__ == "__main__":
         # see if it's an analysis job or not
         analysisJob = isAnalysisJob(job.trf.split(",")[0])
 
+
+
+        # REMOVE AFTER TESTING
+        # Create the output area (files received from the client will be transferred here)
+        setOutputArea()
+
+
+        # Create a yampl server object (global yampl_server)
+        if createYamplServer():
+            tolog("The Yampl server is alive")
+        else:
+            pilotErrorDiag = "The Yampl server could not be created, cannot continue"
+            tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
+            failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
+
         # stage-in .........................................................................................
 
         # update the job state file
@@ -1025,50 +1171,128 @@ if __name__ == "__main__":
         event_loop_running = True
         payload_running = False
 
-        # start stage-out thread which will run in an infinite loop until it is stopped (when event_loop_running is set to False)
-        asyncOutputStager_thread = threading.Thread(name='asynchronousOutputStager', target=asynchronousOutputStager)
+        # Create and start the stage-out thread which will run in an infinite loop until it is stopped
+        asyncOutputStager_thread = StoppableThread(name='asynchronousOutputStager', target=asynchronousOutputStager)
         asyncOutputStager_thread.start()
 
-        # prepare to launch AthenaMP (will not start until later; at that time set payload_running=True)
-        executePayload_thread = threading.Thread(name='payload', target=executePayload)
-        executePayload_thread.start()
+        # Create and start the yampl listener thread
+        yampl_thread = StoppableThread(name='yamplListener', target=yamplListener)
+        yampl_thread.start()
+
+        # Create and start the TokenExtractor
+        input_tag_file = getTAGFile(job.inFiles)
+        # input_tag_file = "EVNT.545023._000041.TAG.pool.root.2"
+        if input_tag_file != "":
+            tolog("Will run TokenExtractor on file %s" % (input_tag_file))
+            #tokenExtractorProcess = getTokenExtractorProcess(thisExperiment, input_tag_file)
+        else:
+            pilotErrorDiag = "Required TAG file could not be identified in input file list"
+            tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
+
+            # stop threads
+            # ..
+
+            failJob(0, job.result[2], job, pilotserver, pilotport, ins=ins, pilotErrorDiag=pilotErrorDiag)
+
+        # Create and start the AthenaMP process
+        athenaMPProcess = getAthenaMPProcess(thisExperiment, pilot_initdir)
 
         # Main loop ........................................................................................
 
-        # Run main loop until event_loop_running is set to False
-        while event_loop_running:
+        # nonsense counter used to get different "event server" message using the downloadNewEventRange() function
+        n = 0
+        while True:
+            tolog("Monitoring loop")
 
-            # Ask event server for more events using the event range downloaded with the PanDA job by the pilot
-            if thisEventService.getEvents(job):
+            # if the AthenaMP workers are ready for event processing, download an event range
+            # the boolean will be set to true in the yamplListener after the "Ready for events" message is received from the client
+            if athenamp_is_ready:
+                # Pilot will download an event range from the Event Server
 
-                # Prepare the setup and get the run command list
+                # Download events
+                message = downloadNewEventRange(n)
 
-                # Set up the invocation and execution of the athenaMP payload initialization step
+                # Pass the server response to AthenaMP
+                sendYamplMessage(message)
 
-                # Set up POOL catalog file creation for event type jobs (include in previous step)
-                if thisEventService.createPFC4Event():
+                # Set the boolean to false until AthenaMP is again ready for processing more events
+                athenamp_is_ready = False
 
-                    # Start the payload
-                    payload_running = True
-                    time.sleep(10) # Wait until the payload process has seen that payload_running is set
+                # the event server has no more events, break the loop and quit
+                if message == "No more events":
+                    tolog("Server: Finished")
 
-                    # Execute payload (process events)
-                    thisEventService.processEvents()
+                    # wait for the subprocess to finish
+                    tolog("Waiting for subprocess to finish")
 
-                    # Implement the communication from pilot to PanDA/JEDI to inform PanDA of completed events:
-                    # status of completion and transmission to aggregation point, retry number (include in previous step)
-                    thisEventService.updatePandaServer()
-                else:
-                    pass
+                    if athenaMPProcess.poll() is None:
+                        tolog("Subprocess has already finished")
+                    else:
+                        tolog("Subprocess has not finished yet")
+
+                        # add some code here for waiting until the subprocess has finished                                                                                                                                         
+
+                    tolog("Ok")
+                    break
+
+                n += 1
 
             else:
-                # if no more events, quit
-                event_loop_running = False
-                tolog("No more events")
+                time.sleep(5)
 
-                # no more events, wait for the staging thread to finish
-                asyncOutputStager_thread.join()
-                tolog("Asynchronous output stager thread has finished")
+
+        tolog("Stopping yampl thread")
+        yampl_thread.stop()
+        # do not stop the stageout thread until all output files have been transferred
+        while len (stageout_queue) > 0:
+            tolog("stage-out queue: %s" % (stageout_queue))
+            time.sleep(1)
+        tolog("Stopping stage-out thread")
+        asyncOutputStager_thread.stop()
+        tolog("Joining threads")
+        yampl_thread.join()
+        asyncOutputStager_thread.join()
+
+    tolog("Done")
+
+
+
+
+
+#        # Run main loop until event_loop_running is set to False
+#        while event_loop_running:
+#
+#            # Ask event server for more events using the event range downloaded with the PanDA job by the pilot
+#            if thisEventService.getEvents(job):
+#
+#                # Prepare the setup and get the run command list
+#
+#                # Set up the invocation and execution of the athenaMP payload initialization step
+#
+#                # Set up POOL catalog file creation for event type jobs (include in previous step)
+#                if thisEventService.createPFC4Event():
+#
+#                    # Start the payload
+#                    payload_running = True
+#                    time.sleep(10) # Wait until the payload process has seen that payload_running is set
+#
+#                    # Execute payload (process events)
+#                    thisEventService.processEvents()
+#
+#                    # Implement the communication from pilot to PanDA/JEDI to inform PanDA of completed events:
+#                    # status of completion and transmission to aggregation point, retry number (include in previous step)
+#                    thisEventService.updatePandaServer()
+#                else:
+#                    pass
+#
+#            else:
+#                # if no more events, quit
+#                event_loop_running = False
+#                tolog("No more events")
+#
+#                # no more events, wait for the staging thread to finish
+#                asyncOutputStager_thread.join()
+#                tolog("Asynchronous output stager thread has finished")
 
         # wrap up ..........................................................................................
 

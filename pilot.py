@@ -2177,6 +2177,19 @@ def getNewJob(tofile=True):
         pUtil.tolog("Adding prodSourceLabel to job def data: %s" % (prodSourceLabel))
         data['prodSourceLabel'] = prodSourceLabel
 
+    # update the copytoolin if transferType is set to fax/xrd
+    if data.has_key('transferType'):
+        if data['transferType'] == 'fax' or data['transferType']== 'xrd':
+            if pUtil.readpar('faxredirector') != "":
+                pUtil.tolog("Encountered transferType=%s, will use FAX site mover for stage-in" % (data['transferType']))
+                ec = env['si'].replaceQueuedataField("copytoolin", "fax")
+                ec = env['si'].replaceQueuedataField("allowfax", "True")
+                ec = env['si'].replaceQueuedataField("timefloor", "")
+            else:
+                pilotErrorDiag = "Cannot switch to FAX site mover for transferType=%s since faxredirector is not set" % (data['transferType'])
+                pUtil.tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
+                return None, pilotErrorDiag
+
     # look for special commands in the job parameters (can be set by HammerCloud jobs; --overwriteQueuedata, --disableFAX)
     # if present, queuedata needs to be updated (as well as jobParameters - special commands need to be removed from the string)
     data['jobPars'] = env['si'].updateQueuedataFromJobParameters(data['jobPars'])
@@ -2223,12 +2236,12 @@ def getNewJob(tofile=True):
 
     # Eddie: try to get user proxy from data['userproxy']                                                                                                                           
     if data.has_key('userProxy'):
-            pUtil.tolog('Retrieving userproxy from panda-server')
-            env['userProxy'] = data['userProxy']
+        pUtil.tolog('Retrieving userproxy from panda-server')
+        env['userProxy'] = data['userProxy']
     else:
-            pUtil.tolog('no user proxy in data')
-            # Eddie: what do we do when there is no user proxy? Do we use the proxy that started the pilot?                                                                         
-            env['userProxy'] = ''
+        pUtil.tolog('no user proxy in data')
+        # Eddie: what do we do when there is no user proxy? Do we use the proxy that started the pilot?                                                                         
+        env['userProxy'] = ''
  
     return newJob, ""
 
@@ -2509,11 +2522,6 @@ def runMain(runpars):
             else:
                 env['isJobDownloaded'] = True
                 pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))            
-
-                # store the pilot_initdir in a file and place it in the jobs' workdir, where it will be used by environment.py
-                pUtil.tolog("job.workdir=%s" % str(env['job'].workdir))
-                pUtil.tolog("initdir=%s" % (env['pilot_initdir']))
-                #storePilotInitdir(env['job'].workdir, env['pilot_initdir'])
 
             pUtil.tolog('glexec is: %s' % str(env['glexec']))
             if env['glexec'] == False:

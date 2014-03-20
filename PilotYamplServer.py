@@ -1,8 +1,6 @@
 import yampl
 import signal
-#from pUtil import tolog
-
-def tolog(s): print s
+from pUtil import tolog
 
 class PilotYamplServer(object):
     """ Yampl server used to send yampl messages from runEvent to AthenaMP """

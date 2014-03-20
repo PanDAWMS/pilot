@@ -148,10 +148,13 @@ Cleared argument url in getQueuedata() definition (SiteInformation)
 Importing getExperiment as getExperimentObject from pUtil (SiteInformation)
 Using getExperimentObject in getQueuedata() (SiteInformation)
 Renamed my_proxy_utils to glexec_utils (glexec_utils, pilot)
+Created getSubprocess() which creates and returns a process started with Popen() (Experiment)
+Created getJobExecutionCommand4EventService() (Experiment, ATLASExperiment)
+Switching to FAX site mover for transferType xrd/fax in getNewJob() (pilot)
 
 ------------------------------------------------------
 
-Add to distribution:
+Added to distribution:
 CHANGES                : This file
 Configuration.py       : Singleton dictionary that can be read from JSON file
 CustomEncoder.py       : Convert configuration object to JSON
@@ -165,6 +168,7 @@ processes.py           : Process handling
 runEvent.py            : Subprocess module for Event Service use
 EventServiceFactory.py : Factory for generating Event Service objects that can be experiment specific
 EventService.py        : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
-PilotYamplServer       :
+PilotYamplServer.py    : Yampl server class used by runEvent
+StoppableThread.py     : Threading class for threads that need a stop() method
 
 Add new error code to DB
