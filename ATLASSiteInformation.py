@@ -430,8 +430,20 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("copytool", "lsm")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
 
-        #if thisSite.sitename == "GoeGrid":
+        if thisSite.sitename == "RAL-LCG2_MCORE":
+            ec = self.replaceQueuedataField("copyprefix", "srm://srm-atlas.gridpp.rl.ac.uk^root://catlasdlf.ads.rl.ac.uk/")
+
+        if thisSite.sitename == "CERN-PROD":
+            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+
+        if thisSite.sitename == "GoeGrid":
+            ec = self.replaceQueuedataField("status", "online")
         #    ec = self.replaceQueuedataField("copytool", "lcgcp")
+        if thisSite.sitename == "UKI-LT2-Brunel_SL6":
+            ec = self.replaceQueuedataField("copyprefix", "srm://dc2-grid-64.brunel.ac.uk/^root://dc2-grid-64.brunel.ac.uk/")
+            ec = self.replaceQueuedataField("copysetup", "$VO_ATLAS_SW_DIR/local/xrootdsetup.sh")
+            ec = self.replaceQueuedataField("copytool", "xrdcp")
+            ec = self.replaceQueuedataField("seopt", "token:ATLASPRODDISK:srm://dc2-grid-64.brunel.ac.uk:8446/srm/managerv2?SFN=")
 
         _status = self.readpar('status')
         if _status != None and _status != "":

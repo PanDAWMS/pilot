@@ -4,6 +4,7 @@ import signal
 import time
 import re
 import pUtil
+from subprocess import Popen, PIPE
 
 
 def findProcessesInGroup(cpids, pid):
@@ -85,21 +86,130 @@ def dumpStackTrace(pid):
     else:
         pUtil.tolog("Skipping pstack dump for zombie process")
 
+## @brief List all processes and parents and form a dictionary where the
+#  parent key lists all child PIDs
+#  @parameter listMyOrphans If this is @c True, then processes which share the same
+#  @c pgid as this process and have parent PID=1 (i.e., init) get added to this process's children,
+#  which allows these orphans to be added to the kill list. N.B. this means
+#  that orphans have two entries - as child of init and a child of this
+#  process
+def getAncestry(listMyOrphans = False):
+    psCmd = ['ps', 'ax', '-o', 'pid,ppid,pgid,args', '-m']
+
+    try:
+        pUtil.tolog('Executing %s' % psCmd)
+        p = Popen(psCmd, stdout=PIPE, stderr=PIPE)
+        stdout = p.communicate()[0]
+        psPID = p.pid
+    except OSError, e:
+        pUtil.tolog('!!WARNING!!2222!! Failed to execute "ps" to get process ancestry: %s' % repr(e))
+        raise
+   
+    childDict = {}
+    myPgid = os.getpgrp()
+    myPid = os.getpid()
+    for line in stdout.split('\n'):
+        try:
+            (pid, ppid, pgid, cmd) = line.split(None, 3)
+            pid = int(pid)
+            ppid = int(ppid)
+            pgid = int(pgid)
+            # Ignore the ps process
+            if pid == psPID:
+                continue
+            if ppid in childDict:
+                childDict[ppid].append(pid)
+            else:
+                childDict[ppid] = [pid]
+            if listMyOrphans and ppid == 1 and pgid == myPgid:
+                pUtil.tolog("Adding PID %d to list of my children as it seems to be orphaned: %s" % (pid, cmd))
+                if myPid in childDict:
+                    childDict[myPid].append(pid)
+                else:
+                    childDict[myPid] = [pid]
+               
+        except ValueError:
+            # Not a nice line
+            pass
+    return childDict
+
+## @brief Find all the children of a particular PID (calls itself recursively to descend into each leaf)
+#  @note  The list of child PIDs is reversed, so the grandchildren are listed before the children, etc.
+#  so signaling left to right is correct
+#  @param psTree The process tree returned by @c trfUtils.listChildren(); if None then @c trfUtils.listChildren() is called internally.
+#  @param parent The parent process for which to return all the child PIDs
+#  @param listOrphans Parameter value to pass to getAncestry() if necessary
+#  @return @c children List of child PIDs
+def listChildren(psTree = None, parent = os.getpid(), listOrphans = False):
+    """ Take a psTree dictionary and list all children """
+    if psTree == None:
+        psTree = getAncestry(listMyOrphans = listOrphans)
+   
+    pUtil.tolog("List children of %d (%s)" % (parent, psTree.get(parent, [])))
+    children = []
+    if parent in psTree:
+        children.extend(psTree[parent])
+        for child in psTree[parent]:
+            children.extend(listChildren(psTree, child))
+    children.reverse()
+    return children
+
+## @brief Kill all PIDs
+#  @note Even if this function is used, subprocess objects need to join() with the
+#  child to prevent it becoming a zombie
+#  @param childPIDs Explicit list of PIDs to kill; if absent then listChildren() is called
+#  @param sleepTime Time between SIGTERM and SIGKILL
+#  @param message Boolean if messages should be printed
+#  @param listOrphans Parameter value to pass to getAncestry(), if necessary (beware, killing
+#  orphans is dangerous, you may kill "upstream" processes; Caveat Emptor)
+def infanticide(childPIDs = None, sleepTime = 3, message = True, listOrphans = False):
+    if childPIDs is None:
+        childPIDs = listChildren(listOrphans = listOrphans)
+       
+    if len(childPIDs) > 0 and message:
+        pUtil.tolog('Killing these child processes: %s...' % str(childPIDs))
+       
+    for pid in childPIDs:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+       
+    time.sleep(sleepTime)
+       
+    for pid in childPIDs:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            # OSError happens when the process no longer exists - harmless
+            pass
+
 def killProcesses(pid):
+    """ Kill all subprocesses """
+    # Code is based on Graeme Stewarts TRF function with the same name
+
+    # ignore the pid - it will be found by the infanticide() function
+    pUtil.tolog("Using infanticide() to kill all subprocesses")
+    try:
+        infanticide()
+    except Exception, e:
+        pUtil.tolog("Caught exception in infanticide(): %s" % (e))
+
+def killProcessesOld(pid):
     """ kill a job upon request """
 
     #printProcessTree()
     # firstly find all the children process IDs to be killed
-    kids = []
-    findProcessesInGroup(kids, pid)
+    children = []
+    findProcessesInGroup(children, pid)
     # reverse the process order so that the athena process is killed first 
     #(otherwise the stdout will be truncated)
-    kids.reverse()
-    pUtil.tolog("Process IDs to be killed: %s (in reverse order)" % str(kids))
+    children.reverse()
+    pUtil.tolog("Process IDs to be killed: %s (in reverse order)" % str(children))
 
     # find which commands are still running
     try:
-        cmds = getProcessCommands(os.geteuid(), kids)
+        cmds = getProcessCommands(os.geteuid(), children)
     except Exception, e:
         pUtil.tolog("getProcessCommands() threw an exception: %s" % str(e))
     else:
@@ -112,7 +222,7 @@ def killProcesses(pid):
 
             # loop over all child processes
             first = True
-            for i in kids:
+            for i in children:
                 # dump the stack trace before killing it
                 dumpStackTrace(i)
 
@@ -145,14 +255,14 @@ def killProcesses(pid):
 def checkProcesses(pid):
     """ Check the number of running processes """
 
-    kids = []
+    children = []
     n = 0
     try:
-        findProcessesInGroup(kids, pid)
+        findProcessesInGroup(children, pid)
     except Exception, e:
         pUtil.tolog("!!WARNING!!2888!! Caught exception in findProcessesInGroup: %s" % (e))
     else:
-        n = len(kids)
+        n = len(children)
         pUtil.tolog("Number of running processes: %d" % (n))
     return n
 

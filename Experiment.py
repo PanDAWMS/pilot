@@ -741,6 +741,8 @@ class Experiment(object):
         else:
             tolog("!!WARNING!!3333!! Unknown subprocess type: %s" % (subprocessName))
 
+        tolog("Will use arguments: %s" % str(jobargs))
+
         return jobargs
 
     # Optional
@@ -788,3 +790,15 @@ class Experiment(object):
         cmd = [""]
 
         return cmd
+
+    # Optional
+    def postGetJobActions(self):
+        """ Perform any special post-job definition download actions here """
+
+        # This method is called after the getJob() method has successfully downloaded a new job (job definition) from
+        # the server. If the job definition e.g. contains information that contradicts WN specifics, this method can
+        # be used to fail the job
+
+        status = True
+
+        return status

@@ -18,6 +18,7 @@ import signal
 import commands
 import traceback
 from shutil import copy2
+from subprocess import Popen
 
 import Job
 import Node
@@ -30,7 +31,15 @@ from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
-from PilotYamplServer import PilotYamplServer
+from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getAtlasRelease, getChecksumCommand,\
+     tailPilotErrorDiag, getFileAccessInfo, addToJobSetupScript, getCmtconfig, getExtension, getExperiment, getEventService
+
+
+try:
+    from PilotYamplServer import PilotYamplServer
+except Exception, e:
+    PilotYamplServer = None
+    print "runJob caught exception:",e
 
 # global variables
 pilotserver = "localhost"          # default server
@@ -847,7 +856,7 @@ def asynchronousOutputStagerOld():
             if output_file_dictionary[f] == False:
                 # stage out file f
                 # ..
-                ec = ..
+                ec = -1 #..
                 if ec == 0:
                     # remove file, mark as True, ie successful transfer
                     # os.remove(f)
@@ -954,14 +963,18 @@ def createYamplServer():
     status = False
 
     # Create the server socket
-    yampl_server = PilotYamplServer(socketname='EventService_EventRanges', context='local')
+    if PilotYamplServer:
+        yampl_server = PilotYamplServer(socketname='EventService_EventRanges', context='local')
 
-    # is the server alive?
-    if not yampl_server.alive():
-        # destroy the object
-        yampl_server = None
+        # is the server alive?
+        if not yampl_server.alive():
+            # destroy the object
+            tolog("!!WARNING!!3333!! Yampl server is not alive")
+            yampl_server = None
+        else:
+            status = True
     else:
-        status = True
+        tolog("!!WARNING!!3333!! PilotYamplServer object is not available")
 
     return status
 
@@ -1132,6 +1145,22 @@ if __name__ == "__main__":
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
             failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
+        # setup starts here ................................................................................
+
+        # update the job state file
+        job.jobState = "setup"
+        _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+
+        # prepare the setup and get the run command list
+        ec, runCommandList, job, multi_trf = setup(job, jobSite, thisExperiment)
+        if ec != 0:
+            tolog("!!WARNING!!2999!! runJob setup failed: %s" % (job.pilotErrorDiag))
+            failJob(0, ec, job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
+        tolog("Setup has finished successfully")
+
+        # job has been updated, display it again
+        job.displayJob()
+
         # stage-in .........................................................................................
 
         # update the job state file
@@ -1253,7 +1282,7 @@ if __name__ == "__main__":
         yampl_thread.join()
         asyncOutputStager_thread.join()
 
-    tolog("Done")
+        tolog("Done")
 
 
 

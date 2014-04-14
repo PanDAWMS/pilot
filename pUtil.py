@@ -1919,7 +1919,11 @@ def getSwbase(appdir, release, homePackage, processingType, cmtconfig):
     else:
         # for non-LCG sites
         if appdir.find('atlas_app/atlas_rel') < 0:
-            swbase = appdir + '/atlas_app/atlas_rel'
+            _swbase = os.path.join(appdir, 'atlas_app/atlas_rel')
+            if os.path.exists(_swbase):
+                swbase = _swbase
+            else:
+                swbase = appdir
         else:
             swbase = appdir
 

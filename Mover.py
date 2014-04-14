@@ -108,7 +108,8 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
                            proxycheck=proxycheck, spsetup=job.spsetup, tokens=job.dispatchDBlockToken, userid=job.prodUserID,\
                            access_dict=access_dict, inputDir=inputDir, jobId=job.jobId, DN=job.prodUserID, workDir=workDir,\
                            scope_dict=scope_dict, jobDefId=job.jobDefinitionID, dbh=dbh, jobPars=job.jobPars, cmtconfig=job.cmtconfig,\
-                           filesizeIn=job.filesizeIn, checksumIn=job.checksumIn, transferType=job.transferType, experiment=job.experiment)
+                           filesizeIn=job.filesizeIn, checksumIn=job.checksumIn, transferType=job.transferType, experiment=job.experiment,\
+                           eventService=job.eventService)
 
         tolog("Get function finished with exit code %d" % (rc))
 
@@ -774,6 +775,8 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename):
 
     # get the old/newPrefix needed for the SURL to TURL conversions
     oldPrefix, newPrefix = getPrefices()
+    tolog(". oldPrefix=%s" % str(oldPrefix))
+    tolog(". newPrefix=%s" % str(newPrefix))
 
     # if the old/newPrefices were properly returned, we don't need to use lcg-getturls
     if oldPrefix == "" or newPrefix == "":
@@ -925,7 +928,7 @@ def getPrefices():
     useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
 
     # should we fall back to copyprefix or use the faxredirector? (this is the case for FAX test jobs since they reset old/newPrefix)
-    if oldPrefix == "" or newPrefix == "":
+    if oldPrefix == "" or newPrefix == "" or not (oldPrefix and newPrefix):
         copyprefix = readpar('copyprefixin')
         if copyprefix == "":
             copyprefix = readpar('copyprefix')
@@ -1174,7 +1177,7 @@ def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict):
 
     return ec, pilotErrorDiag
 
-def shouldPFC4TURLsBeCreated(analysisJob, transferType):
+def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
     """ determine whether a TURL based PFC should be created """
 
     status = False
@@ -1211,6 +1214,10 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType):
 #            tolog("This site has not set allowDirectAccess - direct access/file stager not allowed")
 #        else:
 #            tolog("This site has allowDirectAccess = %s - direct access/file stager not allowed" % (allowDirectAccess))
+
+    # override if necessary for event service
+    if eventService:
+        status = True
 
     if status:
         tolog("TURL based PFC required")
@@ -1537,7 +1544,7 @@ def createStandardPFC4TRF(createdPFCTURL, pfc_name_turl, pfc_name, guidfname):
         # No PFC only if no PFC was returned by DQ2
         createPFC4TRF(pfc_name, guidfname)
 
-def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict):
+def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService):
     """ Create a TURL based PFC if necessary/requested """
     # I.e if copy tool should not be used [useCT=False] and if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False]
 
@@ -1546,7 +1553,7 @@ def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, 
     createdPFCTURL = False
 
     # first check if there is a need to create the PFC
-    if shouldPFC4TURLsBeCreated(analysisJob, transferType):
+    if shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
         ec, pilotErrorDiag = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict)
         if ec == 0:
             tolog("PFC created with TURLs")
@@ -1623,7 +1630,8 @@ def mover_get_data(lfns,
                    filesizeIn=[],
                    checksumIn=[],
                    transferType=None,
-                   experiment=""):
+                   experiment="",
+                   eventService=False):
     """
     This method is called by a job to get the required input data.
     The parameters passed are a list of LFNs, working directory path, site name, 
@@ -1704,7 +1712,7 @@ def mover_get_data(lfns,
 
     # Create a TURL based PFC if necessary/requested (i.e. if copy tool should not be used [useCT=False] and
     # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
-    ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict)
+    ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService)
     if ec != 0:
         return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 

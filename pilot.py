@@ -1,5 +1,6 @@
 #!/usr/bin/python -u 
 
+# test code in getInstallDir() related to setting of siteroot, now adding cmtconfig etc for non-vo-atlas-sw-dir
 
 # alternative SE stageout activated in mover: useAlternativeStageOut
 # UTA hardcoded in transferLogFile for secondary log transfer test
@@ -12,10 +13,14 @@
 # Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file registrations using DQ2 functions
 # test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
 
+# ral, cern-prod, goegrid, brunel, atlassiteinformation
+
+# eventService = true in Job - for all jobs -> only runEvent module will be used
+
 # todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
 # todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation
 
-
+# faking bad tcp connection in monitor_job() (Monitor)
 
 
 import commands
@@ -2393,12 +2398,14 @@ def runMain(runpars):
 
         # PN
         try:
+            pUtil.tolog("LD_LIBRARY_PATH=%s"%(os.environ['LD_LIBRARY_PATH']))
+            pUtil.tolog("PYTHONPATH=%s"%(os.environ['PYTHONPATH']))
             import yampl
         except Exception, e:
             pUtil.tolog("!!WARNING!!1122!! Caught exception: %s" % (e))
             pUtil.tolog("Failed to import yampl!")
         else:
-            pUtil.tolog("Successfully import yampl!")
+            pUtil.tolog("Successfully imported yampl!")
 
         # collect WN info .........................................................................................
         # do not include the basename in the path since it has not been created yet
@@ -2484,9 +2491,6 @@ def runMain(runpars):
 
             # make sure we are in the current work dir
             pUtil.chdir(env['thisSite'].workdir)
-
-# 58i is the same until this point
-
             dumpVars(env['thisSite'])
 
             # do we have a valid proxy?
@@ -2522,6 +2526,20 @@ def runMain(runpars):
             else:
                 env['isJobDownloaded'] = True
                 pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))            
+
+            # verify any contradicting job definition parameters here
+            status = thisExperiment.postGetJobActions()
+            if status:
+                pUtil.tolog("postGetJobActions: OK")
+            else:
+                pUtil.tolog("!!WARNING!!1231!! Post getJob() actions encountered a problem - job will fail")
+
+                # job must be failed correctly
+                # ..
+
+                # go to the next multi-job if possible
+                # ..
+                # continue
 
             pUtil.tolog('glexec is: %s' % str(env['glexec']))
             if env['glexec'] == False:

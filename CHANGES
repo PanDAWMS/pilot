@@ -40,13 +40,15 @@ Job recovery               : Test at UTA_PAUL_TEST
 FAX                        : Testing at ANALY_MWT2_SL6, broken LSM: OK (real test with RC jobs)
 Alt stage-out              : Repeat GoeGrid test
 Secondary log transfer     : Repeat object-store test
-Multi-trf                  : Ask Andrej, combine with Nordugrid test?
+Multi-trf                  : Ask Andrej, combine with Nordugrid test? see http://panda.cern.ch/server/pandamon/query?job=2136530336
 Nordugrid test             : Ask Andrej when all other tests are done
 RC tests                   : As soon as possible when a few more of the other tests are done
 PanDA mover                : Try when most (all?) other tests are done
 glExec                     : Hand over preliminary code when a few more of the other tests are done
 RC tests, glExec           : Ask HC team to prepare RC tests when Eddie has confirmed that glExec still works
 Subprocess selection       : (is runEvent selected properly after last merge?), test with testEventService-UTA.py
+No TCP connection          : If a TCP server cannot be setup in Monitor, make sure the job is failed correctly (it isn't)
+lineno()                   : Usage of function lineno() is no correct; line number is not the same as process id..
 
 Additional test of recently added features
 
@@ -151,6 +153,21 @@ Renamed my_proxy_utils to glexec_utils (glexec_utils, pilot)
 Created getSubprocess() which creates and returns a process started with Popen() (Experiment)
 Created getJobExecutionCommand4EventService() (Experiment, ATLASExperiment)
 Switching to FAX site mover for transferType xrd/fax in getNewJob() (pilot)
+Renamed kids to children in checkProcesses, killProcesses() (processes)
+Added coreCount plus handling to job definition. Requested by Rodney Walker et al (Job)
+Created postGetJobActions() (Experiment, ATLASExperiment)
+Added rel_N to path if possible in getInstallDir() (ATLASExperiment)
+Only adding 'atlas_app/atlas_rel' to appdir if dir actually exists (pUtil)
+Added missing declaration of strXML in createFinalMetadata() (JobLog)
+Corrected ERR_NOATHENAMETADATA -> ERR_NOPAYLOADMETADATA in updatePandaServer() (PandaServerClient)
+Sending eventService boolean to mover_get_data() from get_data() (Mover)
+Added eventService argument to mover_get_data() (Mover)
+Sending eventService boolean to PFC4TURLs() from mover_get_data() (Mover)
+Added eventService argument to PFC4TURLs() (Mover)
+Sending eventService boolean to shouldPFC4TURLsBeCreated() from PFC4TURLs() (Mover)
+Added eventService argument to shouldPFC4TURLsBeCreated() (Mover)
+Overriding status boolean for event service in shouldPFC4TURLsBeCreated() (Mover)
+Added new logic for old/newPrefix in getPrefices() affected jobs using TURLs - make sure this doesn't affect FAX jobs (Mover)
 
 ------------------------------------------------------
 

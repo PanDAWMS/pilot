@@ -595,6 +595,7 @@ class JobLog:
         from SiteMoverFarm import getSiteMover
         sitemover = getSiteMover(readpar('copytool'), "")
         _date = "None"
+        strXML = ""
 
         # get the file info for the log file and, if needed, for the CERNVM outputFilesXML file
         ec, pilotErrorDiag, _fsize, _checksum = \

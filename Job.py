@@ -89,6 +89,7 @@ class Job:
         self.scopeOut = []                 # Rucio scope for out files
         self.scopeLog = []                 # Rucio scope for log file
         self.experiment = "undefined"      # Which experiment this job belongs to
+        self.coreCount = None              # Number of cores as requested by the task
 
         # event service objects
         self.eventService = False          # True for event service jobs
@@ -234,6 +235,11 @@ class Job:
         if data.has_key('eventRanges'):
             self.eventRanges = data.get('eventRanges', None)
             pUtil.tolog("eventRanges = %s" % str(self.eventRanges))
+
+        #PN
+        self.eventService = True
+
+
 #        self.eventRangeID = data.get('eventRangeID', None)
 #        self.startEvent = data.get('startEvent', None)
 #        self.lastEvent = data.get('lastEvent', None)
@@ -284,6 +290,12 @@ class Job:
 
         if data.has_key('cmtConfig'):
             self.cmtconfig = str(data['cmtConfig'])
+        else:
+            # use default
+            pass
+
+        if data.has_key('coreCount'):
+            self.coreCount = str(data['coreCount'])
         else:
             # use default
             pass

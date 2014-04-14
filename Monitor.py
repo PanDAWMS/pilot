@@ -19,7 +19,8 @@ from UpdateHandler import UpdateHandler
 import inspect
 
 def lineno():
-    """Returns the current line number in our program."""
+    """ Returns the current line number in our program """
+
     return inspect.currentframe().f_back.f_lineno
 
 globalSite = None
@@ -842,6 +843,15 @@ class Monitor:
             
             self.__set_outputs()            
             self.__verify_permissions()
+
+
+            # PN
+            #pUtil.tolog("Faking bad TCP server")
+            #pUtil.tolog("!!WARNING!!1234!! Failed to open TCP connection to localhost (worker node network problem), cannot continue")
+            #pUtil.fastCleanup(self.__env['thisSite'].workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
+            #self.__env['return'] = self.__error.ERR_NOTCPCONNECTION
+            #return
+
             
             # start the monitor and watchdog process
             monthread = PilotTCPServer(UpdateHandler)

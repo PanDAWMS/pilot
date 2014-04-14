@@ -558,7 +558,7 @@ class PandaServerClient:
         if payloadXMLProblem:
             tolog("!!FAILED!!1300!! %s" % (pilotErrorDiag))
             job.result[0] = "failed"
-            job.result[2] = self.__error.ERR_NOATHENAMETADATA
+            job.result[2] = self.__error.ERR_NOPAYLOADMETADATA
             if node.has_key('pilotLog'):
                 node['pilotLog'] += "!!FAILED!!1300!! %s" % (pilotErrorDiag)
             else:

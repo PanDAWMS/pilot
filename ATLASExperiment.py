@@ -170,7 +170,13 @@ class ATLASExperiment(Experiment):
                         pysiteroot = siteroot
                 else:
                     if verifyReleaseString(job.atlasRelease) != "NULL":
-                        siteroot = os.path.join(swbase, job.atlasRelease)
+                        #PN
+                        _s = os.path.join(os.path.join(swbase, cmtconfig), job.atlasRelease)
+                        if os.path.exists(_s):
+                            siteroot = _s
+                        else:
+                            siteroot = os.path.join(swbase, job.atlasRelease)
+                        #siteroot = os.path.join(swbase, job.atlasRelease)
                     else:
                         siteroot = swbase
                     siteroot = siteroot.replace('//','/')
@@ -932,6 +938,9 @@ class ATLASExperiment(Experiment):
 
         # install the trf in the work dir if it is not installed on the site
         # special case for nightlies (rel_N already in siteroot path, so do not add it)
+        
+        tolog("siteroot: %s" % (siteroot))
+
         if "rel_" in job.homePackage:
             installDir = siteroot
         else:
@@ -944,7 +953,13 @@ class ATLASExperiment(Experiment):
 
         # special case for nightlies (no RunTime dir)
         if "rel_" in job.homePackage:
-            sfile = os.path.join(installDir, "setup.sh")
+            # extract the rel_N bit and use it in the path
+            rel_N = self.extractRelN(job.homePackage)
+            tolog("Extracted %s from homePackage=%s" % (rel_N, job.homePackage))
+            if os.path.exists(os.path.join(installDir, rel_N)):
+                sfile = os.path.join(os.path.join(installDir, rel_N), "setup.sh")
+            else:
+                sfile = os.path.join(installDir, "setup.sh")
         else:
             sfile = installDir + ('/%sRunTime/cmt/setup.sh' % job.homePackage.split('/')[0])
         sfile = sfile.replace('//','/')
@@ -2450,6 +2465,18 @@ class ATLASExperiment(Experiment):
         cmd = ["python %s/client_test.py 1>AthenaMP_stdout.txt 2>AthenaMP_stderr.txt" % (pilot_initdir)]
 
         return cmd
+
+    # Optional
+    def postGetJobActions(self):
+        """ Perform any special post-job definition download actions here """
+
+        # This method is called after the getJob() method has successfully downloaded a new job (job definition) from
+        # the server. If the job definition e.g. contains information that contradicts WN specifics, this method can
+        # be used to fail the job
+
+        status = True
+
+        return status
 
 if __name__ == "__main__":
 
