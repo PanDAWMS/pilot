@@ -55,6 +55,8 @@ Additional test of recently added features
 Job def download for a maximum of N seconds : (set getjobmaxtime)
 
 
+#### add new error 1217 to proddb
+
 
 
 Replaced global fileList with function getFileList(), used in stageInPyModules() and removePyModules() (pUtil)
@@ -64,7 +66,7 @@ Added initdir argument to getPilotVersion() (pUtil)
 Verifying that inFiles is set before checking its size in __killLoopingJob(), __checkPayloadStdout(), __checkWorkDir(), __checkLocalSpace() (Monitor)
 Added ERR_NOSUCHFILE to file corruption report in mover_get_data(), requested by Cedric Serfon (Mover)
 Created runEvent module
-Added new pilot error code 1217, ERR_RUNEVENTEXC, used by runEvent (PilotErrors)
+Added new pilot error code 1218, ERR_RUNEVENTEXC, used by runEvent (PilotErrors)
 Created getSubprocessArguments() used by Monitor (Experiment)
 Created verifySoftwareDirectory() used by extractAppdir() (SiteInformation)
 Skipping some checks in specialChecks() for HPC systems, assuming schedconfig.resourcetype is set (ATLASExperiment)
@@ -168,6 +170,11 @@ Sending eventService boolean to shouldPFC4TURLsBeCreated() from PFC4TURLs() (Mov
 Added eventService argument to shouldPFC4TURLsBeCreated() (Mover)
 Overriding status boolean for event service in shouldPFC4TURLsBeCreated() (Mover)
 Added new logic for old/newPrefix in getPrefices() affected jobs using TURLs - make sure this doesn't affect FAX jobs (Mover)
+Checking if dbh exists before using it in isDBReleaseFile(). Needed for event service (i.e. runEvent will use code that uses isDBReleaseFile()
+but there is no dbh in that case) (Mover)
+Corrected fastCleanup() calls with too few arguments (two times in runMain()) (pilot)
+Added get/updateEventRanges to httpConnect() (pUtil)
+Added scopeIn, scopeOut, scopeLog to displayJob() (Job)
 
 ------------------------------------------------------
 

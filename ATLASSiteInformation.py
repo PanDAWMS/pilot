@@ -426,14 +426,16 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("status", "online")
             #ec = self.replaceQueuedataField("seprodpath", "/xrd/atlasproddisk/rucio")
             ec = self.replaceQueuedataField("allowfax", "True")
-            ec = self.replaceQueuedataField("timefloor", "60")
+            ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
+            ec = self.replaceQueuedataField("corecount", "4")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
+            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 
         if thisSite.sitename == "RAL-LCG2_MCORE":
             ec = self.replaceQueuedataField("copyprefix", "srm://srm-atlas.gridpp.rl.ac.uk^root://catlasdlf.ads.rl.ac.uk/")
 
-        if thisSite.sitename == "CERN-PROD":
+        if thisSite.sitename == "CERN-PROD" or thisSite.sitename == "BNL_PROD_MCORE" or thisSite.sitename == "UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
         if thisSite.sitename == "GoeGrid":

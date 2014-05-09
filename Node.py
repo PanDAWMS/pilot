@@ -53,7 +53,7 @@ class Node:
     def setNumberOfCores(self) :
         """ Report the number of cores in the WN """
         # 1. Grab corecount from queuedata
-        # 2. If corecount is number and corecount > 0, set ATHENA_PROC_NUMBER env variable to this value
+        # 2. If corecount is number and corecount > 1, set ATHENA_PROC_NUMBER env variable to this value
         # 3. If corecount is 0, null, or doesn't exist, then don't set the env. variable
         # 4. If corecount is '-1', then get number of cores from /proc/cpuinfo, and set the env. variable accordingly.
 
@@ -68,7 +68,7 @@ class Node:
         except Exception, e:
             tolog("corecount not set in queuedata: %s" % str(e))
         else:
-            if nCores > 0:
+            if nCores > 1:
                 tolog("1. Setting number of cores to: %d" % (nCores))
                 os.environ['ATHENA_PROC_NUMBER'] = str(nCores)
                 return nCores

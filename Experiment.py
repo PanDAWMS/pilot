@@ -8,7 +8,7 @@
 import os
 import re
 import commands
-from subprocess import Popen
+from subprocess import Popen, PIPE
 
 from PilotErrors import PilotErrors
 from pUtil import tolog                    # Dump to pilot log
@@ -763,13 +763,17 @@ class Experiment(object):
         return protocol + "pandaserver.cern.ch"
 
     # Optional
-    def getSubprocess(self, cmd):
+    def getSubprocess(self, cmd, stdout=None, stderr=None):
         """ Execute and return a subprocess """
 
         process = None
         try:
             tolog("Executing command: %s" % (cmd))
-            process = Popen(cmd, shell=True)
+            if stdout and stderr:
+                # use stdout/stdout file objects to redirect the stdout/stderr streams
+                process = Popen(cmd, shell=True, stdout=stdout, stderr=stderr)
+            else:
+                process = Popen(cmd, shell=True)
         except Exception, e:
             tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
         else:
@@ -792,13 +796,16 @@ class Experiment(object):
         return cmd
 
     # Optional
-    def postGetJobActions(self):
+    def postGetJobActions(self, job):
         """ Perform any special post-job definition download actions here """
 
         # This method is called after the getJob() method has successfully downloaded a new job (job definition) from
         # the server. If the job definition e.g. contains information that contradicts WN specifics, this method can
         # be used to fail the job
 
-        status = True
+        # Return any error code using ec, and any error message using pilotErrorDiag
 
-        return status
+        ec = 0
+        pilotErrorDiag = ""
+
+        return ec, pilotErrorDiag

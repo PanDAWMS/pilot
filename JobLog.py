@@ -645,6 +645,8 @@ class JobLog:
                     # replace preliminary XML
                     strXML = _strXML
                     # strXML now contains all the xml for all output files and log
+                else:
+                    tolog("!!WARNING!!1601!! updateMetadata() did not return any xml")
             else:
                 tolog("!!WARNING!!1600!! Failed to add metadata: %d" % (ec))
         else:

@@ -83,6 +83,18 @@ class PandaServerClient:
                 else:
                     tolog("Copied panda node structure (%s) to init dir: %s" % (_fname, self.__pilot_initdir))
 
+    def jobMetric(self, key="", value=""):
+        """ Add 'key'='value' to the jobMetrics """
+        # Use this method to avoid missing the separating space between key-value pairs in the job metrics
+
+        if key != "" and value != "":
+            # Add a space at the end since there might be several key values added
+            jobMetric = "%s=%s " % (key, value)
+        else:
+            jobMetric = ""
+
+        return jobMetric
+
     def getJobMetrics(self, job, workerNode):
         """ Return a properly formatted job metrics string """
 
@@ -90,16 +102,18 @@ class PandaServerClient:
         # format: nEvents=<int> nEventsW=<int> vmPeakMax=<int> vmPeakMean=<int> RSSMean=<int> JEM=<string>
         #         hs06=<float> shutdownTime=<int> cpuFactor=<float> cpuLimit=<float> diskLimit=<float> jobStart=<int> memLimit=<int> runLimit=<float>
         jobMetrics = ""
+        if job.coreCount and job.coreCount != "NULL":
+            jobMetrics += self.jobMetric(key="coreCount", value=job.coreCount)
         if job.nEvents > 0:
-            jobMetrics += "nEvents=%d" % (job.nEvents)
+            jobMetrics += self.jobMetric(key="nEvents", value=job.nEvents)
         if job.nEventsW > 0:
-            jobMetrics += " nEventsW=%d" % (job.nEventsW)
+            jobMetrics += self.jobMetric(key="nEventsW", value=job.nEventsW)
         if job.vmPeakMax > 0:
-            jobMetrics += " vmPeakMax=%d" % (job.vmPeakMax)
+            jobMetrics += self.jobMetric(key="vmPeakMax", value=job.vmPeakMax)
         if job.vmPeakMean > 0:
-            jobMetrics += " vmPeakMean=%d" % (job.vmPeakMean)
+            jobMetrics += self.jobMetric(key="vmPeakMean", value=job.vmPeakMean)
         if job.RSSMean > 0:
-            jobMetrics += " RSSMean=%d" % (job.RSSMean)
+            jobMetrics += self.jobMetric(key="RSSMean", value=job.RSSMean)
 
         # report FAX transfers if at least one successful FAX transfer
         #if job.filesWithFAX > 0:
@@ -120,7 +134,7 @@ class PandaServerClient:
 
         # only add the JEM bit if explicitly set to YES, otherwise assumed to be NO
         if job.JEM == "YES":
-            jobMetrics += " JEM=1"
+            jobMetrics += self.jobMetric(key="JEM", value=1)
             # old format: jobMetrics += " JEM=%s" % (job.JEM)
 
         # machine and job features
@@ -130,8 +144,8 @@ class PandaServerClient:
         if _jobMetrics != "":
             tolog("Could have added: %s to job metrics" % (workerNode.addToJobMetrics()))
 
-        # correct for potential initial space
-        jobMetrics = jobMetrics.lstrip(' ')
+        # correct for potential initial and trailing space
+        jobMetrics = jobMetrics.lstrip().rstrip()
 
         if jobMetrics != "":
             tolog('Job metrics=\"%s\"' % (jobMetrics))

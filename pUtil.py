@@ -178,6 +178,10 @@ def httpConnect(data, url, mode="UPDATE", sendproxy=False, path=None): # default
         cmd = 'isThereAnalysisJob'
     elif mode == "GETSTATUS":
         cmd = 'getStatus'
+    elif mode == "GETEVENTRANGES":
+        cmd = 'getEventRanges'
+    elif mode == "UPDATEEVENTRANGES":
+        cmd = 'updateEventRanges'
     else:
         cmd = 'updateJob'
 
@@ -932,6 +936,7 @@ def updateMetadata(fname, fsize, checksum, format=None, fsizeXML=None, checksumX
     """
     ec = 0
     lines = ""
+
     try:
         f = open(fname, 'r')
     except Exception, e:

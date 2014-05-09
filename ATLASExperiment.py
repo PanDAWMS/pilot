@@ -498,6 +498,7 @@ class ATLASExperiment(Experiment):
         """ Remove redundant files and directories """
 
         tolog("Removing redundant files prior to log creation")
+
         dir_list = ["AtlasProduction*",
                     "AtlasPoint1",
                     "AtlasTier0",
@@ -2467,16 +2468,52 @@ class ATLASExperiment(Experiment):
         return cmd
 
     # Optional
-    def postGetJobActions(self):
+    def postGetJobActions(self, job):
         """ Perform any special post-job definition download actions here """
 
         # This method is called after the getJob() method has successfully downloaded a new job (job definition) from
         # the server. If the job definition e.g. contains information that contradicts WN specifics, this method can
         # be used to fail the job
 
-        status = True
+        ec = 0
+        pilotErrorDiag = ""
 
-        return status
+        # Make sure that ATHENA_PROC_NUMBER has a proper value for the current job
+        ec, pilotErrorDiag = self.verifyNCoresSettings(job.coreCount)
+        if ec != 0:
+            tolog("!!WARNING!!3222!! %s" % (pilotErrorDiag))
+            return ec, pilotErrorDiag
+
+        # ..
+
+        return ec, pilotErrorDiag
+
+    # Local method (not defined in Experiment)
+    def verifyNCoresSettings(self, jobCoreCount):
+        """ Verify that nCores settings are correct """
+
+        ec = 0
+        pilotErrorDiag = ""
+
+        try:
+            coreCount = int(jobCoreCount)
+        except:
+            coreCount = None
+
+        try:
+            athenaProcNumber = int(os.environ['ATHENA_PROC_NUMBER'])
+        except:
+            athenaProcNumber = None
+
+        # Make sure that ATHENA_PROC_NUMBER has a proper value for the current job
+        if (coreCount == 1 or coreCount == None) and (athenaProcNumber > 1):
+            ec = self.__error.ERR_CORECOUNTMISMATCH
+            pilotErrorDiag = "Encountered a mismatch between core count from schedconfig (%s) and job definition (%s)" % (str(athenaProcNumber), str(coreCount))
+            tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
+        else:
+            tolog("Using core count values: %s (job definition), %s (schedconfig)" % (str(coreCount), str(athenaProcNumber)))
+
+        return ec, pilotErrorDiag
 
 if __name__ == "__main__":
 

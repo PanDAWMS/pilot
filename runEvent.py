@@ -2,8 +2,8 @@
 #
 # For stand-alone testing:
 # queuedata.json must exist. Download instructions: (e.g.)
-# > curl -sS "http://pandaserver.cern.ch:25085/cache/schedconfig/EELA-UTFSM-ce02-atlas-pbs.pilot.json" >queuedata.json
-# where "EELA-UTFSM-ce02-atlas-pbs" is the PanDA queue name
+# > curl -sS "http://pandaserver.cern.ch:25085/cache/schedconfig/BNL_PROD_MCORE-condor.all.json" >queuedata.json
+# where "BNL_PROD_MCORE-condor" is the PanDA queue name
 #
 # Execute runEvent module like this:
 # > python runEvent.py ..
@@ -17,9 +17,11 @@ import atexit
 import signal
 import commands
 import traceback
+from json import loads
 from shutil import copy2
 from subprocess import Popen
-
+from xml.dom import minidom
+    
 import Job
 import Node
 import Site
@@ -32,7 +34,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getAtlasRelease, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, addToJobSetupScript, getCmtconfig, getExtension, getExperiment, getEventService
+     tailPilotErrorDiag, getFileAccessInfo, addToJobSetupScript, getCmtconfig, getExtension, getExperiment, getEventService, httpConnect
 
 
 try:
@@ -61,13 +63,16 @@ outputDir = ""                     # location of output files (destination for m
 lfcRegistration = True             # should the pilot perform LFC registration?
 experiment = "ATLAS"               # Current experiment (can be set with pilot option -F <experiment>)
 event_loop_running = False         #
-output_file_dictionary = {}
-
-yampl_server = None
-yampl_thread = None
-athenamp_is_ready = False
-stageout_queue = []
-asyncOutputStager_thread = None
+output_file_dictionary = {}        # OLD REMOVE
+guid_list = []                     # Keep track of downloaded GUIDs
+lfn_list = []                      # Keep track of downloaded LFNs
+eventRangeDictionary = {}          #
+stageout_queue = []                #
+_pfc_path = ""                     # The path to the pool file catalog
+yampl_server = None                #
+yampl_thread = None                #
+athenamp_is_ready = False          #
+asyncOutputStager_thread = None    #
 output_area = "" # REMOVE LATER
 
 def usage():
@@ -429,9 +434,23 @@ def getTrfExitInfo(exitCode, workdir):
         filename = os.path.join(workdir, "jobReport.%s" % (extension))
     else:
         filename = os.path.join(workdir, "jobReportExtract.%s" % (extension))
-    if os.path.exists(filename):
-        tolog("Found job report: %s" % (filename))
 
+    # It might take a short while longer until the job report is created (unknown why)
+    count = 1
+    max_count = 10
+    nap = 5
+    found = False
+    while count <= max_count:
+        if os.path.exists(filename):
+            tolog("Found job report: %s" % (filename))
+            found = True
+            break
+        else:
+            tolog("Waiting %d s for job report to arrive (#%d/%d)" % (nap, count, max_count))
+            time.sleep(nap)
+            count += 1
+
+    if found:
         # search for the exit code
         try:
             f = open(filename, "r")
@@ -826,6 +845,17 @@ def stageOut(job, jobSite, outs, pilot_initdir, testLevel, analysisJob, dsname, 
 
     return rc, job, rf, latereg
 
+def setPoolFileCatalogPath(path):
+    """ Set the path to the PoolFileCatalog """
+
+    global _pfc_path
+    _pfc_path = path
+
+def getPoolFileCatalogPath():
+    """ Return the path to the PoolFileCatalog """
+
+    return _pfc_path
+
 def asynchronousOutputStagerOld():
 
     from os import listdir
@@ -901,7 +931,26 @@ def asynchronousOutputStager():
                     tolog("Transfer has finished (removing %s from queue)" % (f))
                     stageout_queue.remove(f)
 
+                    # Time to update the server
+                    event_range_id = ""
+                    for event_range in eventRangeDictionary.keys():
+                        if eventRangeDictionary[event_range][0] == f:
+                            event_range_id = event_range
+                            break
+                    if event_range_id != "":
+                        updateEventRange(event_range_id, eventRangeDictionary[event_range_id])
+                    else:
+                        tolog("!!WARNING!!1111!! Did not find the event range (%s) in the event range dictionary" % (event_range))
+
         time.sleep(1)
+
+def getFilePath(filename, jobId):
+    """ Return a proper file path in the object store """
+
+    basepath = "root://atlas-objectstore.cern.ch//atlas/eventservice"
+    path = os.path.join(basepath, os.path.join(jobId, filename))
+
+    return path
 
 def yamplListener():
     """ Listen for yampl messages """
@@ -928,12 +977,17 @@ def yamplListener():
                 athenamp_is_ready = True
 
             elif buf.startswith('/'):
-                tolog("Received a filename from client:%s" % (buf))
+                tolog("Received file and process info from client: %s" % (buf))
 
-                if buf not in stageout_queue:
-                    stageout_queue.append(buf)
-                    tolog("File %s has been added to the stage-out queue" % (buf))
+                # Extract the information from the yampl message
+                path, event_range_id, cpu, wall = interpretMessage(buf)
+                if path not in stageout_queue:
+                    # Add the extracted info to the event range dictionary
+                    eventRangeDictionary[event_range_id] = [path, cpu, wall]
 
+                    # Add the file to the stage-out queue
+                    stageout_queue.append(path)
+                    tolog("File %s has been added to the stage-out queue" % (path))
             else:
                 tolog("Pilot received message:%s" % buf)
         except Exception,e:
@@ -942,19 +996,65 @@ def yamplListener():
 
     tolog("yamplListener has finished")
 
-def getTokenExtractorProcess(thisExperiment, input_tag_file):
+def interpretMessage(msg):
+    """ Interpret a yampl message containing file and processing info """
+
+    # The message is assumed to have the following format
+    # Format: "<file_path>,<event_range_id>,CPU:<number_in_sec>,WALL:<number_in_sec>"
+    # Return: path, event_range_id, cpu time (s), wall time (s)
+
+    path = ""
+    event_range_id = ""
+    cpu = ""
+    wall = ""
+
+    if "," in msg:
+        message = msg.split(",")
+
+        try:
+            path = message[0]
+        except:
+            tolog("!!WARNING!!1100!! Failed to extract file path from yampl message: %s" % (msg))
+
+        try:
+            event_range_id = message[1]
+        except:
+            tolog("!!WARNING!!1101!! Failed to extract event range id from yampl message: %s" % (msg))
+
+        try:
+            # CPU:<number_in_sec>
+            _cpu = message[2]
+            cpu = _cpu.split(":")[1]
+        except:
+            tolog("!!WARNING!!1102!! Failed to extract CPU time from yampl message: %s" % (msg))
+
+        try:
+            # WALL:<number_in_sec>
+            _wall = message[3]
+            wall = _wall.split(":")[1]
+        except:
+            tolog("!!WARNING!!1103!! Failed to extract wall time from yampl message: %s" % (msg))
+
+    else:
+        tolog("!!WARNING!!1122!! Unknown yampl message format: missing commas: %s" % (msg))
+
+    return path, event_range_id, cpu, wall
+
+def getTokenExtractorProcess(thisExperiment, setup, input_tag_file, stdout=None, stderr=None):
     """ Execute the TokenExtractor """
 
-    cmd = "TokenExtractor -src PFN:%s" % (input_tag_file)
+    # Define the command
+    cmd = "%s TokenExtractor -src PFN:%s RootCollection" % (setup, input_tag_file)
 
     # Execute and return the TokenExtractor subprocess object
-    return thisExperiment.getSubprocess(cmd)
+    return thisExperiment.getSubprocess(cmd, stdout=stdout, stderr=stderr)
 
-def getAthenaMPProcess(thisExperiment, pilot_initdir):
+def getAthenaMPProcess(thisExperiment, runCommand, stdout=None, stderr=None):
     """ Execute AthenaMP """
 
     # Execute and return the AthenaMP subprocess object
-    return thisExperiment.getSubprocess(thisExperiment.getJobExecutionCommand4EventService(pilot_initdir))
+    #return thisExperiment.getSubprocess(thisExperiment.getJobExecutionCommand4EventService(pilot_initdir)) # move method to EventService class
+    return thisExperiment.getSubprocess(runCommand, stdout=stdout, stderr=stderr)
 
 def createYamplServer():
     """ Create the yampl server socket object """
@@ -993,21 +1093,231 @@ def getTAGFile(inFiles):
 def sendYamplMessage(message):
     """ Send a yampl message """
 
+    # Filter away unwanted fields
+    if "scope" in message and False:
+        # First replace an ' with " since loads() cannot handle ' signs properly
+        # Then convert to a list and get the 0th element (there should be only one)
+        try:
+            _msg = loads(message.replace("'",'"'))[0]
+        except Exception, e:
+            tolog("!!WARNING!!2233!! Caught exception: %s" % (e))
+        else:
+            # _msg = {u'eventRangeID': u'79-2161071668-11456-1011-1', u'LFN': u'EVNT.01461041._000001.pool.root.1', u'lastEvent': 1020, u'startEvent': 1011, u'scope': u'mc12_8TeV', u'GUID': u'BABC9918-743B-C742-9049-FC3DCC8DD774'}
+            # Now remove the "scope" key/value
+            scope = _msg.pop("scope")
+            # Convert back to a string
+            message = str([_msg])
+            tolog("Removed scope key-value from message")
+
     yampl_server.send(message)
     tolog("Sent %s" % message)
 
-# TEST VERSION
-def downloadNewEventRange(n):
-    """ Download an event range from the Event Server """
+# NOT NEEDED
+def extractScope(name):
+    """ Method to extract the scope from the dataset/file name """
+
+    if name.lower().startswith('user') or name.lower().startswith('group'):
+        return name.lower().split('.')[0] + '.' + name.lower().split('.')[1]
+
+    return name.split('.')[0]
+
+def getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir, analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable,\
+                           scope_dict, filesizeIn, checksumIn, thisExperiment=None, pfc_name="PoolFileCatalog.xml"):
+    """ Wrapper function for the actual getPoolFileCatalog function in Mover """
+
+    # This function is a wrapper to the actual getPoolFileCatalog() in Mover, but also contains SURL to TURL conversion
+
+    from SiteMover import SiteMover
+    sitemover = SiteMover()
+    ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = mover.getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir,\
+                                                                                              analysisJob, tokens, workdir, dbh,\
+                                                                                              DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
+                                                                                              sitemover, thisExperiment=thisExperiment, pfc_name=pfc_name)
+    if ec != 0:
+        tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
+    else:
+        # Create the file dictionaries needed for the TURL conversion
+        file_nr = 0
+        fileInfoDic = {}
+        dsdict = {}
+        xmldoc = minidom.parseString(xml_from_PFC)
+        fileList = xmldoc.getElementsByTagName("File")
+        for thisfile in fileList: # note that there should only ever be one file
+            surl = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
+            guid = guid_list[file_nr]
+            # Fill the file info dictionary (ignore the file size and checksum values since they are irrelevant for the TURL conversion - set to 0)
+            fileInfoDic[file_nr] = (guid, surl, 0, 0)
+            if not dsdict.has_key(dsname): dsdict[dsname] = []
+            dsdict[dsname].append(os.path.basename(surl))
+            file_nr += 1
+
+        transferType = ""
+        sitename = ""
+        usect = False
+        eventService = True
+        # Until the Mover PFC file is no longer needed, call the TURL based PFC "PoolFileCatalogTURL.xml"
+        pfc_name_turl = pfc_name.replace(".xml", "TURL.xml")
+        setPoolFileCatalogPath(os.path.join(workdir, pfc_name_turl))
+        tolog("Using PFC path: %s" % (getPoolFileCatalogPath()))
+
+        # Create a TURL based PFC
+        ec, pilotErrorDiag, createdPFCTURL, usect = mover.PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService)
+        if ec != 0:
+            tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
+
+        return ec, pilotErrorDiag
+
+def createPoolFileCatalog(inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment):
+    """ Create the Pool File Catalog """
+
+    # Create the scope dictionary
+    scope_dict = {}
+    n = 0
+    for lfn in inFiles:
+        scope_dict[lfn] = scopeIn[n]
+        n += 1
+
+    tolog("Using scope dictionary for initial PFC: %s" % str(scope_dict))
+
+    dsname = 'dummy_dsname' # not used by getPoolFileCatalog()
+    analysisJob = False
+    workdir = os.getcwd()
+    ub = ''
+    dbh = None
+    DBReleaseIsAvailable = False
+
+#    ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = getPoolFileCatalog(ub, inFilesGuids, dsname, inFiles, pilot_initdir, analysisJob,\
+    ec, pilotErrorDiag = getPoolFileCatalog(ub, inFilesGuids, dsname, inFiles, pilot_initdir, analysisJob,\
+                                                tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
+                                                filesizeIn, checksumIn, thisExperiment=thisExperiment)
+    if ec != 0:
+        tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
+
+    return ec, pilotErrorDiag
+
+def createPoolFileCatalogFromMessage(message, thisExperiment):
+    """ Prepare and create the PFC using file/guid info from the event range message """
+
+    # This function is using createPoolFileCatalog() to create the actual PFC using
+    # the info from the server message
+
+    # Note: the PFC created by this function will only contain a single LFN
+    # while the intial PFC can contain multiple LFNs
+
+    # WARNING!!!!!!!!!!!!!!!!!!!!!!
+    # Consider rewrite: this function should append an entry into the xml, not replace the entire xml file
+
+
+    ec = 0
+    pilotErrorDiag = ""
+
+    if not "No more events" in message:
+        # Convert string to list
+        msg = loads(message)
+
+        # Get the LFN and GUID (there is only one LFN/GUID per event range)
+        try:
+            # must convert unicode strings to normal strings or the catalog lookups will fail
+            lfn = str(msg[0]['LFN'])
+            guid = str(msg[0]['GUID'])
+            scope = str(msg[0]['scope'])
+        except Exception, e:
+            ec = -1
+            pilotErrorDiag = "Failed to extract LFN from event range: %s" % (e)
+            tolog("!!WARNING!!3434!! %s" % (pilotErrorDiag))
+        else:
+            # Has the file already been used? (If so, the PFC already exists)
+            if guid in guid_list:
+                tolog("PFC for GUID in downloaded event range has already been created")
+            else:
+                guid_list.append(guid)
+                lfn_list.append(lfn)
+
+                tolog("Updating PFC for lfn=%s, guid=%s, scope=%s" % (lfn, guid, scope))
+
+                # Create the PFC (includes replica lookup over multiple catalogs)
+                #from Mover import getPoolFileCatalog
+
+                scope_dict = { lfn : scope }
+                tokens = ['NULL']
+                filesizeIn = ['']
+                checksumIn = ['']
+                dsname = 'dummy_dsname' # not used by getPoolFileCatalog()
+                analysisJob = False
+                workdir = os.getcwd()
+                ub = ''
+                dbh = None
+                DBReleaseIsAvailable = False
+
+#                ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir,\
+                ec, pilotErrorDiag = getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir,\
+                                                            analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable,\
+                                                            scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment)
+                if ec != 0:
+                    tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
+
+    return ec, pilotErrorDiag
+
+def downloadEventRanges(jobId):
+    """ Download event ranges from the Event Server """
 
     # Return the server response (instruction to AthenaMP)
-    tolog("Server: Downloading new event range..")
-    time.sleep(3)
-    if n < 1:
-        tolog("Server: Done")
-        message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]%d" % (n)
+    # Note: the returned message is a string (of a list of dictionaries). If it needs to be converted back to a list, use json.loads(message)
+
+    tolog("Server: Downloading new event ranges..")
+
+    # message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]"
+
+    message = ""
+    url = "https://aipanda007.cern.ch:25443/server/panda"
+#    url = "https://pandaserver.cern.ch:25443/server/panda"
+    node = {}
+    node['pandaID'] = jobId
+
+    # open connection
+    ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")
+    response = ret[1]
+
+    if ret[0]: # non-zero return code
+        message = "Failed to download event range - error code = %d" % (ret[0])
     else:
-        tolog("Server: No more events")
+        message = response['eventRanges']
+
+    if message == "" or message == "[]":
+        message = "No more events"
+
+    return message
+
+def updateEventRange(event_range_id, eventRangeList):
+    """ Update an event range on the Event Server """
+
+    # Return the server response (instruction to AthenaMP)
+    # Note: the returned message is a string (of a list of dictionaries). If it needs to be converted back to a list, use json.loads(message)
+
+    tolog("Server: Updating an event range..")
+
+    # message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]"
+
+    message = ""
+    url = "https://aipanda007.cern.ch:25443/server/panda"
+#    url = "https://pandaserver.cern.ch:25443/server/panda"
+    node = {}
+    node['eventRangeID'] = event_range_id
+#    node['output'] = eventRangeList[0]
+#    node['cpu'] =  eventRangeList[1]
+#    node['wall'] = eventRangeList[2]
+    node['eventStatus'] = 'finished'
+
+    # open connection
+    ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGES")
+    response = ret[1]
+
+    if ret[0]: # non-zero return code
+        message = "Failed to download event range - error code = %d" % (ret[0])
+    else:
+        message = response['eventRanges']
+
+    if message == "" or message == "[]":
         message = "No more events"
 
     return message
@@ -1030,6 +1340,28 @@ def setOutputArea():
     global output_area
     output_area = createSEDir()
     tolog("Files will be transferred to %s" % (output_area))
+
+def getStdoutStderrFileObjects(stdoutName="stdout.txt", stderrName="stderr.txt"):
+    """ Create stdout/err file objects """
+
+    try:
+        stdout = open(os.path.join(os.getcwd(), stdoutName), "w")
+        stderr = open(os.path.join(os.getcwd(), stderrName), "w")
+    except Exception, e:
+        tolog("!!WARNING!!3330!! Failed to open stdout/err files: %s" % (e))
+        stdout = None
+        stderr = None
+
+    return stdout, stderr
+
+def testES():
+
+    tolog("Note: queuedata.json must be available")
+    os.environ['PilotHomeDir'] = os.getcwd()
+    thisExperiment = getExperiment("ATLAS")
+    message = downloadEventRanges()
+    #createPoolFileCatalogFromMessage(message, thisExperiment)
+
 
 # main process starts here
 if __name__ == "__main__":
@@ -1208,12 +1540,34 @@ if __name__ == "__main__":
         yampl_thread = StoppableThread(name='yamplListener', target=yamplListener)
         yampl_thread.start()
 
+        # Stdout/err file objects
+        tokenextractor_stdout = None
+        tokenextractor_stderr = None
+        athenamp_stdout = None
+        athenamp_stderr = None
+
         # Create and start the TokenExtractor
         input_tag_file = getTAGFile(job.inFiles)
         # input_tag_file = "EVNT.545023._000041.TAG.pool.root.2"
         if input_tag_file != "":
             tolog("Will run TokenExtractor on file %s" % (input_tag_file))
-            #tokenExtractorProcess = getTokenExtractorProcess(thisExperiment, input_tag_file)
+
+            # Extract the proper setup string from the run command
+            setupString = thisEventService.extractSetup(runCommandList[0])
+            tolog("The Token Extractor will be setup using: %s" % (setupString))
+
+            # Create the file objects
+            tokenextractor_stdout, tokenextractor_stderr = getStdoutStderrFileObjects(stdoutName="tokenextractor_stdout.txt", stderrName="tokenextractor_stderr.txt")
+
+            # Get the Token Extractor command
+            tokenExtractorProcess = getTokenExtractorProcess(thisExperiment, setupString, input_tag_file, stdout=tokenextractor_stdout, stderr=tokenextractor_stderr)
+
+#            out, err = tokenExtractorProcess.communicate()
+#            errcode = tokenExtractorProcess.returncode
+
+#            tolog("out=%s" % (out))
+#            tolog("err=%s" % (err))
+#            tolog("errcode=%s" % str(errcode))
         else:
             pilotErrorDiag = "Required TAG file could not be identified in input file list"
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
@@ -1223,23 +1577,59 @@ if __name__ == "__main__":
 
             failJob(0, job.result[2], job, pilotserver, pilotport, ins=ins, pilotErrorDiag=pilotErrorDiag)
 
+
+
+        # athenamp gets stuck here as soon as it is launched. why? it appears to be blocking
+        # try to print stdout/err
+
+        # Create the file objects
+        athenamp_stdout, athenamp_stderr = getStdoutStderrFileObjects(stdoutName="athenamp_stdout.txt", stderrName="athenamp_stderr.txt")
+
+        # Remove the 1>.. 2>.. bit from the command string (not needed since Popen will handle the streams)
+        if " 1>" in runCommandList[0] and " 2>" in runCommandList[0]:
+            runCommandList[0] = runCommandList[0][:runCommandList[0].find(' 1>')]
+
+        # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
+        ec, pilotErrorDiag = createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken, job.filesizeIn, job.checksumIn, thisExperiment)
+        if ec != 0:
+            tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
+
+            # stop threads
+            # ..
+
+            failJob(0, job.result[2], job, pilotserver, pilotport, ins=ins, pilotErrorDiag=pilotErrorDiag)
+
+        # AthenaMP needs to know where exactly is the PFC
+        runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (getPoolFileCatalogPath())
+
         # Create and start the AthenaMP process
-        athenaMPProcess = getAthenaMPProcess(thisExperiment, pilot_initdir)
+        athenaMPProcess = getAthenaMPProcess(thisExperiment, runCommandList[0], stdout=athenamp_stdout, stderr=athenamp_stderr)
 
         # Main loop ........................................................................................
 
-        # nonsense counter used to get different "event server" message using the downloadNewEventRange() function
+        # nonsense counter used to get different "event server" message using the downloadEventRanges() function
+        tolog("Entering monitoring loop")
         n = 0
         while True:
-            tolog("Monitoring loop")
-
-            # if the AthenaMP workers are ready for event processing, download an event range
+            # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the yamplListener after the "Ready for events" message is received from the client
             if athenamp_is_ready:
+
                 # Pilot will download an event range from the Event Server
 
                 # Download events
-                message = downloadNewEventRange(n)
+                n += 1
+                if n <= 1:
+                    message = downloadEventRanges(job.jobId)
+                else:
+                    message = "No more events"
+
+                # Create a new PFC for the current event range (won't be executed in case there are no more events)
+                ec, pilotErrorDiag = createPoolFileCatalogFromMessage(message, thisExperiment)
+                if ec != 0:
+                    tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
+                    sendYamplMessage("") # Empty message means no more events
+                    break
 
                 # Pass the server response to AthenaMP
                 sendYamplMessage(message)
@@ -1264,29 +1654,73 @@ if __name__ == "__main__":
                     tolog("Ok")
                     break
 
+                # Is AthenaMP still running?
+                if athenaMPProcess.poll() is None:
+                    tolog("AthenaMP appears to have finished")
+                    break
+
                 n += 1
 
             else:
                 time.sleep(5)
 
+        # Stop Token Extractor
+        if tokenExtractorProcess:
+            tolog("Stopping Token Extractor process")
+            tokenExtractorProcess.kill()
+            tolog("(Kill signal SIGTERM sent)")
+        else:
+            tolog("No Token Extractor process running")
+
+        # Close stdout/err streams
+        if tokenextractor_stdout:
+            tokenextractor_stdout.close()
+        if tokenextractor_stderr:
+            tokenextractor_stderr.close()
+
+        # Stop AthenaMP
+        if athenaMPProcess:
+            tolog("Stopping AthenaMP process")
+            athenaMPProcess.kill()
+            tolog("(Kill signal SIGTERM sent)")
+        else:
+            tolog("No AthenaMP process running")
+
+        # Close stdout/err streams
+        if athenamp_stdout:
+            athenamp_stdout.close()
+        if athenamp_stderr:
+            athenamp_stderr.close()
 
         tolog("Stopping yampl thread")
         yampl_thread.stop()
-        # do not stop the stageout thread until all output files have been transferred
+
+        # Do not stop the stageout thread until all output files have been transferred
         while len (stageout_queue) > 0:
             tolog("stage-out queue: %s" % (stageout_queue))
             time.sleep(1)
         tolog("Stopping stage-out thread")
         asyncOutputStager_thread.stop()
+
         tolog("Joining threads")
         yampl_thread.join()
         asyncOutputStager_thread.join()
 
+        # check the job report for any exit code that should replace the res_tuple[0]
+        res0, exitAcronym, exitMsg = getTrfExitInfo(0, job.workdir)
+        res = (res0, exitMsg, exitMsg)
+
+        # if payload leaves the input files, delete them explicitly
+        if ins:
+            ec = pUtil.removeFiles(job.workdir, ins)
+
+        # payload error handling
+        ed = ErrorDiagnosis()
+        job = ed.interpretPayload(job, res, False, 0, runCommandList, failureCode)
+        if job.result[1] != 0 or job.result[2] != 0:
+            failJob(job.result[1], job.result[2], job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
+
         tolog("Done")
-
-
-
-
 
 #        # Run main loop until event_loop_running is set to False
 #        while event_loop_running:

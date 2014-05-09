@@ -1,5 +1,34 @@
 #!/usr/bin/python -u 
 
+
+
+
+
+# see runEvent, why is athenamp blocking?
+# execute athenamp by hand, put PFC in same dir
+# then start it with Popen
+# go to next adv weekly, ask ale to help with proxies, transfer TAG file to cern
+
+# AtlasG4_tf.py '--inputEvgenFile' '<path_to_the_startup_input_file>' '--outputHitsFile' 'HITS_b3db00ae-e277-4ea4-88eb-ee4dffd9e7f6.root' '--maxEvents=2' '--randomSeed=568' '--geometryVersion' 'ATLAS-GEO-18-01-03' '--physicsList' 'QGSP_BERT' '--conditionsTag' 'OFLCOND-MC12-SDR-06' '--preExec' 'from AthenaMP.AthenaMPFlags import jobproperties as jps' 'jps.AthenaMPFlags.Strategy="TokenScatterer"' 'from AthenaCommon.AppMgr import ServiceMgr as svcMgr' 'from AthenaServices.AthenaServicesConf import OutputStreamSequencerSvc' 'outputStreamSequencerSvc = OutputStreamSequencerSvc()' 'outputStreamSequencerSvc.SequenceIncidentName = "NextEventRange"' 'outputStreamSequencerSvc. IgnoreInputFileBoundary = True' 'svcMgr += outputStreamSequencerSvc'
+
+#bash-4.1$ cd /tmp/nilspal
+#bash-4.1$ cp ~/python/EVNT.545023._000041.TAG.pool.root.2 .
+#bash-4.1$ cp ~/python/PoolFileCatalog.xml .
+#bash-4.1$ export ATHENA_PROC_NUMBER='4'
+#bash-4.1$ source /cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies/x86_64-slc6-gcc47-opt/19.0.X/rel_4/cmtsite/asetup.sh rel_4,notest --cmtconfig x86_64-slc6-gcc47-opt
+#AtlasOffline/rel_4 with platform x86_64-slc6-gcc47-opt
+#at /cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies/x86_64-slc6-gcc47-opt/19.0.X/rel_4
+#source /cvmfs/atlas.cern.ch/repo/sw/local/setup-yampl.sh
+#
+#
+#fails at
+#AtlasG4Tf 20:54:24 Py:AthFile           INFO opening [EVNT.545023._000041.TAG.pool.root.2]...
+#AtlasG4Tf 20:54:30 Error: argument of type 'NoneType' is not iterable
+#
+#put full file path? pfn? need to register file at cern
+
+
+
 # test code in getInstallDir() related to setting of siteroot, now adding cmtconfig etc for non-vo-atlas-sw-dir
 
 # alternative SE stageout activated in mover: useAlternativeStageOut
@@ -2396,6 +2425,8 @@ def runMain(runpars):
         env['workerNode'] = Node.Node()
         env['workerNode'].setNodeName(getProperNodeName(os.uname()[1]))
 
+        #PN
+#        os.environ['PYTHONPATH'] = '/cluster/grid/osg-wn-client-4-10-2014/usr/lib/python2.6/site-packages:/cluster/grid/osg-wn-client-4-10-2014/usr/lib64/python2.6/site-packages:/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/0.1.12/externals/kerberos/lib.slc6-x86_64-2.6:/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/0.1.12/externals/kerberos/lib.slc6-i686-2.6:/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/0.1.12/lib/python2.6/site-packages:/cluster/grid/osg-wn-client-4-10-2014/usr/lib/python2.6/site-packages:/cluster/grid/osg-wn-client-4-10-2014/usr/lib64/python2.6/site-packages:/cvmfs/atlas.cern.ch/repo/sw/local/noarch/python-yampl/1.0/lib.linux-x86_64-2.6'
         # PN
         try:
             pUtil.tolog("LD_LIBRARY_PATH=%s"%(os.environ['LD_LIBRARY_PATH']))
@@ -2496,7 +2527,7 @@ def runMain(runpars):
             # do we have a valid proxy?
             ec = verifyProxyValidity()
             if ec != 0:
-                pUtil.fastCleanup(env['thisSite'].workdir)
+                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
                 return ec
 
             pUtil.tolog("Collecting WN info from: %s" % (os.path.dirname(env['thisSite'].workdir)))
@@ -2506,7 +2537,7 @@ def runMain(runpars):
             ec = checkLocalDiskSpace(error)
             if ec != 0:
                 pUtil.tolog("Pilot was executed on host: %s" % (env['workerNode'].nodename))
-                pUtil.fastCleanup(env['thisSite'].workdir)
+                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
                 return ec
 
             # getJob begins here....................................................................................
@@ -2528,18 +2559,23 @@ def runMain(runpars):
                 pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))            
 
             # verify any contradicting job definition parameters here
-            status = thisExperiment.postGetJobActions()
-            if status:
-                pUtil.tolog("postGetJobActions: OK")
-            else:
-                pUtil.tolog("!!WARNING!!1231!! Post getJob() actions encountered a problem - job will fail")
+            try:
+                ec, pilotErrorDiag = thisExperiment.postGetJobActions(env['job'])
+                if ec == 0:
+                    pUtil.tolog("postGetJobActions: OK")
+                else:
+                    pUtil.tolog("!!WARNING!!1231!! Post getJob() actions encountered a problem - job will fail")
 
-                # job must be failed correctly
-                # ..
-
-                # go to the next multi-job if possible
-                # ..
-                # continue
+                    # job must be failed correctly
+                    pUtil.tolog("Updating PanDA server for the failed job (error code %d)" % (ec))
+                    env['job'].result[0] = 'failed'
+                    env['job'].currentState = env['job'].result[0]
+                    env['job'].result[2] = ec
+                    pUtil.postJobTask(env['job'], thisSite, workerNode, jr=False)
+                    pUtil.fastCleanup(thisSite.workdir)
+                    return ec
+            except Exception, e:
+                pUtil.tolog("Caught exception: %s" % (e))
 
             pUtil.tolog('glexec is: %s' % str(env['glexec']))
             if env['glexec'] == False:

@@ -280,7 +280,6 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
 def getReplicaDictionaryFromRucio(lfn_dict, scope_dict, host):
     """ Create a dictionary of the guids and replica objects """
 
-    error = PilotErrors()
     pilotErrorDiag = ""
     ec = 0
     replicas_dic = {}
@@ -554,7 +553,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             if ec != 0:
                 return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
-            # file the file info dictionary
+            # fill the file info dictionary
             fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum)
 
             # check total file sizes to avoid filling up the working dir, add current file size
@@ -1234,7 +1233,10 @@ def getDBReleaseVersion(dbh, jobPars):
 def isDBReleaseFile(dbh, lfn):
     """ Is the LFN a DBRelease file? """
 
-    return dbh.extractVersion(lfn)
+    if dbh:
+        return dbh.extractVersion(lfn)
+    else:
+        return False
 
 def isDBReleaseAvailable(dbh, version, lfns, jobPars):
     """ Check if the DBRelease file is available locally """
@@ -3369,7 +3371,22 @@ def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, w
         # build a new PFC for NG
         ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogNG(guids, lfns, pinitdir)
 
-    return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict
+    # As a last step, remove any multiple identical copies of the replicas (SURLs)
+    final_replicas_dict = {}
+    if replicas_dict != {}: # Protect against Nordugrid case
+        tolog(". replicas_dict=%s" % str(replicas_dict))
+        try:
+            for guid in replicas_dict:
+                SURL_list = []
+                final_replicas_dict[guid] = []
+                for rep in replicas_dict[guid]:
+                    if not rep.sfn in SURL_list:
+                        SURL_list.append(rep.sfn)
+                        final_replicas_dict[guid].append(rep)
+        except Exception, e:
+            tolog("!!WARNING!!4444!! Caught exception: %s" % (e))
+
+    return ec, pilotErrorDiag, xml_from_PFC, xml_source, final_replicas_dict
 
 def getPoolFileCatalogNG(guids, lfns, pinitdir):
     """ build a new PFC for NG """

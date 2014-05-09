@@ -117,8 +117,8 @@ class Job:
             _spsetup = self.spsetup
         else:
             _spsetup = "(not defined)"
-        pUtil.tolog("\nPandaID=%d\nAtlasRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s" %\
-                    (self.jobId, self.atlasRelease, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType))
+        pUtil.tolog("\nPandaID=%d\nAtlasRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\scopeOut=%s\nscopeLog=%s" %\
+                    (self.jobId, self.atlasRelease, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -223,6 +223,13 @@ class Job:
         else:
             self.inFilesGuids = []
 
+        if data.has_key('processingType'):
+            self.processingType = str(data['processingType'])
+#            self.processingType = 'nightlies'
+        else:
+            # use default
+            pass
+
         # Event Service variables
         if data.has_key('eventService'):
             if data.get('eventService', '').lower() == "true":
@@ -236,8 +243,9 @@ class Job:
             self.eventRanges = data.get('eventRanges', None)
             pUtil.tolog("eventRanges = %s" % str(self.eventRanges))
 
-        #PN
-        self.eventService = True
+        if not self.eventService and self.processingType == "evtest":
+            pUtil.tolog("Turning on Event Service for processing type = %s" % (self.processingType))
+            self.eventService = True
 
 
 #        self.eventRangeID = data.get('eventRangeID', None)
@@ -277,13 +285,6 @@ class Job:
             _tmp = int(data['maxDiskCount'])
             if _tmp != 0 and _tmp != self.maxDiskCount:
                 self.maxDiskCount = _tmp
-        else:
-            # use default
-            pass
-
-        if data.has_key('processingType'):
-            self.processingType = str(data['processingType'])
-#            self.processingType = 'nightlies'
         else:
             # use default
             pass
