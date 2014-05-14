@@ -98,7 +98,7 @@ class JobLog:
             s = True
         else:
             s = False
-        s = False
+        s = True
         if s: #thisExperiment.doSpecialLogFileTransfer():
             tolog("Preparing for log file transfer to special SE")
 
@@ -587,7 +587,7 @@ class JobLog:
             else:
                 tolog("Successfully copied NG/CERNVM metadata file to site work dir: %s" % (siteWorkdir))
 
-    def createFinalMetadata(self, siteWorkdir, logFile, jobId, newDirNM, outputFilesXML):
+    def createMetadataForOutput(self, workdir, filename, jobId, newDirNM, outputFilesXML):
         """ Create the final metadata with file size and checksum of the log tarball """
 
         # add metadata about log file to metadata.xml
@@ -599,14 +599,14 @@ class JobLog:
 
         # get the file info for the log file and, if needed, for the CERNVM outputFilesXML file
         ec, pilotErrorDiag, _fsize, _checksum = \
-            SiteMover.getLocalFileInfo(os.path.join(siteWorkdir, logFile), csumtype=sitemover.getChecksumCommand(), date=_date)
+            SiteMover.getLocalFileInfo(os.path.join(workdir, filename), csumtype=sitemover.getChecksumCommand(), date=_date)
         if ec != 0:
             tolog("!!WARNING!!2995!! Failed while trying to get the log file info: %d" % (ec))
             tolog("fsize=%s" % (_fsize))
             tolog("checksum=%s" % (_checksum))
 
         JS = JobState()
-        _filename = JS.getFilename(siteWorkdir, repr(jobId))
+        _filename = JS.getFilename(workdir, repr(jobId))
         if os.path.exists(_filename):
             ec, pilotErrorDiag, _fsizeAdditional, _checksumAdditional = \
                 SiteMover.getLocalFileInfo(_filename, csumtype=sitemover.getChecksumCommand(), date=_date)
@@ -618,9 +618,9 @@ class JobLog:
             _fsizeAdditional = None
             _checksumAdditional = None
 
-        fname = "%s/metadata-%s.xml" % (siteWorkdir, str(jobId))
+        fname = "%s/metadata-%s.xml" % (workdir, str(jobId))
         if os.path.exists(fname):
-            tolog("Found metadata in site dir: %s" % (siteWorkdir))
+            tolog("Found metadata in site dir: %s" % (workdir))
         else:
             # backup solution in case metadata has not already been copied into the site work dir
             tolog("Metadata not found in site work dir, looking for it in job work dir instead..")
@@ -628,7 +628,7 @@ class JobLog:
             if os.path.exists(_fname):
                 tolog("Found metadata in job work dir: %s" % (newDirNM))
                 try:
-                    copy2(_fname, siteWorkdir)
+                    copy2(_fname, workdir)
                 except Exception, e:
                     tolog("!!WARNING!!2999!! Failed to copy metadata file from job work dir to site work dir: %s" % str(e))
                 else:
@@ -653,7 +653,7 @@ class JobLog:
             tolog("!!WARNING!!2999!! Failed to find metadata file, expect job to eventually fail with ddm: Adder._updateOutputs() could not get GUID/LFN/MD5/FSIZE")
 
         # add the metadata about log file to special NG/CERNVM file
-        fname = os.path.join(siteWorkdir, outputFilesXML)
+        fname = os.path.join(workdir, outputFilesXML)
         if os.path.exists(fname):
             # add checksum and file size of log file to the metadata file (OutputFiles.xml) and then transfer it
             ec, _strXML = updateMetadata(fname, _fsize, _checksum, format='NG', fsizeAdditional=_fsizeAdditional, checksumAdditional=_checksumAdditional)
@@ -833,7 +833,7 @@ class JobLog:
 
                 # create the final metadata.xml
                 if not jr and job.result[0] != "failed":
-                    strXML = self.createFinalMetadata(site.workdir, job.logFile, job.jobId, job.newDirNM, job.outputFilesXML)
+                    strXML = self.createMetadataForOutput(site.workdir, job.logFile, job.jobId, job.newDirNM, job.outputFilesXML)
 
                 # create metadata later (in updatePandaServer) for the log at least, if it doesn't exist already
                 if (strXML == "" or strXML == None) and job.result[0] == 'failed':
@@ -1230,10 +1230,10 @@ class JobLog:
         # Create the full path
         if _logPath != "":
             # Use the job id to generate sub directories
-            path = self.constructPathFromJobid(jobId)
+            # path = self.constructPathFromJobid(jobId)
 
             # Put it all together
-            logPath = os.path.join(_logPath, os.path.join(path, logFile))
+            logPath = os.path.join(_logPath, os.path.join(jobId, logFile))
         else:
             logPath = ""
 

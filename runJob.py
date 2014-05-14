@@ -583,7 +583,7 @@ def moveTrfMetadata(workdir, jobId, pworkdir):
         else:
             tolog("Metadata was transferred to site work dir: %s/%s" % (pworkdir, _filename))
 
-def createFileMetadata(outFiles, job, outsDict, dsname, datasetDict, sitename):
+def createFileMetadata(outFiles, job, outsDict, dsname, datasetDict, sitename, analJob=False):
     """ create the metadata for the output + log files """
 
     ec = 0
@@ -1009,7 +1009,7 @@ if __name__ == "__main__":
                 moveTrfMetadata(job.workdir, job.jobId, pworkdir)
 
             # create the metadata for the output + log files
-            ec, job, outputFileInfo = createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename)
+            ec, job, outputFileInfo = createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analJob=analJob)
             if ec:
                 failJob(0, ec, job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
 

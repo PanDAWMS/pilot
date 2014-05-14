@@ -809,3 +809,7 @@ class Experiment(object):
         pilotErrorDiag = ""
 
         return ec, pilotErrorDiag
+
+    def useTracingService(self):
+
+        return False

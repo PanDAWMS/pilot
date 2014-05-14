@@ -441,13 +441,18 @@ def convertMetadata4NG(filenameOUT, filenameIN, outsDict, dataset, datasetDict):
     
     return status
 
-def getOutFilesGuids(outFiles, workdir):
+def getOutFilesGuids(outFiles, workdir, TURL=False):
     """ get the outFilesGuids from the PFC """
 
     ec = 0
     pilotErrorDiag = ""
     outFilesGuids = []
+
     pfcFile = "%s/PoolFileCatalog.xml" % (workdir)
+
+    # The PFC used for Event Service will be TURL based, use the corresponding file
+    if TURL:
+        pfcFile = pfcFile.replace(".xml", "TURL.xml")
 
     # initialization: make sure the guid list has the same length as the file list
     for i in range (0, len(outFiles)):

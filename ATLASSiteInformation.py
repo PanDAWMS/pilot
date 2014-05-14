@@ -432,6 +432,8 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
             ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 
+        if thisSite.sitename == "BNL_PROD_MCORE":
+            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^dcap://dcdcap01.usatlas.bnl.gov:22129")
         if thisSite.sitename == "RAL-LCG2_MCORE":
             ec = self.replaceQueuedataField("copyprefix", "srm://srm-atlas.gridpp.rl.ac.uk^root://catlasdlf.ads.rl.ac.uk/")
 

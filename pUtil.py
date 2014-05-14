@@ -325,7 +325,7 @@ def prepareMetadata(metadata_filename):
 
     return metadata_filename
 
-def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None):
+def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None, objectStorePath=""):
     """ Create a PFC style XML file """
 
     # fnlist = output file list
@@ -445,7 +445,10 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
         for i in range(0,len(flist)):
             fd.write('  <File ID="%s">\n' % (glist[i]))
             fd.write("    <physical>\n")
-            fd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (flist[i]))
+            if objectStorePath != "":
+                fd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (os.path.join(objectStorePath, flist[i])))
+            else:
+                fd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (flist[i]))
             fd.write("    </physical>\n")
             fd.write("  </File>\n")
         fd.write("</POOLFILECATALOG>\n")
@@ -924,7 +927,7 @@ def getOutputFileInfo(outputFiles, checksum_cmd, skiplog=False, logFile=""):
     if logFile != "":
         outputFiles.remove(logFile)
 
-    tolog("going to return %d,%s,%s,%s" % (ec, pilotErrorDiag, fsize, checksum))
+    #tolog("Going to return %d,%s,%s,%s" % (ec, pilotErrorDiag, fsize, checksum))
     return ec, pilotErrorDiag, fsize, checksum
 
 def updateMetadata(fname, fsize, checksum, format=None, fsizeXML=None, checksumXML=None, fsizeAdditional=None, checksumAdditional=None):

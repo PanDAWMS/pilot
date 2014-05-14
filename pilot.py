@@ -2571,8 +2571,8 @@ def runMain(runpars):
                     env['job'].result[0] = 'failed'
                     env['job'].currentState = env['job'].result[0]
                     env['job'].result[2] = ec
-                    pUtil.postJobTask(env['job'], thisSite, workerNode, jr=False)
-                    pUtil.fastCleanup(thisSite.workdir)
+                    pUtil.postJobTask(env['job'], env['thisSite'], env['workerNode'], jr=False)
+                    pUtil.fastCleanup(env['thisSite'].workdir)
                     return ec
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))

@@ -2522,3 +2522,13 @@ if __name__ == "__main__":
 
     appdir='/cvmfs/atlas.cern.ch/repo/sw'
     #a.specialChecks(appdir=appdir)
+
+    def useTracingService(self):
+
+        return True
+
+    def sendTracingReport(self, exitCode):
+
+        ts = TracingService()
+        ts.send
+        

@@ -175,6 +175,11 @@ but there is no dbh in that case) (Mover)
 Corrected fastCleanup() calls with too few arguments (two times in runMain()) (pilot)
 Added get/updateEventRanges to httpConnect() (pUtil)
 Added scopeIn, scopeOut, scopeLog to displayJob() (Job)
+Renamed logFile to filename, siteWorkdir to workdir in createFinalMetadata() (JobLog)
+Renamed createFinalMetadata() to createMetadataForOutput() (JobLog)
+Supporting TURL based PFCs in getOutFilesGuids() (RunJobUtilities)
+Created a new createFileMetadata() function for Event Service output files (runEvent)
+Added objectStorePath argument and handling to PFCxml() (pUtil)
 
 ------------------------------------------------------
 

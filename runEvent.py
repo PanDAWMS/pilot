@@ -66,13 +66,18 @@ event_loop_running = False         #
 output_file_dictionary = {}        # OLD REMOVE
 guid_list = []                     # Keep track of downloaded GUIDs
 lfn_list = []                      # Keep track of downloaded LFNs
-eventRangeDictionary = {}          #
+eventRange_dictionary = {}         # eventRange_dictionary[event_range_id] = [path, cpu, wall]
+eventRangeID_dictionary = {}       # eventRangeID_dictionary[event_range_id] = True (corr. output file has been transferred)
 stageout_queue = []                #
 _pfc_path = ""                     # The path to the pool file catalog
 yampl_server = None                #
 yampl_thread = None                #
 athenamp_is_ready = False          #
 asyncOutputStager_thread = None    #
+analysisJob = False                # True for analysis job
+jobId = ""                         # PanDA job id
+job_workdir = ""                   # Job workdir
+
 output_area = "" # REMOVE LATER
 
 def usage():
@@ -626,7 +631,81 @@ def moveTrfMetadata(workdir, jobId, pworkdir):
         else:
             tolog("Metadata was transferred to site work dir: %s/%s" % (pworkdir, _filename))
 
-def createFileMetadata(outFiles, job, outsDict, dsname, datasetDict, sitename):
+def getMetadataFilename(event_range_id):
+    """ Return the metadata file name """
+
+    return os.path.join(job_workdir, "metadata-%s.xml" % (event_range_id))
+
+def createFileMetadata(outputFile, event_range_id):
+    """ Create the metadata for an output file """
+
+    # This function will create a metadata file called metadata-<event_range_id>.xml using file info
+    # from PoolFileCatalogTURL.xml
+    # Return: ec, pilotErrorDiag, outputFileInfo
+    #         where outputFileInfo: {'<full path>/filename.ext': (fsize, checksum), ...} 
+    #         (dictionary is used for stage-out)
+
+    ec = 0
+    pilotErrorDiag = ""
+    outputFileInfo = {}
+
+    # Get/assign a guid to the output file
+    outFilesGuids = [commands.getoutput('uuidgen 2> /dev/null')]
+    tolog("Generated GUID %s for file %s" % (outputFile, outFilesGuids[0]))
+
+#    ec, pilotErrorDiag, outFilesGuids = RunJobUtilities.getOutFilesGuids([outputFile], job_workdir, TURL=True)
+#    if ec:
+#        # Missing PoolFileCatalog
+#        tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+#        return ec, pilotErrorDiag, None
+#    else:
+#        tolog("outFilesGuids = %s" % str(outFilesGuids))
+
+    # Get the file size and checksum for the local output file
+    # WARNING: any errors are lost if occur in getOutputFileInfo()
+    ec, pilotErrorDiag, fsize_list, checksum_list = pUtil.getOutputFileInfo([outputFile], getChecksumCommand(), skiplog=True)
+    if ec != 0:
+        tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+        return ec, pilotErrorDiag, None
+    else:
+        tolog("fsize = %s" % str(fsize_list))
+        tolog("checksum = %s" % str(checksum_list))
+
+    # Create the metadata
+    _objectStorePath = getFilePath(outputFile, jobId)
+    tolog("Object store path = %s" % (_objectStorePath))
+    _fname = getMetadataFilename(event_range_id) 
+    tolog("Metadata filename = %s" % (_fname))
+
+    _status = pUtil.PFCxml(experiment, _fname, fnlist=[outputFile], fguids=outFilesGuids, fntag="pfn", fsize=fsize_list,\
+                               checksum=checksum_list, analJob=analysisJob, objectStorePath=_objectStorePath)
+    if not _status:
+        pilotErrorDiag = "Missing guid(s) for output file(s) in metadata"
+        tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+        return ec, pilotErrorDiag, None
+
+    tolog("..............................................................................................................")
+    tolog("Created %s with:" % (_fname))
+    tolog(".. output file      : %s" % (outputFile))
+    tolog(".. output file guid : %s" % str(outFilesGuids))
+    tolog(".. fsize            : %s" % str(fsize_list))
+    tolog(".. checksum         : %s" % str(checksum_list))
+    tolog("..............................................................................................................")
+
+    # Build a file size and checksum dictionary for the output file
+    # outputFileInfo: {'a.dat': (fsize, checksum), ...}
+    # e.g.: file size for file a.dat: outputFileInfo['a.dat'][0]
+    # checksum for file a.dat: outputFileInfo['a.dat'][1]
+    try:
+        outputFileInfo = dict(zip([outputFile], zip(fsize_list, checksum_list)))
+    except Exception, e:
+        tolog("!!WARNING!!2993!! Could not create output file info dictionary: %s" % str(e))
+    else:
+        tolog("Output file info dictionary created: %s" % str(outputFileInfo))
+
+    return ec, pilotErrorDiag, outputFileInfo
+
+def createFileMetadataOld(outFiles, job, outsDict, dsname, datasetDict, sitename):
     """ create the metadata for the output + log files """
 
     ec = 0
@@ -911,38 +990,63 @@ def asynchronousOutputStagerOld():
             tolog("File %s was not staged out, move to recovery directory")
             # ..
 
+def getEventRangeID(filename):
+    """ Return the event range id for the corresponding output file """
+
+    event_range_id = ""
+    for event_range in eventRange_dictionary.keys():
+        if eventRange_dictionary[event_range][0] == filename:
+            event_range_id = event_range
+            break
+
+    return event_range_id
+
 def asynchronousOutputStager():
     """ Transfer output files to stage-out area asynchronously """
 
     # Note: this is run as a thread
 
+    tolog("Asynchronous output stager thread initiated")
+    i = 1
     while not asyncOutputStager_thread.stopped():
+
+        if i%60 == 0:
+            tolog("Number of files in stage out queue: %d" % len(stageout_queue))
+            i = 0
 
         if len(stageout_queue) > 0:
             for f in stageout_queue:
-                tolog("Will transfer file %s to %s" % (f, output_area))
-                cmd = "mv %s %s" % (f, output_area)
-                try:
-                    process = Popen(cmd, shell=True)
-                    stdout, stderr = process.communicate()
-                except Exception, e:
-                    tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
+                # Create the output file metadata (will be sent to server)
+                tolog("Preparing to stage-out file %s" % (f))
+                event_range_id = getEventRangeID(f)
+                if event_range_id == "":
+                    tolog("!!WARNING!!1111!! Did not find the event range for file %s in the event range dictionary" % (f))
                 else:
-                    tolog("Transfer has finished (removing %s from queue)" % (f))
-                    stageout_queue.remove(f)
-
-                    # Time to update the server
-                    event_range_id = ""
-                    for event_range in eventRangeDictionary.keys():
-                        if eventRangeDictionary[event_range][0] == f:
-                            event_range_id = event_range
-                            break
-                    if event_range_id != "":
-                        updateEventRange(event_range_id, eventRangeDictionary[event_range_id])
+                    tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
+                    try:
+                        ec, pilotErrorDiag, outputFileInfo = createFileMetadata(f, event_range_id)
+                    except Exception, e:
+                        tolog("!!WARNING!!1111!! Caught exception: %s" % (e))
                     else:
-                        tolog("!!WARNING!!1111!! Did not find the event range (%s) in the event range dictionary" % (event_range))
+                        if ec == 0:
+                            tolog("Will transfer file %s to %s" % (f, output_area))
+                            cmd = "mv %s %s" % (f, output_area)
+                            try:
+                                process = Popen(cmd, shell=True)
+                                stdout, stderr = process.communicate()
+                            except Exception, e:
+                                tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
+                            else:
+                                tolog("Transfer has finished (removing %s from queue)" % (f))
+                                stageout_queue.remove(f)
+
+                                # Time to update the server
+                                updateEventRange(event_range_id, eventRange_dictionary[event_range_id])
+                        else:
+                            tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
 
         time.sleep(1)
+        i += 1
 
 def getFilePath(filename, jobId):
     """ Return a proper file path in the object store """
@@ -964,15 +1068,16 @@ def yamplListener():
 
         try:
             # Receive a message
-            tolog("Are there any new messages?")
+            tolog("Waiting for a new Yampl message")
             size, buf = yampl_server.receive()
             while size == -1 and not yampl_thread.stopped():
                 time.sleep(1)
                 size, buf = yampl_server.receive()
-            tolog("Server received: %s" % buf)
+            tolog("Received new Yampl message: %s" % buf)
 
             # Interpret the message and take the appropriate action
-            if buf == "Ready for events":
+            if "Ready for events" in buf:
+                buf = ""
                 tolog("AthenaMP is ready for events")
                 athenamp_is_ready = True
 
@@ -981,13 +1086,13 @@ def yamplListener():
 
                 # Extract the information from the yampl message
                 path, event_range_id, cpu, wall = interpretMessage(buf)
-                if path not in stageout_queue:
+                if path not in stageout_queue and path != "":
                     # Add the extracted info to the event range dictionary
-                    eventRangeDictionary[event_range_id] = [path, cpu, wall]
+                    eventRange_dictionary[event_range_id] = [path, cpu, wall]
 
                     # Add the file to the stage-out queue
                     stageout_queue.append(path)
-                    tolog("File %s has been added to the stage-out queue" % (path))
+                    tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(stageout_queue)))
             else:
                 tolog("Pilot received message:%s" % buf)
         except Exception,e:
@@ -1090,15 +1195,18 @@ def getTAGFile(inFiles):
 
     return tag_file
 
-def sendYamplMessage(message):
+def sendMessage(message):
     """ Send a yampl message """
 
+    tolog("message = %s, type = %s" % (str(message), type(message)))
+
     # Filter away unwanted fields
-    if "scope" in message and False:
+    if "scope" in message:
         # First replace an ' with " since loads() cannot handle ' signs properly
         # Then convert to a list and get the 0th element (there should be only one)
         try:
-            _msg = loads(message.replace("'",'"'))[0]
+            #_msg = loads(message.replace("'",'"'))[0]
+            _msg = loads(message.replace("'",'"').replace('u"','"'))[0]
         except Exception, e:
             tolog("!!WARNING!!2233!! Caught exception: %s" % (e))
         else:
@@ -1304,9 +1412,22 @@ def updateEventRange(event_range_id, eventRangeList):
     node = {}
     node['eventRangeID'] = event_range_id
 #    node['output'] = eventRangeList[0]
-#    node['cpu'] =  eventRangeList[1]
-#    node['wall'] = eventRangeList[2]
+    _xml = ""
+    try:
+        f = open(getMetadataFilename(event_range_id), "r")
+        tolog("Reading file %s" % (getMetadataFilename(event_range_id)))
+        _xml = read(f)
+    except IOError, e:
+        tolog("!!WARNING!!3333!! Caught exception: %s" % (e))
+    else:
+        f.close()
+
+    tolog("xml = %s" % (_xml))
+    node['xml'] = _xml
+    node['cpu'] =  eventRangeList[1]
+    node['wall'] = eventRangeList[2]
     node['eventStatus'] = 'finished'
+    tolog("node = %s" % str(node))
 
     # open connection
     ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGES")
@@ -1362,6 +1483,51 @@ def testES():
     message = downloadEventRanges()
     #createPoolFileCatalogFromMessage(message, thisExperiment)
 
+def extractEventRanges(message):
+    """ Extract all event ranges from the server message """
+
+    # This function will return a list of event range dictionaries
+
+    event_ranges = []
+
+    try:
+        event_ranges = loads(message)
+    except Exception, e:
+        tolog("Could not extract any event ranges: %s" % (e))
+
+    return event_ranges
+
+def extractEventRangeIDs(event_ranges):
+    """ Extract the eventRangeID's from the event ranges """
+
+    eventRangeIDs = []
+    for event_range in event_ranges:
+        eventRangeIDs.append(event_range['eventRangeID'])
+
+    return eventRangeIDs
+
+def areAllOutputFilesTransferred():
+    """ """
+
+    status = True
+    for eventRangeID in eventRangeID_dictionary.keys():
+        if eventRangeID_dictionary[eventRangeID] == False:
+            status = False
+            break
+
+    return status
+
+def addEventRangeIDsToDictionary(currentEventRangeIDs):
+    """ Add the latest eventRangeIDs list to the total event range id dictionary """
+
+    # The eventRangeID_dictionary is used to keep track of which output files have been returned from AthenaMP
+    # (eventRangeID_dictionary[eventRangeID] = False means that the corresponding output file has not been created/transferred yet)
+    # This is necessary since otherwise the pilot will not know what has been processed completely when the "No more events"
+    # message arrives from the server
+
+    for eventRangeID in currentEventRangeIDs:
+        if not eventRangeID_dictionary.has_key(eventRangeID):
+            eventRangeID_dictionary[eventRangeID] = False
 
 # main process starts here
 if __name__ == "__main__":
@@ -1418,6 +1584,11 @@ if __name__ == "__main__":
             tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
             failJob(0, error.ERR_UNKNOWN, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
+        # Set the global variables used by the threads
+#        global jobId, job_workdir
+        jobId = job.jobId
+        job_workdir = job.workdir
+
         # prepare for the output file data directory
         # (will only created for jobs that end up in a 'holding' state)
         job.datadir = pworkdir + "/PandaJob_%d_data" % (job.jobId)
@@ -1460,6 +1631,7 @@ if __name__ == "__main__":
         signal.signal(signal.SIGBUS, sig2exc)
 
         # see if it's an analysis job or not
+#        global analysisJob
         analysisJob = isAnalysisJob(job.trf.split(",")[0])
 
 
@@ -1609,60 +1781,166 @@ if __name__ == "__main__":
 
         # nonsense counter used to get different "event server" message using the downloadEventRanges() function
         tolog("Entering monitoring loop")
-        n = 0
+
+        nap = 5
         while True:
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the yamplListener after the "Ready for events" message is received from the client
             if athenamp_is_ready:
 
-                # Pilot will download an event range from the Event Server
+                # Pilot will download some event ranges from the Event Server
+                message = downloadEventRanges(job.jobId)
 
-                # Download events
-                n += 1
-                if n <= 1:
-                    message = downloadEventRanges(job.jobId)
-                else:
-                    message = "No more events"
+                # Create a list of event ranges from the downloaded message
+                event_ranges = extractEventRanges(message)
 
-                # Create a new PFC for the current event range (won't be executed in case there are no more events)
+                # Are there any event ranges?
+                if event_ranges == []:
+                    tolog("No more events")
+                    sendMessage("No more events")
+                    break
+
+                # Get the current list of eventRangeIDs
+                currentEventRangeIDs = extractEventRangeIDs(event_ranges)
+
+                # Store the current event range id's in the total event range id dictionary
+                addEventRangeIDsToDictionary(currentEventRangeIDs)
+
+                # Create a new PFC for the current event ranges
                 ec, pilotErrorDiag = createPoolFileCatalogFromMessage(message, thisExperiment)
                 if ec != 0:
                     tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
-                    sendYamplMessage("") # Empty message means no more events
+                    sendMessage("No more events")
                     break
 
-                # Pass the server response to AthenaMP
-                sendYamplMessage(message)
+                # Loop over the event ranges and call AthenaMP for each event range
+                i = 0
+                j = 0
+                for event_range in event_ranges:
+                    # Send the event range to AthenaMP
+                    tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
+                    sendMessage(str([event_range]))
 
-                # Set the boolean to false until AthenaMP is again ready for processing more events
-                athenamp_is_ready = False
+                    # Set the boolean to false until AthenaMP is again ready for processing more events
+                    athenamp_is_ready = False
 
-                # the event server has no more events, break the loop and quit
-                if message == "No more events":
-                    tolog("Server: Finished")
+                    # Wait until AthenaMP is ready to receive another event range
+                    while not athenamp_is_ready:
+                        # Take a nap
+                        if i%10 == 0:
+                            tolog("Event range loop iteration #%d" % (i))
+                            i += 1
+                        time.sleep(nap)
 
-                    # wait for the subprocess to finish
-                    tolog("Waiting for subprocess to finish")
+                        # Is AthenaMP still running?
+                        if athenaMPProcess.poll() is not None:
+                            tolog("AthenaMP appears to have finished (aborting event processing loop for this event range)")
+                            break
 
-                    if athenaMPProcess.poll() is None:
-                        tolog("Subprocess has already finished")
-                    else:
-                        tolog("Subprocess has not finished yet")
+                        if athenamp_is_ready:
+                            tolog("AthenaMP is ready for new event range")
+                            break
 
-                        # add some code here for waiting until the subprocess has finished                                                                                                                                         
+                    # Is AthenaMP still running?
+                    if athenaMPProcess.poll() is not None:
+                        tolog("AthenaMP has finished (aborting event range loop for current event ranges)")
+                        break
 
-                    tolog("Ok")
-                    break
+                    j += 1
 
                 # Is AthenaMP still running?
-                if athenaMPProcess.poll() is None:
-                    tolog("AthenaMP appears to have finished")
+                if athenaMPProcess.poll() is not None:
+                    tolog("AthenaMP has finished (aborting event range loop)")
                     break
-
-                n += 1
 
             else:
                 time.sleep(5)
+
+                # Is AthenaMP still running?
+                if athenaMPProcess.poll() is not None:
+                    tolog("!!WARNING!!2222!! AthenaMP has finished prematurely (aborting monitoring loop)")
+                    break
+
+#        n = 0
+#        while True:
+#            # if the AthenaMP workers are ready for event processing, download some event ranges
+#            # the boolean will be set to true in the yamplListener after the "Ready for events" message is received from the client
+#            if athenamp_is_ready:
+#
+#                # Pilot will download an event range from the Event Server
+#
+#                # Download events
+#                n += 1
+#                if n <= 1:
+#                    message = downloadEventRanges(job.jobId)
+#                else:
+#                    message = "No more events"
+#
+#                # Create a new PFC for the current event range (won't be executed in case there are no more events)
+#                ec, pilotErrorDiag = createPoolFileCatalogFromMessage(message, thisExperiment)
+#                if ec != 0:
+#                    tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
+#                    sendMessage("") # Empty message means no more events
+#                    break
+#
+#                # Pass the server response to AthenaMP
+#                sendMessage(message)
+#
+#                # Set the boolean to false until AthenaMP is again ready for processing more events
+#                athenamp_is_ready = False
+#
+#                # the event server has no more events, break the loop and quit
+#                if message == "No more events":
+#                    tolog("Server: Finished")
+#
+#                    # wait for the subprocess to finish
+#                    tolog("Waiting for subprocess to finish")
+#
+#                    if athenaMPProcess.poll() is None:
+#                        tolog("Subprocess has already finished")
+#                    else:
+#                        tolog("Subprocess has not finished yet")
+#
+#                        # add some code here for waiting until the subprocess has finished                                                                                        #                                                
+#
+#                   tolog("Ok")
+#                    break
+#
+#                # Is AthenaMP still running?
+#                if athenaMPProcess.poll() is None:
+#                    tolog("AthenaMP appears to have finished")
+#                    break
+#
+#                n += 1
+#
+#            else:
+#                time.sleep(5)
+
+
+        # Wait for AthenaMP to finish
+        while athenaMPProcess.poll() is None:
+            tolog("Waiting for AthenaMP to finish")
+            time.sleep(30)
+
+        # Do not stop the stageout thread until all output files have been transferred
+        starttime = time.time()
+        maxtime = 60*60
+#        while len (stageout_queue) > 0 and (time.time() - starttime < maxtime):
+#            tolog("stage-out queue: %s" % (stageout_queue))
+#            tolog("(Will wait for a maximum of %d seconds, so far waited %d seconds)" % (maxtime, time.time() - starttime))
+#            time.sleep(5)
+
+        while not areAllOutputFilesTransferred():
+            tolog("stage-out queue: %s" % (stageout_queue))
+            tolog("(Will wait for a maximum of %d seconds, so far waited %d seconds)" % (maxtime, time.time() - starttime))
+            if (stageout_queue) > 0 and (time.time() - starttime > maxtime):
+                tolog("Aborting stage-out thread (timeout)")
+                break
+            time.sleep(30)
+            
+        tolog("Stopping stage-out thread")
+        asyncOutputStager_thread.stop()
+        asyncOutputStager_thread.join()
 
         # Stop Token Extractor
         if tokenExtractorProcess:
@@ -1694,17 +1972,7 @@ if __name__ == "__main__":
 
         tolog("Stopping yampl thread")
         yampl_thread.stop()
-
-        # Do not stop the stageout thread until all output files have been transferred
-        while len (stageout_queue) > 0:
-            tolog("stage-out queue: %s" % (stageout_queue))
-            time.sleep(1)
-        tolog("Stopping stage-out thread")
-        asyncOutputStager_thread.stop()
-
-        tolog("Joining threads")
         yampl_thread.join()
-        asyncOutputStager_thread.join()
 
         # check the job report for any exit code that should replace the res_tuple[0]
         res0, exitAcronym, exitMsg = getTrfExitInfo(0, job.workdir)
