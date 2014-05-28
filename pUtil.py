@@ -180,8 +180,8 @@ def httpConnect(data, url, mode="UPDATE", sendproxy=False, path=None): # default
         cmd = 'getStatus'
     elif mode == "GETEVENTRANGES":
         cmd = 'getEventRanges'
-    elif mode == "UPDATEEVENTRANGES":
-        cmd = 'updateEventRanges'
+    elif mode == "UPDATEEVENTRANGE":
+        cmd = 'updateEventRange'
     else:
         cmd = 'updateJob'
 
@@ -325,7 +325,7 @@ def prepareMetadata(metadata_filename):
 
     return metadata_filename
 
-def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None, objectStorePath=""):
+def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None):
     """ Create a PFC style XML file """
 
     # fnlist = output file list
@@ -442,13 +442,10 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
         fd.write("<!-- Edited By POOL -->\n")
         fd.write('<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">\n')
         fd.write("<POOLFILECATALOG>\n")
-        for i in range(0,len(flist)):
+        for i in range(0, len(flist)): # there's only one file in flist if it is for the object store
             fd.write('  <File ID="%s">\n' % (glist[i]))
             fd.write("    <physical>\n")
-            if objectStorePath != "":
-                fd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (os.path.join(objectStorePath, flist[i])))
-            else:
-                fd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (flist[i]))
+            fd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (flist[i]))
             fd.write("    </physical>\n")
             fd.write("  </File>\n")
         fd.write("</POOLFILECATALOG>\n")
@@ -497,7 +494,7 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
         tolog("!!WARNING!!1234!! fntag is neither lfn nor pfn, did not manage to create the XML file for output files")
 
     # dump the file to the log
-    dumpFile(fname)
+    dumpFile(fname, topilotlog=True)
 
     return status
 
@@ -1131,12 +1128,13 @@ def createPoolFileCatalog(file_list, pfc_name="PoolFileCatalog.xml", forceLogica
         tolog(pfc_text)
 
         try:
+            tolog("Writing XML to %s" % (pfc_name))
             f = open(pfc_name, 'w')
             f.write(pfc_text)
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not create file %s: %s" % (pfc_name, e))
+            tolog("!!WARNING!!2999!! Could not create XML file: %s" % (e))
         else:
-            tolog("Created %s" % (pfc_name))
+            tolog("Created PFC XML")
             f.close()
 
         outxml = pfc_text
@@ -1177,7 +1175,7 @@ def dumpFile(filename, topilotlog=False):
     """ dump a given file to stdout or to pilotlog """
 
     if os.path.exists(filename):
-        tolog("Dumping file: %s" % (filename))
+        tolog("Dumping file: %s (size: %d)" % (filename, os.path.getsize(filename)))
         try:
             f = open(filename, "r")
         except Exception, e:
@@ -4050,7 +4048,7 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
     pid = readCodeFromFile(os.path.join(wkdir, "PROCESSID"))
     if pid != 0:
         tolog("Found process id %d in PROCESSID file, will now attempt to kill all of its subprocesses" % (pid))
-        killProcesses(pid)
+        killProcesses(pid, os.getpgrp())
 
     if rmwkdir == None or rmwkdir == False:
 
@@ -4215,7 +4213,7 @@ def sig2exc(sig, frm):
                 logMsg = "!!FAILED!!1999!! %s\n%s" % (env['jobDic'][k][1].pilotErrorDiag, env['version'])
                 tolog(logMsg)
 
-            killProcesses(env['jobDic'][k][0])
+            killProcesses(env['jobDic'][k][0], env['jobDic'][k][1].pgrp)
             # most of the time there is not enough time to build the log
             # postJobTask(env['jobDic'][k][1], globalSite, globalWorkNode, env['experiment'], jr=False)
 

@@ -458,6 +458,8 @@ class SiteInformation(object):
 
         tolog("called updateQueuedataFromJobParameters with: %s" % (jobParameters))
 
+        transferType = ""
+
         # extract and remove queuedata overwrite command from job parameters
         if "--overwriteQueuedata" in jobParameters:
             tolog("Encountered an --overwriteQueuedata command in the job parameters")
@@ -469,8 +471,12 @@ class SiteInformation(object):
             if queuedataUpdateDictionary != {}:
                 tolog("Queuedata will be updated from job parameters")
                 for field in queuedataUpdateDictionary.keys():
-                    ec = self.replaceQueuedataField(field, queuedataUpdateDictionary[field])
-                    tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
+                    if field.lower() == "transfertype":
+                        # transferType is not a schedconfig field and must be handled separately
+                        transferType = queuedataUpdateDictionary[field]
+                    else:
+                        ec = self.replaceQueuedataField(field, queuedataUpdateDictionary[field])
+                        tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
 
         # disable FAX if set in schedconfig
         if "--disableFAX" in jobParameters:
@@ -488,7 +494,7 @@ class SiteInformation(object):
             else:
                 tolog("No need to update queuedata for --disableFAX (allowfax is not set to True)")
 
-        return jobParameters
+        return jobParameters, transferType
 
     def setUnsetVars(self, thisSite):
         """ Set pilot variables in case they have not been set by the pilot launcher """

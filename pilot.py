@@ -51,6 +51,8 @@
 
 # faking bad tcp connection in monitor_job() (Monitor)
 
+# mwt2_mcore
+
 
 import commands
 import getopt
@@ -1696,8 +1698,8 @@ def updatePandaServer(job, site, port, xmlstr = None, spaceReport = False,
     client = PandaServerClient(pilot_version = env['version'],
                                pilot_version_tag = env['pilot_version_tag'], 
                                pilot_initdir = env['pilot_initdir'], 
-                               jobSchedulerId = env['schedulerID'], 
-                               pilotId = env['pilotID'], 
+                               jobSchedulerId = schedulerID, 
+                               pilotId = pilotID,
                                updateServer = env['updateServerFlag'], 
                                jobrec = env['jobrec'], 
                                pshttpurl = env['pshttpurl'])
@@ -2211,6 +2213,13 @@ def getNewJob(tofile=True):
         pUtil.tolog("Adding prodSourceLabel to job def data: %s" % (prodSourceLabel))
         data['prodSourceLabel'] = prodSourceLabel
 
+    # look for special commands in the job parameters (can be set by HammerCloud jobs; --overwriteQueuedata, --disableFAX)
+    # if present, queuedata needs to be updated (as well as jobParameters - special commands need to be removed from the string)
+    data['jobPars'], transferType = env['si'].updateQueuedataFromJobParameters(data['jobPars'])
+    if transferType != "":
+        # we will overwrite whatever is in job.transferType using jobPars
+        data['transferType'] = transferType
+                                
     # update the copytoolin if transferType is set to fax/xrd
     if data.has_key('transferType'):
         if data['transferType'] == 'fax' or data['transferType']== 'xrd':
@@ -2223,10 +2232,6 @@ def getNewJob(tofile=True):
                 pilotErrorDiag = "Cannot switch to FAX site mover for transferType=%s since faxredirector is not set" % (data['transferType'])
                 pUtil.tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
                 return None, pilotErrorDiag
-
-    # look for special commands in the job parameters (can be set by HammerCloud jobs; --overwriteQueuedata, --disableFAX)
-    # if present, queuedata needs to be updated (as well as jobParameters - special commands need to be removed from the string)
-    data['jobPars'] = env['si'].updateQueuedataFromJobParameters(data['jobPars'])
 
     # convert the data into a file for child process to pick for running real job later
     try:
@@ -2650,7 +2655,7 @@ def runMain(runpars):
                             pUtil.postJobTask(env['jobDic'][k][1], globalSite, globalWorkNode, env['experiment'], jr=False)
                             env['logTransferred'] = True
                         pUtil.tolog("Killing process: %d" % (env['jobDic'][k][0]))
-                        killProcesses(env['jobDic'][k][0])
+                        killProcesses(env['jobDic'][k][0], env['jobDic'][k][1].pgrp)
                         # move this job from env['jobDic'] to zombieJobList for later collection
                         env['zombieJobList'].append(env['jobDic'][k][0]) # only needs pid of this job for cleanup
                         del env['jobDic'][k]

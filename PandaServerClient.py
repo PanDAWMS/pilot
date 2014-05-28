@@ -1,5 +1,5 @@
 import os
-from commands import getstatusoutput
+from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
@@ -315,6 +315,9 @@ class PandaServerClient:
                 ec, rv = getstatusoutput("mkdir -m g+rw %s" % (xmldir))
                 if ec != 0:
                     tolog("!!WARNING!!1300!! Could not create xmldir from updatePandaServer: %d, %s (resetting to site workdir)" % (ec, rv))
+                    cmd = "ls -l %s" % (xmldir)
+                    out = getoutput(cmd)
+                    tolog("%s \n%s" % (cmd, out))
                     xmldir = workdir
 
                 # which checksum command should be used? query the site mover

@@ -70,7 +70,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         s, o = commands.getstatusoutput(_cmd_str)
         if s != 0:
           tolog("aria2c not found in PATH")
-        cvmfs_aria2c = '/cvmfs/atlas.cern.ch/repo/sw/local/x86_64-slc5-gcc43-opt/bin/aria2c'  
+        cvmfs_aria2c = '/cvmfs/atlas.cern.ch/repo/sw/local/x86_64-slc6-gcc44-opt/bin/aria2c'
         if os.path.exists(cvmfs_aria2c):
           tolog("Using %s"%cvmfs_aria2c)
           self.copyCommand = cvmfs_aria2c

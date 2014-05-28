@@ -451,9 +451,6 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             self.__sendReport('PSTAGE_FAIL', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
-#        useMd5Option = True
-        useAdlerOption = True
-
         # on a castor site, the pilot needs to create the SE directories
         if "/castor/" in bare_dst_gpfn and not "CERN" in sitename:
             _cmd_str = '%srfmkdir -p %s' % (_setup_str, os.path.dirname(bare_dst_gpfn))
@@ -467,21 +464,23 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         cpt = 'xrdcp'
         tolog("Site mover will use put command: %s" % (cpt))
 
-        cmd = "%s %s -f -adler %s %s" % (_setup_str, cpt, source, dst_loc_pfn)
-
         # is the checksum option available?
+        useCksumOption = False
         cmd_test = "%s %s" % (_setup_str, cpt)
         tolog("Executing test command: %s" % (cmd_test))
         report['transferStart'] = time()
         rc, rs = commands.getstatusoutput(cmd_test)
         report['validateStart'] = time()
-#        if rs.find("-md5") > 0:
         if "-adler" in rs:
-#            tolog("This xrdcp version supports the md5 option")
-            tolog("This xrdcp version supports the adler option")
+            tolog("This xrdcp version supports the -adler option")
+            cmd = "%s %s -f -adler %s %s" % (_setup_str, cpt, source, dst_loc_pfn)
+            useAdlerOption = True
+        elif "--cksum" in rs:
+            tolog("This xrdcp version supports the --cksum option")
+            cmd = "%s %s -f --cksum adler32:%s %s %s" % (_setup_str, cpt, fchecksum, source, dst_loc_pfn)
+            useCksumOption = True
+            useAdlerOption = False
         else:
-#            tolog("This xrdcp version does not support the md5 option (checksum test will be skipped)")
-#            useMd5Option = False
             tolog("This xrdcp version does not support the adler option (checksum test will be skipped)")
             useAdlerOption = False
             cmd = "%s %s %s %s" % (_setup_str, cpt, source, dst_loc_pfn)
@@ -509,14 +508,13 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         # dstfsize = self.getFileSize(rs)
 
         # get remote checksum from the command output
-#        if useMd5Option:
         if useAdlerOption:
             dstfchecksum = self.getChecksum(rs)
         else:
             dstfchecksum = ""
 
         # compare remote and local file checksum
-        if dstfchecksum != fchecksum:
+        if dstfchecksum != fchecksum and not useCksumOption:
             pilotErrorDiag = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" %\
                              (csumtype, os.path.basename(dst_gpfn), dstfchecksum, fchecksum)
             pilotErrorDiag += " (failed to remove file) " # i.e. do not retry stage-out
@@ -527,8 +525,14 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             else:
                 self.__sendReport('MD5_MISMATCH', report)
                 return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=dst_gpfn)
-
-        tolog("Verified checksum")
+        elif useCksumOption:
+            if "adler32 checksum is incorrect!" in rs:
+                pilotErrorDiag = "Remote and local checksums do not match for file %s (see log)" % (os.path.basename(dst_gpfn))
+                tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
+                self.__sendReport('AD_MISMATCH', report)
+                return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=dst_gpfn)
+        else:
+            tolog("Verified checksum")
 
         self.__sendReport('DONE', report)
 
@@ -552,7 +556,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         ec = 0
         pilotErrorDiag = ""
         error = PilotErrors()
-        tolog("Executing command: %s" % (cmd))
+        tolog("Executing command: %s (timeout=%s)" % (cmd, self.timeout))
 
         try:
             s, telapsed, cout, cerr = timed_command(cmd, self.timeout)

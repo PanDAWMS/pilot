@@ -13,7 +13,7 @@ from timed_command import timed_command
 
 from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems, dumpFile, getFileAccessInfo,\
      hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, tailPilotErrorDiag, getCopysetup, getExtension,\
-     getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN
+     getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
             
@@ -221,15 +221,15 @@ def getReplicasLFC(guids, lfchost):
 
     return ec, pilotErrorDiag, replica_list
 
-def getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, host):
-    """ Return a replica dictionary from the file catalog or via DQ2/Rucio methods """
+def getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, replicas_dict, host):
+    """ Return a replica dictionary from the LFC or via DQ2/Rucio methods """
 
     error = PilotErrors()
     ec = 0
 
     # Is there an alternative to using LFC lookups?
     if thisExperiment.willDoAlternativeFileLookups():
-        ec, pilotErrorDiag, replicas_dict = getReplicaDictionaryFromRucio(lfn_dict, scope_dict, host)
+        ec, pilotErrorDiag, replicas_dict = getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dict, host)
     else:
         # Get file replicas directly from LFC
         try:
@@ -259,7 +259,9 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
     """ Verify that all SURLs are set in the dictionary """
 
     # A lost file will show up as an empty list in the dictionary
+    # Return status True if there are at least one valid SURL
 
+    status = False
     pilotErrorDiag = ""
 
     tolog("Verifying SURLs")
@@ -270,27 +272,28 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
                 pilotErrorDiag = "Encountered an empty SURL list for GUID=%s (replica is missing in catalog)" % (guid)
                 tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag)) 
             else:
+                # Found a valid SURL
+                status = True
                 tolog("GUID=%s has a valid (set) SURL list" % (guid))
     else:
         pilotErrorDiag = "Encountered an empty SURL-GUID dictionary"
         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
+    
+    return status, pilotErrorDiag
 
-    return pilotErrorDiag
-
-def getReplicaDictionaryFromRucio(lfn_dict, scope_dict, host):
+def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
     """ Create a dictionary of the guids and replica objects """
 
     pilotErrorDiag = ""
     ec = 0
-    replicas_dic = {}
 
     # we first need to build a dictionary with guid+LFN (including scopes)
     file_dictionary = getRucioFileDictionary(lfn_dict, scope_dict)
-    tolog("file_dictionary=%s"%(file_dictionary))
+    tolog("file_dictionary=%s" % (file_dictionary))
 
     # then get the replica dictionary from Rucio
     rucio_replica_dictionary = getRucioReplicaDictionary(host, file_dictionary)
-    tolog("rucio_replica_dictionary=%s"%str(rucio_replica_dictionary))
+    tolog("rucio_replica_dictionary=%s" % str(rucio_replica_dictionary))
 
     # then sort the rucio dictionary into a replica dictionary exptected by the pilot
     # Rucio format: { guid1: {'surls': [surl1, ..], 'lfn':LFN, 'fsize':FSIZE, 'checksum':CHECKSUM}, ..}
@@ -303,11 +306,9 @@ def getReplicaDictionaryFromRucio(lfn_dict, scope_dict, host):
 
     tolog("surl_guid_dictionary=%s"%str(surl_guid_dictionary))
 
-    # DO NOT RETURN HERE IF THERE IS AT LEAST ONE VERIFIED REPLICA, CONTINUE LOOP BELOW TO CREATE
-    # THE replicas_dic WHICH SHOULD BE REUSED IN THE NEXT ITERATION OVER CATALOG HOSTS, FAX CASE
-    # verify the rucio replica dictionary
-    pilotErrorDiag = verifySURLGUIDDictionary(surl_guid_dictionary)
-    if pilotErrorDiag != "":
+    # verify the rucio replica dictionary (only fail at this point if there were no valid SURLs - if there are at least one valid SURL, continue)
+    status, pilotErrorDiag = verifySURLGUIDDictionary(surl_guid_dictionary)
+    if not status and pilotErrorDiag != "":
         tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
         ec = -1
         return ec, pilotErrorDiag, replicas_dic
@@ -316,6 +317,11 @@ def getReplicaDictionaryFromRucio(lfn_dict, scope_dict, host):
     for g in range(len(rucio_replica_dictionary.keys())):
         guid = rucio_replica_dictionary.keys()[g]
         tolog('guid=%s'%guid)
+
+        # Skip missing SURLs
+        if len(surl_guid_dictionary[guid]) == 0:
+            tolog("GUID does not have a valid SURL (continue loop over GUIDs)")
+            continue
 
         # loop over SURLs
         for s in range(len(surl_guid_dictionary[guid])):
@@ -337,6 +343,8 @@ def getReplicaDictionaryFromRucio(lfn_dict, scope_dict, host):
                 replicas_dic[guid].append(rep)
             else:
                 replicas_dic[guid] = [rep]
+
+    tolog("replicas_dic=%s"%(replicas_dic))
 
     if replicas_dic == {}:
         pilotErrorDiag = "Empty replicas dictionary"
@@ -517,8 +525,41 @@ def getRucioPath(file_nr, tokens, scope_dict, lfn, path, analysisJob):
 
     return se_path
 
+def getFileListFromXML(xml_file):
+    """ Get the file list from the PFC """
+
+    xmldoc = minidom.parse(xml_file)
+
+    return xmldoc.getElementsByTagName("File")
+
+def getFileInfoFromXML(thisfile):
+    """ Get the PFN from the XML """
+
+    pfn = thisfile.getElementsByTagName("pfn")[0].getAttribute("name")
+    lfn = thisfile.getElementsByTagName("lfn")[0].getAttribute("name")
+    guid = thisfile.getAttribute("ID")
+
+    return lfn, pfn, guid
+
+def getFileInfoDictionaryFromXML(xml_file):
+    """ Create a file info dictionary from the PoolFileCatalog """
+
+    # Format: { lfn : [pfn, guid] }
+    # Example:
+    # lfn = "EVNT.01461041._000001.pool.root.1"
+    # pfn = file_info_dictionary[lfn][0]
+    # guid = file_info_dictionary[lfn][1]
+
+    file_info_dictionary = {}
+    file_list = getFileListFromXML(xml_file)
+    for f in file_list:
+        lfn, pfn, guid = getFileInfoFromXML(f)
+        file_info_dictionary[lfn] = [pfn, guid]
+
+    return file_info_dictionary
+
 def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
-                scope_dict, pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
+                scope_dict, pfc_name="PFC.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
     """ Build the file info dictionary """
 
     fileInfoDic = {}
@@ -553,7 +594,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             if ec != 0:
                 return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
-            # fill the file info dictionary
+            # file the file info dictionary
             fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum)
 
             # check total file sizes to avoid filling up the working dir, add current file size
@@ -567,11 +608,6 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
                                DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
-        try:
-            if os.path.basename(sitemover.getID()) == 'aria2c':
-                sitemover.surls2metalink(replicas_dic, 'AllInput.xml.meta4')
-        except Exception, e:
-            tolog("!!WARNING!!1232!! Caught exception: %s" % (e))
 
         if ec != 0:
             return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
@@ -604,13 +640,13 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             fsize, fchecksum = getFileInfoFromDispatcher(_lfn, fileInfoDictionaryFromDispatcher)
             tolog("lfn=%s, fsize=%s, fchecksum=%s" % (_lfn, fsize, fchecksum))
 
-            # get the file info from the metadata [from the file catalog]
+            # get the file info from the metadata [from LFC]
             if not fsize or not fchecksum:
                 ec, pilotErrorDiag, fsize, fchecksum = getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, error)
                 if ec != 0:
                     return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
-                # even though checksum and file size is most likely already known from the file catalog, more reliable file
+                # even though checksum and file size is most likely already known from LFC, more reliable file
                 # info is stored in DQ2. Try to get it from there unless the dispatcher has already sent it to the pilot
                 if dsdict == {}:
                     _dataset = dsname
@@ -619,9 +655,9 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                 _filesize, _checksum = sitemover.getFileInfoFromDQ2(_dataset, guid)
                 if _filesize != "" and _checksum != "":
                     if _filesize != fsize:
-                        tolog("!!WARNING!!1001!! File catalog file size (%s) not the same as DQ2 file size (%s) (using DQ2 value)" % (fsize, _filesize))
+                        tolog("!!WARNING!!1001!! LFC file size (%s) not the same as DQ2 file size (%s) (using DQ2 value)" % (fsize, _filesize))
                     if _checksum != fchecksum:
-                        tolog("!!WARNING!!1001!! File catalog checksum (%s) not the same as DQ2 checksum (%s) (using DQ2 value)" % (fchecksum, _checksum))
+                        tolog("!!WARNING!!1001!! LFC checksum (%s) not the same as DQ2 checksum (%s) (using DQ2 value)" % (fchecksum, _checksum))
                     fsize = _filesize
                     fchecksum = _checksum
 
@@ -994,6 +1030,25 @@ def convertSURLtoTURLUsingDataset(surl, dataset):
 
     return turl
 
+def convertSURLtoTURLUsingHTTP(surl, dataset):
+    """ Convert SURL to TURL using the Rucio redirector """
+
+    try:
+        scope = extractPattern(surl, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
+        scope = scope.replace("/",".")
+
+        prefix = "https://voatlasrucio-redirect-prod-01.cern.ch/redirect/"
+        filename = re.findall(r'.*/(.+)$', surl)[0]
+
+        turl = prefix + scope + "/" + filename
+    except Exception, e:
+        tolog("!!WARNING!!2998!! convertSURLtoTURLUsingHTTP failed for SURL: %s, %s" % (surl, e))
+        turl = surl
+    else:
+        tolog("Converted SURL: %s to TURL: %s (using dataset name)" % (surl, turl))
+
+    return turl
+
 def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
     """ Convert SURL to TURL """
 
@@ -1003,7 +1058,9 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
     if (readpar('copytoolin').lower() == "fax") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "fax"):
         copytool = "fax"
     elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
-        copytool = "aria2c"
+        return convertSURLtoTURLUsingHTTP(surl, dataset)
+#    elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
+#        copytool = "aria2c"
     else:
         copytool = "other"
     if copytool != "other":
@@ -1607,7 +1664,8 @@ def mover_get_data(lfns,
                    path,
                    sitename,
                    stageinTries,
-                   inputpoolfcstring="xmlcatalog_file:PoolFileCatalog.xml",
+                   inputpoolfcstring="xmlcatalog_file:PFC.xml",
+#                   inputpoolfcstring="xmlcatalog_file:PoolFileCatalog.xml",
                    ub=URLBASE,
                    dsname="",
                    dsdict={},
@@ -1945,7 +2003,7 @@ def mover_get_data(lfns,
 
     # Now that the Mover PFC file is no longer needed, back it up and rename the TURL based PFC if it exists
     # (the original PFC is no longer needed. Move it away, and then create the PFC for the trf/runAthena)
-    backupPFC4Mover(pfc_name)
+    # backupPFC4Mover(pfc_name)
 
     # Create a standard PFC with SURLs if needed (basically this is default)
     # note: if FAX was used as a primary site mover in combination with direct I/O, then the SURLs will actually be TURLs
@@ -2126,6 +2184,21 @@ def getFilenamesAndGuid(thisfile):
 
     pfn = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
     filename = os.path.basename(pfn)
+def getFilenamesAndGuid(thisfile):
+    """ Get the file name and guid """
+
+    pfn = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
+    filename = os.path.basename(pfn)
+
+    pfn = os.path.abspath(pfn)
+    lfn = ''
+    if (thisfile.getElementsByTagName("lfn") != []):
+        lfn = str(thisfile.getElementsByTagName("lfn")[0].getAttribute("name"))
+    else:
+        lfn = str(filename) # Eddie: eliminate the possibility of finding a unicode string in the filename                                              
+    guid = str(thisfile.getAttribute("ID"))
+
+    return filename, lfn, pfn, guid
 
     pfn = os.path.abspath(pfn)
     lfn = ''
@@ -2291,7 +2364,8 @@ def mover_put_data(outputpoolfcstring,
                    scopeOut=None,
                    scopeLog=None,
                    fileDestinationSE=None,
-                   logPath=""):
+                   logPath="",
+                   eventService=False):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
     No DS registration in the central catalog is made. pdsname is used only to define the relative path
@@ -2325,7 +2399,9 @@ def mover_put_data(outputpoolfcstring,
 
     # get the storage path, e.g.
     # ddm_storage = srm://uct2-dc1.uchicago.edu:8443/srm/managerv2?SFN=/pnfs/uchicago.edu/atlasuserdisk
-    ddm_storage, pilotErrorDiag = getDDMStorage(ub, analysisJob, region)
+    # Note: this ends up in the 'destination' variable inside the site mover's put_data() - which is mostly not used
+    # It can be used for special purposes, like for the object store path which can be predetermined
+    ddm_storage, pilotErrorDiag = getDDMStorage(ub, analysisJob, region, eventService, jobId)
     if pilotErrorDiag != "":
         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
 
@@ -2365,7 +2441,12 @@ def mover_put_data(outputpoolfcstring,
         file_nr += 1
 
         # get the file names and guid
+        # note: pfn is the source
         filename, lfn, pfn, guid = getFilenamesAndGuid(thisfile)
+        tolog("filename=%s" % (filename))
+        tolog("lfn=%s" % (lfn))
+        tolog("guid=%s" % (guid))
+
         # note: pfn is the full path to the local file
         tolog("Preparing copy for %s to %s using %s" % (pfn, ddm_storage, copycmd))
 
@@ -2378,6 +2459,8 @@ def mover_put_data(outputpoolfcstring,
         dumpFileStates(workDir, jobId)
 
         # get the dataset name (dsname_report is the same as dsname but might contain _subNNN parts)
+        tolog("datasetDict=%s"%str(datasetDict))
+        tolog("pdsname=%s"%pdsname)
         dsname, dsname_report = getDatasetName(sitemover, datasetDict, lfn, pdsname)
 
         # update tracing report
@@ -2387,6 +2470,7 @@ def mover_put_data(outputpoolfcstring,
         _token_file = getSpaceTokenForFile(filename, token_list, logFile, file_nr, nFiles)
 
         # get the file size and checksum if possible
+        tolog("outputFileInfo=%s"%str(outputFileInfo))
         fsize, checksum = getFileSizeAndChecksum(lfn, outputFileInfo)
 
         s = 1
@@ -2737,12 +2821,22 @@ def verifySpaceToken(spacetoken, setokens):
 
     return status
 
-def getDDMStorage(ub, analysisJob, region):
+def getFilePathForEventService(jobId):
+    """ Return a proper file path in the object store """
+
+    basepath = "root://atlas-objectstore.cern.ch//atlas/eventservice"
+    return os.path.join(basepath, str(jobId))
+
+def getDDMStorage(ub, analysisJob, region, eventService, jobId):
     """ return the DDM storage (http version) """
 
     pilotErrorDiag = ""
     useHTTP = True
     ddm_storage = ""
+
+    # special paths are used for event service
+    if eventService:
+        return getFilePathForEventService(jobId), pilotErrorDiag
 
     # skip this function unless we are running in the US or on NG
     if not (region == 'US' or region == 'Nordugrid'):
@@ -2918,7 +3012,7 @@ def foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
 
     return found_match
 
-def getCatalogFileList(thisExperiment, guid_token_dict, host, analysisJob, workdir, lfn_dict=None, fax_mode=False, scope_dict=None):
+def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, workdir, lfn_dict=None, fax_mode=False, scope_dict=None, replicas_dict=None):
     """ Build the file list using either Rucio or lfc_getreplicas """
 
     from SiteMover import SiteMover
@@ -2929,7 +3023,6 @@ def getCatalogFileList(thisExperiment, guid_token_dict, host, analysisJob, workd
     error = PilotErrors()
 
     file_dict = {}
-    replicas_dict = {}
 
     copyprefix = readpar('copyprefixin')
     if copyprefix == "":
@@ -2964,7 +3057,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, host, analysisJob, workd
     guids = guid_token_dict.keys()
 
     # get the replicas list for all guids
-    ec, pilotErrorDiag, replicas_dict = getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, host)
+    ec, pilotErrorDiag, replicas_dict = getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, replicas_dict, lfchost)
     if ec != 0:
         return error.ERR_FAILEDLFCGETREP, pilotErrorDiag, file_dict, xml_source, replicas_dict
 
@@ -3118,6 +3211,19 @@ def getCatalogFileList(thisExperiment, guid_token_dict, host, analysisJob, workd
 
     return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict
 
+def verifyReplicasDictionary(replicas_dict, guids):
+    """ Does the current replicas_dict contain replicas for all guids? """
+
+    status = True
+
+    # Loop over all GUIDs and see if they are all in the replicas dictionary
+    for guid in guids:
+        if not guid in replicas_dict.keys():
+            status = False
+            break
+
+    return status
+
 def getRucioFileList(scope_dict, guid_token_dict, lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover):
     """ Building the file list using scope information """
 
@@ -3243,15 +3349,14 @@ def getFileCatalogHosts(thisExperiment):
 
     hosts_list = [thisExperiment.getFileCatalog()]
 
-    if isFAXAllowed():
-        tolog("Will extend file catalog host list since FAX is allowed")
-        hosts = thisExperiment.getFileCatalogHosts()
-        if hosts != []:
-            for host in hosts:
-                if not host in hosts_list:
-                    hosts_list.append(host)
-        else:
-            tolog("(No additional LFC hosts)")
+    tolog("Will extend file catalog host list")
+    hosts = thisExperiment.getFileCatalogHosts()
+    if hosts != []:
+        for host in hosts:
+            if not host in hosts_list:
+                hosts_list.append(host)
+    else:
+        tolog("(No additional hosts)")
 
     tolog("File catalog host list: %s" % str(hosts_list))
 
@@ -3270,6 +3375,7 @@ def isFAXAllowed():
 def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
                        filesizeIn, checksumIn, sitemover, pfc_name="PoolFileCatalog.xml", thisExperiment=None):
     """ get the PFC from the proper source """
+    # In LCG land use lfc_getreplica to get the pfn in order to create the PoolFileCatalog, unless scope is used to create predeterministic path
 
     xml_from_PFC = ""
     pilotErrorDiag = ""
@@ -3287,7 +3393,7 @@ def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, w
     # update booleans if Rucio is used and scope dictionary is set
     copytool = getCopytoolIn()
 #    if scope_dict and ("/rucio" in readpar('seprodpath') or "/rucio" in readpar('sepath')) and copytool != "aria2c":
-#        tolog("Resetting file lookup boolean (file catalog will not be queried)")
+#        tolog("Resetting file lookup boolean (LFC will not be queried)")
 #        use_rucio = True
 #        thisExperiment.doFileLookups(False)
 #    else:
@@ -3297,28 +3403,28 @@ def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, w
     thisExperiment.doFileLookups(True)
 
     if thisExperiment.willDoFileLookups():
-        # get the replica dictionary from the file catalog
+        # get the replica dictionary from the LFC
 
-        # in case FAX is allowed, loop over all available file catalog hosts
-        host_list = getFileCatalogHosts(thisExperiment)
+        # in case FAX is allowed, loop over all available LFC hosts
+        lfc_hosts_list = getFileCatalogHosts(thisExperiment)
         host_nr = 0
         status = False
         file_dict = {}
         replicas_dict = {}
-        for host in host_list:
+        for lfc_host in lfc_hosts_list:
             host_nr += 1
-            tolog("Attempting replica lookup from host %s (#%d/%d)" % (host, host_nr, len(host_list)))
+            tolog("Attempting replica lookup from host %s (#%d/%d)" % (lfc_host, host_nr, len(lfc_hosts_list)))
             if host_nr == 1:
                 # false here means full replica verification against local SE/copyprefix etc
                 fax_mode = False
             else:
                 # do not bother with replica verification in getCatalogFileList(), accept any remote replica
                 fax_mode = isFAXAllowed()
-            ec, pilotErrorDiag, new_file_dict, xml_source, new_replicas_dict = getCatalogFileList(thisExperiment, guid_token_dict, host, analysisJob, workdir, lfn_dict=lfn_dict, fax_mode=fax_mode, scope_dict=scope_dict)
+            ec, pilotErrorDiag, new_file_dict, xml_source, new_replicas_dict = getCatalogFileList(thisExperiment, guid_token_dict, lfc_host, analysisJob, workdir, lfn_dict=lfn_dict, fax_mode=fax_mode, scope_dict=scope_dict, replicas_dict=replicas_dict)
 
             # found a replica
             if ec == 0:
-                # merge the file and replica dictionaries (copy replicas found in new file catalog to previously found replicas in previous file catalog)
+                # merge the file and replica dictionaries (copy replicas found in new LFC to previously found replicas in previous LFC)
                 for guid in new_file_dict.keys():
                     if not guid in file_dict.keys():
                         file_dict[guid] = new_file_dict[guid]
@@ -3326,23 +3432,26 @@ def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, w
                     if not guid in replicas_dict.keys():
                         replicas_dict[guid] = new_replicas_dict[guid]
                     elif guid in replicas_dict.keys():
-                        # if we found more replicas from another file catalog, add those to the dictionary for the given guid
+                        # if we found more replicas from another LFC, add those to the dictionary for the given guid
                         # (i.e. merge two lists)
                         replicas_dict[guid] += new_replicas_dict[guid]
 
-                # found at least one replica, no need to continue
-                status = True
-                break
+                # does the current replicas_dict contain replicas for all guids? If so, no need to continue 
+                status = verifyReplicasDictionary(replicas_dict, guid_token_dict.keys())
+                if status:
+                    tolog("Found all replicas, aborting loop over catalog hosts")
+                    break
+
             elif ec != 0:
-                if host_nr < len(host_list):
-                    tolog("Replica lookup failed for host %s, will attempt to use another host" % (host))
+                if host_nr < len(lfc_hosts_list):
+                    tolog("Replica lookup failed for host %s, will attempt to use another host" % (lfc_host))
 
         # were no replicas found?
         if not status:
-            tolog("Exhausted file catalog host list, job will fail")
+            tolog("Exhausted LFC host list, job will fail")
             return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict
         else:
-            # reset the last error code since the replica was found in the primary file catalog
+            # reset the last error code since the replica was found in the primary LFC
             ec = 0
             pilotErrorDiag = ""
         tolog("file_dict = %s" % str(file_dict))
@@ -3385,7 +3494,6 @@ def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, w
                         final_replicas_dict[guid].append(rep)
         except Exception, e:
             tolog("!!WARNING!!4444!! Caught exception: %s" % (e))
-
     return ec, pilotErrorDiag, xml_from_PFC, xml_source, final_replicas_dict
 
 def getPoolFileCatalogNG(guids, lfns, pinitdir):

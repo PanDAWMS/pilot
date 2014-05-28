@@ -34,7 +34,8 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getAtlasRelease, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, addToJobSetupScript, getCmtconfig, getExtension, getExperiment, getEventService, httpConnect
+     tailPilotErrorDiag, getFileAccessInfo, addToJobSetupScript, getCmtconfig, getExtension, getExperiment, getEventService, httpConnect,\
+     getSiteInformation
 
 
 try:
@@ -53,7 +54,6 @@ debugLevel = 0                     # 0: debug info off, 1: display function name
 pilotlogfilename = "pilotlog.txt"  # default pilotlog filename 
 stageinretry = None                # number of stage-in tries
 stageoutretry = None               # number of stage-out tries
-testLevel = 0                      # test suite control variable (0: no test, 1: put error, 2: ...)
 pilot_initdir = ""                 # location of where the pilot is untarred and started
 proxycheckFlag = True              # True (default): perform proxy validity checks, False: no check
 globalPilotErrorDiag = ""          # global pilotErrorDiag used with signal handler (only)
@@ -76,13 +76,13 @@ athenamp_is_ready = False          #
 asyncOutputStager_thread = None    #
 analysisJob = False                # True for analysis job
 jobId = ""                         # PanDA job id
-job_workdir = ""                   # Job workdir
-
+globalJob = None                   # Global job object, needed by the stage-out thread
+jobSite = None                     # Global site object
 output_area = "" # REMOVE LATER
 
 def usage():
     """
-    usage: python runEvent.py -s <sitename> -d <workdir> -a <appdir> -l <pilotinitdir> -w <url> -p <port> -q <dq2url> -g <inputdir> -m <outputdir> -o <pworkdir> -i <guid> -b <debuglevel> -k <pilotlogfilename> -x <stageintries> -v <testlevel> -t <proxycheckflag> -B <lfcRegistration> -E <stageouttries -F <experiment>
+    usage: python runEvent.py -s <sitename> -d <workdir> -a <appdir> -l <pilotinitdir> -w <url> -p <port> -q <dq2url> -g <inputdir> -m <outputdir> -o <pworkdir> -i <guid> -b <debuglevel> -k <pilotlogfilename> -x <stageintries> -t <proxycheckflag> -B <lfcRegistration> -E <stageouttries -F <experiment> -v <reserved>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -97,19 +97,19 @@ def usage():
                <pilotlogfilename> name of log file
                <stageintries> number of tries for stage-in (default is 2)
                <stageouttries> number of tries for stage-out (default is 2)
-               <testlevel> 0: no test, 1: simulate put error, 2: ...
                <proxycheckflag> True (default): perform proxy validity checks, False: no check
                <outputDir> location of output files (destination for mv site mover)
                <inputdir> location of input files (source for mv site mover)
                <lfcRegistration> True[False]: pilot will [not] perform LFC registration (default: True)
                <experiment> Current experiment (default: ATLAS)
+               <reserved> [Add new argument if necessary]
     """
     print usage.__doc__
 
 def argParser(argv):
     """ parse command line arguments for the main script """
     global pilotserver, pilotport, uflag, pworkdir, logguid, debugLevel, pilotlogfilename, stageinretry,\
-           stageoutretry, testLevel, pilot_initdir, proxycheckFlag, inputDir, outputDir, lfcRegistration, experiment
+           stageoutretry, pilot_initdir, proxycheckFlag, inputDir, outputDir, lfcRegistration, experiment
 
     # some default values
     sitename = "testsite"
@@ -146,7 +146,7 @@ def argParser(argv):
                 proxycheckFlag = True
             else:
                 proxycheckFlag = False
-        elif o == "-v": testLevel = a
+        elif o == "-v": dummy = str(a)
         elif o == "-w": pilotserver = str(a)
         elif o == "-x": stageinretry = int(a)
         elif o == "-B":
@@ -610,11 +610,11 @@ def executePayload(runCommandList, job):
 
     return res, job, getstatusoutput_was_interrupted, current_job_number
 
-def moveTrfMetadata(workdir, jobId, pworkdir):
+def moveTrfMetadata(workdir, pworkdir):
     """ rename and copy the trf metadata """
 
     oldMDName = "%s/metadata.xml" % (workdir)
-    _filename = "metadata-%s.xml.PAYLOAD" % (repr(jobId))
+    _filename = "metadata-%s.xml.PAYLOAD" % (globalJob.jobId)
     newMDName = "%s/%s" % (workdir, _filename)
     try:
         os.rename(oldMDName, newMDName)
@@ -634,32 +634,33 @@ def moveTrfMetadata(workdir, jobId, pworkdir):
 def getMetadataFilename(event_range_id):
     """ Return the metadata file name """
 
-    return os.path.join(job_workdir, "metadata-%s.xml" % (event_range_id))
+    return os.path.join(globalJob.workdir, "metadata-%s.xml" % (event_range_id))
 
 def createFileMetadata(outputFile, event_range_id):
     """ Create the metadata for an output file """
 
     # This function will create a metadata file called metadata-<event_range_id>.xml using file info
-    # from PoolFileCatalogTURL.xml
-    # Return: ec, pilotErrorDiag, outputFileInfo
-    #         where outputFileInfo: {'<full path>/filename.ext': (fsize, checksum), ...} 
+    # from PoolFileCatalog.xml
+    # Return: ec, pilotErrorDiag, outputFileInfo, fname
+    #         where outputFileInfo: {'<full path>/filename.ext': (fsize, checksum, guid), ...} 
     #         (dictionary is used for stage-out)
+    #         fname is the name of the metadata/XML file containing the file info above
 
     ec = 0
     pilotErrorDiag = ""
     outputFileInfo = {}
 
     # Get/assign a guid to the output file
-    outFilesGuids = [commands.getoutput('uuidgen 2> /dev/null')]
-    tolog("Generated GUID %s for file %s" % (outputFile, outFilesGuids[0]))
+    guid_list = [commands.getoutput('uuidgen 2> /dev/null')]
+    tolog("Generated GUID %s for file %s" % (outputFile, guid_list[0]))
 
-#    ec, pilotErrorDiag, outFilesGuids = RunJobUtilities.getOutFilesGuids([outputFile], job_workdir, TURL=True)
+#    ec, pilotErrorDiag, guid_list = RunJobUtilities.getOutFilesGuids([outputFile], job_workdir, TURL=True)
 #    if ec:
 #        # Missing PoolFileCatalog
 #        tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
 #        return ec, pilotErrorDiag, None
 #    else:
-#        tolog("outFilesGuids = %s" % str(outFilesGuids))
+#        tolog("guid_list = %s" % str(guid_list))
 
     # Get the file size and checksum for the local output file
     # WARNING: any errors are lost if occur in getOutputFileInfo()
@@ -672,183 +673,105 @@ def createFileMetadata(outputFile, event_range_id):
         tolog("checksum = %s" % str(checksum_list))
 
     # Create the metadata
-    _objectStorePath = getFilePath(outputFile, jobId)
-    tolog("Object store path = %s" % (_objectStorePath))
-    _fname = getMetadataFilename(event_range_id) 
-    tolog("Metadata filename = %s" % (_fname))
+    try:
+        fname = getMetadataFilename(event_range_id) 
+        tolog("Metadata filename = %s" % (fname))
+    except Exception,e:
+        tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
 
-    _status = pUtil.PFCxml(experiment, _fname, fnlist=[outputFile], fguids=outFilesGuids, fntag="pfn", fsize=fsize_list,\
-                               checksum=checksum_list, analJob=analysisJob, objectStorePath=_objectStorePath)
+    _status = pUtil.PFCxml(experiment, fname, fnlist=[outputFile], fguids=guid_list, fntag="pfn", fsize=fsize_list,\
+                               checksum=checksum_list, analJob=analysisJob)
     if not _status:
         pilotErrorDiag = "Missing guid(s) for output file(s) in metadata"
         tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
         return ec, pilotErrorDiag, None
 
     tolog("..............................................................................................................")
-    tolog("Created %s with:" % (_fname))
+    tolog("Created %s with:" % (fname))
     tolog(".. output file      : %s" % (outputFile))
-    tolog(".. output file guid : %s" % str(outFilesGuids))
+    tolog(".. output file guid : %s" % str(guid_list))
     tolog(".. fsize            : %s" % str(fsize_list))
     tolog(".. checksum         : %s" % str(checksum_list))
     tolog("..............................................................................................................")
 
     # Build a file size and checksum dictionary for the output file
-    # outputFileInfo: {'a.dat': (fsize, checksum), ...}
+    # outputFileInfo: {'a.dat': (fsize, checksum, guid), ...}
     # e.g.: file size for file a.dat: outputFileInfo['a.dat'][0]
     # checksum for file a.dat: outputFileInfo['a.dat'][1]
     try:
-        outputFileInfo = dict(zip([outputFile], zip(fsize_list, checksum_list)))
+        outputFileInfo = dict(zip([outputFile], zip(fsize_list, checksum_list, guid_list)))
     except Exception, e:
         tolog("!!WARNING!!2993!! Could not create output file info dictionary: %s" % str(e))
     else:
         tolog("Output file info dictionary created: %s" % str(outputFileInfo))
 
-    return ec, pilotErrorDiag, outputFileInfo
+    return ec, pilotErrorDiag, outputFileInfo, fname
 
-def createFileMetadataOld(outFiles, job, outsDict, dsname, datasetDict, sitename):
-    """ create the metadata for the output + log files """
+def getDatasets():
+    """ Get the datasets for the output files """
 
-    ec = 0
-
-    # get/assign guids to the output files
-    if outFiles:
-        tolog("outFiles=%s"%str(outFiles))
-        if not pUtil.isBuildJob(outFiles):
-            ec, job.pilotErrorDiag, job.outFilesGuids = RunJobUtilities.getOutFilesGuids(job.outFiles, job.workdir)
-            if ec:
-                # missing PoolFileCatalog (only error code from getOutFilesGuids)
-                return ec, job, None
-        else:
-            tolog("Build job - do not use PoolFileCatalog to get guid (generated)")
-    else:
-        tolog("This job has no output files")
-
-    # get the file sizes and checksums for the local output files
-    # WARNING: any errors are lost if occur in getOutputFileInfo()
-    ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(outFiles), getChecksumCommand(), skiplog=True, logFile=job.logFile)
-    if ec != 0:
-        tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-        failJob(job.result[1], ec, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
-
-    if logguid:
-        guid = logguid
-    else:
-        guid = job.tarFileGuid
-
-    # create preliminary metadata (no metadata yet about log file - added later in pilot.py)
-    _fname = "%s/metadata-%d.xml" % (job.workdir, job.jobId)
-    try:
-        _status = pUtil.PFCxml(job.experiment, _fname, list(job.outFiles), fguids=job.outFilesGuids, fntag="lfn", alog=job.logFile, alogguid=guid,\
-                               fsize=fsize, checksum=checksum, analJob=analysisJob)
-    except Exception, e:
-        pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
-        tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag)) 
-        failJob(job.result[1], error.ERR_MISSINGGUID, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
-    else:
-        if not _status:
-            pilotErrorDiag = "Missing guid(s) for output file(s) in metadata"
-            tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-            failJob(job.result[1], error.ERR_MISSINGGUID, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
-
-    tolog("..............................................................................................................")
-    tolog("Created %s with:" % (_fname))
-    tolog(".. log            : %s (to be transferred)" % (job.logFile))
-    tolog(".. log guid       : %s" % (guid))
-    tolog(".. out files      : %s" % str(job.outFiles))
-    tolog(".. out file guids : %s" % str(job.outFilesGuids))
-    tolog(".. fsize          : %s" % str(fsize))
-    tolog(".. checksum       : %s" % str(checksum))
-    tolog("..............................................................................................................")
-
-    # convert the preliminary metadata-<jobId>.xml file to OutputFiles-<jobId>.xml for NG and for CERNVM
-    # note: for CERNVM this is only really needed when CoPilot is used
-    if region == 'Nordugrid' or sitename == 'CERNVM':
-        if RunJobUtilities.convertMetadata4NG(os.path.join(job.workdir, job.outputFilesXML), _fname, outsDict, dsname, datasetDict):
-            tolog("Metadata has been converted to NG/CERNVM format")
-        else:
-            job.pilotErrorDiag = "Could not convert metadata to NG/CERNVM format"
-            tolog("!!WARNING!!1999!! %s" % (job.pilotErrorDiag))
-
-    # try to build a file size and checksum dictionary for the output files
-    # outputFileInfo: {'a.dat': (fsize, checksum), ...}
-    # e.g.: file size for file a.dat: outputFileInfo['a.dat'][0]
-    # checksum for file a.dat: outputFileInfo['a.dat'][1]
-    try:
-        # remove the log entries
-        _fsize = fsize[1:]
-        _checksum = checksum[1:]
-        outputFileInfo = dict(zip(job.outFiles, zip(_fsize, _checksum)))
-    except Exception, e:
-        tolog("!!WARNING!!2993!! Could not create output file info dictionary: %s" % str(e))
-        outputFileInfo = {}
-    else:
-        tolog("Output file info dictionary created: %s" % str(outputFileInfo))
-
-    return ec, job, outputFileInfo
-
-def getDatasets(job):
-    """ get the datasets for the output files """
-
-    # get the default dataset
-    if job.destinationDblock and job.destinationDblock[0] != 'NULL' and job.destinationDblock[0] != ' ':
-        dsname = job.destinationDblock[0]
+    # Get the default dataset
+    if globalJob.destinationDblock and globalJob.destinationDblock[0] != 'NULL' and globalJob.destinationDblock[0] != ' ':
+        dsname = globalJob.destinationDblock[0]
     else:
         dsname = "%s-%s-%s" % (time.localtime()[0:3]) # pass it a random name
 
-    # create the dataset dictionary
+    # Create the dataset dictionary
     # (if None, the dsname above will be used for all output files)
-    datasetDict = getDatasetDict(job.outFiles, job.destinationDblock, job.logFile, job.logDblock)
+    datasetDict = getDatasetDict(globalJob.outFiles, globalJob.destinationDblock, globalJob.logFile, globalJob.logDblock)
     if datasetDict:
-        tolog("Dataset dictionary has been verified")
+        tolog("Dataset dictionary has been verified: %s" % str(datasetDict))
     else:
         tolog("Dataset dictionary could not be verified, output files will go to: %s" % (dsname))
 
     return dsname, datasetDict
 
-def stageOut(job, jobSite, outs, pilot_initdir, testLevel, analysisJob, dsname, datasetDict, proxycheckFlag, outputFileInfo):
+def stageOut(file_list, pilot_initdir, dsname, datasetDict, outputFileInfo, metadata_fname):
     """ perform the stage-out """
 
     error = PilotErrors()
+    ec = 0
     pilotErrorDiag = ""
-    rc = 0
-    latereg = False
-    rf = None
 
     # generate the xml for the output files and the site mover
-    pfnFile = "OutPutFileCatalog.xml"
-    try:
-        _status = pUtil.PFCxml(job.experiment, pfnFile, outs, fguids=job.outFilesGuids, fntag="pfn")
-    except Exception, e:
-        job.pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
-        tolog("!!WARNING!!1113!! %s" % (job.pilotErrorDiag)) 
-        return error.ERR_MISSINGGUID, job, rf, latereg
-    else:
-        if not _status:
-            job.pilotErrorDiag = "Metadata contains missing guid(s) for output file(s)"
-            tolog("!!WARNING!!2999!! %s" % (job.pilotErrorDiag))
-            return error.ERR_MISSINGGUID, job, rf, latereg
-
-    tolog("Using the newly-generated %s/%s for put operation" % (job.workdir, pfnFile))
+#    pfnFile = "OutPutFileCatalog.xml"
+#    try:
+#        _status = pUtil.PFCxml(globalJob.experiment, pfnFile, file_list, fguids=globalJob.outFilesGuids, fntag="pfn")
+#    except Exception, e:
+#        pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
+#        tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag)) 
+#        return error.ERR_MISSINGGUID, pilotErrorDiag
+#    else:
+#        if not _status:
+#            pilotErrorDiag = "Metadata contains missing guid(s) for output file(s)"
+#            tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+#            return error.ERR_MISSINGGUID, pilotErrorDiag
+#
+#    tolog("Using the newly-generated %s/%s for put operation" % (globalJob.workdir, pfnFile))
 
     # the cmtconfig is needed by at least the xrdcp site mover
-    cmtconfig = getCmtconfig(job.cmtconfig)
+    cmtconfig = getCmtconfig(globalJob.cmtconfig)
 
     rs = "" # return string from put_data with filename in case of transfer error
     tin_0 = os.times()
+    tolog("metdata_fname=%s"%metadata_fname)
+    tolog("outputFileInfo=%s"%str(outputFileInfo))
     try:
-        rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
-                                         ub=jobSite.dq2url, analysisJob=analysisJob, testLevel=testLevel, pinitdir=pilot_initdir, scopeOut=job.scopeOut,\
-                                         proxycheck=proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
-                                         userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
-                                         outputDir=outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
-                                         dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                         lfcreg=lfcRegistration, jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
-                                         stageoutTries=stageoutretry, cmtconfig=cmtconfig, experiment=experiment, fileDestinationSE=job.fileDestinationSE)
+        ec, pilotErrorDiag, rf, rs, globalJob.filesNormalStageOut, globalJob.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" %\
+                                         (metadata_fname), dsname, jobSite.sitename,\
+                                         ub=jobSite.dq2url, analysisJob=analysisJob, pinitdir=pilot_initdir, scopeOut=globalJob.scopeOut,\
+                                         proxycheck=proxycheckFlag, spsetup=globalJob.spsetup, token=globalJob.destinationDBlockToken,\
+                                         userid=globalJob.prodUserID, datasetDict=datasetDict, prodSourceLabel=globalJob.prodSourceLabel,\
+                                         outputDir=outputDir, jobId=globalJob.jobId, jobWorkDir=globalJob.workdir, DN=globalJob.prodUserID,\
+                                         dispatchDBlockTokenForOut=globalJob.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
+                                         lfcreg=lfcRegistration, jobDefId=globalJob.jobDefinitionID, jobCloud=globalJob.cloud,\
+                                         logFile=globalJob.logFile, stageoutTries=stageoutretry, cmtconfig=cmtconfig, experiment=experiment,\
+                                         fileDestinationSE=globalJob.fileDestinationSE, eventService=True)
         tin_1 = os.times()
-        job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
+        globalJob.timeStageOut = int(round(tin_1[4] - tin_0[4]))
     except Exception, e:
         tin_1 = os.times()
-        job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
+        globalJob.timeStageOut = int(round(tin_1[4] - tin_0[4]))
 
         if 'format_exc' in traceback.__all__:
             trace = traceback.format_exc()
@@ -858,71 +781,33 @@ def stageOut(job, jobSite, outs, pilot_initdir, testLevel, analysisJob, dsname, 
             pilotErrorDiag = "Put function can not be called for staging out: %s" % (str(e))
         tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
 
-        rc = error.ERR_PUTFUNCNOCALL
-        job.setState(["holding", job.result[1], rc])
+        ec = error.ERR_PUTFUNCNOCALL
+        globalJob.setState(["holding", globalJob.result[1], ec])
     else:
-        if job.pilotErrorDiag != "":
-            job.pilotErrorDiag = "Put error: " + tailPilotErrorDiag(job.pilotErrorDiag, size=256-len("pilot: Put error: "))
+        if globalJob.pilotErrorDiag != "":
+            globalJob.pilotErrorDiag = "Put error: " + tailPilotErrorDiag(globalJob.pilotErrorDiag, size=256-len("pilot: Put error: "))
 
-        tolog("Put function returned code: %d" % (rc))
-        if rc != 0:
-            # remove any trailing "\r" or "\n" (there can be two of them)
-            if rs != None:
-                rs = rs.rstrip()
-                tolog("Error string: %s" % (rs))
-
+        tolog("Put function returned code: %d" % (ec))
+        if ec != 0:
             # is the job recoverable?
-            if error.isRecoverableErrorCode(rc):
+            if error.isRecoverableErrorCode(ec):
                 _state = "holding"
                 _msg = "WARNING"
             else:
                 _state = "failed"
                 _msg = "FAILED"
 
-            # look for special error in the error string
-            if rs == "Error: string Limit exceeded 250":
-                tolog("!!%s!!3000!! Put error: file name string limit exceeded 250" % (_msg))
-                job.setState([_state, job.result[1], error.ERR_LRCREGSTRSIZE])
-            else:
-                job.setState([_state, job.result[1], rc])
+            # globalJob.setState([_state, globalJob.result[1], ec])
 
-            tolog("!!%s!!1212!! %s" % (_msg, error.getErrorStr(rc)))
-        else:
-            # set preliminary finished (may be overwritten below in the LRC registration)
-            job.setState(["finished", 0, 0])
+            tolog("!!%s!!1212!! %s" % (_msg, error.getErrorStr(ec)))
+        #else:
+            # globalJob.setState(["finished", 0, 0])
 
-            # create a weak lockfile meaning that file transfer worked
-            # (useful for job recovery if activated) in the job workdir
-            createLockFile(True, jobSite.workdir, lockfile="ALLFILESTRANSFERRED")
-            # create another lockfile in the site workdir since a transfer failure can still occur during the log transfer
-            # and a later recovery attempt will fail (job workdir will not exist at that time)
-            createLockFile(True, pworkdir, lockfile="ALLFILESTRANSFERRED")
-    
-            # file transfer worked, now register the output files in the LRC if necessary (not for LFC sites)
-            ub = jobSite.dq2url
-            lfchost = readpar('lfchost')
-            if ub != "None" and ub != None and ub != "" and lfchost == "": # ub is 'None' outside the US
-                # Perform the LRC file registration
-                from FileRegistration import FileRegistration
-                filereg = FileRegistration()
-                _islogfile = False
-                _jobrec = False
-                _errorLabel = "WARNING"
-                ec, pilotErrorDiag, _state, _msg, latereg = filereg.registerFilesLRC(ub, rf, _islogfile, _jobrec, jobSite.workdir, _errorLabel)
-                if ec != 0:
-                    job.setState([_state, 0, ec])
-                    job.pilotErrorDiag = pilotErrorDiag
-            else:
-                if lfchost != "":
-                    tolog("No LRC file registration since lfchost is set")
-                else:
-                    tolog("No LRC file registration since dq2url is not set")
-    
-        if job.result[0] == "holding" and '(unrecoverable)' in job.pilotErrorDiag:
-            job.result[0] = "failed"
-            tolog("!!WARNING!!2999!! HOLDING state changed to FAILED since error is unrecoverable")
+        #if globalJob.result[0] == "holding" and '(unrecoverable)' in globalJob.pilotErrorDiag:
+        #    globalJob.result[0] = "failed"
+        #    tolog("!!WARNING!!2999!! HOLDING state changed to FAILED since error is unrecoverable")
 
-    return rc, job, rf, latereg
+    return ec, pilotErrorDiag
 
 def setPoolFileCatalogPath(path):
     """ Set the path to the PoolFileCatalog """
@@ -1001,18 +886,59 @@ def getEventRangeID(filename):
 
     return event_range_id
 
+def transferToObjectStore(outputFileInfo, metadata_fname):
+    """ Transfer the output file to the object store """
+
+    # FORMAT:  outputFileInfo = {'<full path>/filename.ext': (fsize, checksum, guid), ...} 
+    # Normally, the dictionary will only contain info about a single file
+
+    ec = 0
+    pilotErrorDiag = ""
+
+    # Get the site information object                                                                                                           
+    si = getSiteInformation(experiment)
+
+    # Extract all information from the dictionary
+    for path in outputFileInfo.keys():
+
+        fsize = outputFileInfo[path][0]
+        checksum = outputFileInfo[path][1]
+        guid = outputFileInfo[path][2]
+
+        tolog("path=%s"%path)
+        # Use the put_data() function from the FAX site mover
+
+        # First backup some schedconfig fields that need to be modified for the secondary transfer                                                  
+        copytool_org = readpar('copytool')
+
+        # Temporarily modify the schedconfig fields with values
+        tolog("Temporarily modifying queuedata for log file transfer to secondary SE")
+        ec = si.replaceQueuedataField("copytool", "fax")
+
+        # needs to know source, destination, fsize=0, fchecksum=0, **pdict, from pdict: lfn, guid, logPath
+        # where source is local file path and destination is not used, set to empty string
+
+        # Get the dataset name for the output file                                                                                                     
+        dsname, datasetDict = getDatasets()
+
+        # Transfer the file
+        ec, pilotErrorDiag = stageOut([path], pilot_initdir, dsname, datasetDict, outputFileInfo, metadata_fname)
+
+        # Finally restore the modified schedconfig fields                                                                                           
+        tolog("Restoring queuedata fields")
+        _ec = si.replaceQueuedataField("copytool", copytool_org)
+
+    tolog("ec=%d" % (ec))
+    tolog("pilotErrorDiag=%s"%(pilotErrorDiag))
+    return ec, pilotErrorDiag
+
 def asynchronousOutputStager():
     """ Transfer output files to stage-out area asynchronously """
 
     # Note: this is run as a thread
 
     tolog("Asynchronous output stager thread initiated")
-    i = 1
     while not asyncOutputStager_thread.stopped():
-
-        if i%60 == 0:
-            tolog("Number of files in stage out queue: %d" % len(stageout_queue))
-            i = 0
 
         if len(stageout_queue) > 0:
             for f in stageout_queue:
@@ -1023,38 +949,43 @@ def asynchronousOutputStager():
                     tolog("!!WARNING!!1111!! Did not find the event range for file %s in the event range dictionary" % (f))
                 else:
                     tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
-                    try:
-                        ec, pilotErrorDiag, outputFileInfo = createFileMetadata(f, event_range_id)
-                    except Exception, e:
-                        tolog("!!WARNING!!1111!! Caught exception: %s" % (e))
-                    else:
-                        if ec == 0:
-                            tolog("Will transfer file %s to %s" % (f, output_area))
-                            cmd = "mv %s %s" % (f, output_area)
-                            try:
-                                process = Popen(cmd, shell=True)
-                                stdout, stderr = process.communicate()
-                            except Exception, e:
-                                tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
-                            else:
-                                tolog("Transfer has finished (removing %s from queue)" % (f))
-                                stageout_queue.remove(f)
-
-                                # Time to update the server
-                                updateEventRange(event_range_id, eventRange_dictionary[event_range_id])
+                    ec, pilotErrorDiag, outputFileInfo, metadata_fname = createFileMetadata(f, event_range_id)
+                    if ec == 0:
+                        try:
+                            ec, pilotErrorDiag = transferToObjectStore(outputFileInfo, metadata_fname)
+                        except Exception, e:
+                            tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
                         else:
-                            tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
+                            tolog("Removing %s from stage-out queue" % (f))
+                            stageout_queue.remove(f)
+                            if ec == 0:
+                                status = 'finished'
+                            else:
+                                status = 'failed'
+#                                tolog("Transfer failed, will move the output to the recovery area")
+#                                cmd = "mv %s %s" % (f, output_area)
+#                                try:
+#                                    process = Popen(cmd, shell=True)
+#                                    stdout, stderr = process.communicate()
+#                                except Exception, e:
+#                                    tolog("!!WARNING!!2344!! Caught exception: %s" % (e))
+
+                                # Note: the rec pilot must update the server appropriately
+
+                            # Time to update the server
+                            tolog("Transfer %s" % (status))
+                            try:
+                                updateEventRange(event_range_id, eventRange_dictionary[event_range_id], status=status)
+                            except Exception, e:
+                                tolog("!!WARNING!!2233!! updateEventRange threw an exception: %s" % (e))
+                            else:
+                                tolog("updateEventRange has returned")
+                    else:
+                        tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
 
         time.sleep(1)
-        i += 1
 
-def getFilePath(filename, jobId):
-    """ Return a proper file path in the object store """
-
-    basepath = "root://atlas-objectstore.cern.ch//atlas/eventservice"
-    path = os.path.join(basepath, os.path.join(jobId, filename))
-
-    return path
+    tolog("Asynchronous output stager thread has been stopped")
 
 def yamplListener():
     """ Listen for yampl messages """
@@ -1087,6 +1018,9 @@ def yamplListener():
                 # Extract the information from the yampl message
                 path, event_range_id, cpu, wall = interpretMessage(buf)
                 if path not in stageout_queue and path != "":
+                    # Correct the output file name if necessary
+                    # path = correctFileName(path, event_range_id)
+
                     # Add the extracted info to the event range dictionary
                     eventRange_dictionary[event_range_id] = [path, cpu, wall]
 
@@ -1100,6 +1034,30 @@ def yamplListener():
         time.sleep(1)
 
     tolog("yamplListener has finished")
+
+def correctFileName(path, event_range_id):
+    """ Correct the output file name if necessary """
+
+    # Make sure the output file name follows the format OUTPUT_FILENAME_FROM_JOBDEF.EVENT_RANGE_ID
+
+    outputFileName = globalJob.outFiles[0]
+    if outputFileName != "":
+        fname = os.path.basename(path)
+        dirname = os.path.dirname(path)
+
+        constructedFileName = outputFileName + "." + event_range_id
+        if fname == constructedFileName:
+            tolog("Output file name verified")
+        else:
+            tolog("Output file name does not follow convension: OUTPUT_FILENAME_FROM_JOBDEF.EVENT_RANGE_ID: %s" % (fname))
+            fname = constructedFileName
+            _path = os.path.join(dirname, fname)
+            cmd = "mv %s %s" % (path, _path)
+            out = commands.getoutput(cmd)
+            path = _path
+            tolog("Corrected output file name: %s" % (path))
+
+    return path
 
 def interpretMessage(msg):
     """ Interpret a yampl message containing file and processing info """
@@ -1263,19 +1221,20 @@ def getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir, analysisJ
         sitename = ""
         usect = False
         eventService = True
-        # Until the Mover PFC file is no longer needed, call the TURL based PFC "PoolFileCatalogTURL.xml"
-        pfc_name_turl = pfc_name.replace(".xml", "TURL.xml")
-        setPoolFileCatalogPath(os.path.join(workdir, pfc_name_turl))
-        tolog("Using PFC path: %s" % (getPoolFileCatalogPath()))
 
         # Create a TURL based PFC
-        ec, pilotErrorDiag, createdPFCTURL, usect = mover.PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService)
+        ec, pilotErrorDiag, createdPFCTURL, usect = mover.PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name, sitemover, sitename, usect, dsdict, eventService)
         if ec != 0:
             tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
-        return ec, pilotErrorDiag
+        # Finally return the TURL based PFC
+        file_info_dictionary = {}
+        if ec == 0:
+            file_info_dictionary = mover.getFileInfoDictionaryFromXML(getPoolFileCatalogPath())
 
-def createPoolFileCatalog(inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment):
+        return ec, pilotErrorDiag, file_info_dictionary
+
+def createPoolFileCatalog(inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment, workdir):
     """ Create the Pool File Catalog """
 
     # Create the scope dictionary
@@ -1289,19 +1248,23 @@ def createPoolFileCatalog(inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, ch
 
     dsname = 'dummy_dsname' # not used by getPoolFileCatalog()
     analysisJob = False
-    workdir = os.getcwd()
     ub = ''
     dbh = None
     DBReleaseIsAvailable = False
 
-#    ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = getPoolFileCatalog(ub, inFilesGuids, dsname, inFiles, pilot_initdir, analysisJob,\
-    ec, pilotErrorDiag = getPoolFileCatalog(ub, inFilesGuids, dsname, inFiles, pilot_initdir, analysisJob,\
-                                                tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
-                                                filesizeIn, checksumIn, thisExperiment=thisExperiment)
+    setPoolFileCatalogPath(os.path.join(workdir, "PoolFileCatalog.xml"))
+    tolog("Using PFC path: %s" % (getPoolFileCatalogPath()))
+
+
+    # Get the TURL based PFC
+    ec, pilotErrorDiag, file_info_dictionary = getPoolFileCatalog(ub, inFilesGuids, dsname, inFiles, pilot_initdir, analysisJob,\
+                                                                  tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
+                                                                  filesizeIn, checksumIn, thisExperiment=thisExperiment,
+                                                                  pfc_name=getPoolFileCatalogPath())
     if ec != 0:
         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
-    return ec, pilotErrorDiag
+    return ec, pilotErrorDiag, file_info_dictionary
 
 def createPoolFileCatalogFromMessage(message, thisExperiment):
     """ Prepare and create the PFC using file/guid info from the event range message """
@@ -1318,6 +1281,7 @@ def createPoolFileCatalogFromMessage(message, thisExperiment):
 
     ec = 0
     pilotErrorDiag = ""
+    file_info_dictionary = {}
 
     if not "No more events" in message:
         # Convert string to list
@@ -1358,13 +1322,13 @@ def createPoolFileCatalogFromMessage(message, thisExperiment):
                 DBReleaseIsAvailable = False
 
 #                ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir,\
-                ec, pilotErrorDiag = getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir,\
-                                                            analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable,\
-                                                            scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment)
+                ec, pilotErrorDiag, file_info_dictionary = getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir,\
+                                                                                  analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable,\
+                                                                                  scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment)
                 if ec != 0:
                     tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
-    return ec, pilotErrorDiag
+    return ec, pilotErrorDiag, file_info_dictionary
 
 def downloadEventRanges(jobId):
     """ Download event ranges from the Event Server """
@@ -1396,7 +1360,7 @@ def downloadEventRanges(jobId):
 
     return message
 
-def updateEventRange(event_range_id, eventRangeList):
+def updateEventRange(event_range_id, eventRangeList, status='finished'):
     """ Update an event range on the Event Server """
 
     # Return the server response (instruction to AthenaMP)
@@ -1412,34 +1376,41 @@ def updateEventRange(event_range_id, eventRangeList):
     node = {}
     node['eventRangeID'] = event_range_id
 #    node['output'] = eventRangeList[0]
-    _xml = ""
-    try:
-        f = open(getMetadataFilename(event_range_id), "r")
-        tolog("Reading file %s" % (getMetadataFilename(event_range_id)))
-        _xml = read(f)
-    except IOError, e:
-        tolog("!!WARNING!!3333!! Caught exception: %s" % (e))
-    else:
-        f.close()
+#    _xml = ""
+#    try:
+#        f = open(getMetadataFilename(event_range_id), "r")
+#        tolog("Reading file %s" % (getMetadataFilename(event_range_id)))
+#        _xml = f.read()
+#    except IOError, e:
+#        tolog("!!WARNING!!3333!! Caught exception: %s" % (e))
+#    else:
+#        f.close()
 
-    tolog("xml = %s" % (_xml))
-    node['xml'] = _xml
-    node['cpu'] =  eventRangeList[1]
-    node['wall'] = eventRangeList[2]
-    node['eventStatus'] = 'finished'
+#    tolog("xml = %s" % (_xml))
+#    node['xml'] = _xml
+
+#    node['cpu'] =  eventRangeList[1]
+#    node['wall'] = eventRangeList[2]
+    node['eventStatus'] = status
     tolog("node = %s" % str(node))
 
     # open connection
-    ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGES")
+    ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGE")
+    tolog("aaa")
     response = ret[1]
+    tolog("bbb")
 
     if ret[0]: # non-zero return code
         message = "Failed to download event range - error code = %d" % (ret[0])
     else:
         message = response['eventRanges']
 
+    tolog("ccc")
+
     if message == "" or message == "[]":
         message = "No more events"
+
+    tolog("ddd")
 
     return message
 
@@ -1529,6 +1500,23 @@ def addEventRangeIDsToDictionary(currentEventRangeIDs):
         if not eventRangeID_dictionary.has_key(eventRangeID):
             eventRangeID_dictionary[eventRangeID] = False
 
+def getProperInputFileName(input_files):
+    """ Return the first non TAG file name in the input file list """
+
+    # AthenaMP needs to know the name of an input file to be able to start
+    # Currently an Event Service job also has a TAG file in the input file list
+    # but AthenaMP cannot start with that file, so identify the proper name and return it
+
+    filename = ""
+    for f in input_files:
+        if ".TAG." in f:
+            continue
+        else:
+            filename = f
+            break
+
+    return filename
+
 # main process starts here
 if __name__ == "__main__":
 
@@ -1537,6 +1525,9 @@ if __name__ == "__main__":
 
     # get error handler
     error = PilotErrors()
+
+    # define a new parent group
+    os.setpgrp()
 
     # protect the runEvent code with exception handling
     hP_ret = False
@@ -1585,9 +1576,8 @@ if __name__ == "__main__":
             failJob(0, error.ERR_UNKNOWN, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
         # Set the global variables used by the threads
-#        global jobId, job_workdir
         jobId = job.jobId
-        job_workdir = job.workdir
+        globalJob = job
 
         # prepare for the output file data directory
         # (will only created for jobs that end up in a 'holding' state)
@@ -1649,11 +1639,15 @@ if __name__ == "__main__":
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
             failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
-        # setup starts here ................................................................................
+        # Setup starts here ................................................................................
 
-        # update the job state file
+        # Update the job state file
         job.jobState = "setup"
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+
+        # Send [especially] the process group back to the pilot
+        job.setState([job.jobState, 0, 0])
+        rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport)
 
         # prepare the setup and get the run command list
         ec, runCommandList, job, multi_trf = setup(job, jobSite, thisExperiment)
@@ -1720,7 +1714,6 @@ if __name__ == "__main__":
 
         # Create and start the TokenExtractor
         input_tag_file = getTAGFile(job.inFiles)
-        # input_tag_file = "EVNT.545023._000041.TAG.pool.root.2"
         if input_tag_file != "":
             tolog("Will run TokenExtractor on file %s" % (input_tag_file))
 
@@ -1747,7 +1740,7 @@ if __name__ == "__main__":
             # stop threads
             # ..
 
-            failJob(0, job.result[2], job, pilotserver, pilotport, ins=ins, pilotErrorDiag=pilotErrorDiag)
+            failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
 
 
@@ -1762,17 +1755,27 @@ if __name__ == "__main__":
             runCommandList[0] = runCommandList[0][:runCommandList[0].find(' 1>')]
 
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
-        ec, pilotErrorDiag = createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken, job.filesizeIn, job.checksumIn, thisExperiment)
+        # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
+        ec, pilotErrorDiag, file_info_dictionary = createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken, job.filesizeIn, job.checksumIn, thisExperiment, pworkdir)
         if ec != 0:
             tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
             # stop threads
             # ..
 
-            failJob(0, job.result[2], job, pilotserver, pilotport, ins=ins, pilotErrorDiag=pilotErrorDiag)
+            failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (getPoolFileCatalogPath())
+
+
+        # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
+
+        # Now update the --inputEvgenFile option with the full path to the input file using the TURL
+        #inputFile = getProperInputFileName(job.inFiles)
+        #turl = file_info_dictionary[inputFile][0]
+        #runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+        #tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
 
         # Create and start the AthenaMP process
         athenaMPProcess = getAthenaMPProcess(thisExperiment, runCommandList[0], stdout=athenamp_stdout, stderr=athenamp_stderr)
@@ -1807,7 +1810,7 @@ if __name__ == "__main__":
                 addEventRangeIDsToDictionary(currentEventRangeIDs)
 
                 # Create a new PFC for the current event ranges
-                ec, pilotErrorDiag = createPoolFileCatalogFromMessage(message, thisExperiment)
+                ec, pilotErrorDiag, file_info_dictionary = createPoolFileCatalogFromMessage(message, thisExperiment)
                 if ec != 0:
                     tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
                     sendMessage("No more events")
@@ -1918,22 +1921,40 @@ if __name__ == "__main__":
 
 
         # Wait for AthenaMP to finish
+        i = 0
+        kill = False
         while athenaMPProcess.poll() is None:
-            tolog("Waiting for AthenaMP to finish")
-            time.sleep(30)
+            if i > 100:
+                # Stop AthenaMP
+                tolog("Waited long enough - Stopping AthenaMP process")
+                athenaMPProcess.kill()
+                tolog("(Kill signal SIGTERM sentto AthenaMP - jobReport might get lost)")
+                kill = True
+                break
+
+            tolog("Waiting for AthenaMP to finish (#%d)" % (i))
+            time.sleep(60)
+            i += 1
+
+        if not kill:
+            tolog("AthenaMP has finished")
 
         # Do not stop the stageout thread until all output files have been transferred
         starttime = time.time()
-        maxtime = 60*60
+        maxtime = 15*60
 #        while len (stageout_queue) > 0 and (time.time() - starttime < maxtime):
 #            tolog("stage-out queue: %s" % (stageout_queue))
 #            tolog("(Will wait for a maximum of %d seconds, so far waited %d seconds)" % (maxtime, time.time() - starttime))
 #            time.sleep(5)
 
         while not areAllOutputFilesTransferred():
+            if len(stageout_queue) == 0:
+                tolog("No files in stage-out queue, no point in waiting for transfers since AthenaMP has finished (job is failed)")
+                break
+
+            tolog("Will wait for a maximum of %d seconds for file transfers to finish (so far waited %d seconds)" % (maxtime, time.time() - starttime))
             tolog("stage-out queue: %s" % (stageout_queue))
-            tolog("(Will wait for a maximum of %d seconds, so far waited %d seconds)" % (maxtime, time.time() - starttime))
-            if (stageout_queue) > 0 and (time.time() - starttime > maxtime):
+            if (len(stageout_queue)) > 0 and (time.time() - starttime > maxtime):
                 tolog("Aborting stage-out thread (timeout)")
                 break
             time.sleep(30)
@@ -1955,14 +1976,6 @@ if __name__ == "__main__":
             tokenextractor_stdout.close()
         if tokenextractor_stderr:
             tokenextractor_stderr.close()
-
-        # Stop AthenaMP
-        if athenaMPProcess:
-            tolog("Stopping AthenaMP process")
-            athenaMPProcess.kill()
-            tolog("(Kill signal SIGTERM sent)")
-        else:
-            tolog("No AthenaMP process running")
 
         # Close stdout/err streams
         if athenamp_stdout:
@@ -1988,6 +2001,7 @@ if __name__ == "__main__":
         if job.result[1] != 0 or job.result[2] != 0:
             failJob(job.result[1], job.result[2], job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
 
+        globalJob.setState(["finished", 0, 0])
         tolog("Done")
 
 #        # Run main loop until event_loop_running is set to False

@@ -304,6 +304,16 @@ class ATLASExperiment(Experiment):
                 # Set special_setup_cmd if necessary
                 special_setup_cmd = self.getSpecialSetupCommand()
 
+                # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
+                try:
+                    coreCount = int(job.coreCount)
+                except:
+                    pass
+                else:
+                    if coreCount >= 1:
+                        cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
+                        tolog("Added multi-core support to cmd2: %s" % (cmd2))
+
                 # Prepend cmd0 to cmd1 if set and if release < 16.1.0
                 if cmd0 != "" and job.atlasRelease < "16.1.0":
                     cmd1 = cmd0 + cmd1
@@ -365,6 +375,8 @@ class ATLASExperiment(Experiment):
                 cmd += ";" + cmd2
             if cmd3 != "":
                 cmd += ";" + cmd3
+            # cmd2 and MAKEFLAGS can add an extra ;-sign, remove it
+            cmd = cmd.replace(';;',';')
 
         else: # Generic, non-ATLAS specific jobs, or at least a job with undefined swRelease
 

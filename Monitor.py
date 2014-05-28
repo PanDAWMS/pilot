@@ -87,7 +87,7 @@ class Monitor:
                             pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
                             # kill the job
                             pUtil.tolog("Going to kill pid %d" %lineno())
-                            killProcesses(self.__env['jobDic'][k][0])
+                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             self.__env['jobDic'][k][1].result[0] = "failed"
                             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
                             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_STDOUTTOOBIG
@@ -155,7 +155,7 @@ class Monitor:
                             pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
     
                             # kill the job
-                            killProcesses(self.__env['jobDic'][k][0])
+                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             self.__env['jobDic'][k][1].result[0] = "failed"
                             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
                             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_USERDIRTOOLARGE
@@ -185,7 +185,7 @@ class Monitor:
             for k in self.__env['jobDic'].keys():
                 # kill the job
                 pUtil.tolog("Going to kill pid %d" %lineno())
-                killProcesses(self.__env['jobDic'][k][0])
+                killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                 self.__env['jobDic'][k][1].result[0] = "failed"
                 self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
                 self.__env['jobDic'][k][1].result[2] = self.__error.ERR_NOLOCALSPACE
@@ -274,7 +274,7 @@ class Monitor:
         for k in self.__env['jobDic'].keys():
             # kill the job
             pUtil.tolog("Going to kill pid %d" %lineno())
-            killProcesses(self.__env['jobDic'][k][0])
+            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
             self.__env['jobDic'][k][1].result[0] = "failed"
             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_REACHEDMAXTIME
@@ -374,12 +374,8 @@ class Monitor:
         cmd = 'ps -o pid,ppid,sid,pgid,tpgid,stat,comm -u %s' % (commands.getoutput("whoami"))
         pUtil.tolog("%s: %s" % (cmd + '\n', commands.getoutput(cmd)))
     
-        pUtil.tolog("pass 1")
-        killOrphans()
-        pUtil.tolog("Going to kill pid %d" %lineno())
-        killProcesses(pid)
-        pUtil.tolog("pass 2")
-        killOrphans()
+        killProcesses(pid, job.pgrp)
+
         if self.__env['stagein']:
             pilotErrorDiag += " (Job stuck in stage-in state)"
             pUtil.tolog("!!FAILED!!1999!! Job stuck in stage-in state: file copy time-out")
@@ -436,7 +432,7 @@ class Monitor:
                         pUtil.tolog("Switching off job recovery")
                     # kill the real job process(es)
                     pUtil.tolog("Going to kill pid %d" %lineno())
-                    killProcesses(self.__env['jobDic'][k][0])
+                    killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                     self.__env['jobDic'][k][1].result[0] = "failed"
                     self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
                     self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PANDAKILL
@@ -811,12 +807,10 @@ class Monitor:
                 # athena processes can loop indefinately (e.g. pool utils), so kill all subprocesses just in case
                 pUtil.tolog("Killing remaining subprocesses (if any)")
                 if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
-                    pUtil.tolog("pass 1")
                     killOrphans()
                 pUtil.tolog("Going to kill pid %d" %lineno()) 
-                killProcesses(self.__env['jobDic'][k][0])
+                killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                 if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
-                    pUtil.tolog("pass 2")
                     killOrphans()
                 # remove the process id file to prevent cleanup from trying to kill the remaining processes another time
                 # (should only be necessary for jobs killed by the batch system)
@@ -973,6 +967,7 @@ class Monitor:
             globalWorkNode = self.__env['workerNode']
         
             # does the looping job limit need to be updated?
+            pUtil.tolog("env = %s" % str(self.__env['job'].jobPars))
             self.__env['loopingLimit'] = self.__getLoopingLimit(self.__env['job'].maxCpuCount, self.__env['job'].jobPars, self.__env['thisSite'].sitename)
 
             # get the experiment object
@@ -1280,7 +1275,7 @@ class Monitor:
                                                   self.__env['experiment'], jr=False)
                                 self.__env['logTransferred'] = True
                             pUtil.tolog("Killing process: %d from line %d" % (self.__env['jobDic'][k][0], lineno()))
-                            killProcesses(self.__env['jobDic'][k][0])
+                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             # move this job from env['jobDic'] to zombieJobList for later collection
                             self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
                             del self.__env['jobDic'][k]

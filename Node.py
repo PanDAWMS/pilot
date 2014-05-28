@@ -69,7 +69,7 @@ class Node:
             tolog("corecount not set in queuedata: %s" % str(e))
         else:
             if nCores > 1:
-                tolog("1. Setting number of cores to: %d" % (nCores))
+                tolog("Setting number of cores: ATHENA_PROC_NUMBER=%d (from schedconfig.corecount)" % (nCores))
                 os.environ['ATHENA_PROC_NUMBER'] = str(nCores)
                 return nCores
 
@@ -94,7 +94,7 @@ class Node:
                 if nCores == 0:
                     nCores = 1
 
-                tolog("2. Setting number of cores to: %d" % (nCores))
+                tolog("Setting number of cores: ATHENA_PROC_NUMBER=%d (from cpuinfo)" % (nCores))
                 os.environ['ATHENA_PROC_NUMBER'] = str(nCores)
         else:
             tolog("Will not set ATHENA_PROC_NUMBER (nCores=%d)" % (nCores))

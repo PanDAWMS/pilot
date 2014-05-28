@@ -808,6 +808,9 @@ if __name__ == "__main__":
     # get error handler
     error = PilotErrors()
 
+    # define a new parent group
+    os.setpgrp()
+
     # protect the runJob code with exception handling
     hP_ret = False
     try:
@@ -904,6 +907,10 @@ if __name__ == "__main__":
         # update the job state file
         job.jobState = "setup"
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+
+        # send [especially] the process group back to the pilot
+        job.setState([job.jobState, 0, 0])
+        rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport)
 
         # prepare the setup and get the run command list
         ec, runCommandList, job, multi_trf = setup(job, jobSite, thisExperiment)

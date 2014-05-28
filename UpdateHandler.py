@@ -1,3 +1,4 @@
+import os
 import time
 import pUtil
 from SocketServer import BaseRequestHandler 
@@ -26,7 +27,8 @@ class UpdateHandler(BaseRequestHandler):
     
             # update self.__env['jobDic']
             for k in self.__env['jobDic'].keys():
-                if self.__env['jobDic'][k][2] == int(jobinfo["pgrp"]) and self.__env['jobDic'][k][1].jobId == int(jobinfo["jobid"]): # job pid matches
+                if self.__env['jobDic'][k][1].jobId == int(jobinfo["jobid"]): # job pid matches
+#                if self.__env['jobDic'][k][2] == int(jobinfo["pgrp"]) and self.__env['jobDic'][k][1].jobId == int(jobinfo["jobid"]): # job pid matches
                     # protect with try statement in case the pilot server goes down (jobinfo will be corrupted)
                     try:
                         self.__env['jobDic'][k][1].currentState = jobinfo["status"]
@@ -58,8 +60,14 @@ class UpdateHandler(BaseRequestHandler):
                         self.__env['jobDic'][k][1].RSSMean = int(jobinfo["RSSMean"])
                         self.__env['jobDic'][k][1].JEM = jobinfo["JEM"]
                         self.__env['jobDic'][k][1].cmtconfig = jobinfo["cmtconfig"]
-                        pUtil.tolog("Pilot is using job.cmtconfig=%s" % (self.__env['jobDic'][k][1].cmtconfig))
-    
+
+                        try:
+                            self.__env['jobDic'][k][1].pgrp = int(jobinfo["pgrp"])
+                        except:
+                            pUtil.tolog("!!WARNING!!2222!! Failed to convert pgrp value to int: %s" % (e))
+                        else:
+                            pUtil.tolog("Process groups: %d (pilot), %d (sub process)" % (os.getpgrp(), self.__env['jobDic'][k][1].pgrp))
+
                         tmp = self.__env['jobDic'][k][1].result[0]
                         if (tmp == "failed" or tmp == "holding" or tmp == "finished") and jobinfo.has_key("logfile"):
                             self.__env['jobDic'][k][1].logMsgFiles.append(jobinfo["logfile"])

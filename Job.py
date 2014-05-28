@@ -90,6 +90,7 @@ class Job:
         self.scopeLog = []                 # Rucio scope for log file
         self.experiment = "undefined"      # Which experiment this job belongs to
         self.coreCount = None              # Number of cores as requested by the task
+        self.pgrp = 0                      # Process group (runJob subprocess)
 
         # event service objects
         self.eventService = False          # True for event service jobs

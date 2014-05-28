@@ -138,7 +138,6 @@ Renamed getReplicaDictionaryRucio() to getReplicaDictionaryFromRucio(), used in 
 Renamed all analJob to analyJob (SiteMover)
 Only running VmPeak script for production jobs (interpretPayloadStdout()) (ATLASExperiment)
 Now using decode_string() on pilotErrorDiag in handle() to prevent garbled error messages (UpdateHandler)
-Removed lfchost from getPoolFileCatalog() and its call in getFileInfo() (Mover)
 Removed lfchost from getFileInfoFromMetadata() and its call in getFileInfo() (Mover)
 Removed lfchost from getFileInfo() and its call in mover_get_data() (Mover)
 Removed lfchost from mover_get_data() (Mover)
@@ -180,6 +179,10 @@ Renamed createFinalMetadata() to createMetadataForOutput() (JobLog)
 Supporting TURL based PFCs in getOutFilesGuids() (RunJobUtilities)
 Created a new createFileMetadata() function for Event Service output files (runEvent)
 Added objectStorePath argument and handling to PFCxml() (pUtil)
+Removed call to backupPFC4Mover() in mover_get_data() (Mover)
+Now using default name PFC.xml instead of PoolFileCatalog.xml in getFileInfo() and mover_get_data() (Mover)
+Created getFileListFromXML(), getFileInfoFromXML(), getFileInfoDictionaryFromXML() to be used from runEvent (Mover)
+Corrected wrong variables names in updatePandaServer() causing job recovery to fail (pilot)
 
 ------------------------------------------------------
 
