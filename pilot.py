@@ -2406,7 +2406,7 @@ def runMain(runpars):
         ec, env['thisSite'], env['jobrec'], env['hasQueuedata'] = pUtil.handleQueuedata(env['queuename'], env['pshttpurl'], error, env['thisSite'], env['jobrec'], 
                                                                                  env['experiment'], forceDownload = False, forceDevpilot = env['force_devpilot'])
         if ec != 0:
-            return ec
+            return pUtil.shellExitCode(ec)
 
         # the maximum time this pilot is allowed to run
         env['maxtime'] = getMaxtime()
@@ -2417,11 +2417,11 @@ def runMain(runpars):
             pUtil.tolog("Pilot will serve experiment: %s" % (thisExperiment.getExperiment()))
         else:
             pUtil.tolog("!!FAILED!!1234!! Did not get an experiment object from the factory")
-            return error.ERR_GENERALERROR
+            return pUtil.shellExitCode(error.ERR_GENERALERROR)
 
         # perform special checks for given experiment
         if not thisExperiment.specialChecks():
-            return error.ERR_GENERALERROR
+            return pUtil.shellExitCode(error.ERR_GENERALERROR)
 
         if not env['jobrec']:
             env['errorLabel'] = "FAILED"
@@ -2459,7 +2459,7 @@ def runMain(runpars):
         # create the initial pilot workdir
         ec = createSiteWorkDir(env['thisSite'].workdir, error)
         if ec != 0:
-            return ec
+            return pUtil.shellExitCode(ec)
 
         # create the watch dog
         wdog = WatchDog()   
@@ -2470,7 +2470,7 @@ def runMain(runpars):
         # check special environment variables
         ec = pUtil.checkSpecialEnvVars(env['thisSite'].sitename)
         if ec != 0:
-            return ec
+            return pUtil.shellExitCode(ec)
     
         signal.signal(signal.SIGTERM, pUtil.sig2exc)
         signal.signal(signal.SIGQUIT, pUtil.sig2exc)
@@ -2485,7 +2485,7 @@ def runMain(runpars):
             runJobRecovery(env['thisSite'], env['psport'], pUtil.readpar('wntmpdir'))
             if env['jobRecoveryMode']:
                 pUtil.tolog("Pilot is in Job Recovery Mode, no payload will be downloaded, will now finish")
-                return 0
+                return pUtil.shellExitCode(0)
 
         # perform disk cleanup ....................................................................................
         diskCleanup(env['thisSite'].wntmpdir, env['uflag'])
@@ -2508,7 +2508,7 @@ def runMain(runpars):
             pUtil.tolog("Using site information for experiment: %s" % (env['si'].getExperiment()))
         else:
             pUtil.tolog("!!FAILED!!1234!! Did not get an experiment object from the factory")
-            return error.ERR_GENERALERROR
+            return pUtil.shellExitCode(error.ERR_GENERALERROR)
 
         # loop until pilot has run out of time (defined by timefloor)
         env['multijob_startup'] = int(time.time())
@@ -2522,7 +2522,7 @@ def runMain(runpars):
                 env['thisSite'].workdir = env['thisSite'].getWorkDir()
                 ec = createSiteWorkDir(env['thisSite'].workdir, error)
                 if ec != 0:
-                    return ec
+                    return pUtil.shellExitCode(ec)
                 globalSite = env['thisSite']
 
             # make sure we are in the current work dir
@@ -2533,7 +2533,7 @@ def runMain(runpars):
             ec = verifyProxyValidity()
             if ec != 0:
                 pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
-                return ec
+                return pUtil.shellExitCode(ec)
 
             pUtil.tolog("Collecting WN info from: %s" % (os.path.dirname(env['thisSite'].workdir)))
             env['workerNode'].collectWNInfo(os.path.dirname(env['thisSite'].workdir))
@@ -2543,7 +2543,7 @@ def runMain(runpars):
             if ec != 0:
                 pUtil.tolog("Pilot was executed on host: %s" % (env['workerNode'].nodename))
                 pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
-                return ec
+                return pUtil.shellExitCode(ec)
 
             # getJob begins here....................................................................................
 
@@ -2558,7 +2558,7 @@ def runMain(runpars):
                 pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
                 if ec == -1: # reset temporary error code (see getJob)
                     ec = 0
-                return ec
+                return pUtil.shellExitCode(ec)
             else:
                 env['isJobDownloaded'] = True
                 pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))            
@@ -2578,7 +2578,7 @@ def runMain(runpars):
                     env['job'].result[2] = ec
                     pUtil.postJobTask(env['job'], env['thisSite'], env['workerNode'], jr=False)
                     pUtil.fastCleanup(env['thisSite'].workdir)
-                    return ec
+                    return pUtil.shellExitCode(ec)
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))
 
@@ -2599,7 +2599,7 @@ def runMain(runpars):
             elif env['return'] == 'continue':
                 continue
             elif env['return'] != 0:
-                return env['return']
+                return pUtil.shellExitCode(env['return'])
 
         pUtil.tolog("No more jobs to execute")
 
@@ -2678,11 +2678,11 @@ def runMain(runpars):
             if globalSite:
                 pUtil.tolog("Do a fast cleanup since job was not downloaded (no log)")
                 pUtil.fastCleanup(globalSite.workdir, env['pilot_initdir'], env['rmwkdir'])
-        return error.ERR_PILOTEXC
+        return pUtil.shellExitCode(error.ERR_PILOTEXC)
 
     # end of the pilot
     else:
-        return 0
+        return pUtil.shellExitCode(0)
 
 # main
 if __name__ == "__main__":

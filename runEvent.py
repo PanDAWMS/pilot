@@ -975,7 +975,7 @@ def asynchronousOutputStager():
                             # Time to update the server
                             tolog("Transfer %s" % (status))
                             try:
-                                updateEventRange(event_range_id, eventRange_dictionary[event_range_id], status=status)
+                                msg = updateEventRange(event_range_id, eventRange_dictionary[event_range_id], status=status)
                             except Exception, e:
                                 tolog("!!WARNING!!2233!! updateEventRange threw an exception: %s" % (e))
                             else:
@@ -1396,21 +1396,12 @@ def updateEventRange(event_range_id, eventRangeList, status='finished'):
 
     # open connection
     ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGE")
-    tolog("aaa")
-    response = ret[1]
-    tolog("bbb")
+#    response = ret[1]
 
     if ret[0]: # non-zero return code
         message = "Failed to download event range - error code = %d" % (ret[0])
     else:
-        message = response['eventRanges']
-
-    tolog("ccc")
-
-    if message == "" or message == "[]":
-        message = "No more events"
-
-    tolog("ddd")
+        message = ""
 
     return message
 

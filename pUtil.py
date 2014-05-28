@@ -4139,13 +4139,53 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
         # flush buffers
         sys.stdout.flush()
         sys.stderr.flush()
-        return ec
+        return shellExitCode(ec)
     else:
         tolog("Done, using system exit to quit")
         # flush buffers
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(0) # need to call this to clean up the socket, thread etc resources
+
+def shellExitCode(exitCode):
+    """ Translate the pilot exit code to a proper exit code for the shell """
+
+    # get error handler
+    error = PilotErrors()
+
+    # Error code translation dictionary
+    # FORMAT: { pilot_error_code : [ shell_error_code, meaning ], .. }
+
+    # Restricting user (pilot) exit codes to the range 64 - 113, as suggested by http://tldp.org/LDP/abs/html/exitcodes.html
+    # Using exit code 137 for kill signal error codes (this actually means a hard kill signal 9, (128+9), 128+2 would mean CTRL+C)
+
+    error_code_translation_dictionary = {
+        -1                       : [64, "Site offline"],
+        error.ERR_GENERALERROR   : [65, "General pilot error, consult batch log"],
+        error.ERR_MKDIRWORKDIR   : [66, "Could not create directory"],
+        error.ERR_NOSUCHFILE     : [67, "No such file or directory"],
+        error.ERR_NOVOMSPROXY    : [68, "Voms proxy not valid"],
+        error.ERR_NOLOCALSPACE   : [69, "No space left on local disk"],
+        error.ERR_PILOTEXC       : [70, "Exception caught by pilot"],
+        error.ERR_QUEUEDATA      : [71, "Pilot could not download queuedata"],
+        error.ERR_QUEUEDATANOTOK : [72, "Pilot found non-valid queuedata"],
+        error.ERR_NOSOFTWAREDIR  : [73, "Software directory does not exist"],
+        error.ERR_KILLSIGNAL     : [137, "General kill signal"], # Job terminated by unknown kill signal
+        error.ERR_SIGTERM        : [137, "General kill signal"], # Job killed by signal: SIGTERM
+        error.ERR_SIGQUIT        : [137, "General kill signal"], # Job killed by signal: SIGQUIT
+        error.ERR_SIGSEGV        : [137, "General kill signal"], # Job killed by signal: SIGSEGV
+        error.ERR_SIGXCPU        : [137, "General kill signal"], # Job killed by signal: SIGXCPU
+        error.ERR_SIGUSR1        : [137, "General kill signal"], # Job killed by signal: SIGUSR1
+        error.ERR_SIGBUS         : [137, "General kill signal"], # Job killed by signal: SIGBUS
+        }
+
+    if error_code_translation_dictionary.has_key(exitCode):
+        return error_code_translation_dictionary[exitCode][0] # Only return the shell exit code, not the error meaning
+    elif exitCode != 0:
+        tolog("!!WARNING!!1234!! No translation to shell exit code for error code %d" % (exitCode))
+        return 1
+    else:
+        return 0
 
 def updatePandaServer(job, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, stdout_tail=""):
     """ Update the panda server with the latest job info """
