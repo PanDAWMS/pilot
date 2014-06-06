@@ -2836,10 +2836,9 @@ def getFilePathForEventService(jobId, filetype="logs"):
     basepath = ""
 
     # Which form of the schedconfig.objectstore field do we currently have?
-    objectstore = readpar('objectstore')
+    objectstore = "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs" #readpar('objectstore')
     if objectstore != "":
-        #_objectstore = "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs".split("|") #objectstore.split("|")
-        _objectstore = "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.bnl.gov//atlas/logs".split("|")
+        _objectstore = objectstore.split("|")
         if "^" in _objectstore[0]:
             tolog("Multiple object stores")
             for objst in _objectstore:
@@ -2848,7 +2847,7 @@ def getFilePathForEventService(jobId, filetype="logs"):
                     break
         else:
             tolog("Single object store")
-
+            
 #    basepath = "root://atlas-objectstore.cern.ch//atlas/eventservice"
     return basepath # os.path.join(basepath, str(jobId))
 
