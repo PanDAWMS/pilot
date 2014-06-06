@@ -1211,7 +1211,9 @@ class JobLog:
         # logPaths = readpar('logPath')
         # logPaths = "root://eos.cern.ch/atlas/logs,dav://bnldav.cern.ch/atlas/logs"
         # logPaths = "root://eosatlas.cern.ch/atlas/logs"
-        logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
+
+        #logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
+        logPaths = mover.getFilePathForEventService(filetype="logs")
 
         # Handle multiple paths (primary and secondary log paths)
         if "," in logPaths:

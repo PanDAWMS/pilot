@@ -2825,7 +2825,7 @@ def verifySpaceToken(spacetoken, setokens):
 
     return status
 
-def getFilePathForEventService(jobId, filetype="logs"):
+def getFilePathForEventService(filetype="logs"):
     """ Return a proper file path in the object store """
 
     # For single object stores
@@ -2836,19 +2836,32 @@ def getFilePathForEventService(jobId, filetype="logs"):
     basepath = ""
 
     # Which form of the schedconfig.objectstore field do we currently have?
-    objectstore = "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs" #readpar('objectstore')
+    objectstore = readpar('objectstore')
     if objectstore != "":
         _objectstore = objectstore.split("|")
         if "^" in _objectstore[0]:
             tolog("Multiple object stores")
-            for objst in _objectstore:
-                if objst[:len(filetype)] == filetype:
-                    basepath = objst.split("^")[1]
+            for obj in _objectstore:
+                if obj[:len(filetype)] == filetype:
+                    basepath = obj.split("^")[1]
                     break
         else:
             tolog("Single object store")
-            
-#    basepath = "root://atlas-objectstore.cern.ch//atlas/eventservice"
+            _objectstore = objectstore.split("|")
+            url = _objectstore[0]
+            for obj in _objectstore:
+                if obj[:len(filetype)] == filetype:
+                    basepath = obj.split("^")[1]
+                    break
+            if basepath != "":
+                basepath = url + basepath
+
+        if basepath == "":
+            tolog("!!WARNING!!3333!! Object store path could not be extracted using file type \'%s\' from objectstore=\'%s\'" % (filetype, objectstore))
+
+    else:
+        tolog("!!WARNING!!3333!! Object store not defined in queuedata")
+
     return basepath # os.path.join(basepath, str(jobId))
 
 def getDDMStorage(ub, analysisJob, region, eventService, jobId):
@@ -2860,7 +2873,7 @@ def getDDMStorage(ub, analysisJob, region, eventService, jobId):
 
     # special paths are used for event service
     if eventService:
-        return getFilePathForEventService(jobId), pilotErrorDiag
+        return getFilePathForEventService(filetype="eventservice"), pilotErrorDiag
 
     # skip this function unless we are running in the US or on NG
     if not (region == 'US' or region == 'Nordugrid'):
