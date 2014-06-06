@@ -558,8 +558,12 @@ def getFileInfoDictionaryFromXML(xml_file):
 
     return file_info_dictionary
 
+# for event service
+#def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
+#                scope_dict, pfc_name="PFC.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
+
 def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
-                scope_dict, pfc_name="PFC.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
+                scope_dict, pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
     """ Build the file info dictionary """
 
     fileInfoDic = {}
@@ -1664,8 +1668,8 @@ def mover_get_data(lfns,
                    path,
                    sitename,
                    stageinTries,
-                   inputpoolfcstring="xmlcatalog_file:PFC.xml",
-#                   inputpoolfcstring="xmlcatalog_file:PoolFileCatalog.xml",
+# event service                   inputpoolfcstring="xmlcatalog_file:PFC.xml",
+                   inputpoolfcstring="xmlcatalog_file:PoolFileCatalog.xml",
                    ub=URLBASE,
                    dsname="",
                    dsdict={},
@@ -2825,7 +2829,7 @@ def getFilePathForEventService(jobId):
     """ Return a proper file path in the object store """
 
     basepath = "root://atlas-objectstore.cern.ch//atlas/eventservice"
-    return os.path.join(basepath, str(jobId))
+    return basepath # os.path.join(basepath, str(jobId))
 
 def getDDMStorage(ub, analysisJob, region, eventService, jobId):
     """ return the DDM storage (http version) """

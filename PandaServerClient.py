@@ -231,7 +231,7 @@ class PandaServerClient:
                 node['nEvents'] = job.nEvents
                 tolog("Total number of processed events: %d (read)" % (job.nEvents))
             else:
-                tolog("runJob did not report on the total number of read events")
+                tolog("Payload/TRF did not report the number of read events")
 
         if job.result[0] == 'finished' or job.result[0] == 'failed':
             # make sure there is no mismatch between the transformation error codes (when both are reported)
@@ -545,7 +545,7 @@ class PandaServerClient:
         else:
             final = False
 
-        # send the original xml if it exists (end of production job)
+        # send the original xml if it exists (end of production job, ignore for event service job)
         filenamePayloadXML = "%s/metadata-%s.xml.PAYLOAD" % (site.workdir, repr(job.jobId))
         payloadXMLProblem = False
         if os.path.exists(filenamePayloadXML) and final:
@@ -562,7 +562,7 @@ class PandaServerClient:
                 payloadXMLProblem = True
         else:
             # athena XML should exist at the end of the job
-            if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install":
+            if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not job.eventService:
                 pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadXML)
                 payloadXMLProblem = True
 

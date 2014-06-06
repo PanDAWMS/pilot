@@ -1,31 +1,33 @@
 from futil import *
 from pUtil import tolog
 
-from SiteMover import SiteMover                   # OU_OCHEP_SWT2
-from dCacheSiteMover import dCacheSiteMover       # ANALY_AGLT2
-from BNLdCacheSiteMover import BNLdCacheSiteMover # None
-from GSIftpSiteMover import GSIftpSiteMover       # None
-from SRMSiteMover import SRMSiteMover             # None
-from UberftpSiteMover import UberftpSiteMover     # None
-from COGSiteMover import COGSiteMover             # None
-from xrootdSiteMover import xrootdSiteMover       # SLAC, GLOW-ATLAS
-from xrdcpSiteMover import xrdcpSiteMover         # ANALY_CERN_XROOTD
-from CastorSiteMover import CastorSiteMover       #
-from dCacheLFCSiteMover import dCacheLFCSiteMover # UBC
-from lcgcpSiteMover import lcgcpSiteMover         # LYON, CERN, MANC, LANCS, FZK
-from lcgcp2SiteMover import lcgcp2SiteMover       # US sites; AGLT2 
-from stormSiteMover import stormSiteMover         # Bologna
-from mvSiteMover import mvSiteMover               # NDGF
-from HUSiteMover import HUSiteMover               # None
-from rfcpLFCSiteMover import rfcpLFCSiteMover     # GLASGOW (works for all DPM sites)
+from SiteMover import SiteMover                             # OU_OCHEP_SWT2
+from dCacheSiteMover import dCacheSiteMover                 # ANALY_AGLT2
+from BNLdCacheSiteMover import BNLdCacheSiteMover           # None
+from GSIftpSiteMover import GSIftpSiteMover                 # None
+from SRMSiteMover import SRMSiteMover                       # None
+from UberftpSiteMover import UberftpSiteMover               # None
+from COGSiteMover import COGSiteMover                       # None
+from xrootdSiteMover import xrootdSiteMover                 # SLAC, GLOW-ATLAS
+from xrdcpSiteMover import xrdcpSiteMover                   # ANALY_CERN_XROOTD
+from CastorSiteMover import CastorSiteMover                 #
+from dCacheLFCSiteMover import dCacheLFCSiteMover           # UBC
+from lcgcpSiteMover import lcgcpSiteMover                   # LYON, CERN, MANC, LANCS, FZK
+from lcgcp2SiteMover import lcgcp2SiteMover                 # US sites; AGLT2 
+from stormSiteMover import stormSiteMover                   # Bologna
+from mvSiteMover import mvSiteMover                         # NDGF
+from HUSiteMover import HUSiteMover                         # None
+from rfcpLFCSiteMover import rfcpLFCSiteMover               # GLASGOW (works for all DPM sites)
 from castorSvcClassSiteMover import castorSvcClassSiteMover # RAL (needs extra configuation to map space tokens to service classes)
-from dq2SiteMover import dq2SiteMover             # None
-from LocalSiteMover import LocalSiteMover         # HU, MWT2 
-from ChirpSiteMover import ChirpSiteMover         # Munich
-from curlSiteMover import curlSiteMover           # ASGC
-from FAXSiteMover import FAXSiteMover             # CVMFS sites
-from aria2cSiteMover import aria2cSiteMover       #
-# from GOSiteMover import GOSiteMover               # ANALY_BNL_T3
+from dq2SiteMover import dq2SiteMover                       # None
+from LocalSiteMover import LocalSiteMover                   # HU, MWT2 
+from ChirpSiteMover import ChirpSiteMover                   # Munich
+from curlSiteMover import curlSiteMover                     # ASGC
+from FAXSiteMover import FAXSiteMover                       # CVMFS sites
+from objectstoreSiteMover import objectstoreSiteMover       #
+from aria2cSiteMover import aria2cSiteMover                 #
+from GFAL2SiteMover import GFAL2SiteMover                   # GFAL2
+# from GOSiteMover import GOSiteMover                       # ANALY_BNL_T3
 
 mover_selector = {
     SiteMover.copyCommand : SiteMover,
@@ -52,7 +54,8 @@ mover_selector = {
     ChirpSiteMover.copyCommand : ChirpSiteMover,
     curlSiteMover.copyCommand : curlSiteMover,
     FAXSiteMover.copyCommand : FAXSiteMover,
-    aria2cSiteMover.copyCommand : aria2cSiteMover
+    aria2cSiteMover.copyCommand : aria2cSiteMover,
+    GFAL2SiteMover.copyCommand : GFAL2SiteMover
     }
 
 def getSiteMover(sitemover, setup_file='', *args, **kwrds):

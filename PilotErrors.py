@@ -115,6 +115,7 @@ class PilotErrors:
     ERR_NOPILOTTCPSERVER = 1216
     ERR_RUNEVENTEXC = 1218
     ERR_CORECOUNTMISMATCH = 1217
+    ERR_FILEEXISTS = 1218
     ERR_UNKNOWN = 1220
 
     # internal error codes
@@ -237,6 +238,7 @@ class PilotErrors:
         ERR_NOPILOTTCPSERVER : "Pilot TCP server has died",
         ERR_CORECOUNTMISMATCH : "Mismatch between core count in job and queue definition",
         ERR_RUNEVENTEXC : "Exception caught by runEvent", 
+        ERR_FILEEXISTS : "File already exists",
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)"
         }
 

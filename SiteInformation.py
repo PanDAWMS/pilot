@@ -6,7 +6,7 @@
 import os
 import re
 import commands
-from pUtil import tolog, getExtension, replace, readpar
+from pUtil import tolog, getExtension, replace, readpar, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
 from PilotErrors import PilotErrors
 
@@ -770,6 +770,160 @@ class SiteInformation(object):
         # See methods in ATLASSiteInformation
 
         return None
+
+    def getCopySetup(self, stageIn=False):
+        """Get the setup string from queuedata"""
+        copysetup = ""
+        if stageIn:
+            copysetup = readpar('copysetupin')
+
+        if copysetup == "":
+            copysetup = readpar('copysetup')
+            tolog("Using copysetup = %s" % (copysetup))
+        else:
+            tolog("Using copysetupin = %s" % (copysetup))
+
+        if copysetup != '':
+            # discard the directAccess info also stored in this variable
+            _count = copysetup.count('^')
+            if _count > 0:
+                # make sure the DB entry doesn't start with directAccess info
+                if _count == 2 or _count == 4 or _count == 5:
+                    copysetup = copysetup.split('^')[0]
+                else:
+                    tolog('!!WARNING!!2999!! Could not figure out copysetup: %s' % (copysetup))
+                    tolog('!!WARNING!!2999!! Resetting copysetup to an empty string')
+                    copysetup = ''
+            # Check copysetup actually exists!
+            if copysetup != '' and os.access(copysetup, os.R_OK) == False:
+                tolog('WARNING: copysetup %s is not readable - resetting to empty string' % (copysetup))
+                copysetup = ''
+            else:
+                tolog("copysetup is: %s (file access verified)" % (copysetup))
+        else:
+            tolog("No copysetup found in queuedata")
+
+        return copysetup
+
+    def getCopyTool(self, stageIn=False):
+        """
+        Selects the correct copy tool (SiteMover id) given a site name
+        'mode' is used to distinguish between different copy commands
+        """
+
+        copytoolname = ''
+        if stageIn:
+            copytoolname = readpar('copytoolin')
+
+        if copytoolname == "":
+            # not set, use same copytool for stage-in as for stage-out
+            copytoolname = readpar('copytool')
+
+        if copytoolname.find('^') > -1:
+            copytoolname, pstage = copytoolname.split('^')
+
+        if copytoolname == '':
+            tolog("!!WARNING!!2999!! copytool not found (using default cp)")
+            copytoolname = 'cp'
+
+        copysetup = self.getCopySetup(stageIn)
+
+        return (copytoolname, copysetup)
+
+    def getCopyPrefix(self, stageIn=False):
+        """Get Copy Prefix"""
+        copyprefix = ""
+        if stageIn:
+            copyprefix = readpar('copyprefixin')
+
+        if copyprefix == "":
+            copyprefix = readpar('copyprefix')
+            tolog("Using copyprefix = %s" % (copyprefix))
+        else:
+            tolog("Using copyprefixin = %s" % (copyprefix))
+
+        return copyprefix
+
+    def getCopyFileAccessInfo(self, stageIn=True):
+        """ return a tuple with all info about how the input files should be accessed """
+
+        # default values
+        oldPrefix = None
+        newPrefix = None
+        useFileStager = None
+        directIn = None
+
+        # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
+        useCT = True
+
+        dInfo = None
+        if stageIn:
+            # remove all input root files for analysis job for xrootd sites
+            # (they will be read by pAthena directly from xrootd)
+            # create the direct access dictionary
+            dInfo = getDirectAccessDic(readpar('copysetupin'))
+        # if copysetupin did not contain direct access info, try the copysetup instead
+        if not dInfo:
+            dInfo = getDirectAccessDic(readpar('copysetup'))
+
+        # check if we should use the copytool
+        if dInfo:
+            if not dInfo['useCopyTool']:
+                useCT = False
+            oldPrefix = dInfo['oldPrefix']
+            newPrefix = dInfo['newPrefix']
+            useFileStager = dInfo['useFileStager']
+            directIn = dInfo['directIn']
+        if useCT:
+            tolog("Copy tool will be used for stage-in")
+        else:
+            if useFileStager:
+                tolog("File stager mode: Copy tool will not be used for stage-in of root files")
+            else:
+                tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
+                if oldPrefix == "" and newPrefix == "":
+                    tolog("Will attempt to create a TURL based PFC")
+
+        return useCT, oldPrefix, newPrefix, useFileStager, directIn
+
+    def getDirectInAccessMode(self, prodDBlockToken, isRootFileName):
+        """Get Direct Access mode"""
+        directIn = False
+        useFileStager = False
+        transfer_mode = None
+
+        useCT, oldPrefix, newPrefix, useFileStager, directIn = self.getCopyFileAccessInfo(stageIn=True)
+
+        if directIn:
+            if useCT:
+                directIn = False
+                tolog("Direct access mode is switched off (file will be transferred with the copy tool)")
+                #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                transfer_mode = "copy_to_scratch"
+            else:
+                # determine if the file is a root file according to its name
+                rootFile = isRootFileName
+
+                if prodDBlockToken == 'local' or not rootFile:
+                    directIn = False
+                    tolog("Direct access mode has been switched off for this file (will be transferred with the copy tool)")
+                    #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                    transfer_mode = "copy_to_scratch"
+                elif rootFile:
+                    tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
+                    if useFileStager:
+                        #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
+                        transfer_mode = "file_stager"
+                    else:
+                        #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", type="input")
+                        transfer_mode = "remote_io"
+                else:
+                    tolog("Normal file transfer")
+        else:
+            tolog("not directIn")
+
+        return directIn, transfer_mode
+
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

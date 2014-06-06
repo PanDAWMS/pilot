@@ -22,6 +22,7 @@ from pUtil import timedCommand                  # Protect cmd with timed_command
 from pUtil import getSiteInformation            # Get the SiteInformation object corresponding to the given experiment
 from pUtil import isBuildJob                    # Is the current job a build job?
 from pUtil import remove                        # Used to remove redundant file before log file creation
+from pUtil import getModernASetup               # MOVE TO THIS CLASS
 from PilotErrors import PilotErrors             # Error codes
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
@@ -964,50 +965,51 @@ class ATLASExperiment(Experiment):
         tolog("Job home package: %s" % (job.homePackage))
         tolog("Trf installation dir: %s" % (installDir))
 
-        # special case for nightlies (no RunTime dir)
-        if "rel_" in job.homePackage:
-            # extract the rel_N bit and use it in the path
-            rel_N = self.extractRelN(job.homePackage)
-            tolog("Extracted %s from homePackage=%s" % (rel_N, job.homePackage))
-            if os.path.exists(os.path.join(installDir, rel_N)):
-                sfile = os.path.join(os.path.join(installDir, rel_N), "setup.sh")
-            else:
-                sfile = os.path.join(installDir, "setup.sh")
-        else:
-            sfile = installDir + ('/%sRunTime/cmt/setup.sh' % job.homePackage.split('/')[0])
-        sfile = sfile.replace('//','/')
-        if not os.path.isfile(sfile):
+#        # special case for nightlies (no RunTime dir)
+#        if "rel_" in job.homePackage:
+#            # extract the rel_N bit and use it in the path
+#            rel_N = self.extractRelN(job.homePackage)
+#            tolog("Extracted %s from homePackage=%s" % (rel_N, job.homePackage))
+#            if os.path.exists(os.path.join(installDir, rel_N)):
+#                sfile = os.path.join(os.path.join(installDir, rel_N), "setup.sh")
+#            else:
+#                sfile = os.path.join(installDir, "setup.sh")
+#        else:
+#            sfile = installDir + ('/%sRunTime/cmt/setup.sh' % job.homePackage.split('/')[0])
+#        sfile = sfile.replace('//','/')
+#        if not os.path.isfile(sfile):
+#
+##            pilotErrorDiag = "Patch not available (will not attempt dynamic patch installation)"
+##            tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
+##            ec = self.__error.ERR_DYNTRFINST
+#
+## uncomment this section (and remove the comments in the above three lines) for dynamic path installation
+#
+#            tolog("!!WARNING!!3000!! Trf setup file does not exist at: %s" % (sfile))
+#            tolog("Will try to install trf in work dir...")
+#
+#            # Install trf in the run dir
+#            try:
+#                ec, pilotErrorDiag = self.installPyJobTransforms(job.atlasRelease, job.homePackage, swbase, cmtconfig)
+#            except Exception, e:
+#                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(e)
+#                tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
+#                ec = self.__error.ERR_DYNTRFINST
+#            else:
+#                if ec == 0:
+#                    tolog("Successfully installed trf")
+#                    installDir = workdir + "/" + job.homePackage
+#
+#                    # replace siteroot="$SITEROOT" with siteroot=rundir
+#                    os.environ['SITEROOT'] = workdir
+#                    siteroot = workdir
+#
+## comment until here
+#
+#        else:
+#            tolog("Using install dir = %s" % (installDir))
 
-#            pilotErrorDiag = "Patch not available (will not attempt dynamic patch installation)"
-#            tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
-#            ec = self.__error.ERR_DYNTRFINST
-
-# uncomment this section (and remove the comments in the above three lines) for dynamic path installation
-
-            tolog("!!WARNING!!3000!! Trf setup file does not exist at: %s" % (sfile))
-            tolog("Will try to install trf in work dir...")
-
-            # Install trf in the run dir
-            try:
-                ec, pilotErrorDiag = self.installPyJobTransforms(job.atlasRelease, job.homePackage, swbase, cmtconfig)
-            except Exception, e:
-                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(e)
-                tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
-                ec = self.__error.ERR_DYNTRFINST
-            else:
-                if ec == 0:
-                    tolog("Successfully installed trf")
-                    installDir = workdir + "/" + job.homePackage
-
-                    # replace siteroot="$SITEROOT" with siteroot=rundir
-                    os.environ['SITEROOT'] = workdir
-                    siteroot = workdir
-
-# comment until here
-
-        else:
-            tolog("Found trf setup file: %s" % (sfile))
-            tolog("Using install dir = %s" % (installDir))
+        tolog("Using install dir = %s" % (installDir))
 
         return ec, pilotErrorDiag, siteroot, installDir
 
@@ -1957,7 +1959,8 @@ class ATLASExperiment(Experiment):
 
         rel_N = None
         path = None
-
+        skipVerification = False # verification not possible for more complicated setup (nightlies)
+        
         # First try with the cmtconfig in the path. If that fails, try without it
 
         # Are we using nightlies?
@@ -1966,24 +1969,31 @@ class ATLASExperiment(Experiment):
             rel_N = self.extractRelN(homePackage)
             tolog("Extracted %s from homePackage=%s" % (rel_N, homePackage))
             if rel_N:
-                path = "%s/%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release, rel_N)
+                # path = "%s/%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release, rel_N)
+                path = getModernASetup()
+                tolog("1. path = %s" % (path))
+                skipVerification = True
         if not path:
             path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release)
 
-        status = os.path.exists(path)
-        if status:
-            tolog("Using AtlasSetup (%s exists with cmtconfig in the path)" % (path))
-        else:
-            tolog("%s does not exist (trying without cmtconfig in the path)" % (path))
-            if rel_N:
-                path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, release, rel_N)
-            else:
-                path = "%s/%s/cmtsite/asetup.sh" % (swbase, release)
+        if not skipVerification:
             status = os.path.exists(path)
             if status:
-                tolog("Using AtlasSetup (%s exists)" % (path))
+                tolog("Using AtlasSetup (%s exists with cmtconfig in the path)" % (path))
             else:
-                tolog("Cannot use AtlasSetup since %s does not exist either" % (path))
+                tolog("%s does not exist (trying without cmtconfig in the path)" % (path))
+                if rel_N:
+                    path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, release, rel_N)
+                else:
+                    path = "%s/%s/cmtsite/asetup.sh" % (swbase, release)
+                status = os.path.exists(path)
+                if status:
+                    tolog("Using AtlasSetup (%s exists)" % (path))
+                else:
+                    tolog("Cannot use AtlasSetup since %s does not exist either" % (path))
+        else:
+            tolog("Skipping verification of asetup path for nightlies")
+            status = True
 
         return status, path
 
@@ -2030,11 +2040,6 @@ class ATLASExperiment(Experiment):
         else:
             tail = ""
 
-        cmd = ""
-        # add the source command (default), not wanted for installPyJobTransforms()
-        if source:
-            cmd += "source"
-
         # define the setup options
         if not cacheVer:
             cacheVer = atlasRelease
@@ -2053,15 +2058,28 @@ class ATLASExperiment(Experiment):
             rel_N = self.extractRelN(homePackage) # e.g. rel_N = rel_0
             if rel_N:
                 tolog("Extracted %s from homePackage=%s" % (rel_N, homePackage))
-                asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, rel_N)
+                # asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, rel_N)
+                asetup_path = getModernASetup()
+                tolog("2. path=%s" % (asetup_path))
                 # use special options for nightlies (not the release info set above)
-                options = rel_N + ",notest"
+                # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
+                options = cacheVer + "," + rel_N + ",notest,here"
+                # options = rel_N + ",notest"
 #                options = cacheDir + "," + rel_N #+ ",notest"
             else:
                 tolog("!!WARNING!!1111!! Failed to extract rel_N from homePackage=%s (forced to use default cmtsite setup)" % (homePackage))
                 asetup_path = "%s/cmtsite/asetup.sh" % (path)
         else:
             asetup_path = "%s/cmtsite/asetup.sh" % (path)
+
+        # make sure that cmd doesn't start with 'source' if the asetup_path start with 'export', if so reset it (cmd and asetup_path will be added below)
+        if asetup_path.startswith('export'):
+            cmd = ""
+        elif source:
+            # add the source command (default), not wanted for installPyJobTransforms()
+            cmd = "source"
+        else:
+            cmd = ""
 
         # HLT
         if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:

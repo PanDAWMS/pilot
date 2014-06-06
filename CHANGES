@@ -183,6 +183,15 @@ Removed call to backupPFC4Mover() in mover_get_data() (Mover)
 Now using default name PFC.xml instead of PoolFileCatalog.xml in getFileInfo() and mover_get_data() (Mover)
 Created getFileListFromXML(), getFileInfoFromXML(), getFileInfoDictionaryFromXML() to be used from runEvent (Mover)
 Corrected wrong variables names in updatePandaServer() causing job recovery to fail (pilot)
+Using new setup of asetup in getVerifiedAtlasSetupPath() for nightlies and skipping path verification (ATLASExperiment)
+Updated verifySetupCommand() to handle modern asetup verification (pUtil)
+
+Code contributions from Wen Guan, May 30, 2014:
+Added GFAL2SiteMover
+Updated SiteMoverFarm for GFAL2SiteMover
+Added new error code, 1218, ERR_FILEEXISTS (PilotErrors)
+Added several new methods to SiteInformation as part of site mover refactoring: getCopySetup(), getCopyTool(), getCopyPrefix(), getCopyFileAccessInfo(),
+getDirectInAccessMode() [currently used by GFAL2SiteMover only]
 
 ------------------------------------------------------
 
@@ -202,5 +211,6 @@ EventServiceFactory.py : Factory for generating Event Service objects that can b
 EventService.py        : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
 PilotYamplServer.py    : Yampl server class used by runEvent
 StoppableThread.py     : Threading class for threads that need a stop() method
+GFAL2SiteMover.py      : New site mover for GFAL2
 
 Add new error code to DB

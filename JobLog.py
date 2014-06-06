@@ -98,7 +98,7 @@ class JobLog:
             s = True
         else:
             s = False
-        s = False
+        s = True
         if s: #thisExperiment.doSpecialLogFileTransfer():
             tolog("Preparing for log file transfer to special SE")
 

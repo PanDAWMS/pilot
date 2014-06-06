@@ -459,7 +459,11 @@ class FAXSiteMover(xrdcpSiteMover):
         ec, output = commands.getstatusoutput(cmd)
         tolog("ec = %d" % (ec))
         tolog("output = %s" % (output))
-        return ec, output, "Stage-out failed: %s" % (output)
+        if ec != 0:
+            pilotErrorDiag = "Stage-out failed: %s" % (output)
+        else:
+            pilotErrorDiag = ""
+        return ec, output, pilotErrorDiag
 
     def __sendReport(self, state, report):
         tolog("Skipping sending tracing report during testing")

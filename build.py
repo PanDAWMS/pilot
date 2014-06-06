@@ -28,7 +28,7 @@ def argumentParser():
     if options.url:
         url = options.url
     else:
-        url = "pnilsson@lxplus:www/."
+        url = "pnilsson@lxplus0042:www/."
 
     return filename, url
 

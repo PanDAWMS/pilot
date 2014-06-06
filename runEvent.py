@@ -490,6 +490,12 @@ def getTrfExitInfo(exitCode, workdir):
             tolog("...exitAcronym=%s" % (exitAcronym))
             tolog("...exitMsg=%s" % (exitMsg))
 
+            # Ignore special trf error for now
+            if exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL":
+                exitCode = 0
+                exitAcronym = ""
+                exitMsg = ""
+                tolog("!!WARNING!!3333!! Reset TRF error codes..")
     else:
         tolog("Job report not found: %s" % (filename))
 
@@ -610,12 +616,12 @@ def executePayload(runCommandList, job):
 
     return res, job, getstatusoutput_was_interrupted, current_job_number
 
-def moveTrfMetadata(workdir, pworkdir):
+def moveTrfMetadata(pworkdir):
     """ rename and copy the trf metadata """
 
-    oldMDName = "%s/metadata.xml" % (workdir)
+    oldMDName = "%s/metadata.xml" % (globalJob.workdir)
     _filename = "metadata-%s.xml.PAYLOAD" % (globalJob.jobId)
-    newMDName = "%s/%s" % (workdir, _filename)
+    newMDName = "%s/%s" % (globalJob.workdir, _filename)
     try:
         os.rename(oldMDName, newMDName)
     except:
@@ -913,7 +919,7 @@ def transferToObjectStore(outputFileInfo, metadata_fname):
 
         # Temporarily modify the schedconfig fields with values
         tolog("Temporarily modifying queuedata for log file transfer to secondary SE")
-        ec = si.replaceQueuedataField("copytool", "fax")
+        ec = si.replaceQueuedataField("copytool", "objectstore")
 
         # needs to know source, destination, fsize=0, fchecksum=0, **pdict, from pdict: lfn, guid, logPath
         # where source is local file path and destination is not used, set to empty string
@@ -1539,7 +1545,7 @@ if __name__ == "__main__":
         node.setNodeName(os.uname()[1])
         node.collectWNInfo(jobSite.workdir)
     
-        # redirect stder
+        # redirect stderr
         sys.stderr = open("%s/runevent.stderr" % (jobSite.workdir), "w")
     
         tolog("Current job workdir is: %s" % os.getcwd())
@@ -1915,7 +1921,7 @@ if __name__ == "__main__":
         i = 0
         kill = False
         while athenaMPProcess.poll() is None:
-            if i > 100:
+            if i > 600:
                 # Stop AthenaMP
                 tolog("Waited long enough - Stopping AthenaMP process")
                 athenaMPProcess.kill()
@@ -1978,15 +1984,19 @@ if __name__ == "__main__":
         yampl_thread.stop()
         yampl_thread.join()
 
-        # check the job report for any exit code that should replace the res_tuple[0]
+        # Rename the metadata produced by the payload
+        # if not pUtil.isBuildJob(outs):
+        moveTrfMetadata(pworkdir)
+        
+        # Check the job report for any exit code that should replace the res_tuple[0]
         res0, exitAcronym, exitMsg = getTrfExitInfo(0, job.workdir)
         res = (res0, exitMsg, exitMsg)
 
-        # if payload leaves the input files, delete them explicitly
+        # If payload leaves the input files, delete them explicitly
         if ins:
             ec = pUtil.removeFiles(job.workdir, ins)
 
-        # payload error handling
+        # Payload error handling
         ed = ErrorDiagnosis()
         job = ed.interpretPayload(job, res, False, 0, runCommandList, failureCode)
         if job.result[1] != 0 or job.result[2] != 0:
