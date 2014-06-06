@@ -2825,10 +2825,31 @@ def verifySpaceToken(spacetoken, setokens):
 
     return status
 
-def getFilePathForEventService(jobId):
+def getFilePathForEventService(jobId, filetype="logs"):
     """ Return a proper file path in the object store """
 
-    basepath = "root://atlas-objectstore.cern.ch//atlas/eventservice"
+    # For single object stores
+    # root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs
+    # For multiple object stores
+    # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.bnl.gov//atlas/logs
+
+    basepath = ""
+
+    # Which form of the schedconfig.objectstore field do we currently have?
+    objectstore = readpar('objectstore')
+    if objectstore != "":
+        #_objectstore = "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs".split("|") #objectstore.split("|")
+        _objectstore = "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.bnl.gov//atlas/logs".split("|")
+        if "^" in _objectstore[0]:
+            tolog("Multiple object stores")
+            for objst in _objectstore:
+                if objst[:len(filetype)] == filetype:
+                    basepath = objst.split("^")[1]
+                    break
+        else:
+            tolog("Single object store")
+
+#    basepath = "root://atlas-objectstore.cern.ch//atlas/eventservice"
     return basepath # os.path.join(basepath, str(jobId))
 
 def getDDMStorage(ub, analysisJob, region, eventService, jobId):

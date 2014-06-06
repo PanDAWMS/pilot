@@ -170,7 +170,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         elif path[:3] == "srm":
             try:
                 hostname = path.split('/',3)[2]
-            except Exception as e:
+            except Exception, e:
                 self.log("'!!WARNING!!2999!! Could not extract srm protocol for replacement, keeping path variable as it is: %s (%s)' %\
                       (path, str(e))")
             else:

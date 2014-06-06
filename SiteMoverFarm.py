@@ -55,6 +55,7 @@ mover_selector = {
     curlSiteMover.copyCommand : curlSiteMover,
     FAXSiteMover.copyCommand : FAXSiteMover,
     aria2cSiteMover.copyCommand : aria2cSiteMover,
+    objectstoreSiteMover.copyCommand : objectstoreSiteMover,
     GFAL2SiteMover.copyCommand : GFAL2SiteMover
     }
 
