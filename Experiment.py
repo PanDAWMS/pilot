@@ -697,7 +697,7 @@ class Experiment(object):
 
         tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
         if subprocessName == "runJob":
-            jobargs = [env['pyexe'], "runJob.py", 
+            jobargs = [env['pyexe'], "RunJobMain.py", 
                        "-a", env['thisSite'].appdir,
                        "-d", env['jobDic']["prod"][1].workdir,
                        "-l", env['pilot_initdir'],
