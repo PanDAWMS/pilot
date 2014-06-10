@@ -1,5 +1,6 @@
 from commands import getstatusoutput
 from optparse import OptionParser
+import os
 
 def argumentParser():
     """ """
@@ -47,6 +48,9 @@ def executeCommand(cmd, dump=True):
 (filename, url) = argumentParser()
 
 if filename != "":
+    if os.path.exists("PILOT_INITDIR"):
+        ec = executeCommand("rm -f PILOT_INITDIR", dump=False)
+
     ec = executeCommand("rm -f %s *.pyc" % (filename), dump=False)
     if ec == 0:
         ec = executeCommand("tar cvfz %s *" % (filename), dump=False)
