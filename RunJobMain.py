@@ -9,6 +9,8 @@ import os, sys, commands, getopt, time
 import traceback
 import atexit, signal
 import stat
+from optparse import OptionParser
+
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getAtlasRelease, getChecksumCommand,\
@@ -33,16 +35,16 @@ class RunJobMain(object):
     __instance = None                    # Boolean used by subclasses to become a Singleton
     __error = PilotErrors()              # PilotErrors object
 
-    __appdir = "/usatlas/projects/OSG"   # Default software installation directory
-    __debugLevel = 0                     # 0: debug info off, 1: display function name when called, 2: full debug info
-    __dq2url = "" # REMOVE
+#    __appdir = "/usatlas/projects/OSG"   # Default software installation directory
+#    __debugLevel = 0                     # 0: debug info off, 1: display function name when called, 2: full debug info
+#    __dq2url = "" # REMOVE
     __experiment = "ATLAS"               # Current experiment (can be set with pilot option -F <experiment>)
     __failureCode = None                 # set by signal handler when user/batch system kills the job
     __globalPilotErrorDiag = ""          # global pilotErrorDiag used with signal handler (only)
     __globalErrorCode = 0                # global error code used with signal handler (only)
     __inputDir = ""                      # location of input files (source for mv site mover)
     __lfcRegistration = True             # should the pilot perform LFC registration?
-    __logguid = None                     # guid for the log file
+    __logguid = None                     # guid for the log file  SHOULDN'T BE NECESSARY, JOB.TARFILEGUID SHOULD BE KNOWN AND IS ONLY USED IN createFileMetadata() 
     __outputDir = ""                     # location of output files (destination for mv site mover)
     __pilot_initdir = ""                 # location of where the pilot is untarred and started
     __pilotlogfilename = "pilotlog.txt"  # default pilotlog filename 
@@ -50,13 +52,109 @@ class RunJobMain(object):
     __pilotport = 88888                  # default port
     __proxycheckFlag = True              # True (default): perform proxy validity checks, False: no check
     __pworkdir = "/tmp"                  # site work dir used by the parent
-    __queuename = ""                     # PanDA queue
-    __sitename = "testsite"              # PanDA site
-    __stageinretry = None                # number of stage-in tries
-    __stageoutretry = None               # number of stage-out tries
-    __testLevel = 0                      # test suite control variable (0: no test, 1: put error, 2: ...)
-    __workdir = "/tmp" # ???
+#    __queuename = ""                     # PanDA queue  NOT NEEDED
+#    __sitename = "testsite"              # PanDA site  NOT NEEDED
+    __stageinretry = 1                   # number of stage-in tries
+    __stageoutretry = 1                  # number of stage-out tries
+#    __testLevel = 0                      # test suite control variable (0: no test, 1: put error, 2: ...)  NOT USED
+#    __workdir = "/tmp" # NOT USED
 
+    # Getter and setter methods
+
+    def getExperiment(self):
+        """ Getter for __experiment """
+
+        return self.__experiment
+
+    def getFailureCode(self):
+        """ Getter for __failureCode """
+
+        return self.__failureCode
+
+    def setFailureCode(self, code):
+        """ Setter for __failureCode """
+
+        self.__failureCode = code
+
+    def getGlobalPilotErrorDiag(self):
+        """ Getter for __globalPilotErrorDiag """
+
+        return self.__globalPilotErrorDiag
+
+    def setGlobalPilotErrorDiag(self, pilotErrorDiag):
+        """ Setter for __globalPilotErrorDiag """
+
+        self.__globalPilotErrorDiag = pilotErrorDiag
+
+    def getGlobalErrorCode(self):
+        """ Getter for __globalErrorCode """
+
+        return self.__globalErrorCode
+
+    def setGlobalErrorCode(self, code):
+        """ Setter for __globalErrorCode """
+
+        self.__globalErrorCode = code
+
+    def getInputDir(self):
+        """ Getter for __inputDir """
+
+        return self.__inputDir
+
+    def getLFCRegistration(self):
+        """ Getter for __lfcRegistration """
+
+        return self.__lfcRegistration
+
+    def getLogGUID(self):
+        """ Getter for __logguid """
+
+        return self.__logguid
+
+    def getOutputDir(self):
+        """ Getter for __outputDir """
+
+        return self.__outputDir
+
+    def getPilotInitDir(self):
+        """ Getter for __pilot_initdir """
+
+        return self.__pilot_initdir
+
+    def getPilotLogFilename(self):
+        """ Getter for __pilotlogfilename """
+
+        return self.__pilotlogfilename
+
+    def getPilotServer(self):
+        """ Getter for __pilotserver """
+
+        return self.__pilotserver
+
+    def getPilotPort(self):
+        """ Getter for __pilotport """
+
+        return self.__pilotport
+
+    def getProxyCheckFlag(self):
+        """ Getter for __proxycheckFlag """
+
+        return self.__proxycheckFlag
+
+    def getParentWorkDir(self):
+        """ Getter for __pworkdir """
+
+        return self.__pworkdir
+
+    def getStageInRetry(self):
+        """ Getter for __stageinretry """
+
+        return self.__stageinretry
+
+    def getStageOutRetry(self):
+        """ Getter for __stageoutretry """
+
+        return self.__stageoutretry
 
     # Required methods
 
@@ -69,23 +167,11 @@ class RunJobMain(object):
     def argumentParser(self):
         """ Argument parser for the runJob module """
 
+        # Return variables
         appdir = None
         dq2url = None # REMOVE
-        experiment = None
-        logguid = None
-        inputDir = None
-        lfcRegistration = None
-        pilot_initdir = None
-        pilotlogfilename = None
-        pilotport = None
-        pilotserver = None
-        proxycheckFlag = None
-        pworkdir = None
-        outputDir = None
         queuename = None
         sitename = None
-        stageinretry = None
-        stageoutretry = None
         workdir = None
 
         parser = OptionParser()
@@ -134,51 +220,69 @@ class RunJobMain(object):
             print options.experiment
         else:
 
-            if appdir:
-                self.__appdir = appdir
-            if dq2url:
-                self.__dq2url = dq2url
-            if experiment:
-                self.__experiment = experiment
-            if logguid:
-                self.__logguid = logguid
-            if inputDir:
-                self.__inputDir = inputDir
-            if lfcRegistration.lower() == "false":            
-                self.__lfcRegistration = False
+            if options.appdir:
+#                self.__appdir = options.appdir
+                appdir = options.appdir
+            if options.dq2url:
+#                self.__dq2url = options.dq2url
+                dq2url = options.dq2url
+            if options.experiment:
+                self.__experiment = options.experiment
+            if options.logguid:
+                self.__logguid = options.logguid
+            if options.inputDir:
+                self.__inputDir = options.inputDir
+            if options.lfcRegistration:
+                if options.lfcRegistration.lower() == "false":            
+                    self.__lfcRegistration = False
+                else:
+                    self.__lfcRegistration = True
             else:
                 self.__lfcRegistration = True
-            if pilot_initdir:
-                self.__pilot_initdir = pilot_initdir
-            if pilotlogfilename:
-                self.__pilotlogfilename = pilotlogfilename
-            if pilotserver:
-                self.__pilotserver = pilotserver
-            if proxycheckFlag.lower() == "false":
-                self.__proxycheckFlag = False
+            if options.pilot_initdir:
+                self.__pilot_initdir = options.pilot_initdir
+            if options.pilotlogfilename:
+                self.__pilotlogfilename = options.pilotlogfilename
+            if options.pilotserver:
+                self.__pilotserver = options.pilotserver
+            if options.proxycheckFlag:
+                if options.proxycheckFlag.lower() == "false":
+                    self.__proxycheckFlag = False
+                else:
+                    self.__proxycheckFlag = True
             else:
                 self.__proxycheckFlag = True
-            if pworkdir:
-                self.__pworkdir = pworkdir
-            if outputDir:
-                self.__outputDir = outputDir
-            if pilotport:
-                self.__pilotport = pilotport
-            if queuename:
-                self.__queuename = queuename
-            if sitename:
-                self.__sitename = sitename
-            if stageinretry:
-                self.__stageinretry = stageinretry
-            if stageoutretry:
-                self.__stageoutretry = stageoutretry
-            if workdir:
-                self.__workdir = workdir
+            if options.pworkdir:
+                self.__pworkdir = options.pworkdir
+            if options.outputDir:
+                self.__outputDir = options.outputDir
+            if options.pilotport:
+                try:
+                    self.__pilotport = int(options.pilotport)
+                except Exception, e:
+                    tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
+# self.__queuename is not needed
+            if options.queuename:
+                queuename = options.queuename
+            if options.sitename:
+                sitename = options.sitename
+            if options.stageinretry:
+                try:
+                    self.__stageinretry = int(options.stageinretry)
+                except Exception, e:
+                    tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
+            if options.stageoutretry:
+                try:
+                    self.__stageoutretry = int(options.stageoutretry)
+                except Exception, e:
+                    tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
+            if options.workdir:
+                workdir = options.workdir
 
-        return sitename, appdir, workdir, queuename
+        return sitename, appdir, workdir, queuename, dq2url
 
     def getRunJob(self):
-        """ Return a string with the experiment name """
+        """ Return a string with the module name """
 
         return self.__runjob
 
@@ -233,11 +337,11 @@ class RunJobMain(object):
             # it will be regenerated by the job recovery for the cases where there are output files in the datadir
 
             try:
-                tolog('job.workdir is %s pworkdir is %s ' % (job.workdir, pworkdir)) # Eddie
-                copy2("%s/metadata-%d.xml" % (job.workdir, job.jobId), "%s/metadata-%d.xml" % (pworkdir, job.jobId))
+                tolog('job.workdir is %s pworkdir is %s ' % (job.workdir, self.__pworkdir)) # Eddie
+                copy2("%s/metadata-%d.xml" % (job.workdir, job.jobId), "%s/metadata-%d.xml" % (self.__pworkdir, job.jobId))
             except Exception, e:
                 tolog("Warning: Could not copy metadata-%d.xml to site work dir - ddm Adder problems will occure in case of job recovery" % (job.jobId))
-                tolog('job.workdir is %s pworkdir is %s ' % (job.workdir, pworkdir)) # Eddie
+                tolog('job.workdir is %s pworkdir is %s ' % (job.workdir, self.__pworkdir)) # Eddie
             if job.result[0] == 'holding' and job.result[1] == 0:
                 try:
                     # create the data directory
@@ -321,14 +425,14 @@ class RunJobMain(object):
         os._exit(job.result[2]) # pilotExitCode, don't confuse this with the overall pilot exit code,
                                 # which doesn't get reported back to panda server anyway
 
-    def failJob(self, transExitCode, pilotExitCode, job, pilotserver, pilotport, ins=None, pilotErrorDiag=None, docleanup=True):
+    def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
         """ set the fail code and exit """
 
         job.setState(["failed", transExitCode, pilotExitCode])
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
         tolog("Will now update local pilot TCP server")
-        rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport, final=True)
+        rt = RunJobUtilities.updatePilotServer(job, self.__pilotserver, self.__pilotport, final=True)
         if ins:
             ec = pUtil.removeFiles(job.workdir, ins)
         if docleanup:
@@ -390,7 +494,7 @@ class RunJobMain(object):
                     _first = False
 
             # setup the trf
-            ec, job.pilotErrorDiag, cmd, job.spsetup, job.JEM, job.cmtconfig = thisExperiment.getJobExecutionCommand(job, jobSite, pilot_initdir)
+            ec, job.pilotErrorDiag, cmd, job.spsetup, job.JEM, job.cmtconfig = thisExperiment.getJobExecutionCommand(job, jobSite, self.__pilot_initdir)
             if ec > 0:
                 # setup failed
                 break
@@ -406,7 +510,7 @@ class RunJobMain(object):
 
         return ec, runCommandList, job, multi_trf
 
-    def stageIn(self, job, jobSite, analJob, pilot_initdir, pworkdir):
+    def stageIn(self, job, jobSite, analJob):
         """ Perform the stage-in """
 
         ec = 0
@@ -424,8 +528,8 @@ class RunJobMain(object):
             # Transfer input files
             tin_0 = os.times()
             ec, job.pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
-                mover.get_data(job, jobSite, ins, stageinretry, analysisJob=analJob, usect=useCT,\
-                               pinitdir=pilot_initdir, proxycheck=False, inputDir=inputDir, workDir=pworkdir)
+                mover.get_data(job, jobSite, ins, self.__stageinretry, analysisJob=analJob, usect=useCT,\
+                               pinitdir=self.__pilot_initdir, proxycheck=False, inputDir=self.__inputDir, workDir=self.__pworkdir)
             if ec != 0:
                 job.result[2] = ec
             tin_1 = os.times()
@@ -553,9 +657,9 @@ class RunJobMain(object):
             except Exception, e:
                 tolog("!!FAILED!!3000!! Failed to run command %s" % str(e))
                 getstatusoutput_was_interrupted = True
-                if failureCode:
-                    job.result[2] = failureCode
-                    tolog("!!FAILED!!3000!! Failure code: %d" % (failureCode))
+                if self.__failureCode:
+                    job.result[2] = self.__failureCode
+                    tolog("!!FAILED!!3000!! Failure code: %d" % (self.__failureCode))
                     break
             else:
                 if res_tuple[0] == 0:
@@ -606,7 +710,7 @@ class RunJobMain(object):
 
         return res, job, getstatusoutput_was_interrupted, current_job_number
 
-    def moveTrfMetadata(self, workdir, jobId, pworkdir):
+    def moveTrfMetadata(self, workdir, jobId):
         """ rename and copy the trf metadata """
 
         oldMDName = "%s/metadata.xml" % (workdir)
@@ -621,11 +725,11 @@ class RunJobMain(object):
             tolog("Renamed %s to %s" % (oldMDName, newMDName))
             # now move it to the pilot work dir
             try:
-                copy2(newMDName, "%s/%s" % (pworkdir, _filename))
+                copy2(newMDName, "%s/%s" % (self.__pworkdir, _filename))
             except Exception, e:
                 tolog("Warning: Could not copy %s to site work dir: %s" % (_filename, str(e)))
             else:
-                tolog("Metadata was transferred to site work dir: %s/%s" % (pworkdir, _filename))
+                tolog("Metadata was transferred to site work dir: %s/%s" % (self.__pworkdir, _filename))
 
     def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analJob=False):
         """ create the metadata for the output + log files """
@@ -650,10 +754,10 @@ class RunJobMain(object):
         ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(outFiles), getChecksumCommand(), skiplog=True, logFile=job.logFile)
         if ec != 0:
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-            self.failJob(job.result[1], ec, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
+            self.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
 
-        if logguid:
-            guid = logguid
+        if self.__logguid:
+            guid = self.__logguid
         else:
             guid = job.tarFileGuid
 
@@ -665,12 +769,12 @@ class RunJobMain(object):
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
             tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag)) 
-            self.failJob(job.result[1], error.ERR_MISSINGGUID, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
+            self.failJob(job.result[1], error.ERR_MISSINGGUID, job, pilotErrorDiag=pilotErrorDiag)
         else:
             if not _status:
                 pilotErrorDiag = "Missing guid(s) for output file(s) in metadata"
                 tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-                self.failJob(job.result[1], error.ERR_MISSINGGUID, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
+                self.failJob(job.result[1], error.ERR_MISSINGGUID, job, pilotErrorDiag=pilotErrorDiag)
 
         tolog("..............................................................................................................")
         tolog("Created %s with:" % (_fname))
@@ -727,7 +831,7 @@ class RunJobMain(object):
 
         return dsname, datasetDict
 
-    def stageOut(self, job, jobSite, outs, pilot_initdir, testLevel, analJob, dsname, datasetDict, proxycheckFlag, outputFileInfo):
+    def stageOut(self, job, jobSite, outs, analJob, dsname, datasetDict, outputFileInfo):
         """ perform the stage-out """
 
         error = PilotErrors()
@@ -759,13 +863,13 @@ class RunJobMain(object):
         tin_0 = os.times()
         try:
             rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
-                                             ub=jobSite.dq2url, analysisJob=analJob, testLevel=testLevel, pinitdir=pilot_initdir, scopeOut=job.scopeOut,\
-                                             proxycheck=proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
+                                             ub=jobSite.dq2url, analysisJob=analJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
+                                             proxycheck=self.__proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
                                              userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
-                                             outputDir=outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
+                                             outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
                                              dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                             lfcreg=lfcRegistration, jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
-                                             stageoutTries=stageoutretry, cmtconfig=cmtconfig, experiment=experiment, fileDestinationSE=job.fileDestinationSE)
+                                             lfcreg=self.__lfcRegistration, jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
+                                             stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE)
             tin_1 = os.times()
             job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
@@ -818,7 +922,7 @@ class RunJobMain(object):
                 createLockFile(True, jobSite.workdir, lockfile="ALLFILESTRANSFERRED")
                 # create another lockfile in the site workdir since a transfer failure can still occur during the log transfer
                 # and a later recovery attempt will fail (job workdir will not exist at that time)
-                createLockFile(True, pworkdir, lockfile="ALLFILESTRANSFERRED")
+                createLockFile(True, self.__pworkdir, lockfile="ALLFILESTRANSFERRED")
 
                 # file transfer worked, now register the output files in the LRC if necessary (not for LFC sites)
                 ub = jobSite.dq2url
@@ -844,322 +948,315 @@ class RunJobMain(object):
                 job.result[0] = "failed"
                 tolog("!!WARNING!!2999!! HOLDING state changed to FAILED since error is unrecoverable")
 
-        return rc, job, rf, latereg, "" # the last argument is the dq2url, will be removed
+        return rc, job, rf, latereg
 
-    # main process starts here
-    if __name__ == "__main__":
+# main process starts here
+if __name__ == "__main__":
 
-        # get error handler
-        error = PilotErrors()
+    # Get error handler
+    error = PilotErrors()
 
-        # define a new parent group
-        os.setpgrp()
+    # Get runJob object
+    runJob = RunJobMain()
 
-        # protect the runJob code with exception handling
-        hP_ret = False
-        try:
-            # always use this filename as the new jobDef module name
-            import newJobDef
+    # Define a new parent group
+    os.setpgrp()
 
-            jobSite = Site.Site()
+    # Protect the runJob code with exception handling
+    hP_ret = False
+    try:
+        # always use this filename as the new jobDef module name
+        import newJobDef
 
+        jobSite = Site.Site()
 
-            runJob = RunJob()
-            return_tuple = runJob.argumentParser()
-            tolog("argumentParser returned: %s" % str(return_tuple))
-            jobSite.setSiteInfo(return_tuple)
+        return_tuple = runJob.argumentParser()
+        tolog("argumentParser returned: %s" % str(return_tuple))
+        jobSite.setSiteInfo(return_tuple)
 
 #            jobSite.setSiteInfo(argParser(sys.argv[1:]))
 
-            # reassign workdir for this job
-            jobSite.workdir = jobSite.wntmpdir
+        # reassign workdir for this job
+        jobSite.workdir = jobSite.wntmpdir
 
-            if pilotlogfilename != "":
-                pUtil.setPilotlogFilename(pilotlogfilename)
+        if runJob.getPilotLogFilename() != "":
+            pUtil.setPilotlogFilename(runJob.getPilotLogFilename())
 
-            # set node info
-            node = Node.Node()
-            node.setNodeName(os.uname()[1])
-            node.collectWNInfo(jobSite.workdir)
+        # set node info
+        node = Node.Node()
+        node.setNodeName(os.uname()[1])
+        node.collectWNInfo(jobSite.workdir)
 
-            # redirect stder
-            sys.stderr = open("%s/runjob.stderr" % (jobSite.workdir), "w")
+        # redirect stder
+        sys.stderr = open("%s/runjob.stderr" % (jobSite.workdir), "w")
 
-            tolog("Current job workdir is: %s" % os.getcwd())
-            tolog("Site workdir is: %s" % jobSite.workdir)
-            # get the experiment object
-            thisExperiment = getExperiment(experiment)
-            tolog("runJob will serve experiment: %s" % (thisExperiment.getExperiment()))
+        tolog("Current job workdir is: %s" % os.getcwd())
+        tolog("Site workdir is: %s" % jobSite.workdir)
+        # get the experiment object
+        thisExperiment = getExperiment(runJob.getExperiment())
+        tolog("runJob will serve experiment: %s" % (thisExperiment.getExperiment()))
 
-            region = readpar('region')
-            JR = JobRecovery()
-            try:
-                job = Job.Job()
-                job.setJobDef(newJobDef.job)
-                job.workdir = jobSite.workdir
-                job.experiment = experiment
-                # figure out and set payload file names
-                job.setPayloadName(thisExperiment.getPayloadName(job))
-            except Exception, e:
-                pilotErrorDiag = "Failed to process job info: %s" % str(e)
-                tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
-                self.failJob(0, error.ERR_UNKNOWN, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
-
-            # prepare for the output file data directory
-            # (will only created for jobs that end up in a 'holding' state)
-            job.datadir = pworkdir + "/PandaJob_%d_data" % (job.jobId)
-
-            # register cleanup function
-            atexit.register(self.cleanup, job)
-
-            # to trigger an exception so that the SIGTERM signal can trigger cleanup function to run
-            # because by default signal terminates process without cleanup.
-            def sig2exc(sig, frm):
-                """ signal handler """
-
-                error = PilotErrors()
-                global failureCode, globalPilotErrorDiag, globalErrorCode
-                globalPilotErrorDiag = "!!FAILED!!3000!! SIGTERM Signal %s is caught in child pid=%d!\n" % (sig, os.getpid())
-                tolog(globalPilotErrorDiag)
-                if sig == signal.SIGTERM:
-                    globalErrorCode = error.ERR_SIGTERM
-                elif sig == signal.SIGQUIT:
-                    globalErrorCode = error.ERR_SIGQUIT
-                elif sig == signal.SIGSEGV:
-                    globalErrorCode = error.ERR_SIGSEGV
-                elif sig == signal.SIGXCPU:
-                    globalErrorCode = error.ERR_SIGXCPU
-                elif sig == signal.SIGBUS:
-                    globalErrorCode = error.ERR_SIGBUS
-                elif sig == signal.SIGUSR1:
-                    globalErrorCode = error.ERR_SIGUSR1
-                else:
-                    globalErrorCode = error.ERR_KILLSIGNAL
-                failureCode = globalErrorCode
-                # print to stderr
-                print >> sys.stderr, globalPilotErrorDiag
-                raise SystemError(sig)
-
-            signal.signal(signal.SIGTERM, sig2exc)
-            signal.signal(signal.SIGQUIT, sig2exc)
-            signal.signal(signal.SIGSEGV, sig2exc)
-            signal.signal(signal.SIGXCPU, sig2exc)
-            signal.signal(signal.SIGBUS, sig2exc)
-
-            # see if it's an analysis job or not
-            analJob = isAnalysisJob(job.trf.split(",")[0])
-            if analJob:
-                tolog("User analysis job")
-            else:
-                tolog("Production job")
-            tolog("runJob received a job with prodSourceLabel=%s" % (job.prodSourceLabel))
-
-            # setup starts here ................................................................................
-
-            # update the job state file
-            job.jobState = "setup"
-            _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
-
-            # send [especially] the process group back to the pilot
-            job.setState([job.jobState, 0, 0])
-            rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport)
-
-            # prepare the setup and get the run command list
-            ec, runCommandList, job, multi_trf = self.setup(job, jobSite, thisExperiment)
-            if ec != 0:
-                tolog("!!WARNING!!2999!! runJob setup failed: %s" % (job.pilotErrorDiag))
-                self.failJob(0, ec, job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
-            tolog("Setup has finished successfully")
-
-            # job has been updated, display it again
-            job.displayJob()
-
-            # (setup ends here) ................................................................................
-
-            tolog("Setting stage-in state until all input files have been copied")
-            job.setState(["stagein", 0, 0])
-            # send the special setup string back to the pilot (needed for the log transfer on xrdcp systems)
-            rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport)
-
-            # stage-in .........................................................................................
-
-            # update the job state file
-            job.jobState = "stagein"
-            _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
-
-            # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
-            if job.transferType == 'direct':
-                tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
-                      (job.transferType))
-                RunJobUtilities.updateCopysetups('', transferType=job.transferType)
-
-            # stage-in all input files (if necessary)
-            job, ins, statusPFCTurl, usedFAXandDirectIO = self.stageIn(job, jobSite, analJob, pilot_initdir, pworkdir)
-            if job.result[2] != 0:
-                tolog("Failing job with ec: %d" % (ec))
-                self.failJob(0, job.result[2], job, pilotserver, pilotport, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
-
-            # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
-            # consult the FileState file dictionary if cmd3 should be updated (--directIn should not be set if all
-            # remote_io modes have been changed to copy_to_scratch as can happen with ByteStream files)
-            # and update the run command list if necessary.
-            # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
-            # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
-            if job.inFiles != ['']:
-                runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, pworkdir, job.jobId, statusPFCTurl, analJob, usedFAXandDirectIO)
-
-            # (stage-in ends here) .............................................................................
-
-            # change to running state since all input files have been staged
-            tolog("Changing to running state since all input files have been staged")
-            job.setState(["running", 0, 0])
-            rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport)
-
-            # update the job state file
-            job.jobState = "running"
-            _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
-
-            # run the job(s) ...................................................................................
-
-            # Set ATLAS_CONDDB if necessary, and other env vars
-            RunJobUtilities.setEnvVars(jobSite.sitename)
-
-            # execute the payload
-            res, job, getstatusoutput_was_interrupted, current_job_number = self.executePayload(runCommandList, job)
-
-            # if payload leaves the input files, delete them explicitly
-            if ins:
-                ec = pUtil.removeFiles(job.workdir, ins)
-
-            # payload error handling
-            ed = ErrorDiagnosis()
-            job = ed.interpretPayload(job, res, getstatusoutput_was_interrupted, current_job_number, runCommandList, failureCode)
-            if job.result[1] != 0 or job.result[2] != 0:
-                self.failJob(job.result[1], job.result[2], job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
-
-            # stage-out ........................................................................................
-
-            # update the job state file
-            job.jobState = "stageout"
-            _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
-
-            # verify and prepare and the output files for transfer
-            ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
-            if ec:
-                # missing output file (only error code from prepareOutFiles)
-                self.failJob(job.result[1], ec, job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
-            tolog("outsDict: %s" % str(outsDict))
-
-            # update the current file states
-            updateFileStates(outs, pworkdir, job.jobId, mode="file_state", state="created")
-            dumpFileStates(pworkdir, job.jobId)
-
-            # create xml string to pass to dispatcher for atlas jobs
-            outputFileInfo = {}
-            if outs or (job.logFile and job.logFile != ''):
-                # get the datasets for the output files
-                dsname, datasetDict = self.getDatasets(job)
-
-                # re-create the metadata.xml file, putting guids of ALL output files into it.
-                # output files that miss guids from the job itself will get guids in PFCxml function
-
-                # first rename and copy the trf metadata file for non-build jobs
-                if not pUtil.isBuildJob(outs):
-                    self.moveTrfMetadata(job.workdir, job.jobId, pworkdir)
-
-                # create the metadata for the output + log files
-                ec, job, outputFileInfo = self.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analJob=analJob)
-                if ec:
-                    self.failJob(0, ec, job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
-
-            # move output files from workdir to local DDM area
-            finalUpdateDone = False
-            if outs:
-                tolog("Setting stage-out state until all output files have been copied")
-                job.setState(["stageout", 0, 0])
-                rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport)
-
-                # stage-out output files
-                ec, job, rf, latereg = self.stageOut(job, jobSite, outs, pilot_initdir, testLevel, analJob,\
-                                                                dsname, datasetDict, proxycheckFlag, outputFileInfo)
-                # error handling
-                if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:
-                    rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport, final=True)
-                else:
-                    rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport, final=True, latereg=latereg)
-                if ec == error.ERR_NOSTORAGE:
-                    # update the current file states for all files since nothing could be transferred
-                    updateFileStates(outs, pworkdir, job.jobId, mode="file_state", state="not_transferred")
-                    dumpFileStates(pworkdir, job.jobId)
-
-                finalUpdateDone = True
-                if ec != 0:
-                    self.sysExit(job, rf)
-                # (stage-out ends here) .......................................................................
-
-            job.setState(["finished", 0, 0])
-            if not finalUpdateDone:
-                rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport, final=True)
-            self.sysExit(job)
-
-        except Exception, errorMsg:
-
-            error = PilotErrors()
-
-            if globalPilotErrorDiag != "":
-                pilotErrorDiag = "Exception caught in runJob: %s" % (globalPilotErrorDiag)
-            else:
-                pilotErrorDiag = "Exception caught in runJob: %s" % str(errorMsg)
-
-            if 'format_exc' in traceback.__all__:
-                pilotErrorDiag += ", " + traceback.format_exc()    
-
-            try:
-                tolog("!!FAILED!!3001!! %s" % (pilotErrorDiag))
-            except Exception, e:
-                if len(pilotErrorDiag) > 10000:
-                    pilotErrorDiag = pilotErrorDiag[:10000]
-                    tolog("!!FAILED!!3001!! Truncated (%s): %s" % (str(e), pilotErrorDiag))
-                else:
-                    pilotErrorDiag = "Exception caught in runJob: %s" % str(e)
-                    tolog("!!FAILED!!3001!! %s" % (pilotErrorDiag))
-
-    #        # restore the proxy if necessary
-    #        if hP_ret:
-    #            rP_ret = proxyguard.restoreProxy()
-    #            if not rP_ret:
-    #                tolog("Warning: Problems with storage can occur since proxy could not be restored")
-    #            else:
-    #                hP_ret = False
-    #                tolog("ProxyGuard has finished successfully")
-
-            tolog("sys.path=%s" % str(sys.path))
-            cmd = "pwd;ls -lF %s;ls -lF;ls -lF .." % (pilot_initdir)
-            tolog("Executing command: %s" % (cmd))
-            out = commands.getoutput(cmd)
-            tolog("%s" % (out))
-
+        region = readpar('region')
+        JR = JobRecovery()
+        try:
             job = Job.Job()
             job.setJobDef(newJobDef.job)
-            job.pilotErrorDiag = pilotErrorDiag
-            job.result[0] = "failed"
-            if globalErrorCode != 0:
-                job.result[2] = globalErrorCode
+            job.workdir = jobSite.workdir
+            job.experiment = runJob.getExperiment()
+            # figure out and set payload file names
+            job.setPayloadName(thisExperiment.getPayloadName(job))
+        except Exception, e:
+            pilotErrorDiag = "Failed to process job info: %s" % str(e)
+            tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
+            runJob.failJob(0, error.ERR_UNKNOWN, job, pilotErrorDiag=pilotErrorDiag)
+
+        # prepare for the output file data directory
+        # (will only created for jobs that end up in a 'holding' state)
+        job.datadir = runJob.getParentWorkDir() + "/PandaJob_%d_data" % (job.jobId)
+
+        # register cleanup function
+        atexit.register(runJob.cleanup, job)
+
+        # to trigger an exception so that the SIGTERM signal can trigger cleanup function to run
+        # because by default signal terminates process without cleanup.
+        def sig2exc(sig, frm):
+            """ signal handler """
+
+            error = PilotErrors()
+#                global failureCode, globalPilotErrorDiag, globalErrorCode
+            runJob.setGlobalPilotErrorDiag("!!FAILED!!3000!! SIGTERM Signal %s is caught in child pid=%d!\n" % (sig, os.getpid()))
+            tolog(runJob.getGlobalPilotErrorDiag())
+            if sig == signal.SIGTERM:
+                runJob.setGlobalErrorCode(error.ERR_SIGTERM)
+            elif sig == signal.SIGQUIT:
+                runJob.setGlobalErrorCode(error.ERR_SIGQUIT)
+            elif sig == signal.SIGSEGV:
+                runJob.setGlobalErrorCode(error.ERR_SIGSEGV)
+            elif sig == signal.SIGXCPU:
+                runJob.setGlobalErrorCode(error.ERR_SIGXCPU)
+            elif sig == signal.SIGBUS:
+                runJob.setGlobalErrorCode(error.ERR_SIGBUS)
+            elif sig == signal.SIGUSR1:
+                runJob.setGlobalErrorCode(error.ERR_SIGUSR1)
             else:
-                job.result[2] = error.ERR_RUNJOBEXC
-            tolog("Failing job with error code: %d" % (job.result[2]))
-            # fail the job without calling sysExit/cleanup (will be called anyway)
-            self.failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag, docleanup=False)
+                runJob.setGlobalErrorCode(error.ERR_KILLSIGNAL)
+            runJob.setFailureCode(runJob.getGlobalErrorCode)
+            # print to stderr
+            print >> sys.stderr, runJob.getGlobalPilotErrorDiag()
+            raise SystemError(sig)
 
-        # end of runJob
+        signal.signal(signal.SIGTERM, sig2exc)
+        signal.signal(signal.SIGQUIT, sig2exc)
+        signal.signal(signal.SIGSEGV, sig2exc)
+        signal.signal(signal.SIGXCPU, sig2exc)
+        signal.signal(signal.SIGBUS, sig2exc)
 
+        # see if it's an analysis job or not
+        analJob = isAnalysisJob(job.trf.split(",")[0])
+        if analJob:
+            tolog("User analysis job")
+        else:
+            tolog("Production job")
+        tolog("runJob received a job with prodSourceLabel=%s" % (job.prodSourceLabel))
 
+        # setup starts here ................................................................................
 
+        # update the job state file
+        job.jobState = "setup"
+        _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
+        # send [especially] the process group back to the pilot
+        job.setState([job.jobState, 0, 0])
+        rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
-#if __name__ == "__main__":
-#
-#    runJob = RunJob()
-#    dummy = runJob.argumentParser()
+        # prepare the setup and get the run command list
+        ec, runCommandList, job, multi_trf = runJob.setup(job, jobSite, thisExperiment)
+        if ec != 0:
+            tolog("!!WARNING!!2999!! runJob setup failed: %s" % (job.pilotErrorDiag))
+            runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+        tolog("Setup has finished successfully")
+
+        # job has been updated, display it again
+        job.displayJob()
+
+        # (setup ends here) ................................................................................
+
+        tolog("Setting stage-in state until all input files have been copied")
+        job.setState(["stagein", 0, 0])
+        # send the special setup string back to the pilot (needed for the log transfer on xrdcp systems)
+        rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
+
+        # stage-in .........................................................................................
+
+        # update the job state file
+        job.jobState = "stagein"
+        _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+
+        # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
+        if job.transferType == 'direct':
+            tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
+                  (job.transferType))
+            RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+
+        # stage-in all input files (if necessary)
+        job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analJob)
+        if job.result[2] != 0:
+            tolog("Failing job with ec: %d" % (ec))
+            runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
+
+        # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
+        # consult the FileState file dictionary if cmd3 should be updated (--directIn should not be set if all
+        # remote_io modes have been changed to copy_to_scratch as can happen with ByteStream files)
+        # and update the run command list if necessary.
+        # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
+        # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
+        if job.inFiles != ['']:
+            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analJob, usedFAXandDirectIO)
+
+        # (stage-in ends here) .............................................................................
+
+        # change to running state since all input files have been staged
+        tolog("Changing to running state since all input files have been staged")
+        job.setState(["running", 0, 0])
+        rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
+
+        # update the job state file
+        job.jobState = "running"
+        _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+
+        # run the job(s) ...................................................................................
+
+        # Set ATLAS_CONDDB if necessary, and other env vars
+        RunJobUtilities.setEnvVars(jobSite.sitename)
+
+        # execute the payload
+        res, job, getstatusoutput_was_interrupted, current_job_number = runJob.executePayload(runCommandList, job)
+
+        # if payload leaves the input files, delete them explicitly
+        if ins:
+            ec = pUtil.removeFiles(job.workdir, ins)
+
+        # payload error handling
+        ed = ErrorDiagnosis()
+        job = ed.interpretPayload(job, res, getstatusoutput_was_interrupted, current_job_number, runCommandList, runJob.getFailureCode())
+        if job.result[1] != 0 or job.result[2] != 0:
+            runJob.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
+
+        # stage-out ........................................................................................
+
+        # update the job state file
+        job.jobState = "stageout"
+        _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+
+        # verify and prepare and the output files for transfer
+        ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
+        if ec:
+            # missing output file (only error code from prepareOutFiles)
+            runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
+        tolog("outsDict: %s" % str(outsDict))
+
+        # update the current file states
+        updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
+        dumpFileStates(runJob.getParentWorkDir(), job.jobId)
+
+        # create xml string to pass to dispatcher for atlas jobs
+        outputFileInfo = {}
+        if outs or (job.logFile and job.logFile != ''):
+            # get the datasets for the output files
+            dsname, datasetDict = runJob.getDatasets(job)
+
+            # re-create the metadata.xml file, putting guids of ALL output files into it.
+            # output files that miss guids from the job itself will get guids in PFCxml function
+
+            # first rename and copy the trf metadata file for non-build jobs
+            if not pUtil.isBuildJob(outs):
+                runJob.moveTrfMetadata(job.workdir, job.jobId)
+
+            # create the metadata for the output + log files
+            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analJob=analJob)
+            if ec:
+                runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+
+        # move output files from workdir to local DDM area
+        finalUpdateDone = False
+        if outs:
+            tolog("Setting stage-out state until all output files have been copied")
+            job.setState(["stageout", 0, 0])
+            rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
+
+            # stage-out output files
+            ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analJob,\
+                                                            dsname, datasetDict, outputFileInfo)
+            # error handling
+            if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
+            else:
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True, latereg=latereg)
+            if ec == error.ERR_NOSTORAGE:
+                # update the current file states for all files since nothing could be transferred
+                updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="not_transferred")
+                dumpFileStates(runJob.getParentWorkDir(), job.jobId)
+
+            finalUpdateDone = True
+            if ec != 0:
+                runJob.sysExit(job, rf)
+            # (stage-out ends here) .......................................................................
+
+        job.setState(["finished", 0, 0])
+        if not finalUpdateDone:
+            rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
+        runJob.sysExit(job)
+
+    except Exception, errorMsg:
+
+        error = PilotErrors()
+
+        if runJob.getGlobalPilotErrorDiag() != "":
+            pilotErrorDiag = "Exception caught in runJob: %s" % (runJob.getGlobalPilotErrorDiag())
+        else:
+            pilotErrorDiag = "Exception caught in runJob: %s" % str(errorMsg)
+
+        if 'format_exc' in traceback.__all__:
+            pilotErrorDiag += ", " + traceback.format_exc()    
+
+        try:
+            tolog("!!FAILED!!3001!! %s" % (pilotErrorDiag))
+        except Exception, e:
+            if len(pilotErrorDiag) > 10000:
+                pilotErrorDiag = pilotErrorDiag[:10000]
+                tolog("!!FAILED!!3001!! Truncated (%s): %s" % (e, pilotErrorDiag))
+            else:
+                pilotErrorDiag = "Exception caught in runJob: %s" % (e)
+                tolog("!!FAILED!!3001!! %s" % (pilotErrorDiag))
+
+#        # restore the proxy if necessary
+#        if hP_ret:
+#            rP_ret = proxyguard.restoreProxy()
+#            if not rP_ret:
+#                tolog("Warning: Problems with storage can occur since proxy could not be restored")
+#            else:
+#                hP_ret = False
+#                tolog("ProxyGuard has finished successfully")
+
+        tolog("sys.path=%s" % str(sys.path))
+        cmd = "pwd;ls -lF %s;ls -lF;ls -lF .." % (runJob.getPilotInitDir())
+        tolog("Executing command: %s" % (cmd))
+        out = commands.getoutput(cmd)
+        tolog("%s" % (out))
+
+        job = Job.Job()
+        job.setJobDef(newJobDef.job)
+        job.pilotErrorDiag = pilotErrorDiag
+        job.result[0] = "failed"
+        if runJob.getGlobalErrorCode() != 0:
+            job.result[2] = runJob.getGlobalErrorCode()
+        else:
+            job.result[2] = error.ERR_RUNJOBEXC
+        tolog("Failing job with error code: %d" % (job.result[2]))
+        # fail the job without calling sysExit/cleanup (will be called anyway)
+        runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag, docleanup=False)
+
+    # end of runJob
+
     
     

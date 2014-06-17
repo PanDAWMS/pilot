@@ -2297,7 +2297,7 @@ class SiteMover(object):
                 dictionaryReplicas = catalog.bulkRegisterFiles(files)
                 catalog.disconnect()
             except:
-                pilotErrorDiag = "Caught exception"
+                pilotErrorDiag = "Caught exception while trying to interact with catalog %s" % (host)
                 tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
                 ec = error.ERR_FAILEDLFCREG # use LFC error code for now
             else:

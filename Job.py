@@ -390,7 +390,9 @@ class Job:
                 rm = swRelease.split('-')[0] + '-' # 'Atlas-'
                 self.atlasRelease = swRelease.replace(rm, '')
             else:
-                self.atlasRelease = swRelease.split('-')[1]
+                # update needed to handle cases like "Atlas-19.0.X.Y-VAL"
+                #self.atlasRelease = swRelease.split('-')[1]
+                self.atlasRelease = swRelease[swRelease.find('-')+1:]
         else:
             self.atlasRelease = swRelease
 

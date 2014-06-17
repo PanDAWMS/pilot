@@ -251,7 +251,6 @@ class objectstoreSiteMover(xrdcpSiteMover):
 
         # Get input parameters from pdict
         guid = pdict.get('guid', '')
-        useCT = pdict.get('usect', True)
         jobId = pdict.get('jobId', '')
         dsname = pdict.get('dsname', '')
         workDir = pdict.get('workDir', '')
@@ -263,59 +262,16 @@ class objectstoreSiteMover(xrdcpSiteMover):
         si = getSiteInformation(experiment)
 
         # get the DQ2 tracing report
-        report = self.getStubTracingReport(pdict['report'], 'fax', lfn, guid)
-
-        src_loc_filename = lfn # os.path.basename(src_loc_pfn)
-        # source vars: gpfn, loc_pfn, loc_host, loc_dirname, loc_filename
-        # dest vars: path
-
-        if fchecksum != 0 and fchecksum != "":
-            csumtype = self.getChecksumType(fchecksum)
-        else:
-            csumtype = "default"
-
-        # should the root file be copied or read directly by athena? (note: this section is necessary in case FAX is used as primary site mover)
-        directIn = self.checkForDirectAccess(lfn, useCT, workDir, jobId, prodDBlockToken)
-        if directIn:
-            report['relativeStart'] = None
-            report['transferStart'] = None
-            self.__sendReport('FOUND_ROOT', report)
-            return error.ERR_DIRECTIOFILE, pilotErrorDiag
+        report = self.getStubTracingReport(pdict['report'], 'objectstore', lfn, guid)
 
         # local destination path
-        dest_file = os.path.join(path, src_loc_filename)
-
-        # the initial gpfn is ignored since the pilot will get it from the global redirector
-        # however, the lfn can differ e.g. for files the has the __DQ2-* bit in it. In that case
-        # the global redirector will not give the correct name, and the pilot need to correct for it
-        # so better to use the lfn taken from the initial gpfn right away
-# warning: tests at CERN has shown that this is not true. the global redirector will not find a file with __DQ2- in it
-        initial_lfn = os.path.basename(gpfn)
-        tolog("Initial LFN=%s" % (initial_lfn))
-
-        # get the global path (likely to update the gpfn/SURL)
-        tolog("SURL=%s" % (gpfn))
-        gpfn = self.findGlobalFilePath(gpfn, dsname)
-        if gpfn == "":
-            ec = error.ERR_STAGEINFAILED
-            pilotErrorDiag = "Failed to get global paths for FAX transfer"
-            tolog("!!WARNING!!3330!! %s" % (pilotErrorDiag))
-            self.__sendReport('RFCP_FAIL', report)
-            return ec, pilotErrorDiag
-
-        tolog("GPFN=%s" % (gpfn))
-        global_lfn = os.path.basename(gpfn)
-        if global_lfn != initial_lfn:
-#            tolog("WARNING: Global LFN not the same as the initial LFN. Will try to use the initial LFN")
-            tolog("WARNING: Global LFN not the same as the initial LFN. Will use the global LFN")
-#            gpfn = gpfn.replace(global_lfn, initial_lfn)
-#            tolog("Updated GPFN=%s" % (gpfn))
+        dest_file = os.path.join(path, lfn)
 
         # setup ROOT locally
         _setup_str = self.getLocalROOTSetup()
 
         # define the copy command
-        cmd = "%s xrdcp -d 1 -f %s %s" % (_setup_str, gpfn, dest_file)
+        cmd = "%s xrdcp -adler  -f %s %s" % (_setup_str, gpfn, dest_file)
 
         # transfer the file
         report['transferStart'] = time()
@@ -335,7 +291,7 @@ class objectstoreSiteMover(xrdcpSiteMover):
 
         # get file size from the command output if not known already
         if fsize == 0:
-            fsize = self.getFileSize(rs)
+            fsize = int(self.getFileSize(rs))
 
         # get checksum from the command output if not known already
         if fchecksum == 0:
@@ -347,7 +303,7 @@ class objectstoreSiteMover(xrdcpSiteMover):
                 tolog("fchecksum = %s" % (fchecksum))
 
         # get destination (local) file size and checksum 
-        ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
+        ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype='adler32')
         tolog("File info: %d, %s, %s" % (ec, dstfsize, dstfchecksum))
         if ec != 0:
             self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
@@ -378,6 +334,7 @@ class objectstoreSiteMover(xrdcpSiteMover):
                 return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
         # compare remote and local file size (skip test if remote/source file size is not known)
+        dstfsize = int(dstfsize)
         if dstfsize != fsize and fsize != 0 and fsize != "":
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(gpfn), str(dstfsize), str(fsize))
@@ -436,7 +393,7 @@ class objectstoreSiteMover(xrdcpSiteMover):
         # setup ROOT locally
         _setup_str = self.getLocalROOTSetup()
 
-        cmd = "%s xrdcp -f -adler %s %s" % (_setup_str, source, surl)
+        cmd = "%s xrdcp -f  -adler %s %s" % (_setup_str, source, surl)
 
         report['transferStart'] = time()
 
@@ -452,6 +409,19 @@ class objectstoreSiteMover(xrdcpSiteMover):
         dstfchecksum = self.getChecksum(rs)
         tolog("local checksum: %s" % (fchecksum))
         tolog("remote checksum: %s" % (dstfchecksum))
+
+        if fchecksum != "" and fchecksum != 0 and dstfchecksum != fchecksum:
+            pilotErrorDiag = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" %\
+                             ('adler32', os.path.basename(gpfn), fchecksum, dstfchecksum)
+            tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+
+            if csumtype == "adler32":
+                self.__sendReport('AD_MISMATCH', report)
+                return error.ERR_GETADMISMATCH, pilotErrorDiag
+            else:
+                self.__sendReport('MD5_MISMATCH', report)
+                return error.ERR_GETMD5MISMATCH, pilotErrorDiag
+
 
         return 0, pilotErrorDiag, surl, fsize, fchecksum, ARCH_DEFAULT
 
@@ -497,9 +467,26 @@ if __name__ == '__main__':
     #print f.findGlobalFilePath(lfn, dsname)
     #print f.getLocalROOTSetup()
 
-    path = "root://atlas-objectstore.cern.ch//atlas/eventservice/2181626927" # + your .root filename"
-    # 1. try to write the file
-    # 2. try to read it back
+    #path = "root://atlas-objectstore.cern.ch//atlas/eventservice/2181626927" # + your .root filename"
 
-    print f.get_data(gpfn, lfn, path, fsize=fsize, fchecksum=fchecksum, dsname=dsname, report=report)
-    
+    #source = "/bin/hostname"
+    #dest = "root://eosatlas.cern.ch//eos/atlas/unpledged/group-wisc/users/wguan/"
+    #lfn = "NTUP_PHOTON.01255150._000001.root.1"
+    #localSize = 17848
+    #localChecksum = "89b93830"
+    #print f.put_data(source, dest, fsize=localSize, fchecksum=localChecksum, prodSourceLabel='ptest', experiment='ATLAS', report =report, lfn=lfn, guid='aa8ee1ae-54a5-468b-a0a0-41cf17477ffc')
+
+    #gpfn = "root://eosatlas.cern.ch//eos/atlas/unpledged/group-wisc/users/wguan/NTUP_PHOTON.01255150._000001.root.1"
+    #lfn = "NTUP_PHOTON.01255150._000001.root.1"
+    #tmpDir = "/tmp/"
+    #localSize = 17848
+    #localChecksum = "89b93830"
+    #print f.get_data(gpfn, lfn, tmpDir, fsize=localSize, fchecksum=localChecksum, experiment='ATLAS', report =report, guid='aa8ee1ae-54a5-468b-a0a0-41cf17477ffc')
+
+    gpfn = "root://atlas-objectstore.cern.ch//atlas/logs/2188358564/7fbfd7e1-0dee-479f-a702-e46e09b511a6_0.job.log.tgz"
+    lfn = "7fbfd7e1-0dee-479f-a702-e46e09b511a6_0.job.log.tgz"
+    tmpDir = "/tmp/"
+    localSize = 267528
+    localChecksum = "b7ab96cc"
+    print f.get_data(gpfn, lfn, tmpDir, fsize=localSize, fchecksum=localChecksum, experiment='ATLAS', report =report, guid='4a1736f5-5e16-4383-9a8e-748ed9fcb6a6')
+

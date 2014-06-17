@@ -673,6 +673,8 @@ class Experiment(object):
         name = "runJob"
 
         # Select alternative subprocess names depending on defined job data members
+        #if readpar('hpc'):
+        #    pass
         if eventService:
             tolog("Encountered an event service job")
             name = "runEvent"
@@ -698,6 +700,7 @@ class Experiment(object):
         tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
         if subprocessName == "runJob":
             jobargs = [env['pyexe'], "RunJobMain.py", 
+#            jobargs = [env['pyexe'], "runJob.py", 
                        "-a", env['thisSite'].appdir,
                        "-d", env['jobDic']["prod"][1].workdir,
                        "-l", env['pilot_initdir'],
@@ -705,13 +708,14 @@ class Experiment(object):
                        "-p", str(port),
                        "-s", env['thisSite'].sitename,
                        "-o", env['thisSite'].workdir,
-                       "-h", env['queuename'],
+                       "-b", env['queuename'],
+#                       "-h", env['queuename'],
                        "-i", env['jobDic']["prod"][1].tarFileGuid,
-                       "-b", str(env['debugLevel']),
+#                       "-b", str(env['debugLevel']),
                        "-t", str(env['proxycheckFlag']),
                        "-k", getPilotlogFilename(),
                        "-x", str(env['stageinretry']),
-                       "-v", str(env['testLevel']),
+#                       "-v", str(env['testLevel']),
                        "-g", env['inputDir'],
                        "-m", env['outputDir'],
                        "-B", str(env['lfcRegistration']),

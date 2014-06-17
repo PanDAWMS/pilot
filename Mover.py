@@ -1761,7 +1761,13 @@ def mover_get_data(lfns,
     thisExperiment = getExperiment(experiment)
 
     # Get the name for the PFC file
+    _path = path
+    if eventService:
+        # Update the path (create the PFC in one level above the payload workdir)
+        path = os.path.abspath(os.path.join(path, '..'))
     pfc_name = getPFCName(path, inputpoolfcstring)
+    # done with the event server modification (related to the PFC generation), reset the path again
+    path = _path
 
     # Build the file info dictionary (use the filesize and checksum from the dispatcher if possible) and create the PFC
     # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum)
@@ -3504,7 +3510,6 @@ def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, w
         if ec != 0:
             return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict
         tolog("file_dict = %s" % str(file_dict))
-        tolog("replicas_dict = %s" % str(replicas_dict))
 
         # create a pool file catalog
         xml_from_PFC = createPoolFileCatalog(file_dict, pfc_name=pfc_name)
@@ -3520,7 +3525,6 @@ def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, w
     # As a last step, remove any multiple identical copies of the replicas (SURLs)
     final_replicas_dict = {}
     if replicas_dict != {}: # Protect against Nordugrid case
-        tolog(". replicas_dict=%s" % str(replicas_dict))
         try:
             for guid in replicas_dict:
                 SURL_list = []

@@ -185,6 +185,7 @@ Created getFileListFromXML(), getFileInfoFromXML(), getFileInfoDictionaryFromXML
 Corrected wrong variables names in updatePandaServer() causing job recovery to fail (pilot)
 Using new setup of asetup in getVerifiedAtlasSetupPath() for nightlies and skipping path verification (ATLASExperiment)
 Updated verifySetupCommand() to handle modern asetup verification (pUtil)
+Updated setJobDef() to handle swRelease cases like "Atlas-19.0.X.Y-VAL"
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
