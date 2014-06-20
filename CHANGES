@@ -187,8 +187,11 @@ Using new setup of asetup in getVerifiedAtlasSetupPath() for nightlies and skipp
 Updated verifySetupCommand() to handle modern asetup verification (pUtil)
 Updated setJobDef() to handle swRelease cases like "Atlas-19.0.X.Y-VAL"
 Removed runJob.py from distribution. Replaced by RunJob.py
-Removed UberftpSiteMover.py from distribution (and updated SiteMoverFarm.py)
-Removed atlasProdPilot.py from distribution
+Removed UberftpSiteMover.py from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed atlasProdPilot.py from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed dq2SiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed SRMSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed GSIftpSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
@@ -219,5 +222,7 @@ StoppableThread.py      : Threading class for threads that need a stop() method
 GFAL2SiteMover.py       : New site mover for GFAL2
 objectstoreSiteMover.py : New site mover for Object Stores
 RunJob*                 : New RunJob classes
+
+Note: new modules have to be added to my_proxy_utils.py and glexec_utils.py.
 
 Add new error code to DB

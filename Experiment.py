@@ -663,14 +663,14 @@ class Experiment(object):
     def getSubprocessName(self, eventService):
         """ Select which subprocess is to be run by the Monitor """
 
-        # The default subprocess is runJob (which performs payload setup, stage-in, payload execution and stage-out).
+        # The default subprocess is RunJob (name='Normal', which performs payload setup, stage-in, payload execution and stage-out).
         # An alternative subprocess is the runEvent module which downloads events from an Event Server, executes a payload
         # and stages ou output files asynchronously as they are ready.
         # Note: send the entire job object to this method since there might be other subprocesses created at a later time which
         # will be identified by this method using some other job data member
 
         # Default subprocess name
-        name = "runJob"
+        name = "Normal"
 
         # Select alternative subprocess names depending on defined job data members
         #if readpar('hpc'):
@@ -683,7 +683,7 @@ class Experiment(object):
 
         return name
 
-    def getSubprocessArguments(self, env, port, subprocessName="runJob"):
+    def getSubprocessArguments(self, env, port, subprocessName="Normal"):
         """ Argument list needed to launch the subprocess by the pilot/Monitor """
 
         # The pilot/Monitor is forking a subprocess which will be monitored for work dir size, hanging processes etc
@@ -698,7 +698,7 @@ class Experiment(object):
         #env = environment.set_environment()
 
         tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
-        if subprocessName == "runJob":
+        if subprocessName == "Normal":
             jobargs = [env['pyexe'], "RunJob.py", 
 #            jobargs = [env['pyexe'], "runJob.py", 
                        "-a", env['thisSite'].appdir,

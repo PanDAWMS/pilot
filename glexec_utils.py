@@ -348,15 +348,6 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'BNLdCacheSiteMover.py'),
                      os.path.join(self.sandbox_path, 'BNLdCacheSiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'BNLdCacheSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'GSIftpSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'GSIftpSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'GSIftpSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'SRMSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'SRMSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'SRMSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'UberftpSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'UberftpSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'UberftpSiteMover.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'COGSiteMover.py'),
                      os.path.join(self.sandbox_path, 'COGSiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'COGSiteMover.py'), 0666)
@@ -393,9 +384,6 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'castorSvcClassSiteMover.py'),
                      os.path.join(self.sandbox_path, 'castorSvcClassSiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'castorSvcClassSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'dq2SiteMover.py'),
-                     os.path.join(self.sandbox_path, 'dq2SiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'dq2SiteMover.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'LocalSiteMover.py'),
                      os.path.join(self.sandbox_path, 'LocalSiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'LocalSiteMover.py'), 0666)
@@ -423,9 +411,21 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'OtherSiteInformation.py'),
                      os.path.join(self.sandbox_path, 'OtherSiteInformation.py'))
         os.chmod(os.path.join(self.sandbox_path, 'OtherSiteInformation.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'runJob.py'),
-                     os.path.join(self.sandbox_path, 'runJob.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'runJob.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJob.py'),
+                     os.path.join(self.sandbox_path, 'RunJob.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'RunJob.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobEvent.py'),
+                     os.path.join(self.sandbox_path, 'RunJobEvent.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'RunJobEvent.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobHPC.py'),
+                     os.path.join(self.sandbox_path, 'RunJobHPC.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'RunJobHPC.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobTitan.py'),
+                     os.path.join(self.sandbox_path, 'RunJobTitan.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'RunJobTitan.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobMira.py'),
+                     os.path.join(self.sandbox_path, 'RunJobMira.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'RunJobMira.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ErrorDiagnosis.py'),
                      os.path.join(self.sandbox_path, 'ErrorDiagnosis.py'))
         os.chmod(os.path.join(self.sandbox_path, 'ErrorDiagnosis.py'), 0666)
@@ -444,9 +444,6 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'JobInfoXML.py'),
                      os.path.join(self.sandbox_path, 'JobInfoXML.py'))
         os.chmod(os.path.join(self.sandbox_path, 'JobInfoXML.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'atlasProdPilot.py'),
-                     os.path.join(self.sandbox_path, 'atlasProdPilot.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'atlasProdPilot.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Cleaner.py'),
                      os.path.join(self.sandbox_path, 'Cleaner.py'))
         os.chmod(os.path.join(self.sandbox_path, 'Cleaner.py'), 0666)

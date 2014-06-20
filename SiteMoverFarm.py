@@ -4,8 +4,6 @@ from pUtil import tolog
 from SiteMover import SiteMover                             # OU_OCHEP_SWT2
 from dCacheSiteMover import dCacheSiteMover                 # ANALY_AGLT2
 from BNLdCacheSiteMover import BNLdCacheSiteMover           # None
-from GSIftpSiteMover import GSIftpSiteMover                 # None
-from SRMSiteMover import SRMSiteMover                       # None
 from COGSiteMover import COGSiteMover                       # None
 from xrootdSiteMover import xrootdSiteMover                 # SLAC, GLOW-ATLAS
 from xrdcpSiteMover import xrdcpSiteMover                   # ANALY_CERN_XROOTD
@@ -18,7 +16,6 @@ from mvSiteMover import mvSiteMover                         # NDGF
 from HUSiteMover import HUSiteMover                         # None
 from rfcpLFCSiteMover import rfcpLFCSiteMover               # GLASGOW (works for all DPM sites)
 from castorSvcClassSiteMover import castorSvcClassSiteMover # RAL (needs extra configuation to map space tokens to service classes)
-from dq2SiteMover import dq2SiteMover                       # None
 from LocalSiteMover import LocalSiteMover                   # HU, MWT2 
 from ChirpSiteMover import ChirpSiteMover                   # Munich
 from curlSiteMover import curlSiteMover                     # ASGC
@@ -32,9 +29,6 @@ mover_selector = {
     SiteMover.copyCommand : SiteMover,
     dCacheSiteMover.copyCommand : dCacheSiteMover,
     BNLdCacheSiteMover.copyCommand : BNLdCacheSiteMover,
-    GSIftpSiteMover.copyCommand : GSIftpSiteMover,
-    SRMSiteMover.copyCommand : SRMSiteMover,
-    UberftpSiteMover.copyCommand : UberftpSiteMover,
     COGSiteMover.copyCommand : COGSiteMover,
     xrootdSiteMover.copyCommand : xrootdSiteMover,
     xrdcpSiteMover.copyCommand : xrdcpSiteMover,
@@ -46,7 +40,6 @@ mover_selector = {
     mvSiteMover.copyCommand : mvSiteMover,
     HUSiteMover.copyCommand : HUSiteMover,
     rfcpLFCSiteMover.copyCommand : rfcpLFCSiteMover,
-    dq2SiteMover.copyCommand : dq2SiteMover,
     castorSvcClassSiteMover.copyCommand : castorSvcClassSiteMover,
     LocalSiteMover.copyCommand : LocalSiteMover,
 #    GOSiteMover.copyCommand : GOSiteMover,
