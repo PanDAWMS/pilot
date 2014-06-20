@@ -6,7 +6,7 @@
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
 
 # Import relevant python/pilot modules
-from RunJobMain import RunJobMain                # Parent RunJob class
+from RunJob import RunJob                # Parent RunJob class
 from pUtil import tolog                         # Logging method that sends text to the pilot log
 
 # Standard python modules
@@ -14,7 +14,7 @@ from pUtil import tolog                         # Logging method that sends text
 #import os
 #import commands
 
-class RunJobHPC(RunJobMain):
+class RunJobHPC(RunJob):
 
     # private data members
     __runjob = "HPC"                             # String defining the sub class

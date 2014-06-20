@@ -6,7 +6,7 @@
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
 
 # Import relevant python/pilot modules
-from RunJobMain import RunJobMain                # Parent RunJob class
+from RunJob import RunJob                        # Parent RunJob class
 #from pUtil import tolog                         # Logging method that sends text to the pilot log
 def tolog(s): print s
 
@@ -15,7 +15,7 @@ def tolog(s): print s
 #import os
 #import commands
 
-class RunJobEvent(RunJobMain):
+class RunJobEvent(RunJob):
 
     # private data members
     __runjob = "EventService"                    # String defining the sub class

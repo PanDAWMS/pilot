@@ -6,7 +6,6 @@ from dCacheSiteMover import dCacheSiteMover                 # ANALY_AGLT2
 from BNLdCacheSiteMover import BNLdCacheSiteMover           # None
 from GSIftpSiteMover import GSIftpSiteMover                 # None
 from SRMSiteMover import SRMSiteMover                       # None
-from UberftpSiteMover import UberftpSiteMover               # None
 from COGSiteMover import COGSiteMover                       # None
 from xrootdSiteMover import xrootdSiteMover                 # SLAC, GLOW-ATLAS
 from xrdcpSiteMover import xrdcpSiteMover                   # ANALY_CERN_XROOTD

@@ -5,7 +5,7 @@
 #   Note: not compatible with Singleton Design Pattern due to the subclassing
 
 from types import TypeType
-from RunJobMain import RunJobMain
+from RunJob import RunJob
 from RunJobEvent import RunJobEvent
 from RunJobHPC import RunJobHPC
 from RunJobTitan import RunJobTitan
@@ -13,28 +13,28 @@ from RunJobMira import RunJobMira
 
 class RunJobFactory(object):
 
-    def newRunJob(self, type="generic"):
+    def newRunJob(self, _type="generic"):
         """ Generate a new site information object """
 
         # get all classes
-        runJobClasses = [j for (i,j) in globals().iteritems() if isinstance(j, TypeType) and issubclass(j, RunJobMain)]
+        runJobClasses = [j for (i,j) in globals().iteritems() if isinstance(j, TypeType) and issubclass(j, RunJob)]
 
         # loop over all subclasses
         for runJobClass in runJobClasses:
             si = runJobClass()
 
             # return the matching RunJob class
-            if si.getRunJob() == type:
+            if si.getRunJob() == _type:
                 return runJobClass
 
         # if no class was found, raise an error
-        raise ValueError('RunJobFactory: No such class: "%s"' % (type))
+        raise ValueError('RunJobFactory: No such class: "%s"' % (_type))
 
 if __name__ == "__main__":
 
     factory = RunJobFactory()
 
-    types = ['Normal', 'EventService', 'HPC', 'Titan', 'Dummy']
+    types = ['Normal', 'EventService', 'HPC', 'Mira', 'Titan', 'Dummy']
 
     for t in types:
         print "\nAttempting to get class for type", t

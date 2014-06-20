@@ -187,6 +187,8 @@ Using new setup of asetup in getVerifiedAtlasSetupPath() for nightlies and skipp
 Updated verifySetupCommand() to handle modern asetup verification (pUtil)
 Updated setJobDef() to handle swRelease cases like "Atlas-19.0.X.Y-VAL"
 Removed runJob.py from distribution. Replaced by RunJob.py
+Removed UberftpSiteMover.py from distribution (and updated SiteMoverFarm.py)
+Removed atlasProdPilot.py from distribution
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
