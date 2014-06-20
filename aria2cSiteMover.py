@@ -70,7 +70,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         s, o = commands.getstatusoutput(_cmd_str)
         if s != 0:
           tolog("aria2c not found in PATH")
-        cvmfs_aria2c = '/cvmfs/atlas.cern.ch/repo/sw/local/x86_64-slc6-gcc44-opt/bin/aria2c'
+        cvmfs_aria2c = '/cvmfs/atlas.cern.ch/repo/sw/local/x86_64-slc5-gcc43-opt/bin/aria2c'  
         if os.path.exists(cvmfs_aria2c):
           tolog("Using %s"%cvmfs_aria2c)
           self.copyCommand = cvmfs_aria2c
@@ -153,7 +153,16 @@ class aria2cSiteMover(SiteMover.SiteMover):
               metalink+='<url type="https" >%s</url>\n'% \
                                        re.sub(pair[0],pair[1],rep.sfn)
             else:
-              tolog("Not found: %s"%rep.sfn)
+              try:
+                scope = extractPattern(rep.sfn, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
+                scope = scope.replace("/",".")
+                prefix = "https://voatlasrucio-redirect-prod-01.cern.ch/redirect/"
+                filename = re.findall(r'.*/(.+)$', rep.sfn)[0]
+                turl = prefix + scope + "/" +filename
+                metalink+='<url type="https" >%s</url>\n'% turl
+                tolog("Converted SURL: %s to TURL: %s (using dataset name)" % (rep.sfn, turl))
+              except:
+                tolog("Not found: %s"%rep.sfn)
           metalink+='</resources></file>\n'
 
         metalink+='</files></metalink>\n'
@@ -671,28 +680,6 @@ class aria2cSiteMover(SiteMover.SiteMover):
 
         self.__sendReport('DONE', report)
         return 0, pilotErrorDiag, full_surl, fsize, fchecksum, self.arch_type
-
-    def getScopeFilename(self, surl):
-        """ Extract the scope and filename from the SURL """
-
-        scope = extractPattern(surl, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
-        fn = os.path.basename(surl)
-        tolog("scope: %s filename: %s" % (scope, fn))
-
-        return scope, fn
-
-    def getGlobalFilePaths(self, surl, dsname):
-        """ Get the global file paths """
-
-        # Note: dsname is not needed in this method but must be declared
-
-        # Get the scope, file name, redirector and choose which method to use
-        scope, lfn = self.getScopeFilename(surl)
-        redirector = readpar('faxredirector') # https://voatlasrucio-redirect-prod-01.cern.ch
-        method = "geoip" # geoip or random
-
-        # Return the TURL
-        return "%s/redirect/%s/%s?select=%s" % (redirector, scope, lfn, method)
 
     def __sendReport(self, state, report):
         """

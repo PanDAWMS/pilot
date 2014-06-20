@@ -597,6 +597,8 @@ class JobLog:
         _date = "None"
         strXML = ""
 
+        tolog("Preparing to create metadata for output files")
+
         # get the file info for the log file and, if needed, for the CERNVM outputFilesXML file
         ec, pilotErrorDiag, _fsize, _checksum = \
             SiteMover.getLocalFileInfo(os.path.join(workdir, filename), csumtype=sitemover.getChecksumCommand(), date=_date)

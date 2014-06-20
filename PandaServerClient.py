@@ -420,6 +420,9 @@ class PandaServerClient:
                 else:
                     tolog("Removed log file")
 
+        if node_xml == "":
+            tolog("!!WARNING!!1212!! getXML could not set the node xml (empty string at the end of the method)")
+
         return node_xml
 
     def updateOutputFilesXMLWithSURLs4NG(self, experiment, siteWorkdir, jobId, outputFilesXML):
@@ -488,6 +491,8 @@ class PandaServerClient:
             tolog("(fake server update)")
             return 0, node
 
+        tolog("xmlstr = %s" % (xmlstr))
+
         # get the xml
         node['xml'] = self.getXML(job, site.sitename, site.workdir, xmlstr=xmlstr, jr=jr)
 
@@ -548,23 +553,26 @@ class PandaServerClient:
         # send the original xml if it exists (end of production job, ignore for event service job)
         filenamePayloadXML = "%s/metadata-%s.xml.PAYLOAD" % (site.workdir, repr(job.jobId))
         payloadXMLProblem = False
-        if os.path.exists(filenamePayloadXML) and final:
+        if not job.eventService:
+            if os.path.exists(filenamePayloadXML) and final:
 
-            # get the metadata created by the payload
-            payloadXML = getMetadata(site.workdir, job.jobId, athena=True)
+                # get the metadata created by the payload
+                payloadXML = getMetadata(site.workdir, job.jobId, athena=True)
 
             # add the metadata to the node
-            if payloadXML != "" and payloadXML != None:
-                tolog("Adding payload metadata of size %d to node dictionary:\n%s" % (len(payloadXML), payloadXML))
-                node['metaData'] = payloadXML
+                if payloadXML != "" and payloadXML != None:
+                    tolog("Adding payload metadata of size %d to node dictionary (\'metaData\' field):\n%s" % (len(payloadXML), payloadXML))
+                    node['metaData'] = payloadXML
+                else:
+                    pilotErrorDiag = "Empty Athena metadata in file: %s" % (filenamePayloadXML)
+                    payloadXMLProblem = True
             else:
-                pilotErrorDiag = "Empty Athena metadata in file: %s" % (filenamePayloadXML)
-                payloadXMLProblem = True
+                # athena XML should exist at the end of the job
+                if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not job.eventService:
+                    pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadXML)
+                    payloadXMLProblem = True
         else:
-            # athena XML should exist at the end of the job
-            if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not job.eventService:
-                pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadXML)
-                payloadXMLProblem = True
+            tolog("Will not send payload metadata for event service job")
 
         # fail the job if there was a problem with the athena metadata
         # remove the comments below if a certain trf and release should be excluded from sending metadata

@@ -321,7 +321,7 @@ def prepareMetadata(metadata_filename):
                 tolog("Could not update %s" % (metadata_filename))
                 metadata_filename = metadata_filename_ORG
     else:
-        tolog("Nothing for prepareMetadata() to do")
+        tolog("Nothing for prepareMetadata() to do (file %s does not exist)" % (metadata_filename))
 
     return metadata_filename
 
@@ -2877,6 +2877,8 @@ def updateXMLWithSURLs(experiment, node_xml, workDir, jobId, jobrec, format=''):
 
     # get the experiment object
     thisExperiment = getExperiment(experiment)
+
+    tolog("node_xml = %s" % (node_xml))
 
     node_xml_list = node_xml.split("\n")
     # loop over the xml and update where it is needed

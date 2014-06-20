@@ -324,9 +324,10 @@ def prepareInFiles(inFiles, filesizeIn, checksumIn):
 
     return ins, fIn, cIn
 
-def prepareOutFiles(outFiles, logFile, workdir):
+def prepareOutFiles(outFiles, logFile, workdir, fullpath=False):
     """ verify and prepare and the output files for transfer """
 
+    # fullpath = True means that the file in outFiles already has a full path, adding it to workdir is then not needed
     ec = 0
     pilotErrorDiag = ""
     outs = []
@@ -335,14 +336,21 @@ def prepareOutFiles(outFiles, logFile, workdir):
     from SiteMover import SiteMover
     for outf in outFiles:
         if outf and outf != 'NULL': # non-empty string and not NULL
-            if not os.path.isfile("%s/%s" % (workdir, outf)): # expected output file is missing
+            if (not os.path.isfile("%s/%s" % (workdir, outf)) and not fullpath) or (not os.path.isfile(outf) and fullpath): # expected output file is missing
                 pilotErrorDiag = "Expected output file %s does not exist" % (outf)
                 tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
                 error = PilotErrors()
                 ec = error.ERR_MISSINGOUTPUTFILE
                 break
             else:
+                tolog("outf = %s" % (outf))
+                if fullpath:
+                    # remove the full path here from outf
+                    workdir = os.path.dirname(outf)
+                    outf = os.path.basename(outf)
+
                 outs.append(outf)
+
                 # get the modification time for the file (needed by NG)
                 modt.append(SiteMover.getModTime(workdir, outf))
 
@@ -466,7 +474,7 @@ def getOutFilesGuids(outFiles, workdir, TURL=False):
         for thisfile in fileList:
             gpfn = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
             guid = str(thisfile.getAttribute("ID"))
-            for i in range(0,len(outFiles)):
+            for i in range(0, len(outFiles)):
                 if outFiles[i] == gpfn:
                     outFilesGuids[i] = guid
     else:

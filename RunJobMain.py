@@ -44,7 +44,7 @@ class RunJobMain(object):
     __globalErrorCode = 0                # global error code used with signal handler (only)
     __inputDir = ""                      # location of input files (source for mv site mover)
     __lfcRegistration = True             # should the pilot perform LFC registration?
-    __logguid = None                     # guid for the log file  SHOULDN'T BE NECESSARY, JOB.TARFILEGUID SHOULD BE KNOWN AND IS ONLY USED IN createFileMetadata() 
+    __logguid = None                     # guid for the log file
     __outputDir = ""                     # location of output files (destination for mv site mover)
     __pilot_initdir = ""                 # location of where the pilot is untarred and started
     __pilotlogfilename = "pilotlog.txt"  # default pilotlog filename 

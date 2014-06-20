@@ -64,6 +64,7 @@ lfcRegistration = True             # should the pilot perform LFC registration?
 experiment = "ATLAS"               # Current experiment (can be set with pilot option -F <experiment>)
 event_loop_running = False         #
 output_file_dictionary = {}        # OLD REMOVE
+output_files = []                  # A list of all files that have been successfully staged-out, used by createFileMetadata()
 guid_list = []                     # Keep track of downloaded GUIDs
 lfn_list = []                      # Keep track of downloaded LFNs
 eventRange_dictionary = {}         # eventRange_dictionary[event_range_id] = [path, cpu, wall]
@@ -642,6 +643,90 @@ def getMetadataFilename(event_range_id):
 
     return os.path.join(globalJob.workdir, "metadata-%s.xml" % (event_range_id))
 
+def createFileMetadata2(outFiles, outsDict, dsname, datasetDict, sitename, analJob=False):
+    """ create the metadata for the output + log files """
+
+    ec = 0
+
+    # Get the guids to the output files from the SURL dictionary
+#    from SiteMover import SiteMover
+#    sitemover = SiteMover()
+#    surlDictionary = sitemover.getSURLDictionary(pworkdir, globalJob.jobId)
+#    tolog("Got SURL dictionary = %s" % (surlDictionary))
+    globalJob.outFilesGuids = [] #surlDictionary.keys()
+    outFiles = []
+
+    # get the file sizes and checksums for the local output files
+    # WARNING: any errors are lost if occur in getOutputFileInfo()
+    ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(outFiles), getChecksumCommand(), skiplog=True, logFile=globalJob.logFile)
+    if ec != 0:
+        tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
+        failJob(globalJob.result[1], ec, globalJob, pilotErrorDiag=pilotErrorDiag)
+
+    # Get the correct log guid (a new one is generated for the Job() object, but we need to get it from the -i logguid parameter)
+    if logguid:
+        guid = logguid
+    else:
+        guid = globalJob.tarFileGuid
+
+    # Convert the output file list to LFNs
+    files = []
+#    for f in outFiles:
+#        fn = os.path.basename(f)
+#        files.append(fn)
+
+    # Create preliminary metadata (no metadata yet about log file - added later in pilot.py)
+    _fname = "%s/metadata-%d.xml" % (globalJob.workdir, globalJob.jobId)
+    try:
+        _status = pUtil.PFCxml(globalJob.experiment, _fname, files, fguids=globalJob.outFilesGuids, fntag="lfn", alog=globalJob.logFile, alogguid=guid,\
+                               fsize=fsize, checksum=checksum, analJob=analJob)
+    except Exception, e:
+        pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
+        tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag)) 
+        failJob(globalJob.result[1], error.ERR_MISSINGGUID, globalJob, pilotErrorDiag=pilotErrorDiag)
+    else:
+        if not _status:
+            pilotErrorDiag = "Missing guid(s) for output file(s) in metadata"
+            tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
+            failJob(globalJob.result[1], error.ERR_MISSINGGUID, globalJob, pilotErrorDiag=pilotErrorDiag)
+
+    tolog("NOTE: Output file info will not be sent to the server as part of xml metadata")
+    tolog("..............................................................................................................")
+    tolog("Created %s with:" % (_fname))
+    tolog(".. log            : %s (to be transferred)" % (globalJob.logFile))
+    tolog(".. log guid       : %s" % (guid))
+    tolog(".. out files      : %s" % str(globalJob.outFiles))
+    tolog(".. out file guids : %s" % str(globalJob.outFilesGuids))
+    tolog(".. fsize          : %s" % str(fsize))
+    tolog(".. checksum       : %s" % str(checksum))
+    tolog("..............................................................................................................")
+
+    # convert the preliminary metadata-<jobId>.xml file to OutputFiles-<jobId>.xml for NG and for CERNVM
+    # note: for CERNVM this is only really needed when CoPilot is used
+    if region == 'Nordugrid' or sitename == 'CERNVM':
+        if RunJobUtilities.convertMetadata4NG(os.path.join(globalJob.workdir, globalJob.outputFilesXML), _fname, outsDict, dsname, datasetDict):
+            tolog("Metadata has been converted to NG/CERNVM format")
+        else:
+            globalJob.pilotErrorDiag = "Could not convert metadata to NG/CERNVM format"
+            tolog("!!WARNING!!1999!! %s" % (globalJob.pilotErrorDiag))
+
+    # try to build a file size and checksum dictionary for the output files
+    # outputFileInfo: {'a.dat': (fsize, checksum), ...}
+    # e.g.: file size for file a.dat: outputFileInfo['a.dat'][0]
+    # checksum for file a.dat: outputFileInfo['a.dat'][1]
+    try:
+        # remove the log entries
+        _fsize = fsize[1:]
+        _checksum = checksum[1:]
+        outputFileInfo = dict(zip(globalJob.outFiles, zip(_fsize, _checksum)))
+    except Exception, e:
+        tolog("!!WARNING!!2993!! Could not create output file info dictionary: %s" % str(e))
+        outputFileInfo = {}
+    else:
+        tolog("Output file info dictionary created: %s" % str(outputFileInfo))
+
+    return ec, outputFileInfo
+
 def createFileMetadata(outputFile, event_range_id):
     """ Create the metadata for an output file """
 
@@ -964,6 +1049,9 @@ def asynchronousOutputStager():
                         else:
                             tolog("Removing %s from stage-out queue" % (f))
                             stageout_queue.remove(f)
+                            tolog("Adding %s to output file list" % (f))
+                            output_files.append(f)
+                            tolog("output_files = %s" % (output_files))
                             if ec == 0:
                                 status = 'finished'
                             else:
@@ -1578,7 +1666,8 @@ if __name__ == "__main__":
 
         # prepare for the output file data directory
         # (will only created for jobs that end up in a 'holding' state)
-        job.datadir = pworkdir + "/PandaJob_%d_data" % (job.jobId)
+        globalJob.datadir = pworkdir + "/PandaJob_%d_data" % (job.jobId)
+#        job.datadir = pworkdir + "/PandaJob_%d_data" % (job.jobId)
 
         # register cleanup function
         atexit.register(cleanup, job)
@@ -1619,7 +1708,8 @@ if __name__ == "__main__":
 
         # see if it's an analysis job or not
 #        global analysisJob
-        analysisJob = isAnalysisJob(job.trf.split(",")[0])
+        analysisJob = isAnalysisJob(globalJob.trf.split(",")[0])
+#        analysisJob = isAnalysisJob(job.trf.split(",")[0])
 
 
 
@@ -1634,45 +1724,45 @@ if __name__ == "__main__":
         else:
             pilotErrorDiag = "The Yampl server could not be created, cannot continue"
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
-            failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
+            failJob(0, globalJob.result[2], globalJob, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
         # Setup starts here ................................................................................
 
         # Update the job state file
-        job.jobState = "setup"
-        _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+        globalJob.jobState = "setup"
+        _retjs = JR.updateJobStateTest(globalJob, jobSite, node, mode="test")
 
         # Send [especially] the process group back to the pilot
-        job.setState([job.jobState, 0, 0])
-        rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport)
+        globalJob.setState([job.jobState, 0, 0])
+        rt = RunJobUtilities.updatePilotServer(globalJob, pilotserver, pilotport)
 
         # prepare the setup and get the run command list
-        ec, runCommandList, job, multi_trf = setup(job, jobSite, thisExperiment)
+        ec, runCommandList, globalJob, multi_trf = setup(globalJob, jobSite, thisExperiment)
         if ec != 0:
-            tolog("!!WARNING!!2999!! runJob setup failed: %s" % (job.pilotErrorDiag))
-            failJob(0, ec, job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
+            tolog("!!WARNING!!2999!! runJob setup failed: %s" % (globalJob.pilotErrorDiag))
+            failJob(0, ec, globalJob, pilotserver, pilotport, pilotErrorDiag=globalJob.pilotErrorDiag)
         tolog("Setup has finished successfully")
 
         # job has been updated, display it again
-        job.displayJob()
+        globalJob.displayJob()
 
         # stage-in .........................................................................................
 
         # update the job state file
-        job.jobState = "stagein"
-        _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+        globalJob.jobState = "stagein"
+        _retjs = JR.updateJobStateTest(globalJob, jobSite, node, mode="test")
 
         # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
-        if job.transferType == 'direct':
+        if globalJob.transferType == 'direct':
             tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
-                  (job.transferType))
-            RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+                  (globalJob.transferType))
+            RunJobUtilities.updateCopysetups('', transferType=globalJob.transferType)
 
         # stage-in all input files (if necessary)
-        job, ins, statusPFCTurl, usedFAXandDirectIO = stageIn(job, jobSite, analysisJob, pilot_initdir, pworkdir)
-        if job.result[2] != 0:
+        globalJob, ins, statusPFCTurl, usedFAXandDirectIO = stageIn(globalJob, jobSite, analysisJob, pilot_initdir, pworkdir)
+        if globalJob.result[2] != 0:
             tolog("Failing job with ec: %d" % (ec))
-            failJob(0, job.result[2], job, pilotserver, pilotport, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
+            failJob(0, globalJob.result[2], globalJob, pilotserver, pilotport, ins=ins, pilotErrorDiag=globalJob.pilotErrorDiag)
 
         # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
         # consult the FileState file dictionary if cmd3 should be updated (--directIn should not be set if all
@@ -1680,8 +1770,8 @@ if __name__ == "__main__":
         # and update the run command list if necessary.
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
-        if job.inFiles != ['']:
-            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, pworkdir, job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
+        if globalJob.inFiles != ['']:
+            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, pworkdir, globalJob.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
 
         # (stage-in ends here) .............................................................................
 
@@ -1710,7 +1800,7 @@ if __name__ == "__main__":
         athenamp_stderr = None
 
         # Create and start the TokenExtractor
-        input_tag_file = getTAGFile(job.inFiles)
+        input_tag_file = getTAGFile(globalJob.inFiles)
         if input_tag_file != "":
             tolog("Will run TokenExtractor on file %s" % (input_tag_file))
 
@@ -1737,7 +1827,7 @@ if __name__ == "__main__":
             # stop threads
             # ..
 
-            failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
+            failJob(0, globalJob.result[2], globalJob, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
 
 
@@ -1753,14 +1843,14 @@ if __name__ == "__main__":
 
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
-        ec, pilotErrorDiag, file_info_dictionary = createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken, job.filesizeIn, job.checksumIn, thisExperiment, pworkdir)
+        ec, pilotErrorDiag, file_info_dictionary = createPoolFileCatalog(globalJob.inFiles, globalJob.scopeIn, globalJob.inFilesGuids, globalJob.prodDBlockToken, globalJob.filesizeIn, globalJob.checksumIn, thisExperiment, pworkdir)
         if ec != 0:
             tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
             # stop threads
             # ..
 
-            failJob(0, job.result[2], job, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
+            failJob(0, globalJob.result[2], globalJob, pilotserver, pilotport, pilotErrorDiag=pilotErrorDiag)
 
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (getPoolFileCatalogPath())
@@ -1789,7 +1879,7 @@ if __name__ == "__main__":
             if athenamp_is_ready:
 
                 # Pilot will download some event ranges from the Event Server
-                message = downloadEventRanges(job.jobId)
+                message = downloadEventRanges(globalJob.jobId)
 
                 # Create a list of event ranges from the downloaded message
                 event_ranges = extractEventRanges(message)
@@ -1955,7 +2045,25 @@ if __name__ == "__main__":
                 tolog("Aborting stage-out thread (timeout)")
                 break
             time.sleep(30)
-            
+
+        # Get the datasets for the output files
+        globalJob.outFiles = output_files # replace the default job output file list which is anyway not correct (it is only used by AthenaMP for generating output file names)
+        tolog("output_files = %s" % (output_files))
+        dsname, datasetDict = getDatasets()
+        tolog("dsname = %s" % (dsname))
+        tolog("datasetDict = %s" % (datasetDict))
+
+        ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(globalJob.outFiles, globalJob.logFile, globalJob.workdir, fullpath=True)
+        if ec:
+            # missing output file (only error code from prepareOutFiles)
+            failJob(globalJob.result[1], ec, globalJob, pilotErrorDiag=pilotErrorDiag)
+        tolog("outsDict: %s" % str(outsDict))
+
+        # Create metadata for all successfully staged-out output files (include the log file as well, even if it has not been created yet)
+        ec, outputFileInfo = createFileMetadata2(list(output_files), outsDict, dsname, datasetDict, jobSite.sitename, analJob=analysisJob)
+        if ec:
+            runJob.failJob(0, ec, globalJob, pilotErrorDiag=globalJob.pilotErrorDiag)
+
         tolog("Stopping stage-out thread")
         asyncOutputStager_thread.stop()
         asyncOutputStager_thread.join()
@@ -1989,21 +2097,20 @@ if __name__ == "__main__":
         moveTrfMetadata(pworkdir)
         
         # Check the job report for any exit code that should replace the res_tuple[0]
-        res0, exitAcronym, exitMsg = getTrfExitInfo(0, job.workdir)
+        res0, exitAcronym, exitMsg = getTrfExitInfo(0, globalJob.workdir)
         res = (res0, exitMsg, exitMsg)
 
         # If payload leaves the input files, delete them explicitly
         if ins:
-            ec = pUtil.removeFiles(job.workdir, ins)
+            ec = pUtil.removeFiles(globalJob.workdir, ins)
 
         # Payload error handling
         ed = ErrorDiagnosis()
-        job = ed.interpretPayload(job, res, False, 0, runCommandList, failureCode)
-        if job.result[1] != 0 or job.result[2] != 0:
-            failJob(job.result[1], job.result[2], job, pilotserver, pilotport, pilotErrorDiag=job.pilotErrorDiag)
+        globalJob = ed.interpretPayload(globalJob, res, False, 0, runCommandList, failureCode)
+        if globalJob.result[1] != 0 or globalJob.result[2] != 0:
+            failJob(globalJob.result[1], globalJob.result[2], globalJob, pilotserver, pilotport, pilotErrorDiag=globalJob.pilotErrorDiag)
 
-        globalJob.setState(["finished", 0, 0])
-        tolog("Done")
+#        globalJob.setState(["finished", 0, 0])
 
 #        # Run main loop until event_loop_running is set to False
 #        while event_loop_running:
@@ -2042,9 +2149,11 @@ if __name__ == "__main__":
 
         # wrap up ..........................................................................................
 
-        job.setState(["finished", 0, 0])
-        rt = RunJobUtilities.updatePilotServer(job, pilotserver, pilotport, final=True)
-        sysExit(job)
+        globalJob.setState(["finished", 0, 0])
+        rt = RunJobUtilities.updatePilotServer(globalJob, pilotserver, pilotport, final=True)
+
+        tolog("Done")
+        sysExit(globalJob)
     
     except Exception, errorMsg:
 
