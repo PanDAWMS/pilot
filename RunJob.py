@@ -1,6 +1,10 @@
 # Class definition:
 #   RunJob
 #   This is the main RunJob class; RunJobEvent etc will inherit from this class
+#   Note: at the moment, this class is essentially the old runJob module turned object oriented.
+#         The class will later become RunJobNormal, ie responible for running normal PanDA jobs.
+#         At that point a new RunJob top class will be created containing methods that have been
+#         identified as common between the various sub classes.
 #   Instances are generated with RunJobFactory
 #   Subclasses should implement all needed methods prototyped in this class
 #   Note: not compatible with Singleton Design Pattern due to the subclassing
@@ -28,7 +32,7 @@ from shutil import copy2
 # relabelled -h, queuename to -b (debuglevel not used)
 
 
-class RunJobMain(object):
+class RunJob(object):
 
     # private data members
     __runjob = "Normal"                  # String defining the RunJob class
@@ -297,6 +301,15 @@ class RunJobMain(object):
             filename = filename[:-1] # remove the trailing 'c'
 
         return filename
+
+    def allowLoopingJobKiller(self):
+        """ Should the pilot search for looping jobs? """
+
+        # The pilot has the ability to monitor the payload work directory. If there are no updated files within a certain
+        # time limit, the pilot will consider the as stuck (looping) and will kill it. The looping time limits are set
+        # in environment.py (see e.g. loopingLimitDefaultProd)
+
+        return True
 
     # Optional methods
     # ..
@@ -957,7 +970,7 @@ if __name__ == "__main__":
     error = PilotErrors()
 
     # Get runJob object
-    runJob = RunJobMain()
+    runJob = RunJob()
 
     # Define a new parent group
     os.setpgrp()
