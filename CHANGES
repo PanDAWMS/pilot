@@ -186,6 +186,7 @@ Corrected wrong variables names in updatePandaServer() causing job recovery to f
 Using new setup of asetup in getVerifiedAtlasSetupPath() for nightlies and skipping path verification (ATLASExperiment)
 Updated verifySetupCommand() to handle modern asetup verification (pUtil)
 Updated setJobDef() to handle swRelease cases like "Atlas-19.0.X.Y-VAL"
+Removed runJob.py from distribution. Replaced by RunJob.py
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
@@ -193,25 +194,28 @@ Updated SiteMoverFarm for GFAL2SiteMover
 Added new error code, 1218, ERR_FILEEXISTS (PilotErrors)
 Added several new methods to SiteInformation as part of site mover refactoring: getCopySetup(), getCopyTool(), getCopyPrefix(), getCopyFileAccessInfo(),
 getDirectInAccessMode() [currently used by GFAL2SiteMover only]
+objectstoreSiteMover
 
 ------------------------------------------------------
 
 Added to distribution:
-CHANGES                : This file
-Configuration.py       : Singleton dictionary that can be read from JSON file
-CustomEncoder.py       : Convert configuration object to JSON
-Monitor.py             : Monitoring loop of the pilot
-UpdateHandler.py       : Utility class
-WatchDog.py            : Process cleanup
-environment.py         : Defaults for global variables
-glexec_aux.py          : Entry point for glExec sandbox [merge with pilot.py?]
-glexec_utils.py        : glExec utilities, renamed from my_proxy_utils.py
-processes.py           : Process handling
-runEvent.py            : Subprocess module for Event Service use
-EventServiceFactory.py : Factory for generating Event Service objects that can be experiment specific
-EventService.py        : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
-PilotYamplServer.py    : Yampl server class used by runEvent
-StoppableThread.py     : Threading class for threads that need a stop() method
-GFAL2SiteMover.py      : New site mover for GFAL2
+CHANGES                 : This file
+Configuration.py        : Singleton dictionary that can be read from JSON file
+CustomEncoder.py        : Convert configuration object to JSON
+Monitor.py              : Monitoring loop of the pilot
+UpdateHandler.py        : Utility class
+WatchDog.py             : Process cleanup
+environment.py          : Defaults for global variables
+glexec_aux.py           : Entry point for glExec sandbox [merge with pilot.py?]
+glexec_utils.py         : glExec utilities, renamed from my_proxy_utils.py
+processes.py            : Process handling
+runEvent.py             : Subprocess module for Event Service use
+EventServiceFactory.py  : Factory for generating Event Service objects that can be experiment specific
+EventService.py         : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
+PilotYamplServer.py     : Yampl server class used by runEvent
+StoppableThread.py      : Threading class for threads that need a stop() method
+GFAL2SiteMover.py       : New site mover for GFAL2
+objectstoreSiteMover.py : New site mover for Object Stores
+RunJob*                 : New RunJob classes
 
 Add new error code to DB

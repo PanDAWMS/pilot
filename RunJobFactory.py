@@ -9,6 +9,7 @@ from RunJobMain import RunJobMain
 from RunJobEvent import RunJobEvent
 from RunJobHPC import RunJobHPC
 from RunJobTitan import RunJobTitan
+from RunJobMira import RunJobMira
 
 class RunJobFactory(object):
 

@@ -1,14 +1,13 @@
 # Class definition:
 #   RunJobHPC
-#   This class is the ..
+#   This class is the base class for the HPC classes. It inherits from RunJob
 #   Instances are generated with RunJobFactory via pUtil::getRunJob()
 #   Implemented as a singleton class
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
 
 # Import relevant python/pilot modules
 from RunJobMain import RunJobMain                # Parent RunJob class
-#from pUtil import tolog                         # Logging method that sends text to the pilot log
-def tolog(s): print s
+from pUtil import tolog                         # Logging method that sends text to the pilot log
 
 # Standard python modules
 #import re

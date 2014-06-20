@@ -890,7 +890,7 @@ def getOutputFileInfo(outputFiles, checksum_cmd, skiplog=False, logFile=""):
     error = PilotErrors()
     pilotErrorDiag = ""
 
-    # add the log file if necessary (when this function is called from runJob)
+    # add the log file if necessary (when this function is called from RunJob)
     # WARNING: temporary redundancy. fsize and checksum is checked again in mover code, merge later
     if logFile != "":
         outputFiles.insert(0, logFile)
@@ -3065,9 +3065,9 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
     if os.path.exists(fname):
         _size = os.path.getsize(fname)
         if _size > 0:
-            tolog(". runJob produced stderr    : Yes (size: %d) see dump below" % (_size))
+            tolog(". RunJob produced stderr    : Yes (size: %d) see dump below" % (_size))
         else:
-            tolog(". runJob produced stderr    : No")
+            tolog(". RunJob produced stderr    : No")
 
     tolog(". Trf error code            : %d" % (terr))
 
@@ -3137,7 +3137,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
             dumpFile(fname, topilotlog=True)
             tolog("\n//end %s /////////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
 
-    # dump the wrapper (runJob) stderr if it exists
+    # dump the wrapper (RunJob) stderr if it exists
     fname = "%s/runjob.stderr" % (job.workdir)
     if os.path.exists(fname):
         if os.path.getsize(fname) > 0:

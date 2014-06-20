@@ -1,13 +1,13 @@
 # Class definition:
 #   RunJobTitan
-#   This class is the ..
+#   [Add description here]
 #   Instances are generated with RunJobFactory via pUtil::getRunJob()
 #   Implemented as a singleton class
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
 
 # Import relevant python/pilot modules
 from RunJobHPC import RunJobHPC                  # Parent RunJob class
-#from pUtil import tolog                         # Logging method that sends text to the pilot log
+from pUtil import tolog                         # Logging method that sends text to the pilot log
 def tolog(s): print s
 
 # Standard python modules
