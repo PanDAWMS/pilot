@@ -40,7 +40,8 @@ class Monitor:
         self.__env['curtime_sp'] = int(time.time())       
         self.__env['lastTimeFilesWereModified'] = {}
         self.__wdog = WatchDog()
-        
+        self.__runJob = None # Remember the RunJob instance
+
         # register cleanup function
         atexit.register(pUtil.cleanup, self.__wdog, self.__env['pilot_initdir'], self.__env['wrapperFlag'], self.__env['rmwkdir'])
         
@@ -49,7 +50,44 @@ class Monitor:
         signal.signal(signal.SIGSEGV, pUtil.sig2exc)
         signal.signal(signal.SIGXCPU, pUtil.sig2exc)
         signal.signal(signal.SIGBUS,  pUtil.sig2exc)
-        
+
+    def __allowLoopingJobKiller(self):
+        """ Should the looping job killer be run? """
+
+        # This decision is not on an Experiment level but is relevant only for the type of subprocess that is requested
+        # E.g. the looping job killer should normally be run for a normal ATLAS job, but not on an HPC. Therefore, the
+        # decision is made inside the subprocess class (RunJob, RunJobHPC, ..)
+
+        allow = True
+
+        # Which RunJob class do we need to ask?
+        if not self.__runJob:
+            # First get an Experiment object, which will tell us which subprocess to ask
+            thisExperiment = pUtil.getExperiment(self.__env['experiment'])
+            subprocessName = thisExperiment.getSubprocessName(self.__env['jobDic']["prod"][1].eventService)
+            pUtil.tolog("subprocessName = %s" % (subprocessName))
+
+            # Now get an instance of the corresponding class from the RunJobFactory
+            from RunJobFactory import RunJobFactory
+            factory = RunJobFactory()
+            _rJ = factory.newRunJob(subprocessName)
+            self.__runJob = _rJ()
+            pUtil.tolog("runjob=%s"%str(self.__runJob))
+
+        if self.__runJob:
+            # Is the looping job killer allowed by the subprocess?
+            allow = self.__runJob.allowLoopingJobKiller()
+            name = os.path.splitext(self.__runJob.getRunJobFileName())[0]
+            if allow:
+                pUtil.tolog("Looping job killer is allowed by subprocess %s" % (name))
+            else:
+                pUtil.tolog("Looping job killer is not allowed by subprocess %s" % (name))
+        else:
+            pUtil.tolog("!!WARNING!!2121!! Could not get an instance of a RunJob* class (cannot decide about looping job killer)")
+            allow = False
+
+        return allow
+
     def __checkPayloadStdout(self):
         """ Check the size of the payload stdout """    
     
@@ -538,7 +576,11 @@ class Monitor:
         # every 30 minutes, look for looping jobs
         if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip: # 30 minutes
             # check when the workdir files were last updated or that the stageout command is not hanging
-            self.__loopingJobKiller()
+            if self.__allowLoopingJobKiller():
+                pUtil.tolog("__allowLoopingJobKiller = true")
+                self.__loopingJobKiller()
+            else:
+                pUtil.tolog("__allowLoopingJobKiller = false")
 
             # make final server update for all ended jobs
             self.__updateJobs()
@@ -1058,7 +1100,7 @@ class Monitor:
             # maximum number of found processes
             self.__env['maxNProc'] = 0
         
-            # fork into two processes, one for the pilot main control loop, and one for runJob
+            # fork into two processes, one for the pilot main control loop, and one for RunJob
             pid_1 = os.fork()
             if pid_1: # parent process
                 # store the process id in case cleanup need to kill lingering processes

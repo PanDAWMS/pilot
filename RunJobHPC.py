@@ -47,6 +47,17 @@ class RunJobHPC(RunJob):
 
         return super(RunJobHPC, self).getRunJobFileName()
 
+    # def argumentParser(self):  <-- see example in RunJob.py
+
+    def allowLoopingJobKiller(self):
+        """ Should the pilot search for looping jobs? """
+
+        # The pilot has the ability to monitor the payload work directory. If there are no updated files within a certain
+        # time limit, the pilot will consider the as stuck (looping) and will kill it. The looping time limits are set
+        # in environment.py (see e.g. loopingLimitDefaultProd)
+
+        return False
+
 if __name__ == "__main__":
 
     tolog("Starting RunJobHPC")

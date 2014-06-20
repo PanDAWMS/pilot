@@ -10,6 +10,7 @@ from RunJobEvent import RunJobEvent
 from RunJobHPC import RunJobHPC
 from RunJobTitan import RunJobTitan
 from RunJobMira import RunJobMira
+from RunJobNormal import RunJobNormal
 
 class RunJobFactory(object):
 
@@ -34,17 +35,17 @@ if __name__ == "__main__":
 
     factory = RunJobFactory()
 
-    types = ['Normal', 'EventService', 'HPC', 'Mira', 'Titan', 'Dummy']
+    types = ['Normal', 'Normal2', 'EventService', 'HPC', 'Mira', 'Titan', 'Dummy']
 
     for t in types:
         print "\nAttempting to get class for type", t
         try:
-            runJobClass = factory.newRunJob(t)
+            runJob = factory.newRunJob(t)
         except Exception, e:
             print e
         else:
-            rJ = runJobClass()
+            rJ = runJob()
             print 'got runJob:',rJ.getRunJob()
             print 'file name:', rJ.getRunJobFileName()
-            del runJobClass
+            del runJob
 

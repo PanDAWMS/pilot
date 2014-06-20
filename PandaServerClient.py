@@ -420,9 +420,6 @@ class PandaServerClient:
                 else:
                     tolog("Removed log file")
 
-        if node_xml == "":
-            tolog("!!WARNING!!1212!! getXML could not set the node xml (empty string at the end of the method)")
-
         return node_xml
 
     def updateOutputFilesXMLWithSURLs4NG(self, experiment, siteWorkdir, jobId, outputFilesXML):

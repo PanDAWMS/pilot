@@ -42,9 +42,9 @@ def set_environment():
     env['stagein'] = False                     # Set to True during stagein phase
     env['stageout'] = False                    # Set to True during stageout phase
     env['queuename'] = ""                      # Name of queue used to download config info
-    env['loopingLimitDefaultProd'] = 12*3600   # If job does not write anything in N hours, it is considered a looping job (production jobs)
+    env['loopingLimitDefaultProd'] = 60 # 12*3600   # If job does not write anything in N hours, it is considered a looping job (production jobs)
     env['loopingLimitDefaultUser'] = 3*3600    # If job does not write anything in N hours, it is considered a looping job (user analysis jobs)
-    env['loopingLimitMinDefault'] = 2*3600     # Minimum allow looping limit
+    env['loopingLimitMinDefault'] = 60 # 2*3600     # Minimum allow looping limit
     env['stageinretry'] = 2                    # Number of stage-in tries
     env['stageoutretry'] = 2                   # Number of stage-out tries
     env['logFileDir'] = ""                     # Log file directory
@@ -74,7 +74,7 @@ def set_environment():
     env['lfcRegistration'] = True              # Should the pilot perform LFC registration?
     env['timefloor_default'] = None            # Time limit for multi-jobs in minutes (turned off by default)
     env['useCoPilot'] = False                  # CERNVM Co-Pilot framework (on: let Co-Pilot finish job, off: let pilot finish job (default))
-    env['update_freq_server'] = 30*60          # Server update frequency, 30 minutes
+    env['update_freq_server'] = 3*60          # Server update frequency, 30 minutes
     env['experiment'] = "ATLAS"                # Current experiment (can be set with pilot option -F <experiment>)
     env['getjobmaxtime'] = 3*60                # Maximum time the pilot will attempt to download a single job (seconds)
     env['pandaJobDataFileName'] = "pandaJobData.out" # Job definition file name    

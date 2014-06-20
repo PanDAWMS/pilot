@@ -6,9 +6,9 @@
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
 
 # Import relevant python/pilot modules
-from RunJobHPC import RunJobHPC                  # Parent RunJob class
-from pUtil import tolog                         # Logging method that sends text to the pilot log
-def tolog(s): print s
+from RunJob import RunJob
+from RunJobHPC import RunJobHPC                  # Parent RunJobHPC class
+from pUtil import tolog                          # Logging method that sends text to the pilot log
 
 # Standard python modules
 #import re
@@ -18,9 +18,9 @@ def tolog(s): print s
 class RunJobMira(RunJobHPC):
 
     # private data members
-    __runjob = "Mira"                          # String defining the sub class
-    __instance = None                           # Boolean used by subclasses to become a Singleton
-#    __error = PilotErrors()                    # PilotErrors object
+    __runjob = "Mira"                            # String defining the sub class
+    __instance = None                            # Boolean used by subclasses to become a Singleton
+#    __error = PilotErrors()                     # PilotErrors object
 
     # Required methods
 
@@ -34,7 +34,7 @@ class RunJobMira(RunJobHPC):
         """ Override the __new__ method to make the class a singleton """
 
         if not cls.__instance:
-            cls.__instance = super(RunJobMira, cls).__new__(cls, *args, **kwargs)
+            cls.__instance = super(RunJobHPC, cls).__new__(cls, *args, **kwargs)
 
         return cls.__instance
 
@@ -47,6 +47,17 @@ class RunJobMira(RunJobHPC):
         """ Return the filename of the module """
 
         return super(RunJobMira, self).getRunJobFileName()
+
+    # def argumentParser(self):  <-- see example in RunJob.py
+
+    def allowLoopingJobKiller(self):
+        """ Should the pilot search for looping jobs? """
+
+        # The pilot has the ability to monitor the payload work directory. If there are no updated files within a certain
+        # time limit, the pilot will consider the as stuck (looping) and will kill it. The looping time limits are set
+        # in environment.py (see e.g. loopingLimitDefaultProd)
+
+        return False
 
 if __name__ == "__main__":
 

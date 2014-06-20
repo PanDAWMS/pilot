@@ -1,14 +1,13 @@
 # Class definition:
-#   RunJobNormal
-#   This class is the ..
+#   RunJobEvent
+#   [Add description here]
 #   Instances are generated with RunJobFactory via pUtil::getRunJob()
 #   Implemented as a singleton class
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
 
 # Import relevant python/pilot modules
 from RunJob import RunJob                        # Parent RunJob class
-#from pUtil import tolog                         # Logging method that sends text to the pilot log
-def tolog(s): print s
+from pUtil import tolog                          # Logging method that sends text to the pilot log
 
 # Standard python modules
 #import re
@@ -47,6 +46,17 @@ class RunJobEvent(RunJob):
         """ Return the filename of the module """
 
         return super(RunJobEvent, self).getRunJobFileName()
+
+    # def argumentParser(self):  <-- see example in RunJob.py
+
+    def allowLoopingJobKiller(self):
+        """ Should the pilot search for looping jobs? """
+
+        # The pilot has the ability to monitor the payload work directory. If there are no updated files within a certain
+        # time limit, the pilot will consider the as stuck (looping) and will kill it. The looping time limits are set
+        # in environment.py (see e.g. loopingLimitDefaultProd)
+
+        return True
 
 if __name__ == "__main__":
 
