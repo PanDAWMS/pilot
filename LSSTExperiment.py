@@ -84,6 +84,19 @@ class LSSTExperiment(Experiment):
 
         return True # obviously change this to 'status' once implemented
 
+
+    def getPayloadName(self, job):
+        """ Set a suitable name for the payload stdout """
+
+        # The payload <name> gets translated into <name>_stdout.txt
+        # which is the name of the stdout file produced by the payload execution
+        # (essentially commands.getoutput("<setup>; <payload executable> [options] > <name>_stdout.txt"))
+
+        # The job object can be used to create more precise stdout names (see e.g. the ATLASExperiment implementation)
+
+        return "transformation"
+
+
 if __name__ == "__main__":
 
     print "Implement test cases here"
