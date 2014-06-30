@@ -16,6 +16,8 @@ class LSSTSiteInformation(SiteInformation):
     # private data members
     __experiment = "LSST"
     __instance = None
+    __experiment_sw_dir_var = "VO_%s_SW_DIR" % (__experiment)
+    __experiment_python_pilot_var = "%s_PYTHON_PILOT" % (__experiment)
 
     # Required methods
 
@@ -94,8 +96,8 @@ class LSSTSiteInformation(SiteInformation):
         else:
             # check for empty appdir's on LCG
             if _appdir == "":
-                if os.environ.has_key("VO_%s_SW_DIR" % (self.__experiment)):
-                    _appdir = os.environ["VO_%s_SW_DIR" % (self.__experiment)]
+                if os.environ.has_key(self.__experiment_sw_dir_var):
+                    _appdir = os.environ[self.__experiment_sw_dir_var]
                     tolog("Set site.appdir to %s" % (_appdir))
             else:
                 tolog("Got plain appdir: %s" % (_appdir))
@@ -118,7 +120,6 @@ class LSSTSiteInformation(SiteInformation):
 
 
 if __name__ == "__main__":
-
     a = LSSTSiteInformation()
     tolog("Experiment: %s" % (a.getExperiment()))
 
