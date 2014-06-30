@@ -55,10 +55,6 @@ class LSSTSiteInformation(SiteInformation):
 
         return False
 
-    def allowAlternativeStageOut(self):
-        """ Is alternative stage-out allowed? """
-        # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
-        return False
 
 
     def extractAppdir(self, appdir, processingType, homePackage):
@@ -119,15 +115,30 @@ class LSSTSiteInformation(SiteInformation):
 
 
 
-    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
-        """ Return proper paths for the storage element used during stage-out """
-
-        # Implement in sub-class
-
-        ### do we need this for LSST? Stageout is done by pipeline_wrapper, not by pilot
-        return ""
-
-
+#    def readpar(self, par, alt=False):
+#        """ Read parameter variable from queuedata """
+#
+#    def getQueuedataFileName(self, useExtension=None, check=True, alt=False):
+#        """ Define the queuedata filename """
+#
+#    def verifyQueuedata(self, queuename, filename, _i, _N, url):
+#        """ Verify the consistency of the queuedata """
+#
+#    def getQueuedata(self, queuename, forceDownload=False, alt=False, url=""):
+#        """ Download the queuedata if not already downloaded """
+#
+#    def postProcessQueuedata(self, queuename, pshttpurl, thisSite, _jobrec, force_devpilot):
+#        """ Update queuedata fields if necessary """
+#
+#    def verifySoftwareDirectory(self):
+#        """ Should the software directory (schedconfig.appdir) be verified? """
+#
+#    def allowAlternativeStageOut(self):
+#        """ Is alternative stage-out allowed? """
+#
+#    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
+#        """ Return proper paths for the storage element used during stage-out """
+#
 
 if __name__ == "__main__":
     a = LSSTSiteInformation()
