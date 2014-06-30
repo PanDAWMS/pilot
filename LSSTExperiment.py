@@ -10,6 +10,7 @@ from Experiment import Experiment  # Main experiment class
 from pUtil import tolog            # Logging method that sends text to the pilot log
 from pUtil import readpar          # Used to read values from the schedconfig DB (queuedata)
 from pUtil import isAnalysisJob  # Is the current job a user analysis job or a production job?
+from pUtil import setPilotPythonVersion  # Which python version is used by the pilot
 from pUtil import getCmtconfig  # Get the cmtconfig from the job def or queuedata
 from pUtil import getCmtconfigAlternatives  # Get a list of locally available cmtconfigs
 from pUtil import getSwbase  # To build path for software directory, e.g. using schedconfig.appdir (move to subclass)
@@ -24,6 +25,7 @@ class LSSTExperiment(Experiment):
     __instance = None
     __experiment_sw_dir_var = "VO_%s_SW_DIR" % (__experiment)
     __experiment_python_pilot_var = "%s_PYTHON_PILOT" % (__experiment)
+    __experiment_cvmfs_root = '/cvmfs/oasis.opensciencegrid.org/lsst'
 
     # Required methods
 
@@ -215,8 +217,20 @@ class LSSTExperiment(Experiment):
 
     def willDoFileLookups(self):
         """ Should (LFC) file lookups be done by the pilot or not? """
-
         return False
+
+
+    def removeRedundantFiles(self, workdir):
+        """ Remove redundant files and directories """
+        # List of files and directories to be removed from work directory prior to log file creation
+        # Make sure that any large files or directories that are not wanted in the log file are included in this list
+        super(LSSTExperiment, cls).removeRedundantFiles(cls, *args, **kwargs)
+
+
+    def doFileLookups(self, doFileLookups):
+        """ Update the file lookups boolean """
+        self.__doFileLookups = doFileLookups
+
 
     def willDoFileRegistration(self):
         """ Should (LFC) file registration be done by the pilot or not? """
@@ -233,6 +247,7 @@ class LSSTExperiment(Experiment):
 
         return 0
 
+
     def specialChecks(self, **kwargs):
         """ Implement special checks here """
         # Return False if fatal failure, otherwise return True
@@ -240,9 +255,64 @@ class LSSTExperiment(Experiment):
 
         status = False
 
-        tolog("No special checks for \'%s\'" % (self.__experiment))
+        # Display system architecture
+        self.displayArchitecture()
+
+        # Set the python version used by the pilot
+        setPilotPythonVersion()
+
+        # Test CVMFS
+        if status:
+            status = self.testCVMFS()
 
         return True # obviously change this to 'status' once implemented
+
+
+    def testCVMFS(self):
+        """ Run the CVMFS diagnostics tool """
+
+        status = False
+
+        timeout = 5 * 60
+        cmd = "export LSST_CVMFS_ROOT=" + self.__experiment_cvmfs_root + \
+            " ; ls -l ${LSST_CVMFS_ROOT}/update.details ; cat ${LSST_CVMFS_ROOT}/update.details"
+        tolog("Executing command: %s (time-out: %d)" % (cmd, timeout))
+        exitcode, output = timedCommand(cmd, timeout=timeout)
+        if exitcode != 0:
+            if "No such file or directory" in output:
+                tolog("!!WARNING!!1235!! File update.details was not found (can not run CVMFS validity test)")
+                status = True
+            elif "timed out" in output:
+                tolog("!!WARNING!!1236!! Cat file update.details timed out: %s (ignore)" % (output))
+                status = True
+            else:
+                tolog("!!WARNING!!1234!! CVMFS diagnostics tool failed: %d, %s" % (exitcode, output))
+        else:
+            tolog("Diagnostics tool has verified CVMFS")
+            status = True
+
+        return status
+
+
+    def displayArchitecture(self):
+        """ Display system architecture """
+
+        tolog("Architecture information:")
+
+        cmd = "lsb_release -a"
+        tolog("Excuting command: %s" % (cmd))
+        out = commands.getoutput(cmd)
+        if "Command not found" in out:
+            # Dump standard architecture info files if available
+            self.dump("/etc/lsb-release")
+            self.dump("/etc/SuSE-release")
+            self.dump("/etc/redhat-release")
+            self.dump("/etc/debian_version")
+            self.dump("/etc/issue")
+            self.dump("$MACHTYPE", cmd="echo")
+        else:
+            tolog("\n%s" % (out))
+
 
 
     def getPayloadName(self, job):

@@ -58,7 +58,6 @@ class LSSTSiteInformation(SiteInformation):
     def allowAlternativeStageOut(self):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
-
         return False
 
 
@@ -117,6 +116,17 @@ class LSSTSiteInformation(SiteInformation):
             ec = self.__error.ERR_NOSOFTWAREDIR
 
         return ec, _appdir
+
+
+
+    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
+        """ Return proper paths for the storage element used during stage-out """
+
+        # Implement in sub-class
+
+        ### do we need this for LSST? Stageout is done by pipeline_wrapper, not by pilot
+        return ""
+
 
 
 if __name__ == "__main__":
