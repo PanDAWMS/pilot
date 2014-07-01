@@ -5,11 +5,14 @@
 #   Subclasses should implement all needed methods prototyped in this class
 #   Note: not compatible with Singleton Design Pattern due to the subclassing
 
+# Standard python modules
+from glob import glob
 import os
 import re
 import commands
 from subprocess import Popen, PIPE
 
+# Import relevant python/pilot modules
 from PilotErrors import PilotErrors
 from pUtil import tolog                    # Dump to pilot log
 from pUtil import readpar                  # Used to read values from the schedconfig DB (queuedata)
@@ -185,7 +188,11 @@ class Experiment(object):
                           "http://common-analysis-framework.cern.ch",\
                           "http://classis01.roma1.infn.it",\
                           "http://atlas-install.roma1.infn.it",\
-                          "http://homepages.physik.uni-muenchen.de/~Johannes.Ebke"]
+                          "http://homepages.physik.uni-muenchen.de/~Johannes.Ebke", \
+                          "http://pandawms.org", \
+                          "http://s3.amazonaws.com/pandawms-jobcache", \
+                          "http://srs.slac.stanford.edu/JobControlBridge/bridge/mail"\
+                          ]
 
         if order:
             validBaseURLs.append(order)

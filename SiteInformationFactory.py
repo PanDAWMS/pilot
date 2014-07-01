@@ -10,6 +10,7 @@ from ATLASSiteInformation import ATLASSiteInformation
 from CMSSiteInformation import CMSSiteInformation
 from NordugridATLASSiteInformation import NordugridATLASSiteInformation
 from OtherSiteInformation import OtherSiteInformation
+from LSSTSiteInformation import LSSTSiteInformation
 
 class SiteInformationFactory(object):
 

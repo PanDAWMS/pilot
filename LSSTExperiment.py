@@ -17,14 +17,33 @@ from pUtil import getSwbase  # To build path for software directory, e.g. using 
 from pUtil import getSiteInformation  # Get the SiteInformation object corresponding to the given experiment
 from pUtil import verifyReleaseString  # To verify the release string (move to Experiment later)
 from pUtil import verifySetupCommand  # Verify that a setup file exists
+from PilotErrors import PilotErrors  # Error codes
+from RunJobUtilities import dumpOutput  # ASCII dump
+from RunJobUtilities import getStdoutFilename  #
+from RunJobUtilities import findVmPeaks  #
+from RunJobUtilities import getSourceSetup  #
+
+# Standard python modules
+import re
+import os
+import commands
+from glob import glob
 
 class LSSTExperiment(Experiment):
 
     # private data members
-    __experiment = "LSST"
-    __instance = None
+    # private data members
+    __experiment = "LSST"  # String defining the experiment
+    __instance = None  # Boolean used by subclasses to become a Singleton
+    __warning = ""
+    __analysisJob = False
+    __job = None  # Current Job object
+    __error = PilotErrors()  # PilotErrors object
+    __doFileLookups = False  # True for LFC based file lookups
+    # additional private data members
     __experiment_sw_dir_var = "VO_%s_SW_DIR" % (__experiment)
-    __experiment_python_pilot_var = "%s_PYTHON_PILOT" % (__experiment)
+    #__experiment_python_pilot_var = "%s_PYTHON_PILOT" % (__experiment)
+    __experiment_python_pilot_var = "ATLAS_PYTHON_PILOT"
     __experiment_cvmfs_root = '/cvmfs/oasis.opensciencegrid.org/lsst'
 
     # Required methods
@@ -220,11 +239,11 @@ class LSSTExperiment(Experiment):
         return False
 
 
-    def removeRedundantFiles(self, workdir):
-        """ Remove redundant files and directories """
-        # List of files and directories to be removed from work directory prior to log file creation
-        # Make sure that any large files or directories that are not wanted in the log file are included in this list
-        super(LSSTExperiment, cls).removeRedundantFiles(cls, *args, **kwargs)
+#    def removeRedundantFiles(self, workdir):
+#        """ Remove redundant files and directories """
+#        # List of files and directories to be removed from work directory prior to log file creation
+#        # Make sure that any large files or directories that are not wanted in the log file are included in this list
+#        super(LSSTExperiment, self).removeRedundantFiles(*args, **kwargs)
 
 
     def doFileLookups(self, doFileLookups):
@@ -327,10 +346,16 @@ class LSSTExperiment(Experiment):
         return "transformation"
 
 
+    # Optional
+    def getPanDAServerURL(self, protocol="http://"):
+        """ Define the URL for the PanDA server"""
+        return protocol + "pandawms.org"
+
+
 if __name__ == "__main__":
 
     print "Implement test cases here"
     
-#    a=ATLASExperiment()
-#    a.specialChecks()
+    a = LSSTExperiment()
+    a.specialChecks()
 #    appdir='/cvmfs/atlas.cern.ch/repo/sw'

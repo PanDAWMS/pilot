@@ -253,7 +253,7 @@ class SiteInformation(object):
 
         return hasQueuedata
 
-    def getQueuedata(self, queuename, forceDownload=False, alt=False, url=""):
+    def getQueuedata(self, queuename, forceDownload=False, alt=False, url="", urlPort=25085):
         """ Download the queuedata if not already downloaded """
 
         # Queuedata means the dump of all geometrical data for a given site. This method downloads and stores queuedata in a JSON or pickle
@@ -272,6 +272,8 @@ class SiteInformation(object):
 
         if url == "":
             exp = getExperimentObject(self.__experiment)
+            tolog("self.__experiment = %s" % (self.__experiment))
+            tolog("exp = %s" % (exp))
             url = exp.getPanDAServerURL()
             tolog("Will use server url = %s" % (url))
 
@@ -304,8 +306,8 @@ class SiteInformation(object):
                 sslCert = os.environ['X509_USER_PROXY']
             else:
                 sslCert  = '/tmp/x509up_u%s' % str(os.getuid())
-            cmd = 'curl --connect-timeout 20 --max-time 120 --cacert %s -sS "%s:25085/cache/schedconfig/%s.all.%s" > %s' % \
-                  (sslCert, url, queuename, getExtension(alternative='pilot'), filename)
+            cmd = 'curl --connect-timeout 20 --max-time 120 --cacert %s -sS "%s:%s/cache/schedconfig/%s.all.%s" > %s' % \
+                  (sslCert, url, urlPort, queuename, getExtension(alternative='pilot'), filename)
             _N = 3
             for _i in range(_N):
                 tolog("Executing command: %s" % (cmd))

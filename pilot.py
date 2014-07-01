@@ -2338,6 +2338,8 @@ def verifyProxyValidity():
     if env['proxycheckFlag']:
         if 'pandadev' in env['pshttpurl']:
             _limit = 2
+        elif 'experiment' in env and 'LSST' in env['experiment']:
+            _limit = 4
         else:
             _limit = None
         ec, pilotErrorDiag = pUtil.verifyProxyValidity(_limit)

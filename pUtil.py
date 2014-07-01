@@ -3796,9 +3796,14 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
 
     # get the site information object
     si = getSiteInformation(_experiment)
+    tolog("si: %s" % (si))
+    tolog("_experiment: %s" % (_experiment))
+    tolog("_queuename: %s" % (_queuename))
+    tolog("forceDownload: %s" % (forceDownload))
 
     # get the experiment object
     thisExperiment = getExperiment(_experiment)
+    tolog("thisExperiment: %s" % (thisExperiment))
 
     # (re-)download the queuedata
     ec, hasQueuedata = si.getQueuedata(_queuename, forceDownload=forceDownload)

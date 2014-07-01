@@ -6,9 +6,13 @@
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
 
 # import relevant python/pilot modules
+import os
+import commands
+import SiteMover
 from SiteInformation import SiteInformation  # Main site information class
 from pUtil import tolog                      # Logging method that sends text to the pilot log
 from pUtil import readpar                    # Used to read values from the schedconfig DB (queuedata)
+from pUtil import getExtension  # Used to determine file type of Tier-1 info file
 from PilotErrors import PilotErrors          # Error codes
 
 class LSSTSiteInformation(SiteInformation):
@@ -17,7 +21,9 @@ class LSSTSiteInformation(SiteInformation):
     __experiment = "LSST"
     __instance = None
     __experiment_sw_dir_var = "VO_%s_SW_DIR" % (__experiment)
-    __experiment_python_pilot_var = "%s_PYTHON_PILOT" % (__experiment)
+    #__experiment_python_pilot_var = "%s_PYTHON_PILOT" % (__experiment)
+    __experiment_python_pilot_var = "ATLAS_PYTHON_PILOT"
+
 
     # Required methods
 
@@ -126,6 +132,25 @@ class LSSTSiteInformation(SiteInformation):
 #
 #    def getQueuedata(self, queuename, forceDownload=False, alt=False, url=""):
 #        """ Download the queuedata if not already downloaded """
+    def getQueuedata(self, queuename, forceDownload=False, alt=False, url='http://pandawms.org'):
+        """ Download the queuedata if not already downloaded """
+        ec = 0
+        hasQueuedata = False
+
+        if queuename != "":
+            ec, hasQueuedata = super(LSSTSiteInformation, self).getQueuedata(queuename, forceDownload=forceDownload, alt=alt, url=url, urlPort=80)
+            if ec != 0:
+                tolog("!!FAILED!!1999!! getQueuedata failed: %d" % (ec))
+                ec = self.__error.ERR_QUEUEDATA
+            if not hasQueuedata:
+                tolog("!!FAILED!!1999!! Found no valid queuedata - aborting pilot")
+                ec = self.__error.ERR_QUEUEDATANOTOK
+            else:
+                tolog("curl command returned valid queuedata")
+        else:
+            tolog("WARNING: queuename not set (queuedata will not be downloaded and symbols not evaluated)")
+
+        return ec, hasQueuedata
 #
 #    def postProcessQueuedata(self, queuename, pshttpurl, thisSite, _jobrec, force_devpilot):
 #        """ Update queuedata fields if necessary """

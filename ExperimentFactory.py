@@ -9,6 +9,7 @@ from Experiment import Experiment
 from ATLASExperiment import ATLASExperiment
 from OtherExperiment import OtherExperiment
 from NordugridATLASExperiment import NordugridATLASExperiment
+from LSSTExperiment import LSSTExperiment
 
 class ExperimentFactory(object):
 
@@ -27,7 +28,7 @@ class ExperimentFactory(object):
                 return experimentClass
 
         # if no class was found, raise an error
-        raise ValueError('ExperimentFactory: No such class: "%s"' % (experiment))
+        raise ValueError('ExperimentFactory: No such class: "%s" [List of classes:%s] ' % (experiment, str(experimentClasses)))
 
 if __name__ == "__main__":
 
