@@ -1034,7 +1034,7 @@ def convertSURLtoTURLUsingDataset(surl, dataset):
 
     return turl
 
-def convertSURLtoTURLUsingHTTP(surl, dataset):
+def convertSURLtoTURLUsingHTTP(surl, dataset='', site=''):
     """ Convert SURL to TURL using the Rucio redirector """
 
     try:
@@ -1044,7 +1044,11 @@ def convertSURLtoTURLUsingHTTP(surl, dataset):
         prefix = "https://voatlasrucio-redirect-prod-01.cern.ch/redirect/"
         filename = re.findall(r'.*/(.+)$', surl)[0]
 
-        turl = prefix + scope + "/" + filename
+        site_suffix = ""
+        if site:
+            site_suffix = "?site=%s" %site
+
+        turl = prefix + scope + "/" + filename + site_suffix
     except Exception, e:
         tolog("!!WARNING!!2998!! convertSURLtoTURLUsingHTTP failed for SURL: %s, %s" % (surl, e))
         turl = surl
@@ -1062,7 +1066,11 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
     if (readpar('copytoolin').lower() == "fax") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "fax"):
         copytool = "fax"
     elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
-        return convertSURLtoTURLUsingHTTP(surl, dataset)
+        try:
+            site = readpar('gocname')
+        except:
+            site = ''
+        return convertSURLtoTURLUsingHTTP(surl, dataset, site)
 #    elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
 #        copytool = "aria2c"
     else:
@@ -3457,12 +3465,13 @@ def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, w
         for lfc_host in lfc_hosts_list:
             host_nr += 1
             tolog("Attempting replica lookup from host %s (#%d/%d)" % (lfc_host, host_nr, len(lfc_hosts_list)))
-            if host_nr == 1:
-                # false here means full replica verification against local SE/copyprefix etc
-                fax_mode = False
-            else:
-                # do not bother with replica verification in getCatalogFileList(), accept any remote replica
-                fax_mode = isFAXAllowed()
+#            if host_nr == 1:
+#                # false here means full replica verification against local SE/copyprefix etc
+#                fax_mode = False
+#            else:
+#                # do not bother with replica verification in getCatalogFileList(), accept any remote replica
+#                fax_mode = isFAXAllowed()
+            fax_mode = isFAXAllowed()
             ec, pilotErrorDiag, new_file_dict, xml_source, new_replicas_dict = getCatalogFileList(thisExperiment, guid_token_dict, lfc_host, analysisJob, workdir, lfn_dict=lfn_dict, fax_mode=fax_mode, scope_dict=scope_dict, replicas_dict=replicas_dict)
 
             # found a replica

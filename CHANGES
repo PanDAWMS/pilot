@@ -193,6 +193,7 @@ Removed dq2SiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_u
 Removed SRMSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Removed GSIftpSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Created __allowLoopingJobKiller(), used by __check_looping_jobs() (Monitor)
+Removed number of hosts limitation in getPoolFileCatalog() related to FAX jobs, requested by Johannes Elmsheuser (Mover)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
