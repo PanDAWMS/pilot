@@ -272,8 +272,8 @@ class SiteInformation(object):
 
         if url == "":
             exp = getExperimentObject(self.__experiment)
-            url = exp.getPanDAServerURL()
-            tolog("!!WARNING!!2221!! The PandA server URL was not set by the wrapper - Will use backup server url = %s (hardcoded)" % (url))
+            url = exp.SchedconfigURL()
+            tolog("The schedconfig URL was not set by the wrapper - Will use default server url = %s (hardcoded)" % (url))
 
         if not os.environ.has_key('PilotHomeDir'):
             os.environ['PilotHomeDir'] = commands.getoutput('pwd')

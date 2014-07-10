@@ -217,6 +217,9 @@ Added new argument -H <cache> used by LSST (pilot, RunJob)
 Added new environment field, cache (environment)
 Added new argument -H to getSubprocessArguments() (Experiment)
 Added new argument -H to argumentParser() as well as new data member __cache to the class (RunJob)
+Added new argument -I to argParser() (pilot)
+Now using schedconfigURL instead of pshttpurl in handleQueuedata() calls (pilot, Monitor)
+Removed getPanDAServerURL(), not needed (Experiment)
  
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

@@ -59,7 +59,7 @@ env = Configuration()
 
 def usage():
     """
-    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -q <dq2url> -u <user> -m <outputdir> -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel> -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag> -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry> -B <lfcRegistration> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime> -H <cache>
+    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -q <dq2url> -u <user> -m <outputdir> -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel> -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag> -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry> -B <lfcRegistration> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime> -H <cache> -I <schedconfigURL>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -96,6 +96,7 @@ def usage():
                <experiment> Current experiment (default: ATLAS)
                <getJobMaxTime> The maximum time the pilot will attempt single job downloads (in minutes, default is 3 minutes, min value is 1)
                <cache> is an optional URL used by some experiment classes (LSST)
+               <schedconfigURL> optional URL used by the pilot to download queuedata from the schedconfig server
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__
@@ -123,7 +124,7 @@ def argParser(argv):
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
-        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:')
+        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:')
     except getopt.GetoptError:
         print "Invalid arguments and options!"
         usage()
@@ -321,8 +322,11 @@ def argParser(argv):
                 if _getjobmaxtime > 1:
                     env['getjobmaxtime'] = _getjobmaxtime
 
-        elif o == "-H": 
+        elif o == "-H":
             env['cache'] = a
+
+        elif o == "-I":
+            env['schedconfigURL'] = a
 
         else:
             print "Unknown option: %s (ignoring)" % o
@@ -2360,8 +2364,8 @@ def runMain(runpars):
         # verify inputDir and outputDir
         getInOutDirs()
 
-        ec, env['thisSite'], env['jobrec'], env['hasQueuedata'] = pUtil.handleQueuedata(env['queuename'], env['pshttpurl'], error, env['thisSite'], env['jobrec'], 
-                                                                                 env['experiment'], forceDownload = False, forceDevpilot = env['force_devpilot'])
+        ec, env['thisSite'], env['jobrec'], env['hasQueuedata'] = pUtil.handleQueuedata(env['queuename'], env['schedconfigURL'], error, env['thisSite'], env['jobrec'], 
+                                                                                        env['experiment'], forceDownload = False, forceDevpilot = env['force_devpilot'])
         if ec != 0:
             return pUtil.shellExitCode(ec)
 

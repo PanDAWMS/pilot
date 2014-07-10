@@ -2160,6 +2160,9 @@ def prepareAlternativeStageOut(sitemover, si, sitename, jobCloud):
             tolog("Will attempt stage-out to %s" % (queuename))
 
             # download new queuedata (use alt option to download file queuedata.alt.<extension>) to avoid overwriting the main queuedata file
+
+            # NOTE: IT WOULD BE BEST TO SEND THE SCHEDCONFIG URL IN THE GETQUEUEDATA CALL BELOW SINCE OTHERWISE THIS WILL ONLY WORK FOR ATLAS
+
             ec, hasQueuedata = si.getQueuedata(queuename, alt=True)
             if ec != 0:
                 tolog("Failed to download queuedata for queue %s (aborting)")

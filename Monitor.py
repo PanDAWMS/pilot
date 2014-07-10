@@ -1226,7 +1226,7 @@ class Monitor:
     
                     # need to re-download the queuedata since the previous job might have modified it
                     ec, self.__env['thisSite'], self.__env['jobrec'], self.__env['hasQueuedata'] = pUtil.handleQueuedata(self.__env['queuename'], 
-                        self.__env['pshttpurl'], self.__error, self.__env['thisSite'], self.__env['jobrec'], self.__env['experiment'], forceDownload = True, 
+                        self.__env['schedconfigURL'], self.__error, self.__env['thisSite'], self.__env['jobrec'], self.__env['experiment'], forceDownload = True, 
                         forceDevpilot = self.__env['force_devpilot'])
                     if ec != 0:
                         self.__env['return'] = 'break'

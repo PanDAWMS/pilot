@@ -784,8 +784,8 @@ class Experiment(object):
         return False
 
     # Optional
-    def getPanDAServerURL(self, protocol="http://"):
-        """ Define the URL for the PanDA server"""
+    def getSchedconfigURL(self, protocol="http://"):
+        """ Define the URL for the schedconfig / PanDA server"""
         # This method gets called from SiteInformation in case the URL is not set (by the wrapper)
 
         return protocol + "pandaserver.cern.ch"
