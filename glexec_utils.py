@@ -462,9 +462,6 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'globusPilot.py'),
                      os.path.join(self.sandbox_path, 'globusPilot.py'))
         os.chmod(os.path.join(self.sandbox_path, 'globusPilot.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'GOSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'GOSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'GOSiteMover.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], '__init__.py'),
                      os.path.join(self.sandbox_path, '__init__.py'))
         os.chmod(os.path.join(self.sandbox_path, '__init__.py'), 0666)

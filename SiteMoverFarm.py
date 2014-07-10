@@ -22,7 +22,6 @@ from FAXSiteMover import FAXSiteMover                       # CVMFS sites
 from objectstoreSiteMover import objectstoreSiteMover       #
 from aria2cSiteMover import aria2cSiteMover                 #
 from GFAL2SiteMover import GFAL2SiteMover                   # GFAL2
-# from GOSiteMover import GOSiteMover                       # ANALY_BNL_T3
 
 mover_selector = {
     SiteMover.copyCommand : SiteMover,
@@ -40,7 +39,6 @@ mover_selector = {
     rfcpLFCSiteMover.copyCommand : rfcpLFCSiteMover,
     castorSvcClassSiteMover.copyCommand : castorSvcClassSiteMover,
     LocalSiteMover.copyCommand : LocalSiteMover,
-#    GOSiteMover.copyCommand : GOSiteMover,
     ChirpSiteMover.copyCommand : ChirpSiteMover,
     curlSiteMover.copyCommand : curlSiteMover,
     FAXSiteMover.copyCommand : FAXSiteMover,
