@@ -741,7 +741,9 @@ class Experiment(object):
                        "-m", env['outputDir'],
                        "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
-                       "-F", env['experiment']]
+                       "-F", env['experiment'],
+                       "-H", env['cache']]
+
         elif subprocessName == "runEvent":
             jobargs = [env['pyexe'], "runEvent.py", 
                        "-a", env['thisSite'].appdir,
@@ -784,6 +786,7 @@ class Experiment(object):
     # Optional
     def getPanDAServerURL(self, protocol="http://"):
         """ Define the URL for the PanDA server"""
+        # This method gets called from SiteInformation in case the URL is not set (by the wrapper)
 
         return protocol + "pandaserver.cern.ch"
 

@@ -3611,7 +3611,7 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
     thisExperiment = getExperiment(_experiment)
 
     # (re-)download the queuedata
-    ec, hasQueuedata = si.getQueuedata(_queuename, forceDownload=forceDownload)
+    ec, hasQueuedata = si.getQueuedata(_queuename, forceDownload=forceDownload, url=_pshttpurl)
     if ec != 0:
         return ec, thisSite, _jobrec, hasQueuedata
 

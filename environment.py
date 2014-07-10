@@ -16,7 +16,10 @@ def set_environment():
     
     # default job dispatcher web server
     env['pshttpurl'] = "pandaserver.cern.ch"   # Can be overwritten by getPanDAServerURL() in *Experiment
-    
+
+    # cache URL used by some experiment classes
+    env['cache'] = ""
+
     # global variables with some default (test) values
     env['psport'] = 25443                      # PanDA server listening port
     env['uflag'] = None                        # Flag if this pilot is to only get a user analysis job or ordinary job
@@ -29,7 +32,7 @@ def set_environment():
     env['outputlimit'] = 500*1024**3           # Maximum allowed size of an output file. unit is B
     env['pilotId'] = 'xtestP001'               # Pilot id
     env['jobSchedulerId'] = 'xtestJS001'       # Scheduler id
-    env['heartbeatPeriod'] = 1 #30*60             # 30 minutes limit for checking job state file
+    env['heartbeatPeriod'] = 30*60             # 30 minutes limit for checking job state file
     env['maxjobrecDefault'] = 20               # Default maximum number of job recoveries
     env['maxjobrec'] = env['maxjobrecDefault'] # Maximum number of job recoveries
     env['zombieJobList'] = []                  # Zombie list

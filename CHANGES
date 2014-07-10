@@ -213,7 +213,11 @@ Moved verifyProxy() and interpretProxyInfo() from SiteMover to Experiment
 Removed function verifyProxyValidity(), no longer needed (pilot, pUtil)
 Removed function __verifyProxyValidity(), no longer needed (Monitor)
 Now using Experiment::verifyProxy() (pilot, Monitor, castorSiteMover, GFAL2SiteMover, aria2cSiteMover, curlSiteMover, lcgcpSiteMover, lcgcp2SiteMover)
-
+Added new argument -H <cache> used by LSST (pilot, RunJob)
+Added new environment field, cache (environment)
+Added new argument -H to getSubprocessArguments() (Experiment)
+Added new argument -H to argumentParser() as well as new data member __cache to the class (RunJob)
+ 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
 Updated SiteMoverFarm for GFAL2SiteMover

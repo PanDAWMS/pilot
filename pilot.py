@@ -59,12 +59,12 @@ env = Configuration()
 
 def usage():
     """
-    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -q <dq2url> -u <user> -m <outputdir> -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel> -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag> -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry> -B <lfcRegistration> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime>
+    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -q <dq2url> -u <user> -m <outputdir> -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel> -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag> -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry> -B <lfcRegistration> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime> -H <cache>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
                <appdir> is the pathname to the directory of the executables
-               <url> is the URL of the http web server that the pilot job should connect to
+               <url> is the URL of the PanDA server
                <dq2url> is the URL of the https web server for the local site's DQ2 siteservice
                <port> is the port on which the web server listens on
                <user> is a flag meaning this pilot is to get a user analysis job from dispatcher if set to user (test will return a test job)
@@ -95,6 +95,7 @@ def usage():
                <useCoPilot> Expect CERNVM pilot to be executed by Co-Pilot (True: on, False: pilot will finish job (default))
                <experiment> Current experiment (default: ATLAS)
                <getJobMaxTime> The maximum time the pilot will attempt single job downloads (in minutes, default is 3 minutes, min value is 1)
+               <cache> is an optional URL used by some experiment classes (LSST)
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__
@@ -122,7 +123,7 @@ def argParser(argv):
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
-        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:')
+        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:')
     except getopt.GetoptError:
         print "Invalid arguments and options!"
         usage()
@@ -254,7 +255,7 @@ def argParser(argv):
             env['workingGroup'] = a
         
         elif o == "-w": 
-            env['pshttpurl'] = a #"https://voatlas220.cern.ch" # a
+            env['pshttpurl'] = a #"https://voatlas220.cern.ch"
         
         elif o == "-x":
             try:
@@ -319,6 +320,9 @@ def argParser(argv):
             else:
                 if _getjobmaxtime > 1:
                     env['getjobmaxtime'] = _getjobmaxtime
+
+        elif o == "-H": 
+            env['cache'] = a
 
         else:
             print "Unknown option: %s (ignoring)" % o
