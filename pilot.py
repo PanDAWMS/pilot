@@ -2471,7 +2471,7 @@ def runMain(runpars):
 
             # do we have a valid proxy?
             if env['proxycheckFlag']:
-                ec = thisExperiment.verifyProxy(envsetup="")
+                ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="")
                 if ec != 0:
                     pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
                     return pUtil.shellExitCode(ec)

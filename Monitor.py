@@ -913,7 +913,7 @@ class Monitor:
             thisExperiment = pUtil.getExperiment(self.__env['experiment'])
 
             # do we have a valid proxy?
-            ec = thisExperiment.verifyProxy(envsetup="")
+            ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="")
             if ec != 0:
                 self.__env['return'] = ec
                 return
