@@ -5,7 +5,7 @@ from time import time
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, addToJobSetupScript, verifySetupCommand, getSiteInformation
+from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, getExperiment
 from FileStateClient import updateFileState
 
 # placing the import lfc here breaks compilation on non-lfc sites
@@ -33,7 +33,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         """ For when space availability is not verifiable """
         return 999999
 
-    def core_get_data(self, envsetup, token, source_surl, dest_path):
+    def core_get_data(self, envsetup, token, source_surl, dest_path, experiment):
         """ stage-in core function, can be overridden (see stormSiteMover) """
 
         error = PilotErrors()
@@ -67,12 +67,15 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         else:
             _cmd_str = '%s lcg-cp --vo atlas %s %s file://%s' % (envsetup, timeout_option, source_surl, dest_path)
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         # add the full stage-out command to the job setup script
         to_script = _cmd_str.replace("file://%s" % os.path.dirname(dest_path), "file://`pwd`")
         to_script = to_script.lstrip(' ') # remove any initial spaces
         if to_script.startswith('/'):
             to_script = 'source ' + to_script
-        addToJobSetupScript(to_script, os.path.dirname(dest_path))
+        thisExperiment.updateJobSetupScript(os.path.dirname(dest_path), to_script=to_script)
 
         tolog("Executing command: %s" % (_cmd_str))
         s = -1
@@ -133,6 +136,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         token = pdict.get('token', None)
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
+        experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
@@ -150,9 +154,12 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             self.__sendReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         if proxycheck:
             # do we have a valid proxy?
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
+            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
             if s != 0:
                 self.__sendReport('PROXYFAIL', report)
                 return s, pilotErrorDiag
@@ -233,7 +240,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         # invoke the transfer commands
         report['relativeStart'] = time()
         report['transferStart'] = time()
-        result = self.core_get_data(envsetup, token, getfile, fullname)
+        result = self.core_get_data(envsetup, token, getfile, fullname, experiment)
         report['validateStart'] = time()
         if result:
             self.__sendReport('CORE_FAIL', report)
@@ -367,9 +374,12 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             self.__sendReport('RFCP_FAIL', report)
             return self.put_data_retfail(ec, pilotErrorDiag) 
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         # do we need to check the user proxy?
         if proxycheck:
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
+            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
             if s != 0:
                 self.__sendReport('PROXY_FAIL', report)
                 return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)

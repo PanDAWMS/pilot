@@ -9,7 +9,7 @@ import re
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, addToJobSetupScript, getCopyprefixLists, verifySetupCommand, getSiteInformation
+from pUtil import tolog, readpar, getCopyprefixLists, verifySetupCommand, getSiteInformation, getExperiment
 from timed_command import timed_command
 from config import config_sm
 from time import time
@@ -89,6 +89,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         workDir = pdict.get('workDir', '')
         sitename = pdict.get('sitename', '')
         cmtconfig = pdict.get('cmtconfig', '')
+        experiment = pdict.get('experiment', '')
         prodDBlockToken = pdict.get('access', '')
 
         # get the DQ2 tracing report
@@ -219,12 +220,15 @@ class xrdcpSiteMover(SiteMover.SiteMover):
                 useMd5Option = False
                 cmd = "%s %s %s %s" % (_setup_str, cpt, src_loc_pfn, dest_file)
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         # add the full stage-out command to the job setup script
         to_script = cmd.replace(dest_file, "`pwd`/%s" % os.path.basename(dest_file))
         to_script = to_script.lstrip(' ') # remove any initial spaces
         if to_script.startswith('/'):
             to_script = 'source ' + to_script
-        addToJobSetupScript(to_script, path)
+        thisExperiment.updateJobSetupScript(path, to_script=to_script)
 
         # transfer the file
         report['transferStart'] = time()

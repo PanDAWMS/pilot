@@ -18,7 +18,7 @@ from optparse import OptionParser
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getAtlasRelease, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, addToJobSetupScript, processDBRelease, getCmtconfig, getExtension, getExperiment
+     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
@@ -169,7 +169,7 @@ class RunJob(object):
         pass
 
     def argumentParser(self):
-        """ Argument parser for the runJob module """
+        """ Argument parser for the RunJob module """
 
         # Return variables
         appdir = None
@@ -630,7 +630,7 @@ class RunJob(object):
 
         return _obj
 
-    def executePayload(self, runCommandList, job):
+    def executePayload(self, thisExperiment, runCommandList, job):
         """ execute the payload """
 
         # do not hide the proxy for PandaMover since it needs it or for sites that has sc.proxy = donothide
@@ -656,7 +656,7 @@ class RunJob(object):
             try:
                 # add the full job command to the job_setup.sh file
                 to_script = cmd.replace(";", ";\n")
-                addToJobSetupScript(to_script, job.workdir)
+                thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
                 tolog("Executing job command %d/%d: %s" % (current_job_number, number_of_jobs, cmd))
                 # Eddie: Commented out the part where we execute ONLY the payload under GLExec as now everything is under a glexec'ed environment
@@ -1143,7 +1143,7 @@ if __name__ == "__main__":
         RunJobUtilities.setEnvVars(jobSite.sitename)
 
         # execute the payload
-        res, job, getstatusoutput_was_interrupted, current_job_number = runJob.executePayload(runCommandList, job)
+        res, job, getstatusoutput_was_interrupted, current_job_number = runJob.executePayload(thisExperiment, runCommandList, job)
 
         # if payload leaves the input files, delete them explicitly
         if ins:

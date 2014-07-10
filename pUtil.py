@@ -242,7 +242,7 @@ def findGuid(analJob, metadata_filename, filename):
 
     if not guid:
         if analJob:
-            guid = commands.getoutput('uuidgen 2> /dev/null')
+            guid = getGUID()
             tolog("Generated guid: %s" % (guid))
         else:
             tolog("Guid missing for file: %s (b)" % (filename))
@@ -361,7 +361,7 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
         flist.append(alog)
         if not alogguid:
             if not jr:
-                alogguid = commands.getoutput('uuidgen 2> /dev/null')
+                alogguid = getGUID()
                 tolog("Generated log guid: %s" % (alogguid))
             else:
                 tolog("!!WARNING!!2999!! Log guid generation not allowed in recovery mode")
@@ -373,7 +373,7 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
     if additionalOutputFile:
         flist.append(additionalOutputFile)
         if not additionalOutputFileGuid:
-            additionalOutputFileGuid = commands.getoutput('uuidgen 2> /dev/null')
+            additionalOutputFileGuid = getGUID()
         glist.append(additionalOutputFileGuid)
 
     if fnlist:
@@ -391,7 +391,7 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
                     tolog("Found guid for file: %s (%s)" % (fnlist[i], guid))
                 else:
                     if not jr:
-                        guid = commands.getoutput('uuidgen 2> /dev/null')
+                        guid = getGUID()
                         tolog("Generated guid for file (%d): %s (%s)" % (i, fnlist[i], guid))
                     else:
                         tolog("!!WARNING!!2999!! Guid generation not allowed in recovery mode (file: %s)" % (fnlist[i]))
@@ -405,7 +405,7 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
                         tolog("Found guid for file: %s (%s)" % (fnlist[i], guid))
                     else:
                         if not jr:
-                            guid = commands.getoutput('uuidgen 2> /dev/null')
+                            guid = getGUID()
                             tolog("Generated guid for file (%d): %s (%s)" % (i, fnlist[i], guid))
                         else:
                             tolog("!!WARNING!!2999!! Guid generation not allowed in recovery mode (file: %s)" % (fnlist[i]))
@@ -1752,13 +1752,6 @@ def isSameType(trf, userflag):
 
     return sametype
 
-def verifyProxyValidity(limit):
-    """ make sure that we have a long lasting proxy before asking for a job """
-
-    # (envsetup will be set in verifyProxy in this case)
-    from SiteMover import SiteMover
-    return SiteMover.verifyProxy(envsetup="", limit=limit)
-
 def getGuidsFromXML(dir, id=None, filename=None, metadata=""):
     """ extract the guid matching the filename from the xml, or all guids if filename not set """
 
@@ -1857,91 +1850,6 @@ def verifyReleaseString(release):
     if release == "NULL":
         tolog("Detected unset (NULL) release/homepackage string")
     return release
-
-def getSwbase(appdir, release, homePackage, processingType, cmtconfig):
-    """ return the swbase variable """
-    # appdir comes from thisSite.appdir (might not be set)
-    # release info is needed to figure out the correct path to use when schedconfig.appdir is set
-
-    swbase = ""
-
-    # verify the validity of the release string in case it is not set (as can be the case for prun jobs)
-    release = verifyReleaseString(release)
-
-    region = readpar('region')
-    if region == 'Nordugrid':
-        if os.environ.has_key('RUNTIME_CONFIG_DIR'):
-            _swbase = os.environ['RUNTIME_CONFIG_DIR']
-            if os.path.exists(_swbase):
-                swbase = _swbase
-    elif os.environ.has_key('VO_ATLAS_SW_DIR'):
-        # use the appdir from queuedata if available
-        scappdir = readpar('appdir')
-        # protect against complex appdir form
-        if "|" in scappdir and appdir != "":
-            from SiteInformation import SiteInformation
-            si = SiteInformation()
-            ec, _scappdir = si.extractAppdir(scappdir, processingType, homePackage)
-            if ec != 0:
-                tolog("!!WARNING!!2222!! Failed to extract complex appdir: %d, %s, %s, %s" % (ec, scappdir, processingType, homePackage))
-            else:
-                scappdir = _scappdir
-            tolog("Using alternative appdir=%s" % (scappdir))
-#            scappdir = appdir
-        elif scappdir != "":
-            tolog("Got a plain appdir from queuedata: %s" % (scappdir))
-        else:
-            tolog("Appdir not set in queuedata")
-
-        if scappdir != "": # as of Dec 2009 appdir != '' only for CERN sites
-            # CERN-RELEASE:
-            # appdir=/afs/cern.ch/atlas/software/releases (full path to releases)
-            # CERN-UNVALID:
-            # appdir=/afs/cern.ch/atlas/software/unvalidated/caches (full path to releases)
-            # CERN-BUILDS:
-            # appdir=/afs/cern.ch/atlas/software/builds (already points to the latest release, do not add release)
-            # CERN-PROD:
-            # appdir=/afs/cern.ch/atlas/software/releases (full path to releases)
-            # Release can be added to appdir for CERN-RELEASE, CERN-UNVALID, CERN-PROD, but not to CERN-BUILDS
-            if os.path.exists(os.path.join(scappdir, release)):
-                swbase = scappdir
-            else:
-                # the build queue is special
-                if scappdir[-len('builds'):] == 'builds':
-                    swbase = scappdir
-                # backup, old cases
-                elif os.path.exists(os.path.join(scappdir, 'software/releases')):
-                    swbase = os.path.join(scappdir, 'software/releases')
-                # backup, for remaining LCG sites, only 'software' needs to be added
-                else:
-                    swbase = os.path.join(scappdir, 'software')
-                    if not os.path.exists(swbase):
-                        swbase = scappdir
-        else:
-            tolog("VO_ATLAS_SW_DIR=%s" % (os.environ['VO_ATLAS_SW_DIR']))
-
-            # primary software base (search appdir for alternatives)
-            swbase = os.environ['VO_ATLAS_SW_DIR'] + '/software'
-    else:
-        # for non-LCG sites
-        if appdir.find('atlas_app/atlas_rel') < 0:
-            _swbase = os.path.join(appdir, 'atlas_app/atlas_rel')
-            if os.path.exists(_swbase):
-                swbase = _swbase
-            else:
-                swbase = appdir
-        else:
-            swbase = appdir
-
-    # add cmtconfig sub dir for CERNVM and for cvmfs systems
-    _cmtconfig = cmtconfig.replace("-", "_")
-    _swbase = os.path.join(swbase, _cmtconfig)
-    if os.path.exists(_swbase) and release != "" and release.upper() != "NULL":
-        swbase = _swbase
-
-    # uncomment if testing interactively at lxplus
-    # swbase = appdir
-    return swbase.replace('//','/')
 
 class _Curl:
     """ curl class """
@@ -2560,52 +2468,6 @@ def getMaxInputSize(MB=False):
 
     return _maxinputsize
 
-def checkSpecialEnvVars(sitename):
-    """ Check special environment variables """
-    # add further checks to this function if needed
-
-    ec = 0
-
-    # get error handler
-    error = PilotErrors()
-
-    # check if ATLAS_POOLCOND_PATH is set
-    try:
-        if os.environ.has_key('ATLAS_POOLCOND_PATH'):
-            tolog("ATLAS_POOLCOND_PATH = %s" % (os.environ['ATLAS_POOLCOND_PATH']))
-        else:
-            tolog("ATLAS_POOLCOND_PATH not set by wrapper")
-    except Exception, e:
-        tolog("WARNING: os.environ.has_key failed: %s" % str(e))
-
-    if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and readpar('region') != "Nordugrid":
-        vo_atlas_sw_dir = os.environ["VO_ATLAS_SW_DIR"]
-        if vo_atlas_sw_dir != "":
-            # on cvmfs the following dirs are symbolic links, so all tests are needed
-            paths = [vo_atlas_sw_dir, os.path.join(vo_atlas_sw_dir, "software")]
-            for path in paths:
-                if os.path.exists(path):
-                    tolog("%s confirmed" % (path))
-                else:
-                    tolog("!!FAILED!!1777!! %s does not exist" % (path))
-                    ec = error.ERR_NOSUCHFILE
-                    break
-
-            # require that the "local" directory exists on cvmfs
-            path = os.path.join(vo_atlas_sw_dir, "local")
-            if "cvmfs" in path:
-                if os.path.exists(path):
-                    tolog("%s confirmed" % (path))
-                else:
-                    tolog("!!FAILED!!1777!! %s does not exist" % (path))
-                    ec = error.ERR_NOSUCHFILE
-            else:
-                tolog("Skipping verification of %s on non-cvmfs" % (path))
-        else:
-            tolog("VO_ATLAS_SW_DIR set to empty string (ignore)")
-
-    return ec
-
 def getTimeFloor(timefloor_default):
     """ Return a proper timefloor """
     # timefloor is the time limit within which the pilot is allowed to run multiple jobs
@@ -2780,47 +2642,6 @@ def chdir(dir):
     tolog("chdir to: %s" % (dir))
     os.chdir(dir)
     tolog("current dir: %s" % (os.getcwd()))
-
-def createJobSetupScript(workdir):
-    """ create the job setup script (used to recreate the job locally if needed) """
-
-    filename = os.path.basename(getJobSetupScriptName(workdir))
-    tolog("Creating job setup script with stage-in and payload execution commands: %s" % (filename))
-    to_script = "#!/bin/bash\n# %s %s\n\n" % (filename, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time())))
-
-    # setup for EGI sites
-    if os.environ.has_key('VO_ATLAS_SW_DIR'):
-        to_script += "export VO_ATLAS_SW_DIR=%s\n" % (os.path.expandvars('$VO_ATLAS_SW_DIR'))
-        to_script += "if [ -f $VO_ATLAS_SW_DIR/local/setup.sh ]; then\n  source $VO_ATLAS_SW_DIR/local/setup.sh\nfi"
-
-    # add the string to the setup script
-    addToJobSetupScript(to_script, workdir)
-
-def getJobSetupScriptName(workdir):
-    """ return the name of the job setup file """
-
-    return os.path.join(workdir, "job_setup.sh")
-
-def addToJobSetupScript(cmd, workdir):
-    """ add/append command to job setup file """
-
-    filename = getJobSetupScriptName(workdir)
-    if not os.path.exists(filename):
-        try:
-            fp = open(filename, "w")
-        except OSError, e:
-            tolog("!!WARNING!!1880!! Could not open job setup file for writing: %s" % str(e))
-    else:
-        try:
-            fp = open(filename, "a")
-        except OSError, e:
-            tolog("!!WARNING!!1880!! Could not open job setup file for appending: %s" % str(e))
-
-    if fp:
-        fp.write(cmd)
-        fp.write("\n\n")
-        fp.close()
-        tolog("Updated %s: %s" % (filename, cmd))
 
 def processDBRelease(inputFiles, inFilesGuids, realDatasetsIn, dispatchDblock, dispatchDBlockToken, prodDBlockToken, workdir, jobPars):
     """ remove any DBRelease files from the input file list and send back instruction to move the created DBRelease file to job dir """
@@ -3463,7 +3284,7 @@ def getExperiment(experiment):
     return _exp
 
 def getSiteInformation(experiment):
-    """ Return a reference to an experiment class """
+    """ Return a reference to a site information class """
 
     # The SiteInformationFactory ensures that the returned object is a Singleton
     # Usage:
@@ -3486,17 +3307,6 @@ def getSiteInformation(experiment):
         tolog("getSiteInformation: got experiment=%s" % (_exp.getExperiment()))
 
     return _exp
-
-def setPilotPythonVersion():
-    """ Set an environmental variable to the python version used by the pilot """
-    # Needed to disentangle which python version runAthena should fall back to in case of problems with LFC import
-
-    which_python = commands.getoutput("which python")
-    if which_python.startswith('/'):
-        os.environ['ATLAS_PYTHON_PILOT'] = which_python
-        tolog("ATLAS_PYTHON_PILOT set to %s" % (which_python))
-    else:
-        tolog("!!WARNING!!1111!! Could not set ATLAS_PYTHON_PILOT to %s" % (which_python))
 
 def dumpPilotInfo(version, pilot_version_tag, pilotId, jobSchedulerId, pilot_initdir, tofile=True):
     """ Pilot info """
@@ -4323,3 +4133,32 @@ def getEventService(experiment):
         _exp = eventServiceClass()
 
     return _exp
+
+def isValidGUID(guid):
+    """ Verify the GUID generated with uuidgen """
+
+    status = False
+    pattern = "[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}"
+
+    m = re.search(pattern, guid.upper())
+    if not m:
+        tolog("!!WARNING!!2333!! GUID=\'%s\' does not follow pattern \'%s\'" % (guid, pattern))
+    else:
+        status = True
+
+    return status
+
+def getGUID():
+    """ Return a GUID generated with uuidgen """
+
+    guid = commands.getoutput('uuidgen 2> /dev/null')
+
+    # Make sure that there was no problem piping to dev null, ie that the GUID is proper
+    if not isValidGUID(guid):
+        tolog("Trying uuidgen without pipe to /dev/null")
+        guid = commands.getoutput('uuidgen')
+    if not isValidGUID(guid):
+        tolog("!!WARNING!!2233!! Failed to generate GUID")
+        guid = ""
+
+    return guid

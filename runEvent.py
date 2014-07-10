@@ -34,8 +34,8 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getAtlasRelease, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, addToJobSetupScript, getCmtconfig, getExtension, getExperiment, getEventService, httpConnect,\
-     getSiteInformation
+     tailPilotErrorDiag, getFileAccessInfo, getCmtconfig, getExtension, getExperiment, getEventService, httpConnect,\
+     getSiteInformation, getGUID
 
 
 try:
@@ -516,107 +516,6 @@ def extractDictionaryObject(object, dictionary):
 
     return _obj
 
-def executePayloadGLExec(cmd, job):
-    """ Execute trf under glexec """
-
-    tolog('Executing transformation script under glexec...')
-
-    import myproxyUtils
-
-    # retrieving the end-user credentials from a MyProxy server...
-    MyPI = myproxyUtils.MyProxyInterface(job.myproxy)
-    MyPI.userDN = job.prodUserID
-    MyPI.credname = job.credname
-
-    # using those retrieved credentials to switch identity...
-    glexec_obj = myproxyUtils.executeGlexec(MyPI)
-    glexec_obj.payload = cmd 
-
-    # ... and run the transformation script with gLExec
-    glexec_obj.execute()
-
-    return glexec_obj.status, glexec_obj.output
-
-def executePayload(runCommandList, job):
-    """ execute the payload """
-
-    # Is it ok to start?
-    while True:
-        if payload_running:
-            pass
-        else:
-            time.sleep(5)
-
-    # run the payload process, which could take days to finish
-    t0 = os.times()
-    res_tuple = (0, 'Undefined')
-
-    # loop over all run commands (only >1 for multi-trfs)
-    current_job_number = 0
-    getstatusoutput_was_interrupted = False
-    number_of_jobs = len(runCommandList)
-    for cmd in runCommandList:
-        current_job_number += 1
-        try:
-            # add the full job command to the job_setup.sh file
-            to_script = cmd.replace(";", ";\n")
-            addToJobSetupScript(to_script, job.workdir)
-
-            tolog("Executing job command %d/%d: %s" % (current_job_number, number_of_jobs, cmd))
-            if readpar('glexec').lower() in ['true', 'uid']: 
-                # execute trf under glexec
-                res_tuple = executePayloadGLExec(cmd, job)
-            else:
-                # execute trf normally
-                res_tuple = commands.getstatusoutput(cmd)
-
-        except Exception, e:
-            tolog("!!FAILED!!3000!! Failed to run command %s" % str(e))
-            getstatusoutput_was_interrupted = True
-            if failureCode:
-                job.result[2] = failureCode
-                tolog("!!FAILED!!3000!! Failure code: %d" % (failureCode))
-                break
-        else:
-            if res_tuple[0] == 0:
-                tolog("Job command %d/%d finished" % (current_job_number, number_of_jobs))
-            else:
-                tolog("Job command %d/%d failed: res = %s" % (current_job_number, number_of_jobs, str(res_tuple)))
-                break
-
-    t1 = os.times()
-    t = map(lambda x, y:x-y, t1, t0) # get the time consumed
-    job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
-    tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
-    tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
-    job.timeExe = int(round(t1[4] - t0[4]))
-
-    tolog("Original exit code: %d" % (res_tuple[0]))
-    tolog("Exit code: %d (returned from OS)" % (res_tuple[0]%255))
-
-    # check the job report for any exit code that should replace the res_tuple[0]
-    res0, exitAcronym, exitMsg = getTrfExitInfo(res_tuple[0], job.workdir)
-    res = (res0, res_tuple[1], exitMsg)
-
-    # dump an extract of the payload output
-    if number_of_jobs > 1:
-        _stdout = job.stdout
-        _stderr = job.stderr
-        _stdout = _stdout.replace(".txt", "_N.txt")
-        _stderr = _stderr.replace(".txt", "_N.txt")
-        tolog("NOTE: For %s output, see files %s, %s (N = [1, %d])" % (job.payload, _stdout, _stderr, number_of_jobs))
-    else:
-        tolog("NOTE: For %s output, see files %s, %s" % (job.payload, job.stdout, job.stderr))
-
-    # JEM job-end callback
-    try:
-        from JEMstub import notifyJobEnd2JEM
-        notifyJobEnd2JEM(job, tolog)
-    except:
-        pass # don't care (fire and forget)
-
-    return res, job, getstatusoutput_was_interrupted, current_job_number
-
 def moveTrfMetadata(pworkdir):
     """ rename and copy the trf metadata """
 
@@ -737,12 +636,21 @@ def createFileMetadata(outputFile, event_range_id):
     #         (dictionary is used for stage-out)
     #         fname is the name of the metadata/XML file containing the file info above
 
+    error = PilotErrors()
+
     ec = 0
     pilotErrorDiag = ""
     outputFileInfo = {}
 
     # Get/assign a guid to the output file
-    guid_list = [commands.getoutput('uuidgen 2> /dev/null')]
+    guid = getGUID()
+    if guid == "":
+        ec = error.ERR_UUIDGEN
+        pilotErrorDiag = "uuidgen failed to produce a guid"
+        tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+        return ec, pilotErrorDiag, None
+
+    guid_list = [guid]
     tolog("Generated GUID %s for file %s" % (outputFile, guid_list[0]))
 
 #    ec, pilotErrorDiag, guid_list = RunJobUtilities.getOutFilesGuids([outputFile], job_workdir, TURL=True)

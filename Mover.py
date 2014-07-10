@@ -3190,25 +3190,25 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
             # srm://gridka-dcache.fzk.de:8443/srm/managerv2?SFN=/pnfs/gridka.de/atlas/disk-only/mc/simone_test/test.1
             # since they are already stripped of the port and version info
 
-            if fax_mode:
-                # add the first replica since it will be transferred by FAX
-                tolog("FAX mode: Adding first replica: %s" % (sfn))
-                matched_replicas.append(sfn)
-                found = True
-            else:
-                tolog("Checking list of SEs")
-                found = False
-                for se in _listSEs:
-                    if sfn[:len(se)] == se:
-                        tolog("Found matched replica: %s at %s" % (sfn, se))
-                        matched_replicas.append(sfn)
-                        found = True
-                if not found:
-                    tolog("Could not find any matching se, try to use copyprefix instead")
-                    if foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
-                        matched_replicas.append(sfn)
-                    else:
-                        tolog("Found no matched replicas using copyprefix")
+#            if fax_mode:
+#                # add the first replica since it will be transferred by FAX
+#                tolog("FAX mode: Adding first replica: %s" % (sfn))
+#                matched_replicas.append(sfn)
+#                found = True
+#            else:
+            tolog("Checking list of SEs")
+            found = False
+            for se in _listSEs:
+                if sfn[:len(se)] == se:
+                    tolog("Found matched replica: %s at %s" % (sfn, se))
+                    matched_replicas.append(sfn)
+                    found = True
+            if not found:
+                tolog("Could not find any matching se, try to use copyprefix instead")
+                if foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
+                    matched_replicas.append(sfn)
+                else:
+                    tolog("Found no matched replicas using copyprefix")
 
         if len(matched_replicas) > 0:
             # remove any duplicates

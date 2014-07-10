@@ -43,19 +43,19 @@ Secondary log transfer     : Repeat object-store test
 Multi-trf                  : Ask Andrej, combine with Nordugrid test? see http://panda.cern.ch/server/pandamon/query?job=2136530336
 Nordugrid test             : Ask Andrej when all other tests are done
 RC tests                   : As soon as possible when a few more of the other tests are done
-PanDA mover                : Try when most (all?) other tests are done
+PanDA mover                : OK
 glExec                     : Hand over preliminary code when a few more of the other tests are done
 RC tests, glExec           : Ask HC team to prepare RC tests when Eddie has confirmed that glExec still works
 Subprocess selection       : (is runEvent selected properly after last merge?), test with testEventService-UTA.py
 No TCP connection          : If a TCP server cannot be setup in Monitor, make sure the job is failed correctly (it isn't)
-lineno()                   : Usage of function lineno() is no correct; line number is not the same as process id..
+lineno()                   : Usage of function lineno() is not correct; line number is not the same as process id..
 
 Additional test of recently added features
 
 Job def download for a maximum of N seconds : (set getjobmaxtime)
 
 
-#### add new error 1217 to proddb
+#### add new error codes 1217-1219 to proddb
 
 
 
@@ -192,13 +192,31 @@ Removed atlasProdPilot.py from distribution (and updated SiteMoverFarm.py, my_pr
 Removed dq2SiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Removed SRMSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Removed GSIftpSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed COGSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Created __allowLoopingJobKiller(), used by __check_looping_jobs() (Monitor)
 Removed number of hosts limitation in getPoolFileCatalog() related to FAX jobs, requested by Johannes Elmsheuser (Mover)
+Created getGUID() and isValidGUID() (pUtil)
+Now using getGUID() instead of explicit uuidgen in Job, JobLog, pUtil, pilot
+Added new error code 1219, ERR_UUIDGEN, "Command uuidgen failed" to PilotErrors
+Moved getSwbase() from pUtil to ATLASExperiment
+Renamed createJobSetupScript() to updateJobSetupScript() (pUtil)
+Moved updateJobSetupScript() from pUtil to Experiment, method used by Monitor
+Added updateJobSetupScript() to ATLASExperiment
+Updated RunJob for updateJobSetupScript(), added thisExperiment to executePayload (RunJob)
+Removed addToJobSetupScript import and added getExperiment (curlSiteMover, aria2cSiteMover, xrdcpSiteMover, lcgcpSiteMover, stormSiteMover)
+Extracting experiment variable in get_data(), forwarding it to core_get_data() which uses it to get thisExperiment (curlSiteMover, lcgcpSiteMover)
+Extracting experiment variable in get_data() which uses it to get thisExperiment (xrdcpSiteMover)
+Now using updateJobSetupScript() instead of addToJobSetupScript() (curlSiteMover, xrdcpSiteMover, lcgcpSiteMover, stormSiteMover)
+Created purgeTokenExtractorDirs(), used by cleanup() (Cleaner)
+Moved verifyProxy() and interpretProxyInfo() from SiteMover to Experiment
+Removed function verifyProxyValidity(), no longer needed (pilot, pUtil)
+Removed function __verifyProxyValidity(), no longer needed (Monitor)
+Now using Experiment::verifyProxy() (pilot, Monitor, castorSiteMover, GFAL2SiteMover, aria2cSiteMover, curlSiteMover, lcgcpSiteMover, lcgcp2SiteMover)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
 Updated SiteMoverFarm for GFAL2SiteMover
-Added new error code, 1218, ERR_FILEEXISTS (PilotErrors)
+Added new error code 1218, ERR_FILEEXISTS (PilotErrors)
 Added several new methods to SiteInformation as part of site mover refactoring: getCopySetup(), getCopyTool(), getCopyPrefix(), getCopyFileAccessInfo(),
 getDirectInAccessMode() [currently used by GFAL2SiteMover only]
 objectstoreSiteMover

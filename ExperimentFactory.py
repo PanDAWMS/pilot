@@ -7,6 +7,7 @@
 from types import TypeType
 from Experiment import Experiment
 from ATLASExperiment import ATLASExperiment
+from CMSExperiment import CMSExperiment
 from OtherExperiment import OtherExperiment
 from NordugridATLASExperiment import NordugridATLASExperiment
 

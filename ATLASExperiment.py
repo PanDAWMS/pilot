@@ -10,11 +10,9 @@ from Experiment import Experiment               # Main experiment class
 from pUtil import tolog                         # Logging method that sends text to the pilot log
 from pUtil import readpar                       # Used to read values from the schedconfig DB (queuedata)
 from pUtil import isAnalysisJob                 # Is the current job a user analysis job or a production job?
-from pUtil import setPilotPythonVersion         # Which python version is used by the pilot
 from pUtil import grep                          # Grep function - reimplement using cli command
 from pUtil import getCmtconfig                  # Get the cmtconfig from the job def or queuedata
 from pUtil import getCmtconfigAlternatives      # Get a list of locally available cmtconfigs
-from pUtil import getSwbase                     # To build path for software directory, e.g. using schedconfig.appdir (move to subclass)
 from pUtil import verifyReleaseString           # To verify the release string (move to Experiment later)
 from pUtil import verifySetupCommand            # Verify that a setup file exists
 from pUtil import getProperTimeout              # 
@@ -32,6 +30,7 @@ from RunJobUtilities import getSourceSetup      #
 # Standard python modules
 import re
 import os
+import time
 import commands
 from glob import glob
 
@@ -128,7 +127,7 @@ class ATLASExperiment(Experiment):
         cmtconfig = getCmtconfig(job.cmtconfig)
 
         # Get the local path for the software
-        swbase = getSwbase(jobSite.appdir, job.atlasRelease, job.homePackage, job.processingType, cmtconfig)
+        swbase = self.getSwbase(jobSite.appdir, job.atlasRelease, job.homePackage, job.processingType, cmtconfig)
         tolog("Local software path: swbase = %s" % (swbase))
 
         # Get cmtconfig alternatives
@@ -2167,7 +2166,7 @@ class ATLASExperiment(Experiment):
         self.displayChangeLog()
 
         # Set the python version used by the pilot
-        setPilotPythonVersion()
+        self.setPilotPythonVersion()
 
         # Test the LFC module
         status = self.testImportLFCModule()
@@ -2177,6 +2176,48 @@ class ATLASExperiment(Experiment):
             status = self.testCVMFS()
 
         return status
+
+    def checkSpecialEnvVars(self, sitename):
+        """ Check special environment variables """
+
+        ec = 0
+
+        # check if ATLAS_POOLCOND_PATH is set
+        try:
+            if os.environ.has_key('ATLAS_POOLCOND_PATH'):
+                tolog("ATLAS_POOLCOND_PATH = %s" % (os.environ['ATLAS_POOLCOND_PATH']))
+            else:
+                tolog("ATLAS_POOLCOND_PATH not set by wrapper")
+        except Exception, e:
+            tolog("WARNING: os.environ.has_key failed: %s" % str(e))
+
+        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and readpar('region') != "Nordugrid":
+            vo_atlas_sw_dir = os.environ["VO_ATLAS_SW_DIR"]
+            if vo_atlas_sw_dir != "":
+                # on cvmfs the following dirs are symbolic links, so all tests are needed
+                paths = [vo_atlas_sw_dir, os.path.join(vo_atlas_sw_dir, "software")]
+                for path in paths:
+                    if os.path.exists(path):
+                        tolog("%s confirmed" % (path))
+                    else:
+                        tolog("!!FAILED!!1777!! %s does not exist" % (path))
+                        ec = self.__error.ERR_NOSUCHFILE
+                        break
+
+                # require that the "local" directory exists on cvmfs
+                path = os.path.join(vo_atlas_sw_dir, "local")
+                if "cvmfs" in path:
+                    if os.path.exists(path):
+                        tolog("%s confirmed" % (path))
+                    else:
+                        tolog("!!FAILED!!1777!! %s does not exist" % (path))
+                        ec = self.__error.ERR_NOSUCHFILE
+                else:
+                    tolog("Skipping verification of %s on non-cvmfs" % (path))
+            else:
+                tolog("VO_ATLAS_SW_DIR set to empty string (ignore)")
+
+        return ec
 
     def getPayloadName(self, job):
         """ Figure out a suitable name for the payload stdout """
@@ -2273,7 +2314,7 @@ class ATLASExperiment(Experiment):
         ec = 0
 
         if not "|" in appdir and not "^" in appdir: # as can be the case at CERN
-            swbase = getSwbase(appdir, "", "", "", "")
+            swbase = self.getSwbase(appdir, "", "", "", "")
             if os.path.exists(swbase):
                 tolog("Application dir confirmed: %s" % (swbase))
             else:
@@ -2544,6 +2585,123 @@ class ATLASExperiment(Experiment):
             tolog("Using core count values: %s (job definition), %s (schedconfig)" % (str(coreCount), str(athenaProcNumber)))
 
         return ec, pilotErrorDiag
+
+    def getSwbase(self, appdir, release, homePackage, processingType, cmtconfig):
+        """ Return the swbase variable """
+        # appdir comes from thisSite.appdir (might not be set)
+        # release info is needed to figure out the correct path to use when schedconfig.appdir is set
+
+        swbase = ""
+
+        # Verify the validity of the release string in case it is not set (as can be the case for prun jobs)
+        release = verifyReleaseString(release)
+
+        region = readpar('region')
+        if region == 'Nordugrid':
+            if os.environ.has_key('RUNTIME_CONFIG_DIR'):
+                _swbase = os.environ['RUNTIME_CONFIG_DIR']
+                if os.path.exists(_swbase):
+                    swbase = _swbase
+        elif os.environ.has_key('VO_ATLAS_SW_DIR'):
+            # use the appdir from queuedata if available
+            scappdir = readpar('appdir')
+            # protect against complex appdir form
+            if "|" in scappdir and appdir != "":
+                #from SiteInformation import SiteInformation
+                #si = SiteInformation()
+                si = getSiteInformation(self.__experiment)
+                ec, _scappdir = si.extractAppdir(scappdir, processingType, homePackage)
+                if ec != 0:
+                    tolog("!!WARNING!!2222!! Failed to extract complex appdir: %d, %s, %s, %s" % (ec, scappdir, processingType, homePackage))
+                else:
+                    scappdir = _scappdir
+                tolog("Using alternative appdir=%s" % (scappdir))
+
+            elif scappdir != "":
+                tolog("Got a plain appdir from queuedata: %s" % (scappdir))
+            else:
+                tolog("Appdir not set in queuedata")
+
+            if scappdir != "":
+                # CERN-RELEASE:
+                # appdir=/afs/cern.ch/atlas/software/releases (full path to releases)
+                # CERN-UNVALID:
+                # appdir=/afs/cern.ch/atlas/software/unvalidated/caches (full path to releases)
+                # CERN-BUILDS:
+                # appdir=/afs/cern.ch/atlas/software/builds (already points to the latest release, do not add release)
+                # CERN-PROD:
+                # appdir=/afs/cern.ch/atlas/software/releases (full path to releases)
+                # Release can be added to appdir for CERN-RELEASE, CERN-UNVALID, CERN-PROD, but not to CERN-BUILDS
+                if os.path.exists(os.path.join(scappdir, release)):
+                    swbase = scappdir
+                else:
+                    # the build queue is special
+                    if scappdir[-len('builds'):] == 'builds':
+                        swbase = scappdir
+                    # backup, old cases
+                    elif os.path.exists(os.path.join(scappdir, 'software/releases')):
+                        swbase = os.path.join(scappdir, 'software/releases')
+                    # backup, for remaining LCG sites, only 'software' needs to be added
+                    else:
+                        swbase = os.path.join(scappdir, 'software')
+                        if not os.path.exists(swbase):
+                            swbase = scappdir
+            else:
+                tolog("VO_ATLAS_SW_DIR=%s" % (os.environ['VO_ATLAS_SW_DIR']))
+
+                # primary software base (search appdir for alternatives)
+                swbase = os.environ['VO_ATLAS_SW_DIR'] + '/software'
+        else:
+            # for non-LCG sites
+            if appdir.find('atlas_app/atlas_rel') < 0:
+                _swbase = os.path.join(appdir, 'atlas_app/atlas_rel')
+                if os.path.exists(_swbase):
+                    swbase = _swbase
+                else:
+                    swbase = appdir
+            else:
+                swbase = appdir
+
+        # add cmtconfig sub dir for CERNVM and for cvmfs systems
+        _cmtconfig = cmtconfig.replace("-", "_")
+        _swbase = os.path.join(swbase, _cmtconfig)
+        if os.path.exists(_swbase) and release != "" and release.upper() != "NULL":
+            swbase = _swbase
+
+        # uncomment if testing interactively at lxplus
+        # swbase = appdir
+        return swbase.replace('//','/')
+
+    def setPilotPythonVersion(self):
+        """ Set an environmental variable to the python version used by the pilot """
+        # Needed to disentangle which python version runAthena should fall back to in case of problems with LFC import
+
+        which_python = commands.getoutput("which python")
+        if which_python.startswith('/'):
+            os.environ['ATLAS_PYTHON_PILOT'] = which_python
+            tolog("ATLAS_PYTHON_PILOT set to %s" % (which_python))
+        else:
+            tolog("!!WARNING!!1111!! Could not set ATLAS_PYTHON_PILOT to %s" % (which_python))
+
+    # Optional
+    def updateJobSetupScript(self, workdir, create=False, to_script=None):
+        """ Create or update the job setup script (used to recreate the job locally if needed) """
+
+        # If create=True, this step will only create the file with the script header (bash info)
+
+        if create:
+            filename = os.path.basename(super(ATLASExperiment, self).getJobSetupScriptName(workdir))
+            tolog("Creating job setup script with stage-in and payload execution commands: %s" % (filename))
+            to_script = "#!/bin/bash\n# %s %s\n\n" % (filename, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time())))
+
+            # setup for EGI sites
+            if os.environ.has_key('VO_ATLAS_SW_DIR'):
+                to_script += "export VO_ATLAS_SW_DIR=%s\n" % (os.path.expandvars('$VO_ATLAS_SW_DIR'))
+                to_script += "if [ -f $VO_ATLAS_SW_DIR/local/setup.sh ]; then\n  source $VO_ATLAS_SW_DIR/local/setup.sh\nfi"
+
+        # Add the string to the setup script
+        if to_script:
+            super(ATLASExperiment, self).addToJobSetupScript(to_script, workdir)
 
 if __name__ == "__main__":
 

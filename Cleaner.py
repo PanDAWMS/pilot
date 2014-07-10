@@ -78,17 +78,23 @@ class Cleaner:
         number_of_cleanups = 0
 
         if self.clean:
-            tolog("Executing clean-up, stage 1/4")
+            tolog("Executing empty dirs clean-up, stage 1/5")
             Cleaner.purgeEmptyDirs(self.path)
 
-            tolog("Executing clean-up, stage 2/4")
+            tolog("Executing work dir clean-up, stage 2/5")
             Cleaner.purgeWorkDirs(self.path)
 
-            tolog("Executing clean-up, stage 3/4")
+            tolog("Executing maxed-out dirs clean-up, stage 3/5")
             Cleaner.purgeMaxedoutDirs(self.path)
 
-            tolog("Executing clean-up, stage 4/4")
+            tolog("Executing AthenaMP clean-up, stage 4/5")
+            files = ['AthenaMP_*', 'fifo_*', 'TokenExtractorChannel*', 'zmq_EventService*', 'asetup*', 'tmp*.pkl']
+            for f in files:
+                Cleaner.purgeFiles(self.path, f, limit=24*3600)
+
+            tolog("Executing PanDA Pilot dir clean-up, stage 5/5")
             JS = JobState()
+
             # grab all job state files in all work directories
             job_state_files = glob(self.path + "/Panda_Pilot_*/jobState-*.pickle")
             number_of_files = len(job_state_files)
@@ -247,6 +253,35 @@ class Cleaner:
         tolog("Purged %d single workDirs directories" % (purged_nr))
 
     purgeWorkDirs = staticmethod(purgeWorkDirs)    
+
+    def purgeFiles(path, filename, limit=12*3600):
+        """ locate and remove lingering directories/files """
+
+        all_files = glob("%s/%s" % (path, filename))
+        max_files = 50
+        file_nr = 0
+
+        for _file in all_files:
+            if file_nr >= max_files:
+                break
+
+            # when was the dir last modified?
+            current_time = int(time.time())
+            try:
+                file_modification_time = os.path.getmtime(_file)
+            except:
+                # skip this dir since it was not possible to read the modification time
+                pass
+            else:
+                mod_time = current_time - file_modification_time
+                if mod_time > limit:
+                    tolog("Found file %s (will now try to purge it)" % (_file))
+                    ec, rs = commands.getstatusoutput("rm -f %s" % (_file))
+                    if ec != 0:
+                        tolog("Failed to remove dir: %s" % (rs))
+            file_nr += 1
+
+    purgeFiles = staticmethod(purgeFiles)
 
     def purgeMaxedoutDirs(path):
         """ locate and remove maxedout lingering dirs """

@@ -22,7 +22,7 @@ class Job:
         self.inFilesGuids = []             # list of input file guids
         self.outFilesGuids = []            # these guids are usually unknown till the job is done
         self.logFile = None                #
-        self.tarFileGuid = commands.getoutput('uuidgen 2> /dev/null') # guid for the tarball of the job workdir 
+        self.tarFileGuid = pUtil.getGUID() # guid for the tarball of the job workdir 
         self.logDblock = None              #
         self.jobPars = None                # Job parameters defining the execution of the job
         self.atlasEnv = None               # =1 : atlas env required; =0 : no atlas env. required

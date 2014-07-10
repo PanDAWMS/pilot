@@ -5,7 +5,7 @@ from time import time
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, addToJobSetupScript, getSiteInformation
+from pUtil import tolog, readpar, getSiteInformation, getExperiment
 from timed_command import timed_command
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
@@ -41,7 +41,7 @@ class curlSiteMover(SiteMover.SiteMover):
         """ For when space availability is not verifiable """
         return 999999        
 
-    def core_get_data(self, envsetup, token, source_surl, dest_path):
+    def core_get_data(self, envsetup, token, source_surl, dest_path, experiment):
         """ stage-in core function, can be overridden (see stormSiteMover) """
 
         error = PilotErrors()
@@ -83,11 +83,15 @@ class curlSiteMover(SiteMover.SiteMover):
             _cmd_str = _cmd_str.replace("srm://", "https://")
         # add the full stage-out command to the job setup script
         #_cmd_str = _cmd_str.replace("file://", "-o ")
+
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         to_script = _cmd_str
         to_script = to_script.lstrip(' ') # remove any initial spaces
         if to_script.startswith('/'):
             to_script = 'source ' + to_script
-        addToJobSetupScript(to_script, os.path.dirname(dest_path))
+        thisExperiment.updateJobSetupScript(os.path.dirname(dest_path), to_script=to_script)
 
         tolog("Executing command: %s" % (_cmd_str))
         s = -1
@@ -149,6 +153,7 @@ class curlSiteMover(SiteMover.SiteMover):
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
         proxycheck = pdict.get('proxycheck', False)
+        experiment = pdict.get('experiment', '')
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)
@@ -172,9 +177,12 @@ class curlSiteMover(SiteMover.SiteMover):
         # get a proper envsetup
         envsetup = self.getEnvsetup(get=True)
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         if proxycheck:
             # do we have a valid proxy?
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
+            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
             if s != 0:
                 self.__sendReport('PROXYFAIL', report)
                 return s, pilotErrorDiag
@@ -255,7 +263,7 @@ class curlSiteMover(SiteMover.SiteMover):
         # invoke the transfer commands
         report['relativeStart'] = time()
         report['transferStart'] = time()
-        result = self.core_get_data(envsetup, token, getfile, fullname)
+        result = self.core_get_data(envsetup, token, getfile, fullname, experiment)
         report['validateStart'] = time()
         if result:
             self.__sendReport('CORE_FAIL', report)
@@ -373,8 +381,11 @@ class curlSiteMover(SiteMover.SiteMover):
         # get a proper envsetup
         envsetup = self.getEnvsetup()
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         if proxycheck:
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
+            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
             if s != 0:
                 self.__sendReport('NO_PROXY', report)
                 return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)

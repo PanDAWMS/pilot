@@ -7,6 +7,7 @@
 
 import os
 import re
+import time
 import commands
 from subprocess import Popen, PIPE
 
@@ -93,6 +94,142 @@ class Experiment(object):
     # Additional optional methods
     # These methods are optional and can be left as they are here, or modified according to special needs
 
+    def verifyProxy(self, envsetup="", limit=None):
+        """ Check for a valid voms/grid proxy longer than N hours """
+        # Use 'limit' to set required length
+
+        error = PilotErrors()
+        pilotErrorDiag = ""
+
+        if limit == None:
+            limit = 48
+
+        from SiteMover import SiteMover
+        if envsetup == "":
+            envsetup = SiteMover.getEnvsetup()
+
+        # add setup for arcproxy if it exists
+        arcproxy_setup = "/cvmfs/atlas.cern.ch/repo/sw/arc/client/latest/slc6/x86_64/setup.sh"
+        _envsetup = ""
+        if os.path.exists(arcproxy_setup):
+            if envsetup != "":
+                if not envsetup.endswith(";"):
+                    envsetup += ";"
+
+                # but remove any existing setup file in this path since it will tamper with the arcproxy setup
+                pattern = re.compile(r'(source .+\;)')
+                s = re.findall(pattern, envsetup)
+                if s != []:
+                    _envsetup = envsetup.replace(s[0], "")
+                else:
+                    _envsetup = envsetup
+
+            _envsetup += ". %s;" % (arcproxy_setup)
+
+        # first try to use arcproxy since voms-proxy-info is not working properly on SL6 (memory issues on queues with limited memory)
+        # cmd = "%sarcproxy -I |grep 'AC:'|awk '{sum=$5*3600+$7*60+$9; print sum}'" % (envsetup)
+        cmd = "%sarcproxy -i vomsACvalidityLeft" % (_envsetup)
+        tolog("Executing command: %s" % (cmd))
+        exitcode, output = commands.getstatusoutput(cmd)
+        if "command not found" in output:
+            tolog("!!WARNING!!1234!! arcproxy is not available on this queue, this can lead to memory issues with voms-proxy-info on SL6: %s" % (output))
+        else:
+            ec, pilotErrorDiag = self.interpretProxyInfo(exitcode, output, limit)
+            if ec == 0:
+                tolog("Voms proxy verified using arcproxy")
+                return 0, pilotErrorDiag
+            elif ec == error.ERR_NOVOMSPROXY:
+                return ec, pilotErrorDiag
+            else:
+                tolog("Will try voms-proxy-info instead")
+
+        # -valid HH:MM is broken
+        cmd = "%svoms-proxy-info -actimeleft --file $X509_USER_PROXY" % (envsetup)
+        tolog("Executing command: %s" % (cmd))
+        exitcode, output = commands.getstatusoutput(cmd)
+        if "command not found" in output:
+            tolog("Skipping voms proxy check since command is not available")
+        else:
+            ec, pilotErrorDiag = self.interpretProxyInfo(exitcode, output, limit)
+            if ec == 0:
+                tolog("Voms proxy verified using voms-proxy-info")
+                return 0, pilotErrorDiag
+
+        if limit:
+            cmd = "%sgrid-proxy-info -exists -valid %s:00" % (envsetup, str(limit))
+        else:
+            cmd = "%sgrid-proxy-info -exists -valid 24:00" % (envsetup)
+        tolog("Executing command: %s" % (cmd))
+        exitcode, output = commands.getstatusoutput(cmd)
+        if exitcode != 0:
+            if output.find("command not found") > 0:
+                tolog("Skipping grid proxy check since command is not available")
+            else:
+                # Analyze exit code / output
+                from futil import check_syserr
+                check_syserr(exitcode, output)
+                pilotErrorDiag = "Grid proxy certificate does not exist or is too short: %d, %s" % (exitcode, output)
+                tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+                return error.ERR_NOPROXY, pilotErrorDiag
+        else:
+            tolog("Grid proxy verified")
+
+        return 0, pilotErrorDiag
+
+    def interpretProxyInfo(self, ec, output, limit):
+        """ Interpret the output from arcproxy or voms-proxy-info """
+
+        exitcode = 0
+        pilotErrorDiag = ""
+        error = PilotErrors()
+
+        tolog("ec=%d output=%s" % (ec, output))
+
+        if ec != 0:
+            if "Unable to verify signature! Server certificate possibly not installed" in output:
+                tolog("!!WARNING!!2999!! Skipping voms proxy check: %s" % (output))
+            # test for command errors
+            elif "arcproxy:" in output:
+                pilotErrorDiag = "Arcproxy failed: %s" % (output)
+                tolog("!!WARNING!!2998!! %s" % (pilotErrorDiag))
+                exitcode = error.ERR_GENERALERROR
+            else:
+                # Analyze exit code / output
+                from futil import check_syserr
+                check_syserr(ec, output)
+                pilotErrorDiag = "Voms proxy certificate check failure: %d, %s" % (ec, output)
+                tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+                exitcode = error.ERR_NOVOMSPROXY
+        else:
+            # remove any additional print-outs if present, assume that the last line is the time left
+            if "\n" in output:
+                output = output.split('\n')[-1]
+
+            # test for command errors
+            if "arcproxy:" in output:
+                pilotErrorDiag = "Arcproxy failed: %s" % (output)
+                tolog("!!WARNING!!2998!! %s" % (pilotErrorDiag))
+                exitcode = error.ERR_GENERALERROR
+            else:
+                # on EMI-3 the time output is different (HH:MM:SS as compared to SS on EMI-2)
+                if ":" in output:
+                    ftr = [3600, 60, 1]
+                    output = sum([a*b for a,b in zip(ftr, map(int,output.split(':')))])
+                try:
+                    validity = int(output)
+                    if validity >= limit * 3600:
+                        tolog("Voms proxy verified (%ds)" % (validity))
+                    else:
+                        pilotErrorDiag = "Voms proxy certificate does not exist or is too short. Lifetime %ds" % (validity)
+                        tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+                        exitcode = error.ERR_NOVOMSPROXY
+                except ValueError:
+                    pilotErrorDiag = "Failed to evalute command output: %s" % (output)
+                    tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
+                    exitcode = error.ERR_GENERALERROR
+
+        return exitcode, pilotErrorDiag
+
     def removeRedundantFiles(self, workdir):
         """ Remove redundant files and directories """
 
@@ -155,7 +292,15 @@ class Experiment(object):
         tolog("No special checks for \'%s\'" % (self.__experiment))
 
         return True # obviously change this to 'status' once implemented
-    
+
+    def checkSpecialEnvVars(self, sitename):
+        """ Check special environment variables """
+
+        ec = 0
+        tolog("No special env var checks for site %s" % (sitename))
+
+        return ec
+
     def setINDS(self, realDatasetsIn):
         """ Extract the dataset as set by pathena option --inDS and set the INDS environmental variable """
         # Needed by pathena (move to ATLASExperiment later)
@@ -214,6 +359,7 @@ class Experiment(object):
             if not rets:
                 rets = "(None)"
             if ec != 0:
+                # Analyze exit code / output
                 from futil import check_syserr
                 check_syserr(ec, rets)
                 pilotErrorDiag = "wget command failed: %d, %s" % (ec, rets)
@@ -670,7 +816,7 @@ class Experiment(object):
         # will be identified by this method using some other job data member
 
         # Default subprocess name
-        name = "Normal"
+        name = "RunJob"
 
         # Select alternative subprocess names depending on defined job data members
         #if readpar('hpc'):
@@ -698,7 +844,7 @@ class Experiment(object):
         #env = environment.set_environment()
 
         tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
-        if subprocessName == "Normal":
+        if subprocessName == "RunJob":
             jobargs = [env['pyexe'], "RunJob.py", 
 #            jobargs = [env['pyexe'], "runJob.py", 
                        "-a", env['thisSite'].appdir,
@@ -814,6 +960,51 @@ class Experiment(object):
 
         return ec, pilotErrorDiag
 
+    # Optional
     def useTracingService(self):
 
         return False
+
+    # Optional
+    def updateJobSetupScript(self, workdir, create=False, to_script=None):
+        """ Create or update the job setup script (used to recreate the job locally if needed) """
+
+        # If create=True, this step will only create the file with the script header (bash info)
+
+        if create:
+            filename = os.path.basename(self.getJobSetupScriptName(workdir))
+            tolog("Creating job setup script with stage-in and payload execution commands: %s" % (filename))
+            to_script = "#!/bin/bash\n# %s %s\n\n" % (filename, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time())))
+
+        # Add the string to the setup script
+        if to_script:
+            self.addToJobSetupScript(to_script, workdir)
+
+    # Optional
+    def getJobSetupScriptName(self, workdir):
+        """ return the name of the job setup file """
+
+        return os.path.join(workdir, "job_setup.sh")
+
+    # Optional
+    def addToJobSetupScript(self, cmd, workdir):
+        """ add/append command to job setup file """
+
+        filename = self.getJobSetupScriptName(workdir)
+        if not os.path.exists(filename):
+            try:
+                fp = open(filename, "w")
+            except OSError, e:
+                tolog("!!WARNING!!1880!! Could not open job setup file for writing: %s" % str(e))
+        else:
+            try:
+                fp = open(filename, "a")
+            except OSError, e:
+                tolog("!!WARNING!!1880!! Could not open job setup file for appending: %s" % str(e))
+
+        if fp:
+            fp.write(cmd)
+            fp.write("\n\n")
+            fp.close()
+            tolog("Updated %s: %s" % (filename, cmd))
+

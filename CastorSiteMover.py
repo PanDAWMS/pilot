@@ -4,7 +4,7 @@ import commands
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, verifySetupCommand
+from pUtil import tolog, readpar, verifySetupCommand, getExperiment
 from time import time
 from FileStateClient import updateFileState
 
@@ -42,6 +42,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         useCT = pdict.get('usect', True)
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
+        experiment = pdict.get('experiment', '')
         prodDBlockToken = pdict.get('access', '')
 
         # get the DQ2 tracing report
@@ -55,7 +56,11 @@ class CastorSiteMover(SiteMover.SiteMover):
             self.__sendReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
-        s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
+        # do we have a valid proxy?
+        s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
         if s != 0:
             self.__sendReport('PROXYFAIL', report)
             return s, pilotErrorDiag
@@ -203,6 +208,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         lfn = pdict.get('lfn', '')
         guid = pdict.get('guid', '')
         analJob = pdict.get('analJob', False)
+        experiment = pdict.get('experiment', '')
 
         # get the DQ2 tracing report
         report = self.getStubTracingReport(pdict['report'], 'castor', lfn, guid)
@@ -215,7 +221,11 @@ class CastorSiteMover(SiteMover.SiteMover):
             self.__sendReport('RFCP_FAIL', report)
             return self.put_data_retfail(ec, pilotErrorDiag) 
 
-        s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
+        # do we have a valid proxy?
+        s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
         if s != 0:
             self.__sendReport('PROXYFAIL', report)
             return self.put_data_retfail(s, pilotErrorDiag)

@@ -6,7 +6,7 @@ import urllib2
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, addToJobSetupScript, getDirectAccessDic, extractPattern
+from pUtil import tolog, readpar, getDirectAccessDic, extractPattern, getExperiment
 from timed_command import timed_command
 from FileStateClient import updateFileState
 
@@ -206,6 +206,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         token = pdict.get('token', None)
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
+        experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
@@ -230,9 +231,12 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # get a proper envsetup
         envsetup = self.getEnvsetup(get=True)
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         if proxycheck:
             # do we have a valid proxy?
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
+            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
             if s != 0:
                 self.__sendReport('PROXYFAIL', report)
                 return s, pilotErrorDiag
@@ -379,6 +383,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         dsname = pdict.get('dsname', '')
         testLevel = pdict.get('testLevel', '0')
         extradirs = pdict.get('extradirs', '')
+        experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
         experiment = pdict.get('experiment', '')
         analysisJob = pdict.get('analJob', False)
@@ -426,8 +431,11 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # get a proper envsetup
         envsetup = self.getEnvsetup()
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         if proxycheck:
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
+            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
             if s != 0:
                 self.__sendReport('NO_PROXY', report)
                 return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)

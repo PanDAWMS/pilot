@@ -116,6 +116,7 @@ class PilotErrors:
     ERR_RUNEVENTEXC = 1218
     ERR_CORECOUNTMISMATCH = 1217
     ERR_FILEEXISTS = 1218
+    ERR_UUIDGEN = 1219
     ERR_UNKNOWN = 1220
 
     # internal error codes
@@ -239,6 +240,7 @@ class PilotErrors:
         ERR_CORECOUNTMISMATCH : "Mismatch between core count in job and queue definition",
         ERR_RUNEVENTEXC : "Exception caught by runEvent", 
         ERR_FILEEXISTS : "File already exists",
+        ERR_UUIDGEN : "Command uuidgen failed",
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)"
         }
 
@@ -247,7 +249,7 @@ class PilotErrors:
     recoverableErrorCodes = [0] + putErrorCodes
 
     # Error codes that will issue a Pilot-controlled resubmission
-    PilotResubmissionErrorCodes = [1008, 1098, 1099, 1110, 1113, 1114, 1115, 1116, 1117, 1137, 1139, 1151, 1152, 1171, 1172, 1177, 1179, 1180, 1181, 1182, 1188, 1189, 1195, 1196, 1197]
+    PilotResubmissionErrorCodes = [1008, 1098, 1099, 1110, 1113, 1114, 1115, 1116, 1117, 1137, 1139, 1151, 1152, 1171, 1172, 1177, 1179, 1180, 1181, 1182, 1188, 1189, 1195, 1196, 1197, 1219]
 
     # Error codes used with FAX fail-over (only an error code in this list will allow FAX fail-over)
     PilotFAXErrorCodes = [1103] + PilotResubmissionErrorCodes

@@ -22,19 +22,16 @@ LFC_HOME = '/grid/atlas/'
 
 class SiteMover(object):
     """
-    File movers move files between a SE (of different kind) and a local directory
-    
-    where all posix operations have to be supported and fast access is supposed
+    File movers move files between a storage element (of different kinds) and a local directory    
     get_data: SE->local
     put_data: local->SE
     check_space: available space in SE
     getMover: static function returning a SiteMover
     
-    It furter provide function useful for child classes (AAASiteMover):
+    It furter provides functions useful for child classes (AAASiteMover):
     put_data_retfail -- facilitate return in case of failure
     mkdirWperm -- create recursively dirs setting appropriate permissions
     getLocalFileInfo -- get size and checksum of a local file
-    verifyProxy -- check for valid Grid proxy certificate
     
     This is the Default SiteMover, the SE has to be locally accessible for all the WNs
     and all commands like cp, mkdir, md5checksum have to be available on files in the SE
@@ -1198,138 +1195,6 @@ class SiteMover(object):
         return 0, pilotErrorDiag, fsize, fchecksum
 
     getLocalFileInfo = staticmethod(getLocalFileInfo)
-
-    def verifyProxy(envsetup='', limit=None):
-        """ Check for a valid voms/grid proxy longer than 48 hours """
-
-        error = PilotErrors()
-        pilotErrorDiag = ""
-
-        if limit == None:
-            limit = 48
-
-        if envsetup == "":
-            envsetup = SiteMover.getEnvsetup()
-
-        # add setup for arcproxy if it exists
-        arcproxy_setup = "/cvmfs/atlas.cern.ch/repo/sw/arc/client/latest/slc6/x86_64/setup.sh"
-        _envsetup = ""
-        if os.path.exists(arcproxy_setup):
-            if envsetup != "":
-                if not envsetup.endswith(";"):
-                    envsetup += ";"
-
-                # but remove any existing setup file in this path since it will tamper with the arcproxy setup
-                pattern = re.compile(r'(source .+\;)')
-                s = re.findall(pattern, envsetup)
-                if s != []:
-                    _envsetup = envsetup.replace(s[0], "")
-                else:
-                    _envsetup = envsetup
-
-            _envsetup += ". %s;" % (arcproxy_setup)
-
-        # first try to use arcproxy since voms-proxy-info is not working properly on SL6 (memory issues on queues with limited memory)
-        # cmd = "%sarcproxy -I |grep 'AC:'|awk '{sum=$5*3600+$7*60+$9; print sum}'" % (envsetup)
-        cmd = "%sarcproxy -i vomsACvalidityLeft" % (_envsetup)
-        tolog("Executing command: %s" % (cmd))
-        exitcode, output = commands.getstatusoutput(cmd)
-        if "command not found" in output:
-            tolog("!!WARNING!!1234!! arcproxy is not available on this queue, this can lead to memory issues with voms-proxy-info on SL6: %s" % (output))
-        else:
-            ec, pilotErrorDiag = SiteMover.interpretProxyInfo(exitcode, output, limit)
-            if ec == 0:
-                tolog("Voms proxy verified using arcproxy")
-                return 0, pilotErrorDiag
-            elif ec == error.ERR_NOVOMSPROXY:
-                return ec, pilotErrorDiag
-            else:
-                tolog("Will try voms-proxy-info instead")
-
-        # -valid HH:MM is broken
-        cmd = "%svoms-proxy-info -actimeleft --file $X509_USER_PROXY" % (envsetup)
-        tolog("Executing command: %s" % (cmd))
-        exitcode, output = commands.getstatusoutput(cmd)
-        if "command not found" in output:
-            tolog("Skipping voms proxy check since command is not available")
-        else:
-            ec, pilotErrorDiag = SiteMover.interpretProxyInfo(exitcode, output, limit)
-            if ec == 0:
-                tolog("Voms proxy verified using voms-proxy-info")
-                return 0, pilotErrorDiag
-
-        if limit:
-            cmd = "%sgrid-proxy-info -exists -valid %s:00" % (envsetup, str(limit))
-        else:
-            cmd = "%sgrid-proxy-info -exists -valid 24:00" % (envsetup)
-        tolog("Executing command: %s" % (cmd))
-        exitcode, output = commands.getstatusoutput(cmd)
-        if exitcode != 0:
-            if output.find("command not found") > 0:
-                tolog("Skipping grid proxy check since command is not available")
-            else:
-                check_syserr(exitcode, output)
-                pilotErrorDiag = "Grid proxy certificate does not exist or is too short: %d, %s" % (exitcode, output)
-                tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                return error.ERR_NOPROXY, pilotErrorDiag
-        else:
-            tolog("Grid proxy verified")
-
-        return 0, pilotErrorDiag
-    verifyProxy = staticmethod(verifyProxy)
-
-    def interpretProxyInfo(ec, output, limit):
-        """ Interpret the output from arcproxy or voms-proxy-info """
-
-        exitcode = 0
-        pilotErrorDiag = ""
-        error = PilotErrors()
-
-        tolog("ec=%d output=%s" % (ec, output))
-
-        if ec != 0:
-            if "Unable to verify signature! Server certificate possibly not installed" in output:
-                tolog("!!WARNING!!2999!! Skipping voms proxy check: %s" % (output))
-            # test for command errors
-            elif "arcproxy:" in output:
-                pilotErrorDiag = "Arcproxy failed: %s" % (output)
-                tolog("!!WARNING!!2998!! %s" % (pilotErrorDiag))
-                exitcode = error.ERR_GENERALERROR
-            else:
-                check_syserr(ec, output)
-                pilotErrorDiag = "Voms proxy certificate check failure: %d, %s" % (ec, output)
-                tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                exitcode = error.ERR_NOVOMSPROXY
-        else:
-            # remove any additional print-outs if present, assume that the last line is the time left
-            if "\n" in output:
-                output = output.split('\n')[-1]
-
-            # test for command errors
-            if "arcproxy:" in output:
-                pilotErrorDiag = "Arcproxy failed: %s" % (output)
-                tolog("!!WARNING!!2998!! %s" % (pilotErrorDiag))
-                exitcode = error.ERR_GENERALERROR
-            else:
-                # on EMI-3 the time output is different (HH:MM:SS as compared to SS on EMI-2)
-                if ":" in output:
-                    ftr = [3600, 60, 1]
-                    output = sum([a*b for a,b in zip(ftr, map(int,output.split(':')))])
-                try:
-                    validity = int(output)
-                    if validity >= limit * 3600:
-                        tolog("Voms proxy verified (%ds)" % (validity))
-                    else:
-                        pilotErrorDiag = "Voms proxy certificate does not exist or is too short. Lifetime %ds" % (validity)
-                        tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                        exitcode = error.ERR_NOVOMSPROXY
-                except ValueError:
-                    pilotErrorDiag = "Failed to evalute command output: %s" % (output)
-                    tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                    exitcode = error.ERR_GENERALERROR
-
-        return exitcode, pilotErrorDiag
-    interpretProxyInfo = staticmethod(interpretProxyInfo)
 
     def dumpExtendedProxy(setupstr=''):
         """ run voms-proxy-info -all """

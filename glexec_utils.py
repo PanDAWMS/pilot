@@ -348,9 +348,6 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'BNLdCacheSiteMover.py'),
                      os.path.join(self.sandbox_path, 'BNLdCacheSiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'BNLdCacheSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'COGSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'COGSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'COGSiteMover.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'xrootdSiteMover.py'),
                      os.path.join(self.sandbox_path, 'xrootdSiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'xrootdSiteMover.py'), 0666)

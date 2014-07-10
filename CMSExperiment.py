@@ -13,7 +13,7 @@ from pUtil import readpar                  # Used to read values from the schedc
 #from pUtil import isAnalysisJob            # Is the current job a user analysis job or a production job?
 from pUtil import getCmtconfig             # Get the cmtconfig from the job def or queuedata
 from pUtil import verifyReleaseString      # To verify the release string (move to Experiment later)
-from pUtil import setPilotPythonVersion    # Which python version is used by the pilot
+#from pUtil import setPilotPythonVersion    # Which python version is used by the pilot
 from pUtil import getSiteInformation       # Get the SiteInformation object corresponding to the given experiment
 from pUtil import isBuildJob               # Is the current job a build job?
 from pUtil import remove
@@ -321,7 +321,8 @@ class CMSExperiment(Experiment):
 
         #tolog("No special checks for \'%s\'" % (self.__experiment))
         # set the python version used by the pilot
-        setPilotPythonVersion()
+        # Is this really necessary for CMS? Function below moved to ATLASExperiment.
+        #setPilotPythonVersion()
 
         tolog("SetPilotPython version:  special checks for \'%s\'" % (self.__experiment))
 
@@ -339,8 +340,8 @@ class CMSExperiment(Experiment):
 
         return 0
 
-    def checkSpecialEnvVars(self):
-        """ Called by pilot.py, check needed for runMain method """
+    def checkSpecialEnvVars(self, sitename):
+        """ Called by pilot.py """
         tolog("CMSExperiment - checkSpecialEnvVars - nothing to do")
 
         return 0

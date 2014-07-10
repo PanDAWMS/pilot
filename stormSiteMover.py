@@ -3,7 +3,7 @@ import os, commands
 from lcgcpSiteMover import lcgcpSiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, addToJobSetupScript, readpar
+from pUtil import tolog, readpar, getExperiment
 
 class stormSiteMover(lcgcpSiteMover):
     """ SiteMover for storm sites
@@ -12,7 +12,7 @@ class stormSiteMover(lcgcpSiteMover):
     copyCommand = "storm"
     checksum_command = "adler32"
 
-    def core_get_data(self, envsetup, token, source_surl, local_fullname):
+    def core_get_data(self, envsetup, token, source_surl, local_fullname, experiment):
         """ special get function developed for storm sites """
 
         error = PilotErrors()
@@ -37,12 +37,15 @@ class stormSiteMover(lcgcpSiteMover):
         t = t1[4] - t0[4]
         tolog("Command finished after %f s" % (t))
         if s == 0:
+            # get the experiment object
+            thisExperiment = getExperiment(experiment)
+
             # add the full stage-out command to the job setup script
             to_script = _cmd_str
             to_script = to_script.lstrip(' ') # remove any initial spaces
             if to_script.startswith('/'):
                 to_script = 'source ' + to_script
-            addToJobSetupScript(to_script, os.path.dirname(local_fullname))
+            thisExperiment.updateJobSetupScript(os.path.dirname(local_fullname), to_script=to_script)
 
             source_turl, req_token = o.split('\n')
             source_turl = source_turl.replace('file://','')
@@ -66,7 +69,7 @@ class stormSiteMover(lcgcpSiteMover):
             # Fall back if file protocol is not supported
             if o.find("Can not handle specified protocol") >= 0:
                 tolog("'file' protocol not supported, reverting to lcg-cp standard mover")
-                return lcgcpSiteMover.core_get_data(self, envsetup, token, source_surl, local_fullname)
+                return lcgcpSiteMover.core_get_data(self, envsetup, token, source_surl, local_fullname, experiment)
 
             tolog("!!WARNING!!2990!! get_data failed. Status=%s Output=%s" % (s, str(o)))
             if o.find("No space left on device") >= 0:

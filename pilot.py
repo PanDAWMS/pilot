@@ -1,34 +1,6 @@
 #!/usr/bin/python -u 
 
 
-
-
-
-# see runEvent, why is athenamp blocking?
-# execute athenamp by hand, put PFC in same dir
-# then start it with Popen
-# go to next adv weekly, ask ale to help with proxies, transfer TAG file to cern
-
-# AtlasG4_tf.py '--inputEvgenFile' '<path_to_the_startup_input_file>' '--outputHitsFile' 'HITS_b3db00ae-e277-4ea4-88eb-ee4dffd9e7f6.root' '--maxEvents=2' '--randomSeed=568' '--geometryVersion' 'ATLAS-GEO-18-01-03' '--physicsList' 'QGSP_BERT' '--conditionsTag' 'OFLCOND-MC12-SDR-06' '--preExec' 'from AthenaMP.AthenaMPFlags import jobproperties as jps' 'jps.AthenaMPFlags.Strategy="TokenScatterer"' 'from AthenaCommon.AppMgr import ServiceMgr as svcMgr' 'from AthenaServices.AthenaServicesConf import OutputStreamSequencerSvc' 'outputStreamSequencerSvc = OutputStreamSequencerSvc()' 'outputStreamSequencerSvc.SequenceIncidentName = "NextEventRange"' 'outputStreamSequencerSvc. IgnoreInputFileBoundary = True' 'svcMgr += outputStreamSequencerSvc'
-
-#bash-4.1$ cd /tmp/nilspal
-#bash-4.1$ cp ~/python/EVNT.545023._000041.TAG.pool.root.2 .
-#bash-4.1$ cp ~/python/PoolFileCatalog.xml .
-#bash-4.1$ export ATHENA_PROC_NUMBER='4'
-#bash-4.1$ source /cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies/x86_64-slc6-gcc47-opt/19.0.X/rel_4/cmtsite/asetup.sh rel_4,notest --cmtconfig x86_64-slc6-gcc47-opt
-#AtlasOffline/rel_4 with platform x86_64-slc6-gcc47-opt
-#at /cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies/x86_64-slc6-gcc47-opt/19.0.X/rel_4
-#source /cvmfs/atlas.cern.ch/repo/sw/local/setup-yampl.sh
-#
-#
-#fails at
-#AtlasG4Tf 20:54:24 Py:AthFile           INFO opening [EVNT.545023._000041.TAG.pool.root.2]...
-#AtlasG4Tf 20:54:30 Error: argument of type 'NoneType' is not iterable
-#
-#put full file path? pfn? need to register file at cern
-
-
-
 # test code in getInstallDir() related to setting of siteroot, now adding cmtconfig etc for non-vo-atlas-sw-dir
 
 # alternative SE stageout activated in mover: useAlternativeStageOut
@@ -36,7 +8,6 @@
 # CERN-RELEASE in getJobExecutionCommand()
 # transferLogFile(), goegrid hardcoded, JobLog - turned on
 
-# LocalSiteMover BAD for non log files
 # put_RETRY = 1 Mover
 
 # Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file registrations using DQ2 functions
@@ -626,7 +597,7 @@ def testExternalDir(recoveryDir):
 
     status = True
 
-    testFile = "%s/testFile-%s.tmp" % (recoveryDir, commands.getoutput('uuidgen 2> /dev/null'))
+    testFile = "%s/testFile-%s.tmp" % (recoveryDir, pUtil.getGUID())
     ec, rv = commands.getstatusoutput("touch %s" % (testFile))
     if ec != 0:
         pUtil.tolog("!!WARNING!!1190!! Could not write test file to recovery dir (%s): %d, %s" % (testFile, ec, rv))
@@ -2330,24 +2301,6 @@ def getJob():
 
     return ec, job, env['number_of_jobs']
 
-def verifyProxyValidity():
-    """ Verify the proxy validity """
-
-    ec = 0
-
-    if env['proxycheckFlag']:
-        if 'pandadev' in env['pshttpurl']:
-            _limit = 2
-        else:
-            _limit = None
-        ec, pilotErrorDiag = pUtil.verifyProxyValidity(_limit)
-        if ec != 0:
-            pUtil.tolog("!!FAILED!!1999!! Did not find a valid proxy, will now abort")
-    else:
-        pUtil.tolog("Skipping proxy verification since proxycheckFlag is False")
-
-    return ec
-
 def checkLocalDiskSpace(error):
     """ Do we have enough local disk space left to run the job? """
 
@@ -2430,19 +2383,6 @@ def runMain(runpars):
         env['workerNode'] = Node.Node()
         env['workerNode'].setNodeName(getProperNodeName(os.uname()[1]))
 
-        #PN
-#        os.environ['PYTHONPATH'] = '/cluster/grid/osg-wn-client-4-10-2014/usr/lib/python2.6/site-packages:/cluster/grid/osg-wn-client-4-10-2014/usr/lib64/python2.6/site-packages:/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/0.1.12/externals/kerberos/lib.slc6-x86_64-2.6:/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/0.1.12/externals/kerberos/lib.slc6-i686-2.6:/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/0.1.12/lib/python2.6/site-packages:/cluster/grid/osg-wn-client-4-10-2014/usr/lib/python2.6/site-packages:/cluster/grid/osg-wn-client-4-10-2014/usr/lib64/python2.6/site-packages:/cvmfs/atlas.cern.ch/repo/sw/local/noarch/python-yampl/1.0/lib.linux-x86_64-2.6'
-        # PN
-        try:
-            pUtil.tolog("LD_LIBRARY_PATH=%s"%(os.environ['LD_LIBRARY_PATH']))
-            pUtil.tolog("PYTHONPATH=%s"%(os.environ['PYTHONPATH']))
-            import yampl
-        except Exception, e:
-            pUtil.tolog("!!WARNING!!1122!! Caught exception: %s" % (e))
-            pUtil.tolog("Failed to import yampl!")
-        else:
-            pUtil.tolog("Successfully imported yampl!")
-
         # collect WN info .........................................................................................
         # do not include the basename in the path since it has not been created yet
         # i.e. remove Panda_Pilot* from the workdir path
@@ -2468,7 +2408,7 @@ def runMain(runpars):
         atexit.register(pUtil.cleanup, wdog, env['pilot_initdir'], env['wrapperFlag'], env['rmwkdir'])
 
         # check special environment variables
-        ec = pUtil.checkSpecialEnvVars(env['thisSite'].sitename)
+        ec = thisExperiment.checkSpecialEnvVars(env['thisSite'].sitename)
         if ec != 0:
             return pUtil.shellExitCode(ec)
     
@@ -2530,10 +2470,11 @@ def runMain(runpars):
             dumpVars(env['thisSite'])
 
             # do we have a valid proxy?
-            ec = verifyProxyValidity()
-            if ec != 0:
-                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
-                return pUtil.shellExitCode(ec)
+            if env['proxycheckFlag']:
+                ec = thisExperiment.verifyProxy(envsetup="")
+                if ec != 0:
+                    pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
+                    return pUtil.shellExitCode(ec)
 
             pUtil.tolog("Collecting WN info from: %s" % (os.path.dirname(env['thisSite'].workdir)))
             env['workerNode'].collectWNInfo(os.path.dirname(env['thisSite'].workdir))

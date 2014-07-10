@@ -603,22 +603,6 @@ class Monitor:
         rc, rs = commands.getstatusoutput(cmd)
         pUtil.tolog("\n%s" % (rs))    
         
-    def __verifyProxyValidity(self):
-        """ Verify the proxy validity """    
-        ec = 0    
-        if self.__env['proxycheckFlag']:
-            if 'pandadev' in self.__env['pshttpurl']:
-                _limit = 2
-            else:
-                _limit = None
-            ec, pilotErrorDiag = pUtil.verifyProxyValidity(_limit)
-            if ec != 0:
-                pUtil.tolog("!!FAILED!!1999!! Did not find a valid proxy, will now abort")
-        else:
-            pUtil.tolog("Skipping proxy verification since proxycheckFlag is False")
-    
-        return ec
-
     def __getsetWNMem(self):
         """ Get the memory limit from queuedata or from the -k pilot option and set it """
 
@@ -925,8 +909,11 @@ class Monitor:
             globalSite = self.__env['thisSite']
             globalWorkNode = self.__env['workerNode']
 
+            # get the experiment object
+            thisExperiment = pUtil.getExperiment(self.__env['experiment'])
+
             # do we have a valid proxy?
-            ec = self.__verifyProxyValidity()
+            ec = thisExperiment.verifyProxy(envsetup="")
             if ec != 0:
                 self.__env['return'] = ec
                 return
@@ -1036,10 +1023,11 @@ class Monitor:
                 raise SystemError(1111)
             else:
                 globalJob = self.__env['job']
-        
-            # create the job setup script (used to recreate the job locally if needed)
-            pUtil.createJobSetupScript(self.__env['job'].workdir)
-        
+
+            # if desired, create the job setup script (used to recreate the job locally if needed)
+            # note: this step only creates the file with the script header (bash info)
+            thisExperiment.updateJobSetupScript(self.__env['job'].workdir, create=True, to_script=None)
+
             # create the initial file state dictionary
             createFileStates(self.__env['thisSite'].workdir, 
                              self.__env['job'].jobId, 

@@ -5,7 +5,7 @@ from time import time
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation
+from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, getExperiment
 from FileStateClient import updateFileState
 
 # placing the import lfc here breaks compilation on non-lcg sites
@@ -38,6 +38,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
         # Get input parameters from pdict
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
+        experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
@@ -55,9 +56,12 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             self.__sendReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         if proxycheck:
             # do we have a valid proxy?
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
+            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
             if s != 0:
                 self.__sendReport('PROXYFAIL', report)
                 return s, pilotErrorDiag
@@ -329,8 +333,11 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             self.__sendReport('RFCP_FAIL', report)
             return self.put_data_retfail(ec, pilotErrorDiag) 
 
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
         if proxycheck:
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
+            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
             if s != 0:
                 self.__sendReport('NO_PROXY', report)
                 return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)

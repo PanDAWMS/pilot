@@ -7,7 +7,7 @@ from shutil import copy2, rmtree
 
 import Mover as mover
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation
+from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, getGUID
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
@@ -1022,7 +1022,7 @@ class JobLog:
         analyJob = isAnalysisJob(job.trf.split(",")[0])
 
         # assign a random guid
-        additionalFileGuid = commands.getoutput('uuidgen 2> /dev/null')
+        additionalFileGuid = getGUID()
 
         # the cmtconfig is needed by at least the xrdcp site mover
         cmtconfig = getCmtconfig(job.cmtconfig)

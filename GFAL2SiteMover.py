@@ -5,7 +5,7 @@ from time import time
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths
+from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths, getExperiment
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
 
@@ -90,12 +90,16 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
         return statusRet, outputRet
 
-    def verifySetupProxy(self, _setupStr):
+    def verifySetupProxy(self, _setupStr, experiment):
         #check do we have a valid proxy
-        status, output = self.verifyProxy(envsetup=_setupStr)
+
+        # get the experiment object
+        thisExperiment = getExperiment(experiment)
+
+        status, output = thisExperiment.verifyProxy(envsetup=_setupStr)
         return status, output
 
-    def verifySetup(self, _setupStr, proxycheck=True):
+    def verifySetup(self, _setupStr, experiment, proxycheck=True):
         statusRet, outputRet = self.verifySetupCommand(_setupStr)
         if statusRet != 0:
             #self.__sendReport('RFCP_FAIL', self._variables['report'])
@@ -117,7 +121,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             return status, outputRet
 
         if proxycheck:
-            status, outputLog = self.verifySetupProxy(_setupStr)
+            status, outputLog = self.verifySetupProxy(_setupStr, experiment)
             if status != 0:
                 outputRet["errorLog"] = outputLog
                 outputRet["report"]["clientState"] = 'PROXYFAIL'
@@ -125,7 +129,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
         return status, outputRet
 
-    def setup(self):
+    def setup(self, experiment):
         """ setup env """
 
         _setupStr = self.getSetup()
@@ -138,7 +142,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             envsetupTest += " export X509_USER_PROXY=%s;" % (os.environ['X509_USER_PROXY'])
 
         self.log("to verify site setup: %s " % envsetupTest)
-        status, output = self.verifySetup(envsetupTest)
+        status, output = self.verifySetup(envsetupTest, experiment)
         self.log("site setup verifying: status: %s, output: %s" % (status, output["errorLog"]))
         if status == 0:
             self._setup = envsetupTest
@@ -154,7 +158,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
                      envsetupTest += " export X509_USER_PROXY=%s;" % (os.environ['X509_USER_PROXY'])
 
                 self.log("verify default setup: %s " % envsetupTest)
-                status, output = self.verifySetup(envsetupTest)
+                status, output = self.verifySetup(envsetupTest, experiment)
                 self.log("default setup verifying: status: %s, output: %s" % (status, output["errorLog"]))
                 if status == 0:
                     self._setup = envsetupTest
@@ -333,7 +337,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         outputRet["report"]["clientState"] = "DONE"
         return statusRet, outputRet
 
-    def stageIn(self, source, destination, sourceSize, sourceChecksum):
+    def stageIn(self, source, destination, sourceSize, sourceChecksum, experiment):
         """Stage in the source file"""
 
         statusRet = 0
@@ -341,7 +345,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         outputRet["errorLog"] = None
         outputRet["report"] = None
 
-        status, output = self.setup()
+        status, output = self.setup(experiment)
         if status !=0:
             statusRet = status
             outputRet["errorLog"] = output["errorLog"]
@@ -659,14 +663,14 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
         return status, outputRet
 
-    def stageOut(self, source, destination):
+    def stageOut(self, source, destination, experiment):
         """Stage in the source file"""
         statusRet = 0
         outputRet ={}
         outputRet["errorLog"] = None
         outputRet["report"] = None
 
-        status, output = self.setup()
+        status, output = self.setup(experiment)
         if status !=0:
             statusRet = status
             outputRet["errorLog"] = output["errorLog"]
@@ -710,6 +714,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         # Get input parameters from pdict
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
+        experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
@@ -730,7 +735,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         if path == '': path = './'
         fullname = os.path.join(path, lfn)
 
-        status, output = self.stageIn(gpfn, fullname, fsize, fchecksum)
+        status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment)
 
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
@@ -794,8 +799,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         if testLevel == "1":
             source = "thisisjustatest"
 
-
-        status, output = self.stageOut(source, surl)
+        status, output = self.stageOut(source, surl, experiment)
         if status !=0:
             self.__sendReport(output["report"], report)
             return self.put_data_retfail(status, output["errorLog"], surl)

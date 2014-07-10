@@ -15,7 +15,7 @@ def set_environment():
     env['pyexe'] = sys.executable
     
     # default job dispatcher web server
-    env['pshttpurl'] = "pandaserver.cern.ch"
+    env['pshttpurl'] = "pandaserver.cern.ch"   # Can be overwritten by getPanDAServerURL() in *Experiment
     
     # global variables with some default (test) values
     env['psport'] = 25443                      # PanDA server listening port

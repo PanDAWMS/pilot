@@ -4,7 +4,6 @@ from pUtil import tolog
 from SiteMover import SiteMover                             # OU_OCHEP_SWT2
 from dCacheSiteMover import dCacheSiteMover                 # ANALY_AGLT2
 from BNLdCacheSiteMover import BNLdCacheSiteMover           # None
-from COGSiteMover import COGSiteMover                       # None
 from xrootdSiteMover import xrootdSiteMover                 # SLAC, GLOW-ATLAS
 from xrdcpSiteMover import xrdcpSiteMover                   # ANALY_CERN_XROOTD
 from CastorSiteMover import CastorSiteMover                 #
@@ -29,7 +28,6 @@ mover_selector = {
     SiteMover.copyCommand : SiteMover,
     dCacheSiteMover.copyCommand : dCacheSiteMover,
     BNLdCacheSiteMover.copyCommand : BNLdCacheSiteMover,
-    COGSiteMover.copyCommand : COGSiteMover,
     xrootdSiteMover.copyCommand : xrootdSiteMover,
     xrdcpSiteMover.copyCommand : xrdcpSiteMover,
     CastorSiteMover.copyCommand : CastorSiteMover,
