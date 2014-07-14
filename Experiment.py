@@ -742,7 +742,8 @@ class Experiment(object):
                        "-m", env['outputDir'],
                        "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
-                       "-F", env['experiment']]
+                       "-F", env['experiment'],
+                       "-H", env['cache']]
 
         elif subprocessName == "runEvent":
             jobargs = [env['pyexe'], "runEvent.py", 

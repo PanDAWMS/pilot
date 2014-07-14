@@ -224,6 +224,10 @@ Renamed getAtlasRelease() to getRelease() (pUtil)
 Moved getRelease() from pUtil to Experiment, ATLASExperiment, CMSExperiment
 Updated convertSURLtoTURLUsingHTTP() to use new schedconfig fields allowhttp and httpredirector. Code from Johannes Elmsheuser (Mover)
 Created setCache(), getCache() and added new data member __cache (Experiment)
+Added -H option to getSubprocessArguments() (Experiment)
+Added cache option to argumentParser() (RunJob)
+Added __cache data member (RunJob)
+Now sending __cache to setCache() in __main__() (RunJob)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

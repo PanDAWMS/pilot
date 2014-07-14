@@ -1079,6 +1079,8 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
             httpredirector = readpar('httpredirector')
         except:
             httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+        if httpredirector == '':
+            httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
         try:
             httpinfo = readpar('allowhttp')
         except:
