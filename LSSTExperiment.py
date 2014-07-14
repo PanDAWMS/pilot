@@ -263,8 +263,9 @@ class LSSTExperiment(Experiment):
 
     def getNumberOfEvents(self, **kwargs):
         """ Return the number of events """
-
-        return 0
+        # from ErrorDiagnosis.extractJobInformation():
+        # job.nEvents, job.nEventsW, nEvents_str = thisExperiment.getNumberOfEvents(job=job, number_of_jobs=len(runCommandList))
+        return 0, 0, ""
 
 
     def specialChecks(self, **kwargs):

@@ -52,6 +52,7 @@ class ErrorDiagnosis(Diagnosis):
 
         # get the experiment object
         thisExperiment = getExperiment(job.experiment)
+        tolog("extractJobInformation: thisExperiment=%s" % (thisExperiment))
         if not thisExperiment:
             job.pilotErrorDiag = "ErrorDiagnosis did not get an experiment object from the factory"
             job.result[2] = error.ERR_GENERALERROR # change to better/new error code

@@ -24,6 +24,7 @@ from objectstoreSiteMover import objectstoreSiteMover       #
 from aria2cSiteMover import aria2cSiteMover                 #
 from GFAL2SiteMover import GFAL2SiteMover                   # GFAL2
 # from GOSiteMover import GOSiteMover                       # ANALY_BNL_T3
+from emptySiteMover import emptySiteMover  # fake sitemover for LSST, emptySiteMover
 
 mover_selector = {
     SiteMover.copyCommand : SiteMover,
@@ -48,7 +49,8 @@ mover_selector = {
     FAXSiteMover.copyCommand : FAXSiteMover,
     aria2cSiteMover.copyCommand : aria2cSiteMover,
     objectstoreSiteMover.copyCommand : objectstoreSiteMover,
-    GFAL2SiteMover.copyCommand : GFAL2SiteMover
+    GFAL2SiteMover.copyCommand : GFAL2SiteMover,
+    emptySiteMover.copyCommand : emptySiteMover
     }
 
 def getSiteMover(sitemover, setup_file='', *args, **kwrds):
