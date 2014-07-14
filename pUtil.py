@@ -2390,14 +2390,6 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
 
     return datasetDict
 
-def getAtlasRelease(atlasRelease):
-    """ return a list of the jobs' release(s) """
-
-    if readpar('region') == 'Nordugrid':
-        return os.environ['ATLAS_RELEASE'].split(",")
-    else:
-        return atlasRelease.split("\n")
-
 def getFileGuid(metadata_filename, guid_filename):
     """ read the log guid from metadata """
 

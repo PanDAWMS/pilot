@@ -25,11 +25,10 @@ class Job:
         self.tarFileGuid = pUtil.getGUID() # guid for the tarball of the job workdir 
         self.logDblock = None              #
         self.jobPars = None                # Job parameters defining the execution of the job
-        self.atlasEnv = None               # =1 : atlas env required; =0 : no atlas env. required
         self.exeErrorCode = 0              # payload error code
         self.exeErrorDiag = ""             # payload error diagnostic, potentially more detailed error text than std error
         self.pilotErrorDiag = None         # detailed error diag
-        self.atlasRelease = None           # software release string
+        self.release = None                # software release string
         self.result = ["Unknown", 0, 0]    # the first digit is the transExitCode, and second one is the pilotErrorCode
         self.action = ""                   # place holder for "tobekilled" command from dispatcher
         self.workdir = None                # workdir for this job, usually under site.workdir
@@ -118,8 +117,8 @@ class Job:
             _spsetup = self.spsetup
         else:
             _spsetup = "(not defined)"
-        pUtil.tolog("\nPandaID=%d\nAtlasRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\scopeOut=%s\nscopeLog=%s" %\
-                    (self.jobId, self.atlasRelease, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
+        pUtil.tolog("\nPandaID=%d\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\scopeOut=%s\nscopeLog=%s" %\
+                    (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -381,20 +380,6 @@ class Job:
                 else:
                     pUtil.tolog("!!WARNING!!3999!! Pattern search failed: pfnSearch=%s (cannot remove --pfnList from job parameters)" % str(pfnSearch))
 
-        swRelease = data.get('swRelease', '')
-        self.atlasEnv = swRelease.startswith('Atlas-')
-        if self.atlasEnv : # require atlas env. to be set up
-            if swRelease.find("\n") > 0:
-                # E.g. multi-trf: swRelease = 'Atlas-14.1.0\nAtlas-14.1.0' (normally 'Atlas-14.1.0')
-                # We only want to keep the release number, not the 'Atlas' string
-                rm = swRelease.split('-')[0] + '-' # 'Atlas-'
-                self.atlasRelease = swRelease.replace(rm, '')
-            else:
-                # update needed to handle cases like "Atlas-19.0.X.Y-VAL"
-                #self.atlasRelease = swRelease.split('-')[1]
-                self.atlasRelease = swRelease[swRelease.find('-')+1:]
-        else:
-            self.atlasRelease = swRelease
-
+        self.release = data.get('swRelease', '')
         self.destinationSE = data.get('destinationSE', '')
         self.fileDestinationSE = data.get('fileDestinationSE', '')

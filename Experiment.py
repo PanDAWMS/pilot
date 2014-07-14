@@ -886,3 +886,19 @@ class Experiment(object):
             fp.close()
             tolog("Updated %s: %s" % (filename, cmd))
 
+    # Optional
+    def getRelease(self, release):
+        """ Return a list of the software release id's """
+        # Assuming 'release' is a string that separates release id's with '\n'
+        # Used in the case of payload using multiple steps with different release versions
+        # E.g. release = "19.0.0\n19.1.0" -> ['19.0.0', '19.1.0']
+
+        return release.split("\n")
+
+    # Optional
+    def formatReleaseString(release):
+        """ Return a special formatted release string """
+        # E.g. release = "Atlas-19.0.0" -> "19.0.0"
+        # This method is required for ATLAS but is probably of no interest for any other PanDA user
+
+        return release

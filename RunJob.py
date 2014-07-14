@@ -17,7 +17,7 @@ from optparse import OptionParser
 
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getAtlasRelease, getChecksumCommand,\
+from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
@@ -469,7 +469,8 @@ class RunJob(object):
         jobParameterList = job.jobPars.split("\n")
         jobHomePackageList = job.homePackage.split("\n")
         jobTrfList = job.trf.split("\n")
-        jobAtlasRelease = getAtlasRelease(job.atlasRelease)
+        job.release = thisExperiment.formatReleaseString(job.release)
+        releaseList = thisExperiment.getRelease(job.release)
 
         tolog("Number of transformations to process: %s" % len(jobParameterList))
         if len(jobParameterList) > 1:
@@ -478,7 +479,7 @@ class RunJob(object):
             multi_trf = False
 
         # verify that the multi-trf job is setup properly
-        ec, job.pilotErrorDiag, jobAtlasRelease = RunJobUtilities.verifyMultiTrf(jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRelease)
+        ec, job.pilotErrorDiag, releaseList = RunJobUtilities.verifyMultiTrf(jobParameterList, jobHomePackageList, jobTrfList, releaseList)
         if ec > 0:
             return ec, runCommandList, job, multi_trf
 
@@ -490,14 +491,14 @@ class RunJob(object):
         _stdout = job.stdout
         _stderr = job.stderr
         _first = True
-        for (_jobPars, _homepackage, _trf, _swRelease) in map(None, jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRelease):
+        for (_jobPars, _homepackage, _trf, _swRelease) in map(None, jobParameterList, jobHomePackageList, jobTrfList, releaseList):
             tolog("Preparing setup %d/%d" % (_i + 1, len(jobParameterList)))
 
             # reset variables
             job.jobPars = _jobPars
             job.homePackage = _homepackage
             job.trf = _trf
-            job.atlasRelease = _swRelease
+            job.release = _swRelease
             if multi_trf:
                 job.stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
                 job.stderr = _stderr.replace(".txt", "_%d.txt" % (_i + 1))

@@ -330,7 +330,7 @@ def setup(job, jobSite, thisExperiment):
     jobParameterList = job.jobPars.split("\n")
     jobHomePackageList = job.homePackage.split("\n")
     jobTrfList = job.trf.split("\n")
-    jobAtlasRelease = getAtlasRelease(job.atlasRelease)
+    jobAtlasRelease = getAtlasRelease(job.release)
 
     tolog("Number of transformations to process: %s" % len(jobParameterList))
     if len(jobParameterList) > 1:
@@ -358,7 +358,7 @@ def setup(job, jobSite, thisExperiment):
         job.jobPars = _jobPars
         job.homePackage = _homepackage
         job.trf = _trf
-        job.atlasRelease = _swRelease
+        job.release = _swRelease
         if multi_trf:
             job.stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
             job.stderr = _stderr.replace(".txt", "_%d.txt" % (_i + 1))

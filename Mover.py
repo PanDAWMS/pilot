@@ -1034,14 +1034,14 @@ def convertSURLtoTURLUsingDataset(surl, dataset):
 
     return turl
 
-def convertSURLtoTURLUsingHTTP(surl, dataset='', site=''):
+def convertSURLtoTURLUsingHTTP(surl, dataset='', site='', redirector="https://voatlasrucio-redirect-prod-01.cern.ch"):
     """ Convert SURL to TURL using the Rucio redirector """
 
     try:
         scope = extractPattern(surl, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
         scope = scope.replace("/",".")
 
-        prefix = "https://voatlasrucio-redirect-prod-01.cern.ch/redirect/"
+        prefix = redirector + "/redirect/"
         filename = re.findall(r'.*/(.+)$', surl)[0]
 
         site_suffix = ""
@@ -1066,11 +1066,25 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
     if (readpar('copytoolin').lower() == "fax") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "fax"):
         copytool = "fax"
     elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
+
         try:
-            site = readpar('gocname')
+            httpsite = readpar('gstat')
         except:
-            site = ''
-        return convertSURLtoTURLUsingHTTP(surl, dataset, site)
+            httpsite = ''
+        try:
+            httpredirector = readpar('httpredirector')
+        except:
+            httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+        try:
+            httpinfo = readpar('allowhttp')
+        except:
+            httpinfo = ''
+        if httpinfo.find('^') > -1:
+            allowhttp, httpsite = httpinfo.split("^")
+        else:
+            allowhttp = httpinfo
+        
+        return convertSURLtoTURLUsingHTTP(surl, dataset, httpsite, httpredirector)
 #    elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
 #        copytool = "aria2c"
     else:

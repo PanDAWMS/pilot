@@ -463,7 +463,7 @@ def updateRunCommand4JEM(cmd, job, jobSite, tolog, metaOut = None, actSvcUrl = "
             except: pass
 
             try:
-                postDict['atlasRelease'] = job.atlasRelease
+                postDict['atlasRelease'] = job.release
             except: pass
 
             try:
@@ -694,7 +694,7 @@ def updateRunCommand4JEM(cmd, job, jobSite, tolog, metaOut = None, actSvcUrl = "
         except: pass
 
         try:
-            os.environ['PanDA_atlas_release'] = job.atlasRelease
+            os.environ['PanDA_atlas_release'] = job.release
         except: pass
 
         try:
@@ -800,7 +800,7 @@ def notifyJobEnd2JEM(job, tolog):
         except: pass
 
         try:
-            postDict['atlasRelease'] = job.atlasRelease
+            postDict['atlasRelease'] = job.release
         except: pass
 
         params = urllib.urlencode(postDict)

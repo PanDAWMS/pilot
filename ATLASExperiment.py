@@ -44,6 +44,7 @@ class ATLASExperiment(Experiment):
     __job = None                           # Current Job object
     __error = PilotErrors()                # PilotErrors object
     __doFileLookups = False                # True for LFC based file lookups
+    __atlasEnv = False                     # True for releases beginning with "Atlas-"
 
     # Required methods
 
@@ -127,7 +128,7 @@ class ATLASExperiment(Experiment):
         cmtconfig = getCmtconfig(job.cmtconfig)
 
         # Get the local path for the software
-        swbase = self.getSwbase(jobSite.appdir, job.atlasRelease, job.homePackage, job.processingType, cmtconfig)
+        swbase = self.getSwbase(jobSite.appdir, job.release, job.homePackage, job.processingType, cmtconfig)
         tolog("Local software path: swbase = %s" % (swbase))
 
         # Get cmtconfig alternatives
@@ -140,8 +141,8 @@ class ATLASExperiment(Experiment):
 #            job.jobPars = self.updateJobParameters4Input(job.jobPars)
 
         # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...')
-        if job.atlasEnv :
-
+        tolog("atlasEnv=%s"%str(self.__atlasEnv))
+        if self.__atlasEnv :
             # Define the job runtime environment
             if not analysisJob and job.trf.endswith('.py'): # for production python trf
 
@@ -151,15 +152,15 @@ class ATLASExperiment(Experiment):
                     scappdir = readpar('appdir')
                     # is this release present in the tags file?
                     if scappdir == "":
-                        rel_in_tags = self.verifyReleaseInTagsFile(os.environ['VO_ATLAS_SW_DIR'], job.atlasRelease)
+                        rel_in_tags = self.verifyReleaseInTagsFile(os.environ['VO_ATLAS_SW_DIR'], job.release)
                         if not rel_in_tags:
-                            tolog("WARNING: release was not found in tags file: %s" % (job.atlasRelease))
+                            tolog("WARNING: release was not found in tags file: %s" % (job.release))
 #                            tolog("!!FAILED!!3000!! ...")
 #                            failJob(0, self.__error.ERR_MISSINGINSTALLATION, job, pilotserver, pilotport, ins=ins)
 #                        swbase = os.environ['VO_ATLAS_SW_DIR'] + '/software'
 
                     # Get the proper siteroot and cmtconfig
-                    ec, pilotErrorDiag, status, siteroot, cmtconfig = self.getProperSiterootAndCmtconfig(swbase, job.atlasRelease, job.homePackage, cmtconfig)
+                    ec, pilotErrorDiag, status, siteroot, cmtconfig = self.getProperSiterootAndCmtconfig(swbase, job.release, job.homePackage, cmtconfig)
                     if not status:
                         tolog("!!WARNING!!3000!! Since setup encountered problems, any attempt of trf installation will fail (bailing out)")
                         tolog("ec=%d" % (ec))
@@ -169,14 +170,14 @@ class ATLASExperiment(Experiment):
                         tolog("Will use SITEROOT=%s" % (siteroot))
                         pysiteroot = siteroot
                 else:
-                    if verifyReleaseString(job.atlasRelease) != "NULL":
+                    if verifyReleaseString(job.release) != "NULL":
                         #PN
-                        _s = os.path.join(os.path.join(swbase, cmtconfig), job.atlasRelease)
+                        _s = os.path.join(os.path.join(swbase, cmtconfig), job.release)
                         if os.path.exists(_s):
                             siteroot = _s
                         else:
-                            siteroot = os.path.join(swbase, job.atlasRelease)
-                        #siteroot = os.path.join(swbase, job.atlasRelease)
+                            siteroot = os.path.join(swbase, job.release)
+                        #siteroot = os.path.join(swbase, job.release)
                     else:
                         siteroot = swbase
                     siteroot = siteroot.replace('//','/')
@@ -187,12 +188,12 @@ class ATLASExperiment(Experiment):
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
                 # Get the cmtsite setup command
-                ec, pilotErrorDiag, cmd1 = self.getCmtsiteCmd(swbase, job.atlasRelease, job.homePackage, cmtconfig, siteroot=pysiteroot)
+                ec, pilotErrorDiag, cmd1 = self.getCmtsiteCmd(swbase, job.release, job.homePackage, cmtconfig, siteroot=pysiteroot)
                 if ec != 0:
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
                 # Make sure the CMTCONFIG is available and valid
-                ec, pilotErrorDiag, dummy, dummy, atlasProject = self.checkCMTCONFIG(cmd1, cmtconfig, job.atlasRelease, siteroot=pysiteroot)
+                ec, pilotErrorDiag, dummy, dummy, atlasProject = self.checkCMTCONFIG(cmd1, cmtconfig, job.release, siteroot=pysiteroot)
                 if ec != 0:
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
@@ -225,7 +226,7 @@ class ATLASExperiment(Experiment):
                     tolog("Testing cmtconfig=%s" % (cmtconfig))
 
                     # Get the cmd2 setup command before cmd1 is defined since cacheDir/Ver can be used in cmd1
-                    cmd2, cacheDir, cacheVer = self.getAnalyCmd2(swbase, cmtconfig, job.homePackage, job.atlasRelease)
+                    cmd2, cacheDir, cacheVer = self.getAnalyCmd2(swbase, cmtconfig, job.homePackage, job.release)
 
                     # Add sub path in case of AnalysisTransforms homePackage
                     if verifyReleaseString(job.homePackage) != "NULL":
@@ -239,19 +240,19 @@ class ATLASExperiment(Experiment):
                     path = os.path.join(swbase, subDir)
 
                     # Define cmd0 and cmd1
-                    if verifyReleaseString(job.atlasRelease) != "NULL":
-                        if job.atlasRelease < "16.1.0":
-                            cmd0 = "source %s/%s/setup.sh;" % (path, job.atlasRelease)
+                    if verifyReleaseString(job.release) != "NULL":
+                        if job.release < "16.1.0":
+                            cmd0 = "source %s/%s/setup.sh;" % (path, job.release)
                             tolog("cmd0 = %s" % (cmd0))
                         else:
                             cmd0 = ""
-                            tolog("cmd0 will not be used for release %s" % (job.atlasRelease))
+                            tolog("cmd0 will not be used for release %s" % (job.release))
                     else:
                         cmd0 = ""
 
                     # Get the cmtsite setup command
                     ec, pilotErrorDiag, cmd1 = \
-                        self.getCmtsiteCmd(swbase, job.atlasRelease, job.homePackage, cmtconfig, analysisJob=True, siteroot=siteroot, cacheDir=cacheDir, cacheVer=cacheVer)
+                        self.getCmtsiteCmd(swbase, job.release, job.homePackage, cmtconfig, analysisJob=True, siteroot=siteroot, cacheDir=cacheDir, cacheVer=cacheVer)
                     if ec != 0:
                         # Store the first error code
                         if first:
@@ -266,7 +267,7 @@ class ATLASExperiment(Experiment):
 
                     # Make sure the CMTCONFIG is available and valid
                     ec, pilotErrorDiag, siteroot, atlasVersion, atlasProject = \
-                        self.checkCMTCONFIG(cmd1, cmtconfig, job.atlasRelease, siteroot=siteroot, cacheDir=cacheDir, cacheVer=cacheVer)
+                        self.checkCMTCONFIG(cmd1, cmtconfig, job.release, siteroot=siteroot, cacheDir=cacheDir, cacheVer=cacheVer)
                     if ec != 0 and ec != self.__error.ERR_COMMANDTIMEOUT:
                         # Store the first error code
                         if first:
@@ -291,11 +292,11 @@ class ATLASExperiment(Experiment):
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
                 # Cannot update cmd2/siteroot for unset release/homepackage strings
-                if verifyReleaseString(job.atlasRelease) == "NULL" or verifyReleaseString(job.homePackage) == "NULL":
+                if verifyReleaseString(job.release) == "NULL" or verifyReleaseString(job.homePackage) == "NULL":
                     tolog("Will not update cmd2/siteroot since release/homepackage string is NULL")
                 else:
                     # Update cmd2 with AtlasVersion and AtlasProject from setup (and siteroot if not set)
-                    _useAsetup = self.useAtlasSetup(swbase, job.atlasRelease, job.homePackage, cmtconfig)
+                    _useAsetup = self.useAtlasSetup(swbase, job.release, job.homePackage, cmtconfig)
                     cmd2 = self.updateAnalyCmd2(cmd2, atlasVersion, atlasProject, _useAsetup)
 
                 tolog("cmd2 = %s" % (cmd2))
@@ -315,7 +316,7 @@ class ATLASExperiment(Experiment):
                         tolog("Added multi-core support to cmd2: %s" % (cmd2))
 
                 # Prepend cmd0 to cmd1 if set and if release < 16.1.0
-                if cmd0 != "" and job.atlasRelease < "16.1.0":
+                if cmd0 != "" and job.release < "16.1.0":
                     cmd1 = cmd0 + cmd1
 
             # construct the command of execution
@@ -344,10 +345,10 @@ class ATLASExperiment(Experiment):
                             tolog("Warning: $SITEROOT unknown at this stage (2)")
                     if pysiteroot == "":
                         tolog("Will use SITEROOT: %s (2)" % (siteroot))
-                        ec, pilotErrorDiag, pybin = self.setPython(siteroot, job.atlasRelease, job.homePackage, cmtconfig, jobSite.sitename)
+                        ec, pilotErrorDiag, pybin = self.setPython(siteroot, job.release, job.homePackage, cmtconfig, jobSite.sitename)
                     else:
                         tolog("Will use pysiteroot: %s (2)" % (pysiteroot))
-                        ec, pilotErrorDiag, pybin = self.setPython(pysiteroot, job.atlasRelease, job.homePackage, cmtconfig, jobSite.sitename)
+                        ec, pilotErrorDiag, pybin = self.setPython(pysiteroot, job.release, job.homePackage, cmtconfig, jobSite.sitename)
 
                     if ec == self.__error.ERR_MISSINGINSTALLATION:
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
@@ -390,7 +391,7 @@ class ATLASExperiment(Experiment):
                     tolog("Warning: $SITEROOT unknown at this stage (3)")
 
             tolog("Will use $SITEROOT: %s (3)" % (siteroot))
-            ec, pilotErrorDiag, pybin = self.setPython(siteroot, job.atlasRelease, job.homePackage, cmtconfig, jobSite.sitename)
+            ec, pilotErrorDiag, pybin = self.setPython(siteroot, job.release, job.homePackage, cmtconfig, jobSite.sitename)
             if ec == self.__error.ERR_MISSINGINSTALLATION:
                 return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
@@ -960,7 +961,7 @@ class ATLASExperiment(Experiment):
             installDir = os.path.join(siteroot, job.homePackage)
         installDir = installDir.replace('//','/')
 
-        tolog("Atlas release: %s" % (job.atlasRelease))
+        tolog("Atlas release: %s" % (job.release))
         tolog("Job home package: %s" % (job.homePackage))
         tolog("Trf installation dir: %s" % (installDir))
 
@@ -989,7 +990,7 @@ class ATLASExperiment(Experiment):
 #
 #            # Install trf in the run dir
 #            try:
-#                ec, pilotErrorDiag = self.installPyJobTransforms(job.atlasRelease, job.homePackage, swbase, cmtconfig)
+#                ec, pilotErrorDiag = self.installPyJobTransforms(job.release, job.homePackage, swbase, cmtconfig)
 #            except Exception, e:
 #                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(e)
 #                tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
@@ -2839,21 +2840,50 @@ class ATLASExperiment(Experiment):
 
         return exitcode, pilotErrorDiag
 
+    def getRelease(self, release):
+        """ Return a list of the software release id's """
+        # Assuming 'release' is a string that separates release id's with '\n'
+        # Used in the case of payload using multiple steps with different release versions
+        # E.g. release = "19.0.0\n19.1.0" -> ['19.0.0', '19.1.0']
+
+        if readpar('region') == 'Nordugrid':
+            return os.environ['ATLAS_RELEASE'].split(",")
+        else:
+            return release.split("\n")
+
+    # Optional
+    def formatReleaseString(self, release):
+        """ Return a special formatted release string """
+        # E.g. release = "Atlas-19.0.0" -> "19.0.0"
+
+        self.__atlasEnv = release.startswith('Atlas-')
+        if self.__atlasEnv : # require atlas env. to be set up
+            if release.find("\n") > 0:
+                # E.g. multi-trf: swRelease = 'Atlas-14.1.0\nAtlas-14.1.0' (normally 'Atlas-14.1.0')
+                # We only want to keep the release number, not the 'Atlas' string
+                rm = release.split('-')[0] + '-' # 'Atlas-'
+                release = release.replace(rm, '')
+            else:
+                # update needed to handle cases like "Atlas-19.0.X.Y-VAL"
+                release = release[release.find('-')+1:]
+
+        return release
 
 if __name__ == "__main__":
 
     a=ATLASExperiment()
-    a.specialChecks()
+    #a.specialChecks()
+    print a.formatReleaseString("Atlas-19.0.X.Y-VAL")
 
-    appdir='/cvmfs/atlas.cern.ch/repo/sw'
+    #appdir='/cvmfs/atlas.cern.ch/repo/sw'
     #a.specialChecks(appdir=appdir)
 
-    def useTracingService(self):
+    #def useTracingService(self):
 
-        return True
+    #    return True
 
-    def sendTracingReport(self, exitCode):
+    #def sendTracingReport(self, exitCode):
 
-        ts = TracingService()
-        ts.send
+    #    ts = TracingService()
+    #    ts.send
         

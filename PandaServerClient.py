@@ -3,7 +3,7 @@ from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, getAtlasRelease, updateXMLWithSURLs, getMetadata, toPandaLogger
+from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger
 from JobState import JobState
 from FileState import FileState
 
@@ -575,7 +575,7 @@ class PandaServerClient:
         # remove the comments below if a certain trf and release should be excluded from sending metadata
         # trf_exclusions = ['merge_trf.py']
         # release_exclusions = ['14.5.2.4']
-        # jobAtlasRelease = getAtlasRelease(job.atlasRelease)
+        # jobAtlasRelease = getAtlasRelease(job.release)
         # if payloadXMLProblem and job.trf.split(",")[-1] not in trf_exclusions and jobAtlasRelease[-1] not in release_exclusions:
         if payloadXMLProblem:
             tolog("!!FAILED!!1300!! %s" % (pilotErrorDiag))

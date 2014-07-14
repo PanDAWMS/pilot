@@ -220,7 +220,12 @@ Added new argument -H to argumentParser() as well as new data member __cache to 
 Added new argument -I to argParser() (pilot)
 Now using schedconfigURL instead of pshttpurl in handleQueuedata() calls (pilot, Monitor)
 Removed getPanDAServerURL(), not needed (Experiment)
- 
+Renamed atlasRelease to release (Job, ATLASExperiment, JEMstub, NordugridATLASExperiment, RunJob, runEvent)
+Removed import of unused function getAtlasRelease() (PandaServerClient)
+Renamed getAtlasRelease() to getRelease() (pUtil)
+Moved getRelease() from pUtil to Experiment, ATLASExperiment, CMSExperiment
+Updated convertSURLtoTURLUsingHTTP() to use new schedconfig fields allowhttp and httpredirector. Code from Johannes Elmsheuser (Mover)
+
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
 Updated SiteMoverFarm for GFAL2SiteMover

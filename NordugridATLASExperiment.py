@@ -161,7 +161,7 @@ class NordugridATLASExperiment(ATLASExperiment):
             tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
             return error.ERR_SETUPFAILURE, pilotErrorDiag, ""
 
-        runtime_script = "%s/APPS/HEP/ATLAS-%s" % (os.environ['RUNTIME_CONFIG_DIR'], job.atlasRelease)
+        runtime_script = "%s/APPS/HEP/ATLAS-%s" % (os.environ['RUNTIME_CONFIG_DIR'], job.release)
         if os.path.exists(runtime_script):
             cmd = ". %s 1" % (runtime_script)
             if analysisJob:
@@ -174,7 +174,7 @@ class NordugridATLASExperiment(ATLASExperiment):
                 trfName = job.trf
                 cmd += '; export ATLAS_RELEASE=%s;export AtlasVersion=%s;export AtlasPatchVersion=%s' % (job.homePackage.split('/')[-1],job.homePackage.split('/')[-1],job.homePackage.split('/')[-1])
             cmd += "; %s %s" % (trfName, job.jobPars)
-        elif verifyReleaseString(job.atlasRelease) == "NULL":
+        elif verifyReleaseString(job.release) == "NULL":
             if analysisJob:
                 # try to download the analysis trf
                 status, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
@@ -199,6 +199,16 @@ class NordugridATLASExperiment(ATLASExperiment):
     def testImportLFCModule(self):
 	return True
 
+    def getRelease(self, release):
+        """ Return a list of the software release id's """
+        # Assuming 'release' is a string that separates release id's with '\n'
+        # Used in the case of payload using multiple steps with different release versions
+        # E.g. release = "19.0.0\n19.1.0" -> ['19.0.0', '19.1.0']
+
+        if readpar('region') == 'Nordugrid':
+            return os.environ['ATLAS_RELEASE'].split(",")
+        else:
+            return release.split("\n")
 
 if __name__ == "__main__":
 
