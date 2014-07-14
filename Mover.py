@@ -1067,6 +1067,10 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
         copytool = "fax"
     elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
 
+        httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+        httpsite = ''
+        httpinfo = ''
+
         try:
             httpsite = readpar('gstat')
         except:

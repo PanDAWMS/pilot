@@ -62,7 +62,6 @@ class RunJob(object):
     __stageoutretry = 1                  # number of stage-out tries
 #    __testLevel = 0                      # test suite control variable (0: no test, 1: put error, 2: ...)  NOT USED
 #    __workdir = "/tmp" # NOT USED
-    __cache = ""                         # Optional cache URL
 
     # Getter and setter methods
 
@@ -216,8 +215,6 @@ class RunJob(object):
                           help="The number of stage-out retries", metavar="STAGEOUTRETRY")
         parser.add_option("-F", "--experiment", dest="experiment",
                           help="Current experiment (default: ATLAS)", metavar="EXPERIMENT")
-        parser.add_option("-H", "--cache", dest="cache",
-                          help="Cache URL (default: <empty string>)", metavar="CACHE")
 
         # options = {'experiment': 'ATLAS'}
         try:
@@ -285,8 +282,6 @@ class RunJob(object):
                     tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
             if options.workdir:
                 workdir = options.workdir
-            if options.cache:
-                self.__cache = options.cache
 
         return sitename, appdir, workdir, queuename, dq2url
 
@@ -1013,7 +1008,7 @@ if __name__ == "__main__":
         tolog("Site workdir is: %s" % jobSite.workdir)
         # get the experiment object
         thisExperiment = getExperiment(runJob.getExperiment())
-        tolog("runJob will serve experiment: %s" % (thisExperiment.getExperiment()))
+        tolog("RunJob will serve experiment: %s" % (thisExperiment.getExperiment()))
 
         region = readpar('region')
         JR = JobRecovery()

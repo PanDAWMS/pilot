@@ -141,7 +141,6 @@ class ATLASExperiment(Experiment):
 #            job.jobPars = self.updateJobParameters4Input(job.jobPars)
 
         # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...')
-        tolog("atlasEnv=%s"%str(self.__atlasEnv))
         if self.__atlasEnv :
             # Define the job runtime environment
             if not analysisJob and job.trf.endswith('.py'): # for production python trf

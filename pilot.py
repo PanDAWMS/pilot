@@ -14,15 +14,11 @@
 # test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
 
 # ral, cern-prod, goegrid, brunel, atlassiteinformation
-
-# eventService = true in Job - for all jobs -> only runEvent module will be used
+# mwt2_mcore
 
 # todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
 # todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation
 
-# faking bad tcp connection in monitor_job() (Monitor)
-
-# mwt2_mcore
 
 
 import commands
@@ -2376,6 +2372,10 @@ def runMain(runpars):
         thisExperiment = pUtil.getExperiment(env['experiment'])
         if thisExperiment:
             pUtil.tolog("Pilot will serve experiment: %s" % (thisExperiment.getExperiment()))
+
+            # set the cache if necessary (e.g. for LSST)
+            if env['cache']:
+                thisExperiment.setCache(env['cache'])
         else:
             pUtil.tolog("!!FAILED!!1234!! Did not get an experiment object from the factory")
             return pUtil.shellExitCode(error.ERR_GENERALERROR)

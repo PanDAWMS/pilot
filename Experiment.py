@@ -27,6 +27,7 @@ class Experiment(object):
     __instance = None                      # Boolean used by subclasses to become a Singleton
     __error = PilotErrors()                # PilotErrors object
     __doFileLookups = False                # True for LFC based file lookups (basically a dummy data member here since singleton object is static)
+    __cache = ""                           # Cache URL used e.g. by LSST
 
     # Required methods
 
@@ -741,8 +742,7 @@ class Experiment(object):
                        "-m", env['outputDir'],
                        "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
-                       "-F", env['experiment'],
-                       "-H", env['cache']]
+                       "-F", env['experiment']]
 
         elif subprocessName == "runEvent":
             jobargs = [env['pyexe'], "runEvent.py", 
@@ -902,3 +902,17 @@ class Experiment(object):
         # This method is required for ATLAS but is probably of no interest for any other PanDA user
 
         return release
+
+    # Optional
+    def setCache(self, cache):
+        """ Cache URL """
+        # Used e.g. by LSST
+
+        self.__cache = cache
+
+    # Optional
+    def getCache(self):
+        """ Return the cache URL """
+        # Used e.g. by LSST
+
+        return self.__cache

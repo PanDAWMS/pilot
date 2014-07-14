@@ -213,10 +213,8 @@ Moved verifyProxy() and interpretProxyInfo() from SiteMover to Experiment
 Removed function verifyProxyValidity(), no longer needed (pilot, pUtil)
 Removed function __verifyProxyValidity(), no longer needed (Monitor)
 Now using Experiment::verifyProxy() (pilot, Monitor, castorSiteMover, GFAL2SiteMover, aria2cSiteMover, curlSiteMover, lcgcpSiteMover, lcgcp2SiteMover)
-Added new argument -H <cache> used by LSST (pilot, RunJob)
+Added new argument -H <cache> used by LSST (pilot)
 Added new environment field, cache (environment)
-Added new argument -H to getSubprocessArguments() (Experiment)
-Added new argument -H to argumentParser() as well as new data member __cache to the class (RunJob)
 Added new argument -I to argParser() (pilot)
 Now using schedconfigURL instead of pshttpurl in handleQueuedata() calls (pilot, Monitor)
 Removed getPanDAServerURL(), not needed (Experiment)
@@ -225,6 +223,7 @@ Removed import of unused function getAtlasRelease() (PandaServerClient)
 Renamed getAtlasRelease() to getRelease() (pUtil)
 Moved getRelease() from pUtil to Experiment, ATLASExperiment, CMSExperiment
 Updated convertSURLtoTURLUsingHTTP() to use new schedconfig fields allowhttp and httpredirector. Code from Johannes Elmsheuser (Mover)
+Created setCache(), getCache() and added new data member __cache (Experiment)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
