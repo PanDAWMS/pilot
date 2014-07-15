@@ -35,7 +35,7 @@ from shutil import copy2
 class RunJob(object):
 
     # private data members
-    __runjob = "Normal"                  # String defining the RunJob class
+    __runjob = "RunJob"                  # String defining the RunJob class
     __instance = None                    # Boolean used by subclasses to become a Singleton
     __error = PilotErrors()              # PilotErrors object
 
