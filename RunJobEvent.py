@@ -130,7 +130,7 @@ output_area = "" # REMOVE LATER
 
 def usage():
     """
-    usage: python runEvent.py -s <sitename> -d <workdir> -a <appdir> -l <pilotinitdir> -w <url> -p <port> -q <dq2url> -g <inputdir> -m <outputdir> -o <pworkdir> -i <guid> -b <debuglevel> -k <pilotlogfilename> -x <stageintries> -t <proxycheckflag> -B <lfcRegistration> -E <stageouttries -F <experiment> -v <reserved>
+    usage: python runEvent.py -s <sitename> -d <workdir> -a <appdir> -l <pilotinitdir> -w <url> -p <port> -g <inputdir> -m <outputdir> -o <pworkdir> -i <guid> -b <debuglevel> -k <pilotlogfilename> -x <stageintries> -t <proxycheckflag> -B <lfcRegistration> -E <stageouttries -F <experiment> -v <reserved>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -138,7 +138,6 @@ def usage():
                <pilotinitdir> is the path to where to pilot code is untarred and started
                <url> is the URL of the pilot TCP server that the job should send updates to
                <port> is the port on which the local pilot TCP server listens on
-               <dq2url> is the URL of the https web server for the local site's DQ2 siteservice
                <pworkdir> is the pathname to the work directory of the parent
                <guid> guid for the log file
                <debuglevel> 0: debug info off, 1: display function name when called, 2: full debug info
@@ -165,10 +164,9 @@ def argParser(argv):
     workdir = "/tmp"
     pworkdir = "/tmp"
     appdir = "/usatlas/projects/OSG"
-    dq2url = ""
     
     try:
-        opts, args = getopt.getopt(argv, 'a:b:c:d:g:h:i:k:l:m:o:p:q:s:t:v:w:x:B:E:F:')
+        opts, args = getopt.getopt(argv, 'a:b:c:d:g:h:i:k:l:m:o:p:s:t:v:w:x:B:E:F:')
     except getopt.GetoptError:
         tolog("!!FAILED!!3000!! Invalid arguments and options!")
         usage()
@@ -186,7 +184,6 @@ def argParser(argv):
         elif o == "-m": outputDir = str(a)
         elif o == "-o": pworkdir = str(a)
         elif o == "-p": pilotport = int(a)
-        elif o == "-q": dq2url = str(a)
         elif o == "-s": sitename = str(a)
         elif o == "-t":
             pcFlag = str(a)
@@ -222,10 +219,9 @@ def argParser(argv):
         debugInfo("pilot_initdir: %s" % pilot_initdir)
         debugInfo("pilotserver: %s" % pilotserver)
         debugInfo("pilotport: %d" % pilotport)
-        debugInfo("dq2url: %s" % dq2url)
         debugInfo("logguid: %s" % logguid)
 
-    return sitename, appdir, workdir, dq2url, queuename
+    return sitename, appdir, workdir, "", queuename
 
 def cleanup(job, rf=None):
     """ Cleanup function """
@@ -805,7 +801,7 @@ def stageOut(file_list, pilot_initdir, dsname, datasetDict, outputFileInfo, meta
     try:
         ec, pilotErrorDiag, rf, rs, globalJob.filesNormalStageOut, globalJob.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" %\
                                          (metadata_fname), dsname, jobSite.sitename,\
-                                         ub=jobSite.dq2url, analysisJob=analysisJob, pinitdir=pilot_initdir, scopeOut=globalJob.scopeOut,\
+                                         ub="", analysisJob=analysisJob, pinitdir=pilot_initdir, scopeOut=globalJob.scopeOut,\
                                          proxycheck=proxycheckFlag, spsetup=globalJob.spsetup, token=globalJob.destinationDBlockToken,\
                                          userid=globalJob.prodUserID, datasetDict=datasetDict, prodSourceLabel=globalJob.prodSourceLabel,\
                                          outputDir=outputDir, jobId=globalJob.jobId, jobWorkDir=globalJob.workdir, DN=globalJob.prodUserID,\

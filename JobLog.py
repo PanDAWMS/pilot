@@ -86,7 +86,7 @@ class JobLog:
         if safe_call(rmtree, _dir):
             tolog("Removed directory: %s" % (_dir))
 
-    def transferLogFile(self, job, site, experiment, dq2url=None, dest=None, jr=False):
+    def transferLogFile(self, job, site, experiment, dest=None, jr=False):
         """ """
         
         status = True

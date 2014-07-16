@@ -236,6 +236,9 @@ Improved exception handling in getFileCatalog() (ATLASExperiment)
 Removed outdated code related to LRC and FileRegistration usage in transferActualLogFile() (JobLog)
 Removed outdated code related to LRC and FileRegistration usage in stageOut() (RunJob)
 Removed outdated code related to LRC and FileRegistration usage in moveLostOutputFiles() (pilot)
+Removed dq2url argument from transferLogFile() (JobLog)
+Removed dq2url usages related to transferLogFile() (pilot)
+Removed dq2url from RunJobEvent
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

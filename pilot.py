@@ -941,7 +941,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     pUtil.tolog("!!WARNING!!1110!! Failed to remove data dir")
     
                                             # can log be registered?
-                                            ret, _job = transferLogFile(_job, _site, dq2url=thisSite.dq2url, jr=True)
+                                            ret, _job = transferLogFile(_job, _site, jr=True)
                                             if not ret:
                                                 pUtil.tolog("!!WARNING!!1110!! Could not register lost job log file (state set to holding)")
                                                 _job.setState(['holding', _job.result[1], error.ERR_LOSTJOBLOGREG])
@@ -1005,7 +1005,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                             pUtil.chdir(_site.workdir)
 
                                             # can log be registered?
-                                            ret, _job = transferLogFile(_job, _site, dq2url=thisSite.dq2url, jr=True)
+                                            ret, _job = transferLogFile(_job, _site, jr=True)
                                             if not ret:
                                                 pUtil.tolog("!!WARNING!!1110!! Could not register lost job log file (state set to holding)")
                                                 _job.setState(['holding', _job.result[1], error.ERR_LOSTJOBLOGREG])
@@ -1065,7 +1065,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                         pUtil.tolog("Data dir already deleted for this lost job (or never existed)")
 
                                         # can log be registered?
-                                        ret, _job = transferLogFile(_job, _site, dq2url=thisSite.dq2url, jr=True)
+                                        ret, _job = transferLogFile(_job, _site, jr=True)
                                         if not ret:
                                             pUtil.tolog("!!WARNING!!1120!! Could not register lost job log file (state set to holding)")
                                             _job.setState(['holding', _job.result[1], error.ERR_LOSTJOBLOGREG])
@@ -1664,7 +1664,7 @@ def updatePandaServer(job, site, port, xmlstr = None, spaceReport = False,
                                     jr = jr, useCoPilot = env['useCoPilot'], 
                                     stdout_tail = stdout_tail)
 
-def transferLogFile(job, site, dq2url=None, dest=None, jr=False):
+def transferLogFile(job, site, dest=None, jr=False):
     """
     save log tarball into DDM and register it to catalog, or copy it to 'dest'.
     the job recovery will use the current site info known by the current
@@ -1677,7 +1677,7 @@ def transferLogFile(job, site, dq2url=None, dest=None, jr=False):
     joblog = JobLog()
 
     # transfer the log
-    return joblog.transferLogFile(job, site, env['experiment'], dq2url=dq2url, dest=dest, jr=jr)
+    return joblog.transferLogFile(job, site, env['experiment'], dest=dest, jr=jr)
     
 
 def dumpVars(thisSite):
