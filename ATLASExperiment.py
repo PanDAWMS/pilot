@@ -2262,8 +2262,8 @@ class ATLASExperiment(Experiment):
             # Try to get the default file catalog from Rucio
             from dq2.info import TiersOfATLAS
             fileCatalog = TiersOfATLAS.getLocalCatalog(ddm)
-        except Exception, e:
-            tolog("!!WARNING!!3333!! Bad environment: Failed to import dq2.info: %s" % (e))
+        except:
+            tolog("!!WARNING!!3333!! Failed to import TiersOfATLAS from dq2.info")
 
         # This should not be necessary post-LFC
         if fileCatalog == "":
@@ -2273,8 +2273,8 @@ class ATLASExperiment(Experiment):
                 lfchost = "lfc://" + lfchost
             fileCatalog = lfchost + ":/grid/atlas"
 
-        # e.g. 'lfc://prod-lfc-atlas.cern.ch:/grid/atlas'
-        tolog("Using file catalog: %s" % (fileCatalog))
+            # e.g. 'lfc://prod-lfc-atlas.cern.ch:/grid/atlas'
+            tolog("Using file catalog: %s" % (fileCatalog))
 
         return fileCatalog
 

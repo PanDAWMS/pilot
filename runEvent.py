@@ -1197,7 +1197,7 @@ def getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir, analysisJ
 
     from SiteMover import SiteMover
     sitemover = SiteMover()
-    ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = mover.getPoolFileCatalog(ub, guid_list, dsname, lfn_list, pilot_initdir,\
+    ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = mover.getPoolFileCatalog(ub, guid_list, lfn_list, pilot_initdir,\
                                                                                               analysisJob, tokens, workdir, dbh,\
                                                                                               DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                                                                               sitemover, thisExperiment=thisExperiment, pfc_name=pfc_name)

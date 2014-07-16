@@ -135,7 +135,7 @@ class EventService(object):
 
         # get the PFC from the proper source
         ec, pilotErrorDiag, _xml_from_PFC, _xml_source, replicas_dic = \
-            getPoolFileCatalog(lfchost, ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
+            getPoolFileCatalog(lfchost, ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
                                    DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                    sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
 

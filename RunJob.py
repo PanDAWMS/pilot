@@ -953,26 +953,6 @@ class RunJob(object):
                 # and a later recovery attempt will fail (job workdir will not exist at that time)
                 createLockFile(True, self.__pworkdir, lockfile="ALLFILESTRANSFERRED")
 
-                # file transfer worked, now register the output files in the LRC if necessary (not for LFC sites)
-                ub = jobSite.dq2url
-                lfchost = readpar('lfchost')
-                if ub != "None" and ub != None and ub != "" and lfchost == "": # ub is 'None' outside the US
-                    # Perform the LRC file registration
-                    from FileRegistration import FileRegistration
-                    filereg = FileRegistration()
-                    _islogfile = False
-                    _jobrec = False
-                    _errorLabel = "WARNING"
-                    ec, pilotErrorDiag, _state, _msg, latereg = filereg.registerFilesLRC(ub, rf, _islogfile, _jobrec, jobSite.workdir, _errorLabel)
-                    if ec != 0:
-                        job.setState([_state, 0, ec])
-                        job.pilotErrorDiag = pilotErrorDiag
-                else:
-                    if lfchost != "":
-                        tolog("No LRC file registration since lfchost is set")
-                    else:
-                        tolog("No LRC file registration since dq2url is not set")
-
             if job.result[0] == "holding" and '(unrecoverable)' in job.pilotErrorDiag:
                 job.result[0] = "failed"
                 tolog("!!WARNING!!2999!! HOLDING state changed to FAILED since error is unrecoverable")

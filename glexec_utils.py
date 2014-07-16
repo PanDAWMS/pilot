@@ -450,9 +450,6 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'dataPilot.py'),
                      os.path.join(self.sandbox_path, 'dataPilot.py'))
         os.chmod(os.path.join(self.sandbox_path, 'dataPilot.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'FileRegistration.py'),
-                     os.path.join(self.sandbox_path, 'FileRegistration.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'FileRegistration.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'OtherSiteMover.py'),
                      os.path.join(self.sandbox_path, 'OtherSiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'OtherSiteMover.py'), 0666)

@@ -291,28 +291,6 @@ class JobLog:
                 if not specialTransfer:
                     createLockFile(self.__env['jobrec'], site.workdir, lockfile="LOGFILECOPIED")
 
-                # file transfer worked, now register the output files in the LRC
-                ub = site.dq2url
-                lfchost = readpar('lfchost')
-                islogfile = True
-
-                if ub != "None" and ub != None and ub != "" and lfchost == "": # ub is 'None' outside the US
-                    # Perform the LRC file registration
-                    from FileRegistration import FileRegistration
-                    filereg = FileRegistration()
-                    ec, pilotErrorDiag, _state, _msg, latereg = filereg.registerFilesLRC(ub, rf, islogfile, self.__env['jobrec'], site.workdir, self.__env['errorLabel'])
-                    if ec != 0:
-                        job.result[0] = _state
-                    else:
-                        # update the current file state
-                        updateFileState(job.logFile, site.workdir, job.jobId, mode="reg_state", state="registered")
-                        dumpFileStates(site.workdir, job.jobId)
-                else:
-                    if lfchost != "":
-                        tolog("No LRC file registration since lfchost is set")
-                    else:
-                        tolog("No LRC file registration since dq2url is not set")
-
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
             if job.result[2] == 0:
                 job.result[2] = ec

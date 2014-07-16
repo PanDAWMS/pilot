@@ -228,6 +228,14 @@ Added -H option to getSubprocessArguments() (Experiment)
 Added cache option to argumentParser() (RunJob)
 Added __cache data member (RunJob)
 Now sending __cache to setCache() in __main__() (RunJob)
+Removed unused dsname from getPoolFileCatalog() call in getPoolFileCatalog() (runEvent)
+Removed unused dsname from getPoolFileCatalog() call in createPFC4TRF() (EventService)
+Removed unused dsname from getPoolFileCatalog() call in getFileInfo(), (Mover)
+Removed unused dsname from getPoolFileCatalog() (Mover)
+Improved exception handling in getFileCatalog() (ATLASExperiment)
+Removed outdated code related to LRC and FileRegistration usage in transferActualLogFile() (JobLog)
+Removed outdated code related to LRC and FileRegistration usage in stageOut() (RunJob)
+Removed outdated code related to LRC and FileRegistration usage in moveLostOutputFiles() (pilot)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

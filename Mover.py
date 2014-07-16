@@ -609,7 +609,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
     else:
         # get the PFC from the proper source
         ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = \
-            getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
+            getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
                                DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
 
@@ -3446,7 +3446,7 @@ def isFAXAllowed():
         allowed = False
     return allowed
 
-def getPoolFileCatalog(ub, guids, dsname, lfns, pinitdir, analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
+def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
                        filesizeIn, checksumIn, sitemover, pfc_name="PoolFileCatalog.xml", thisExperiment=None):
     """ get the PFC from the proper source """
     # In LCG land use lfc_getreplica to get the pfn in order to create the PoolFileCatalog, unless scope is used to create predeterministic path

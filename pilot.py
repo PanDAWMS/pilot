@@ -493,27 +493,6 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
             # create a weak lockfile meaning that file transfer worked, and all output files have now been transferred
             pUtil.createLockFile(True, thisSite.workdir, lockfile="ALLFILESTRANSFERRED")
 
-            # file transfer worked, now register the output files in the LRC
-            ub = thisSite.dq2url
-            lfchost = pUtil.readpar('lfchost')
-            islogfile = False
-            _state = ""
-            _msg = ""
-
-            if ub != "None" and ub != None and ub != "" and lfchost == "": # ub is 'None' outside the US
-                # Perform the LRC file registration
-                from FileRegistration import FileRegistration
-                filereg = FileRegistration()
-                ec, pilotErrorDiag, _state, _msg, _latereg = filereg.registerFilesLRC(ub, rf, islogfile, env['jobrec'], thisSite.workdir, env['errorLabel'])
-                if ec != 0:
-                    job.result[0] = _state
-                    job.currentState = job.result[0]
-            else:
-                if lfchost != "":
-                    pUtil.tolog("No LRC file registration since lfchost is set")
-                else:
-                    pUtil.tolog("No LRC file registration since dq2url is not set")
-
     # finish the time measurement of the stage-out
     tin_1 = os.times()
     job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
