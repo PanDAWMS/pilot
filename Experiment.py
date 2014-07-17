@@ -711,7 +711,7 @@ class Experiment(object):
 
         return name
 
-    def getSubprocessArguments(self, env, port, subprocessName="Normal"):
+    def getSubprocessArguments(self, env, port, subprocessName="RunJob"):
         """ Argument list needed to launch the subprocess by the pilot/Monitor """
 
         # The pilot/Monitor is forking a subprocess which will be monitored for work dir size, hanging processes etc
@@ -720,34 +720,9 @@ class Experiment(object):
         # If a new subprocess module is added, it startup arguments need to be specified here
 
         jobargs = None
-
-        # Get the environment object
-        #import environment
-        #env = environment.set_environment()
-
         tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
-        if subprocessName == "RunJob":
-            jobargs = [env['pyexe'], "RunJob.py", 
-                       "-a", env['thisSite'].appdir,
-                       "-b", env['queuename'],
-                       "-d", env['jobDic']["prod"][1].workdir,
-                       "-g", env['inputDir'],
-                       "-i", env['jobDic']["prod"][1].tarFileGuid,
-                       "-k", getPilotlogFilename(),
-                       "-l", env['pilot_initdir'],
-                       "-m", env['outputDir'],
-                       "-o", env['thisSite'].workdir,
-                       "-p", str(port),
-                       "-q", env['thisSite'].dq2url, # get rid of this one, then args for RunJob and RunJobEvent will be the same except for the module filename
-                       "-s", env['thisSite'].sitename,
-                       "-t", str(env['proxycheckFlag']),
-                       "-x", str(env['stageinretry']),
-                       "-B", str(env['lfcRegistration']),
-                       "-E", str(env['stageoutretry']),
-                       "-F", env['experiment'],
-                       "-H", env['cache']]
 
-        elif subprocessName == "RunJobEvent":
+        if subprocessName == "RunJobEvent":
             jobargs = [env['pyexe'], "RunJobEvent.py", 
                        "-a", env['thisSite'].appdir,
                        "-b", env['queuename'],
@@ -767,10 +742,27 @@ class Experiment(object):
                        "-F", env['experiment'],
                        "-H", env['cache']]
         else:
-            tolog("!!WARNING!!3333!! Unknown subprocess type: %s" % (subprocessName))
+            jobargs = [env['pyexe'], "%s.py" % (subprocessName),
+                       "-a", env['thisSite'].appdir,
+                       "-b", env['queuename'],
+                       "-d", env['jobDic']["prod"][1].workdir,
+                       "-g", env['inputDir'],
+                       "-i", env['jobDic']["prod"][1].tarFileGuid,
+                       "-k", getPilotlogFilename(),
+                       "-l", env['pilot_initdir'],
+                       "-m", env['outputDir'],
+                       "-o", env['thisSite'].workdir,
+                       "-p", str(port),
+                       "-q", env['thisSite'].dq2url, # get rid of this one, then args for RunJob and RunJobEvent will be the same except for the module filename
+                       "-s", env['thisSite'].sitename,
+                       "-t", str(env['proxycheckFlag']),
+                       "-x", str(env['stageinretry']),
+                       "-B", str(env['lfcRegistration']),
+                       "-E", str(env['stageoutretry']),
+                       "-F", env['experiment'],
+                       "-H", env['cache']]
 
         tolog("Will use arguments: %s" % str(jobargs))
-
         return jobargs
 
     # Optional
