@@ -208,6 +208,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         workDir = pdict.get('workDir', '')
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
+        scope_dict = pdict.get('scope_dict', None)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)

@@ -9,12 +9,14 @@
 #   Subclasses should implement all needed methods prototyped in this class
 #   Note: not compatible with Singleton Design Pattern due to the subclassing
 
+# Standard python modules
 import os, sys, commands, getopt, time
 import traceback
 import atexit, signal
 import stat
 from optparse import OptionParser
 
+# Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
@@ -42,12 +44,11 @@ class RunJob(object):
 #    __appdir = "/usatlas/projects/OSG"   # Default software installation directory
 #    __debugLevel = 0                     # 0: debug info off, 1: display function name when called, 2: full debug info
 #    __dq2url = "" # REMOVE
-    __experiment = "ATLAS"               # Current experiment (can be set with pilot option -F <experiment>)
     __failureCode = None                 # set by signal handler when user/batch system kills the job
     __globalPilotErrorDiag = ""          # global pilotErrorDiag used with signal handler (only)
     __globalErrorCode = 0                # global error code used with signal handler (only)
     __inputDir = ""                      # location of input files (source for mv site mover)
-    __lfcRegistration = True             # should the pilot perform LFC registration?
+    __fileCatalogRegistration = True     # should the pilot perform file catalog registration?
     __logguid = None                     # guid for the log file
     __outputDir = ""                     # location of output files (destination for mv site mover)
     __pilot_initdir = ""                 # location of where the pilot is untarred and started
@@ -111,10 +112,10 @@ class RunJob(object):
 
         return self.__inputDir
 
-    def getLFCRegistration(self):
-        """ Getter for __lfcRegistration """
+    def getFileCatalogRegistration(self):
+        """ Getter for __fileCatalogRegistration """
 
-        return self.__lfcRegistration
+        return self.__fileCatalogRegistration
 
     def getLogGUID(self):
         """ Getter for __logguid """
@@ -179,6 +180,11 @@ class RunJob(object):
         # e.g. self.__errorLabel = errorLabel
         pass
 
+    def getRunJob(self):
+        """ Return a string with the module name """
+
+        return self.__runjob
+
     def argumentParser(self):
         """ Argument parser for the RunJob module """
 
@@ -220,8 +226,8 @@ class RunJob(object):
                           help="DQ2 URL TO BE RETIRED", metavar="DQ2URL")
         parser.add_option("-x", "--stageinretries", dest="stageinretry",
                           help="The number of stage-in retries", metavar="STAGEINRETRY")
-        parser.add_option("-B", "--filecatalogregistration", dest="lfcRegistration",
-                          help="True (default): perform file catalog registration, False: no catalog registration", metavar="LFCREGISTRATION")
+        parser.add_option("-B", "--filecatalogregistration", dest="fileCatalogRegistration",
+                          help="True (default): perform file catalog registration, False: no catalog registration", metavar="FILECATALOGREGISTRATION")
         parser.add_option("-E", "--stageoutretries", dest="stageoutretry",
                           help="The number of stage-out retries", metavar="STAGEOUTRETRY")
         parser.add_option("-F", "--experiment", dest="experiment",
@@ -249,13 +255,13 @@ class RunJob(object):
                 self.__logguid = options.logguid
             if options.inputDir:
                 self.__inputDir = options.inputDir
-            if options.lfcRegistration:
-                if options.lfcRegistration.lower() == "false":            
-                    self.__lfcRegistration = False
+            if options.fileCatalogRegistration:
+                if options.fileCatalogRegistration.lower() == "false":            
+                    self.__fileCatalogRegistration = False
                 else:
-                    self.__lfcRegistration = True
+                    self.__fileCatalogRegistration = True
             else:
-                self.__lfcRegistration = True
+                self.__fileCatalogRegistration = True
             if options.pilot_initdir:
                 self.__pilot_initdir = options.pilot_initdir
             if options.pilotlogfilename:
@@ -298,12 +304,7 @@ class RunJob(object):
             if options.cache:
                 self.__cache = options.cache
 
-        return sitename, appdir, workdir, queuename, dq2url
-
-    def getRunJob(self):
-        """ Return a string with the module name """
-
-        return self.__runjob
+        return sitename, appdir, workdir, dq2url, queuename
 
     def getRunJobFileName(self):
         """ Return the filename of the module """
@@ -325,9 +326,6 @@ class RunJob(object):
         # in environment.py (see e.g. loopingLimitDefaultProd)
 
         return True
-
-    # Optional methods
-    # ..
 
     def cleanup(self, job, rf=None):
         """ Cleanup function """
@@ -448,7 +446,7 @@ class RunJob(object):
 
         self.cleanup(job, rf=rf)
         sys.stderr.close()
-        tolog("runJob (payload wrapper) has finished")
+        tolog("RunJob (payload wrapper) has finished")
         # change to sys.exit?
         os._exit(job.result[2]) # pilotExitCode, don't confuse this with the overall pilot exit code,
                                 # which doesn't get reported back to panda server anyway
@@ -897,7 +895,7 @@ class RunJob(object):
                                              userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
                                              outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
                                              dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                             lfcreg=self.__lfcRegistration, jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
+                                             lfcreg=self.__fileCatalogRegistration, jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
                                              stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE)
             tin_1 = os.times()
             job.timeStageOut = int(round(tin_1[4] - tin_0[4]))

@@ -1467,7 +1467,7 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
 def sitemover_get_all_data(sitemover, error, gpfn, lfn, path, fsize=None, spsetup=None, fchecksum=None,\
                            guid=None, analysisJob=None, usect=None, pinitdir=None, proxycheck=None,\
                            sitename=None, token=None, timeout=None, dsname=None, userid=None, report=None, access=None, inputDir=None, jobId=None,\
-                           workDir=None, cmtconfig=None, lfns=None, experiment=None, replicas_dic=None, dsdict=None):
+                           workDir=None, cmtconfig=None, lfns=None, experiment=None, replicas_dic=None, dsdict=None, scope_dict=None):
     """ Wrapper for the actual stage-in command from the relevant sitemover """
 
     s = -1
@@ -1481,7 +1481,8 @@ def sitemover_get_all_data(sitemover, error, gpfn, lfn, path, fsize=None, spsetu
         s, pilotErrorDiag = sitemover.get_data(gpfn, lfn, path, fsize=fsize, spsetup=spsetup, fchecksum=fchecksum, guid=guid,\
                                            analJob=analysisJob, usect=usect, pinitdir=pinitdir, proxycheck=proxycheck, sitename=sitename,\
                                            token=token, timeout=timeout, dsname=dsname, userid=userid, report=report, lfns=lfns, replicas_dic=replicas_dic,\
-                                           access=access, inputDir=inputDir, jobId=jobId, workDir=workDir, cmtconfig=cmtconfig, experiment=experiment, dsdict=dsdict)
+                                           access=access, inputDir=inputDir, jobId=jobId, workDir=workDir, cmtconfig=cmtconfig, experiment=experiment, dsdict=dsdict,\
+                                           scope_dict=scope_dict)
     except Exception, e:
         pilotErrorDiag = "Unexpected exception: %s" % (get_exc_plus())
         tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
@@ -1864,7 +1865,7 @@ def mover_get_data(lfns,
                                                guid=guid, analysisJob=analysisJob, usect=usect, pinitdir=pinitdir, proxycheck=proxycheck,\
                                                sitename=sitename, token=None, timeout=get_TIMEOUT, dsname=dsname, userid=userid, report=report,\
                                                access=file_access, inputDir=inputDir, jobId=jobId, workDir=workDir, cmtconfig=cmtconfig, lfns=lfns,\
-                                               experiment=experiment, replicas_dic=replicas_dic, dsdict=dsdict)
+                                               experiment=experiment, replicas_dic=replicas_dic, dsdict=dsdict, scope_dict=scope_dict)
         if s != 0:
             tolog('!!WARNING!!2999!! Failed during stage-in of multiple files: %s' % (error.getErrorStr(s)))
             tolog("Exit code: %s" % (s))
@@ -1939,7 +1940,7 @@ def mover_get_data(lfns,
                                                                                                                              dsname=dsname, userid=userid, report=report,\
                                                                                                                              access=file_access, inputDir=inputDir, jobId=jobId,\
                                                                                                                              workDir=workDir, cmtconfig=cmtconfig,\
-                                                                                                                             experiment=experiment)
+                                                                                                                             experiment=experiment, scope_dict=scope_dict)
                     # Get out of the multiple replica loop
                     if replica_transferred:
                         break

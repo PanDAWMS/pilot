@@ -951,9 +951,6 @@ class ATLASExperiment(Experiment):
 
         # install the trf in the work dir if it is not installed on the site
         # special case for nightlies (rel_N already in siteroot path, so do not add it)
-        
-        tolog("siteroot: %s" % (siteroot))
-
         if "rel_" in job.homePackage:
             installDir = siteroot
         else:
@@ -964,51 +961,44 @@ class ATLASExperiment(Experiment):
         tolog("Job home package: %s" % (job.homePackage))
         tolog("Trf installation dir: %s" % (installDir))
 
-#        # special case for nightlies (no RunTime dir)
-#        if "rel_" in job.homePackage:
-#            # extract the rel_N bit and use it in the path
-#            rel_N = self.extractRelN(job.homePackage)
-#            tolog("Extracted %s from homePackage=%s" % (rel_N, job.homePackage))
-#            if os.path.exists(os.path.join(installDir, rel_N)):
-#                sfile = os.path.join(os.path.join(installDir, rel_N), "setup.sh")
-#            else:
-#                sfile = os.path.join(installDir, "setup.sh")
-#        else:
-#            sfile = installDir + ('/%sRunTime/cmt/setup.sh' % job.homePackage.split('/')[0])
-#        sfile = sfile.replace('//','/')
-#        if not os.path.isfile(sfile):
-#
-##            pilotErrorDiag = "Patch not available (will not attempt dynamic patch installation)"
-##            tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
-##            ec = self.__error.ERR_DYNTRFINST
-#
-## uncomment this section (and remove the comments in the above three lines) for dynamic path installation
-#
-#            tolog("!!WARNING!!3000!! Trf setup file does not exist at: %s" % (sfile))
-#            tolog("Will try to install trf in work dir...")
-#
-#            # Install trf in the run dir
-#            try:
-#                ec, pilotErrorDiag = self.installPyJobTransforms(job.release, job.homePackage, swbase, cmtconfig)
-#            except Exception, e:
-#                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(e)
-#                tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
-#                ec = self.__error.ERR_DYNTRFINST
-#            else:
-#                if ec == 0:
-#                    tolog("Successfully installed trf")
-#                    installDir = workdir + "/" + job.homePackage
-#
-#                    # replace siteroot="$SITEROOT" with siteroot=rundir
-#                    os.environ['SITEROOT'] = workdir
-#                    siteroot = workdir
-#
-## comment until here
-#
-#        else:
-#            tolog("Using install dir = %s" % (installDir))
+        # special case for nightlies (no RunTime dir)
+        if "rel_" in job.homePackage:
+            sfile = os.path.join(installDir, "setup.sh")
+        else:
+            sfile = installDir + ('/%sRunTime/cmt/setup.sh' % job.homePackage.split('/')[0])
+        sfile = sfile.replace('//','/')
+        if not os.path.isfile(sfile):
 
-        tolog("Using install dir = %s" % (installDir))
+#            pilotErrorDiag = "Patch not available (will not attempt dynamic patch installation)"
+#            tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
+#            ec = self.__error.ERR_DYNTRFINST
+
+# uncomment this section (and remove the comments in the above three lines) for dynamic path installation
+
+            tolog("!!WARNING!!3000!! Trf setup file does not exist at: %s" % (sfile))
+            tolog("Will try to install trf in work dir...")
+
+            # Install trf in the run dir
+            try:
+                ec, pilotErrorDiag = self.installPyJobTransforms(job.release, job.homePackage, swbase, cmtconfig)
+            except Exception, e:
+                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(e)
+                tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
+                ec = self.__error.ERR_DYNTRFINST
+            else:
+                if ec == 0:
+                    tolog("Successfully installed trf")
+                    installDir = workdir + "/" + job.homePackage
+
+                    # replace siteroot="$SITEROOT" with siteroot=rundir
+                    os.environ['SITEROOT'] = workdir
+                    siteroot = workdir
+
+# comment until here
+
+        else:
+            tolog("Found trf setup file: %s" % (sfile))
+            tolog("Using install dir = %s" % (installDir))
 
         return ec, pilotErrorDiag, siteroot, installDir
 

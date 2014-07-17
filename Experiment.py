@@ -324,6 +324,8 @@ class Experiment(object):
         pilotErrorDiag = ""
         run_command = ""
 
+        tolog("getAnalysisRunCommand called from Experiment")
+
         # get the queuedata info
         # (directAccess info is stored in the copysetup variable)
         region = readpar('region')
@@ -435,23 +437,20 @@ class Experiment(object):
             updateCopysetups(run_command, transferType=None, useCT=accessmode_useCT, directIn=accessmode_directIn, useFileStager=accessmode_useFileStager)
 
         # add guids and lfc host when needed
-        if region == 'US' and jobSite.dq2url != "" and lfcHost == "": # old style
-            run_command += ' -u %s' % (jobSite.dq2url)
-        else:
-            if lfcHost != "":
-                # get the correct guids list (with only the direct access files)
-                if not isBuildJob(job.outFiles):
-                    _guids = self.getGuidsFromJobPars(job.jobPars, job.inFiles, job.inFilesGuids)
-                    # only add the lfcHost if --usePFCTurl is not specified
-                    if usePFCTurl:
-                        run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
-                    else:
-                        if not "--lfcHost" in run_command:
-                            run_command += ' --lfcHost %s' % (lfcHost)
-                        run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
+        if lfcHost != "":
+            # get the correct guids list (with only the direct access files)
+            if not isBuildJob(job.outFiles):
+                _guids = self.getGuidsFromJobPars(job.jobPars, job.inFiles, job.inFilesGuids)
+                # only add the lfcHost if --usePFCTurl is not specified
+                if usePFCTurl:
+                    run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
                 else:
-                    if not usePFCTurl and not "--lfcHost" in run_command:
+                    if not "--lfcHost" in run_command:
                         run_command += ' --lfcHost %s' % (lfcHost)
+                    run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
+            else:
+                if not usePFCTurl and not "--lfcHost" in run_command:
+                    run_command += ' --lfcHost %s' % (lfcHost)
 
         # if both direct access and the accessmode loop added a directIn switch, remove the first one from the string
         if run_command.count("directIn") > 1:
@@ -722,50 +721,44 @@ class Experiment(object):
         tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
         if subprocessName == "RunJob":
             jobargs = [env['pyexe'], "RunJob.py", 
-#            jobargs = [env['pyexe'], "runJob.py", 
                        "-a", env['thisSite'].appdir,
-                       "-d", env['jobDic']["prod"][1].workdir,
-                       "-l", env['pilot_initdir'],
-                       "-q", env['thisSite'].dq2url,
-                       "-p", str(port),
-                       "-s", env['thisSite'].sitename,
-                       "-o", env['thisSite'].workdir,
                        "-b", env['queuename'],
-#                       "-h", env['queuename'],
-                       "-i", env['jobDic']["prod"][1].tarFileGuid,
-#                       "-b", str(env['debugLevel']),
-                       "-t", str(env['proxycheckFlag']),
-                       "-k", getPilotlogFilename(),
-                       "-x", str(env['stageinretry']),
-#                       "-v", str(env['testLevel']),
+                       "-d", env['jobDic']["prod"][1].workdir,
                        "-g", env['inputDir'],
+                       "-i", env['jobDic']["prod"][1].tarFileGuid,
+                       "-k", getPilotlogFilename(),
+                       "-l", env['pilot_initdir'],
                        "-m", env['outputDir'],
+                       "-o", env['thisSite'].workdir,
+                       "-p", str(port),
+                       "-q", env['thisSite'].dq2url, # get rid of this one, then args for RunJob and RunJobEvent will be the same except for the module filename
+                       "-s", env['thisSite'].sitename,
+                       "-t", str(env['proxycheckFlag']),
+                       "-x", str(env['stageinretry']),
                        "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
                        "-F", env['experiment'],
                        "-H", env['cache']]
 
-        elif subprocessName == "runEvent":
-            jobargs = [env['pyexe'], "runEvent.py", 
+        elif subprocessName == "RunJobEvent":
+            jobargs = [env['pyexe'], "RunJobEvent.py", 
                        "-a", env['thisSite'].appdir,
+                       "-b", env['queuename'],
                        "-d", env['jobDic']["prod"][1].workdir,
+                       "-g", env['inputDir'],
+                       "-i", env['jobDic']["prod"][1].tarFileGuid,
+                       "-k", getPilotlogFilename(),
                        "-l", env['pilot_initdir'],
-                       "-q", env['thisSite'].dq2url,
+                       "-m", env['outputDir'],
+                       "-o", env['thisSite'].workdir,
                        "-p", str(port),
                        "-s", env['thisSite'].sitename,
-                       "-o", env['thisSite'].workdir,
-                       "-h", env['queuename'],
-                       "-i", env['jobDic']["prod"][1].tarFileGuid,
-                       "-b", str(env['debugLevel']),
                        "-t", str(env['proxycheckFlag']),
-                       "-k", getPilotlogFilename(),
                        "-x", str(env['stageinretry']),
-                       "-v", str(env['testLevel']),
-                       "-g", env['inputDir'],
-                       "-m", env['outputDir'],
                        "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
-                       "-F", env['experiment']]
+                       "-F", env['experiment'],
+                       "-H", env['cache']]
         else:
             tolog("!!WARNING!!3333!! Unknown subprocess type: %s" % (subprocessName))
 

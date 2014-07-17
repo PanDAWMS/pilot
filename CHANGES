@@ -239,6 +239,15 @@ Removed outdated code related to LRC and FileRegistration usage in moveLostOutpu
 Removed dq2url argument from transferLogFile() (JobLog)
 Removed dq2url usages related to transferLogFile() (pilot)
 Removed dq2url from RunJobEvent
+Removed dq2url usage in getAnalysisRunCommand() (Experiment)
+Removed dq2url usage for RunJobEvent in getSubprocessArguments() (Experiment)
+Renamed lfcRegistration to fileCatalogRegistration in RunJob
+Increased the maximum allowed LFN string length from 150 to 255 characters. Requested by Asoka de Silva et al (pUtil)
+Replaced getInstallDir() with version from 58m (ATLASExperiment)
+Added scope_dict to sitemover_get_all_data() call in mover_get_data(), requested by Cedric Serdon (Mover)
+Added scope_dict argument to sitemover_get_all_data(), requested by Cedric Serdon (Mover)
+Added scope_dict to get_data() call in sitemover_get_all_data(), requested by Cedric Serdon (Mover)
+Added scope_dict to get_data() (aria2cSiteMover)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

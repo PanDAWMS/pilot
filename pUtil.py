@@ -2527,7 +2527,7 @@ def verifyLFNLength(outputFiles):
     ec = 0
     pilotErrorDiag = ""
     error = PilotErrors()
-    MAXFILENAMELENGTH = 150
+    MAXFILENAMELENGTH = 255
 
     # loop over all output files
     for fileName in outputFiles:
