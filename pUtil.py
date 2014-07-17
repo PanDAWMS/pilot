@@ -4154,3 +4154,17 @@ def getGUID():
         guid = ""
 
     return guid
+
+def extractHPCInfo(infoStr):
+    """ Extract HPC name from the info string """
+    # Return: isHPCSite (True/False), HPC_name (string)                                                                                                                                # infoStr = "blabla HPC_Titan" -> True, "Titan"                                                                                                                                    # infoStr = "blabla bla" -> False, None                                                                                                                                            # The HPC name will be capitalized (titan -> Titan)                                                                                                                                                      
+    name = None
+    isHPCSite = False
+
+    m = re.search('HPC\_([A-Za-z0-9]+)', infoStr)
+    if m:
+        name = m.group(1)
+        name = name.capitalize()
+        isHPCSite = True
+
+    return isHPCSite, name

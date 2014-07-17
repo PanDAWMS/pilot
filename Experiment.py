@@ -19,6 +19,7 @@ from pUtil import getDirectAccessDic       # Get the direct access dictionary
 from pUtil import isBuildJob               # Is the current job a build job?
 from pUtil import remove                   # Used to remove redundant file before log file creation
 from pUtil import getPilotlogFilename      # Used in the subprocess arguments method
+from pUtil import extractHPCInfo           # Used by getSubprocessName() to determine HPC plug-in if necessary
 
 class Experiment(object):
 
@@ -693,12 +694,18 @@ class Experiment(object):
         # Default subprocess name
         name = "RunJob"
 
-        # Select alternative subprocess names depending on defined job data members
-        #if readpar('hpc'):
-        #    pass
+        # Select alternative subprocess names for HPCs
+        isHPC, _name = extractHPCInfo(readpar('catchall'))
+        if isHPC:
+            name = "RunJob" + _name # e.g. "RunJobTitan" is the proper subprocess name for the Titan plug-in
+
+        # Are we going to run an event service job?
         if eventService:
             tolog("Encountered an event service job")
-            name = "runEvent"
+            if isHPC:
+                name = "RunJobEvent" + _name
+            else:
+                name = "RunJobEvent"
 
         tolog("Selected subprocess: %s" % (name))
 
@@ -918,3 +925,8 @@ class Experiment(object):
         # are reported by the pilot to the DQ2 Tracing Service if this method returns True
 
         return False
+
+if __name__ == "__main__":
+
+    a=Experiment()
+    print a.getSubprocessName(False)
