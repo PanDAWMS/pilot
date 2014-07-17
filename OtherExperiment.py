@@ -9,12 +9,16 @@
 from Experiment import Experiment  # Main experiment class
 from pUtil import tolog            # Logging method that sends text to the pilot log
 from pUtil import readpar          # Used to read values from the schedconfig DB (queuedata)
+from PilotErrors import PilotErrors
 
 class OtherExperiment(Experiment):
 
     # private data members
     __experiment = "Other"
     __instance = None
+    __error = PilotErrors()                # PilotErrors object
+    __doFileLookups = False                # True for LFC based file lookups (basically a dummy data member here since singleton object is static)
+    __cache = ""                           # Cache URL used e.g. by LSST
 
     # Required methods
 
@@ -63,6 +67,15 @@ class OtherExperiment(Experiment):
 
         return False
 
+    def doFileLookups(self, doFileLookups):
+        """ Update the file lookups boolean """
+
+        # Only implement this method if class really wants to update the __doFileLookups boolean
+        # ATLAS wants to implement this, but not CMS
+        # Method is used by Mover
+        # self.__doFileLookups = doFileLookups
+        pass
+
     def isOutOfMemory(self, **kwargs):
         """ Try to identify out of memory errors in the stderr/out """
 
@@ -83,6 +96,28 @@ class OtherExperiment(Experiment):
         tolog("No special checks for \'%s\'" % (self.__experiment))
 
         return True # obviously change this to 'status' once implemented
+
+    # Optional
+    def setCache(self, cache):
+        """ Cache URL """
+        # Used e.g. by LSST
+
+        self.__cache = cache
+
+    # Optional
+    def getCache(self):
+        """ Return the cache URL """
+        # Used e.g. by LSST
+
+        return self.__cache
+
+    # Optional
+    def useTracingService(self):
+        """ Use the DQ2 Tracing Service """
+        # A service provided by the DQ2 system that allows for file transfer tracking; all file transfers
+        # are reported by the pilot to the DQ2 Tracing Service if this method returns True
+
+        return False
 
 if __name__ == "__main__":
 

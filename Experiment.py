@@ -910,3 +910,11 @@ class Experiment(object):
         # Used e.g. by LSST
 
         return self.__cache
+
+    # Optional
+    def useTracingService(self):
+        """ Use the DQ2 Tracing Service """
+        # A service provided by the DQ2 system that allows for file transfer tracking; all file transfers
+        # are reported by the pilot to the DQ2 Tracing Service if this method returns True
+
+        return False
