@@ -699,204 +699,205 @@ class RunJobEvent(RunJob):
             if docleanup:
                 self.sysExit(job)
 
-def setup(job, jobSite, thisExperiment):
-    """ prepare the setup and get the run command list """
+#    def setup(self, job, jobSite, thisExperiment):
+#        """ prepare the setup and get the run command list """
+#
+#        # start setup time counter
+#        t0 = time.time()
+#        ec = 0
+#        runCommandList = []
+#
+#        # split up the job parameters to be able to loop over the tasks
+#        jobParameterList = job.jobPars.split("\n")
+#        jobHomePackageList = job.homePackage.split("\n")
+#        jobTrfList = job.trf.split("\n")
+#        jobAtlasRelease = getAtlasRelease(job.release)
+#
+#        tolog("Number of transformations to process: %s" % len(jobParameterList))
+#        if len(jobParameterList) > 1:
+#            multi_trf = True
+#        else:
+#            multi_trf = False
+#
+#        # verify that the multi-trf job is setup properly
+#        ec, job.pilotErrorDiag, jobAtlasRelease = RunJobUtilities.verifyMultiTrf(jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRelease)
+#        if ec > 0:
+#            return ec, runCommandList, job, multi_trf
+#            
+#        os.chdir(jobSite.workdir)
+#        tolog("Current job workdir is %s" % os.getcwd())
+#
+#        # setup the trf(s)
+#        _i = 0
+#        _stdout = job.stdout
+#        _stderr = job.stderr
+#        _first = True
+#        for (_jobPars, _homepackage, _trf, _swRelease) in map(None, jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRelease):
+#            tolog("Preparing setup %d/%d" % (_i + 1, len(jobParameterList)))
+#
+#            # reset variables
+#            job.jobPars = _jobPars
+#            job.homePackage = _homepackage
+#            job.trf = _trf
+#            job.release = _swRelease
+#            if multi_trf:
+#                job.stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
+#                job.stderr = _stderr.replace(".txt", "_%d.txt" % (_i + 1))
+#
+#            # post process copysetup variable in case of directIn/useFileStager
+#            _copysetup = readpar('copysetup')
+#            _copysetupin = readpar('copysetupin')
+#            if "--directIn" in job.jobPars or "--useFileStager" in job.jobPars or _copysetup.count('^') == 5 or _copysetupin.count('^') == 5:
+#                # only need to update the queuedata file once
+#                if _first:
+#                    RunJobUtilities.updateCopysetups(job.jobPars)
+#                    _first = False
+#
+#            # setup the trf
+#            ec, job.pilotErrorDiag, cmd, job.spsetup, job.JEM, job.cmtconfig = thisExperiment.getJobExecutionCommand(job, jobSite, pilot_initdir)
+#            if ec > 0:
+#                # setup failed
+#                break
+#
+#            # add the setup command to the command list
+#            runCommandList.append(cmd)
+#            _i += 1
+#
+#        job.stdout = _stdout
+#        job.stderr = _stderr
+#        job.timeSetup = int(time.time() - t0)
+#        tolog("Total setup time: %d s" % (job.timeSetup))
+#
+#        return ec, runCommandList, job, multi_trf
 
-    # start setup time counter
-    t0 = time.time()
+#def stageIn(job, jobSite, analysisJob, pilot_initdir, pworkdir):
+#    """ Perform the stage-in """
+#
+#    ec = 0
+#    statusPFCTurl = None
+#    usedFAXandDirectIO = False
+#
+#    # Prepare the input files (remove non-valid names) if there are any
+#    ins, job.filesizeIn, job.checksumIn = RunJobUtilities.prepareInFiles(job.inFiles, job.filesizeIn, job.checksumIn)
+#    if ins:
+#        tolog("Preparing for get command")
+#
+#        # Get the file access info (only useCT is needed here)
+#        useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
+#
+#        # Transfer input files
+#        tin_0 = os.times()
+#        ec, job.pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
+#            mover.get_data(job, jobSite, ins, stageinretry, analysisJob=analysisJob, usect=useCT,\
+#                           pinitdir=pilot_initdir, proxycheck=False, inputDir=inputDir, workDir=pworkdir)
+#        if ec != 0:
+#            job.result[2] = ec
+#        tin_1 = os.times()
+#        job.timeStageIn = int(round(tin_1[4] - tin_0[4]))
+#
+#        # Extract any FAX info from the dictionary
+#        if FAX_dictionary.has_key('N_filesWithoutFAX'):
+#            job.filesWithoutFAX = FAX_dictionary['N_filesWithoutFAX']
+#        if FAX_dictionary.has_key('N_filesWithFAX'):
+#            job.filesWithFAX = FAX_dictionary['N_filesWithFAX']
+#        if FAX_dictionary.has_key('bytesWithoutFAX'):
+#            job.bytesWithoutFAX = FAX_dictionary['bytesWithoutFAX']
+#        if FAX_dictionary.has_key('bytesWithFAX'):
+#            job.bytesWithFAX = FAX_dictionary['bytesWithFAX']
+#        if FAX_dictionary.has_key('usedFAXandDirectIO'):
+#            usedFAXandDirectIO = FAX_dictionary['usedFAXandDirectIO']
+#
+#    return job, ins, statusPFCTurl, usedFAXandDirectIO
 
-    ec = 0
-    runCommandList = []
+    def getTrfExitInfo(self, exitCode, workdir):
+        """ Get the trf exit code and info from job report if possible """
 
-    # split up the job parameters to be able to loop over the tasks
-    jobParameterList = job.jobPars.split("\n")
-    jobHomePackageList = job.homePackage.split("\n")
-    jobTrfList = job.trf.split("\n")
-    jobAtlasRelease = getAtlasRelease(job.release)
+        exitAcronym = ""
+        exitMsg = ""
 
-    tolog("Number of transformations to process: %s" % len(jobParameterList))
-    if len(jobParameterList) > 1:
-        multi_trf = True
-    else:
-        multi_trf = False
-
-    # verify that the multi-trf job is setup properly
-    ec, job.pilotErrorDiag, jobAtlasRelease = RunJobUtilities.verifyMultiTrf(jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRelease)
-    if ec > 0:
-        return ec, runCommandList, job, multi_trf
-            
-    os.chdir(jobSite.workdir)
-    tolog("Current job workdir is %s" % os.getcwd())
-    
-    # setup the trf(s)
-    _i = 0
-    _stdout = job.stdout
-    _stderr = job.stderr
-    _first = True
-    for (_jobPars, _homepackage, _trf, _swRelease) in map(None, jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRelease):
-        tolog("Preparing setup %d/%d" % (_i + 1, len(jobParameterList)))
-
-        # reset variables
-        job.jobPars = _jobPars
-        job.homePackage = _homepackage
-        job.trf = _trf
-        job.release = _swRelease
-        if multi_trf:
-            job.stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
-            job.stderr = _stderr.replace(".txt", "_%d.txt" % (_i + 1))
-
-        # post process copysetup variable in case of directIn/useFileStager
-        _copysetup = readpar('copysetup')
-        _copysetupin = readpar('copysetupin')
-        if "--directIn" in job.jobPars or "--useFileStager" in job.jobPars or _copysetup.count('^') == 5 or _copysetupin.count('^') == 5:
-            # only need to update the queuedata file once
-            if _first:
-                RunJobUtilities.updateCopysetups(job.jobPars)
-                _first = False
-
-        # setup the trf
-        ec, job.pilotErrorDiag, cmd, job.spsetup, job.JEM, job.cmtconfig = thisExperiment.getJobExecutionCommand(job, jobSite, pilot_initdir)
-        if ec > 0:
-            # setup failed
-            break
-
-        # add the setup command to the command list
-        runCommandList.append(cmd)
-        _i += 1
-
-    job.stdout = _stdout
-    job.stderr = _stderr
-    job.timeSetup = int(time.time() - t0)
-    tolog("Total setup time: %d s" % (job.timeSetup))
-
-    return ec, runCommandList, job, multi_trf
-
-def stageIn(job, jobSite, analysisJob, pilot_initdir, pworkdir):
-    """ Perform the stage-in """
-
-    ec = 0
-    statusPFCTurl = None
-    usedFAXandDirectIO = False
-
-    # Prepare the input files (remove non-valid names) if there are any
-    ins, job.filesizeIn, job.checksumIn = RunJobUtilities.prepareInFiles(job.inFiles, job.filesizeIn, job.checksumIn)
-    if ins:
-        tolog("Preparing for get command")
-
-        # Get the file access info (only useCT is needed here)
-        useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
-
-        # Transfer input files
-        tin_0 = os.times()
-        ec, job.pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
-            mover.get_data(job, jobSite, ins, stageinretry, analysisJob=analysisJob, usect=useCT,\
-                           pinitdir=pilot_initdir, proxycheck=False, inputDir=inputDir, workDir=pworkdir)
-        if ec != 0:
-            job.result[2] = ec
-        tin_1 = os.times()
-        job.timeStageIn = int(round(tin_1[4] - tin_0[4]))
-
-        # Extract any FAX info from the dictionary
-        if FAX_dictionary.has_key('N_filesWithoutFAX'):
-            job.filesWithoutFAX = FAX_dictionary['N_filesWithoutFAX']
-        if FAX_dictionary.has_key('N_filesWithFAX'):
-            job.filesWithFAX = FAX_dictionary['N_filesWithFAX']
-        if FAX_dictionary.has_key('bytesWithoutFAX'):
-            job.bytesWithoutFAX = FAX_dictionary['bytesWithoutFAX']
-        if FAX_dictionary.has_key('bytesWithFAX'):
-            job.bytesWithFAX = FAX_dictionary['bytesWithFAX']
-        if FAX_dictionary.has_key('usedFAXandDirectIO'):
-            usedFAXandDirectIO = FAX_dictionary['usedFAXandDirectIO']
-
-    return job, ins, statusPFCTurl, usedFAXandDirectIO
-
-def getTrfExitInfo(exitCode, workdir):
-    """ Get the trf exit code and info from job report if possible """
-
-    exitAcronym = ""
-    exitMsg = ""
-
-    # does the job report exist?
-    extension = getExtension(alternative='pickle')
-    if extension.lower() == "json":
-        filename = os.path.join(workdir, "jobReport.%s" % (extension))
-    else:
-        filename = os.path.join(workdir, "jobReportExtract.%s" % (extension))
-
-    # It might take a short while longer until the job report is created (unknown why)
-    count = 1
-    max_count = 10
-    nap = 5
-    found = False
-    while count <= max_count:
-        if os.path.exists(filename):
-            tolog("Found job report: %s" % (filename))
-            found = True
-            break
+        # does the job report exist?
+        extension = getExtension(alternative='pickle')
+        if extension.lower() == "json":
+            filename = os.path.join(workdir, "jobReport.%s" % (extension))
         else:
-            tolog("Waiting %d s for job report to arrive (#%d/%d)" % (nap, count, max_count))
-            time.sleep(nap)
-            count += 1
+            filename = os.path.join(workdir, "jobReportExtract.%s" % (extension))
 
-    if found:
-        # search for the exit code
-        try:
-            f = open(filename, "r")
-        except Exception, e:
-            tolog("!!WARNING!!1112!! Failed to open job report: %s" % (e))
-        else:
-            if extension.lower() == "json":
-                from json import load
+        # It might take a short while longer until the job report is created (unknown why)
+        count = 1
+        max_count = 10
+        nap = 5
+        found = False
+        while count <= max_count:
+            if os.path.exists(filename):
+                tolog("Found job report: %s" % (filename))
+                found = True
+                break
             else:
-                from pickle import load
-            data = load(f)
+                tolog("Waiting %d s for job report to arrive (#%d/%d)" % (nap, count, max_count))
+                time.sleep(nap)
+                count += 1
 
-            # extract the exit code and info
-            _exitCode = extractDictionaryObject("exitCode", data)
-            if _exitCode:
-                if _exitCode == 0 and exitCode != 0:
-                    tolog("!!WARNING!!1111!! Detected inconsistency in %s: exitcode listed as 0 but original trf exit code was %d (using original error code)" %\
-                          (filename, exitCode))
+        if found:
+            # search for the exit code
+            try:
+                f = open(filename, "r")
+            except Exception, e:
+                tolog("!!WARNING!!1112!! Failed to open job report: %s" % (e))
+            else:
+                if extension.lower() == "json":
+                    from json import load
                 else:
-                    exitCode = _exitCode
-            _exitAcronym = extractDictionaryObject("exitAcronym", data)
-            if _exitAcronym:
-                exitAcronym = _exitAcronym
-            _exitMsg = extractDictionaryObject("exitMsg", data)
-            if _exitMsg:
-                exitMsg = _exitMsg
+                    from pickle import load
+                data = load(f)
 
-            f.close()
+                # extract the exit code and info
+                _exitCode = RunJob.extractDictionaryObject("exitCode", data)
+                if _exitCode:
+                    if _exitCode == 0 and exitCode != 0:
+                        tolog("!!WARNING!!1111!! Detected inconsistency in %s: exitcode listed as 0 but original trf exit code was %d (using original error code)" %\
+                                  (filename, exitCode))
+                    else:
+                        exitCode = _exitCode
+                _exitAcronym = RunJob.extractDictionaryObject("exitAcronym", data)
+                if _exitAcronym:
+                    exitAcronym = _exitAcronym
+                _exitMsg = RunJob.extractDictionaryObject("exitMsg", data)
+                if _exitMsg:
+                    exitMsg = _exitMsg
 
-            tolog("Trf exited with:")
-            tolog("...exitCode=%d" % (exitCode))
-            tolog("...exitAcronym=%s" % (exitAcronym))
-            tolog("...exitMsg=%s" % (exitMsg))
+                f.close()
 
-            # Ignore special trf error for now
-            if exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL":
-                exitCode = 0
-                exitAcronym = ""
-                exitMsg = ""
-                tolog("!!WARNING!!3333!! Reset TRF error codes..")
-    else:
-        tolog("Job report not found: %s" % (filename))
+                tolog("Trf exited with:")
+                tolog("...exitCode=%d" % (exitCode))
+                tolog("...exitAcronym=%s" % (exitAcronym))
+                tolog("...exitMsg=%s" % (exitMsg))
 
-    return exitCode, exitAcronym, exitMsg
+                # Ignore special trf error for now
+                if exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL":
+                    exitCode = 0
+                    exitAcronym = ""
+                    exitMsg = ""
+                    tolog("!!WARNING!!3333!! Reset TRF error codes..")
+        else:
+            tolog("Job report not found: %s" % (filename))
 
-def extractDictionaryObject(object, dictionary):
-    """ Extract an object from a dictionary """
+        return exitCode, exitAcronym, exitMsg
 
-    _obj = None
+#def extractDictionaryObject(object, dictionary):
+#    """ Extract an object from a dictionary """
+#
+#    _obj = None
+#
+#    try:
+#        _obj = dictionary[object]
+#    except Exception, e:
+#        tolog("Object %s not found in dictionary" % (object))
+#    else:
+#        tolog('Extracted \"%s\"=%s from dictionary' % (object, _obj))
+#
+#    return _obj
 
-    try:
-        _obj = dictionary[object]
-    except Exception, e:
-        tolog("Object %s not found in dictionary" % (object))
-    else:
-        tolog('Extracted \"%s\"=%s from dictionary' % (object, _obj))
-
-    return _obj
+# PN here
 
 def moveTrfMetadata(pworkdir, jobId):
     """ rename and copy the trf metadata """
@@ -1835,7 +1836,8 @@ if __name__ == "__main__":
         import newJobDef
 
         jobSite = Site.Site()
-        jobSite.setSiteInfo(argParser(sys.argv[1:]))
+        jobSite.setSiteInfo(runJob.argumntParser())
+
         # reassign workdir for this job
         jobSite.workdir = jobSite.wntmpdir
     
@@ -1945,7 +1947,7 @@ if __name__ == "__main__":
         rt = RunJobUtilities.updatePilotServer(globalJob, pilotserver, pilotport)
 
         # prepare the setup and get the run command list
-        ec, runCommandList, globalJob, multi_trf = setup(globalJob, jobSite, thisExperiment)
+        ec, runCommandList, globalJob, multi_trf = RunJob.setup(globalJob, jobSite, thisExperiment)
         if ec != 0:
             tolog("!!WARNING!!2999!! runJob setup failed: %s" % (globalJob.pilotErrorDiag))
             runJob.failJob(0, ec, globalJob, pilotErrorDiag=globalJob.pilotErrorDiag)
@@ -1967,7 +1969,7 @@ if __name__ == "__main__":
             RunJobUtilities.updateCopysetups('', transferType=globalJob.transferType)
 
         # stage-in all input files (if necessary)
-        globalJob, ins, statusPFCTurl, usedFAXandDirectIO = stageIn(globalJob, jobSite, analysisJob, pilot_initdir, pworkdir)
+        globalJob, ins, statusPFCTurl, usedFAXandDirectIO = RunJob.stageIn(globalJob, jobSite, analysisJob)
         if globalJob.result[2] != 0:
             tolog("Failing job with ec: %d" % (ec))
             runJob.failJob(0, globalJob.result[2], globalJob, ins=ins, pilotErrorDiag=globalJob.pilotErrorDiag)

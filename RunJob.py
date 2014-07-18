@@ -469,7 +469,6 @@ class RunJob(object):
 
         # start setup time counter
         t0 = time.time()
-
         ec = 0
         runCommandList = []
 
