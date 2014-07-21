@@ -2555,14 +2555,12 @@ def mover_put_data(outputpoolfcstring,
                 tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (_attempt, s, pilotErrorDiag))
 
                 # should alternative stage-out be attempted?
-                # (not for special log file transfers to CERN log area)
+                # (not for special log file transfers to object stores)
                 if logPath == "":
                     useAlternativeStageOut = si.allowAlternativeStageOut()
                 else:
                     useAlternativeStageOut = False
 
-                #PN disabled for now
-                useAlternativeStageOut = False
                 # useAlternativeStageOut = True
 
                 if "failed to remove file" in pilotErrorDiag and not useAlternativeStageOut:

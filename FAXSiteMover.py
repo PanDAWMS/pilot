@@ -45,15 +45,10 @@ class FAXSiteMover(xrdcpSiteMover):
         else:
             tolog("No init setup is specified (would have been ignored anyway)")
 
-    def getLocalROOTSetup(self):
+    def getLocalROOTSetup(self, si):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
 
-        cmd = 'export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase; '
-        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
-        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
-        # cmd += 'localSetupROOT --skipConfirm; '
-
-        return cmd
+        return si.getLocalROOTSetup()
 
     def getGlobalPathsFileName(self, dsname):
 
@@ -312,7 +307,7 @@ class FAXSiteMover(xrdcpSiteMover):
 #            tolog("Updated GPFN=%s" % (gpfn))
 
         # setup ROOT locally
-        _setup_str = self.getLocalROOTSetup()
+        _setup_str = self.getLocalROOTSetup(si)
 
         # define the copy command
         cmd = "%s xrdcp -d 1 -f %s %s" % (_setup_str, gpfn, dest_file)
@@ -414,6 +409,10 @@ class FAXSiteMover(xrdcpSiteMover):
         lfn = pdict.get('lfn', '')
         guid = pdict.get('guid', '')
         logPath = pdict.get('logPath', '')
+        experiment = pdict.get('experiment', '')
+
+        # get the site information object
+        si = getSiteInformation(experiment)
 
         # get the DQ2 tracing report
         report = self.getStubTracingReport(pdict['report'], 'fax', lfn, guid)
@@ -434,7 +433,7 @@ class FAXSiteMover(xrdcpSiteMover):
             tolog("DQ2 site name: %s" % (_dq2SiteName))
 
         # setup ROOT locally
-        _setup_str = self.getLocalROOTSetup()
+        _setup_str = self.getLocalROOTSetup(si)
 
         cmd = "%s xrdcp -f -adler %s %s" % (_setup_str, source, surl)
 

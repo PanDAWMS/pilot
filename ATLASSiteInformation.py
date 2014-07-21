@@ -274,12 +274,15 @@ class ATLASSiteInformation(SiteInformation):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
 
-        enableT1stageout = "False" #"True" # readpar('enableT1stageout')
-
-        if enableT1stageout.lower() == "true" or enableT1stageout.lower() == "retry":
+        if "allow_alt_stageout" in readpar('catchall'):
             status = True
         else:
             status = False
+
+#        if enableT1stageout.lower() == "true" or enableT1stageout.lower() == "retry":
+#            status = True
+#        else:
+#            status = False
         return status
 
     def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
@@ -619,6 +622,37 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.__error.ERR_NOSOFTWAREDIR
 
         return ec, _appdir
+
+    def getFileSystemRootPath(self):
+        """ Return the root path of the local file system """
+
+        # Returns "/cvmfs" or "/(some path)/cvmfs" in case the expected file system root path is not
+        # where it usually is (e.g. on an HPC). See example implementation in self.getLocalROOTSetup()
+
+        if os.environ.has_key('ATLAS_SW_BASE'):
+            path = os.environ['ATLAS_SW_BASE']
+        else:
+            path = '/cvmfs'
+
+        return path
+
+    def getLocalROOTSetup(self):
+        """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
+
+        cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
+        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
+        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
+
+        return cmd
+
+    def getLocalEMISetup(self):
+        """ Return the path for the local EMI setup """
+
+        cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
+        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
+        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalEmiSetup.sh'
+
+        return cmd
 
 if __name__ == "__main__":
 

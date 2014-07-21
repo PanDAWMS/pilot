@@ -52,6 +52,7 @@ from Monitor import Monitor
 import environment
 environment.set_environment()
 env = Configuration()
+globalSite = None
 
 def usage():
     """
@@ -2543,7 +2544,6 @@ def runMain(runpars):
     except Exception, errorMsg:
 
         error = PilotErrors()
-        # can globalJob be added here?
 
         if len(str(errorMsg)) == 0:
             errorMsg = "(empty error string)"

@@ -924,6 +924,29 @@ class SiteInformation(object):
 
         return directIn, transfer_mode
 
+    # Optional
+    def getFileSystemRootPath(self):
+        """ Return the root path of the local file system """
+
+        # Can e.g. be used to return "/cvmfs" or "/(some path)/cvmfs" in case the expected file system root path is not
+        # where it usually is (e.g. on an HPC). See example implementation in ATLASSiteInformation
+        # E.g. site movers that have setup paths on CVMFS use this method to locate the setup script. See e.g. objectstoreSiteMover
+
+        return ""
+
+    # Required if a local ROOT setup is necessary from e.g. a site mover (FAXSiteMover, objectstoreSiteMover, ..)
+    def getLocalROOTSetup(self):
+        """ Prepare the local ROOT setup script """
+        # See example implementation in ATLASExperiment
+        # See example usage in objectstoreSiteMover
+
+        return ""
+
+    # Required if a local EMI setup is necessary (used in GFAL2iteMover)
+    def getLocalEMISetup(self):
+        """ Return the path for the local EMI setup """
+
+        return ""
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

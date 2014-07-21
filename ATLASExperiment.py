@@ -14,13 +14,12 @@ from pUtil import grep                          # Grep function - reimplement us
 from pUtil import getCmtconfig                  # Get the cmtconfig from the job def or queuedata
 from pUtil import getCmtconfigAlternatives      # Get a list of locally available cmtconfigs
 from pUtil import verifyReleaseString           # To verify the release string (move to Experiment later)
-from pUtil import verifySetupCommand            # Verify that a setup file exists
 from pUtil import getProperTimeout              # 
 from pUtil import timedCommand                  # Protect cmd with timed_command
 from pUtil import getSiteInformation            # Get the SiteInformation object corresponding to the given experiment
 from pUtil import isBuildJob                    # Is the current job a build job?
 from pUtil import remove                        # Used to remove redundant file before log file creation
-from pUtil import getModernASetup               # MOVE TO THIS CLASS
+from pUtil import extractFilePaths              # Used by verifySetupCommand
 from PilotErrors import PilotErrors             # Error codes
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
@@ -666,13 +665,21 @@ class ATLASExperiment(Experiment):
 
         return status
 
+    def getCVMFSPath(self):
+        """ Return the proper cvmfs path """
+
+        # get the site information object
+        si = getSiteInformation(self.__experiment)
+        return si.getFileSystemRootPath()
+
     def testCVMFS(self):
         """ Run the CVMFS diagnostics tool """
 
         status = False
 
         timeout = 5*60
-        cmd = "export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;$ATLAS_LOCAL_ROOT_BASE/utilities/checkValidity.sh"
+        cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase;$ATLAS_LOCAL_ROOT_BASE/utilities/checkValidity.sh" % \
+            (self.getCVMFSPath())
         tolog("Executing command: %s (time-out: %d)" % (cmd, timeout))
         exitcode, output = timedCommand(cmd, timeout=timeout)
         if exitcode != 0:
@@ -1788,7 +1795,7 @@ class ATLASExperiment(Experiment):
                 cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,runtime" % (swbase, release, release)
 
             # verify that the setup path actually exists before attempting the source command
-            ec, pilotErrorDiag = verifySetupCommand(self.__error, cmd)
+            ec, pilotErrorDiag = self.verifySetupCommand(cmd)
             if ec != 0:
                 pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (pilotErrorDiag)
                 tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
@@ -1884,7 +1891,7 @@ class ATLASExperiment(Experiment):
                 cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,runtime; echo SITEROOT=$SITEROOT" % (swbase, release, release)
 
             # verify that the setup path actually exists before attempting the source command
-            ec, pilotErrorDiag = verifySetupCommand(self.__error, cmd)
+            ec, pilotErrorDiag = self.verifySetupCommand(cmd)
             if ec != 0:
                 pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (pilotErrorDiag)
                 tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
@@ -1959,7 +1966,7 @@ class ATLASExperiment(Experiment):
             tolog("Extracted %s from homePackage=%s" % (rel_N, homePackage))
             if rel_N:
                 # path = "%s/%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release, rel_N)
-                path = getModernASetup()
+                path = self.getModernASetup()
                 tolog("1. path = %s" % (path))
                 skipVerification = True
         if not path:
@@ -2048,7 +2055,7 @@ class ATLASExperiment(Experiment):
             if rel_N:
                 tolog("Extracted %s from homePackage=%s" % (rel_N, homePackage))
                 # asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, rel_N)
-                asetup_path = getModernASetup()
+                asetup_path = self.getModernASetup()
                 tolog("2. path=%s" % (asetup_path))
                 # use special options for nightlies (not the release info set above)
                 # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
@@ -2708,7 +2715,7 @@ class ATLASExperiment(Experiment):
             envsetup = SiteMover.getEnvsetup()
 
         # add setup for arcproxy if it exists
-        arcproxy_setup = "/cvmfs/atlas.cern.ch/repo/sw/arc/client/latest/slc6/x86_64/setup.sh"
+        arcproxy_setup = "%s/atlas.cern.ch/repo/sw/arc/client/latest/slc6/x86_64/setup.sh" % (self.getCVMFSPath())
         _envsetup = ""
         if os.path.exists(arcproxy_setup):
             if envsetup != "":
@@ -2857,6 +2864,66 @@ class ATLASExperiment(Experiment):
                 release = release[release.find('-')+1:]
 
         return release
+
+    def getModernASetup(self):
+        """ Return the full modern setup for asetup """
+
+        cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase;" % (self.getCVMFSPath())
+        cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
+        cmd += "source $AtlasSetup/scripts/asetup.sh"
+
+        return cmd
+
+    def verifySetupCommand(self, _setup_str):
+        """ Make sure the setup command exists """
+
+        ec = 0
+        pilotErrorDiag = ""
+
+        # remove any '-signs
+        _setup_str = _setup_str.replace("'", "")
+        tolog("Will verify: %s" % (_setup_str))
+
+        if _setup_str != "" and "source " in _setup_str:
+            # if a modern setup is used (i.e. a naked asetup instead of asetup.sh), then we need to verify that the entire setup string works
+            # and not just check the existance of the path (i.e. the modern setup is more complicated to test)
+            if self.getModernASetup() in _setup_str:
+                tolog("Modern asetup detected, need to verify entire setup (not just existance of path)")
+                tolog("Executing command: %s" % (_setup_str))
+                exitcode, output = timedCommand(_setup_str)
+                if exitcode != 0:
+                    pilotErrorDiag = output
+                    tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
+                    if "No such file or directory" in output:
+                        ec = self.__error.ERR_NOSUCHFILE
+                    elif "timed out" in output:
+                        ec = self.__error.ERR_COMMANDTIMEOUT
+                    else:
+                        ec = self.__error.ERR_SETUPFAILURE
+                else:
+                    tolog("Setup has been verified")
+            else:
+                # first extract the file paths from the source command(s)
+                setup_paths = extractFilePaths(_setup_str)
+
+                # only run test if string begins with an "/"
+                if setup_paths:
+                    # verify that the file paths actually exists
+                    for setup_path in setup_paths:
+                        if os.path.exists(setup_path):
+                            tolog("File %s has been verified" % (setup_path))
+                        else:
+                            pilotErrorDiag = "No such file or directory: %s" % (setup_path)
+                            tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
+                            ec = self.__error.ERR_NOSUCHFILE
+                            break
+                else:
+                    # nothing left to test
+                    pass
+        else:
+            tolog("Nothing to verify in setup: %s (either empty string or no source command)" % (_setup_str))
+
+        return ec, pilotErrorDiag
 
     # Optional
     def useTracingService(self):

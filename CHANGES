@@ -251,6 +251,14 @@ Added scope_dict to get_data() (aria2cSiteMover)
 Created extractHPCInfo() (pUtil)
 getSubprocessName() is now using extractHPCInfo() (Experiment)
 Updated getSubprocessName() for HPCs and event service jobs (Experiment)
+Added support for catchall field in allowAlternativeStageOut() (ATLASSiteInformation)
+Created getCVMFSPath(), used by testCVMFS(), verifyProxy() (ATLASExperiment)
+Created getFileSystemRootPath(), used by getLocalROOTSetup() (ATLASSiteInformation)
+Created getLocalROOTSetup(), used by site movers (ATLASSiteInformation)
+Sending si object to getLocalROOTSetup() from get_data(), put_data() (objectstoreSiteMover, FAXSiteMover)
+Added experiment variable to put_data() (objectstoreSiteMover, FAXSiteMover)
+Updated getLocalROOTSetup() to use si object to get path (objectstoreSiteMover, FAXSiteMover)
+Simplified verifySetupCommand() used by site movers. Moved longer version to ATLASExperiment (pUtil, ATLASExperiment)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

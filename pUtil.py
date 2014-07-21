@@ -3156,17 +3156,8 @@ def extractFilePaths(s):
 
     return setup_paths
 
-# MOVE TO ATLASEXPERIMENT CLASS
-def getModernASetup():
-        """ Return the full modern setup for asetup """
-
-        return "export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;source $AtlasSetup/scripts/asetup.sh"
-
-
 def verifySetupCommand(error, _setup_str):
     """ Make sure the setup command exists """
-
-    # WARNING: EXPERIMENT SPECIFIC, MORE THIS FUNCTION TO EXPERIMENT CLASS
 
     ec = 0
     pilotErrorDiag = ""
@@ -3176,41 +3167,23 @@ def verifySetupCommand(error, _setup_str):
     tolog("Will verify: %s" % (_setup_str))
 
     if _setup_str != "" and "source " in _setup_str:
-        # if a modern setup is used (i.e. a naked asetup instead of asetup.sh), then we need to verify that the entire setup string works
-        # and not just check the existance of the path (i.e. the modern setup is more complicated to test)
-        if getModernASetup() in _setup_str:
-            tolog("Modern asetup detected, need to verify entire setup (not just existance of path)")
-            tolog("Executing command: %s" % (_setup_str))
-            exitcode, output = timedCommand(_setup_str)
-            if exitcode != 0:
-                pilotErrorDiag = output
-                tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
-                if "No such file or directory" in output:
-                    ec = error.ERR_NOSUCHFILE
-                elif "timed out" in output:
-                    ec = error.ERR_COMMANDTIMEOUT
-                else:
-                    ec = error.ERR_SETUPFAILURE
-            else:
-                tolog("Setup has been verified")
-        else:
-            # first extract the file paths from the source command(s)
-            setup_paths = extractFilePaths(_setup_str)
+        # first extract the file paths from the source command(s)
+        setup_paths = extractFilePaths(_setup_str)
 
-            # only run test if string begins with an "/"
-            if setup_paths:
-                # verify that the file paths actually exists
-                for setup_path in setup_paths:
-                    if os.path.exists(setup_path):
-                        tolog("File %s has been verified" % (setup_path))
-                    else:
-                        pilotErrorDiag = "No such file or directory: %s" % (setup_path)
-                        tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
-                        ec = error.ERR_NOSUCHFILE
-                        break
-            else:
-                # nothing left to test
-                pass
+        # only run test if string begins with an "/"
+        if setup_paths:
+            # verify that the file paths actually exists
+            for setup_path in setup_paths:
+                if os.path.exists(setup_path):
+                    tolog("File %s has been verified" % (setup_path))
+                else:
+                    pilotErrorDiag = "No such file or directory: %s" % (setup_path)
+                    tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
+                    ec = error.ERR_NOSUCHFILE
+                    break
+        else:
+            # nothing left to test
+            pass
     else:
         tolog("Nothing to verify in setup: %s (either empty string or no source command)" % (_setup_str))
 

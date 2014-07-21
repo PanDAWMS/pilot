@@ -28,6 +28,8 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         self._setup = setup_path
         self._defaultSetup = "export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase; source /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; source /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/packageSetups/atlasLocalEmiSetup.sh"
 
+        # self._defaultSetup = si.getLocalEMISetup(), where si = getSiteInformation(experiment)
+
     def get_timeout(self):
         return self.timeout
 
