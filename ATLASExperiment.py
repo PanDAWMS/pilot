@@ -2469,7 +2469,12 @@ class ATLASExperiment(Experiment):
         # the log to the primary/normal SE. Additional information about the secondary SE is required and can be specified in
         # another optional method defined in the *Experiment classes
 
-        return True
+        transferLogToObjectstore = False
+
+        if "log_to_objectstore" in readpar('catchall'):
+            transferLogToObjectstore = True
+
+        return transferLogToObjectstore
 
     def extractInputOption(self, jobParameters):
         """ Extract the entire input file list from the job parameters including the input option """

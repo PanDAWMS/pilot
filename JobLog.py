@@ -87,19 +87,14 @@ class JobLog:
             tolog("Removed directory: %s" % (_dir))
 
     def transferLogFile(self, job, site, experiment, dest=None, jr=False):
-        """ """
-        
+        """ Transfer the log file to storage """
+
         status = True
 
         # transfer log file to special log SE (CERN via xrdcp)
         # get the experiment object
         thisExperiment = getExperiment(experiment)
-        if site.sitename == "GoeGrid":
-            s = True
-        else:
-            s = False
-        s = True
-        if s: #thisExperiment.doSpecialLogFileTransfer():
+        if thisExperiment.doSpecialLogFileTransfer():
             tolog("Preparing for log file transfer to special SE")
 
             # get the site information object
@@ -110,7 +105,7 @@ class JobLog:
 
             # temporarily modify the schedconfig fields with values for the secondary SE
             tolog("Temporarily modifying queuedata for log file transfer to secondary SE")
-            ec = si.replaceQueuedataField("copytool", "fax")
+            ec = si.replaceQueuedataField("copytool", "objectstore")
 
             # do log transfer
             tolog("Attempting log file transfer to special SE")
