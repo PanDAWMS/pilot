@@ -1343,7 +1343,7 @@ class RunJobEvent(RunJob):
                 while size == -1 and not self.__message_thread.stopped():
                     time.sleep(1)
                     size, buf = self.__message_server.receive()
-                tolog("Received new message: %s" % buf)
+                tolog("Received new message: %s" % (buf))
 
                 # Interpret the message and take the appropriate action
                 if "Ready for events" in buf:
@@ -1368,7 +1368,7 @@ class RunJobEvent(RunJob):
                         tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(self.__stageout_queue)))
                 else:
                     tolog("Pilot received message:%s" % buf)
-            except Exception,e:
+            except Exception, e:
                 tolog("Caught exception:%s" % e)
             time.sleep(1)
 
@@ -1512,7 +1512,7 @@ class RunJobEvent(RunJob):
                 tolog("Removed scope key-value from message")
 
         self.__message_server.send(message)
-        tolog("Sent %s" % message)
+        tolog("Sent %s" % (message))
 
     def getPoolFileCatalog(self, guid_list, dsname, lfn_list, tokens, workdir, dbh, DBReleaseIsAvailable,\
                                scope_dict, filesizeIn, checksumIn, thisExperiment=None):
@@ -1551,7 +1551,8 @@ class RunJobEvent(RunJob):
             eventService = True
 
             # Create a TURL based PFC
-            ec, pilotErrorDiag, createdPFCTURL, usect = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, pfc_name, sitemover, sitename, usect, dsdict, eventService)
+            ec, pilotErrorDiag, createdPFCTURL, usect = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
+                                                                            sitemover, sitename, usect, dsdict, eventService)
             if ec != 0:
                 tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
@@ -1864,7 +1865,7 @@ if __name__ == "__main__":
 
         # prepare for the output file data directory
         # (will only created for jobs that end up in a 'holding' state)
-        runJob.setJobDataDir(pworkdir + "/PandaJob_%d_data" % (job.jobId))
+        runJob.setJobDataDir(runJob.getParentWorkDir() + "/PandaJob_%d_data" % (job.jobId))
 
         # register cleanup function
         atexit.register(cleanup, job)
@@ -1965,7 +1966,7 @@ if __name__ == "__main__":
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
         if job.inFiles != ['']:
-            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, pworkdir, job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
+            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
 
         # (stage-in ends here) .............................................................................
 
@@ -2033,7 +2034,8 @@ if __name__ == "__main__":
 
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
-        ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken, job.filesizeIn, job.checksumIn, thisExperiment, pworkdir)
+        ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
+                                                                                    job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir())
         if ec != 0:
             tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
