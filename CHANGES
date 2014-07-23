@@ -49,6 +49,7 @@ RC tests, glExec           : Ask HC team to prepare RC tests when Eddie has conf
 Subprocess selection       : (is runEvent selected properly after last merge?), test with testEventService-UTA.py
 No TCP connection          : If a TCP server cannot be setup in Monitor, make sure the job is failed correctly (it isn't)
 lineno()                   : Usage of function lineno() is not correct; line number is not the same as process id..
+Are kill signals forwarded : ? Verify new signal handlers in RunJob and RunJobEvent
 
 Additional test of recently added features
 
@@ -261,6 +262,8 @@ Updated getLocalROOTSetup() to use si object to get path (objectstoreSiteMover, 
 Simplified verifySetupCommand() used by site movers. Moved longer version to ATLASExperiment (pUtil, ATLASExperiment)
 Updated doSpecialLogFileTransfer() to use catchall field for log to objectstore activation (ATLASExperiment)
 transferLogFile() is now using doSpecialLogFileTransfer() and the objectstoreSiteMover (JobLog)
+Removed outdated URLBASE from Mover, including its usage in mover_get/put_data() (Mover)
+Added aria2c to exception for file not being local in getCatalogFileList(), requested by Johannes Elmsheuser (Mover)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

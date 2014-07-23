@@ -17,9 +17,6 @@ from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, 
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
             
-# Default DQ2 URL
-URLBASE = 'http://dms02.usatlas.bnl.gov:8000/dq2/'
-
 # Note: DEFAULT_TIMEOUT and MAX_RETRY are reset in get_data()
 MAX_RETRY = 1
 MAX_NUMBER_OF_RETRIES = 3
@@ -1699,7 +1696,7 @@ def mover_get_data(lfns,
                    stageinTries,
 # event service                   inputpoolfcstring="xmlcatalog_file:PFC.xml",
                    inputpoolfcstring="xmlcatalog_file:PoolFileCatalog.xml",
-                   ub=URLBASE,
+                   ub="outdated", # to be removed
                    dsname="",
                    dsdict={},
                    guids=[],
@@ -2379,7 +2376,7 @@ def getScope(lfn, logFile, file_nr, scopeOut, scopeLog):
 def mover_put_data(outputpoolfcstring,
                    pdsname,
                    sitename,
-                   ub=URLBASE,
+                   ub="outdated", # to be removed
                    analysisJob=False,
                    testLevel="0",
                    pinitdir="",
@@ -3260,7 +3257,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                     pilotErrorCode = "%s has not been transferred yet (guid=%s)" % (lfn_dict[guid], guid)
                     ec = error.ERR_DBRELNOTYETTRANSFERRED
                 else:
-                    if (readpar('copytool').lower() == "fax" and readpar('copytoolin') == "") or readpar('copytoolin').lower() == "fax":
+                    if (readpar('copytool').lower() == "fax" and readpar('copytoolin') == "") or readpar('copytoolin').lower() == "fax" or readpar('copytoolin').lower()=='aria2c':
                         # special use case for FAX; the file might not be available locally, so do not fail here because no local copy can be found
                         # use a 'fake' replica for now, ie use the last known SURL, irrelevant anyway since the SURL will eventually come from FAX
                         file_dict[guid] = sfn

@@ -764,7 +764,6 @@ class RunJob(object):
 
         # get/assign guids to the output files
         if outFiles:
-            tolog("outFiles=%s"%str(outFiles))
             if not pUtil.isBuildJob(outFiles):
                 ec, job.pilotErrorDiag, job.outFilesGuids = RunJobUtilities.getOutFilesGuids(job.outFiles, job.workdir)
                 if ec:
@@ -1033,7 +1032,6 @@ if __name__ == "__main__":
             """ signal handler """
 
             error = PilotErrors()
-#                global failureCode, globalPilotErrorDiag, globalErrorCode
             runJob.setGlobalPilotErrorDiag("!!FAILED!!3000!! SIGTERM Signal %s is caught in child pid=%d!\n" % (sig, os.getpid()))
             tolog(runJob.getGlobalPilotErrorDiag())
             if sig == signal.SIGTERM:

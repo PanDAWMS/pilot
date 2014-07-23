@@ -433,6 +433,7 @@ class ATLASSiteInformation(SiteInformation):
 
 
         ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
+        ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
 
 
 
@@ -444,7 +445,6 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
-            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
 #            ec = self.replaceQueuedataField("corecount", "4")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
             #ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
