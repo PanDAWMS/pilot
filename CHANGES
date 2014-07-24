@@ -57,7 +57,7 @@ Job def download for a maximum of N seconds : (set getjobmaxtime)
 
 
 #### add new error codes 1217-1219 to proddb
-Update prodDB for ERR_RUNJOBEXC : "Exception caught by runJob" -> "Exception caught by RunJob*"
+Update prodDB for ERR_RUNJOBEXC : "Exception caught by runJob" -> "Exception caught by RunJob*" ? not necessary??
 
 
 Replaced global fileList with function getFileList(), used in stageInPyModules() and removePyModules() (pUtil)
@@ -295,6 +295,7 @@ processes.py            : Process handling
 runEvent.py             : Subprocess module for Event Service use
 EventServiceFactory.py  : Factory for generating Event Service objects that can be experiment specific
 EventService.py         : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
+ATLASEventService.py    : ATLAS specific event service class
 PilotYamplServer.py     : Yampl server class used by runEvent
 StoppableThread.py      : Threading class for threads that need a stop() method
 GFAL2SiteMover.py       : New site mover for GFAL2

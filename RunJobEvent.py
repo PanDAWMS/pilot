@@ -1827,8 +1827,9 @@ if __name__ == "__main__":
         # done with setting jobSite data members, not save the object so that the runJob methods have access to it
         runJob.setJobSite(jobSite)
 
-        if pilotlogfilename != "":
-            pUtil.setPilotlogFilename(pilotlogfilename)
+        tolog("runJob.getPilotLogFilename=%s"%runJob.getPilotLogFilename())
+        if runJob.getPilotLogFilename() != "":
+            pUtil.setPilotlogFilename(runJob.getPilotLogFilename())
     
         # set node info
         node = Node.Node()
@@ -1842,11 +1843,11 @@ if __name__ == "__main__":
         tolog("Site workdir is: %s" % jobSite.workdir)
 
         # get the experiment object
-        thisExperiment = getExperiment(experiment)
+        thisExperiment = getExperiment(runJob.getExperiment())
         tolog("runEvent will serve experiment: %s" % (thisExperiment.getExperiment()))
 
         # get the event service object using the experiment name (since it can be experiment specific)
-        thisEventService = getEventService(experiment)
+        thisEventService = getEventService(runJob.getExperiment())
 
         region = readpar('region')
         JR = JobRecovery()
@@ -1854,7 +1855,7 @@ if __name__ == "__main__":
             job = Job.Job()
             job.setJobDef(newJobDef.job)
             job.workdir = jobSite.workdir
-            job.experiment = experiment
+            job.experiment = runJob.getExperiment()
             # figure out and set payload file names
             job.setPayloadName(thisExperiment.getPayloadName(job))
         except Exception, e:

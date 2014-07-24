@@ -238,7 +238,7 @@ class PilotErrors:
         ERR_NOTCPCONNECTION : "Failed to open TCP connection to localhost (worker node network problem)",
         ERR_NOPILOTTCPSERVER : "Pilot TCP server has died",
         ERR_CORECOUNTMISMATCH : "Mismatch between core count in job and queue definition",
-        ERR_RUNEVENTEXC : "Exception caught by runEvent", 
+        ERR_RUNEVENTEXC : "Exception caught by RunJobEvent", 
         ERR_FILEEXISTS : "File already exists",
         ERR_UUIDGEN : "Command uuidgen failed",
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)"
