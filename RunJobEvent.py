@@ -770,16 +770,16 @@ class RunJobEvent(RunJob):
         os._exit(self.__job.result[2]) # pilotExitCode, don't confuse this with the overall pilot exit code,
                                        # which doesn't get reported back to panda server anyway
 
-    def failJob(self, transExitCode, pilotExitCode, self.__job, ins=None, pilotErrorDiag=None, docleanup=True):
+    def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
         """ set the fail code and exit """
 
-        self.__job.setState(["failed", transExitCode, pilotExitCode])
+        job.setState(["failed", transExitCode, pilotExitCode])
         if pilotErrorDiag:
-            self.__job.pilotErrorDiag = pilotErrorDiag
+            job.pilotErrorDiag = pilotErrorDiag
         tolog("Will now update local pilot TCP server")
-        rt = RunJobUtilities.updatePilotServer(self.__job, self.__pilotserver, self.__pilotport, final=True)
+        rt = RunJobUtilities.updatePilotServer(job, self.__pilotserver, self.__pilotport, final=True)
         if ins:
-            ec = pUtil.removeFiles(self.__job.workdir, ins)
+            ec = pUtil.removeFiles(job.workdir, ins)
         if docleanup:
             self.sysExit()
 
@@ -1943,7 +1943,7 @@ if __name__ == "__main__":
 
         # update the job state file
         job.jobState = "stagein"
-         runJob.setJobState(job.jobState)
+        runJob.setJobState(job.jobState)
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
@@ -1953,7 +1953,7 @@ if __name__ == "__main__":
             RunJobUtilities.updateCopysetups('', transferType=job.transferType)
 
         # stage-in all input files (if necessary)
-        job, ins, statusPFCTurl, usedFAXandDirectIO = RunJob.stageIn(job, jobSite, analysisJob)
+        job, ins, statusPFCTurl, usedFAXandDirectIO = RunJob.stageIn(job, jobSite, analysisJob, pfc_name="PFC.xml")
         if job.result[2] != 0:
             tolog("Failing job with ec: %d" % (ec))
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)

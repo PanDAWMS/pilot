@@ -57,7 +57,7 @@ Job def download for a maximum of N seconds : (set getjobmaxtime)
 
 
 #### add new error codes 1217-1219 to proddb
-
+Update prodDB for ERR_RUNJOBEXC : "Exception caught by runJob" -> "Exception caught by RunJob*"
 
 
 Replaced global fileList with function getFileList(), used in stageInPyModules() and removePyModules() (pUtil)
@@ -264,6 +264,12 @@ Updated doSpecialLogFileTransfer() to use catchall field for log to objectstore 
 transferLogFile() is now using doSpecialLogFileTransfer() and the objectstoreSiteMover (JobLog)
 Removed outdated URLBASE from Mover, including its usage in mover_get/put_data() (Mover)
 Added aria2c to exception for file not being local in getCatalogFileList(), requested by Johannes Elmsheuser (Mover)
+Added pfc_name argument to get_data() (Mover)
+Sending inputpoolfcstring variable to mover_get_data() in get_data() (Mover)
+Added pfc_name argument to stageIn(), and sending it to Mover::get_data() (RunJob)
+Replaced analJob with analysisJob in RunJob
+Updated "Exception caught by runJob" -> "Exception caught by RunJob*" (PilotErrors)
+Updated comments in several modules; runJob -> RunJob
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

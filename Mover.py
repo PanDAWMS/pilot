@@ -64,7 +64,7 @@ def createZippedDictionary(list1, list2):
 
     return d
 
-def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pinitdir="", proxycheck=True, inputDir="", workDir=""):
+def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pinitdir="", proxycheck=True, inputDir="", workDir="", pfc_name="PoolFileCatalog.xml"):
     """ call the mover and stage-in input files """
 
     error = PilotErrors()
@@ -98,6 +98,10 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
                 dsname = job.realDatasetsIn[i]
                 if not dsdict.has_key(dsname): dsdict[dsname] = []
                 dsdict[dsname].append(inFile)
+
+        # define the Pool File Catalog name, which can be different for event service jobs (PFC.xml vs PoolFileCatalog.xml)
+        inputpoolfcstring = "xmlcatalog_file:%s" % (pfc_name)
+
         tolog("Calling get function with dsname=%s, dsdict=%s" % (dsname, str(dsdict)))
         rc, pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
             mover_get_data(ins, job.workdir, jobSite.sitename, stageinTries, ub=jobSite.dq2url, dsname=dsname,\
@@ -106,7 +110,7 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
                            access_dict=access_dict, inputDir=inputDir, jobId=job.jobId, DN=job.prodUserID, workDir=workDir,\
                            scope_dict=scope_dict, jobDefId=job.jobDefinitionID, dbh=dbh, jobPars=job.jobPars, cmtconfig=job.cmtconfig,\
                            filesizeIn=job.filesizeIn, checksumIn=job.checksumIn, transferType=job.transferType, experiment=job.experiment,\
-                           eventService=job.eventService)
+                           eventService=job.eventService, inputpoolfcstring=inputpoolfcstring)
 
         tolog("Get function finished with exit code %d" % (rc))
 
@@ -554,10 +558,6 @@ def getFileInfoDictionaryFromXML(xml_file):
         file_info_dictionary[lfn] = [pfn, guid]
 
     return file_info_dictionary
-
-# for event service
-#def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
-#                scope_dict, pfc_name="PFC.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
 
 def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
                 scope_dict, pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):

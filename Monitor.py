@@ -72,7 +72,6 @@ class Monitor:
             factory = RunJobFactory()
             _rJ = factory.newRunJob(subprocessName)
             self.__runJob = _rJ()
-            pUtil.tolog("runjob=%s"%str(self.__runJob))
 
         if self.__runJob:
             # Is the looping job killer allowed by the subprocess?
@@ -1123,7 +1122,7 @@ class Monitor:
                     # backup job definition
                     self.__backupJobDef()
 
-                    # start runJob process
+                    # start the RunJob* subprocess
                     pUtil.chdir(self.__env['jobDic']["prod"][1].workdir)
                     sys.path.insert(1,".")
                     os.execvpe(self.__env['pyexe'], jobargs, os.environ)

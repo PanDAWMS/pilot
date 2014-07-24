@@ -140,7 +140,7 @@ class PilotErrors:
         ERR_FAILEDLCGREG : "Put error: LCG registration failed",
         ERR_CMTCONFIG : "Required CMTCONFIG incompatible with WN",
         ERR_SETUPFAILURE : "Failed during setup",
-        ERR_RUNJOBEXC : "Exception caught by runJob", 
+        ERR_RUNJOBEXC : "Exception caught by RunJob*", 
         ERR_PILOTEXC : "Exception caught by pilot", 
         ERR_GETLFCIMPORT : "Get error: Failed to import LFC python module",
         ERR_PUTLFCIMPORT : "Put error: Failed to import LFC python module",

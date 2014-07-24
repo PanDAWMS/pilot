@@ -375,7 +375,7 @@ class JobLog:
             else:
                 tolog("Panda tracer log does not exist: %s (ignoring)" % (tracerlog))
 
-        # are there any special log messages from runJob?
+        # are there any special log messages from the subprocess/payload?
         for thisf in job.logMsgFiles:
             logMsg += returnLogMsg(logf=thisf) + "\n"
 

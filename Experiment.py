@@ -716,7 +716,7 @@ class Experiment(object):
 
         # The pilot/Monitor is forking a subprocess which will be monitored for work dir size, hanging processes etc
         # This method returns the arguments needed to execute the subprocess (python <subprocess name> <arguments>)
-        # By default the pilot has implementations for runJob.py (standard job) and runEvent.py (event server job)
+        # By default the pilot has implementations for RunJob.py (standard job) and RunJobEvent.py (event server job)
         # If a new subprocess module is added, it startup arguments need to be specified here
 
         jobargs = None

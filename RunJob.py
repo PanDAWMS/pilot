@@ -536,7 +536,7 @@ class RunJob(object):
 
         return ec, runCommandList, job, multi_trf
 
-    def stageIn(self, job, jobSite, analJob):
+    def stageIn(self, job, jobSite, analysisJob, pfc_name="PoolFileCatalog.xml"):
         """ Perform the stage-in """
 
         ec = 0
@@ -554,8 +554,8 @@ class RunJob(object):
             # Transfer input files
             tin_0 = os.times()
             ec, job.pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
-                mover.get_data(job, jobSite, ins, self.__stageinretry, analysisJob=analJob, usect=useCT,\
-                               pinitdir=self.__pilot_initdir, proxycheck=False, inputDir=self.__inputDir, workDir=self.__pworkdir)
+                mover.get_data(job, jobSite, ins, self.__stageinretry, analysisJob=analysisJob, usect=useCT,\
+                               pinitdir=self.__pilot_initdir, proxycheck=False, inputDir=self.__inputDir, workDir=self.__pworkdir, pfc_name=pfc_name)
             if ec != 0:
                 job.result[2] = ec
             tin_1 = os.times()
@@ -757,7 +757,7 @@ class RunJob(object):
             else:
                 tolog("Metadata was transferred to site work dir: %s/%s" % (self.__pworkdir, _filename))
 
-    def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analJob=False):
+    def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analysisJob=False):
         """ create the metadata for the output + log files """
 
         ec = 0
@@ -790,7 +790,7 @@ class RunJob(object):
         _fname = "%s/metadata-%d.xml" % (job.workdir, job.jobId)
         try:
             _status = pUtil.PFCxml(job.experiment, _fname, list(job.outFiles), fguids=job.outFilesGuids, fntag="lfn", alog=job.logFile, alogguid=guid,\
-                                   fsize=fsize, checksum=checksum, analJob=analJob)
+                                   fsize=fsize, checksum=checksum, analJob=analysisJob)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
             tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag)) 
@@ -856,7 +856,7 @@ class RunJob(object):
 
         return dsname, datasetDict
 
-    def stageOut(self, job, jobSite, outs, analJob, dsname, datasetDict, outputFileInfo):
+    def stageOut(self, job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo):
         """ perform the stage-out """
 
         error = PilotErrors()
@@ -888,7 +888,7 @@ class RunJob(object):
         tin_0 = os.times()
         try:
             rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
-                                             ub=jobSite.dq2url, analysisJob=analJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
+                                             ub=jobSite.dq2url, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
                                              proxycheck=self.__proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
                                              userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
                                              outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
@@ -1060,8 +1060,8 @@ if __name__ == "__main__":
         signal.signal(signal.SIGBUS, sig2exc)
 
         # see if it's an analysis job or not
-        analJob = isAnalysisJob(job.trf.split(",")[0])
-        if analJob:
+        analysisJob = isAnalysisJob(job.trf.split(",")[0])
+        if analysisJob:
             tolog("User analysis job")
         else:
             tolog("Production job")
@@ -1107,7 +1107,7 @@ if __name__ == "__main__":
             RunJobUtilities.updateCopysetups('', transferType=job.transferType)
 
         # stage-in all input files (if necessary)
-        job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analJob)
+        job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob)
         if job.result[2] != 0:
             tolog("Failing job with ec: %d" % (ec))
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
@@ -1119,7 +1119,7 @@ if __name__ == "__main__":
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
         if job.inFiles != ['']:
-            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analJob, usedFAXandDirectIO)
+            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
 
         # (stage-in ends here) .............................................................................
 
@@ -1181,7 +1181,7 @@ if __name__ == "__main__":
                 runJob.moveTrfMetadata(job.workdir, job.jobId)
 
             # create the metadata for the output + log files
-            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analJob=analJob)
+            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob)
             if ec:
                 runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
@@ -1193,8 +1193,7 @@ if __name__ == "__main__":
             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
             # stage-out output files
-            ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analJob,\
-                                                            dsname, datasetDict, outputFileInfo)
+            ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
             # error handling
             if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)

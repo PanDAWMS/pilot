@@ -61,9 +61,7 @@ class NordugridATLASExperiment(ATLASExperiment):
     def getJobExecutionCommand(self, job, jobSite, pilot_initdir):
         """ Define and test the command(s) that will be used to execute the payload """
 
-        # Method is called from runJob
-
-        # Input tuple: (method is called from runJob)
+        # Input tuple: (method is called from RunJob*)
         #   job: Job object
         #   jobSite: Site object
         #   pilot_initdir: launch directory of pilot.py
