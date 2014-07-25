@@ -7,6 +7,7 @@
 
 # import relevant python/pilot modules
 import os
+import sys, httplib, cgi, urllib
 import commands
 import SiteMover
 from SiteInformation import SiteInformation  # Main site information class
@@ -21,6 +22,7 @@ class ATLASSiteInformation(SiteInformation):
     __experiment = "ATLAS"
     __instance = None
     __error = PilotErrors()                  # PilotErrors object
+    __securityKeys = {}
 
     # Required methods
 
@@ -445,14 +447,19 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
-            ec = self.replaceQueuedataField("corecount", "4")
+#            ec = self.replaceQueuedataField("corecount", "4")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
             #ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
-            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
+#            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
 
-        if thisSite.sitename == "BNL_PROD_MCORE":
-            #ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^dcap://dcdcap01.usatlas.bnl.gov:22129")
-            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
+        if os.environ.get("COPYTOOL"):
+            ec = self.replaceQueuedataField("copytool", os.environ.get("COPYTOOL"))
+        if os.environ.get("COPYTOOLIN"):
+            ec = self.replaceQueuedataField("copytoolin", os.environ.get("COPYTOOLIN"))
+
+#        if thisSite.sitename == "BNL_PROD_MCORE":
+#            #ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^dcap://dcdcap01.usatlas.bnl.gov:22129")
+# ES           ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
 #        if thisSite.sitename == "RAL-LCG2_MCORE":
 #            ec = self.replaceQueuedataField("copyprefix", "srm://srm-atlas.gridpp.rl.ac.uk^root://catlasdlf.ads.rl.ac.uk/")
 
@@ -651,9 +658,46 @@ class ATLASSiteInformation(SiteInformation):
 
         cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
         cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
-        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalEmiSetup.sh'
+        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalEmiSetup.sh --force'
+        #cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/x86_64/emi/current/setup.sh'
 
         return cmd
+
+    # Required if use S3 objectstore
+    def getSecurityKey(self, privateKeyName, publicKeyName):
+        """ Return the key pair """
+        keyName=privateKeyName + "_" + publicKeyName
+        if keyName in self.__securityKeys.keys():
+            return self.__securityKeys[keyName]
+        else:
+            try:
+                #import environment
+                #env = environment.set_environment()
+
+                sslCert = self.getSSLCertificate()
+                sslKey = sslCert
+
+                node={}
+                node['privateKeyName'] = privateKeyName
+                node['publicKeyName'] = publicKeyName
+                #host = '%s:%s' % (env['pshttpurl'], str(env['psport'])) # The key pair is not set on other panda server
+                host = 'aipanda007.cern.ch:25443'
+                path = '/server/panda/getKeyPair'
+                conn = httplib.HTTPSConnection(host,key_file=sslKey, cert_file=sslCert)
+                conn.request('POST',path,urllib.urlencode(node))
+                resp = conn.getresponse()
+                data = resp.read()
+                conn.close()
+                dic = cgi.parse_qs(data)
+                if dic["StatusCode"][0] == "0":
+                    self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
+                    return self.__securityKeys[keyName]
+            except:
+                _type, value, traceBack = sys.exc_info()
+                tolog("Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
+                tolog("ERROR: %s %s" % (_type, value))
+                
+        return {"publicKey": None, "privateKey": None}
 
 if __name__ == "__main__":
 
@@ -669,3 +713,5 @@ if __name__ == "__main__":
     else:
         tolog("Failed to find a Tier-1 queue name for cloud %s" % (cloud))
     
+    keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
+    print keyPair

@@ -474,6 +474,36 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PilotUtils.py'),
                      os.path.join(self.sandbox_path, 'PilotUtils.py'))
         os.chmod(os.path.join(self.sandbox_path, 'PilotUtils.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'EventService.py'),
+                     os.path.join(self.sandbox_path, 'EventService.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'EventService.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'EventServiceFactory.py'),
+                     os.path.join(self.sandbox_path, 'EventServiceFactory.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'EventServiceFactory.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ATLASEventService.py'),
+                     os.path.join(self.sandbox_path, 'ATLASEventService.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'ATLASEventService.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'MessageServer.py'),
+                     os.path.join(self.sandbox_path, 'MessageServer.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'MessageServer.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'StoppableThread.py'),
+                     os.path.join(self.sandbox_path, 'StoppableThread.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'StoppableThread.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'GFAL2SiteMover.py'),
+                     os.path.join(self.sandbox_path, 'GFAL2SiteMover.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'GFAL2SiteMover.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'objectstoreSiteMover.py'),
+                     os.path.join(self.sandbox_path, 'objectstoreSiteMover.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'objectstoreSiteMover.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'S3ObjectstoreSiteMover.py'),
+                     os.path.join(self.sandbox_path, 'S3ObjectstoreSiteMover.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'S3ObjectstoreSiteMover.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'xrootdObjectstoreSiteMover.py'),
+                     os.path.join(self.sandbox_path, 'xrootdObjectstoreSiteMover.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'xrootdObjectstoreSiteMover.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'TimerCommand.py'),
+                     os.path.join(self.sandbox_path, 'TimerCommand.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'TimerCommand.py'), 0666)
 
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PILOTVERSION'),
                      os.path.join(self.sandbox_path, 'PILOTVERSION'))

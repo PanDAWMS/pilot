@@ -26,10 +26,11 @@ from SiteInformation import SiteInformation
 # placing the import lfc here breaks compilation on non-lcg sites
 # import lfc
 
-class xrdcpSiteMover(SiteMover.SiteMover):
+class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
     """ SiteMover that uses xrdcp for both get and put """
     # no registration is done
-    copyCommand = "xrdcp"
+    copyCommand = "xrootdObjectstore"
+    realCopyCommand = "xrdcp"
     checksum_command = "adler32"
     has_mkdir = False
     has_df = False
@@ -49,7 +50,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         tolog(errorLog)
 
     def getLocalROOTSetup(self, si):
-        """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
+        """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """ 
         return si.getLocalROOTSetup()
 
     def getSetup(self):
@@ -127,7 +128,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         command = _setupStr
         if command != "" and not command.endswith(';'):
             command = command + ";"
-        command += " which " + self.copyCommand
+        command += " which " + self.realCopyCommand
         status, output = commands.getstatusoutput(command)
         self.log("Execute command:  %s" % command)
         self.log("Status: %s, Output: %s" % (status, output))
@@ -523,7 +524,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         outputRet["report"]["clientState"] = None
         outputRet["output"] = None
 
-
+        
         command = "%s xrdcp -h" % (self._setup)
         status_local, output_local = commands.getstatusoutput(command)
         tolog("Execute command(%s) to decide whether -adler or --cksum adler32 to be used." % command)
@@ -538,7 +539,6 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             tolog("Use (%s) to get the checksum" % checksum_option)
         else:
             tolog("Cannot find -adler nor --cksum. will not use checksum")
-        #checksum_option = " -adler " # currently use this one. --cksum will fail on some sites
 
         # surl is the same as putfile
         _cmd_str = '%s xrdcp %s %s %s' % (self._setup, checksum_option, source, destination)
@@ -833,7 +833,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         prodDBlockToken = pdict.get('access', '')
 
         # get the DQ2 tracing report
-        report = self.getStubTracingReport(pdict['report'], 'xrdcp', lfn, guid)
+        report = self.getStubTracingReport(pdict['report'], 'xrootdObjectstore', lfn, guid)
 
 
         status, output = self.getStageInMode(lfn, prodDBlockToken)
@@ -873,6 +873,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         testLevel = pdict.get('testLevel', '0')
         extradirs = pdict.get('extradirs', '')
         experiment = pdict.get('experiment', '')
+        logPath = pdict.get('logPath', '')
         proxycheck = pdict.get('proxycheck', False)
         prodSourceLabel = pdict.get('prodSourceLabel', '')
 
@@ -885,18 +886,15 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             analysisJob = False
 
         # get the DQ2 tracing report
-        report = self.getStubTracingReport(pdict['report'], 'xrdcp', lfn, guid)
+        report = self.getStubTracingReport(pdict['report'], 'xrootdObjectstore', lfn, guid)
 
 
         filename = os.path.basename(source)
 
-        # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
-        if ec != 0:
-            reportState = {}
-            reportState["clientState"] = tracer_error
-            self.__sendReport(reportState, report)
-            return self.put_data_retfail(ec, pilotErrorDiag)
+        if logPath != "":
+            surl = logPath
+        else:
+            surl = os.path.join(destination, lfn)
 
         # get the DQ2 site name from ToA
         try:

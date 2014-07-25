@@ -50,6 +50,7 @@ class SiteMover(object):
     permissions_FILE = PERMISSIONS_FILE
     arch_type = ARCH_DEFAULT
     timeout = 5*3600
+    useTracingService = True
     filesInDQ2Dataset = {}
 
     CONDPROJ = ['oflcond', 'comcond', 'cmccond', 'tbcond', 'tbmccond', 'testcond']
@@ -788,6 +789,10 @@ class SiteMover(object):
 
     def sendTrace(self, report):
         """ go straight to the tracing server and post the instrumentation dictionary """ 
+
+        if not self.useTracingService:
+            tolog("Experiment is not using Tracing service. skip sending tracing report")
+            return
 
         url = 'https://atlas-ddmtracer.cern.ch:443/dq2/ws_tracer/rpc'
         tolog("Tracing server: %s" % (url))

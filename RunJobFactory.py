@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     factory = RunJobFactory()
 
-    types = ['Normal', 'Normal2', 'EventService', 'HPC', 'Mira', 'Titan', 'Dummy']
+    types = ['Normal', 'Normal2', 'RunJobEvent', 'HPC', 'Mira', 'Titan', 'Dummy']
 
     for t in types:
         print "\nAttempting to get class for type", t

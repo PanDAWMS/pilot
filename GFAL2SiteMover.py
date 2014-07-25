@@ -1,3 +1,15 @@
+#!/usr/bin/env python
+
+# Copyright European Organization for Nuclear Research (CERN)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# You may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Authors:
+# - Wen Guan, <wguan@cern.ch>, 2014
+
 import os, re
 import commands
 from time import time
@@ -26,15 +38,17 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path
-        self._defaultSetup = "export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase; source /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; source /cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/packageSetups/atlasLocalEmiSetup.sh"
-
-        # self._defaultSetup = si.getLocalEMISetup(), where si = getSiteInformation(experiment)
+        self._defaultSetup = None
 
     def get_timeout(self):
         return self.timeout
 
     def log(self, errorLog):
         tolog(errorLog)
+
+    def getLocalEMISetup(self, si):
+        """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
+        return si.getLocalEMISetup()
 
     def getSetup(self):
         """ Return the setup string (pacman setup os setup script) for the copy command used by the mover """
@@ -113,7 +127,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             command = command + ";"
         command += " which " + self.copyCommand
         status, output = commands.getstatusoutput(command)
-        self.log("Execute command %s" % command)
+        self.log("Execute command:  %s" % command)
         self.log("Status: %s, Output: %s" % (status, output))
         if status != 0:
             self.log(self.copyCommand +" is not found in envsetup: " + _setupStr)
@@ -133,6 +147,10 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
     def setup(self, experiment):
         """ setup env """
+        thisExperiment = getExperiment(experiment)
+        self.useTracingService = thisExperiment.useTracingService()
+        si = getSiteInformation(experiment)
+        self._defaultSetup = self.getLocalEMISetup(si)
 
         _setupStr = self.getSetup()
 
@@ -153,7 +171,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             if self._defaultSetup:
                 #try to use default setup
                 self.log("Try to use default envsetup")
-                envsetupTest = self._defaultSetup
+                envsetupTest = self._defaultSetup.strip()
                 if envsetupTest != "" and not envsetupTest.endswith(';'):
                      envsetupTest += ";"
                 if os.environ.has_key('X509_USER_PROXY'):
@@ -176,7 +194,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         elif path[:3] == "srm":
             try:
                 hostname = path.split('/',3)[2]
-            except Exception, e:
+            except Exception as e:
                 self.log("'!!WARNING!!2999!! Could not extract srm protocol for replacement, keeping path variable as it is: %s (%s)' %\
                       (path, str(e))")
             else:
@@ -189,8 +207,12 @@ class GFAL2SiteMover(SiteMover.SiteMover):
                     path = path.replace(srm, sematch)
                     self.log("Replaced %s with %s (from seopt) in path: %s" % (srm, sematch, path))
                 else:
-                    path = path.path(srm, se)
-                    self.log("Replaced %s with %s (from se) in path: %s" % (srm, se, path))
+                     se = readpar('se').split(",")[0]
+                     _dummytoken, se = self.extractSE(se)
+                     tolog("Using SE: %s" % (se))
+
+                     path = path.replace(srm, se)
+                     self.log("Replaced %s with %s (from se) in path: %s" % (srm, se, path))
 
                 # add port number from se to getfile if necessary
                 path = self.addPortToPath(se, path)
@@ -218,7 +240,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             output["report"]['relativeStart'] = None
             output["report"]['transferStart'] = None
 
-            return error.ERR_DIRECTIOFILE, output
+            return PilotErrors.ERR_DIRECTIOFILE, output
 
         return 0, output
 
@@ -496,7 +518,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             tolog('!!WARNING!!2990!! Stage Out failed: Status=%d Output=%s' % (ec, str(o.replace("\n"," "))))
 
             status, output = self.errorToReport(o, t, source, stageMethod="stageOut")
-            if status == PilotErrors.ERR_FILEEXISTS:
+            if status == PilotErrors.ERR_FILEEXIST:
                 return status, output
 
             # check if file was partially transferred, if so, remove it
@@ -586,10 +608,10 @@ class GFAL2SiteMover(SiteMover.SiteMover):
                     self.log("!!WARNING!!1800!! %s" % (errorLog))
                     if checksumType == "adler32":
                         outputRet["report"]["clientState"] = 'AD_MISMATCH'
-                        return status, outputRet
+                        return PilotErrors.ERR_PUTADMISMATCH, outputRet
                     else:
                         outputRet["report"]["clientState"] = 'MD5_MISMATCH'
-                        return status, outputRet
+                        return PilotErrors.ERR_PUTMD5MISMATCH, outputRet
                 else:
                     self.log("Remote and local checksums verified")
                     outputRet["verified"] = verified = True
@@ -665,7 +687,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
         return status, outputRet
 
-    def stageOut(self, source, destination, experiment):
+    def stageOut(self, source, destination, token, experiment):
         """Stage in the source file"""
         statusRet = 0
         outputRet ={}
@@ -692,7 +714,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         if checksumType == "default":
             checksumType = "adler32"
 
-        status, output = self.stageOutFile(source, destination)
+        status, output = self.stageOutFile(source, destination, token)
         if status !=0:
             statusRet = status
             outputRet["errorLog"] = output["errorLog"]
@@ -791,7 +813,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
         # get the DQ2 site name from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=putfile)
+            _dq2SiteName = self.getDQ2SiteName(surl=surl)
         except Exception, e: 
             tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
         else:
@@ -801,7 +823,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         if testLevel == "1":
             source = "thisisjustatest"
 
-        status, output = self.stageOut(source, surl, experiment)
+        status, output = self.stageOut(source, surl, token, experiment)
         if status !=0:
             self.__sendReport(output["report"], report)
             return self.put_data_retfail(status, output["errorLog"], surl)

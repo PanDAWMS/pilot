@@ -22,6 +22,7 @@ class SiteInformation(object):
     __experiment = "generic"
     __instance = None                      # Boolean used by subclasses to become a Singleton
     __error = PilotErrors()                # PilotErrors object
+    __securityKeys = {}
 
     def __init__(self):
         """ Default initialization """
@@ -844,6 +845,78 @@ class SiteInformation(object):
 
         return copyprefix
 
+    def getCopyPrefixList(self, copyprefix):
+        """ extract from and to info from copyprefix """
+
+        pfrom = ""
+        pto = ""
+
+        if copyprefix != "":
+            if copyprefix.count("^") == 1:
+                pfrom, pto = copyprefix.split("^")
+            elif copyprefix.startswith("^") or copyprefix.count("^") > 1:
+                tolog("!!WARNING!!2988!! copyprefix has wrong format (not pfrom^pto): %s" % (copyprefix))
+            else:
+                pfrom = copyprefix
+
+        if pfrom == "":
+            pfrom = "dummy"
+        else:
+            if pfrom.endswith('/'):
+                pfrom = pfrom[:-1]
+                tolog("Cut away trailing / from %s (see copyprefix[in])" % (pfrom))
+        if pto == "":
+            pto = "dummy"
+        
+        if "," in pfrom:
+            pfroms = pfrom.split(",")
+        else:
+            pfroms = [pfrom]
+        if "," in pto:
+            ptos = pto.split(",")
+        else:
+            ptos = [pto]
+
+        return pfroms, ptos
+
+    def getCopyPrefixPath(self, path, stageIn=False):
+        """convert path to copy prefix path """
+        # figure out which copyprefix to use (use the PFN to figure out where the file is and then use the appropriate copyprefix)
+        # e.g. copyprefix=srm://srm-eosatlas.cern.ch,srm://srm-atlas.cern.ch^root://eosatlas.cern.ch/,root://castoratlas-xrdssl/
+        # PFN=srm://srm-eosatlas.cern.ch/.. use copyprefix root://eosatlas.cern.ch/ to build the TURL src_loc_pfn
+        # full example:
+        # Using copyprefixin = srm://srm-eosatlas.cern.ch,srm://srm-atlas.cern.ch^root://eosatlas.cern.ch/,root://castoratlas-xrdssl/
+        # PFN=srm://srm-eosatlas.cern.ch/eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/c0/EVNT.01212395._000004.pool.root.1
+        # TURL=root://eosatlas.cern.ch//eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/c0/EVNT.01212395._000004.pool.root.1
+
+        copyprefix = self.getCopyPrefix(stageIn=stageIn)
+        if copyprefix == "":
+            errorLog = "Empty copyprefix, cannot continue"
+            tolog("!!WARNING!!1777!! %s" % (errorLog))
+            return path
+
+        # handle copyprefix lists
+        pfroms, ptos = self.getCopyPrefixList(copyprefix)
+        if len(pfroms) != len(ptos):
+            errorLog = "Copyprefix lists not of equal length: %s, %s" % (str(pfroms), str(ptos))
+            tolog("!!WARNING!!1777!! %s" % (errorLog))
+            return path
+
+        if "SFN" in path:
+            local_path = path.split('SFN=')[1]
+        else:
+            local_path = '/' + path.split('/', 3)[3] # 0:method, 2:host+port, 3:abs-path
+
+        ret_path = path
+        for (pfrom, pto) in map(None, pfroms, ptos):
+            if (pfrom != "" and pfrom != None and pfrom != "dummy") and (pto != "" and pto != None and pto != "dummy"):
+                if path[:len(pfrom)] == pfrom or path[:len(pto)] == pto:
+                    ret_path = pto + local_path
+                    ret_path = ret_path.replace('///','//')
+                    break
+
+        return ret_path
+
     def getCopyFileAccessInfo(self, stageIn=True):
         """ return a tuple with all info about how the input files should be accessed """
 
@@ -910,7 +983,7 @@ class SiteInformation(object):
                     #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
                     transfer_mode = "copy_to_scratch"
                 elif rootFile:
-                    tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
+                    tolog("Found root file according to file name (will not be transferred in direct reading mode)")
                     if useFileStager:
                         #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                         transfer_mode = "file_stager"
@@ -947,6 +1020,21 @@ class SiteInformation(object):
         """ Return the path for the local EMI setup """
 
         return ""
+
+    # Required if use S3 objectstore
+    def getSecurityKey(self, privateKeyName, publicKeyName):
+        """ Return the key pair """
+        
+        return {"publicKey": None, "privateKey": None}
+
+    # Required if use S3 objectstore
+    def setSecurityKey(self, privateKeyName, privateKey, publicKeyName, publicKey):
+        """ Return the key pair """
+
+        keyName=privateKeyName + "_" + publicKeyName
+        self.__securityKeys[keyName] = {"publicKey": publicKey, "privateKey": privateKey}
+
+        return {"publicKey": publicKey, "privateKey": privateKey}
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

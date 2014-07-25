@@ -182,6 +182,8 @@ def httpConnect(data, url, mode="UPDATE", sendproxy=False, path=None): # default
         cmd = 'getEventRanges'
     elif mode == "UPDATEEVENTRANGE":
         cmd = 'updateEventRange'
+    elif mode == "GETKEYPAIR":
+        cmd = 'getKeyPair'
     else:
         cmd = 'updateJob'
 
@@ -3153,6 +3155,19 @@ def extractFilePaths(s):
                 tolog("Could not extract env variable from cmd=%s (%s)" % (cmd, setup_paths[0]))
         else:
             tolog("!!WARNING!!2991!! Setup path contains env variable but command does not begin with an export, cannot evaluate")
+
+
+    pattern = re.compile(r"export (\S+)\=(\S+)")
+    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')]
+    if t != []:
+        for i in range(len(setup_paths)):
+            for match_pair in t:
+                try:
+                    e, v = match_pair
+                    v = v.replace(";", "").strip()
+                    setup_paths[i] = setup_paths[i].replace("$" + e, v).replace("${" + e + "}", v)
+                except Exception, e:
+                    tolog("WARNNING: Error happened when extracting setup path: %s" % (e))
 
     return setup_paths
 

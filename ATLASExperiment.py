@@ -944,7 +944,33 @@ class ATLASExperiment(Experiment):
 
         return status
 
+
     def getInstallDir(self, job, workdir, siteroot, swbase, cmtconfig):
+        """ Get the path to the release """
+
+        ec = 0
+        pilotErrorDiag = ""
+
+        # do not proceed for unset homepackage strings (treat as release strings in the following function)                                                                         
+        if verifyReleaseString(job.homePackage) == "NULL":
+            return ec, pilotErrorDiag, siteroot, ""
+
+        # install the trf in the work dir if it is not installed on the site                                                                                                        
+        # special case for nightlies (rel_N already in siteroot path, so do not add it)                                                                                             
+
+        if "rel_" in job.homePackage:
+            installDir = siteroot
+        else:
+            installDir = os.path.join(siteroot, job.homePackage)
+        installDir = installDir.replace('//','/')
+
+        tolog("Atlas release: %s" % (job.release))
+        tolog("Job home package: %s" % (job.homePackage))
+        tolog("Trf installation dir: %s" % (installDir))
+
+        return ec, pilotErrorDiag, siteroot, installDir
+
+    def getInstallDir2(self, job, workdir, siteroot, swbase, cmtconfig):
         """ Get the path to the release, install patch if necessary """
 
         ec = 0

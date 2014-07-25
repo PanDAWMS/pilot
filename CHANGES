@@ -244,7 +244,6 @@ Removed dq2url usage in getAnalysisRunCommand() (Experiment)
 Removed dq2url usage for RunJobEvent in getSubprocessArguments() (Experiment)
 Renamed lfcRegistration to fileCatalogRegistration in RunJob
 Increased the maximum allowed LFN string length from 150 to 255 characters. Requested by Asoka de Silva et al (pUtil)
-Replaced getInstallDir() with version from 58m (ATLASExperiment)
 Added scope_dict to sitemover_get_all_data() call in mover_get_data(), requested by Cedric Serdon (Mover)
 Added scope_dict argument to sitemover_get_all_data(), requested by Cedric Serdon (Mover)
 Added scope_dict to get_data() call in sitemover_get_all_data(), requested by Cedric Serdon (Mover)
@@ -270,6 +269,7 @@ Added pfc_name argument to stageIn(), and sending it to Mover::get_data() (RunJo
 Replaced analJob with analysisJob in RunJob
 Updated "Exception caught by runJob" -> "Exception caught by RunJob*" (PilotErrors)
 Updated comments in several modules; runJob -> RunJob
+Added the new classes to glexec_utils.py (see 'Added to distribution below')
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover
@@ -282,26 +282,29 @@ objectstoreSiteMover
 ------------------------------------------------------
 
 Added to distribution:
-CHANGES                 : This file
-Configuration.py        : Singleton dictionary that can be read from JSON file
-CustomEncoder.py        : Convert configuration object to JSON
-Monitor.py              : Monitoring loop of the pilot
-UpdateHandler.py        : Utility class
-WatchDog.py             : Process cleanup
-environment.py          : Defaults for global variables
-glexec_aux.py           : Entry point for glExec sandbox [merge with pilot.py?]
-glexec_utils.py         : glExec utilities, renamed from my_proxy_utils.py
-processes.py            : Process handling
-runEvent.py             : Subprocess module for Event Service use
-EventServiceFactory.py  : Factory for generating Event Service objects that can be experiment specific
-EventService.py         : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
-ATLASEventService.py    : ATLAS specific event service class
-PilotYamplServer.py     : Yampl server class used by runEvent
-StoppableThread.py      : Threading class for threads that need a stop() method
-GFAL2SiteMover.py       : New site mover for GFAL2
-objectstoreSiteMover.py : New site mover for Object Stores
-RunJob*                 : New RunJob classes
+CHANGES                       : This file
+Configuration.py              : Singleton dictionary that can be read from JSON file
+CustomEncoder.py              : Convert configuration object to JSON
+Monitor.py                    : Monitoring loop of the pilot
+UpdateHandler.py              : Utility class
+WatchDog.py                   : Process cleanup
+environment.py                : Defaults for global variables
+glexec_aux.py                 : Entry point for glExec sandbox [merge with pilot.py?]
+glexec_utils.py               : glExec utilities, renamed from my_proxy_utils.py
+processes.py                  : Process handling
+runEvent.py                   : Subprocess module for Event Service use
+EventServiceFactory.py        : Factory for generating Event Service objects that can be experiment specific
+EventService.py               : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
+ATLASEventService.py          : ATLAS specific event service class
+PilotYamplServer.py           : Yampl server class used by runEvent
+StoppableThread.py            : Threading class for threads that need a stop() method
+GFAL2SiteMover.py             : New site mover for GFAL2
+objectstoreSiteMover.py       : New site mover for Object Stores
+RunJob*.py                    : New RunJob classes
+TimerCommand.py               : New timer module
+xrootdObjectstoreSiteMover.py : Object store class using xrootd
+S3ObjectstoreSiteMover.py     : Object store class using S3 API
 
-Note: new modules have to be added to my_proxy_utils.py and glexec_utils.py.
+Note: new modules have to be added to glexec_utils.py.
 
 Add new error code to DB

@@ -48,7 +48,7 @@ except Exception, e:
 class RunJobEvent(RunJob):
 
     # private data members
-    __runjob = "EventService"                    # String defining the sub class
+    __runjob = "RunJobEvent"                     # String defining the sub class
     __instance = None                            # Boolean used by subclasses to become a Singleton
     __error = PilotErrors()                      # PilotErrors object
     __experiment = "ATLAS"                       # Current experiment (can be set with pilot option -F <experiment>)
@@ -935,17 +935,17 @@ class RunJobEvent(RunJob):
                 data = load(f)
 
                 # extract the exit code and info
-                _exitCode = RunJob.extractDictionaryObject("exitCode", data)
+                _exitCode = self.extractDictionaryObject("exitCode", data)
                 if _exitCode:
                     if _exitCode == 0 and exitCode != 0:
                         tolog("!!WARNING!!1111!! Detected inconsistency in %s: exitcode listed as 0 but original trf exit code was %d (using original error code)" %\
                                   (filename, exitCode))
                     else:
                         exitCode = _exitCode
-                _exitAcronym = RunJob.extractDictionaryObject("exitAcronym", data)
+                _exitAcronym = self.extractDictionaryObject("exitAcronym", data)
                 if _exitAcronym:
                     exitAcronym = _exitAcronym
-                _exitMsg = RunJob.extractDictionaryObject("exitMsg", data)
+                _exitMsg = self.extractDictionaryObject("exitMsg", data)
                 if _exitMsg:
                     exitMsg = _exitMsg
 
@@ -1579,7 +1579,7 @@ class RunJobEvent(RunJob):
         dbh = None
         DBReleaseIsAvailable = False
 
-        self.setPoolFileCatalogPath(os.path.join(workdir, "PoolFileCatalog.xml"))
+        self.setPoolFileCatalogPath(os.path.join(workdir, "PFC.xml"))
         tolog("Using PFC path: %s" % (self.getPoolFileCatalogPath()))
 
         # Get the TURL based PFC
@@ -1869,7 +1869,7 @@ if __name__ == "__main__":
         runJob.setJobDataDir(runJob.getParentWorkDir() + "/PandaJob_%d_data" % (job.jobId))
 
         # register cleanup function
-        atexit.register(cleanup, job)
+        atexit.register(runJob.cleanup, job)
     
         # to trigger an exception so that the SIGTERM signal can trigger cleanup function to run
         # because by default signal terminates process without cleanup.
@@ -1910,7 +1910,7 @@ if __name__ == "__main__":
         runJob.setAnalysisJob(analysisJob)
 
         # Create a message server object (global message_server)
-        if createMessageServer():
+        if runJob.createMessageServer():
             tolog("The message server is alive")
         else:
             pilotErrorDiag = "The message server could not be created, cannot continue"
@@ -1927,10 +1927,10 @@ if __name__ == "__main__":
         # Send [especially] the process group back to the pilot
         job.setState([job.jobState, 0, 0])
         runJob.setJobState(job.result)
-        rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer, runJob.getPilotPort())
+        rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
         # prepare the setup and get the run command list
-        ec, runCommandList, job, multi_trf = RunJob.setup(job, jobSite, thisExperiment)
+        ec, runCommandList, job, multi_trf = runJob.setup(job, jobSite, thisExperiment)
         if ec != 0:
             tolog("!!WARNING!!2999!! runJob setup failed: %s" % (job.pilotErrorDiag))
             runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
@@ -1946,6 +1946,7 @@ if __name__ == "__main__":
         job.jobState = "stagein"
         runJob.setJobState(job.jobState)
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+        rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
         # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
         if job.transferType == 'direct':
@@ -1954,7 +1955,7 @@ if __name__ == "__main__":
             RunJobUtilities.updateCopysetups('', transferType=job.transferType)
 
         # stage-in all input files (if necessary)
-        job, ins, statusPFCTurl, usedFAXandDirectIO = RunJob.stageIn(job, jobSite, analysisJob, pfc_name="PFC.xml")
+        job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob, pfc_name="PFC.xml")
         if job.result[2] != 0:
             tolog("Failing job with ec: %d" % (ec))
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
@@ -1977,6 +1978,12 @@ if __name__ == "__main__":
         # It determines this from the input dataset/file info provided in the PanDA job spec
 
         # threading starts here ............................................................................
+
+        # update the job state file
+        job.jobState = "running"
+        runJob.setJobState(job.jobState)
+        _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
+        rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
         event_loop_running = True
         payload_running = False
@@ -2268,9 +2275,9 @@ if __name__ == "__main__":
         error = PilotErrors()
 
         if runJob.getGlobalPilotErrorDiag() != "":
-            pilotErrorDiag = "Exception caught in runEvent: %s" % (runJob.getGlobalPilotErrorDiag())
+            pilotErrorDiag = "Exception caught in RunJobEvent: %s" % (runJob.getGlobalPilotErrorDiag())
         else:
-            pilotErrorDiag = "Exception caught in runEvent: %s" % str(errorMsg)
+            pilotErrorDiag = "Exception caught in RunJobEvent: %s" % str(errorMsg)
 
         if 'format_exc' in traceback.__all__:
             pilotErrorDiag += ", " + traceback.format_exc()    
@@ -2282,7 +2289,7 @@ if __name__ == "__main__":
                 pilotErrorDiag = pilotErrorDiag[:10000]
                 tolog("!!FAILED!!3001!! Truncated (%s): %s" % (str(e), pilotErrorDiag))
             else:
-                pilotErrorDiag = "Exception caught in runEvent: %s" % str(e)
+                pilotErrorDiag = "Exception caught in RunJobEvent: %s" % str(e)
                 tolog("!!FAILED!!3001!! %s" % (pilotErrorDiag))
 
         job = Job.Job()
@@ -2297,4 +2304,4 @@ if __name__ == "__main__":
         # fail the job without calling sysExit/cleanup (will be called anyway)
         runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag, docleanup=False)
 
-    # end of runEvent
+    # end of RunJobEvent

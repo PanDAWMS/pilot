@@ -115,9 +115,11 @@ class PilotErrors:
     ERR_NOPILOTTCPSERVER = 1216
     ERR_RUNEVENTEXC = 1218
     ERR_CORECOUNTMISMATCH = 1217
-    ERR_FILEEXISTS = 1218
     ERR_UUIDGEN = 1219
     ERR_UNKNOWN = 1220
+
+    ERR_FILEEXIST = 1221
+    ERR_GETKEYPAIR = 1222
 
     # internal error codes
     ERR_DDMREG = 1
@@ -238,10 +240,10 @@ class PilotErrors:
         ERR_NOTCPCONNECTION : "Failed to open TCP connection to localhost (worker node network problem)",
         ERR_NOPILOTTCPSERVER : "Pilot TCP server has died",
         ERR_CORECOUNTMISMATCH : "Mismatch between core count in job and queue definition",
-        ERR_RUNEVENTEXC : "Exception caught by RunJobEvent", 
-        ERR_FILEEXISTS : "File already exists",
-        ERR_UUIDGEN : "Command uuidgen failed",
-        ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)"
+        ERR_RUNEVENTEXC : "Exception caught by runEvent", 
+        ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)",
+        ERR_FILEEXIST : "File already exist",
+        ERR_GETKEYPAIR : "Failed to get security key pair"
         }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]
@@ -319,3 +321,10 @@ class PilotErrors:
         except:
             rets = ''
         return rets
+
+    def getErrorName(self, code):
+        """ From the error code to get the error name"""
+        for k in self.__class__.__dict__.keys():
+            if self.__class__.__dict__[k] == code:
+                return k
+        return None

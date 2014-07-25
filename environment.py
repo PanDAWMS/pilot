@@ -89,6 +89,10 @@ def set_environment():
     env['hasQueueData'] = None
     env['stdout_tail'] = ""
     
+    # to test site mover
+    env['copytool'] = 'gfal-copy'
+    env['copytoolin'] = 'gfal-copy'
+
     # In case the PILOT_INITDIR file has not been created yet, which means that this module is being
     # used by pilot.py, it will be created here using the current directory as init dir
     path = os.path.join(os.getcwd(), "PILOT_INITDIR")
