@@ -769,7 +769,6 @@ class RunJobEvent(RunJob):
         # change to sys.exit?
         os._exit(self.__job.result[2]) # pilotExitCode, don't confuse this with the overall pilot exit code,
                                        # which doesn't get reported back to panda server anyway
-
     def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
         """ set the fail code and exit """
 
@@ -1942,12 +1941,14 @@ if __name__ == "__main__":
 
         # stage-in .........................................................................................
 
-        # update the job state file
+        # update the job state
+        tolog("Setting stage-in state until all input files have been copied")
         job.jobState = "stagein"
+        job.setState([job.jobState, 0, 0])
         runJob.setJobState(job.jobState)
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
-
+        
         # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
         if job.transferType == 'direct':
             tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
@@ -1982,6 +1983,7 @@ if __name__ == "__main__":
         # update the job state file
         job.jobState = "running"
         runJob.setJobState(job.jobState)
+        job.setState([job.jobState, 0, 0])
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
@@ -2263,7 +2265,8 @@ if __name__ == "__main__":
 
         # wrap up ..........................................................................................
 
-        job.setState(["finished", 0, 0])
+        job.jobState = "finished"
+        job.setState([job.jobState, 0, 0])
         runJob.setJobState(job.jobState)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
 

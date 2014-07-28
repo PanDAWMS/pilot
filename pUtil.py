@@ -2048,6 +2048,19 @@ def toPandaLogger(data):
         tolog("ERROR : %s %s" % ( _type, value))
         return EC_Failed, None, None
 
+def verifyJobState(state):
+    """ Make sure the state is an allowed value """
+
+    allowed_values = ['running', 'failed', 'finished', 'holding', 'starting', 'transferring']
+
+    if state in allowed_values:
+        tolog("Job state \'%s\' is an allowed job state value")
+    else:
+        tolog("!!WARNING!!3333!! Job state \'%s\' is not an allowed job state value, job will fail")
+        state = 'failed'
+
+    return state
+
 # send message to dispatcher
 def toServer(baseURL, cmd, data, path):
     """ sends 'data' using command 'cmd' to the dispatcher """
@@ -2059,6 +2072,9 @@ def toServer(baseURL, cmd, data, path):
     tolog("toServer: cmd = %s" % (cmd))
     tolog("toServer: len(data) = %d" % len(data))
     tolog("data = %s" % str(data))
+
+    # make sure the job state is an allowed value
+    data['state'] = verifyJobState(data['state'])
 
     # instantiate curl
     curl = _Curl()

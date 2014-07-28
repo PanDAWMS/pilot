@@ -2505,13 +2505,12 @@ def runMain(runpars):
                     env['job'].result[0] = 'failed'
                     env['job'].currentState = env['job'].result[0]
                     env['job'].result[2] = ec
-                    pUtil.postJobTask(env['job'], env['thisSite'], env['workerNode'], jr=False)
+                    pUtil.postJobTask(env['job'], env['thisSite'], env['workerNode'], env['experiment'], jr=False)
                     pUtil.fastCleanup(env['thisSite'].workdir)
                     return pUtil.shellExitCode(ec)
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))
 
-            pUtil.tolog('glexec is: %s' % str(env['glexec']))
             if env['glexec'] == False:
                 monitor = Monitor(env)
                 monitor.monitor_job()
@@ -2522,7 +2521,6 @@ def runMain(runpars):
                 glexec_interface.setup_and_run()
 
             #Get the return code (Should be improved)
-            pUtil.tolog("return=%s"%(env['return']))
             if env['return'] == 'break':
                 break
             elif env['return'] == 'continue':

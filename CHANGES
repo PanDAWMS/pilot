@@ -270,6 +270,8 @@ Replaced analJob with analysisJob in RunJob
 Updated "Exception caught by runJob" -> "Exception caught by RunJob*" (PilotErrors)
 Updated comments in several modules; runJob -> RunJob
 Added the new classes to glexec_utils.py (see 'Added to distribution below')
+Corrected a missing argument (experiment) in call to pUtil.postJobTask() in runMain() (pilot)
+Created verifyJobState() used by toServer() (pUtil)
 
 Code contributions from Wen Guan, May 30, 2014:
 Added GFAL2SiteMover

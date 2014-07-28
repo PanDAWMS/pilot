@@ -576,10 +576,7 @@ class Monitor:
         if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip: # 30 minutes
             # check when the workdir files were last updated or that the stageout command is not hanging
             if self.__allowLoopingJobKiller():
-                pUtil.tolog("__allowLoopingJobKiller = true")
                 self.__loopingJobKiller()
-            else:
-                pUtil.tolog("__allowLoopingJobKiller = false")
 
             # make final server update for all ended jobs
             self.__updateJobs()
