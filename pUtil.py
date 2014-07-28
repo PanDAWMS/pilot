@@ -2074,7 +2074,8 @@ def toServer(baseURL, cmd, data, path):
     tolog("data = %s" % str(data))
 
     # make sure the job state is an allowed value
-    data['state'] = verifyJobState(data['state'])
+    if data.has_key('state'):
+        data['state'] = verifyJobState(data['state'])
 
     # instantiate curl
     curl = _Curl()
