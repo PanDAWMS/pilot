@@ -1277,6 +1277,36 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag
 
+    def startMessageThread(self):
+        """ Start the message thread """
+
+        self.__message_thread.start()
+
+    def stopMessageThread(self):
+        """ Stop the message thread """
+
+        self.__message_thread.stop()
+
+    def joinMessageThread(self):
+        """ Join the message thread """
+
+        self.__message_thread.join()
+
+    def startAsyncOutputStagerThread(self):
+        """ Start the asynchronous output stager thread """
+
+        self.__asyncOutputStager_thread.start()
+
+    def stopAsyncOutputStagerThread(self):
+        """ Stop the asynchronous output stager thread """
+
+        self.__asyncOutputStager_thread.stop()
+
+    def joinAsyncOutputStagerThread(self):
+        """ Join the asynchronous output stager thread """
+
+        self.__asyncOutputStager_thread.join()
+
     def asynchronousOutputStager(self):
         """ Transfer output files to stage-out area asynchronously """
 
@@ -1992,13 +2022,15 @@ if __name__ == "__main__":
 
         # Create and start the stage-out thread which will run in an infinite loop until it is stopped
         asyncOutputStager_thread = StoppableThread(name='asynchronousOutputStager', target=runJob.asynchronousOutputStager)
-        asyncOutputStager_thread.start()
+#        asyncOutputStager_thread.start()
         runJob.setAsyncOutputStagerThread(asyncOutputStager_thread)
+        runJob.startAsyncOutputStagerThread()
 
         # Create and start the message listener thread
         message_thread = StoppableThread(name='listener', target=runJob.listener)
-        message_thread.start()
+#        message_thread.start()
         runJob.setMessageThread(message_thread)
+        runJob.startMessageThread()
 
         # Stdout/err file objects
         tokenextractor_stdout = None
@@ -2215,9 +2247,11 @@ if __name__ == "__main__":
             runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
         tolog("Stopping stage-out thread")
-        asyncOutputStager_thread.stop()
-        asyncOutputStager_thread.join()
-        runJob.setAsyncOutputStagerThread(asyncOutputStager_thread)
+        runJob.stopAsyncOutputStagerThread()
+        runJob.joinAsyncOutputStagerThread()
+#        asyncOutputStager_thread.stop()
+#        asyncOutputStager_thread.join()
+#        runJob.setAsyncOutputStagerThread(asyncOutputStager_thread)
 
         # Stop Token Extractor
         if tokenExtractorProcess:
@@ -2240,9 +2274,11 @@ if __name__ == "__main__":
             athenamp_stderr.close()
 
         tolog("Stopping message thread")
-        message_thread.stop()
-        message_thread.join()
-        runJob.setMessageThread(message_thread)
+        runJob.stopMessageThread()
+        runJob.joinMessageThread()
+#        message_thread.stop()
+#        message_thread.join()
+#        runJob.setMessageThread(message_thread)
 
         # Rename the metadata produced by the payload
         # if not pUtil.isBuildJob(outs):
