@@ -94,6 +94,7 @@ class Job:
         # event service objects
         self.eventService = False          # True for event service jobs
         self.eventRanges = None            # Event ranges dictionary
+        self.jobsetID = None               # Event range job set ID
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
 #        self.lastEvent = None              # Set for event service jobs
@@ -241,12 +242,12 @@ class Job:
             pUtil.tolog("Normal job (not an eventService job)")
         if data.has_key('eventRanges'):
             self.eventRanges = data.get('eventRanges', None)
-            pUtil.tolog("eventRanges = %s" % str(self.eventRanges))
-
+        if data.has_key('jobsetID'):
+            self.jobsetID = data.get('jobsetID', None)
+            tolog("jobsetID=%s" % (self.jobsetID))
         if not self.eventService and self.processingType == "evtest":
             pUtil.tolog("Turning on Event Service for processing type = %s" % (self.processingType))
             self.eventService = True
-
 
 #        self.eventRangeID = data.get('eventRangeID', None)
 #        self.startEvent = data.get('startEvent', None)

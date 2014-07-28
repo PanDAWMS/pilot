@@ -1693,6 +1693,7 @@ class RunJobEvent(RunJob):
     #    url = "https://pandaserver.cern.ch:25443/server/panda"
         node = {}
         node['pandaID'] = self.__job.jobId
+        node['jobsetID'] = self.__job.jobsetID
 
         # open connection
         ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")
