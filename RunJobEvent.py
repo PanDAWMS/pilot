@@ -1001,17 +1001,16 @@ class RunJobEvent(RunJob):
 #        else:
 #            tolog("Metadata was transferred to site work dir: %s/%s" % (pworkdir, _filename))
 
-    def createFileMetadata(self, outFiles, outsDict, dsname, datasetDict, sitename):
+    def createFileMetadata(self, outsDict, dsname, datasetDict, sitename):
         """ create the metadata for the output + log files """
 
         ec = 0
 
         self.__job.outFilesGuids = []
-        outFiles = []
 
         # get the file sizes and checksums for the local output files
         # WARNING: any errors are lost if occur in getOutputFileInfo()
-        ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(outFiles), getChecksumCommand(), skiplog=True, logFile=self.__job.logFile)
+        ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(self.getOutputFiles()), getChecksumCommand(), skiplog=True, logFile=self.__job.logFile)
         if ec != 0:
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
             self.failJob(self.__job.result[1], ec, self.__job, pilotErrorDiag=pilotErrorDiag)
@@ -1888,6 +1887,9 @@ if __name__ == "__main__":
             job.experiment = runJob.getExperiment()
             # figure out and set payload file names
             job.setPayloadName(thisExperiment.getPayloadName(job))
+            # reset the default job output file list which is anyway not correct
+            job.outFiles = []
+            runJob.setOutputFiles(job.outFiles)
         except Exception, e:
             pilotErrorDiag = "Failed to process job info: %s" % str(e)
             tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
@@ -2226,9 +2228,9 @@ if __name__ == "__main__":
 
         # replace the default job output file list which is anyway not correct
         # (it is only used by AthenaMP for generating output file names)
-        job.outFiles = output_files
-        runJob.setJobOutFiles(job.outFiles)
-        tolog("output_files = %s" % (output_files))
+#        job.outFiles = output_files
+#        runJob.setJobOutFiles(job.outFiles)
+#        tolog("output_files = %s" % (output_files))
 
         # Get the datasets for the output files
         dsname, datasetDict = runJob.getDatasets()
@@ -2243,7 +2245,7 @@ if __name__ == "__main__":
         tolog("outsDict: %s" % str(outsDict))
 
         # Create metadata for all successfully staged-out output files (include the log file as well, even if it has not been created yet)
-        ec, outputFileInfo = runJob.createFileMetadata(list(output_files), outsDict, dsname, datasetDict, jobSite.sitename)
+        ec, outputFileInfo = runJob.createFileMetadata(outsDict, dsname, datasetDict, jobSite.sitename)
         if ec:
             runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
