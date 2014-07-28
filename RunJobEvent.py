@@ -1788,8 +1788,8 @@ class RunJobEvent(RunJob):
         """ Verify whether all files have been staged out or not """
 
         status = True
-        for eventRangeID in eventRangeID_dictionary.keys():
-            if eventRangeID_dictionary[eventRangeID] == False:
+        for eventRangeID in self.__eventRangeID_dictionary.keys():
+            if self.__eventRangeID_dictionary[eventRangeID] == False:
                 status = False
                 break
 
@@ -1804,8 +1804,8 @@ class RunJobEvent(RunJob):
         # message arrives from the server
 
         for eventRangeID in currentEventRangeIDs:
-            if not eventRangeID_dictionary.has_key(eventRangeID):
-                eventRangeID_dictionary[eventRangeID] = False
+            if not self.__eventRangeID_dictionary.has_key(eventRangeID):
+                self.__eventRangeID_dictionary[eventRangeID] = False
 
     def getProperInputFileName(self, input_files):
         """ Return the first non TAG file name in the input file list """
