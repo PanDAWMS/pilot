@@ -2309,7 +2309,7 @@ if __name__ == "__main__":
         ed = ErrorDiagnosis()
         job = ed.interpretPayload(job, res, False, 0, runCommandList, runJob.getFailureCode())
         if job.result[1] != 0 or job.result[2] != 0:
-            runJob.failJob(job.result[1], job.result[2], job, runJob.getPilotServer(), runJob.getPilotPort(), pilotErrorDiag=job.pilotErrorDiag)
+            runJob.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 
         # wrap up ..........................................................................................
