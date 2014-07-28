@@ -1001,6 +1001,16 @@ class RunJobEvent(RunJob):
 #        else:
 #            tolog("Metadata was transferred to site work dir: %s/%s" % (pworkdir, _filename))
 
+    def convertToLFNs(self):
+        """ Convert the output file names to LFNs """
+        # Remove the file paths
+
+        lfns = []
+        for f in self.getOutputFiles():
+            lfns.append(os.path.basename(f))
+
+        return lfns
+
     def createFileMetadata(self, outsDict, dsname, datasetDict, sitename):
         """ create the metadata for the output + log files """
 
@@ -1016,13 +1026,13 @@ class RunJobEvent(RunJob):
             self.failJob(self.__job.result[1], ec, self.__job, pilotErrorDiag=pilotErrorDiag)
 
         # Get the correct log guid (a new one is generated for the Job() object, but we need to get it from the -i logguid parameter)
-        if logguid:
-            guid = logguid
+        if self.__logguid:
+            guid = self.__logguid
         else:
             guid = self.__job.tarFileGuid
 
         # Convert the output file list to LFNs
-        files = []
+        files = self.convertToLFNs()
 
         # Create preliminary metadata (no metadata yet about log file - added later in pilot.py)
         _fname = "%s/metadata-%d.xml" % (self.__job.workdir, self.__job.jobId)
