@@ -244,7 +244,7 @@ class Job:
             self.eventRanges = data.get('eventRanges', None)
         if data.has_key('jobsetID'):
             self.jobsetID = data.get('jobsetID', None)
-            tolog("jobsetID=%s" % (self.jobsetID))
+            pUtil.tolog("jobsetID=%s" % (self.jobsetID))
         if not self.eventService and self.processingType == "evtest":
             pUtil.tolog("Turning on Event Service for processing type = %s" % (self.processingType))
             self.eventService = True
