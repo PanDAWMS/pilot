@@ -1032,12 +1032,12 @@ class RunJobEvent(RunJob):
             guid = self.__job.tarFileGuid
 
         # Convert the output file list to LFNs
-        files = self.convertToLFNs()
+        lfns = self.convertToLFNs()
 
         # Create preliminary metadata (no metadata yet about log file - added later in pilot.py)
         _fname = "%s/metadata-%d.xml" % (self.__job.workdir, self.__job.jobId)
         try:
-            _status = pUtil.PFCxml(self.__experiment, _fname, files, fguids=self.__job.outFilesGuids, fntag="lfn", alog=self.__job.logFile, alogguid=guid,\
+            _status = pUtil.PFCxml(self.__experiment, _fname, lfns, fguids=self.__job.outFilesGuids, fntag="lfn", alog=self.__job.logFile, alogguid=guid,\
                                        fsize=fsize, checksum=checksum, analJob=self.__analysisJob)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
@@ -1552,15 +1552,24 @@ class RunJobEvent(RunJob):
         self.__message_server.send(message)
         tolog("Sent %s" % (message))
 
-    def getPoolFileCatalog(self, guid_list, dsname, lfn_list, tokens, workdir, dbh, DBReleaseIsAvailable,\
-                               scope_dict, filesizeIn, checksumIn, thisExperiment=None):
+    def getPoolFileCatalog(self, dsname, lfn_list, tokens, workdir, dbh, DBReleaseIsAvailable,\
+                               scope_dict, filesizeIn, checksumIn, thisExperiment=None, inFilesGuids=None):
         """ Wrapper function for the actual getPoolFileCatalog function in Mover """
 
         # This function is a wrapper to the actual getPoolFileCatalog() in Mover, but also contains SURL to TURL conversion
 
+        file_info_dictionary = {}
+
         from SiteMover import SiteMover
         sitemover = SiteMover()
-        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = mover.getPoolFileCatalog("", guid_list, lfn_list, self.__pilot_initdir,\
+
+        # Is the inFilesGuids list populated (ie the case of the initial PFC creation) or
+        # should the __guid_list be used (ie for files downloaded via server messages)?
+        if not inFilesGuids:
+            inFilesGuids = self.__guid_list
+
+        # Create the PFC
+        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = mover.getPoolFileCatalog("", inFilesGuids, lfn_list, self.__pilot_initdir,\
                                                                                                   self.__analysisJob, tokens, workdir, dbh,\
                                                                                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                                                                                   sitemover, thisExperiment=thisExperiment,\
@@ -1576,7 +1585,8 @@ class RunJobEvent(RunJob):
             fileList = xmldoc.getElementsByTagName("File")
             for thisfile in fileList: # note that there should only ever be one file
                 surl = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
-                guid = guid_list[file_nr]
+                guid = inFilesGuids[file_nr]
+#                guid = self.__guid_list[file_nr]
                 # Fill the file info dictionary (ignore the file size and checksum values since they are irrelevant for the TURL conversion - set to 0)
                 fileInfoDic[file_nr] = (guid, surl, 0, 0)
                 if not dsdict.has_key(dsname): dsdict[dsname] = []
@@ -1595,7 +1605,6 @@ class RunJobEvent(RunJob):
                 tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
             # Finally return the TURL based PFC
-            file_info_dictionary = {}
             if ec == 0:
                 file_info_dictionary = mover.getFileInfoDictionaryFromXML(self.getPoolFileCatalogPath())
 
@@ -1604,12 +1613,17 @@ class RunJobEvent(RunJob):
     def createPoolFileCatalog(self, inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment, workdir):
         """ Create the Pool File Catalog """
 
+        # Note: this method is only used for the initial PFC needed to start AthenaMP
+
         # Create the scope dictionary
         scope_dict = {}
         n = 0
         for lfn in inFiles:
             scope_dict[lfn] = scopeIn[n]
             n += 1
+
+        # set the guids for the input files
+#        self.
 
         tolog("Using scope dictionary for initial PFC: %s" % str(scope_dict))
 
@@ -1621,9 +1635,9 @@ class RunJobEvent(RunJob):
         tolog("Using PFC path: %s" % (self.getPoolFileCatalogPath()))
 
         # Get the TURL based PFC
-        ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(inFilesGuids, dsname, inFiles,\
+        ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, inFiles,\
                                                                                tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
-                                                                               filesizeIn, checksumIn, thisExperiment=thisExperiment)
+                                                                               filesizeIn, checksumIn, thisExperiment=thisExperiment, inFilesGuids=inFilesGuids)
         if ec != 0:
             tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
@@ -1631,9 +1645,6 @@ class RunJobEvent(RunJob):
 
     def createPoolFileCatalogFromMessage(self, message, thisExperiment):
         """ Prepare and create the PFC using file/guid info from the event range message """
-
-        # This function is using createPoolFileCatalog() to create the actual PFC using
-        # the info from the server message
 
         # Note: the PFC created by this function will only contain a single LFN
         # while the intial PFC can contain multiple LFNs
@@ -1661,10 +1672,10 @@ class RunJobEvent(RunJob):
                 tolog("!!WARNING!!3434!! %s" % (pilotErrorDiag))
             else:
                 # Has the file already been used? (If so, the PFC already exists)
-                if guid in guid_list:
+                if guid in self.__guid_list:
                     tolog("PFC for GUID in downloaded event range has already been created")
                 else:
-                    guid_list.append(guid)
+                    self.__guid_list.append(guid)
                     lfn_list.append(lfn)
 
                     tolog("Updating PFC for lfn=%s, guid=%s, scope=%s" % (lfn, guid, scope))
@@ -1679,9 +1690,9 @@ class RunJobEvent(RunJob):
                     dbh = None
                     DBReleaseIsAvailable = False
 
-                    ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(guid_list, dsname, lfn_list,\
-                                                                                           tokens, workdir, dbh, DBReleaseIsAvailable,\
-                                                                                           scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment)
+                    ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, lfn_list,\
+                                                                                 tokens, workdir, dbh, DBReleaseIsAvailable,\
+                                                                                 scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment)
                     if ec != 0:
                         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 

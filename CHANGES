@@ -276,12 +276,44 @@ Added jobsetID data member plus handling in Job class (Job)
 Added convertToLFNs() used by createFileMetadata() (RunJobEvent)
 
 Code contributions from Wen Guan, May 30, 2014:
+
 Added GFAL2SiteMover
 Updated SiteMoverFarm for GFAL2SiteMover
 Added new error code 1218, ERR_FILEEXISTS (PilotErrors)
-Added several new methods to SiteInformation as part of site mover refactoring: getCopySetup(), getCopyTool(), getCopyPrefix(), getCopyFileAccessInfo(),
-getDirectInAccessMode() [currently used by GFAL2SiteMover only]
+Added several new methods to SiteInformation as part of site mover refactoring: getCopySetup(), getCopyTool(), getCopyPrefix(), 
+getCopyFileAccessInfo(), getDirectInAccessMode() [currently used by GFAL2SiteMover only]
 objectstoreSiteMover
+
+Code contributions from Wen Guan, July 24, 2014
+
+update GFAL2SiteMover add getLocalEMISetup which uses ATLASSiteInformation to get setup command
+Add TimerCommand 
+update PilotErros add ERR_GETKEYPAIR
+update PilotErros add function getErrorName which get the error name from the error code
+add S3ObjectstoreSiteMover
+update ATLASSiteInformation add __securityKeys dict
+update ATLASSiteInformation add getSecurityKey function
+update ATLASSiteInformation update getLocalEMISetup to add --force in cvmfs
+update SiteInformation add getCopyPrefixList, getCopyPrefixPath, getSecurityKey, setSecurityKey
+rename ObjectstoreSiteMover to xrootdObjectstoreSiteMover
+refactor xrootdObjectstoreSiteMover, xrdcpSiteMover, FAXSiteMover
+add S3ObjectstoreSiteMover
+create new ObjectstoreSiteMover which will use implementation of xrootdObjectstoreSiteMover or S3ObjectstoreSiteMover
+refactor LocalSiteMover
+update SiteMover add useTracingService variable and update function sendTrace to add "if not self.useTracingService"
+update pUtil to fix extractFilePaths which can replace multiple environment variables in setup
+update xrdcpSiteMover add "thisExperiment.updateJobSetupScript" in stageInFiles
+fix bug in S3ObjectstoreSiteMover to add "create=True" when stageOutFile
+
+Code contribution from Vincenzo Lavorini, July 29, 2014
+
+Added the subprocess method Popen and Call, for managing CURL calls;
+Added filename and scope to the replica class
+In the __init__ phase of aria2cSiteMover class a rucio token is taken by a CURL call; the token is then saved to a file. N.B. The CURL call
+expect to have the $X509_USER_PROXY and the $RUCIO_ACCOUNT defined; the self.getSurl2httpsMap is deleted;
+In th surls2metalink method, the rucio token on the file i open, and the metalink is retrieved by a CURL call;
+get_data() now accepts a scope
+and last, in order to get the mover to work, I had to initialize the srmhost=None in surls2metalink method. But maybe this row must be deleted
 
 ------------------------------------------------------
 

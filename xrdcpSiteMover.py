@@ -41,6 +41,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path
         self._defaultSetup = None
+        self.__experiment = None
 
     def get_timeout(self):
         return self.timeout
@@ -149,6 +150,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
 
     def setup(self, experiment):
         """ setup env """
+        self.__experiment = experiment
         thisExperiment = getExperiment(experiment)
         self.useTracingService = thisExperiment.useTracingService()
         si = getSiteInformation(experiment)
@@ -259,6 +261,16 @@ class xrdcpSiteMover(SiteMover.SiteMover):
 
         self.log("StageIn files started.")
         _cmd_str = '%s xrdcp %s %s' % (self._setup, source, destination)
+
+        # update job setup script
+        thisExperiment = getExperiment(self.__experiment)
+        # add the full stage-out command to the job setup script
+        to_script = _cmd_str.replace(destination, "`pwd`/%s" % os.path.basename(destination))
+        to_script = to_script.lstrip(' ') # remove any initial spaces
+        if to_script.startswith('/'):
+            to_script = 'source ' + to_script
+        thisExperiment.updateJobSetupScript(os.path.dirname(destination), to_script=to_script)
+
         self.log('Executing command: %s' % (_cmd_str))
         s = -1
         o = '(not defined)'

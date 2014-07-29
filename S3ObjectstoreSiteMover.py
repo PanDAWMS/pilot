@@ -1,15 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright European Organization for Nuclear Research (CERN)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# You may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Authors:
-# - Wen Guan, <wguan@cern.ch>, 2014
-
 import os, re
 import commands
 from time import time
@@ -389,7 +377,7 @@ class S3ObjctStore:
         return 0
 
     def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
-        key = self.get_key(destination)
+        key = self.get_key(destination, create=True)
         size = key.set_contents_from_filename(source)
         return size
 
