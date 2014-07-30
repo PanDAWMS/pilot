@@ -1110,6 +1110,7 @@ class Monitor:
                 pUtil.tolog("About to launch child process: %s" % (subprocessName))
                 # Get the arguments needed to launch the subprocess (list)
                 jobargs = thisExperiment.getSubprocessArguments(self.__env, monthread.port, subprocessName=subprocessName)
+                pUtil.tolog("jobargs=%s" % (jobargs))
                 if not jobargs:
                     pUtil.tolog("!!WARNING!!1998!! Subprocess arguments are not known - cannot continue")
                 else:

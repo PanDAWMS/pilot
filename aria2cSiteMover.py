@@ -65,6 +65,8 @@ class aria2cSiteMover(SiteMover.SiteMover):
         self._setup = setup_path
         self.copyCommand = 'aria2c'
         self.commandInPATH()
+        self.getSurl2httpsMap()
+
         cmd="curl -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert $X509_USER_PROXY --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -X GET https://voatlasrucio-auth-prod.cern.ch/auth/x509_proxy| grep X-Rucio-Auth-Token"
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
         token_rucio_or, stderr= token_rucio_cmd.communicate()
@@ -73,7 +75,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         token_rucio=token_rucio_or[:token_lenght]
         tolog("Token I am using:",token_rucio)
         if os.path.exists('token_file'):
-                os.remove('token_file')
+            os.remove('token_file')
         token_file=open('token_file', 'w')
         token_file.write(token_rucio)
 
