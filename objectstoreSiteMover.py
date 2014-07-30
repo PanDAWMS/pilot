@@ -38,6 +38,7 @@ class objectstoreSiteMover(SiteMover.SiteMover):
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
         # Get input parameters from pdict
+        lfn = pdict.get('lfn', '')
         logPath = pdict.get('logPath', '')
         if logPath != "":
             surl = logPath
