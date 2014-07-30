@@ -75,13 +75,13 @@ class RunJobEvent(RunJob):
     __eventRangeID_dictionary = {}               # eventRangeID_dictionary[event_range_id] = True (corr. output file has been transferred)
     __stageout_queue = []                        # Queue for files to be staged-out; files are added as they arrive and removed after they have been staged-out
     __pfc_path = ""                              # The path to the pool file catalog
-    __message_server = None                        #
-    __message_thread = None                        #
+    __message_server = None                      #
+    __message_thread = None                      #
     __athenamp_is_ready = False                  # True when an AthenaMP worker is ready to process an event range
     __asyncOutputStager_thread = None            #
     __analysisJob = False                        # True for analysis job
-    __jobSite = None                             # Global site object
-    __job = None
+    __jobSite = None                             # Site object
+    __job = None                                 # Job object
     __cache = ""                                 # Cache URL, e.g. used by LSST
     __metadata_filename = ""                     # Full path to the metadata file
 
@@ -1552,8 +1552,8 @@ class RunJobEvent(RunJob):
         self.__message_server.send(message)
         tolog("Sent %s" % (message))
 
-    def getPoolFileCatalog(self, dsname, lfn_list, tokens, workdir, dbh, DBReleaseIsAvailable,\
-                               scope_dict, filesizeIn, checksumIn, thisExperiment=None, inFilesGuids=None):
+    def getPoolFileCatalog(self, dsname, tokens, workdir, dbh, DBReleaseIsAvailable,\
+                               scope_dict, filesizeIn, checksumIn, thisExperiment=None, inFilesGuids=None, lfnList=None):
         """ Wrapper function for the actual getPoolFileCatalog function in Mover """
 
         # This function is a wrapper to the actual getPoolFileCatalog() in Mover, but also contains SURL to TURL conversion
@@ -1565,11 +1565,14 @@ class RunJobEvent(RunJob):
 
         # Is the inFilesGuids list populated (ie the case of the initial PFC creation) or
         # should the __guid_list be used (ie for files downloaded via server messages)?
+        # (same logic for lfnList)
         if not inFilesGuids:
             inFilesGuids = self.__guid_list
+        if not lfnList:
+            lfnList = self.__lfn_list
 
         # Create the PFC
-        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = mover.getPoolFileCatalog("", inFilesGuids, lfn_list, self.__pilot_initdir,\
+        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = mover.getPoolFileCatalog("", inFilesGuids, lfnList, self.__pilot_initdir,\
                                                                                                   self.__analysisJob, tokens, workdir, dbh,\
                                                                                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                                                                                   sitemover, thisExperiment=thisExperiment,\
@@ -1635,9 +1638,8 @@ class RunJobEvent(RunJob):
         tolog("Using PFC path: %s" % (self.getPoolFileCatalogPath()))
 
         # Get the TURL based PFC
-        ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, inFiles,\
-                                                                               tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
-                                                                               filesizeIn, checksumIn, thisExperiment=thisExperiment, inFilesGuids=inFilesGuids)
+        ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
+                                                           filesizeIn, checksumIn, thisExperiment=thisExperiment, inFilesGuids=inFilesGuids, lfnList=inFiles)
         if ec != 0:
             tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
@@ -1656,13 +1658,17 @@ class RunJobEvent(RunJob):
         pilotErrorDiag = ""
         file_info_dictionary = {}
 
+        # Reset the guid and lfn lists
+#        self.__guid_list = []
+#        self.__lfn_list = []
+
         if not "No more events" in message:
             # Convert string to list
             msg = loads(message)
 
             # Get the LFN and GUID (there is only one LFN/GUID per event range)
             try:
-                # must convert unicode strings to normal strings or the catalog lookups will fail
+                # Must convert unicode strings to normal strings or the catalog lookups will fail
                 lfn = str(msg[0]['LFN'])
                 guid = str(msg[0]['GUID'])
                 scope = str(msg[0]['scope'])
@@ -1676,7 +1682,7 @@ class RunJobEvent(RunJob):
                     tolog("PFC for GUID in downloaded event range has already been created")
                 else:
                     self.__guid_list.append(guid)
-                    lfn_list.append(lfn)
+                    self.__lfn_list.append(lfn)
 
                     tolog("Updating PFC for lfn=%s, guid=%s, scope=%s" % (lfn, guid, scope))
 
@@ -1690,9 +1696,8 @@ class RunJobEvent(RunJob):
                     dbh = None
                     DBReleaseIsAvailable = False
 
-                    ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, lfn_list,\
-                                                                                 tokens, workdir, dbh, DBReleaseIsAvailable,\
-                                                                                 scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment)
+                    ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, tokens, workdir, dbh, DBReleaseIsAvailable,\
+                                                                              scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment)
                     if ec != 0:
                         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
@@ -2236,7 +2241,7 @@ if __name__ == "__main__":
 #            time.sleep(5)
 
         while not runJob.areAllOutputFilesTransferred():
-            if len(runJob.getStageOutQueue) == 0:
+            if len(runJob.getStageOutQueue()) == 0:
                 tolog("No files in stage-out queue, no point in waiting for transfers since AthenaMP has finished (job is failed)")
                 break
 

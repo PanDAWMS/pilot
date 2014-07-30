@@ -275,7 +275,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
           if fscope:
             rep.scope = fscope
           else:
-            scope = extractPattern(surl,r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
+            scope = extractPattern(gpfn,r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
             rep.scope = scope.replace("/",".")
           replicas = {guid:[rep]}
         
