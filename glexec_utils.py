@@ -492,6 +492,9 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'GFAL2SiteMover.py'),
                      os.path.join(self.sandbox_path, 'GFAL2SiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'GFAL2SiteMover.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'GSIftpSiteMover.py'),
+                     os.path.join(self.sandbox_path, 'GSIftpSiteMover.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'GSIftpSiteMover.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'objectstoreSiteMover.py'),
                      os.path.join(self.sandbox_path, 'objectstoreSiteMover.py'))
         os.chmod(os.path.join(self.sandbox_path, 'objectstoreSiteMover.py'), 0666)

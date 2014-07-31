@@ -22,6 +22,7 @@ from FAXSiteMover import FAXSiteMover                       # CVMFS sites
 from objectstoreSiteMover import objectstoreSiteMover       #
 from aria2cSiteMover import aria2cSiteMover                 #
 from GFAL2SiteMover import GFAL2SiteMover                   # GFAL2
+from GSIftpSiteMover import GSIftpSiteMover                 # HPC sites
 
 mover_selector = {
     SiteMover.copyCommand : SiteMover,
@@ -44,7 +45,8 @@ mover_selector = {
     FAXSiteMover.copyCommand : FAXSiteMover,
     aria2cSiteMover.copyCommand : aria2cSiteMover,
     objectstoreSiteMover.copyCommand : objectstoreSiteMover,
-    GFAL2SiteMover.copyCommand : GFAL2SiteMover
+    GFAL2SiteMover.copyCommand : GFAL2SiteMover,
+    GSIftpSiteMover.copyCommand : GSIftpSiteMover
     }
 
 def getSiteMover(sitemover, setup_file='', *args, **kwrds):

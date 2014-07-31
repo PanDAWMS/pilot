@@ -192,7 +192,6 @@ Removed UberftpSiteMover.py from distribution (and updated SiteMoverFarm.py, my_
 Removed atlasProdPilot.py from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Removed dq2SiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Removed SRMSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
-Removed GSIftpSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Removed COGSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
 Removed GOSiteMover from distribution (andupdated SiteMoverFarm.py and glexec_utils.py)
 Created __allowLoopingJobKiller(), used by __check_looping_jobs() (Monitor)

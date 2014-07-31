@@ -2509,7 +2509,6 @@ def mover_put_data(outputpoolfcstring,
         _token_file = getSpaceTokenForFile(filename, token_list, logFile, file_nr, nFiles)
 
         # get the file size and checksum if possible
-        tolog("outputFileInfo=%s"%str(outputFileInfo))
         fsize, checksum = getFileSizeAndChecksum(lfn, outputFileInfo)
 
         s = 1
