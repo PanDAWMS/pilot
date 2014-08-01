@@ -43,7 +43,7 @@ class objectstoreSiteMover(SiteMover.SiteMover):
         if logPath != "":
             surl = logPath
         else:
-            surl = os.path.join(destination, lfn)
+            surl = destination
 
         destination = surl
 

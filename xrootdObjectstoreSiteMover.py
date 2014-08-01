@@ -894,7 +894,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         if logPath != "":
             surl = logPath
         else:
-            surl = os.path.join(destination, lfn)
+            surl = destination
 
         # get the DQ2 site name from ToA
         try:
