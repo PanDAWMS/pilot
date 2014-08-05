@@ -2054,7 +2054,7 @@ def verifyJobState(state):
     allowed_values = ['running', 'failed', 'finished', 'holding', 'starting', 'transferring']
 
     if state in allowed_values:
-        tolog("Job state \'%s\' is an allowed job state value")
+        tolog("Job state \'%s\' is an allowed job state value" % (state))
     else:
         tolog("!!WARNING!!3333!! Job state \'%s\' is not an allowed job state value, job will fail")
         state = 'failed'
@@ -2109,6 +2109,9 @@ def toServer(baseURL, cmd, data, path):
 
             # create the parameter list from the dispatcher response
             data, response = parseDispatcherResponse(response)
+            tolog("sdsdsds data=%s"%str(data))
+            # update the dispatcher data for Event Service merge jobs
+            data = updateDispatcherData4ES(data)
 
             status = int(data['StatusCode'])
             if status != 0:
@@ -2175,6 +2178,85 @@ def removeSubFromResponse(response):
         tolog("Found no _subNNN string in the dispatcher response")
 
     return response
+
+def createEventRangeFileDictionary(writeToFile):
+    """ Create the event range file dictionary from the writeToFile info """
+
+    # writeToFile = 'fileNameForTrf_1:LFN_1,LFN_2^fileNameForTrf_2:LFN_3,LFN_4'
+    # -> eventRangeFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
+
+    # fileInfo = ['fileNameForTrf_1:LFN_1,LFN_2', 'fileNameForTrf_2:LFN_3,LFN_4']
+    fileInfo = writeToFile.split("^")
+    eventRangeFileDictionary = {}
+
+    for i in range(len(fileInfo)):
+        # Extract the file name
+        if ":" in fileInfo[i]:
+            finfo = fileInfo[i].split(":")
+            eventRangeFileDictionary[finfo[0]] = finfo[1]
+        else:
+            tolog("!!WARNING!!4444!! File info does not have the correct format, expected a separator \':\': %s" % (fileInfo[i]))
+            eventRangeFileDictionary = {}
+            break
+
+    return eventRangeFileDictionary
+
+def writeToInputFile(eventRangeFileDictionary):
+    """ Write the input file lists to the proper input file """
+    # To be used by the TRF instead of a potentially very long LFN list
+    # eventRangeFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
+    # 'LFN_1,LFN_2' will be written to file 'fileNameForTrf_1', etc
+
+    ec = 0
+
+    for fname in eventRangeFileDictionary.keys():
+        try:
+            f = open(fname, "w")
+        except IOError, e:
+            tolog("!!WARNING!!4445!! Failed to open file %s: %s" % (fname, e))
+            ec = -1
+        else:
+            f.write(eventRangeFileDictionary[fname])
+            f.close()
+
+    return ec
+
+def getEventRangeInputFiles(eventRangeFileDictionary):
+    """ Get all the input files from all the keys in the event range file dictionary """
+    # Concaternated into one file list, e.g.
+    # eventRangeFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
+    # -> 'LFN_1,LFN_2','LFN_3,LFN_4'
+
+    files = ""
+    for fname in eventRangeFileDictionary.keys():
+        if files != "":
+            files += ","
+        files += eventRangeFileDictionary[fname]
+
+    return files
+
+def updateDispatcherData4ES(data):
+    """ Update the input file list for Event Service merge jobs """
+
+    # For Event Service merge jobs, the input file list will not arrive in the inFiles
+    # list as usual, but in the writeToFile field, so inFiles need to be corrected
+
+#writeToFile = ['fileNameForTrf_1:LFN_1,LFN_2,LFN_3'][0]
+
+#eventRangeFileDictionary = createEventRangeFileDictionary(writeToFile)
+#tolog("eventRangeFileDictionary=%s" % (eventRangeFileDictionary))
+
+#if eventRangeFileDictionary != {}:
+#    # Write event service file lists to the proper input file
+#    ec = writeToInputFile(eventRangeFileDictionary)
+#
+#    inputFiles = getEventRangeInputFiles(eventRangeFileDictionary)
+#    tolog("inputFiles=%s" % (inputFiles))
+
+
+
+
+    return data
 
 def parseDispatcherResponse(response):
     """ Create the parameter list from the dispatcher response """

@@ -540,6 +540,11 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         else:
             tolog("Cannot find -adler nor --cksum. will not use checksum")
 
+        cmd = "ls -lF %s" % (source)
+        tolog("zxzxzx Executing command: %s" % (cmd))
+        out = commands.getoutput(cmd)
+        tolog("\n%s" % (out))
+
         # surl is the same as putfile
         _cmd_str = '%s xrdcp %s %s %s' % (self._setup, checksum_option, source, destination)
 
@@ -894,7 +899,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         if logPath != "":
             surl = logPath
         else:
-            surl = destination
+            surl = os.path.join(destination, lfn)
 
         # get the DQ2 site name from ToA
         try:

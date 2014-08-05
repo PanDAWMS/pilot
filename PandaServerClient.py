@@ -643,7 +643,8 @@ class PandaServerClient:
 
         # make the PandaLogger update at the final job update
         if final:
-            if job.filesWithFAX > 0:
+            # do not send FAX info for overflow jobs (transferType=fax), only for failover jobs
+            if job.filesWithFAX > 0 and job.transferType.lower() != "fax":
                 tolog("Sending PandaLogger update")
                 params = {}
                 params['pid'] = job.jobId

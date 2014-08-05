@@ -1911,7 +1911,7 @@ def getDispatcherDictionary(_diskSpace, tofile):
              'getProxyKey':      _getProxyKey,
              'workingGroup':     env['workingGroup']}
 
-    pUtil.tolog("env[\'workerNode\'].mem=%s" % (env['workerNode'].mem))
+    pUtil.tolog("3 env[\'workerNode\'].mem=%s" % (env['workerNode'].mem))
 
     if env['countryGroup'] == "":
         pUtil.tolog("No country group selected")
@@ -2304,6 +2304,61 @@ def checkLocalDiskSpace(error):
 
     return ec
 
+# warning!!! duplicate with similar method in Monitor.py
+def getsetWNMem(memory):
+    """ Get the memory limit from queuedata or from the -k pilot option and set it """
+
+    wn_mem = 0
+
+    # Get the memory limit primarily from queuedata
+    # Note: memory will soon be changed to maxmemory
+    _maxmemory = pUtil.readpar('maxmemory')
+    if _maxmemory == "":
+        _maxmemory = pUtil.readpar('memory')
+
+    if _maxmemory != "":
+        try:
+            maxmemory = int(_maxmemory) # Should already be an int
+        except Exception, e:
+            pUtil.tolog("Could not convert maxmemory to an int: %s" % (e))
+            maxmemory = -1
+        else:
+            pUtil.tolog("Got max memory limit: %d MB (from queuedata)" % (maxmemory))
+    else:
+        maxmemory = -1
+
+    # Get the max memory limit from the -k pilot option if specified
+    if maxmemory == -1 and memory:
+        try:
+            maxmemory = int(memory)
+        except Exception, e:
+            pUtil.tolog("Could not convert memory to an int: %s" % (e))
+            maxmemory = -1
+        else:
+            pUtil.tolog("Got max memory limit: %d MB (from pilot option -k)" % (maxmemory))
+
+    # Set the memory limit
+    if maxmemory > 0:
+    
+        # Convert MB to Bytes for the setrlimit function
+        _maxmemory = maxmemory*1024**2
+        try:
+            import resource
+            resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
+        except Exception, e:
+            pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
+        else:
+            pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
+
+        cmd = "ulimit -a"
+        pUtil.tolog("Executing command: %s" % (cmd))
+        out = commands.getoutput(cmd)
+        pUtil.tolog("\n%s" % (out))
+    else:
+        pUtil.tolog("Max memory will not be set")
+
+    return maxmemory
+
 # main process starts here
 def runMain(runpars):
 
@@ -2468,6 +2523,7 @@ def runMain(runpars):
 
             pUtil.tolog("Collecting WN info from: %s" % (os.path.dirname(env['thisSite'].workdir)))
             env['workerNode'].collectWNInfo(os.path.dirname(env['thisSite'].workdir))
+            env['workerNode'].mem = getsetWNMem(env['memory'])
 
             # do we have enough local disk space to run the job?
             ec = checkLocalDiskSpace(error)

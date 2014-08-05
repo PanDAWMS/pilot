@@ -3081,6 +3081,17 @@ def foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
 
     return found_match
 
+def getPrimaryRucioReplica(matched_replicas):
+    """ Return a replica with a proper rucio path """
+
+    sfn = ""
+    for replica in matched_replicas:
+        if "/rucio/" in replica:
+            sfn = replica
+            break
+
+    return sfn
+
 def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, workdir, lfn_dict=None, fax_mode=False, scope_dict=None, replicas_dict=None):
     """ Build the file list using either Rucio or lfc_getreplicas """
 
@@ -3259,14 +3270,23 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                     if (readpar('copytool').lower() == "fax" and readpar('copytoolin') == "") or readpar('copytoolin').lower() == "fax" or readpar('copytoolin').lower()=='aria2c':
                         # special use case for FAX; the file might not be available locally, so do not fail here because no local copy can be found
                         # use a 'fake' replica for now, ie use the last known SURL, irrelevant anyway since the SURL will eventually come from FAX
-                        file_dict[guid] = sfn
-                        tolog("Will use SURL=%s for the replica dictionary (will be overwritten later by FAX once it is known)" % (sfn))
-                        matched_replicas.append(sfn)
-                        matched_replicas = removeDuplicates(matched_replicas)
-                        storeMatchedReplicas(guid, matched_replicas, workdir)
-                        pilotErrorDiag = "SURL not final, will be overwritten by FAX info later"
-                        ec = 0
-                        usedFAX = True
+                        # note: cannot use replica with non-rucio path (fax will fail)
+                        if "rucio" in sfn:
+                            _sfn = sfn
+                        else:
+                            _sfn = getPrimaryRucioReplica(matched_replicas)
+                            if _sfn == "":
+                                pilotErrorDiag = "Could not find a primary rucio replica, FAX will fail so useless to continue"
+                                ec = error.ERR_REPNOTFOUND
+                        if _sfn != "":
+                            file_dict[guid] = _sfn
+                            tolog("Will use SURL=%s for the replica dictionary (will be overwritten later by FAX once it is known)" % (sfn))
+                            matched_replicas.append(sfn)
+                            matched_replicas = removeDuplicates(matched_replicas)
+                            storeMatchedReplicas(guid, matched_replicas, workdir)
+                            pilotErrorDiag = "SURL not final, will be overwritten by FAX info later"
+                            ec = 0
+                            usedFAX = True
                     else:
                         pilotErrorDiag = "(1) Replica with guid %s not found at %s (or in the se list: %s)" % (guid, copyprefix, str(_listSEs))
                         ec = error.ERR_REPNOTFOUND

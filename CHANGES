@@ -50,6 +50,7 @@ Subprocess selection       : (is runEvent selected properly after last merge?), 
 No TCP connection          : If a TCP server cannot be setup in Monitor, make sure the job is failed correctly (it isn't)
 lineno()                   : Usage of function lineno() is not correct; line number is not the same as process id..
 Are kill signals forwarded : ? Verify new signal handlers in RunJob and RunJobEvent
+maxmemory                  : Fixed
 
 Additional test of recently added features
 
@@ -273,6 +274,13 @@ Corrected a missing argument (experiment) in call to pUtil.postJobTask() in runM
 Created verifyJobState() used by toServer() (pUtil)
 Added jobsetID data member plus handling in Job class (Job)
 Added convertToLFNs() used by createFileMetadata() (RunJobEvent)
+Took back missing getsetWNMem(), duplicate from Monitor for now (pilot)
+Created updateDispatcherData4ES() and added a call to it from toServer() (pUtil)
+Created createEventRangeFileDictionary(), writeToInputFile(), getEventRangeInputFiles() used by updateDispatcherData4ES() (pUtil)
+Added exception for FAX failover jobs when sending info to PandaLogger from updatePandaServer(). Requested by
+Ilija Vukotic (PandaServerClient)
+Created getPrimaryRucioReplica() used by getCatalogFileList() to only select replicas with rucio paths in FAX mode. Requested
+by Ilija Vukotic (Mover)
 
 Code contributions from Wen Guan, May 30, 2014:
 

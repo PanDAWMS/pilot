@@ -43,16 +43,14 @@ class objectstoreSiteMover(SiteMover.SiteMover):
         if logPath != "":
             surl = logPath
         else:
-            surl = destination
+            surl = os.path.join(destination, lfn)
 
-        destination = surl
-
-        if destination.startswith("root:"):
+        if surl.startswith("root:"):
             sitemover = xrootdObjectstoreSiteMover(self.getSetup())
             return sitemover. put_data(source, destination, fsize, fchecksum, **pdict)
-        if destination.startswith("s3:"):
+        if surl.startswith("s3:"):
             sitemover = S3ObjectstoreSiteMover(self.getSetup())
-            return sitemover. put_data(source, destination, fsize, fchecksum, **pdict)
+            return sitemover. put_data(source, surl, fsize, fchecksum, **pdict)
         return -1, "No objectstore sitemover found for this scheme(%s)" % destination, destination, fsize, fchecksum, config_sm.ARCH_DEFAULT
 
 

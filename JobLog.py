@@ -1210,7 +1210,8 @@ class JobLog:
             # path = self.constructPathFromJobid(jobId)
 
             # Put it all together
-            logPath = os.path.join(_logPath, os.path.join(jobId, logFile))
+            logPath = os.path.join(_logPath, logFile)
+#            logPath = os.path.join(_logPath, os.path.join(jobId, logFile))
         else:
             logPath = ""
 

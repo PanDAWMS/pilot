@@ -933,7 +933,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         if logPath != "":
             surl = logPath
         else:
-            surl = destination
+            surl = os.path.join(destination, lfn)
 
         # get the DQ2 site name from ToA
         try:
