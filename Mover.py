@@ -522,6 +522,8 @@ def getRucioPath(file_nr, tokens, scope_dict, lfn, path, analysisJob):
         tolog("Defaulting to old path style (based on dsname)")
         se_path = os.path.join(path, lfn)
     else:
+        from SiteMover import SiteMover
+        sitemover = SiteMover()
         se_path = sitemover.getFullPath(scope, spacetoken, lfn, analysisJob, "")
 
     return se_path
@@ -1826,7 +1828,7 @@ def mover_get_data(lfns,
             return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 
         # Do we have enough local space to stage in all data and run the job?
-        ec, pilotErrorDiag = verifyAvailableSpace(totalFileSize, path, error)
+        ec, pilotErrorDiag = verifyAvailableSpace(sitemover, totalFileSize, path, error)
         if ec != 0:
             return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 
@@ -3952,7 +3954,7 @@ def verifyInputFileSize(totalFileSize, _maxinputsize, error):
             tolog("Total input file size %d B within allowed limit (not set)" % (totalFileSize))
     return ec, pilotErrorDiag
 
-def verifyAvailableSpace(totalFileSize, path, error):
+def verifyAvailableSpace(sitemover, totalFileSize, path, error):
     """ Verify that enough local space is available to stage in and run the job """
 
     ec = 0
@@ -3964,8 +3966,12 @@ def verifyAvailableSpace(totalFileSize, path, error):
     # get the locally available space
     _availableSpace = getLocalSpace(path)
     tolog("Locally available space: %d B" % (_availableSpace))
+
+    # should the file size verification be done? (not if "mv" is used)
+    doVerification = sitemover.doFileVerifications()
+    
     # are we wihin the limit?
-    if _neededSpace > _availableSpace:
+    if (_neededSpace > _availableSpace) and doVerification:
         pilotErrorDiag = "Not enough local space for staging input files and run the job (need %d B, but only have %d B)" %\
                          (_neededSpace, _availableSpace)
         tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))

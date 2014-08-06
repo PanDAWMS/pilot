@@ -2241,20 +2241,37 @@ def updateDispatcherData4ES(data):
     # For Event Service merge jobs, the input file list will not arrive in the inFiles
     # list as usual, but in the writeToFile field, so inFiles need to be corrected
 
-#writeToFile = ['fileNameForTrf_1:LFN_1,LFN_2,LFN_3'][0]
+    # data = data={'jobsetID': '2235472772', .. }
 
-#eventRangeFileDictionary = createEventRangeFileDictionary(writeToFile)
-#tolog("eventRangeFileDictionary=%s" % (eventRangeFileDictionary))
+    # Is this an event service merge job? If so, the input file list should be updated
+    if data.has_key('eventServiceMerge'):
+        if data['eventServiceMerge'].lower() == "true":
+            if data.has_key('writeToFile'):
+                writeToFile = data['writeToFile']
+                eventRangeFileDictionary = createEventRangeFileDictionary(writeToFile)
+                tolog("eventRangeFileDictionary=%s" % (eventRangeFileDictionary))
+                if eventRangeFileDictionary != {}:
+                    # Write event service file lists to the proper input file
+                    ec = writeToInputFile(eventRangeFileDictionary)
+                    if ec == 0:
+                        inputFiles = getEventRangeInputFiles(eventRangeFileDictionary)
+                        tolog("inputFiles=%s" % (inputFiles))
 
-#if eventRangeFileDictionary != {}:
-#    # Write event service file lists to the proper input file
-#    ec = writeToInputFile(eventRangeFileDictionary)
-#
-#    inputFiles = getEventRangeInputFiles(eventRangeFileDictionary)
-#    tolog("inputFiles=%s" % (inputFiles))
+                        # Finally update the inFiles list
+                        data['inFiles'] = inputFiles
+                        # Correct the dsname
+                        # filesize and checksum??
 
-
-
+                    else:
+                        tolog("Cannot continue with event service merge job")
+                else:
+                    tolog("Empty event range dictionary")
+            else:
+                tolog("writeToFile not present in job def")
+        else:
+            tolog("eventServiceMerge = %s" % (data['eventServiceMerge']))
+    else:
+        tolog("Not an event service merge job")
 
     return data
 

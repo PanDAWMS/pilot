@@ -281,6 +281,8 @@ Added exception for FAX failover jobs when sending info to PandaLogger from upda
 Ilija Vukotic (PandaServerClient)
 Created getPrimaryRucioReplica() used by getCatalogFileList() to only select replicas with rucio paths in FAX mode. Requested
 by Ilija Vukotic (Mover)
+Updated doFileVerifications() for mv, used by Mover::verifyAvailableSpace() (SiteMover)
+Skipping input file size verification for mv site mover in verifyAvailableSpace(). Requested by Andrej Filipcic (Mover)
 
 Code contributions from Wen Guan, May 30, 2014:
 

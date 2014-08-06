@@ -1351,10 +1351,11 @@ class SiteMover(object):
     def doFileVerifications():
         """ Should the get operation perform any file size/checksum verifications? """
         # not for storm sites
+        # also used to skip input file size checks when mv site mover is used (from Mover)
 
         _copytool = readpar('copytool')
         _copytoolin = readpar('copytoolin')
-        if _copytoolin == "storm" or (_copytoolin == "" and _copytool == "storm"):
+        if _copytoolin == "storm" or _copytoolin == "mv" or (_copytoolin == "" and (_copytool == "storm" or _copytool == "mv")):
             doVerification = False
         else:
             doVerification = True
