@@ -31,7 +31,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     def log(self, errorLog):
         tolog(errorLog)
 
-    def setup(self, experiment=None):
+    def setup(self, experiment=None, surl=None):
         """ setup env """
         if not os.environ.get("PYTHONPATH"):
             os.environ["PYTHONPATH"] = "/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/"
@@ -43,12 +43,16 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
-        keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
-        if keyPair["publicKey"] == None or keyPair["privateKey"] == None:
-            tolog("Failed to get the keyPair for S3 objectstore")
+        keyPair = None
+        if surl.startswith("s3://ceph003.usatlas.bnl.gov:8443"):
+            keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
+        if surl.startswith("s3://s3.amazonaws.com:80"):
+            keyPair = si.getSecurityKey('Amazon_ObjectStoreKey', 'Amazon_ObjectStoreKey.pub')
+        if keyPair == None or keyPair["publicKey"] == None or keyPair["privateKey"] == None:
+            tolog("Failed to get the keyPair for S3 objectstore %s " % (surl))
             return ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
 
-        self.s3Objectstore = S3ObjctStore()
+        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"])
         return 0, ""
 
     def fixStageInPath(self, path):
@@ -172,7 +176,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         """Stage in the source file"""
         self.log("Starting to stagein file %s(size:%s, chksum:%s) to %s" % (source, sourceSize, sourceChecksum, destination))
 
-        status, output = self.setup(experiment)
+        status, output = self.setup(experiment, source)
         if status:
             return status, output
 
@@ -201,7 +205,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         """Stage in the source file"""
         self.log("Starting to stageout file %s to %s with token: %s" % (source, destination, token))
 
-        status, output = self.setup(experiment)
+        status, output = self.setup(experiment, destination)
         if status:
             return status, output
 
@@ -322,16 +326,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             self.sendTrace(report)
 
 class S3ObjctStore:
-    def __init__(self):
-        self.access_key = None
-        self.secret_key = None
+    def __init__(self, privateKey, publicKey):
+        self.access_key = publicKey
+        self.secret_key = privateKey
         self.hostname = None
         self.port = None
-        self.setup()
-
-    def setup(self):
-        self.access_key = '9EH9WN0NF37BLQKDJVLB'
-        self.secret_key = 'lMeE69l55XTuWVEV8dWOcrTFkkb6CH1v3rUrIDlK'
 
     def get_key(self, url, create=False):
         import boto
@@ -353,15 +352,13 @@ class S3ObjctStore:
             calling_format = boto.s3.connection.OrdinaryCallingFormat(),
             )
 
+        pos = path.index("/")
+        bucket_name = path[:pos]
+        key_name = path[pos+1:]
         if create:
-            dir_name = os.path.dirname(path)
-            key_name = os.path.basename(path)
-            bucket = self.__conn.create_bucket(dir_name)
+            bucket = self.__conn.create_bucket(bucket_name)
             key = Key(bucket, key_name)
         else:
-            pos = path.index("/")
-            bucket_name = path[:pos]
-            key_name = path[pos+1:]
             bucket = self.__conn.get_bucket(bucket_name)
             key = bucket.get_key(key_name)
 
