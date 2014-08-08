@@ -14,6 +14,9 @@ import os, re
 import commands
 from time import time
 
+from config import config_sm
+CMD_CHECKSUM = config_sm.COMMAND_MD5
+
 from TimerCommand import TimerCommand
 
 import SiteMover
@@ -305,7 +308,8 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         outputRet["report"]['validateStart'] = time()
 
         self.log("Verify file Staging: source: %s, sourceSize: %s, sourceChecksum: %s, destFile: %s" % (sourceFile, sourceSize, sourceChecksum, destFile))
-        if sourceChecksum == 0 and sourceSize ==0:
+        if sourceChecksum == 0 and sourceSize == 0 or sourceChecksum == "NULL":
+            self.log("Skipping checksum test")
             return statusRet, outputRet
 
         # get the checksum type (md5sum or adler32)

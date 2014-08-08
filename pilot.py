@@ -2101,7 +2101,7 @@ def getNewJob(tofile=True):
 
         # make http connection to jobdispatcher
         # format: status, parsed response (data), response
-        ret = pUtil.httpConnect(jNode, url, mode = "GETJOB", path = env['pilot_initdir']) # connection mode is GETJOB
+        ret = pUtil.httpConnect(jNode, url, mode = "GETJOB", path = env['pilot_initdir'], experiment = env['experiment']) # connection mode is GETJOB
 
         # get and write the dispatcher status code to file
         StatusCode = str(ret[0])

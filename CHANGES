@@ -283,6 +283,11 @@ Created getPrimaryRucioReplica() used by getCatalogFileList() to only select rep
 by Ilija Vukotic (Mover)
 Updated doFileVerifications() for mv, used by Mover::verifyAvailableSpace() (SiteMover)
 Skipping input file size verification for mv site mover in verifyAvailableSpace(). Requested by Andrej Filipcic (Mover)
+Now sending env['experiment'] to httpConnect from getNewJob(), needed for updating copytoolin for merge jobs (pilot)
+Added experiment argument to httpConnect() and using it in toServer() call (pUtil)
+Added experiment argument to toServer() and sending it to updateDispatcherData4ES() (pUtil)
+Added missing signal.SIGUSR1 to __init__() (Monitor)
+Added missing signal.SIGUSR1 to __main__() (RunJob, RunJobEvent)
 
 Code contributions from Wen Guan, May 30, 2014:
 

@@ -168,7 +168,7 @@ def makeHTTPUpdate(state, node, port, url='pandaserver.cern.ch', path=None):
             break
     return ret
 
-def httpConnect(data, url, mode="UPDATE", sendproxy=False, path=None): # default mode allows exceptions to occur w/o interrupting the program
+def httpConnect(data, url, mode="UPDATE", sendproxy=False, path=None, experiment=""):
     """ function to handle the http connection """
 
     # check if a job should be downloaded or if it's a server update
@@ -199,7 +199,7 @@ def httpConnect(data, url, mode="UPDATE", sendproxy=False, path=None): # default
 
     # send the data dictionary to the dispatcher using command cmd
     # return format: status, parsed data, response
-    return toServer(url, cmd, data, path)
+    return toServer(url, cmd, data, path, experiment)
 
 def returnLogMsg(logf=None, linenum=20):
     ''' return the last N lines of log files into a string'''
@@ -2062,7 +2062,7 @@ def verifyJobState(state):
     return state
 
 # send message to dispatcher
-def toServer(baseURL, cmd, data, path):
+def toServer(baseURL, cmd, data, path, experiment):
     """ sends 'data' using command 'cmd' to the dispatcher """
 
     try:
@@ -2111,7 +2111,8 @@ def toServer(baseURL, cmd, data, path):
             data, response = parseDispatcherResponse(response)
             tolog("sdsdsds data=%s"%str(data))
             # update the dispatcher data for Event Service merge jobs
-            data = updateDispatcherData4ES(data)
+            if experiment != "": # experiment is only set for GETJOB, skip this otherwise
+                data = updateDispatcherData4ES(data, experiment, path)
 
             status = int(data['StatusCode'])
             if status != 0:
@@ -2184,42 +2185,76 @@ def createEventRangeFileDictionary(writeToFile):
 
     # writeToFile = 'fileNameForTrf_1:LFN_1,LFN_2^fileNameForTrf_2:LFN_3,LFN_4'
     # -> eventRangeFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
-
+    # Also, keep track of the dictionary keys (e.g. 'fileNameForTrf_1') ordered since we have to use them to update the jobParameters
+    # once we know the full path to them (i.e. '@fileNameForTrf_1:..' will be replaced by '@/path/filename:..')
+    # (the dictionary is otherwise not ordered so we cannot simply use the dictionary keys later)
     # fileInfo = ['fileNameForTrf_1:LFN_1,LFN_2', 'fileNameForTrf_2:LFN_3,LFN_4']
+
     fileInfo = writeToFile.split("^")
     eventRangeFileDictionary = {}
-
+    orderedFnameList = []
     for i in range(len(fileInfo)):
         # Extract the file name
         if ":" in fileInfo[i]:
             finfo = fileInfo[i].split(":")
             eventRangeFileDictionary[finfo[0]] = finfo[1]
+            orderedFnameList.append(finfo[0])
         else:
             tolog("!!WARNING!!4444!! File info does not have the correct format, expected a separator \':\': %s" % (fileInfo[i]))
             eventRangeFileDictionary = {}
             break
 
-    return eventRangeFileDictionary
+    return eventRangeFileDictionary, orderedFnameList
 
-def writeToInputFile(eventRangeFileDictionary):
+def writeToInputFile(path, eventRangeFileDictionary, orderedFnameList):
     """ Write the input file lists to the proper input file """
+    # And populate the fname file dictionary
+    # fnames = { 'identifier': '/path/filename', .. }
+    # where 'identifier' will be present in the jobParameters, like @identifier. This will later be replaced by the proper file path
+
     # To be used by the TRF instead of a potentially very long LFN list
     # eventRangeFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
     # 'LFN_1,LFN_2' will be written to file 'fileNameForTrf_1', etc
 
     ec = 0
-
+    fnames = {}
+    i = 0
     for fname in eventRangeFileDictionary.keys():
+        _path = os.path.join(path, fname)
         try:
-            f = open(fname, "w")
+            f = open(_path, "w")
         except IOError, e:
-            tolog("!!WARNING!!4445!! Failed to open file %s: %s" % (fname, e))
+            tolog("!!WARNING!!4445!! Failed to open file %s: %s" % (_path, e))
             ec = -1
         else:
             f.write(eventRangeFileDictionary[fname])
             f.close()
+            tolog("Wrote input file list to file %s" % (_path))
+            fnames[orderedFnameList[i]] = _path
+        i += 1
 
-    return ec
+    return ec, fnames
+
+def updateESGUIDs(guids):
+    """ Update the NULL valued ES guids """
+    # necessary since guids are used as dictionary keys in some places
+
+    # replace the NULL values with different values
+    # guids = ['NULL','NULL','NULL','sasdasdasdasdd']
+    # -> ['DUMMYGUID0', 'DUMMYGUID1', 'DUMMYGUID2', 'sasdasdasdasdd']
+
+    guids = guids.split(",")
+    i = 0
+    _guids = []
+    for guid in guids:
+        if guid == "NULL":
+            guid = "DUMMYGUID%d" % (i)
+            i += 1
+        _guids.append(guid)
+
+    _guids = "%s" % str(_guids)
+    tolog("Updated guids list: %s" % (_guids))
+    return _guids
 
 def getEventRangeInputFiles(eventRangeFileDictionary):
     """ Get all the input files from all the keys in the event range file dictionary """
@@ -2235,12 +2270,20 @@ def getEventRangeInputFiles(eventRangeFileDictionary):
 
     return files
 
-def updateDispatcherData4ES(data):
+def updateJobPars(jobPars, fnames):
+    """ Replace the @identifiers with the full paths """
+
+    for identifier in fnames.keys():
+        jobPars.replace("@%s" % (identifier), "@%s" % (fnames[identifier]))
+
+    return jobPars
+
+def updateDispatcherData4ES(data, experiment, path):
     """ Update the input file list for Event Service merge jobs """
 
     # For Event Service merge jobs, the input file list will not arrive in the inFiles
     # list as usual, but in the writeToFile field, so inFiles need to be corrected
-
+    # path = pilot_init dir, so we know where the file list files are written
     # data = data={'jobsetID': '2235472772', .. }
 
     # Is this an event service merge job? If so, the input file list should be updated
@@ -2248,19 +2291,33 @@ def updateDispatcherData4ES(data):
         if data['eventServiceMerge'].lower() == "true":
             if data.has_key('writeToFile'):
                 writeToFile = data['writeToFile']
-                eventRangeFileDictionary = createEventRangeFileDictionary(writeToFile)
+                eventRangeFileDictionary, orderedFnameList = createEventRangeFileDictionary(writeToFile)
                 tolog("eventRangeFileDictionary=%s" % (eventRangeFileDictionary))
+                tolog("orderedFnameList=%s" % (orderedFnameList))
                 if eventRangeFileDictionary != {}:
                     # Write event service file lists to the proper input file
-                    ec = writeToInputFile(eventRangeFileDictionary)
+                    ec, fnames = writeToInputFile(path, eventRangeFileDictionary, orderedFnameList)
                     if ec == 0:
                         inputFiles = getEventRangeInputFiles(eventRangeFileDictionary)
                         tolog("inputFiles=%s" % (inputFiles))
 
-                        # Finally update the inFiles list
+                        tolog("old inFiles=%s" % (data['inFiles']))
+                        # Update the inFiles list (not necessary??)
                         data['inFiles'] = inputFiles
-                        # Correct the dsname
-                        # filesize and checksum??
+                        tolog("new inFiles=%s" % (data['inFiles']))
+                        # Correct the dsname?
+                        # filesize and checksum? not known (no file catalog)
+
+                        # Replace the NULL valued guids for the ES files
+                        data['GUID'] = updateESGUIDs(data['GUID'])
+
+                        # Replace the @identifiers in the jobParameters
+                        data['jobPars'] = updateJobPars(data['jobPars'], fnames)
+                        tolog("Updated jobPars=%s" % (data['jobPars']))
+
+                        # Update the copytoolin (should use the proper objectstore site mover)
+                        si = getSiteInformation(experiment)
+                        ec = si.replaceQueuedataField("copytoolin", "objectstore")
 
                     else:
                         tolog("Cannot continue with event service merge job")

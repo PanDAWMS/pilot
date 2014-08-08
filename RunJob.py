@@ -1057,6 +1057,7 @@ if __name__ == "__main__":
         signal.signal(signal.SIGQUIT, sig2exc)
         signal.signal(signal.SIGSEGV, sig2exc)
         signal.signal(signal.SIGXCPU, sig2exc)
+        signal.signal(signal.SIGUSR1, sig2exc)
         signal.signal(signal.SIGBUS, sig2exc)
 
         # see if it's an analysis job or not

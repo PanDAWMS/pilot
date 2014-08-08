@@ -447,6 +447,7 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("seprodpath", "/xrd/atlasproddisk/rucio")
             ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
             #ec = self.replaceQueuedataField("lfcregister", "")
+            ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")

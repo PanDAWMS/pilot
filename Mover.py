@@ -568,11 +568,47 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
     fileInfoDic = {}
     replicas_dic = {}
     totalFileSize = 0L    
+    ec = 0
+    pilotErrorDiag = ""
 
     tolog("Preparing to build paths for input files")
 
     # get the site information object
     si = getSiteInformation(thisExperiment.getExperiment())
+
+    # in case we are staging in files from an object store, we can do a short cut and skip the catalog lookups below
+    if "objectstore" in readpar('copytoolin'):
+        tolog("Objectstore stage-in: cutting a few corners")
+
+        # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum)
+        #         replicas_dic[guid1] = [replica1, ..]
+
+        tolog("lfns=%s" % str(lfns))
+        tolog("guids=%s" % str(guids))
+        tolog("filesizeIn=%s" % str(filesizeIn))
+        tolog("checksumIn=%s" % str(checksumIn))
+
+        espath = getFilePathForObjectStore(filetype="eventservice")
+        logpath = getFilePathForObjectStore(filetype="logs")
+        tolog("espath=%s" % (espath))
+        tolog("logpath=%s" % (logpath))
+
+        i = 0
+        try:
+            for lfn in lfns:
+                if ".log." in lfn:
+                    fullpath = os.path.join(logpath, lfns[i])
+                else:
+                    fullpath = os.path.join(espath, lfns[i])
+                fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i])
+                replicas_dic[guids[i]] = [fullpath]
+                i += 1
+        except Exception, e:
+            tolog("!!WARNING!!2233!! Failed to create replica and file dictionaries: %s" % (e))
+            ec = -1
+        tolog("fileInfoDic=%s" % str(fileInfoDic))
+        tolog("replicas_dic=%s" % str(replicas_dic))
+        return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
     # if the pilot is running on a Tier 3 site, then neither LFC nor PFC should be used
     if si.isTier3():
@@ -1799,6 +1835,7 @@ def mover_get_data(lfns,
 
     # Build the file info dictionary (use the filesize and checksum from the dispatcher if possible) and create the PFC
     # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum)
+    #         replicas_dic[guid1] = [replica1, ..]
     ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic = \
         getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
                     scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment)
@@ -2859,7 +2896,7 @@ def verifySpaceToken(spacetoken, setokens):
 
     return status
 
-def getFilePathForEventService(filetype="logs"):
+def getFilePathForObjectStore(filetype="logs"):
     """ Return a proper file path in the object store """
 
     # For single object stores
@@ -2907,7 +2944,7 @@ def getDDMStorage(ub, analysisJob, region, eventService, jobId):
 
     # special paths are used for event service
     if eventService:
-        return getFilePathForEventService(filetype="eventservice"), pilotErrorDiag
+        return getFilePathForObjectStore(filetype="eventservice"), pilotErrorDiag
 
     # skip this function unless we are running in the US or on NG
     if not (region == 'US' or region == 'Nordugrid'):

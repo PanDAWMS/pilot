@@ -124,19 +124,13 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def stageInFile(self, source, destination, sourceSize, sourceChecksum):
         """StageIn the file. should be implementated by different site mover."""
-        status = self.s3Objectstore.stageInFile(source, destination, sourceSize, sourceChecksum)
-        output = None
-        if status:
-            output = "S3 object store failed to stagein this file."
-        return status, output
+        size, md5 = self.s3Objectstore.stageInFile(source, destination, sourceSize, sourceChecksum)
+        return size, md5
 
     def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token):
         """StageIn the file. should be implementated by different site mover."""
-        size = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token)
-        output = None
-        if size == 0:
-            output = "S3 object store failed to stagein this file."
-        return size, output
+        size, md5 = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token)
+        return size, md5
 
     def verifyStage(self, localSize, localChecksum, remoteSize, remoteChecksum):
         """Verify file stag successfull"""
@@ -187,8 +181,9 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.log("remoteSize: %s, remoteChecksum: %s" % (remoteSize, remoteChecksum))
 
         status, output = self.stageInFile(source, destination, remoteSize, remoteChecksum)
+        self.log("stageInFile status: %s, output: %s" % (status, output))
         if status:
-             self.log("Failed to stagein this file.")
+             self.log("Failed to stagein this file: %s" % output)
              return  PilotErrors.ERR_STAGEINFAILED, output
 
         status, output, localSize, localChecksum = self.getLocalFileInfo(destination)
@@ -215,10 +210,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             self.log("Failed to get local file(%s) info." % destination)
             return status, output
 
-        remoteSize, output = self.stageOutFile(source, destination, localSize, localChecksum, token)
-        self.log("stageOutFile remoteSize: %s, output: %s" % (remoteSize, output))
-        if remoteSize == 0:
-             self.log("Failed to stageout this file.")
+        status, output = self.stageOutFile(source, destination, localSize, localChecksum, token)
+        self.log("stageOutFile status: %s, output: %s" % (status, output))
+        if status:
+             self.log("Failed to stageout this file: %s" % output)
              return  PilotErrors.ERR_STAGEOUTFAILED, output, localSize, localChecksum
 
         remoteSize, remoteChecksum = self.getRemoteFileInfo(destination)
@@ -366,15 +361,29 @@ class S3ObjctStore:
 
     def getRemoteFileInfo(self, file):
         key = self.get_key(file)
-        return key.size, key.md5
+        md5 = key.get_metadata("md5")
+        return key.size, md5
 
     def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
         key = self.get_key(source)
         key.get_contents_to_filename(destination)
-        return 0
+        if key.md5 != key.etag.strip('"').strip("'"):
+            return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
+        if sourceSize and sourceSize != key.size:
+            return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
+        if sourceChecksum and sourceChecksum != key.md5:
+            return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+        return 0, None
 
     def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
         key = self.get_key(destination, create=True)
+        key.set_metadata("md5", sourceChecksum)
         size = key.set_contents_from_filename(source)
-        return size
+        if key.md5 != key.etag.strip('"').strip("'"):
+            return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
+        if sourceSize and sourceSize != key.size:
+            return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
+        if sourceChecksum and sourceChecksum != key.md5:
+            return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+        return 0, None
 

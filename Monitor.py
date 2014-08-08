@@ -50,6 +50,7 @@ class Monitor:
         signal.signal(signal.SIGSEGV, pUtil.sig2exc)
         signal.signal(signal.SIGXCPU, pUtil.sig2exc)
         signal.signal(signal.SIGBUS,  pUtil.sig2exc)
+        signal.signal(signal.SIGUSR1, pUtil.sig2exc)
 
     def __allowLoopingJobKiller(self):
         """ Should the looping job killer be run? """
