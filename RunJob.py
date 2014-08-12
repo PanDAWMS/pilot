@@ -956,6 +956,17 @@ class RunJob(object):
 
         return rc, job, rf, latereg
 
+    def copyInputForFiles(self, workdir):
+        """ """
+
+        try:
+            cmd = "cp %s/inputFor_* %s" % (self.__pilot_initdir, workdir)
+            tolog("Executing command: %s" % (cmd))
+            out = commands.getoutput(cmd)
+        except IOError, e:
+            pass
+        tolog(out)
+
 # main process starts here
 if __name__ == "__main__":
 
@@ -1122,6 +1133,9 @@ if __name__ == "__main__":
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
         if job.inFiles != ['']:
             runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
+
+        # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
+        runJob.copyInputForFiles(job.workdir)
 
         # (stage-in ends here) .............................................................................
 
