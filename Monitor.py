@@ -932,7 +932,7 @@ class Monitor:
                 pUtil.tolog("...Pilot TCP server is still running")
             else:
                 pUtil.tolog("!!WARNING!!1231!! Pilot TCP server is down - aborting pilot (payload cannot be started)")
-                pUtil.fastCleanup(thisSite.workdir)
+                pUtil.fastCleanup(self.__env['thisSite'].workdir)
                 self.__env['return'] = self.__error.ERR_NOPILOTTCPSERVER
                 return
 

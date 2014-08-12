@@ -791,6 +791,11 @@ def findVmPeaks(setup):
 def getSourceSetup(runCommand):
     """ Extract the source setup command from the run command """
 
+    if type(runCommand) is dict:
+            to_str = " ".join(runCommand['environment'])
+            to_str = "%s %s %s %s" % (to_str,  runCommand["interpreter"], runCommand["payload"], runCommand["parameters"])    
+            runCommand = to_str
+
     setup = ""
     pattern = re.compile(r"(source /.+?;)")
     s = re.findall(pattern, runCommand)

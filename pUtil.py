@@ -30,16 +30,17 @@ except:
 
 # all files that need to be copied to the workdir
 #fileList = commands.getoutput('ls *.py').split()
-def getFileList(dir=None):
+def getFileList(path_dir=None):
     try:
-	if dir is None:
-	    dir = env['pilot_initdir']
-        file_list = filter(lambda x: x.endswith('.py'), os.listdir(dir))
+        if path_dir is None:
+            path_dir = env['pilot_initdir']
+        file_list = filter(lambda x: x.endswith('.py'), os.listdir(path_dir))
         file_list.append('PILOTVERSION')
+        file_list.append('saga')
         tolog("Copying: %s" % str(file_list))
-	return file_list
+        return file_list
     except KeyError:
-	return []
+        return []
 
 # default pilot log files
 pilotlogFilename = "pilotlog.out"
@@ -517,6 +518,13 @@ def stageInPyModules(initdir, workdir):
                     tolog("!!WARNING!!2999!! stageInPyModules failed to copy file %s/%s to %s: %s" % (initdir, k, workdir, str(e)))
                     status = False
                     break
+            elif os.path.isdir("%s/%s" % (initdir, k)):
+                try:
+                    shutil.copytree("%s/%s" % (initdir, k), "%s/%s" % (workdir,k))
+                except Exception, e:
+                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy directory %s/%s to %s: %s" % (initdir, k, workdir, str(e)))
+                    status = False
+                    break
             else:
                 tolog("!!WARNING!!2999!! File missing during stage in: %s/%s" % (initdir, k))
 
@@ -533,7 +541,7 @@ def removePyModules(dir):
     """ Remove pilot python modules from workdir """
 
     if dir:
-        for k in getFileList(dir=dir):
+        for k in getFileList(path_dir=dir):
             try:
                 os.system("rm -rf %s/%s*"%(dir,k))
             except:
@@ -1862,6 +1870,10 @@ class _Curl:
         self.path = 'curl'
         # verification of the host certificate
         self._verifyHost = True
+        # modified for Titan test
+        if 'HPC_Titan' in readpar("catchall"):
+            self._verifyHost = False
+
         # request a compressed response
         self.compress = True
         # SSL cert/key

@@ -406,15 +406,33 @@ class ATLASExperiment(Experiment):
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
             elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
-                cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
+                
+                if 'HPC_Titan' in readpar("catchall"):
+                    cmd = {"interpreter": pybin,
+                           "payload": ("%s/%s" % (job.homePackage, job.trf)),
+                           "parameters": job.jobPars }
+                else:
+                    cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
             else:
-                cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
+                if 'HPC_Titan' in readpar("catchall"):
+                    cmd = {"interpreter": pybin,
+                           "payload": job.trf,
+                           "parameters": job.jobPars }
+                else:
+                    cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
+                
 
             # Set special_setup_cmd if necessary
             special_setup_cmd = self.getSpecialSetupCommand()
 
         # add FRONTIER debugging and RUCIO env variables
-        cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType)
+        
+        if 'HPC_Titan' in readpar("catchall"):
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType)
+        else: 
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType)
+
+        
 
         # Is JEM allowed to be used?
         if self.isJEMAllowed():
@@ -438,7 +456,8 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
         # Pipe stdout/err for payload to files
-        cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
+        if 'HPC_Titan' not in readpar("catchall"):
+            cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
         tolog("ATLAS_PYTHON_PILOT = %s" % (os.environ['ATLAS_PYTHON_PILOT']))
@@ -546,7 +565,8 @@ class ATLASExperiment(Experiment):
                     "MC11JobOptions",
                     "scratch",
                     "jobState-*-test.pickle",
-                    "*.writing"]
+                    "*.writing",
+                    "saga"]
 
         # remove core and pool.root files from AthenaMP sub directories
         try:
@@ -1704,6 +1724,21 @@ class ATLASExperiment(Experiment):
 
         return _frontier1 + _frontier2 + _rucio + cmd
 
+    def getEnvVars2Cmd(self, jobId, processingType):
+        """ Return array with enviroment variables: FRONTIER debugging and RUCIO env variables """
+        
+        variables = []
+        variables.append('export FRONTIER_ID=\"[%s]\";' % (jobId))
+        variables.append('export CMSSW_VERSION=$FRONTIER_ID;')
+
+        if processingType == "":
+            tolog("!!WARNING!!1887!! RUCIO_APPID needs job.processingType but it is not set!")
+        else:
+            variables.append('export RUCIO_APPID=\"%s\";' % (processingType))
+        variables.append('export RUCIO_ACCOUNT=\"pilot\";')         
+        
+        return variables
+
     def isForceConfigCompatible(self, _dir, release, homePackage, cmtconfig, siteroot=None):
         """ Test if the installed AtlasSettings and AtlasLogin versions are compatible with forceConfig """
         # The forceConfig cmt tag was introduced in AtlasSettings-03-02-07 and AtlasLogin-00-03-07
@@ -1980,7 +2015,9 @@ class ATLASExperiment(Experiment):
         rel_N = None
         path = None
         skipVerification = False # verification not possible for more complicated setup (nightlies)
-        
+        if 'HPC_Titan' in readpar("catchall"):
+            skipVerification = True # verification not possible for more complicated setup (nightlies)
+
         # First try with the cmtconfig in the path. If that fails, try without it
 
         # Are we using nightlies?
@@ -2188,14 +2225,17 @@ class ATLASExperiment(Experiment):
 
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
+        
+        if 'HPC_Titan' in readpar("catchall"):
+            status = True
+        else:
+            # Test the LFC module
+            status = self.testImportLFCModule()
 
-        # Test the LFC module
-        status = self.testImportLFCModule()
-
-        # Test CVMFS
-        if status:
-            status = self.testCVMFS()
-
+            # Test CVMFS
+            if status:
+                status = self.testCVMFS()
+        
         return status
 
     def checkSpecialEnvVars(self, sitename):

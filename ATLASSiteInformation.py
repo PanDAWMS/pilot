@@ -434,8 +434,8 @@ class ATLASSiteInformation(SiteInformation):
 
 
 
-        ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
-        ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
+            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
+            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
 
 
 
