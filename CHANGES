@@ -342,7 +342,7 @@ environment.py                : Defaults for global variables
 glexec_aux.py                 : Entry point for glExec sandbox [merge with pilot.py?]
 glexec_utils.py               : glExec utilities, renamed from my_proxy_utils.py
 processes.py                  : Process handling
-runEvent.py                   : Subprocess module for Event Service use
+runEvent.py                   : Subprocess module for Event Service use (replaced by RunJobEvent, runEvent removed from SVN)
 EventServiceFactory.py        : Factory for generating Event Service objects that can be experiment specific
 EventService.py               : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
 ATLASEventService.py          : ATLAS specific event service class
