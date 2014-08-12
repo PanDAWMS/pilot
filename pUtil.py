@@ -2192,46 +2192,46 @@ def removeSubFromResponse(response):
 
     return response
 
-def createEventRangeFileDictionary(writeToFile):
+def createESFileDictionary(writeToFile):
     """ Create the event range file dictionary from the writeToFile info """
 
     # writeToFile = 'fileNameForTrf_1:LFN_1,LFN_2^fileNameForTrf_2:LFN_3,LFN_4'
-    # -> eventRangeFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
+    # -> esFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
     # Also, keep track of the dictionary keys (e.g. 'fileNameForTrf_1') ordered since we have to use them to update the jobParameters
     # once we know the full path to them (i.e. '@fileNameForTrf_1:..' will be replaced by '@/path/filename:..')
     # (the dictionary is otherwise not ordered so we cannot simply use the dictionary keys later)
     # fileInfo = ['fileNameForTrf_1:LFN_1,LFN_2', 'fileNameForTrf_2:LFN_3,LFN_4']
 
     fileInfo = writeToFile.split("^")
-    eventRangeFileDictionary = {}
+    esFileDictionary = {}
     orderedFnameList = []
     for i in range(len(fileInfo)):
         # Extract the file name
         if ":" in fileInfo[i]:
             finfo = fileInfo[i].split(":")
-            eventRangeFileDictionary[finfo[0]] = finfo[1]
+            esFileDictionary[finfo[0]] = finfo[1]
             orderedFnameList.append(finfo[0])
         else:
             tolog("!!WARNING!!4444!! File info does not have the correct format, expected a separator \':\': %s" % (fileInfo[i]))
-            eventRangeFileDictionary = {}
+            esFileDictionary = {}
             break
 
-    return eventRangeFileDictionary, orderedFnameList
+    return esFileDictionary, orderedFnameList
 
-def writeToInputFile(path, eventRangeFileDictionary, orderedFnameList):
+def writeToInputFile(path, esFileDictionary, orderedFnameList):
     """ Write the input file lists to the proper input file """
     # And populate the fname file dictionary
     # fnames = { 'identifier': '/path/filename', .. }
     # where 'identifier' will be present in the jobParameters, like @identifier. This will later be replaced by the proper file path
 
     # To be used by the TRF instead of a potentially very long LFN list
-    # eventRangeFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
+    # esFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
     # 'LFN_1,LFN_2' will be written to file 'fileNameForTrf_1', etc
 
     ec = 0
     fnames = {}
     i = 0
-    for fname in eventRangeFileDictionary.keys():
+    for fname in esFileDictionary.keys():
         _path = os.path.join(path, fname)
         try:
             f = open(_path, "w")
@@ -2239,9 +2239,9 @@ def writeToInputFile(path, eventRangeFileDictionary, orderedFnameList):
             tolog("!!WARNING!!4445!! Failed to open file %s: %s" % (_path, e))
             ec = -1
         else:
-            f.write(eventRangeFileDictionary[fname])
+            f.write(esFileDictionary[fname])
             f.close()
-            tolog("Wrote input file list to file %s" % (_path))
+            tolog("Wrote input file list to file %s: %s" % (_path, str(esFileDictionary[fname])))
             fnames[orderedFnameList[i]] = _path
         i += 1
 
@@ -2268,17 +2268,17 @@ def updateESGUIDs(guids):
     tolog("Updated guids list: %s" % (_guids))
     return _guids
 
-def getEventRangeInputFiles(eventRangeFileDictionary):
+def getESInputFiles(esFileDictionary):
     """ Get all the input files from all the keys in the event range file dictionary """
     # Concaternated into one file list, e.g.
-    # eventRangeFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
+    # esFileDictionary = {'fileNameForTrf_1': 'LFN_1,LFN_2', 'fileNameForTrf_2': 'LFN_3,LFN_4'}
     # -> 'LFN_1,LFN_2','LFN_3,LFN_4'
 
     files = ""
-    for fname in eventRangeFileDictionary.keys():
+    for fname in esFileDictionary.keys():
         if files != "":
             files += ","
-        files += eventRangeFileDictionary[fname]
+        files += esFileDictionary[fname]
 
     return files
 
@@ -2303,20 +2303,18 @@ def updateDispatcherData4ES(data, experiment, path):
         if data['eventServiceMerge'].lower() == "true":
             if data.has_key('writeToFile'):
                 writeToFile = data['writeToFile']
-                eventRangeFileDictionary, orderedFnameList = createEventRangeFileDictionary(writeToFile)
-                tolog("eventRangeFileDictionary=%s" % (eventRangeFileDictionary))
+                esFileDictionary, orderedFnameList = createESFileDictionary(writeToFile)
+                tolog("esFileDictionary=%s" % (esFileDictionary))
                 tolog("orderedFnameList=%s" % (orderedFnameList))
-                if eventRangeFileDictionary != {}:
+                if esFileDictionary != {}:
                     # Write event service file lists to the proper input file
-                    ec, fnames = writeToInputFile(path, eventRangeFileDictionary, orderedFnameList)
+                    ec, fnames = writeToInputFile(path, esFileDictionary, orderedFnameList)
                     if ec == 0:
-                        inputFiles = getEventRangeInputFiles(eventRangeFileDictionary)
-                        tolog("inputFiles=%s" % (inputFiles))
+                        #inputFiles = getESInputFiles(esFileDictionary)
 
-                        tolog("old inFiles=%s" % (data['inFiles']))
                         # Update the inFiles list (not necessary??)
-                        data['inFiles'] = inputFiles
-                        tolog("new inFiles=%s" % (data['inFiles']))
+                        #data['inFiles'] = inputFiles
+
                         # Correct the dsname?
                         # filesize and checksum? not known (no file catalog)
 
@@ -2324,8 +2322,7 @@ def updateDispatcherData4ES(data, experiment, path):
                         data['GUID'] = updateESGUIDs(data['GUID'])
 
                         # Replace the @identifiers in the jobParameters
-                        data['jobPars'] = updateJobPars(data['jobPars'], fnames)
-                        tolog("Updated jobPars=%s" % (data['jobPars']))
+                        #data['jobPars'] = updateJobPars(data['jobPars'], fnames)
 
                         # Update the copytoolin (should use the proper objectstore site mover)
                         si = getSiteInformation(experiment)
