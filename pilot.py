@@ -1,20 +1,9 @@
 #!/usr/bin/python -u 
 
 
-# test code in getInstallDir() related to setting of siteroot, now adding cmtconfig etc for non-vo-atlas-sw-dir
-
-# alternative SE stageout activated in mover: useAlternativeStageOut
-# UTA hardcoded in transferLogFile for secondary log transfer test
-# CERN-RELEASE in getJobExecutionCommand()
-# transferLogFile(), goegrid hardcoded, JobLog - turned on
-
-# put_RETRY = 1 Mover
 
 # Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file registrations using DQ2 functions
 # test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
-
-# ral, cern-prod, goegrid, brunel, atlassiteinformation
-# mwt2_mcore
 
 # todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
 # todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation
@@ -861,18 +850,18 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                 # should any file be registered? (data dirs will not exist in the following checks
                                 # since late registration requires that all files have already been transferred)
                                 # (Note: only for LRC sites)
-                                rc = checkForLateRegistration(thisSite.dq2url, _job, _site, _node, type="output")
-                                if rc == False:
-                                    pUtil.tolog("Resume this rescue operation later due to the previous errors")
-                                    # release the atomic lockfile and go to the next directory
-                                    releaseAtomicLockFile(fd, lockfile_name)
-                                    continue
-                                rc = checkForLateRegistration(thisSite.dq2url, _job, _site, _node, type="log")
-                                if rc == False:
-                                    pUtil.tolog("Resume this rescue operation later due to the previous errors")
-                                    # release the atomic lockfile and go to the next directory
-                                    releaseAtomicLockFile(fd, lockfile_name)
-                                    continue
+#                                rc = checkForLateRegistration(thisSite.dq2url, _job, _site, _node, type="output")
+#                                if rc == False:
+#                                    pUtil.tolog("Resume this rescue operation later due to the previous errors")
+#                                    # release the atomic lockfile and go to the next directory
+#                                    releaseAtomicLockFile(fd, lockfile_name)
+#                                    continue
+#                                rc = checkForLateRegistration(thisSite.dq2url, _job, _site, _node, type="log")
+#                                if rc == False:
+#                                    pUtil.tolog("Resume this rescue operation later due to the previous errors")
+#                                    # release the atomic lockfile and go to the next directory
+#                                    releaseAtomicLockFile(fd, lockfile_name)
+#                                    continue
 
                                 # does log exist?
                                 logfile = "%s/%s" % (_site.workdir, _job.logFile)

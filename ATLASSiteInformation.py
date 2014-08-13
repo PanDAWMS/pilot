@@ -427,36 +427,25 @@ class ATLASSiteInformation(SiteInformation):
         if 'pandadev' in pshttpurl or force_devpilot or thisSite.sitename == "CERNVM":
             ec = self.replaceQueuedataField("status", "online")
 
-        #if thisSite.sitename == "MWT2_MCORE":
-        #    ec = self.replaceQueuedataField("copyprefixin", "srm://uct2-dc1.uchicago.edu.*/pnfs/^root://xrddoor.mwt2.org:1096/pnfs/")
 #        if thisSite.sitename == "RAL-LCG2_MCORE":
 #            ec = self.replaceQueuedataField("copytool", "gfal-copy")
 
-
-
-            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
-            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
-
-
-
-#        if thisSite.sitename == "DESY-HH" or thisSite.sitename == "UKI-LT2-Brunel_SL6":
-#            ec = self.replaceQueuedataField("lfchost", "")
+#            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
-            #ec = self.replaceQueuedataField("seprodpath", "/xrd/atlasproddisk/rucio")
             ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
-            #ec = self.replaceQueuedataField("lfcregister", "")
-            ec = self.replaceQueuedataField("retry", "False")
+            #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
             #ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 # Event Service tests:
-            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
-            ec = self.replaceQueuedataField("corecount", "4")
-            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+#            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
+#            ec = self.replaceQueuedataField("corecount", "4")
+#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
         if os.environ.get("COPYTOOL"):
             ec = self.replaceQueuedataField("copytool", os.environ.get("COPYTOOL"))
@@ -466,8 +455,6 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "BNL_PROD_MCORE":
 #            #ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^dcap://dcdcap01.usatlas.bnl.gov:22129")
 # ES           ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
-#        if thisSite.sitename == "RAL-LCG2_MCORE":
-#            ec = self.replaceQueuedataField("copyprefix", "srm://srm-atlas.gridpp.rl.ac.uk^root://catlasdlf.ads.rl.ac.uk/")
 
 #        if thisSite.sitename == "CERN-PROD" or thisSite.sitename == "BNL_PROD_MCORE" or thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "MWT2_MCORE":
 #            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
@@ -475,13 +462,7 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "GoeGrid":
 #            ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("copytool", "gfal-copy")
-
         #    ec = self.replaceQueuedataField("copytool", "lcgcp")
-#        if thisSite.sitename == "UKI-LT2-Brunel_SL6":
-#            ec = self.replaceQueuedataField("copyprefix", "srm://dc2-grid-64.brunel.ac.uk/^root://dc2-grid-64.brunel.ac.uk/")
-#            ec = self.replaceQueuedataField("copysetup", "$VO_ATLAS_SW_DIR/local/xrootdsetup.sh")
-#            ec = self.replaceQueuedataField("copytool", "xrdcp")
-#            ec = self.replaceQueuedataField("seopt", "token:ATLASPRODDISK:srm://dc2-grid-64.brunel.ac.uk:8446/srm/managerv2?SFN=")
 
         _status = self.readpar('status')
         if _status != None and _status != "":

@@ -167,13 +167,11 @@ class ATLASExperiment(Experiment):
                         pysiteroot = siteroot
                 else:
                     if verifyReleaseString(job.release) != "NULL":
-                        #PN
                         _s = os.path.join(os.path.join(swbase, cmtconfig), job.release)
                         if os.path.exists(_s):
                             siteroot = _s
                         else:
                             siteroot = os.path.join(swbase, job.release)
-                        #siteroot = os.path.join(swbase, job.release)
                     else:
                         siteroot = swbase
                     siteroot = siteroot.replace('//','/')

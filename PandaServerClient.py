@@ -550,7 +550,14 @@ class PandaServerClient:
         # send the original xml if it exists (end of production job, ignore for event service job)
         filenamePayloadXML = "%s/metadata-%s.xml.PAYLOAD" % (site.workdir, repr(job.jobId))
         payloadXMLProblem = False
-        if not job.eventService:
+
+        # backward compatibility
+        try:
+            eventService = job.eventService
+        except:
+            eventService = False
+
+        if not eventService:
             if os.path.exists(filenamePayloadXML) and final:
 
                 # get the metadata created by the payload
@@ -565,7 +572,7 @@ class PandaServerClient:
                     payloadXMLProblem = True
             else:
                 # athena XML should exist at the end of the job
-                if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not job.eventService:
+                if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not eventService:
                     pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadXML)
                     payloadXMLProblem = True
         else:

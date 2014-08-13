@@ -2557,9 +2557,6 @@ def mover_put_data(outputpoolfcstring,
         else:
             tolog("!!WARNING!!1888!! Unreasonable number of stage-out tries: %d (reset to default)" % (stageoutTries))
             put_RETRY = 2
-
-        #PN
-        put_RETRY = 1
         tolog("Number of stage-out tries: %d" % (stageoutTries))
 
         # loop over put_data() to allow for multple stage-out attempts

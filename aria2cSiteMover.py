@@ -2,7 +2,6 @@ import os, re, sys
 import commands
 from time import time
 import urllib2
-from subprocess import Popen, PIPE
 
 import SiteMover
 from futil import *
@@ -20,8 +19,6 @@ class replica:
     fs = None
     filesize = None
     csumvalue = None
-    filename = None
-    scope = None
 
 
 # placing the import lfc here breaks compilation on non-lfc sites
@@ -66,18 +63,6 @@ class aria2cSiteMover(SiteMover.SiteMover):
         self.copyCommand = 'aria2c'
         self.commandInPATH()
         self.getSurl2httpsMap()
-
-        cmd="curl -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert $X509_USER_PROXY --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -X GET https://voatlasrucio-auth-prod.cern.ch/auth/x509_proxy| grep X-Rucio-Auth-Token"
-        token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
-        token_rucio_or, stderr= token_rucio_cmd.communicate()
-        #I have to delete the final character of the token (a space)
-        token_lenght=len(token_rucio_or)-1
-        token_rucio=token_rucio_or[:token_lenght]
-        tolog("Token I am using:",token_rucio)
-        if os.path.exists('token_file'):
-                os.remove('token_file')
-        token_file=open('token_file', 'w')
-        token_file.write(token_rucio)
 
     def commandInPATH(self):
         _cmd_str = 'which %s'%self.copyCommand 
@@ -139,21 +124,49 @@ class aria2cSiteMover(SiteMover.SiteMover):
         if not dirAcc:
           dirAcc = getDirectAccessDic(readpar('copysetup'))
        # extract srm host for key
-	srmhost=None
         if dirAcc:
           srmhost = self.hostFromSurl(dirAcc['oldPrefix'])
         if srmhost:
           self.surl2https_map[srmhost] = (dirAcc['oldPrefix'],dirAcc['newPrefix'])
+
+          
+       # Start building metalink
+        metalink='<?xml version="1.0" encoding="utf-8"?>\n'
+        metalink+='<metalink version="3.0" generator="Pilot" xmlns="http://www.metalinker.org/">\n'
+        metalink+='<files>\n'
         for guid in replicas.keys():
           reps = replicas[guid]
           tolog("Got replicas=%s for guid=%s" % (str(reps), guid))
+         # surl can have __DQ2blah at the end - strip it 
+          name = reps[0].sfn.split('/')[-1]
+          extindex = name.rfind('__DQ2-')
+          if extindex > 0: name = name[:extindex]
+          metalink+='<file name="%s">\n'%name
+          metalink+='<size>%s</size>'%reps[0].filesize
+          metalink+='<verification><hash type="adler32">%s</hash></verification>\n'%reps[0].csumvalue
+          metalink+='<resources>\n'
+         # if the surl matches a list of https sites, then add a url 
+          for rep in reps:
+            srmhost =  self.hostFromSurl(rep.sfn)
+            if srmhost in self.surl2https_map.keys():
+              pair = self.surl2https_map[srmhost]
+              metalink+='<url type="https" >%s</url>\n'% \
+                                       re.sub(pair[0],pair[1],rep.sfn)
+            else:
+              try:
+                scope = extractPattern(rep.sfn, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
+                scope = scope.replace("/",".")
+                prefix = "https://voatlasrucio-redirect-prod-01.cern.ch/redirect/"
+                filename = re.findall(r'.*/(.+)$', rep.sfn)[0]
+                turl = prefix + scope + "/" +filename
+                metalink+='<url type="https" >%s</url>\n'% turl
+                tolog("Converted SURL: %s to TURL: %s (using dataset name)" % (rep.sfn, turl))
+              except:
+                tolog("Not found: %s"%rep.sfn)
+          metalink+='</resources></file>\n'
 
-        token_file=open('token_file', 'r')
-        token_rucio=token_file.readline()
-        cmd = "curl -H \"%s\" -H 'Accept: application/metalink+xml'  --cacert /etc/pki/tls/certs/CERN-bundle.pem https://voatlasrucio-server-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
-        metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
-        metalink, stderr=metalink_cmd.communicate()
-        tolog(metalink)
+        metalink+='</files></metalink>\n'
+        print metalink
         mlfile = open(metalinkFile,'w')
         mlfile.write(metalink)
         mlfile.close()
@@ -168,7 +181,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
             return None  
 
 
-    def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, fscope=None, **pdict):
+    def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, **pdict):
         """ copy input file from SE to local dir """
        # determine which timeout option to use
         timeout_option = "--connect-timeout 300 --timeout %d" % (self.timeout)
@@ -272,14 +285,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
           rep = replica()
           rep.sfn = gpfn
           rep.filesize = fsize
-          rep.filename = lfn
           rep.csumvalue = fchecksum
-          if fscope:
-            rep.scope = fscope
-          else:
-            scope = extractPattern(gpfn,r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
-            rep.scope = scope.replace("/",".")
-            print "provaaaaaaaaaa", rep.scope
           replicas = {guid:[rep]}
         
           self.surls2metalink(replicas,'oneInput.xml.meta4')
