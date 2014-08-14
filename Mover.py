@@ -3117,15 +3117,22 @@ def foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
 
     return found_match
 
-def getPrimaryRucioReplica(matched_replicas):
+def getPrimaryRucioReplica(matched_replicas, replicas):
     """ Return a replica with a proper rucio path """
 
     sfn = ""
+    # start with the matched replicas list
     for replica in matched_replicas:
-        if "/rucio/" in replica:
+        if "/rucio/" in replica: # here 'replica' is a string
             sfn = replica
             break
-
+    
+    # search the replicas list in case sfn is empty
+    if sfn == "":
+        for replica in replicas: # here 'replica' is an object
+            if "/rucio/" in replica.sfn:
+                sfn = replica.sfn
+                break
     return sfn
 
 def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, workdir, lfn_dict=None, fax_mode=False, scope_dict=None, replicas_dict=None):
@@ -3310,7 +3317,9 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                         if "rucio" in sfn:
                             _sfn = sfn
                         else:
-                            _sfn = getPrimaryRucioReplica(matched_replicas)
+                            # also send the full original replica list along with the matched replicas list, in case the latter only has
+                            # a TAPE replica
+                            _sfn = getPrimaryRucioReplica(matched_replicas, replicas)
                             if _sfn == "":
                                 pilotErrorDiag = "Could not find a primary rucio replica, FAX will fail so useless to continue"
                                 ec = error.ERR_REPNOTFOUND
@@ -3607,7 +3616,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
 
     # As a last step, remove any multiple identical copies of the replicas (SURLs)
     final_replicas_dict = {}
-    if replicas_dict != {}: # Protect against Nordugrid case
+    if replicas_dict != None: # Protect against Nordugrid case
         try:
             for guid in replicas_dict:
                 SURL_list = []

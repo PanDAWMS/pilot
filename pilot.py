@@ -1900,8 +1900,6 @@ def getDispatcherDictionary(_diskSpace, tofile):
              'getProxyKey':      _getProxyKey,
              'workingGroup':     env['workingGroup']}
 
-    pUtil.tolog("3 env[\'workerNode\'].mem=%s" % (env['workerNode'].mem))
-
     if env['countryGroup'] == "":
         pUtil.tolog("No country group selected")
     else:

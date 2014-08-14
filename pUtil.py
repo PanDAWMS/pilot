@@ -11,6 +11,8 @@ import environment
 env = environment.set_environment()
 #env = Configuration()
 
+from processes import killProcesses
+
 # exit code
 EC_Failed = 255
 
@@ -1088,7 +1090,7 @@ def createPoolFileCatalog(file_list, pfc_name="PoolFileCatalog.xml", forceLogica
 
         # Prepare plain text as can`t trust minidom on python <2.3
         pfc_text = '<?xml version="1.0" ?>\n'
-        pfc_text += '<!-- Edited By Panda Pilot3 -->\n'
+        pfc_text += '<!-- Edited By the PanDA Pilot -->\n'
         pfc_text += '<!DOCTYPE POOLFILECATALOG  SYSTEM "InMemory">\n'
         pfc_text += '<POOLFILECATALOG>\n'
 
@@ -2336,8 +2338,8 @@ def updateDispatcherData4ES(data, experiment, path):
                 tolog("writeToFile not present in job def")
         else:
             tolog("eventServiceMerge = %s" % (data['eventServiceMerge']))
-    else:
-        tolog("Not an event service merge job")
+    #else:
+    #    tolog("Not an event service merge job")
 
     return data
 

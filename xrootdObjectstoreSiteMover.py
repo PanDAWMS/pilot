@@ -14,10 +14,10 @@ import os, re
 import commands
 from time import time
 
+from TimerCommand import TimerCommand
+
 from config import config_sm
 CMD_CHECKSUM = config_sm.COMMAND_MD5
-
-from TimerCommand import TimerCommand
 
 import SiteMover
 from futil import *
@@ -292,7 +292,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
             if not _status:
                 self.log("!!WARNING!!1112!! Failed to remove local file, get retry will fail")
 
-            statusRet = s
+            statusRet = PilotErrors.ERR_STAGEINFAILED
             outputRet["report"]["clientState"] = 'COPY_FAIL'
 
         return statusRet, outputRet
@@ -543,11 +543,6 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
             tolog("Use (%s) to get the checksum" % checksum_option)
         else:
             tolog("Cannot find -adler nor --cksum. will not use checksum")
-
-        cmd = "ls -lF %s" % (source)
-        tolog("zxzxzx Executing command: %s" % (cmd))
-        out = commands.getoutput(cmd)
-        tolog("\n%s" % (out))
 
         # surl is the same as putfile
         _cmd_str = '%s xrdcp %s %s %s' % (self._setup, checksum_option, source, destination)

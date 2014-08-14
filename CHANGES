@@ -288,12 +288,15 @@ Added experiment argument to httpConnect() and using it in toServer() call (pUti
 Added experiment argument to toServer() and sending it to updateDispatcherData4ES() (pUtil)
 Added missing signal.SIGUSR1 to __init__() (Monitor)
 Added missing signal.SIGUSR1 to __main__() (RunJob, RunJobEvent)
+Increased time limit from 24 to 48 h in purgeFiles(), added mod time to log message (Cleaner)
+Changed replicas_dict != {} to replicas_dict != None which caused a problem on ND, in getPoolFileCatalog() (Mover)
+Added missing killProcesses import (pUtil)
 
 Code contributions from Wen Guan, May 30, 2014:
 
 Added GFAL2SiteMover
 Updated SiteMoverFarm for GFAL2SiteMover
-Added new error code 1218, ERR_FILEEXISTS (PilotErrors)
+Added new error code 1218, ERR_FILEEXIST (PilotErrors)
 Added several new methods to SiteInformation as part of site mover refactoring: getCopySetup(), getCopyTool(), getCopyPrefix(), 
 getCopyFileAccessInfo(), getDirectInAccessMode() [currently used by GFAL2SiteMover only]
 objectstoreSiteMover

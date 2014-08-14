@@ -900,10 +900,7 @@ class Monitor:
             self.__env['workerNode'].collectWNInfo(self.__env['thisSite'].workdir)
         
             # overwrite mem since this should come from either pilot argument or queuedata
-#            self.__env['workerNode.mem'] = self.__getsetWNMem()
             self.__env['workerNode'].mem = self.__getsetWNMem()
-            pUtil.tolog("1 workerNode.mem=%s" % (self.__env['workerNode'].mem))
-#            pUtil.tolog("2 workerNode.mem=%s" % (self.__env['workerNode.mem']))
 
             # update the globals used in the exception handler
             globalSite = self.__env['thisSite']

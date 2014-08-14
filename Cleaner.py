@@ -90,7 +90,7 @@ class Cleaner:
             tolog("Executing AthenaMP clean-up, stage 4/5")
             files = ['AthenaMP_*', 'fifo_*', 'TokenExtractorChannel*', 'zmq_EventService*', 'asetup*', 'tmp*.pkl']
             for f in files:
-                Cleaner.purgeFiles(self.path, f, limit=24*3600)
+                Cleaner.purgeFiles(self.path, f, limit=48*3600)
 
             tolog("Executing PanDA Pilot dir clean-up, stage 5/5")
             JS = JobState()
@@ -275,7 +275,7 @@ class Cleaner:
             else:
                 mod_time = current_time - file_modification_time
                 if mod_time > limit:
-                    tolog("Found file %s (will now try to purge it)" % (_file))
+                    tolog("Found file %s last modified %d s ago (will now try to purge it)" % (_file, mod_time))
                     ec, rs = commands.getstatusoutput("rm -f %s" % (_file))
                     if ec != 0:
                         tolog("Failed to remove dir: %s" % (rs))

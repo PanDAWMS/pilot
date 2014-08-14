@@ -300,7 +300,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             if not _status:
                 self.log("!!WARNING!!1112!! Failed to remove local file, get retry will fail")
 
-            statusRet = s
+            statusRet = PilotErrors.ERR_STAGEINFAILED
             outputRet["report"]["clientState"] = 'COPY_FAIL'
 
         return statusRet, outputRet
