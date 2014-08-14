@@ -234,7 +234,7 @@ def argParser(argv):
                 env['proxycheckFlag'] = True
             else:
                 env['proxycheckFlag'] = False
-        
+
         elif o == "-u": 
             env['uflag'] = a
         
@@ -329,10 +329,6 @@ def argParser(argv):
             pUtil.tolog("Pilot user flag has been reset for analysis site (to value: %s)" % (env['uflag']))
         else:
             pUtil.tolog("Pilot user flag: %s" % str(env['uflag']))
-
-    # do not bother with checking the proxy for ptest jobs
-    #if env['uflag'] == 'ptest':
-    #    env['proxycheckFlag'] = False
 
 def moveLostOutputFiles(job, thisSite, remaining_files):
     """
@@ -2545,14 +2541,21 @@ def runMain(runpars):
                 else:
                     pUtil.tolog("!!WARNING!!1231!! Post getJob() actions encountered a problem - job will fail")
 
-                    # job must be failed correctly
-                    pUtil.tolog("Updating PanDA server for the failed job (error code %d)" % (ec))
-                    env['job'].result[0] = 'failed'
-                    env['job'].currentState = env['job'].result[0]
-                    env['job'].result[2] = ec
-                    pUtil.postJobTask(env['job'], env['thisSite'], env['workerNode'], env['experiment'], jr=False)
-                    pUtil.fastCleanup(env['thisSite'].workdir)
-                    return pUtil.shellExitCode(ec)
+                    try:
+                        # job must be failed correctly
+                        pUtil.tolog("Updating PanDA server for the failed job (error code %d)" % (ec))
+                        env['job'].result[0] = 'failed'
+                        env['job'].currentState = env['job'].result[0]
+                        env['job'].result[2] = ec
+                        # note: job.workdir has not been created yet so cannot create log file
+                        env['pilotErrorDiag'] = "Post getjob actions failed - workdir does not exist, cannot create job log, see batch log"
+                        pUtil.tolog("!!WARNING!!2233!! Work dir has not been created yet so cannot create job log in this case - refer to batch log")
+                        updatePandaServer(env['job'], env['thisSite'], env['psport'], schedulerID = env['jobSchedulerId'], pilotID = env['pilotId'])
+#                        pUtil.postJobTask(env['job'], env['thisSite'], env['workerNode'], env['experiment'], jr=False)
+                        pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
+                        return pUtil.shellExitCode(ec)
+                    except Exception, e:
+                        pUtil.tolog("Caught exception: %s" % (e))
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))
 

@@ -910,10 +910,11 @@ class Monitor:
             thisExperiment = pUtil.getExperiment(self.__env['experiment'])
 
             # do we have a valid proxy?
-            ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="")
-            if ec != 0:
-                self.__env['return'] = ec
-                return
+            if self.__env['proxycheckFlag']:
+                ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="")
+                if ec != 0:
+                    self.__env['return'] = ec
+                    return
 
             # do we have enough local disk space to run the job?
             ec = self.__checkLocalDiskSpace(self.__env['workerNode'].disk)
