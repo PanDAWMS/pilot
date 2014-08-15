@@ -87,10 +87,10 @@ class Cleaner:
             tolog("Executing maxed-out dirs clean-up, stage 3/5")
             Cleaner.purgeMaxedoutDirs(self.path)
 
-            tolog("Executing AthenaMP clean-up, stage 4/5")
-            files = ['AthenaMP_*', 'fifo_*', 'TokenExtractorChannel*', 'zmq_EventService*', 'asetup*', 'tmp*.pkl']
-            for f in files:
-                Cleaner.purgeFiles(self.path, f, limit=48*3600)
+            tolog("Executing AthenaMP clean-up, stage 4/5 <SKIPPED>")
+            #files = ['AthenaMP_*', 'fifo_*', 'TokenExtractorChannel*', 'zmq_EventService*', 'asetup*', 'tmp*.pkl']
+            #for f in files:
+            #    Cleaner.purgeFiles(self.path, f, limit=48*3600)
 
             tolog("Executing PanDA Pilot dir clean-up, stage 5/5")
             JS = JobState()

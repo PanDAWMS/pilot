@@ -322,6 +322,10 @@ update pUtil to fix extractFilePaths which can replace multiple environment vari
 update xrdcpSiteMover add "thisExperiment.updateJobSetupScript" in stageInFiles
 fix bug in S3ObjectstoreSiteMover to add "create=True" when stageOutFile
 
+Code contributions from Wen Guan, August 14, 2014
+
+Created getFileScope() used with tracing report (Mover)
+
 Code contribution from Vincenzo Lavorini, July 29, 2014
 
 Added the subprocess method Popen and Call, for managing CURL calls;

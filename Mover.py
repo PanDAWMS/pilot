@@ -1924,9 +1924,11 @@ def mover_get_data(lfns,
 
             # Update the dataset name
             dsname = getDataset(lfn, dsdict)
+            scope = getFileScope(scope_dict, lfn)
 
             # Update the tracing report
             report = updateReport(report, gpfn, dsname, fsize, sitemover)
+            report['scope'] = scope
 
             # The DBRelease file might already have been handled, go to next file
             if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
@@ -2543,6 +2545,7 @@ def mover_put_data(outputpoolfcstring,
 
         # update tracing report
         report['dataset'] = dsname_report
+        report['scope'] = scope
 
         # get the currect space token for the given file
         _token_file = getSpaceTokenForFile(filename, token_list, logFile, file_nr, nFiles)
@@ -4043,6 +4046,26 @@ def getFileAccess(access_dict, lfn):
         file_access = None
 
     return file_access
+
+def getFileScope(scope_dict, lfn):
+    """ Get the special file access info if needed """
+
+    if scope_dict:
+        try:
+            file_scope = scope_dict[lfn]
+        except Exception, e:
+            tolog("No file scope: %s" % str(e))
+            file_scope = None
+        else:
+            if file_scope == "" or file_scope == "NULL" or file_scope == None:
+                tolog("No file scope")
+                file_scope = None
+            else:
+                tolog("file scope: %s" % str(file_scope))
+    else:
+        file_scope = None
+
+    return file_scope
 
 def updateReport(report, gpfn, dsname, fsize, sitemover):
     """ Update the tracing report with the DQ2 site name """
