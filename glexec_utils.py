@@ -483,9 +483,9 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ATLASEventService.py'),
                      os.path.join(self.sandbox_path, 'ATLASEventService.py'))
         os.chmod(os.path.join(self.sandbox_path, 'ATLASEventService.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'MessageServer.py'),
-                     os.path.join(self.sandbox_path, 'MessageServer.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'MessageServer.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PilotYamplServer.py'),
+                     os.path.join(self.sandbox_path, 'PilotYamplServer.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'PilotYamplServer.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'StoppableThread.py'),
                      os.path.join(self.sandbox_path, 'StoppableThread.py'))
         os.chmod(os.path.join(self.sandbox_path, 'StoppableThread.py'), 0666)

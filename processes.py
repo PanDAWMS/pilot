@@ -204,7 +204,9 @@ def killOrphans():
             pid = ids.group(1)
             ppid = ids.group(2)
             comm = ids.group(3)
-            if ppid == '1':
+            if comm == 'cvmfs2':
+                pUtil.tolog("Ignoring possible orphan process running cvmfs2: pid=%s, ppid=%s" % (pid, ppid))
+            elif ppid == '1':
                 count += 1
                 pUtil.tolog("Found orphan process: pid=%s, ppid=%s" % (pid, ppid))
                 cmd = 'kill -9 %s' % (pid)

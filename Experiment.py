@@ -703,7 +703,7 @@ class Experiment(object):
         if eventService:
             tolog("Encountered an event service job")
             if isHPC:
-                name = "RunJobEvent" + _name
+                name = "RunJob%sEvent" % (_name)
             else:
                 name = "RunJobEvent"
 

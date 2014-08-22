@@ -291,6 +291,7 @@ Added missing signal.SIGUSR1 to __main__() (RunJob, RunJobEvent)
 Increased time limit from 24 to 48 h in purgeFiles(), added mod time to log message (Cleaner)
 Changed replicas_dict != {} to replicas_dict != None which caused a problem on ND, in getPoolFileCatalog() (Mover)
 Added missing killProcesses import (pUtil)
+Added exception for cvmfs2 in killOrphans(). Requested by David Lesny (processes)
 
 Code contributions from Wen Guan, May 30, 2014:
 

@@ -2254,21 +2254,13 @@ def updateESGUIDs(guids):
     # necessary since guids are used as dictionary keys in some places
 
     # replace the NULL values with different values
-    # guids = ['NULL','NULL','NULL','sasdasdasdasdd']
-    # -> ['DUMMYGUID0', 'DUMMYGUID1', 'DUMMYGUID2', 'sasdasdasdasdd']
+    # guids = 'NULL,NULL,NULL,sasdasdasdasdd'
+    # -> 'DUMMYGUID0,DUMMYGUID1,DUMMYGUID2,sasdasdasdasdd'
 
-    guids = guids.split(",")
-    i = 0
-    _guids = []
-    for guid in guids:
-        if guid == "NULL":
-            guid = "DUMMYGUID%d" % (i)
-            i += 1
-        _guids.append(guid)
+    for i in range(guids.count('NULL')):
+        guids = guids.replace('NULL', 'DUMMYGUID%d' % (i), 1)
 
-    _guids = "%s" % str(_guids)
-    tolog("Updated guids list: %s" % (_guids))
-    return _guids
+    return guids
 
 def getESInputFiles(esFileDictionary):
     """ Get all the input files from all the keys in the event range file dictionary """
@@ -2309,8 +2301,17 @@ def updateDispatcherData4ES(data, experiment, path):
                 tolog("esFileDictionary=%s" % (esFileDictionary))
                 tolog("orderedFnameList=%s" % (orderedFnameList))
                 if esFileDictionary != {}:
+                    # Replace the @inputFor* directorive with the file list
+                    for name in orderedFnameList:
+                        tolog("Replacing @%s with %s" % (name, esFileDictionary[name]))
+                        data['jobPars'] = data['jobPars'].replace("@%s" % (name), esFileDictionary[name])
+
+                    # Remove the autoconf
+                    if "--autoConfiguration=everything " in data['jobPars']:
+                        data['jobPars'] = data['jobPars'].replace("--autoConfiguration=everything ", " ")
                     # Write event service file lists to the proper input file
-                    ec, fnames = writeToInputFile(path, esFileDictionary, orderedFnameList)
+                    #ec, fnames = writeToInputFile(path, esFileDictionary, orderedFnameList)
+                    ec = 0
                     if ec == 0:
                         #inputFiles = getESInputFiles(esFileDictionary)
 
@@ -3309,6 +3310,9 @@ def extractFilePaths(s):
             for i in range(len(found)):
                 setup_paths.append(found[i])
 
+    if setup_paths == None:
+        return setup_paths
+
     # note: there is a special case if the first setup path contains an unevaluated environment variable, e.g.
     # s = "export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase; source $ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh --quiet;"
     # -> setup_paths = ['$ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh']
@@ -3316,33 +3320,8 @@ def extractFilePaths(s):
     # -> env_variables = {'ATLAS_LOCAL_ROOT_BASE': '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase'}
     # -> setup_paths = ['/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh']
 
-    if setup_paths[0].startswith('$'):
-        if s.startswith('export'):
-            # extract the env variable and its value
-            cmd = s.split(';')
-            pattern = re.compile(r"export (\S+)\=(\S+)")
-            t = re.findall(pattern, cmd[0]) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')]
-            if t != []:
-                try:
-                    e = re.findall(pattern, cmd[0])[0][0]
-                    v = re.findall(pattern, cmd[0])[0][1]
-                except:
-                    tolog("Could not extract env variable and value from t=%s (%s)" % (t, setup_paths[0]))
-                else:
-                    env_variables = {e: v}
-
-                if env_variables != {}:
-                    # finally replace the unevaluated env variable
-                    setup_paths[0] = setup_paths[0].replace("$" + e, v)
-
-            else:
-                tolog("Could not extract env variable from cmd=%s (%s)" % (cmd, setup_paths[0]))
-        else:
-            tolog("!!WARNING!!2991!! Setup path contains env variable but command does not begin with an export, cannot evaluate")
-
-
     pattern = re.compile(r"export (\S+)\=(\S+)")
-    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')]
+    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')] 
     if t != []:
         for i in range(len(setup_paths)):
             for match_pair in t:
@@ -3351,7 +3330,6 @@ def extractFilePaths(s):
                     v = v.replace(";", "").strip()
                     setup_paths[i] = setup_paths[i].replace("$" + e, v).replace("${" + e + "}", v)
                 except Exception, e:
-                    tolog("WARNNING: Error happened when extracting setup path: %s" % (e))
 
     return setup_paths
 
@@ -4329,7 +4307,10 @@ def getGUID():
 
 def extractHPCInfo(infoStr):
     """ Extract HPC name from the info string """
-    # Return: isHPCSite (True/False), HPC_name (string)                                                                                                                                # infoStr = "blabla HPC_Titan" -> True, "Titan"                                                                                                                                    # infoStr = "blabla bla" -> False, None                                                                                                                                            # The HPC name will be capitalized (titan -> Titan)                                                                                                                                                      
+    # Return: isHPCSite (True/False), HPC_name (string)
+    # infoStr = "blabla HPC_Titan" -> True, "Titan"
+    # infoStr = "blabla bla" -> False, None
+    # The HPC name will be capitalized (titan -> Titan)                                                                                                                                                  
     name = None
     isHPCSite = False
 

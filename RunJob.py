@@ -1135,7 +1135,7 @@ if __name__ == "__main__":
             runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
 
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
-        runJob.copyInputForFiles(job.workdir)
+        #runJob.copyInputForFiles(job.workdir)
 
         # (stage-in ends here) .............................................................................
 

@@ -20,7 +20,7 @@ import SiteMover
 import xrdcpSiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths, getExperiment, extractPattern
+from pUtil import tolog, readpar, getSiteInformation, extractFilePaths, getExperiment, extractPattern
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
 
@@ -57,13 +57,16 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
     def getSetup(self):
         """ Return the setup string (pacman setup os setup script) for the copy command used by the mover """
         _setup_str = ""
-        if self._setup:
+        if self._setup and self._setup != "" and self._setup.strip() != "":
             if not self._setup.endswith(";"):
                 self._setup += ";"
             if not "alias" in self._setup:
                 if "atlasLocalSetup.sh" in self._setup and "--quiet" not in self._setup:
                     self._setup = self._setup.replace("atlasLocalSetup.sh", "atlasLocalSetup.sh --quiet")
-                _setup_str = "source %s" % self._setup
+                if self._setup.startswith("export") or self._setup.startswith("source"):
+                    _setup_str = "%s" % self._setup
+                else:
+                    _setup_str = "source %s" % self._setup
             else:
                 _setup_str = self._setup
 
