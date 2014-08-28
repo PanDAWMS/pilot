@@ -1665,19 +1665,30 @@ def removeLEDuplicates(logMsg):
     return "\n".join(log_extracts_tmp)
 
 def writeToFile(filename, s):
-    """ write string s to file """
+    """ Write string s to file """
+
+    # Ignore write status
+    status = writeToFileWithStatus(filename, s)
+
+def writeToFileWithStatus(filename, s):
+    """ Write string s to file with status return """
+
+    status = False
 
     try:
         f = open(filename, "w")
     except Exception, e:
-        tolog("!!WARNING!!2990!! Could not open: %s, %s" % (filename, str(e)))
+        tolog("!!WARNING!!2990!! Could not open: %s, %s" % (filename, e))
     else:
         f.write("%s" % (s))
         f.close()
         tolog('Wrote string "%s" to file: %s' % (s, filename))
+        status = True
+
+    return status
 
 def readCodeFromFile(filename):
-    """ read exit code from file <workdir>/EXITCODE """
+    """ Wead exit code from file <workdir>/EXITCODE """
 
     ec = 0
     if os.path.exists(filename):
@@ -3330,6 +3341,7 @@ def extractFilePaths(s):
                     v = v.replace(";", "").strip()
                     setup_paths[i] = setup_paths[i].replace("$" + e, v).replace("${" + e + "}", v)
                 except Exception, e:
+                    tolog("WARNNING: Error happened when extracting setup path: %s" % (e))
 
     return setup_paths
 

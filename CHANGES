@@ -292,6 +292,19 @@ Increased time limit from 24 to 48 h in purgeFiles(), added mod time to log mess
 Changed replicas_dict != {} to replicas_dict != None which caused a problem on ND, in getPoolFileCatalog() (Mover)
 Added missing killProcesses import (pUtil)
 Added exception for cvmfs2 in killOrphans(). Requested by David Lesny (processes)
+Created writeToFileWithStatus(), used by writeToFile() (pUtil)
+Added additional protection against non rucio paths in getCatalogFileList() (Mover)
+
+Code contributions from Danila Oleynik, August 12, 2014:
+
+ATLASExperiment        : Added forks for different structure of 'command line' for Titan, and excluded some checks
+ATLASSiteInformation   : lines 437-438 shifted under 'if'
+Monitor		       : Fixed misprint line 435
+pUtil		       : 'getFileList' - fixed, 'stageInPyModules' - extended for copying of directories, 'removePyModules' small fix, '_Curl' - _verifyHost = False for Titan
+RunJobUtilities	       : 'getSourceSetup' - small fix
+RunJob		       : Missed 'region' variable, line 816
+RunJobHPC	       : Added HPC specific variables
+RunJobTitan	       : redefined 'executePayload' method, implemented methods for collecting information about resources and walltime gaps.
 
 Code contributions from Wen Guan, May 30, 2014:
 

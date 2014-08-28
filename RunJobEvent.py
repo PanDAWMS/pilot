@@ -6,7 +6,7 @@
 
 # Import relevant python/pilot modules
 from RunJob import RunJob                        # Parent RunJob class
-from pUtil import tolog                          # Logging method that sends text to the pilot log
+from pUtil import tolog, writeToFileWithStatus   # Logging method that sends text to the pilot log
 
 # Standard python modules
 import os
@@ -84,6 +84,7 @@ class RunJobEvent(RunJob):
     __job = None                                 # Job object
     __cache = ""                                 # Cache URL, e.g. used by LSST
     __metadata_filename = ""                     # Full path to the metadata file
+    __yamplChannelName = None                    # Yampl channel name
 
     # Getter and setter methods
 
@@ -397,6 +398,16 @@ class RunJobEvent(RunJob):
 
         self.__jobSite = jobSite
 
+    def getYamplChannelName(self):
+        """ Getter for __yamplChannelName """
+
+        return self.__yamplChannelName
+
+    def setYamplChannelName(self, yamplChannelName):
+        """ Setter for __yamplChannelName """
+
+        self.__yamplChannelName = yamplChannelName
+
     # Get/setters for the job object
 
     def getJob(self):
@@ -499,7 +510,7 @@ class RunJobEvent(RunJob):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
-        pass
+        self.__yamplChannelName = "EventService_EventRanges"
 
     # is this necessary? doesn't exist in RunJob
     def __new__(cls, *args, **kwargs):
@@ -1500,11 +1511,25 @@ class RunJobEvent(RunJob):
 
         return path, event_range_id, cpu, wall
 
-    def getTokenExtractorProcess(self, thisExperiment, setup, input_tag_file, stdout=None, stderr=None):
+    def getTokenExtractorProcess(self, thisExperiment, setup, input_tag_file, input_tag_file_guid, stdout=None, stderr=None, useEventIndex=False):
         """ Execute the TokenExtractor """
 
+        # First create a file with format: <guid>,PFN:<input_tag_file>
+        filename = os.path.join(os.getcwd(), "tag_file_info.txt")
+        s = "%s,PFN:%s" % (input_tag_file_guid, input_tag_file)
+        status = writeToFileWithStatus(filename, s)
+
+        # Define the options
+        options = ""
+        if useEventIndex:
+            options += "--useEI "
+        if yamplChannelName:
+            options += "--yampl %s " % (self.__yamplChannelName)
+        options += "--source %s" % (filename)
+
         # Define the command
-        cmd = "%s TokenExtractor -src PFN:%s RootCollection" % (setup, input_tag_file)
+        # old style: cmd = "%s TokenExtractor -src PFN:%s RootCollection" % (setup, input_tag_file)
+        cmd = "%s TokenExtractor %s" % (setup, options)
 
         # Execute and return the TokenExtractor subprocess object
         return thisExperiment.getSubprocess(cmd, stdout=stdout, stderr=stderr)
@@ -1523,7 +1548,7 @@ class RunJobEvent(RunJob):
 
         # Create the server socket
         if MessageServer:
-            self.__message_server = MessageServer(socketname='EventService_EventRanges', context='local')
+            self.__message_server = MessageServer(socketname=self.__yamplChannelName, context='local')
 
             # is the server alive?
             if not self.__message_server.alive():
@@ -1537,17 +1562,25 @@ class RunJobEvent(RunJob):
 
         return status
 
-    def getTAGFile(self, inFiles):
+    def getTAGFileInfo(self, inFiles, guids):
         """ Extract the TAG file from the input files list """
 
         # Note: assume that there is only one TAG file
         tag_file = ""
-        for f in inFiles:
-            if ".TAG." in f:
-                tag_file = f
-                break
+        guid = ""
+        i = -1
 
-        return tag_file
+        if len(inFiles) == len(guids):
+            for f in inFiles:
+                i += 1
+                if ".TAG." in f:
+                    tag_file = f
+                    guid = guids[i]
+                    break
+        else:
+            tolog("!!WARNING!!2121!! Input file list not same length as guid list")
+
+        return tag_file, guid
 
     def sendMessage(self, message):
         """ Send a message """
@@ -2089,8 +2122,8 @@ if __name__ == "__main__":
         athenamp_stderr = None
 
         # Create and start the TokenExtractor
-        input_tag_file = runJob.getTAGFile(job.inFiles)
-        if input_tag_file != "":
+        input_tag_file, input_tag_file_guid = runJob.getTAGFileInfo(job.inFiles, job.inFilesGuids)
+        if input_tag_file != "" and input_tag_file_guid != "":
             tolog("Will run TokenExtractor on file %s" % (input_tag_file))
 
             # Extract the proper setup string from the run command
@@ -2101,12 +2134,13 @@ if __name__ == "__main__":
             tokenextractor_stdout, tokenextractor_stderr = runJob.getStdoutStderrFileObjects(stdoutName="tokenextractor_stdout.txt", stderrName="tokenextractor_stderr.txt")
 
             # Get the Token Extractor command
-            tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_tag_file, stdout=tokenextractor_stdout, stderr=tokenextractor_stderr)
+            tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_tag_file, input_tag_file_guid,\
+                                                                        stdout=tokenextractor_stdout, stderr=tokenextractor_stderr)
 
 #            out, err = tokenExtractorProcess.communicate()
 #            errcode = tokenExtractorProcess.returncode
         else:
-            pilotErrorDiag = "Required TAG file could not be identified in input file list"
+            pilotErrorDiag = "Required TAG file/guid could not be identified"
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
 
             # stop threads
@@ -2304,12 +2338,12 @@ if __name__ == "__main__":
 #        runJob.setAsyncOutputStagerThread(asyncOutputStager_thread)
 
         # Stop Token Extractor
-        if tokenExtractorProcess:
-            tolog("Stopping Token Extractor process")
-            tokenExtractorProcess.kill()
-            tolog("(Kill signal SIGTERM sent)")
-        else:
-            tolog("No Token Extractor process running")
+#        if tokenExtractorProcess:
+#            tolog("Stopping Token Extractor process")
+#            tokenExtractorProcess.kill()
+#            tolog("(Kill signal SIGTERM sent)")
+#        else:
+#            tolog("No Token Extractor process running")
 
         # Close stdout/err streams
         if tokenextractor_stdout:

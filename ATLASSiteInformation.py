@@ -435,7 +435,8 @@ class ATLASSiteInformation(SiteInformation):
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
-            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
+            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^xrados.cern.ch//atlas/logs")
+            #ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
@@ -460,7 +461,7 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
 #        if thisSite.sitename == "GoeGrid":
-#            ec = self.replaceQueuedataField("status", "online")
+#            ec = self.replaceQueuedataField("catchall", "allow_alt_stageout")
 #            ec = self.replaceQueuedataField("copytool", "gfal-copy")
         #    ec = self.replaceQueuedataField("copytool", "lcgcp")
 

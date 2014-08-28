@@ -3271,17 +3271,30 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
 #                matched_replicas.append(sfn)
 #                found = True
 #            else:
+
+            if (readpar('copytool').lower() == "fax" and readpar('copytoolin') == "") or readpar('copytoolin').lower() == "fax":
+                fax = True
+            else:
+                fax = False
             tolog("Checking list of SEs")
             found = False
             for se in _listSEs:
                 if sfn[:len(se)] == se:
                     tolog("Found matched replica: %s at %s" % (sfn, se))
-                    matched_replicas.append(sfn)
-                    found = True
+                    # don't bother if FAX is to be used, sort it out below instead
+                    if fax and not "rucio" in sfn:
+                        tolog("Skip this test since not a rucio path and we are in fax mode")
+                    else:
+                        matched_replicas.append(sfn)
+                        found = True
             if not found:
                 tolog("Could not find any matching se, try to use copyprefix instead")
                 if foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
-                    matched_replicas.append(sfn)
+                    # don't bother if FAX is to be used, sort it out below instead
+                    if fax and not "rucio" in sfn:
+                        tolog("Skip this test as well since not a rucio path and we are in fax mode")
+                    else:
+                        matched_replicas.append(sfn)
                 else:
                     tolog("Found no matched replicas using copyprefix")
 
