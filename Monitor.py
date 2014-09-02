@@ -1128,9 +1128,9 @@ class Monitor:
                     os.execvpe(self.__env['pyexe'], jobargs, os.environ)
 
             # Control variables for looping jobs
-            self.__env['LastTimeFilesWereModified'] = {}
+            self.__env['lastTimeFilesWereModified'] = {}
             for k in self.__env['jobDic'].keys(): # loop over production and possible analysis job
-                self.__env['LastTimeFilesWereModified'][k] = int(time.time())
+                self.__env['lastTimeFilesWereModified'][k] = int(time.time())
         
             # main monitoring loop
             iteration = 1

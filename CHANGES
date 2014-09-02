@@ -294,7 +294,10 @@ Added missing killProcesses import (pUtil)
 Added exception for cvmfs2 in killOrphans(). Requested by David Lesny (processes)
 Created writeToFileWithStatus(), used by writeToFile() (pUtil)
 Added additional protection against non rucio paths in getCatalogFileList() (Mover)
-
+Created getInitialDirs() (pUtil)
+Updated getModernASetup() to handle nightlies correctly. Sending swbase to getModernASetup() from two places (ATLASExperiment)
+Corrected LastTimeFilesWereModified -> lastTimeFilesWereModified in monitor_job() (Monitor)
+ 
 Code contributions from Danila Oleynik, August 12, 2014:
 
 ATLASExperiment        : Added forks for different structure of 'command line' for Titan, and excluded some checks

@@ -4333,3 +4333,23 @@ def extractHPCInfo(infoStr):
         isHPCSite = True
 
     return isHPCSite, name
+
+def getInitialDirs(path, n):
+    """ Get the initial n sub directories in a given path """
+
+    # E.g. path = "/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies", n = 3
+    # -> subpath = "/cvmfs/atlas-nightlies.cern.ch/repo"
+
+    subpath = ""
+    if path[0] == "/":
+        s = path.split("/")
+        if n <= len(s):
+            subpath = "/"
+            for i in range(1, n+1):
+                subpath = os.path.join(subpath, s[i])
+        else:
+            subpath = path
+    else:
+        tolog("!!WARNING!!2211!! Not a path: %s" % (path))
+
+    return subpath

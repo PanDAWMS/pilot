@@ -20,6 +20,7 @@ from pUtil import getSiteInformation            # Get the SiteInformation object
 from pUtil import isBuildJob                    # Is the current job a build job?
 from pUtil import remove                        # Used to remove redundant file before log file creation
 from pUtil import extractFilePaths              # Used by verifySetupCommand
+from pUtil import getInitialDirs                # Used by getModernASetup()
 from PilotErrors import PilotErrors             # Error codes
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
@@ -2025,7 +2026,7 @@ class ATLASExperiment(Experiment):
             tolog("Extracted %s from homePackage=%s" % (rel_N, homePackage))
             if rel_N:
                 # path = "%s/%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release, rel_N)
-                path = self.getModernASetup()
+                path = self.getModernASetup(swbase=swbase)
                 tolog("1. path = %s" % (path))
                 skipVerification = True
         if not path:
@@ -2114,7 +2115,7 @@ class ATLASExperiment(Experiment):
             if rel_N:
                 tolog("Extracted %s from homePackage=%s" % (rel_N, homePackage))
                 # asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, rel_N)
-                asetup_path = self.getModernASetup()
+                asetup_path = self.getModernASetup(swbase=swbase)
                 tolog("2. path=%s" % (asetup_path))
                 # use special options for nightlies (not the release info set above)
                 # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
@@ -2932,10 +2933,18 @@ class ATLASExperiment(Experiment):
 
         return release
 
-    def getModernASetup(self):
+    def getModernASetup(self, swbase=None):
         """ Return the full modern setup for asetup """
 
-        cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase;" % (self.getCVMFSPath())
+        # Handle nightlies correctly, since these releases will have different initial paths
+        path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
+        #if swbase:
+        #    path = getInitialDirs(swbase, 3) # path = "/cvmfs/atlas-nightlies.cern.ch/repo"
+        #    # correct for a possible change of the root directory (/cvmfs)
+        #    path = path.replace("/cvmfs", self.getCVMFSPath())
+        #else:
+        #    path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
+        cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
         cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
         cmd += "source $AtlasSetup/scripts/asetup.sh"
 
