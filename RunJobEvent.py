@@ -1523,7 +1523,7 @@ class RunJobEvent(RunJob):
         options = ""
         if useEventIndex:
             options += "--useEI "
-        if yamplChannelName:
+        if self.__yamplChannelName:
             options += "--yampl %s " % (self.__yamplChannelName)
         options += "--source %s" % (filename)
 
