@@ -298,7 +298,11 @@ Created getInitialDirs() (pUtil)
 Updated getModernASetup() to handle nightlies correctly. Sending swbase to getModernASetup() from two places (ATLASExperiment)
 Corrected LastTimeFilesWereModified -> lastTimeFilesWereModified in monitor_job() (Monitor)
 Created EventRanges functino module, used by RunJobEvent (EventRanges)
- 
+
+Code contribution from Edward Karavakis, September 5, 2014:
+
+Simplified module copying code in glexec_utils.py
+
 Code contributions from Danila Oleynik, August 12, 2014:
 
 ATLASExperiment        : Added forks for different structure of 'command line' for Titan, and excluded some checks

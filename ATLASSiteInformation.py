@@ -435,13 +435,13 @@ class ATLASSiteInformation(SiteInformation):
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
-            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
-            #ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
+            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
-            #ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
+            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
             #ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 # Event Service tests:
