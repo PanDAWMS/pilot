@@ -38,6 +38,7 @@ from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getFileAccessInfo, getCmtconfig, getExtension, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID
+from EventRanges import downloadEventRanges, updateEventRange
 
 try:
     from PilotYamplServer import PilotYamplServer as MessageServer
@@ -85,6 +86,7 @@ class RunJobEvent(RunJob):
     __cache = ""                                 # Cache URL, e.g. used by LSST
     __metadata_filename = ""                     # Full path to the metadata file
     __yamplChannelName = None                    # Yampl channel name
+    __tokenextractor_input_list_filenane = ""    #
 
     # Getter and setter methods
 
@@ -503,6 +505,16 @@ class RunJobEvent(RunJob):
         """ Setter for outFiles """
 
         self.__job.outFiles = outFiles
+
+    def getTokenExtractorInputListFilename(self):
+        """ Getter for __tokenextractor_input_list_filenane """
+
+        return self.__tokenextractor_input_list_filenane
+
+    def setTokenExtractorInputListFilename(self, tokenextractor_input_list_filenane):
+        """ Setter for __tokenextractor_input_list_filenane """
+
+        self.__tokenextractor_input_list_filenane = tokenextractor_input_list_filenane
 
     # Required methods
 
@@ -1381,7 +1393,7 @@ class RunJobEvent(RunJob):
                                 # Time to update the server
                                 tolog("Transfer %s" % (status))
                                 try:
-                                    msg = self.updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status)
+                                    msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status)
                                 except Exception, e:
                                     tolog("!!WARNING!!2233!! updateEventRange threw an exception: %s" % (e))
                                 else:
@@ -1511,21 +1523,27 @@ class RunJobEvent(RunJob):
 
         return path, event_range_id, cpu, wall
 
+    def getTokenExtractorInputListEntry(self, input_file_guid, input_filename):
+        """ Prepare the guid and filename string for the token extractor file with the proper format """
+
+        return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
+
     def getTokenExtractorProcess(self, thisExperiment, setup, input_tag_file, input_tag_file_guid, stdout=None, stderr=None, useEventIndex=False):
         """ Execute the TokenExtractor """
 
         # First create a file with format: <guid>,PFN:<input_tag_file>
-        filename = os.path.join(os.getcwd(), "tag_file_info.txt")
-        s = "%s,PFN:%s" % (input_tag_file_guid, input_tag_file)
+        filename = os.path.join(os.getcwd(), "tokenextractor_input_list.txt")
+        self.setTokenExtractorInputListFilename(filename) # needed later when we add the files from the event ranges
+        s = self.getTokenExtractorInputListEntry(input_tag_file_guid, input_tag_file)
         status = writeToFileWithStatus(filename, s)
 
         # Define the options
         options = ""
         if useEventIndex:
             options += "--useEI "
-        if self.__yamplChannelName:
-            options += "--yampl %s " % (self.__yamplChannelName)
-        options += "--source %s" % (filename)
+        #if self.__yamplChannelName:
+        #    options += "--yampl %s " % (self.__yamplChannelName)
+        options += "-v --source %s" % (filename)
 
         # Define the command
         # old style: cmd = "%s TokenExtractor -src PFN:%s RootCollection" % (setup, input_tag_file)
@@ -1575,6 +1593,11 @@ class RunJobEvent(RunJob):
                 i += 1
                 if ".TAG." in f:
                     tag_file = f
+                    break
+            i = -1
+            for f in inFiles:
+                i += 1
+                if not ".TAG." in f: # fix this, just added 'not' to get theother guid - won't work of course in thelong run
                     guid = guids[i]
                     break
         else:
@@ -1787,38 +1810,6 @@ class RunJobEvent(RunJob):
 
         return message
 
-    def updateEventRange(self, event_range_id, eventRangeList, status='finished'):
-        """ Update an event range on the Event Server """
-
-        # Return the server response (instruction to AthenaMP)
-        # Note: the returned message is a string (of a list of dictionaries). If it needs to be converted back to a list, use json.loads(message)
-
-        tolog("Server: Updating an event range..")
-
-        # message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]"
-
-        message = ""
-        url = "https://aipanda007.cern.ch:25443/server/panda"
-        # url = "https://pandaserver.cern.ch:25443/server/panda"
-        node = {}
-        node['eventRangeID'] = event_range_id
-
-        # node['cpu'] =  eventRangeList[1]
-        # node['wall'] = eventRangeList[2]
-        node['eventStatus'] = status
-        # tolog("node = %s" % str(node))
-
-        # open connection
-        ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGE")
-        # response = ret[1]
-
-        if ret[0]: # non-zero return code
-            message = "Failed to download event range - error code = %d" % (ret[0])
-        else:
-            message = ""
-
-        return message
-
     def getStdoutStderrFileObjects(self, stdoutName="stdout.txt", stderrName="stderr.txt"):
         """ Create stdout/err file objects """
 
@@ -1853,6 +1844,28 @@ class RunJobEvent(RunJob):
             tolog("Could not extract any event ranges: %s" % (e))
 
         return event_ranges
+
+    def getEventRangeFilesDictionary(self, event_ranges):
+        """ """
+
+        eventRangeFilesDictionary = {}
+        for event_range in event_ranges:
+            guid = event_range['GUID']
+            lfn = event_range['LFN']
+            eventRangeFilesDictionary[guid] = lfn
+
+        return eventRangeFilesDictionary
+
+    def updateTokenExtractorInputFile(self, eventRangeFilesDictionary):
+        """ Add the new file info to the token extractor file list """
+
+        for guid in eventRangeFilesDictionary.keys():
+            lfn = eventRangeFilesDictionary[guid]
+            s = self.getTokenExtractorInputListEntry(guid, lfn)
+            filename = self.getTokenExtractorInputListFilename()
+            status = writeToFileWithStatus(filename, s, attribute='a')
+            if not status:
+                tolog("!!WARNING!!2233!! Failed to update %s" % (filename))
 
     def extractEventRangeIDs(self, event_ranges):
         """ Extract the eventRangeID's from the event ranges """
@@ -2196,7 +2209,7 @@ if __name__ == "__main__":
             if runJob.isAthenaMPReady():
 
                 # Pilot will download some event ranges from the Event Server
-                message = runJob.downloadEventRanges()
+                message = downloadEventRanges(job.jobId, job.jobsetID)
 
                 # Create a list of event ranges from the downloaded message
                 event_ranges = runJob.extractEventRanges(message)
@@ -2206,6 +2219,10 @@ if __name__ == "__main__":
                     tolog("No more events")
                     runJob.sendMessage("No more events")
                     break
+
+                # Update the token extractor file list
+                #eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges)
+                #runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary)
 
                 # Get the current list of eventRangeIDs
                 currentEventRangeIDs = runJob.extractEventRangeIDs(event_ranges)

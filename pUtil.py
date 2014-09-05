@@ -1670,19 +1670,19 @@ def writeToFile(filename, s):
     # Ignore write status
     status = writeToFileWithStatus(filename, s)
 
-def writeToFileWithStatus(filename, s):
+def writeToFileWithStatus(filename, s, attribute="w"):
     """ Write string s to file with status return """
 
     status = False
 
     try:
-        f = open(filename, "w")
+        f = open(filename, attribute)
     except Exception, e:
         tolog("!!WARNING!!2990!! Could not open: %s, %s" % (filename, e))
     else:
         f.write("%s" % (s))
         f.close()
-        tolog('Wrote string "%s" to file: %s' % (s, filename))
+        tolog('Wrote string "%s" to file: %s' % (s.replace('\n',''), filename))
         status = True
 
     return status
@@ -2134,7 +2134,6 @@ def toServer(baseURL, cmd, data, path, experiment):
 
             # create the parameter list from the dispatcher response
             data, response = parseDispatcherResponse(response)
-            tolog("sdsdsds data=%s"%str(data))
             # update the dispatcher data for Event Service merge jobs
             if experiment != "": # experiment is only set for GETJOB, skip this otherwise
                 data = updateDispatcherData4ES(data, experiment, path)

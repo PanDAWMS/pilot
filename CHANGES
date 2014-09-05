@@ -297,6 +297,7 @@ Added additional protection against non rucio paths in getCatalogFileList() (Mov
 Created getInitialDirs() (pUtil)
 Updated getModernASetup() to handle nightlies correctly. Sending swbase to getModernASetup() from two places (ATLASExperiment)
 Corrected LastTimeFilesWereModified -> lastTimeFilesWereModified in monitor_job() (Monitor)
+Created EventRanges functino module, used by RunJobEvent (EventRanges)
  
 Code contributions from Danila Oleynik, August 12, 2014:
 
@@ -378,6 +379,7 @@ RunJob*.py                    : New RunJob classes
 TimerCommand.py               : New timer module
 xrootdObjectstoreSiteMover.py : Object store class using xrootd
 S3ObjectstoreSiteMover.py     : Object store class using S3 API
+EventRanges.py                : Server communication module for event ranges
 
 Note: new modules have to be added to glexec_utils.py.
 

@@ -435,13 +435,13 @@ class ATLASSiteInformation(SiteInformation):
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
-            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^xrados.cern.ch//atlas/logs")
+            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
             #ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
-            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
+            #ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
             #ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 # Event Service tests:
@@ -454,11 +454,11 @@ class ATLASSiteInformation(SiteInformation):
         if os.environ.get("COPYTOOLIN"):
             ec = self.replaceQueuedataField("copytoolin", os.environ.get("COPYTOOLIN"))
 
-#        if thisSite.sitename == "BNL_PROD_MCORE":
-#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
+        if thisSite.sitename == "BNL_PROD_MCORE":
+            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
 
-#        if thisSite.sitename == "CERN-PROD" or thisSite.sitename == "BNL_PROD_MCORE" or thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "MWT2_MCORE":
-#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+        if thisSite.sitename == "CERN-PROD" or thisSite.sitename == "BNL_PROD_MCORE" or thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "MWT2_MCORE":
+            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
 #        if thisSite.sitename == "GoeGrid":
 #            ec = self.replaceQueuedataField("catchall", "allow_alt_stageout")
