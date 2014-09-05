@@ -423,6 +423,12 @@ class GlexecInterface(object):
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobMira.py'),
                      os.path.join(self.sandbox_path, 'RunJobMira.py'))
         os.chmod(os.path.join(self.sandbox_path, 'RunJobMira.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobFactory.py'),
+                     os.path.join(self.sandbox_path, 'RunJobFactory.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'RunJobFactory.py'), 0666)
+        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'EventRanges.py'),
+                     os.path.join(self.sandbox_path, 'EventRanges.py'))
+        os.chmod(os.path.join(self.sandbox_path, 'EventRanges.py'), 0666)
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ErrorDiagnosis.py'),
                      os.path.join(self.sandbox_path, 'ErrorDiagnosis.py'))
         os.chmod(os.path.join(self.sandbox_path, 'ErrorDiagnosis.py'), 0666)
