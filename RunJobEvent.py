@@ -1249,11 +1249,6 @@ class RunJobEvent(RunJob):
                 self.__job.pilotErrorDiag = "Put error: " + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("pilot: Put error: "))
 
             tolog("Put function returned code: %d" % (ec))
-
-
-            ec = 0
-            tolog("!!WARNING!!2222!! RESET PUT ERROR CODE")
-
             if ec != 0:
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(ec):
