@@ -15,6 +15,7 @@ from FileStateClient import createFileStates, dumpFileStates, getFileState
 from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
+from RunJobFactory import RunJobFactory
 
 import inspect
 
@@ -69,7 +70,6 @@ class Monitor:
             pUtil.tolog("subprocessName = %s" % (subprocessName))
 
             # Now get an instance of the corresponding class from the RunJobFactory
-            from RunJobFactory import RunJobFactory
             factory = RunJobFactory()
             _rJ = factory.newRunJob(subprocessName)
             self.__runJob = _rJ()
