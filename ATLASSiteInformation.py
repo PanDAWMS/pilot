@@ -454,13 +454,6 @@ class ATLASSiteInformation(SiteInformation):
         if os.environ.get("COPYTOOLIN"):
             ec = self.replaceQueuedataField("copytoolin", os.environ.get("COPYTOOLIN"))
 
-#        if thisSite.sitename == "OU_OCHEP_SWT2":
-#            ec = self.replaceQueuedataField("copyprefix", "^gsiftp://lutse1.lunet.edu")
-#            ec = self.replaceQueuedataField("ddm", "LUCILLE_PRODDISK")
-#            ec = self.replaceQueuedataField("se", "token:ATLASPRODDISK:srm://lutse1.lunet.edu:8443/srm/v2/server?SFN=")
-#            ec = self.replaceQueuedataField("sepath", "/data/osg/cache/atlasproddisk/rucio")
-#            ec = self.replaceQueuedataField("seprodpath", "/data/osg/cache/atlasproddisk/rucio")
-
 #        if thisSite.sitename == "BNL_PROD_MCORE":
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
 

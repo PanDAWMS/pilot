@@ -3341,8 +3341,8 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                                 ec = error.ERR_REPNOTFOUND
                         if _sfn != "":
                             file_dict[guid] = _sfn
-                            tolog("Will use SURL=%s for the replica dictionary (will be overwritten later by FAX once it is known)" % (sfn))
-                            matched_replicas.append(sfn)
+                            tolog("Will use SURL=%s for the replica dictionary (will be overwritten later by FAX once it is known)" % (_sfn))
+                            matched_replicas.append(_sfn)
                             matched_replicas = removeDuplicates(matched_replicas)
                             storeMatchedReplicas(guid, matched_replicas, workdir)
                             pilotErrorDiag = "SURL not final, will be overwritten by FAX info later"
