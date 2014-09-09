@@ -326,7 +326,11 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             csumtype = "default"
 
         # get a proper envsetup
-        envsetup = self.getEnvsetup(alt=alt)
+        if alt:
+            # use a cvmfs setup for stage-out to alternative SE
+            envsetup = si.getLocalEMISetup()
+        else:
+            envsetup = self.getEnvsetup(alt=alt)
 
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
