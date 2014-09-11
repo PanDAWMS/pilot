@@ -460,11 +460,6 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "CERN-PROD" or thisSite.sitename == "BNL_PROD_MCORE" or thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "MWT2_MCORE":
 #            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
-#        if thisSite.sitename == "GoeGrid":
-#            ec = self.replaceQueuedataField("catchall", "allow_alt_stageout")
-#            ec = self.replaceQueuedataField("copytool", "gfal-copy")
-        #    ec = self.replaceQueuedataField("copytool", "lcgcp")
-
         _status = self.readpar('status')
         if _status != None and _status != "":
             if _status.upper() == "OFFLINE":

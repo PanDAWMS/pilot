@@ -329,6 +329,8 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
         if alt:
             # use a cvmfs setup for stage-out to alternative SE
             envsetup = si.getLocalEMISetup()
+            if envsetup[-1] != ";":
+                envsetup += "; "
         else:
             envsetup = self.getEnvsetup(alt=alt)
 
