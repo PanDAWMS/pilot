@@ -2574,29 +2574,43 @@ def mover_put_data(outputpoolfcstring,
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
-            # perform the stage-out
-            s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname,\
-                                                                                          sitename, analysisJob, testLevel, pinitdir, proxycheck,\
-                                                                                          _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
-                                                                                          prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
-                                                                                          _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                          logPath=logPath)
-            # increase normal stage-out counter if file was staged out
-            if s == 0:
-                N_filesNormalStageOut += 1
+            # perform the normal stage-out, unless we want to force alternative stage-out
+            if not si.forceAlternativeStageOut(flag=analysisJob):
+                s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname,\
+                                                                                                  sitename, analysisJob, testLevel, pinitdir, proxycheck,\
+                                                                                                  _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
+                                                                                                  prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
+                                                                                                  _attempt, experiment, scope, fileDestinationSE, nFiles,\
+                                                                                                  logPath=logPath)
+                # increase normal stage-out counter if file was staged out
+                if s == 0:
+                    N_filesNormalStageOut += 1
+                forceAltStageOut = False
+            else:
+                # first switch off allowAlternativeStageOut since it will not be needed
+                # update queuedata (remove allow_alt_stageout from catchall field)
+                catchall = readpar('catchall')
+                if 'allow_alt_stageout' in catchall:
+                    catchall = catchall.replace('allow_alt_stageout','')
+                    ec = si.replaceQueuedataField("catchall", catchall)
+                tolog("(will force alt stage-out, s=%d)" % (s))
+                forceAltStageOut = True
 
             # attempt alternative stage-out if required
             if s != 0:
-                tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (_attempt, s, pilotErrorDiag))
-
-                # should alternative stage-out be attempted?
-                # (not for special log file transfers to object stores)
-                if logPath == "":
-                    useAlternativeStageOut = si.allowAlternativeStageOut()
+                if forceAltStageOut:
+                    tolog("Forcing alternative stage-out")
+                    useAlternativeStageOut = True
+                    _attempt = 2
                 else:
-                    useAlternativeStageOut = False
+                    tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (_attempt, s, pilotErrorDiag))
 
-                # useAlternativeStageOut = True
+                    # should alternative stage-out be attempted?
+                    # (not for special log file transfers to object stores)
+                    if logPath == "":
+                        useAlternativeStageOut = si.allowAlternativeStageOut(flag=analysisJob)
+                    else:
+                        useAlternativeStageOut = False
 
                 if "failed to remove file" in pilotErrorDiag and not useAlternativeStageOut:
                     tolog("Aborting stage-out retry since file could not be removed from storage/catalog")
@@ -2891,6 +2905,9 @@ def verifySpaceToken(spacetoken, setokens):
     else:
         if spacetoken == "":
             tolog("Warning: ended up with empty space token")
+        elif "dst:" in spacetoken:
+            tolog("Will not verify GROUPDISK space token: %s" % (spacetoken))
+            status = True
         else:
             tolog("Warning: Space token %s is not among allowed values: %s" % (spacetoken, str(setokenslist)))
 
@@ -2902,8 +2919,9 @@ def getFilePathForObjectStore(filetype="logs"):
     # For single object stores
     # root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs
     # For multiple object stores
-    # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.bnl.gov//atlas/logs
-
+    # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov//atlas/logs
+    # For https
+    # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs
     basepath = ""
 
     # Which form of the schedconfig.objectstore field do we currently have?
@@ -2933,7 +2951,7 @@ def getFilePathForObjectStore(filetype="logs"):
     else:
         tolog("!!WARNING!!3333!! Object store not defined in queuedata")
 
-    return basepath # os.path.join(basepath, str(jobId))
+    return basepath
 
 def getDDMStorage(ub, analysisJob, region, eventService, jobId):
     """ return the DDM storage (http version) """

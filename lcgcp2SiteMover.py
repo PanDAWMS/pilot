@@ -390,6 +390,11 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
 
         # cleanup the SURL if necessary (remove port and srm substring)
         if token:
+            # Special case for GROUPDISK (do not remove dst: bit before this stage, needed in several places)
+            if "dst:" in token:
+                token = token[len('dst:'):]
+                tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+
             # used lcg-cp options:
             # --srcsetype: specify SRM version
             #   --verbose: verbosity on

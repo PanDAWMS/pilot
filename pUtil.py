@@ -3703,6 +3703,11 @@ def getStdoutDictionary(jobDic):
                         # add to tail dictionary
                         stdout_dictionary[jobId] = stdout
 
+                        # also keep track of the path to the stdout so we can send it to a text indexer if required
+                        index = "path-%s" % (jobId)
+                        stdout_dictionary[index] = filename
+
+                        tolog("Stored path=%s at index %s" % (stdout_dictionary[index], index))
                 # add the number of lines (later this should always be sent)
                 pattern = re.compile(r"(\d+) [\S+]")
                 cmd = "wc -l %s" % (filename)
@@ -3822,7 +3827,7 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
 
     return ec, thisSite, _jobrec, hasQueuedata
 
-def postJobTask(job, thisSite, thisNode, experiment, jr=False, ra=0, stdout_tail=None):
+def postJobTask(job, thisSite, thisNode, experiment, jr=False, ra=0, stdout_tail=None, stdout_path=None):
     """
     update Panda server with output info (xml) and make/save the tarball of the job workdir,
     only for finished or failed jobs.
@@ -3835,7 +3840,7 @@ def postJobTask(job, thisSite, thisNode, experiment, jr=False, ra=0, stdout_tail
     joblog = JobLog()
 
     # create the log
-    joblog.postJobTask(job, thisSite, experiment, thisNode, jr=jr, ra=ra)
+    joblog.postJobTask(job, thisSite, experiment, thisNode, jr=jr, ra=ra, stdout_tail=stdout_tail, stdout_path=stdout_path)
 
 def verifyRecoveryDir(recoveryDir):
     """
@@ -4171,7 +4176,7 @@ def shellExitCode(exitCode):
     else:
         return 0
 
-def updatePandaServer(job, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, stdout_tail=""):
+def updatePandaServer(job, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, stdout_tail="", stdout_path=""):
     """ Update the panda server with the latest job info """
 
     # create and instantiate the client object
@@ -4184,7 +4189,7 @@ def updatePandaServer(job, xmlstr=None, spaceReport=False, log=None, ra=0, jr=Fa
     # update the panda server
     return client.updatePandaServer(job, env['thisSite'], env['workerNode'], env['psport'],
                                     xmlstr = xmlstr, spaceReport = spaceReport, log = log, ra = ra, jr = jr,
-                                    useCoPilot = env['useCoPilot'], stdout_tail = stdout_tail)
+                                    useCoPilot = env['useCoPilot'], stdout_tail = stdout_tail, stdout_path = stdout_path)
 
 def sig2exc(sig, frm):
     """ Signal handler """

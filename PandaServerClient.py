@@ -1,9 +1,10 @@
 import os
+from datetime import date
 from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger
+from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation
 from JobState import JobState
 from FileState import FileState
 
@@ -459,7 +460,17 @@ class PandaServerClient:
 
         return status
 
-    def updatePandaServer(self, job, site, workerNode, port, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, useCoPilot=False, stdout_tail="", additionalMetadata=None):
+    def getDateDirs(self):
+        """ Return a directory path based on the current date """
+        # E.g. 2014/09/22
+
+        year = date.today().strftime("%Y")
+        month = date.today().strftime("%m")
+        day = date.today().strftime("%d")
+
+        return "%s-%s-%s" % (year, month, day)
+
+    def updatePandaServer(self, job, site, workerNode, port, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, useCoPilot=False, stdout_tail="", stdout_path="", additionalMetadata=None):
         """
         Update the job status with the jobdispatcher web server.
         State is a tuple of (jobId, ["jobstatus", transExitCode, pilotErrorCode], timestamp)
@@ -499,6 +510,34 @@ class PandaServerClient:
             stdout_tail = stdout_tail[-2048:]
             node['stdout'] = stdout_tail
             tolog("Will send stdout tail:\n%s (length = %d)" % (stdout_tail, len(stdout_tail)))
+
+            # also send the full stdout to a text indexer if required
+            if stdout_path != "":
+                if "stdout_to_text_indexer" in readpar('catchall') and os.path.exists(stdout_path):
+                    tolog("Will send payload stdout to text indexer")
+
+                    # get the user name, which we will use to create a proper filename
+                    from SiteMover import SiteMover
+                    s = SiteMover()
+                    username = s.extractUsername(job.prodUserID)
+
+                    # get setup path for xrdcp
+                    try:
+                        si = getSiteInformation(job.experiment)
+                        setup_path = si.getLocalROOTSetup()
+
+                        filename = "PanDA_payload_stdout-%s.txt" % (job.jobId)
+                        dateDirs = self.getDateDirs()
+                        remotePath = os.path.join(os.path.join(username, dateDirs), filename)
+                        url = "root://faxbox.mwt2.org//group/logs/pilot/%s" % (remotePath)
+                        cmd = "%sxrdcp -f %s %s" % (setup_path, stdout_path, url)
+                        tolog("Executing command: %s" % (cmd))
+                        rc, rs = getstatusoutput(cmd)
+                        tolog("rc=%d, rs=%s" % (rc, rs))
+                    except Exception, e:
+                        tolog("!!WARNING!!3322!! Failed with text indexer: %s" % (e))
+            else:
+                tolog("stdout_path not set")
         else:
             if job.debug.lower() != "true":
                 tolog("Stdout tail will not be sent (debug=False)")

@@ -705,7 +705,7 @@ class JobLog:
                 else:
                     tolog("Transferred additional CERNVM files")
 
-    def postJobTask(self, job, site, experiment, workerNode, jr=False, ra=0):
+    def postJobTask(self, job, site, experiment, workerNode, jr=False, ra=0, stdout_tail=None, stdout_path=None):
         """
         Update Panda server with output info (xml) and make/save the tarball of the job workdir,
         only for finished or failed jobs.
@@ -882,7 +882,10 @@ class JobLog:
                                               schedulerID = self.__env['jobSchedulerId'],
                                               pilotID = self.__env['pilotId'],
                                               updateServer = self.__env['updateServerFlag'],
-                                              stdout_tail = self.__env['stdout_tail'],
+                                              stdout_tail = stdout_tail,
+                                              stdout_path = stdout_path,
+#                                              stdout_tail = self.__env['stdout_tail'],
+#                                              stdout_path = self.__env['stdout_path'],
                                               additionalMetadata = expSpecificMetadata)
         if ret == 0:
             tolog("Successfully updated panda server at %s" % timeStamp())
@@ -942,7 +945,7 @@ class JobLog:
 
     def updatePandaServer(self, job, site, workerNode, port, xmlstr = None, spaceReport = False,
                           log = None, ra = 0, jr = False, schedulerID = None, pilotID = None,
-                          updateServer = True, stdout_tail = "", additionalMetadata = None):
+                          updateServer = True, stdout_tail = "", stdout_path = "", additionalMetadata = None):
         """ Update the PanDA server """
 
         # create and instantiate the client object
@@ -960,7 +963,7 @@ class JobLog:
         return client.updatePandaServer(job, site, workerNode, port,
                                         xmlstr = xmlstr, spaceReport = spaceReport, log = log, ra = ra, jr = jr,
                                         useCoPilot = self.__env['useCoPilot'],
-                                        stdout_tail = stdout_tail, additionalMetadata = additionalMetadata)
+                                        stdout_tail = stdout_tail, stdout_path = stdout_path, additionalMetadata = additionalMetadata)
 
     def transferAdditionalFile(self, job, site, experiment, fileName):
         """

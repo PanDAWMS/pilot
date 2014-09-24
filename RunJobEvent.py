@@ -1911,6 +1911,48 @@ class RunJobEvent(RunJob):
 
         return filename
 
+    def stripSetupCommand(self, cmd, trfName):
+        """ Remove the trf part of the setup command """
+
+        location = cmd.find(trfName)
+        return cmd[:location]
+
+    def getMakeRunEventCollectionScript(self, cmd):
+        """ Define the event collection script """
+
+        cmd += "get_files -jo %s" % (eventcollection_filename)
+        return cmd
+
+    def prependMakeRunEventCollectionScript(self, input_file, output_file):
+        """ Prepend the event collection script """
+
+        status = False
+
+        with open(eventcollection_filename) as f1:
+            global eventcollection_filename_mod
+            eventcollection_filename_mod = eventcollection_filename.replace(".py",".2.py")
+            with open(eventcollection_filename_mod, "w") as f2:
+                f2.write("EvtMax = -1\n")
+                f2.write("In = [ \'%s\' ]\n" % (input_file))
+                f2.write("Out = \'%s\'\n" % (output_file))
+                for line in f1:
+                    f2.write(line)
+                f2.close()
+                f1.close()
+                status = True
+
+        return status
+
+    def createTAGFile(self, cmd):
+        """ Create a TAG file using athena """
+
+        cmd += "athena.py %s >MakeRunEventCollection-stdout.txt" % (eventcollection_filename_mod)
+        tolog("Executing command: %s" % (cmd))
+        ec, rs = commands.getstatusoutput(cmd)
+
+        return ec
+
+
 # main process starts here
 if __name__ == "__main__":
 

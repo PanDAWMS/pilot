@@ -450,11 +450,16 @@ class Monitor:
                 # get the tail if possible
                 try:
                     self.__env['stdout_tail'] = stdout_dictionary[self.__env['jobDic'][k][1].jobId]
-                except:
+                    index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
+                    self.__env['stdout_path'] = stdout_dictionary[index]
+                    pUtil.tolog("stdout_path=%s at index=%s" % (self.__env['stdout_path'], index))
+                except Exception, e:
                     self.__env['stdout_tail'] = "(stdout tail not available)"
-    
+                    self.__env['stdout_path'] = ""
+                    pUtil.tolog("no stdout_path: %s" % (e))
+
                 # update the panda server
-                ret, retNode = pUtil.updatePandaServer(self.__env['jobDic'][k][1], stdout_tail = self.__env['stdout_tail'])
+                ret, retNode = pUtil.updatePandaServer(self.__env['jobDic'][k][1], stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
                 if ret == 0:
                     pUtil.tolog("Successfully updated panda server at %s" % pUtil.timeStamp())
                 else:
@@ -479,7 +484,8 @@ class Monitor:
                 # did we receive a command to turn on debug mode?
                 if "debug" in self.__env['jobDic'][k][1].action.lower():
                     pUtil.tolog("Pilot received a command to turn on debug mode from the server")
-                    self.__env['update_freq_server'] = 5*60
+                    self.__env['update_freq_server'] = 2*60
+#PN                    self.__env['update_freq_server'] = 5*60
                     pUtil.tolog("Server update frequency lowered to %d s" % (self.__env['update_freq_server']))
                     self.__env['jobDic'][k][1].debug = "True"
     
@@ -806,13 +812,16 @@ class Monitor:
                 # get the tail if possible
                 try:
                     self.__env['stdout_tail'] = stdout_dictionary[self.__env['jobDic'][k][1].jobId]
+                    index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
+                    self.__env['stdout_path'] = stdout_dictionary[index]
                 except:
                     self.__env['stdout_tail'] = "(stdout tail not available)"
+                    self.__env['stdout_path'] = ""
         
                 # cleanup the job workdir, save/send the job tarball to DDM, and update
                 # panda server with the final job state
                 pUtil.postJobTask(self.__env['jobDic'][k][1], self.__env['thisSite'], self.__env['workerNode'], 
-                                  self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'])
+                                  self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
                 if k == "prod":
                     prodJobDone = True
     

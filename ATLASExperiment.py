@@ -427,11 +427,9 @@ class ATLASExperiment(Experiment):
         # add FRONTIER debugging and RUCIO env variables
         
         if 'HPC_Titan' in readpar("catchall"):
-            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType)
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename)
         else: 
-            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType)
-
-        
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename)
 
         # Is JEM allowed to be used?
         if self.isJEMAllowed():
@@ -1708,9 +1706,10 @@ class ATLASExperiment(Experiment):
 
         return cmd3
 
-    def addEnvVars2Cmd(self, cmd, jobId, processingType):
-        """ Add FRONTIER debugging and RUCIO env variables """
+    def addEnvVars2Cmd(self, cmd, jobId, processingType, sitename):
+        """ Add env variables """
 
+        _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
         _frontier1 = 'export FRONTIER_ID=\"[%s]\";' % (jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
 
@@ -1721,12 +1720,13 @@ class ATLASExperiment(Experiment):
             _rucio = 'export RUCIO_APPID=\"%s\";' % (processingType)
         _rucio += 'export RUCIO_ACCOUNT=\"pilot\";'
 
-        return _frontier1 + _frontier2 + _rucio + cmd
+        return _sitename + _frontier1 + _frontier2 + _rucio + cmd
 
-    def getEnvVars2Cmd(self, jobId, processingType):
-        """ Return array with enviroment variables: FRONTIER debugging and RUCIO env variables """
-        
+    def getEnvVars2Cmd(self, jobId, processingType, sitename):
+        """ Return array with enviroment variables """
+
         variables = []
+        variables.append('export PANDA_RESOURCE=\"%s\";' % (sitename))
         variables.append('export FRONTIER_ID=\"[%s]\";' % (jobId))
         variables.append('export CMSSW_VERSION=$FRONTIER_ID;')
 

@@ -499,6 +499,10 @@ class LocalSiteMover(SiteMover.SiteMover):
         # build the parameters
         _params = ""
         if token:
+            # Special case for GROUPDISK (do not remove dst: bit before this stage, needed in several places)
+            if "dst:" in token:
+                token = token[len('dst:'):]
+                tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
             _params = self.__spacetoken % (token)
         if sourceSize != 0 and sourceSize != "0":
             _params += self.__par_filesize % (sourceSize)
@@ -798,7 +802,6 @@ class LocalSiteMover(SiteMover.SiteMover):
 
         if testLevel == "1":
             source = "thisisjustatest"
-
 
         status, output = self.stageOut(source, surl, token, guid, experiment)
         if status !=0:

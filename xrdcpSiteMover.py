@@ -925,7 +925,6 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         if testLevel == "1":
             source = "thisisjustatest"
 
-
         status, output = self.stageOut(source, surl, token, experiment)
         if status !=0:
             self.__sendReport(output["report"], report)

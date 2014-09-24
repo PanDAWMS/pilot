@@ -463,6 +463,11 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         #            the scheme can be sfn: for a classical SE or srm:. If only the fully qualified hostname is given, a filename is
         #            generated in the same format as with the Replica Manager
         if token:
+            # Special case for GROUPDISK (do not remove dst: bit before this stage, needed in several places)
+            if "dst:" in token:
+                token = token[len('dst:'):]
+                tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+
             surl = putfile[putfile.index('srm://'):]
             _cmd_str = '%s which lcg-cr; lcg-cr --version; lcg-cr --verbose --vo atlas -T srmv2 -s %s -b %s -l %s -g %s -d %s file:%s' % (envsetup, token, timeout_option, lfclfn, guid, surl, fppfn)
         else:

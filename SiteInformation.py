@@ -725,9 +725,17 @@ class SiteInformation(object):
 
         return self.__experiment
 
-    def allowAlternativeStageOut(self):
+    def allowAlternativeStageOut(self, flag=None):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
+        # Argument 'flag' can be used for special conditions
+
+        return False
+
+    def forceAlternativeStageOut(self, flag=None):
+        """ Force stage-out to use alternative SE """
+        # Argument 'flag' can be used for special conditions
+        # See allowAlternativeStageOut()
 
         return False
 

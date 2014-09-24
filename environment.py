@@ -88,7 +88,8 @@ def set_environment():
     env['workerNode'] = None
     env['hasQueueData'] = None
     env['stdout_tail'] = ""
-    
+    env['stdout_path'] = ""
+
     # to test site mover
     env['copytool'] = 'gfal-copy'
     env['copytoolin'] = 'gfal-copy'

@@ -272,11 +272,12 @@ class ATLASSiteInformation(SiteInformation):
 
         return t1_queuename
 
-    def allowAlternativeStageOut(self):
+    def allowAlternativeStageOut(self, flag=False):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
+        # For ATLAS, flag=isAnalysisJob(). Alt stage-out is currently disabled for user jobs, so do not allow alt stage-out to be forced.
 
-        if "allow_alt_stageout" in readpar('catchall'):
+        if "allow_alt_stageout" in readpar('catchall') and not flag:
             status = True
         else:
             status = False
@@ -285,6 +286,20 @@ class ATLASSiteInformation(SiteInformation):
 #            status = True
 #        else:
 #            status = False
+
+        return status
+
+    def forceAlternativeStageOut(self, flag=False):
+        """ Force stage-out to use alternative SE """
+        # See allowAlternativeStageOut()
+        # For ATLAS, flag=isAnalysisJob(). Alt stage-out is currently disabled for user jobs, so do not allow alt stage-out to be forced.
+
+        tolog("ATLAS")
+        if "force_alt_stageout" in readpar('catchall') and not flag:
+            status = True
+        else:
+            status = False
+
         return status
 
     def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
@@ -307,7 +322,7 @@ class ATLASSiteInformation(SiteInformation):
         # For production jobs, the SE path is stored in seprodpath
         # For analysis jobs, the SE path is stored in sepath
 
-        destination = self.getPreDestination(sitemover, analyJob, token, prodSourceLabel, alt=alt)
+        destination = sitemover.getPreDestination(analyJob, token, prodSourceLabel, alt=alt)
         if destination == '':
             pilotErrorDiag = "put_data destination path in SE not defined"
             tolog('!!WARNING!!2990!! %s' % (pilotErrorDiag))
@@ -350,55 +365,6 @@ class ATLASSiteInformation(SiteInformation):
 
         return ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl
 
-    def getPreDestination(self, sitemover, analJob, token, prodSourceLabel, alt=False):
-        """ Get the pre destination """
-
-        destination = ""
-        if not analJob:
-            # Process the destination path with getDirList since it can have a complex structure
-            # as well as be a list of destination paths matching a corresponding space token
-            if prodSourceLabel == 'ddm' and readpar('seprodpath') == '':
-                sepath = readpar('sepath', alt=alt)
-            else:
-                sepath = readpar('seprodpath', alt=alt)
-            destinationList = sitemover.getDirList(sepath)
-
-            # Decide which destination path to use depending on the space token for the current file
-            if token:
-                # Find the proper path
-                destination = sitemover.getMatchingDestinationPath(token, destinationList, alt=alt)
-                if destination == "":
-                    tolog("!!WARNING!!2990!! seprodpath not properly defined: seprodpath = %s, destinationList = %s, using sepath instead" %\
-                          (sepath, str(destinationList)))
-                    sepath = readpar('sepath', alt=alt)
-                    destinationList = sitemover.getDirList(sepath)
-                    destination = sitemover.getMatchingDestinationPath(token, destinationList, alt=alt)
-                    if destination == "":
-                        tolog("!!WARNING!!2990!! sepath not properly defined: sepath = %s, destinationList = %s" %\
-                              (sepath, str(destinationList)))
-            else:
-                # Space tokens are not used
-                destination = destinationList[0]
-        else:
-            sepath = readpar('sepath', alt=alt)
-            # Default to seprodpath if sepath not set (could happen with install jobs e.g.)
-            if sepath == "":
-                sepath = readpar('seprodpath', alt=alt)
-            destinationList = sitemover.getDirList(sepath)
-
-            # Decide which destination path to use depending on the space token for the current file
-            if token:
-                # Find the proper path
-                destination = sitemover.getMatchingDestinationPath(token, destinationList, alt=alt)
-                if destination == "":
-                    tolog("!!WARNING!!2990!! sepath not properly defined: sepath = %s, destinationList = %s" %\
-                          (sepath, str(destinationList)))
-            else:
-                # space tokens are not used
-                destination = destinationList[0]
-
-        return destination
-
     def verifyRucioPath(self, spath, seprodpath='seprodpath'):
         """ Make sure that the rucio path in se[prod]path is correctly formatted """
 
@@ -433,19 +399,26 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
 
+#        if thisSite.sitename == "GoeGrid":
+#            ec = self.replaceQueuedataField("catchall", "force_alt_stageout allow_alt_stageout")
+
+#        if thisSite.sitename == "ANALY_CERN_SLC6" or thisSite.sitename == "AGLT2_SL6":
+#            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
+
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
-            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
+            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
+#            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
-            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
+            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
             #ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 # Event Service tests:
-            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
+# now set in AGIS   ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
             ec = self.replaceQueuedataField("corecount", "4")
             ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 

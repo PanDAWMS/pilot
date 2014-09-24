@@ -336,6 +336,36 @@ class SiteMover(object):
         return sitename
     getDQ2SiteName = staticmethod(getDQ2SiteName)
 
+    def getGroupDiskPath(self, endpoint=""):
+        """ Get the seprodpath from TiersOfATLAS instead of schedconfig if destination is a groupdisk """
+        # We know it's a group disk if 'dst:' is present in the token descriptor (which in this case it the same as the endpoint name)
+
+        sepath = ""
+
+        # Remove the dst: substring from the endpoint string
+        if "dst:" in endpoint:
+            endpoint = endpoint[len('dst:'):]
+
+            try:
+                from dq2.info import TiersOfATLAS
+            except:
+                tolog("!!WARNING!!1119!! TiersOfATLAS could not be imported from dq2.info")
+            else:
+                # Get the sites list
+                sites = TiersOfATLAS.ToACache.sites
+                # Get the se info
+                try:
+                    se = sites[endpoint]['srm']
+                except Exception, e:
+                    tolog("!!WARNING!!1120!! No such endpoint in TiersOfATLAS: %s" % (e))
+                else:
+                    # Now extract the seprodpath from the srm info
+                    sepath = SiteMover.extractSEPath(se)
+        else:
+            tolog("!!WARNING!!2233!! Not a groupdisk endpoint: %s" % (endpoint))
+
+        return sepath
+
     def put_data_retfail(fail, errortext, surl=""):
         """
         Provides the return value for put_data when there is a failure.
@@ -544,6 +574,15 @@ class SiteMover(object):
         """ get the pre destination """
 
         destination = ""
+
+        # Special case for GROUPDISK
+        # In this case, (e.g.) token = 'dst:AGLT2_PERF-MUONS'
+        # Pilot should then consult TiersOfATLAS and get it from the corresponding srm entry 
+        if "dst:" in token:
+            destination = self.getGroupDiskPath(endpoint=token)
+            tolog("GROUPDISK token requested (%s), destination=%s" % (token, destination))
+            return destination
+
         if not analyJob:
             # process the destination path with getDirList since it can have a complex structure
             # as well as be a list of destination paths matching a corresponding space token
@@ -1599,6 +1638,21 @@ class SiteMover(object):
 
         return sematch
     getSEMatchFromSEOpt = staticmethod(getSEMatchFromSEOpt)
+
+    def extractSEPath(se):
+        """ Extract the sepath from the se info """
+
+        # se='token:ATLASGROUPDISK:srm://head01.aglt2.org:8443/srm/managerv2?SFN=/pnfs/aglt2.org/atlasgroupdisk/perf-muons/'
+        # -> '/pnfs/aglt2.org/atlasgroupdisk/perf-muons/'
+
+        sepath = ""
+        pattern = re.compile(r"SFN=(.+)")
+        found = re.findall(pattern, se)
+        if len(found) > 0:
+            sepath = found[0]
+
+        return sepath
+    extractSEPath = staticmethod(extractSEPath)
 
     def extractSE(fullSE):
         """ extract the 'se' info from the schedconfig.se field """
@@ -3072,12 +3126,8 @@ class SiteMover(object):
     def extractUsername(DN):
         """ Extract the user name without whitespaces from the DN """
 
-        # DN='/DC=org/DC=doegrids/OU=People/CN=Paul Nilsson Bdbdbd sdf 536150/CN=proxy'
-        # findall(pattern,DN)
-        # ['Paul Nilsson Bdbdbd sdf 536150']
         try:
             pattern = re.compile(r"./CN=([A-Za-z0-9\.\s]+).")
-#            pattern = re.compile(r"./CN=([A-Za-z0-9\s]+).")
             txt = re.findall(pattern, DN)[0]
 
             # remove the numbers and spaces
