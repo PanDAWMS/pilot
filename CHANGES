@@ -313,6 +313,12 @@ Created getDateDirs() used by updatePandaServer() (PandaServerClient)
 Updated getSpaceTokenForFile() for GROUPDISK special case (Mover)
 Added dst: handling for GROUPDISK in stageOutFile() (LocalSiteMover)
 Added dst: handling for GROUPDISK in put_data() (lcgcpSiteMover, lcgcp2SiteMover, xrootdSiteMover, GFAL2SiteMover, curlSiteMover)
+Created SysLog module, used by Mover
+Created getStdoutFilename(), used by getStdoutDictionary() (pUtil)
+Created getPayloadMetadataFilename() used by updatePandaServer() (PandaServerClient)
+Moved tryint(), isAGreaterThanB() and splittedname() from ATLASExperiment to PandaServerClient
+Updated and renamed isAGreaterThanB() to isAGreaterOrEqualToB() (PandaServerClient)
+Created AMSTaiwan experiment and site information classes. Added to factories and to distribution.
 
 Code contribution from Edward Karavakis, September 5, 2014:
 
@@ -399,6 +405,9 @@ TimerCommand.py               : New timer module
 xrootdObjectstoreSiteMover.py : Object store class using xrootd
 S3ObjectstoreSiteMover.py     : Object store class using S3 API
 EventRanges.py                : Server communication module for event ranges
+SysLog.py                     : syslog functions
+AMSTaiwanExperiment.py        : Experiment class for AMS Taiwan
+AMSTaiwanSiteInformation.py   : SiteInformation class for AMS Taiwan
 
 Note: new modules have to be added to glexec_utils.py.
 

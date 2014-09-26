@@ -470,6 +470,71 @@ class PandaServerClient:
 
         return "%s-%s-%s" % (year, month, day)
 
+    def tryint(self, x):
+        """ Used by numbered string comparison (to protect against unexpected letters in version number) """
+
+        try:
+            return int(x)
+        except ValueError:
+            return x
+
+    def splittedname(self, s):
+        """ Used by numbered string comparison """
+
+        # Can also be used for sorting:
+        # > names = ['YT4.11', '4.3', 'YT4.2', '4.10', 'PT2.19', 'PT2.9']
+        # > sorted(names, key=splittedname)
+        # ['4.3', '4.10', 'PT2.9', 'PT2.19', 'YT4.2', 'YT4.11']
+
+        from re import split
+        return tuple(self.tryint(x) for x in split('([0-9]+)', s))
+                        
+    def isAGreaterOrEqualToB(self, A, B):
+        """ Is numbered string A > B? """
+        # > a="1.2.3"
+        # > b="2.2.2"
+        # > e.isAGreaterThanB(a,b)
+        # False
+        
+        return self.splittedname(A) >= self.splittedname(B)
+
+    def getPayloadMetadataFilename(self, workdir, jobId):
+        """ Return a proper path for the payload metadata """
+
+        filenamePayloadMetadata = ""
+
+        # Primarily use the jobReport.json if its' version is >= 1.0.0
+        _filename = os.path.join(workdir, "jobReport.json")
+        if os.path.exists(_filename):
+            # Now check the version
+            try:
+                f = open(_filename, 'r')
+            except Exception, e:
+                tolog("!!WARNING!!2233!! Could not open %s: %s" % (_filename, e))
+            else:
+                # Now verify that the version is at least 1.0.0
+                from json import load
+                try:
+                    jobReport_dict = load(f)
+                    version = jobReport_dict['reportVersion']
+                except Exception, e:
+                    pass
+                else:
+                    v = '1.0.0'
+                    if isAGreaterOrEqualToB(version, v):
+                        tolog("Will send metadata file %s since version %s is >= %s" % (_filename, version, v))
+                        filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+                        #filenamePayloadMetadata = _filename
+                    else:
+                        filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+                        tolog('Metadata version in file %s is too old (%s < %s), will send old XML file %s' % \
+                                  (os.path.basename(_filename), version, v, os.path.basename(filenamePayloadMetadata)))
+        else:
+            # Use default metadata file
+            filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+
+        return filenamePayloadMetadata
+
     def updatePandaServer(self, job, site, workerNode, port, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, useCoPilot=False, stdout_tail="", stdout_path="", additionalMetadata=None):
         """
         Update the job status with the jobdispatcher web server.
@@ -587,7 +652,7 @@ class PandaServerClient:
             final = False
 
         # send the original xml if it exists (end of production job, ignore for event service job)
-        filenamePayloadXML = "%s/metadata-%s.xml.PAYLOAD" % (site.workdir, repr(job.jobId))
+        filenamePayloadMetadata = self.getPayloadMetadataFilename(site.workdir, job.jobId)
         payloadXMLProblem = False
 
         # backward compatibility
@@ -597,22 +662,22 @@ class PandaServerClient:
             eventService = False
 
         if not eventService:
-            if os.path.exists(filenamePayloadXML) and final:
+            if os.path.exists(filenamePayloadMetadata) and final:
 
                 # get the metadata created by the payload
                 payloadXML = getMetadata(site.workdir, job.jobId, athena=True)
 
-            # add the metadata to the node
+                # add the metadata to the node
                 if payloadXML != "" and payloadXML != None:
                     tolog("Adding payload metadata of size %d to node dictionary (\'metaData\' field):\n%s" % (len(payloadXML), payloadXML))
                     node['metaData'] = payloadXML
                 else:
-                    pilotErrorDiag = "Empty Athena metadata in file: %s" % (filenamePayloadXML)
+                    pilotErrorDiag = "Empty Athena metadata in file: %s" % (filenamePayloadMetadata)
                     payloadXMLProblem = True
             else:
                 # athena XML should exist at the end of the job
                 if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not eventService:
-                    pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadXML)
+                    pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadMetadata)
                     payloadXMLProblem = True
         else:
             tolog("Will not send payload metadata for event service job")

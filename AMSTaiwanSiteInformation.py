@@ -16,10 +16,10 @@ from pUtil import readpar                    # Used to read values from the sche
 from pUtil import getExtension               # Used to determine file type of Tier-1 info file
 from PilotErrors import PilotErrors          # Error codes
 
-class ATLASSiteInformation(SiteInformation):
+class AMSTaiwanSiteInformation(SiteInformation):
 
     # private data members
-    __experiment = "ATLAS"
+    __experiment = "AMSTaiwan"
     __instance = None
     __error = PilotErrors()                  # PilotErrors object
     __securityKeys = {}
@@ -35,7 +35,7 @@ class ATLASSiteInformation(SiteInformation):
         """ Override the __new__ method to make the class a singleton """
 
         if not cls.__instance:
-            cls.__instance = super(ATLASSiteInformation, cls).__new__(cls, *args, **kwargs)
+            cls.__instance = super(AMSTaiwanSiteInformation, cls).__new__(cls, *args, **kwargs)
 
         return cls.__instance
 
@@ -420,8 +420,8 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 # Event Service tests:
 # now set in AGIS   ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
-#            ec = self.replaceQueuedataField("corecount", "4")
-#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+            ec = self.replaceQueuedataField("corecount", "4")
+            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
         if os.environ.get("COPYTOOL"):
             ec = self.replaceQueuedataField("copytool", os.environ.get("COPYTOOL"))

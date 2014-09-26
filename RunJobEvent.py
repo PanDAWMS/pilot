@@ -523,6 +523,7 @@ class RunJobEvent(RunJob):
 
         # e.g. self.__errorLabel = errorLabel
         self.__yamplChannelName = "EventService_EventRanges"
+#        self.__yamplChannelName = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
 
     # is this necessary? doesn't exist in RunJob
     def __new__(cls, *args, **kwargs):

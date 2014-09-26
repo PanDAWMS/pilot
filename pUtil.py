@@ -3661,6 +3661,27 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
     sys.stdout.flush()
     sys.stderr.flush()
 
+def getStdoutFilename(workdir, preliminary_stdout_filename):
+    """ Return the proper stdout filename """
+    # In the case of runGen/runAthena, the preliminary filename should be updated since stdout is redirected at some point
+
+    from glob import glob
+    filename = ""
+
+    # look for redirected stdout
+    _path = os.path.join(os.path.join(workdir, "workDir"), "tmp.stdout.*")
+    tolog("path=%s"%(_path))
+    path_list = glob(_path)
+    if len(path_list) > 0:
+        # there should only be one path
+        tolog("Found redirected stdout: %s" % str(path_list))
+        filename = path_list[0]
+    else:
+        filename = preliminary_stdout_filename
+
+    tolog("Using stdout filename: %s" % (filename))
+    return filename
+
 def getStdoutDictionary(jobDic):
     """ Create a dictionary with the tails of all running payloads """
 
@@ -3685,7 +3706,9 @@ def getStdoutDictionary(jobDic):
             if nJobs > 1:
                 _stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
 
-            filename = "%s/%s" % (jobDic[k][1].workdir, _stdout)
+            #filename = "%s/%s" % (jobDic[k][1].workdir, _stdout)
+            # _stdout is the preliminary filename, but can be different, e.g. runGen/runAthena redirects stdout
+            filename = getStdoutFilename(jobDic[k][1].workdir, _stdout)
             if os.path.exists(filename):
                 try:
                     # get the tail

@@ -170,12 +170,14 @@ class GlexecInterface(object):
         """
         if os.environ.has_key('OSG_GLEXEC_LOCATION'):
             self.__glexec_path = os.environ['OSG_GLEXEC_LOCATION']
-        elif os.environ.has_key('GLITE_LOCATION'):
-            self.__glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
-                                             'sbin/glexec')
         elif os.environ.has_key('GLEXEC_LOCATION'):
             self.__glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
                                              'sbin/glexec')
+	elif os.environ.has_key('GLITE_LOCATION'):
+            self.__glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
+                                             'sbin/glexec')
+	else:
+	    self.__glexec_path = '/usr/sbin/glexec'
 
         self.__wrapper_path = os.path.join(os.path.dirname(self.__glexec_path),
                                           'glexec_wrapenv.pl')

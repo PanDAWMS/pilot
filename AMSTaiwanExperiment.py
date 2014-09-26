@@ -34,10 +34,10 @@ import time
 import commands
 from glob import glob
 
-class ATLASExperiment(Experiment):
+class AMSTaiwanExperiment(Experiment):
 
     # private data members
-    __experiment = "ATLAS"                 # String defining the experiment
+    __experiment = "AMSTaiwan"                # String defining the experiment
     __instance = None                      # Boolean used by subclasses to become a Singleton
     __warning = ""
     __analysisJob = False
@@ -58,7 +58,7 @@ class ATLASExperiment(Experiment):
         """ Override the __new__ method to make the class a singleton """
 
         if not cls.__instance:
-            cls.__instance = super(ATLASExperiment, cls).__new__(cls, *args, **kwargs)
+            cls.__instance = super(AMSTaiwanExperiment, cls).__new__(cls, *args, **kwargs)
 
         return cls.__instance
 

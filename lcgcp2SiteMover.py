@@ -421,8 +421,8 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             _cmd_str = '%s lcg-cp --vo atlas --verbose -b %s -U srmv2 file://%s %s' % (envsetup, timeout_option, source, full_surl)
 
         #PN
-        #if not ".log." in full_surl and not alt and not analysisJob:
-        #    _cmd_str = _cmd_str.replace("lcg-cp", "lcg-cpXXX")
+        if not ".log." in full_surl and not alt and not analysisJob:
+            _cmd_str = _cmd_str.replace("lcg-cp", "lcg-cpXXX")
 
         tolog("Executing command: %s" % (_cmd_str))
         ec = -1

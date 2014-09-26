@@ -16,7 +16,8 @@ from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, 
      getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
-            
+from SysLog import sysLog, dumpSysLogTail
+           
 # Note: DEFAULT_TIMEOUT and MAX_RETRY are reset in get_data()
 MAX_RETRY = 1
 MAX_NUMBER_OF_RETRIES = 3
@@ -2598,6 +2599,10 @@ def mover_put_data(outputpoolfcstring,
 
             # attempt alternative stage-out if required
             if s != 0:
+                # report stage-out problem to syslog
+                sysLog("PanDA job %s failed to stage-out output file: %s" % (jobId, pilotErrorDiag))
+                dumpSysLogTail()
+
                 if forceAltStageOut:
                     tolog("Forcing alternative stage-out")
                     useAlternativeStageOut = True

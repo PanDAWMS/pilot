@@ -3,6 +3,7 @@
 
 
 # update_freq
+# goegrid
 
 # Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file registrations using DQ2 functions
 # test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
