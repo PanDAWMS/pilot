@@ -341,7 +341,7 @@ RunJob		       : Missed 'region' variable, line 816
 RunJobHPC	       : Added HPC specific variables
 RunJobTitan	       : redefined 'executePayload' method, implemented methods for collecting information about resources and walltime gaps.
 
-Code contributions from Wen Guan, September 26, 2014:
+Code contributions from Wen Guan, September 26-29, 2014:
 
 Patches for the following site movers, due to problem with setup string:
 FAXSiteMover.py*

@@ -40,6 +40,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
 
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path.strip()
+        self.__isSetuped = False
         self._defaultSetup = None
         self.__experiment = None
 
@@ -155,6 +156,8 @@ class xrdcpSiteMover(SiteMover.SiteMover):
 
     def setup(self, experiment):
         """ setup env """
+        if self.__isSetuped:
+            return 0, None
         self.__experiment = experiment
         thisExperiment = getExperiment(experiment)
         self.useTracingService = thisExperiment.useTracingService()
@@ -175,6 +178,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         self.log("site setup verifying: status: %s, output: %s" % (status, output["errorLog"]))
         if status == 0:
             self._setup = envsetupTest
+            self.__isSetuped = True
             return status, output
         else:
             if self._defaultSetup:
@@ -191,6 +195,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
                 self.log("default setup verifying: status: %s, output: %s" % (status, output["errorLog"]))
                 if status == 0:
                     self._setup = envsetupTest
+                    self.__isSetuped = True
                     return status, output
 
         return status, output
