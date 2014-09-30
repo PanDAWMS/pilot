@@ -319,6 +319,12 @@ Created getPayloadMetadataFilename() used by updatePandaServer() (PandaServerCli
 Moved tryint(), isAGreaterThanB() and splittedname() from ATLASExperiment to PandaServerClient
 Updated and renamed isAGreaterThanB() to isAGreaterOrEqualToB() (PandaServerClient)
 Created AMSTaiwan experiment and site information classes. Added to factories and to distribution.
+Added patch from Edward Karavis for glexec_utils
+Created createTAGFile(), prependMakeRunEventCollectionScript() and getMakeRunEventCollectionScript() (RunJob)
+Now using ATHENA_PROC_NUMBER before defaulting to job.coreCount, in getJobExecutionCommand() (ATLASExperiment)
+Added ROOT_TTREECACHE_SIZE to addEnvVars2Cmd(), getEnvVars2Cmd(). Requested by Alessandro de Salvo (ATLASExperiment)
+Added ROOTCORE_NCPUS to addEnvVars2Cmd(), getEnvVars2Cmd(). Requested by Asoka de Silva et al (ATLASExperiment)
+Removed reset of exeErrorDiag/Code in postJobTask() (JobLog)
 
 Code contribution from Edward Karavakis, September 5, 2014:
 
@@ -334,6 +340,16 @@ RunJobUtilities	       : 'getSourceSetup' - small fix
 RunJob		       : Missed 'region' variable, line 816
 RunJobHPC	       : Added HPC specific variables
 RunJobTitan	       : redefined 'executePayload' method, implemented methods for collecting information about resources and walltime gaps.
+
+Code contributions from Wen Guan, September 26, 2014:
+
+Patches for the following site movers, due to problem with setup string:
+FAXSiteMover.py*
+GFAL2SiteMover.py
+LocalSiteMover.py
+S3ObjectstoreSiteMover.py
+xrdcpSiteMover.py*
+xrootdObjectstoreSiteMover.py
 
 Code contributions from Wen Guan, May 30, 2014:
 

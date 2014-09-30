@@ -102,9 +102,14 @@ class PandaServerClient:
         # style: Number of events read | Number of events written | vmPeak maximum | vmPeak average | RSS average | JEM activation
         # format: nEvents=<int> nEventsW=<int> vmPeakMax=<int> vmPeakMean=<int> RSSMean=<int> JEM=<string>
         #         hs06=<float> shutdownTime=<int> cpuFactor=<float> cpuLimit=<float> diskLimit=<float> jobStart=<int> memLimit=<int> runLimit=<float>
+
+        try:
+            coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+        except:
+            coreCount = job.coreCount
         jobMetrics = ""
-        if job.coreCount and job.coreCount != "NULL":
-            jobMetrics += self.jobMetric(key="coreCount", value=job.coreCount)
+        if coreCount and coreCount != "NULL":
+            jobMetrics += self.jobMetric(key="coreCount", value=coreCount)
         if job.nEvents > 0:
             jobMetrics += self.jobMetric(key="nEvents", value=job.nEvents)
         if job.nEventsW > 0:

@@ -361,6 +361,10 @@ class SiteMover(object):
                 else:
                     # Now extract the seprodpath from the srm info
                     sepath = SiteMover.extractSEPath(se)
+
+                    # add /rucio to sepath if not there already
+                    if not sepath.endswith('/rucio'):
+                        sepath += '/rucio'
         else:
             tolog("!!WARNING!!2233!! Not a groupdisk endpoint: %s" % (endpoint))
 

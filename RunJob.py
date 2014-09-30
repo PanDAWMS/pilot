@@ -20,7 +20,7 @@ from optparse import OptionParser
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment
+     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment, getGUID
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
@@ -966,6 +966,107 @@ class RunJob(object):
         except IOError, e:
             pass
         tolog(out)
+
+    # Methods used by event service RunJob* modules ..............................................................
+
+    def stripSetupCommand(self, cmd, trfName):
+        """ Remove the trf part of the setup command """
+
+        location = cmd.find(trfName)
+        return cmd[:location]
+
+    def executeMakeRunEventCollectionScript(self, cmd, eventcollection_filename):
+        """ Define and execute the event collection script """
+
+        cmd += "get_files -jo %s" % (eventcollection_filename)
+        tolog("Execute command: %s" % (cmd))
+
+        # WARNING: PUT A TIMER AROUND THIS COMMAND
+        rc, rs = commands.getstatusoutput(cmd)
+
+        return rc, rs
+
+    def prependMakeRunEventCollectionScript(self, input_file, output_file, eventcollection_filename):
+        """ Prepend the event collection script """
+
+        status = False
+        eventcollection_filename_mod = ""
+
+        with open(eventcollection_filename) as f1:
+            eventcollection_filename_mod = eventcollection_filename.replace(".py",".2.py")
+            with open(eventcollection_filename_mod, "w") as f2:
+                f2.write("EvtMax = -1\n")
+                f2.write("In = [ \'%s\' ]\n" % (input_file))
+                f2.write("Out = \'%s\'\n" % (output_file))
+                for line in f1:
+                    f2.write(line)
+                f2.close()
+                f1.close()
+                status = True
+
+        return status, eventcollection_filename_mod
+
+    def executeTAGFileCommand(self, cmd, eventcollection_filename_mod):
+        """ Execute the TAG file creation script using athena """
+
+        cmd += "athena.py %s >MakeRunEventCollection-stdout.txt" % (eventcollection_filename_mod)
+        tolog("Executing command: %s" % (cmd))
+
+        # WARNING: PUT A TIMER AROUND THIS COMMAND
+        rc, rs = commands.getstatusoutput(cmd)
+
+        return rc, rs
+
+    def createTAGFile(self, jobExecutionCommand, trfName, inFiles, eventcollection_filename):
+        """ Create a TAG file """
+
+        tag_file = ""
+        tag_file_guid = getGUID()
+
+        tolog("dir=%s"%(os.getcwd()))
+        _cmd = "ls -lF"
+        out=commands.getoutput(_cmd)
+        tolog("%s:\n%s"%(_cmd,out))
+        tolog("guid=%s"%(tag_file_guid))
+        # Remove everything after the trf command from the job execution command
+        cmd = self.stripSetupCommand(jobExecutionCommand, trfName)
+        tolog("Stripped command: %s" % (cmd))
+
+        # Define and execute the event collection script
+        if cmd != "":
+            rc, rs = self.executeMakeRunEventCollectionScript(cmd, eventcollection_filename)
+            tolog("rc=%d"%(rc))
+            tolog("rs=%s"%(rs))
+            # Prepend the event collection script
+            if rc == 0:
+                input_file = inFiles[0]
+                tag_file = input_file + ".TAG"
+                status, eventcollection_filename_mod = self.prependMakeRunEventCollectionScript(input_file, tag_file, eventcollection_filename)
+                tolog("status=%s"%str(status))
+                tolog("coll=%s"%(eventcollection_filename_mod))
+                _cmd = "head %s" % (eventcollection_filename_mod)
+                tolog("Executing command: %s" % (_cmd))
+                a,b=commands.getstatusoutput(_cmd)
+                tolog("\n%s" % (b))
+
+                # Finally create the TAG file
+                if status:
+                    rc, rs = self.executeTAGFileCommand(cmd, eventcollection_filename_mod)
+                    tolog("rc=%d"%(rc))
+                    tolog("rs=%s"%(rs))
+                    
+                    if rc != 0:
+                        tolog("!!WARNING!!3337!! Failed to create TAG file: rc=%d, rs=%s" % (rc, rs))
+                        tag_file = ""
+            else:
+                tolog("!!WARNING!!3339!! Failed to download %s: rc=%d, rs=%s " % (eventcollection_filename, rc, rs))
+        else:
+            tolog("!!WARNING!!3330!! Failed to strip the job execution command, cannot create TAG file")
+
+        return tag_file, tag_file_guid
+
+    # (end event service methods) ................................................................................
+
 
 # main process starts here
 if __name__ == "__main__":

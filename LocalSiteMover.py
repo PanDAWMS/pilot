@@ -34,7 +34,6 @@ class LocalSiteMover(SiteMover.SiteMover):
     __warningStr = '!!WARNING!!2995!! %s'
     __spacetoken = '-t %s' # space token descriptor
     __localget = '%s lsm-get %s %s %s' # environment, options, lfn, target directory
-#    __localget = '%s lsm-getXXX %s %s %s' # environment, options, lfn, target directory
     __localput = '%s lsm-put %s %s %s' # environment, space token (optional), source directory, destination
     __localputBAD = '%s lsm-put %s %s %s' # environment, space token (optional), source directory, destination
     __localspace = '%s lsm-df %s %s' # environment, space token (optional), storage end-point
@@ -46,7 +45,7 @@ class LocalSiteMover(SiteMover.SiteMover):
 
 
     def __init__(self, setup_path, *args, **kwrds):
-        self._setup = setup_path
+        self._setup = setup_path.strip()
         self._defaultSetup = None
 
     def get_timeout(self):
@@ -58,6 +57,9 @@ class LocalSiteMover(SiteMover.SiteMover):
     def getSetup(self):
         """ Return the setup string (pacman setup os setup script) for the copy command used by the mover """
         _setup_str = ""
+        self._setup = self._setup.strip()
+        tolog("self setup: %s" % self._setup)
+
         if self._setup and self._setup != "" and self._setup.strip() != "":
             if not self._setup.endswith(";"):
                 self._setup += ";"

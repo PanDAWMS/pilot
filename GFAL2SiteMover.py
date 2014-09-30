@@ -37,7 +37,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
     timeout = 3600
 
     def __init__(self, setup_path, *args, **kwrds):
-        self._setup = setup_path
+        self._setup = setup_path.strip()
         self._defaultSetup = None
 
     def get_timeout(self):
@@ -53,6 +53,8 @@ class GFAL2SiteMover(SiteMover.SiteMover):
     def getSetup(self):
         """ Return the setup string (pacman setup os setup script) for the copy command used by the mover """
         _setup_str = ""
+        self._setup = self._setup.strip()
+        tolog("self setup: %s" % self._setup)
         if self._setup and self._setup != "" and self._setup.strip() != "":
             if not self._setup.endswith(";"):
                 self._setup += ";"

@@ -302,13 +302,18 @@ class ATLASExperiment(Experiment):
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 try:
-                    coreCount = int(job.coreCount)
+                    coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
                 except:
-                    pass
-                else:
-                    if coreCount >= 1:
-                        cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
-                        tolog("Added multi-core support to cmd2: %s" % (cmd2))
+                    coreCount = -1
+                if coreCount == -1:
+                    try:
+                        coreCount = int(job.coreCount)
+                    except:
+                        pass
+                    else:
+                        if coreCount >= 1:
+                            cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
+                            tolog("Added multi-core support to cmd2: %s" % (cmd2))
 
                 # Prepend cmd0 to cmd1 if set and if release < 16.1.0
                 if cmd0 != "" and job.release < "16.1.0":
@@ -427,9 +432,9 @@ class ATLASExperiment(Experiment):
         # add FRONTIER debugging and RUCIO env variables
         
         if 'HPC_Titan' in readpar("catchall"):
-            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename)
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
         else: 
-            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename)
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
 
         # Is JEM allowed to be used?
         if self.isJEMAllowed():
@@ -1679,13 +1684,22 @@ class ATLASExperiment(Experiment):
 
         return cmd3
 
-    def addEnvVars2Cmd(self, cmd, jobId, processingType, sitename):
+    def addEnvVars2Cmd(self, cmd, jobId, processingType, sitename, analysisJob):
         """ Add env variables """
 
         _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
         _frontier1 = 'export FRONTIER_ID=\"[%s]\";' % (jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
+        _ttc = 'export ROOT_TTREECACHE_SIZE=1;'
 
+        _coreCount = ""
+        if analysisJob:
+            try:
+                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+            except:
+                pass
+            else:
+                _coreCount = 'export ROOTCORE_NCPUS=%d;' % (coreCount)
         if processingType == "":
             _rucio = ''
             tolog("!!WARNING!!1887!! RUCIO_APPID needs job.processingType but it is not set!")
@@ -1693,15 +1707,26 @@ class ATLASExperiment(Experiment):
             _rucio = 'export RUCIO_APPID=\"%s\";' % (processingType)
         _rucio += 'export RUCIO_ACCOUNT=\"pilot\";'
 
-        return _sitename + _frontier1 + _frontier2 + _rucio + cmd
+        return _sitename + _ttc + _frontier1 + _frontier2 + _rucio + _coreCount + cmd
 
-    def getEnvVars2Cmd(self, jobId, processingType, sitename):
+    def getEnvVars2Cmd(self, jobId, processingType, sitename, analysisJob):
         """ Return array with enviroment variables """
 
         variables = []
         variables.append('export PANDA_RESOURCE=\"%s\";' % (sitename))
         variables.append('export FRONTIER_ID=\"[%s]\";' % (jobId))
         variables.append('export CMSSW_VERSION=$FRONTIER_ID;')
+        variables.append('export ROOT_TTREECACHE_SIZE=1;')
+
+        _coreCount = ""
+        if analysisJob:
+            try:
+                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+            except:
+                pass
+            else:
+                _coreCount = 'export ROOTCORE_NCPUS=%d;' % (coreCount)
+                variables.append(_coreCount)
 
         if processingType == "":
             tolog("!!WARNING!!1887!! RUCIO_APPID needs job.processingType but it is not set!")

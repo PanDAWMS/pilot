@@ -772,12 +772,13 @@ class JobLog:
             # overwrite any pilotErrorDiag at this point with exeErrorDiag if set
             # (for the job page error info)
             if job.exeErrorDiag != "" and job.exeErrorDiag != "OK":
+                # this is probably useless since pilotErrorDiag might be overwritten again later
                 tolog("Overwriting pilotErrorDiag (\'%s\') with exeErrorDiag (\'%s\')" % (job.pilotErrorDiag, job.exeErrorDiag))
                 job.pilotErrorDiag = job.exeErrorDiag
 
                 # reset the trf errors since the monitor refuses to display them at the moment
-                job.exeErrorDiag = ""
-                job.exeErrorCode = 0
+                #job.exeErrorDiag = ""
+                #job.exeErrorCode = 0
 
             # remove unwanted files from work dir prior to tarball creation
             self.removeUnwantedFiles(job.workdir, job.inFiles, job.outFiles)

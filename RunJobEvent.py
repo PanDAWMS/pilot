@@ -1912,47 +1912,6 @@ class RunJobEvent(RunJob):
 
         return filename
 
-    def stripSetupCommand(self, cmd, trfName):
-        """ Remove the trf part of the setup command """
-
-        location = cmd.find(trfName)
-        return cmd[:location]
-
-    def getMakeRunEventCollectionScript(self, cmd):
-        """ Define the event collection script """
-
-        cmd += "get_files -jo %s" % (eventcollection_filename)
-        return cmd
-
-    def prependMakeRunEventCollectionScript(self, input_file, output_file):
-        """ Prepend the event collection script """
-
-        status = False
-
-        with open(eventcollection_filename) as f1:
-            global eventcollection_filename_mod
-            eventcollection_filename_mod = eventcollection_filename.replace(".py",".2.py")
-            with open(eventcollection_filename_mod, "w") as f2:
-                f2.write("EvtMax = -1\n")
-                f2.write("In = [ \'%s\' ]\n" % (input_file))
-                f2.write("Out = \'%s\'\n" % (output_file))
-                for line in f1:
-                    f2.write(line)
-                f2.close()
-                f1.close()
-                status = True
-
-        return status
-
-    def createTAGFile(self, cmd):
-        """ Create a TAG file using athena """
-
-        cmd += "athena.py %s >MakeRunEventCollection-stdout.txt" % (eventcollection_filename_mod)
-        tolog("Executing command: %s" % (cmd))
-        ec, rs = commands.getstatusoutput(cmd)
-
-        return ec
-
 
 # main process starts here
 if __name__ == "__main__":
@@ -2173,7 +2132,8 @@ if __name__ == "__main__":
         athenamp_stderr = None
 
         # Create and start the TokenExtractor
-        input_tag_file, input_tag_file_guid = runJob.getTAGFileInfo(job.inFiles, job.inFilesGuids)
+#        input_tag_file, input_tag_file_guid = runJob.getTAGFileInfo(job.inFiles, job.inFilesGuids)
+        input_tag_file, input_tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
         if input_tag_file != "" and input_tag_file_guid != "":
             tolog("Will run TokenExtractor on file %s" % (input_tag_file))
 
@@ -2197,6 +2157,8 @@ if __name__ == "__main__":
             # stop threads
             # ..
 
+            job.result[0] = "failed"
+            # job.result[2] = error. event service error code
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
         # athenamp gets stuck here as soon as it is launched. why? it appears to be blocking
@@ -2219,6 +2181,8 @@ if __name__ == "__main__":
             # stop threads
             # ..
 
+            job.result[0] = "failed"
+            # job.result[2] = error. event service error code
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
         # AthenaMP needs to know where exactly is the PFC
