@@ -982,6 +982,11 @@ class RunJobEvent(RunJob):
                 tolog("...exitAcronym=%s" % (exitAcronym))
                 tolog("...exitMsg=%s" % (exitMsg))
 
+                exitCode = 0
+                exitAcronym = ""
+                exitMsg = ""
+                tolog("!!WARNING!!3333!! Reset TRF error codes..")
+
                 # Ignore special trf error for now
                 if (exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL") or (exitCode == 68 and exitAcronym == "TRF_EXEC_LOGERROR"):
                     exitCode = 0
@@ -2132,8 +2137,8 @@ if __name__ == "__main__":
         athenamp_stderr = None
 
         # Create and start the TokenExtractor
-#        input_tag_file, input_tag_file_guid = runJob.getTAGFileInfo(job.inFiles, job.inFilesGuids)
-        input_tag_file, input_tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
+        input_tag_file, input_tag_file_guid = runJob.getTAGFileInfo(job.inFiles, job.inFilesGuids)
+#        input_tag_file, input_tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
         if input_tag_file != "" and input_tag_file_guid != "":
             tolog("Will run TokenExtractor on file %s" % (input_tag_file))
 

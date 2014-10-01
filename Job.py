@@ -306,6 +306,13 @@ class Job:
         self.prodSourceLabel = data.get('prodSourceLabel', '')
         destinationDblock = data.get('destinationDblock', '')
 
+
+        # PN tmp
+#        skip = False
+#        if data.has_key('eventServiceMerge'):
+#            if data['eventServiceMerge'] == 'True':
+#                skip = True
+
         # figure out the real output files and log files and their destinationDblock right here
         outfList = outFiles.split(",")
         pUtil.tolog("outfList = %s" % (outfList))
@@ -321,8 +328,10 @@ class Job:
                 logFileDblock = outfdbList[i]
                 i_log = i
             else:
+#                if not skip: #PN tmp
                 outs.append(outfList[i])
                 outdb.append(outfdbList[i])
+
         # put the space token for the log file at the end of the list
         if i_log != -1:
             try:
