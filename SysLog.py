@@ -24,7 +24,7 @@ def getSysLogTail():
 
     out = ""
     path = "/var/log/messages"
-    cmd = "sudo tail %s" % (path)
+    cmd = "tail %s" % (path)
     tolog("Executing command: %s" % (cmd))
     try:
         out = getoutput(cmd)

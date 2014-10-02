@@ -2601,7 +2601,7 @@ def mover_put_data(outputpoolfcstring,
             if s != 0:
                 # report stage-out problem to syslog
                 sysLog("PanDA job %s failed to stage-out output file: %s" % (jobId, pilotErrorDiag))
-                dumpSysLogTail()
+                #dumpSysLogTail()
 
                 if forceAltStageOut:
                     tolog("Forcing alternative stage-out")

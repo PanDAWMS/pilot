@@ -325,6 +325,7 @@ Now using ATHENA_PROC_NUMBER before defaulting to job.coreCount, in getJobExecut
 Added ROOT_TTREECACHE_SIZE to addEnvVars2Cmd(), getEnvVars2Cmd(). Requested by Alessandro de Salvo (ATLASExperiment)
 Added ROOTCORE_NCPUS to addEnvVars2Cmd(), getEnvVars2Cmd(). Requested by Asoka de Silva et al (ATLASExperiment)
 Removed reset of exeErrorDiag/Code in postJobTask() (JobLog)
+Corrected wrong method name, SchedconfigURL() -> getSchedconfigURL() in getQueuedata() (SiteInformation)
 
 Code contribution from Edward Karavakis, September 5, 2014:
 

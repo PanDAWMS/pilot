@@ -1017,17 +1017,30 @@ class RunJob(object):
 
         return rc, rs
 
+    def swapAthenaProcNumber(self, swap_value):
+        """ Swap the current ATHENA_PROC_NUMBER so that it does not upset the job """
+        # Note: only needed during TAG file creation
+
+        try:
+            athena_proc_number = int(os.environ['ATHENA_PROC_NUMBER'])
+        except Exception, e:
+            tolog("!!WARNING!!2221!! ATHENA_PROC_NUMBER not define, cannot swap: %s" % (e))
+        else:
+            os.environ['ATHENA_PROC_NUMBER'] = str(swap_value)
+            tolog("ATHENA_PROC_NUMBER swapped from \'%d\' to \'%d\'" % (athena_proc_number, swap_value))
+
+        return athena_proc_number
+
     def createTAGFile(self, jobExecutionCommand, trfName, inFiles, eventcollection_filename):
         """ Create a TAG file """
 
         tag_file = ""
         tag_file_guid = getGUID()
 
-        tolog("dir=%s"%(os.getcwd()))
-        _cmd = "ls -lF"
-        out=commands.getoutput(_cmd)
-        tolog("%s:\n%s"%(_cmd,out))
-        tolog("guid=%s"%(tag_file_guid))
+        # We cannot have ATHENA_PROC_NUMBER set to a value larger than 1, since that will
+        # activate AthenaMP. Reset it for now, and swap it back at the end of this method
+        athena_proc_number = self.swapAthenaProcNumber(1)
+        
         # Remove everything after the trf command from the job execution command
         cmd = self.stripSetupCommand(jobExecutionCommand, trfName)
         tolog("Stripped command: %s" % (cmd))
@@ -1035,26 +1048,15 @@ class RunJob(object):
         # Define and execute the event collection script
         if cmd != "":
             rc, rs = self.executeMakeRunEventCollectionScript(cmd, eventcollection_filename)
-            tolog("rc=%d"%(rc))
-            tolog("rs=%s"%(rs))
             # Prepend the event collection script
             if rc == 0:
                 input_file = inFiles[0]
                 tag_file = input_file + ".TAG"
                 status, eventcollection_filename_mod = self.prependMakeRunEventCollectionScript(input_file, tag_file, eventcollection_filename)
-                tolog("status=%s"%str(status))
-                tolog("coll=%s"%(eventcollection_filename_mod))
-                _cmd = "head %s" % (eventcollection_filename_mod)
-                tolog("Executing command: %s" % (_cmd))
-                a,b=commands.getstatusoutput(_cmd)
-                tolog("\n%s" % (b))
 
                 # Finally create the TAG file
                 if status:
                     rc, rs = self.executeTAGFileCommand(cmd, eventcollection_filename_mod)
-                    tolog("rc=%d"%(rc))
-                    tolog("rs=%s"%(rs))
-                    
                     if rc != 0:
                         tolog("!!WARNING!!3337!! Failed to create TAG file: rc=%d, rs=%s" % (rc, rs))
                         tag_file = ""
@@ -1062,6 +1064,9 @@ class RunJob(object):
                 tolog("!!WARNING!!3339!! Failed to download %s: rc=%d, rs=%s " % (eventcollection_filename, rc, rs))
         else:
             tolog("!!WARNING!!3330!! Failed to strip the job execution command, cannot create TAG file")
+
+        # Now swap the ATHENA_PROC_NUMBER since it is needed for activating AthenaMP
+        dummy = self.swapAthenaProcNumber(athena_proc_number)
 
         return tag_file, tag_file_guid
 

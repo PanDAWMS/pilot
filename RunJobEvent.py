@@ -2137,8 +2137,8 @@ if __name__ == "__main__":
         athenamp_stderr = None
 
         # Create and start the TokenExtractor
-        input_tag_file, input_tag_file_guid = runJob.getTAGFileInfo(job.inFiles, job.inFilesGuids)
-#        input_tag_file, input_tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
+#        input_tag_file, input_tag_file_guid = runJob.getTAGFileInfo(job.inFiles, job.inFilesGuids)
+        input_tag_file, input_tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
         if input_tag_file != "" and input_tag_file_guid != "":
             tolog("Will run TokenExtractor on file %s" % (input_tag_file))
 

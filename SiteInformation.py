@@ -273,7 +273,7 @@ class SiteInformation(object):
 
         if url == "":
             exp = getExperimentObject(self.__experiment)
-            url = exp.SchedconfigURL()
+            url = exp.getSchedconfigURL()
             tolog("The schedconfig URL was not set by the wrapper - Will use default server url = %s (hardcoded)" % (url))
 
         if not os.environ.has_key('PilotHomeDir'):
