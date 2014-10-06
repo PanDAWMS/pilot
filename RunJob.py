@@ -1021,13 +1021,19 @@ class RunJob(object):
         """ Swap the current ATHENA_PROC_NUMBER so that it does not upset the job """
         # Note: only needed during TAG file creation
 
+        athena_proc_number = 0
         try:
             athena_proc_number = int(os.environ['ATHENA_PROC_NUMBER'])
         except Exception, e:
-            tolog("!!WARNING!!2221!! ATHENA_PROC_NUMBER not define, cannot swap: %s" % (e))
-        else:
+            tolog("ATHENA_PROC_NUMBER not defined, setting it to: %s" % (swap_value))
             os.environ['ATHENA_PROC_NUMBER'] = str(swap_value)
-            tolog("ATHENA_PROC_NUMBER swapped from \'%d\' to \'%d\'" % (athena_proc_number, swap_value))
+        else:
+            if swap_value == 0:
+                del os.environ['ATHENA_PROC_NUMBER']
+                tolog("Unset ATHENA_PROC_NUMBER")
+            else:
+                os.environ['ATHENA_PROC_NUMBER'] = str(swap_value)
+                tolog("ATHENA_PROC_NUMBER swapped from \'%d\' to \'%d\'" % (athena_proc_number, swap_value))
 
         return athena_proc_number
 
@@ -1039,7 +1045,7 @@ class RunJob(object):
 
         # We cannot have ATHENA_PROC_NUMBER set to a value larger than 1, since that will
         # activate AthenaMP. Reset it for now, and swap it back at the end of this method
-        athena_proc_number = self.swapAthenaProcNumber(1)
+        athena_proc_number = self.swapAthenaProcNumber(0)
         
         # Remove everything after the trf command from the job execution command
         cmd = self.stripSetupCommand(jobExecutionCommand, trfName)

@@ -78,6 +78,7 @@ class RunJobEvent(RunJob):
     __pfc_path = ""                              # The path to the pool file catalog
     __message_server = None                      #
     __message_thread = None                      #
+    __status = True                              # Global job status; will be set to False if an event range or stage-out fails
     __athenamp_is_ready = False                  # True when an AthenaMP worker is ready to process an event range
     __asyncOutputStager_thread = None            #
     __analysisJob = False                        # True for analysis job
@@ -409,6 +410,16 @@ class RunJobEvent(RunJob):
         """ Setter for __yamplChannelName """
 
         self.__yamplChannelName = yamplChannelName
+
+    def getStatus(self):
+        """ Getter for __status """
+
+        return self.__status
+
+    def setStatus(self, status):
+        """ Setter for __status """
+
+        self.__status = status
 
     # Get/setters for the job object
 
@@ -1389,6 +1400,9 @@ class RunJobEvent(RunJob):
                                 else:
                                     status = 'failed'
 
+                                    # Update the global status field in case of failure
+                                    self.setStatus(False)
+
                                     # Note: the rec pilot must update the server appropriately
 
                                 # Time to update the server
@@ -1846,14 +1860,15 @@ class RunJobEvent(RunJob):
 
         return event_ranges
 
-    def getEventRangeFilesDictionary(self, event_ranges):
-        """ """
+    def getEventRangeFilesDictionary(self, event_ranges, eventRangeFilesDictionary):
+        """ Build and return the event ranges dictionary out of the event_ranges dictinoary """
 
-        eventRangeFilesDictionary = {}
+        # Format: eventRangeFilesDictionary = { guid: [lfn, is_added_to_token_extractor_file_list (boolean)], .. }
         for event_range in event_ranges:
             guid = event_range['GUID']
             lfn = event_range['LFN']
-            eventRangeFilesDictionary[guid] = lfn
+            if not eventRangeFilesDictionary.has_key(guid):
+                eventRangeFilesDictionary[guid] = [lfn, False]
 
         return eventRangeFilesDictionary
 
@@ -1861,12 +1876,18 @@ class RunJobEvent(RunJob):
         """ Add the new file info to the token extractor file list """
 
         for guid in eventRangeFilesDictionary.keys():
-            lfn = eventRangeFilesDictionary[guid]
-            s = self.getTokenExtractorInputListEntry(guid, lfn)
-            filename = self.getTokenExtractorInputListFilename()
-            status = writeToFileWithStatus(filename, s, attribute='a')
-            if not status:
-                tolog("!!WARNING!!2233!! Failed to update %s" % (filename))
+            lfn = eventRangeFilesDictionary[guid][0]
+            already_added = eventRangeFilesDictionary[guid][1]
+            if not already_added:
+                s = self.getTokenExtractorInputListEntry(guid, lfn)
+                filename = self.getTokenExtractorInputListFilename()
+                status = writeToFileWithStatus(filename, s, attribute='a')
+                if not status:
+                    tolog("!!WARNING!!2233!! Failed to update %s" % (filename))
+                else:
+                    eventRangeFilesDictionary[guid][1] = True
+
+        return eventRangeFilesDictionary
 
     def extractEventRangeIDs(self, event_ranges):
         """ Extract the eventRangeID's from the event ranges """
@@ -2210,6 +2231,7 @@ if __name__ == "__main__":
         tolog("Entering monitoring loop")
 
         nap = 5
+        eventRangeFilesDictionary = {}
         while True:
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
@@ -2227,9 +2249,9 @@ if __name__ == "__main__":
                     runJob.sendMessage("No more events")
                     break
 
-                # Update the token extractor file list
-                #eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges)
-                #runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary)
+                # Update the token extractor file list and keep track of added guids to the file list
+                eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges, eventRangeFilesDictionary)
+                eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary)
 
                 # Get the current list of eventRangeIDs
                 currentEventRangeIDs = runJob.extractEventRangeIDs(event_ranges)

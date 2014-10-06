@@ -430,6 +430,9 @@ class ATLASSiteInformation(SiteInformation):
 
 #        if thisSite.sitename == "BNL_PROD_MCORE":
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov:8443//atlas/logs|https^https://ceph007.usatlas.bnl.gov:8443//atlas/logs")
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
+#            ec = self.replaceQueuedataField("timefloor", "0")
 
 #        if thisSite.sitename == "CERN-PROD" or thisSite.sitename == "BNL_PROD_MCORE" or thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "MWT2_MCORE":
 #            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
