@@ -2221,6 +2221,10 @@ def createESFileDictionary(writeToFile):
         # Extract the file name
         if ":" in fileInfo[i]:
             finfo = fileInfo[i].split(":")
+
+            # add cwd before the lfns
+            finfo[1] = "`pwd`/" + finfo[1]
+            finfo[1] = finfo[1].replace(',',',`pwd`/')
             esFileDictionary[finfo[0]] = finfo[1]
             orderedFnameList.append(finfo[0])
         else:
@@ -2305,6 +2309,11 @@ def updateDispatcherData4ES(data, experiment, path):
     # Is this an event service merge job? If so, the input file list should be updated
     if data.has_key('eventServiceMerge'):
         if data['eventServiceMerge'].lower() == "true":
+            # Remove any --postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py from the jobPars
+            #if "--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py" in data['jobPars']:
+            #    data['jobPars'] = data['jobPars'].replace("--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py", "")
+            #    tolog("Removed \'--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py\' from jobPars")
+
             if data.has_key('writeToFile'):
                 writeToFile = data['writeToFile']
                 esFileDictionary, orderedFnameList = createESFileDictionary(writeToFile)
@@ -3918,6 +3927,7 @@ def moveToExternal(workdir, recoveryDir):
     JS = JobState()
 
     # grab all job state files from the workdir
+    from glob import glob
     job_state_files = glob("%s/jobState-*.pickle" % (workdir))
 
     # purge any test job state files (testing for new job rec algorithm)

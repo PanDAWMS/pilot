@@ -467,6 +467,8 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             if "dst:" in token:
                 token = token[len('dst:'):]
                 tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+                token = "ATLASGROUPDISK"
+                tolog("Space token descriptor reset to: %s" % (token))
 
             surl = putfile[putfile.index('srm://'):]
             _cmd_str = '%s which lcg-cr; lcg-cr --version; lcg-cr --verbose --vo atlas -T srmv2 -s %s -b %s -l %s -g %s -d %s file:%s' % (envsetup, token, timeout_option, lfclfn, guid, surl, fppfn)

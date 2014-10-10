@@ -1872,11 +1872,11 @@ class RunJobEvent(RunJob):
 
         return eventRangeFilesDictionary
 
-    def updateTokenExtractorInputFile(self, eventRangeFilesDictionary):
+    def updateTokenExtractorInputFile(self, eventRangeFilesDictionary, input_tag_file):
         """ Add the new file info to the token extractor file list """
 
         for guid in eventRangeFilesDictionary.keys():
-            lfn = eventRangeFilesDictionary[guid][0]
+            lfn = input_tag_file #eventRangeFilesDictionary[guid][0]
             already_added = eventRangeFilesDictionary[guid][1]
             if not already_added:
                 s = self.getTokenExtractorInputListEntry(guid, lfn)
@@ -2251,7 +2251,7 @@ if __name__ == "__main__":
 
                 # Update the token extractor file list and keep track of added guids to the file list
                 eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges, eventRangeFilesDictionary)
-                eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary)
+                eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary, input_tag_file)
 
                 # Get the current list of eventRangeIDs
                 currentEventRangeIDs = runJob.extractEventRangeIDs(event_ranges)

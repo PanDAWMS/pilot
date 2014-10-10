@@ -510,6 +510,9 @@ class LocalSiteMover(SiteMover.SiteMover):
             if "dst:" in token:
                 token = token[len('dst:'):]
                 tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+                token = "ATLASGROUPDISK"
+                tolog("Space token descriptor reset to: %s" % (token))
+
             _params = self.__spacetoken % (token)
         if sourceSize != 0 and sourceSize != "0":
             _params += self.__par_filesize % (sourceSize)

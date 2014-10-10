@@ -1,17 +1,5 @@
 #!/usr/bin/python -u 
 
-
-
-
-
-# Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file registrations using DQ2 functions
-# test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
-
-# todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
-# todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation
-
-
-
 import commands
 import getopt
 import os

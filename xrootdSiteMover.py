@@ -365,6 +365,8 @@ class xrootdSiteMover(SiteMover.SiteMover):
             if "dst:" in token:
                 token = token[len('dst:'):]
                 tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+                token = "ATLASGROUPDISK"
+                tolog("Space token descriptor reset to: %s" % (token))
 
             # get the proper destination
             #destination = self.getDestination(analyJob, token)

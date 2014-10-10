@@ -394,6 +394,8 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             if "dst:" in token:
                 token = token[len('dst:'):]
                 tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+                token = "ATLASGROUPDISK"
+                tolog("Space token descriptor reset to: %s" % (token))
 
             # used lcg-cp options:
             # --srcsetype: specify SRM version

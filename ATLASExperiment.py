@@ -1692,6 +1692,12 @@ class ATLASExperiment(Experiment):
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
         _ttc = 'export ROOT_TTREECACHE_SIZE=1;'
 
+        # Unset ATHENA_PROC_NUMBER if set for event service Merge jobs
+        if "Merge_tf" in cmd and os.environ.has_key('ATHENA_PROC_NUMBER'):
+            _unset = "unset ATHENA_PROC_NUMBER;"
+        else:
+            _unset = ""
+
         _coreCount = ""
         if analysisJob:
             try:
@@ -1707,7 +1713,7 @@ class ATLASExperiment(Experiment):
             _rucio = 'export RUCIO_APPID=\"%s\";' % (processingType)
         _rucio += 'export RUCIO_ACCOUNT=\"pilot\";'
 
-        return _sitename + _ttc + _frontier1 + _frontier2 + _rucio + _coreCount + cmd
+        return _sitename + _ttc + _frontier1 + _frontier2 + _rucio + _coreCount + _unset + cmd
 
     def getEnvVars2Cmd(self, jobId, processingType, sitename, analysisJob):
         """ Return array with enviroment variables """

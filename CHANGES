@@ -326,6 +326,11 @@ Added ROOT_TTREECACHE_SIZE to addEnvVars2Cmd(), getEnvVars2Cmd(). Requested by A
 Added ROOTCORE_NCPUS to addEnvVars2Cmd(), getEnvVars2Cmd(). Requested by Asoka de Silva et al (ATLASExperiment)
 Removed reset of exeErrorDiag/Code in postJobTask() (JobLog)
 Corrected wrong method name, SchedconfigURL() -> getSchedconfigURL() in getQueuedata() (SiteInformation)
+Removed ATHENA_PROC_NUMBER environment variable since merge job cannot run with AthenaMP, in updateDispatcherData4ES() (pUtil)
+Removed '--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py' from jobPars in updateDispatcherData4ES() for ES merge jobs (pUtil)
+Added unsetting of ATHENA_PROC_NUMBER for Merge jobs in addEnvVars2Cmd() (ATLASExperiment)
+Resetting space token descriptor to ATLASGROUPDISK for when space token contains dst: in put_data() (GFAL2SiteMover, lcgcpSiteMover, lcgcp2SiteMover, 
+xrootdSiteMover, LocalSiteMover, curlSiteMover)
 
 Code contribution from Edward Karavakis, September 5, 2014:
 
@@ -427,5 +432,13 @@ AMSTaiwanExperiment.py        : Experiment class for AMS Taiwan
 AMSTaiwanSiteInformation.py   : SiteInformation class for AMS Taiwan
 
 Note: new modules have to be added to glexec_utils.py.
+
+TODO:
+
+Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file 
+registrations using DQ2 functions test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
+
+todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
+todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation
 
 Add new error code to DB
