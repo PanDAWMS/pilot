@@ -2970,23 +2970,27 @@ def putMetadata(workdir, jobId, strXML):
 
     return status
 
-def getMetadata(workdir, id=None, athena=False):
+def getMetadata(workdir, jobId, athena=False, altpath=""):
     """ read metadata from file """
 
-    BAK = ""
-    if athena:
-        BAK = ".PAYLOAD"
-
-    # are we in recovery mode? then id is set
-    if id:
-        filename = "metadata-%s.xml%s" % (repr(id), BAK)
-    else:
-        filename = "metadata.xml%s" % (BAK)
-
-    # try to open and read the meta data from file
     strXML = None
-    tolog("Trying to read %s from dir: %s" % (filename, workdir))
-    fname = "%s/%s" % (workdir, filename)
+
+    if altpath == "":
+        BAK = ""
+        if athena:
+            BAK = ".PAYLOAD"
+
+        # are we in recovery mode? then jobId is set
+        if jobId:
+            filename = "metadata-%s.xml%s" % (repr(jobId), BAK)
+        else:
+            filename = "metadata.xml%s" % (BAK)
+
+        fname = os.path.join(workdir, filename)
+    else:
+        fname = altpath
+
+    tolog("Trying to read metadata from file: %s" % (fname))
     if os.path.exists(fname):
         try:
             f = open(fname)

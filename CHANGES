@@ -60,6 +60,9 @@ Job def download for a maximum of N seconds : (set getjobmaxtime)
 #### add new error codes 1217-1219 to proddb
 Update prodDB for ERR_RUNJOBEXC : "Exception caught by runJob" -> "Exception caught by RunJob*" ? not necessary??
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+59a:
 
 Replaced global fileList with function getFileList(), used in stageInPyModules() and removePyModules() (pUtil)
 Simplified file removal in removePyModules() (pUtil)
@@ -430,6 +433,20 @@ EventRanges.py                : Server communication module for event ranges
 SysLog.py                     : syslog functions
 AMSTaiwanExperiment.py        : Experiment class for AMS Taiwan
 AMSTaiwanSiteInformation.py   : SiteInformation class for AMS Taiwan
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+59b:
+Sending readpar('appdir') to extractAppdir instead of thisSite.appdir which might not be updated correctly, in monitor_job (Monitor)
+Added debug info to extractAppdir (SiteInformation, ATLASSiteInformation)
+New version of aria2c site mover from Vincenzo Lavorini (aria2cSiteMover)
+Looking for metadata file in alternative location (pilot init dir), in getPayloadMetadataFilename() (PandaServerClient)
+Sending altpath (filenamePayloadMetadata) to getMetadata() from updatePandaServer() (PandaServerClient)
+Added altpath argument to getMetadata() (pUtil)
+Updated getMetadata() for using altpath when possible. Replaced 'id' with 'jobId' (pUtil)
+Added special case for AtlasDerivation in getProperASetup() (ATLASExperiment)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Note: new modules have to be added to glexec_utils.py.
 

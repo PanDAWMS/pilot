@@ -661,6 +661,8 @@ class SiteInformation(object):
 
         ec = 0
 
+        tolog("Extracting appdir (current value=%s)" % (appdir))
+
         # override processingType for analysis jobs that use nightlies
         if "rel_" in homePackage:
             tolog("Temporarily modifying processingType from %s to nightlies" % (processingType))

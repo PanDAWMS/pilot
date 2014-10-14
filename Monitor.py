@@ -961,9 +961,13 @@ class Monitor:
             self.__env['jobIds'].append(self.__env['job'].jobId)
         
             # does the application directory exist?
-            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(self.__env['thisSite'].appdir, 
+            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(pUtil.readpar('appdir'),
                                                                                self.__env['job'].processingType, 
                                                                                self.__env['job'].homePackage)
+
+#            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(self.__env['thisSite'].appdir, 
+#                                                                               self.__env['job'].processingType, 
+#                                                                               self.__env['job'].homePackage)
             if ec != 0:
                 self.__env['job'].result[0] = 'failed'
                 self.__env['job'].currentState = self.__env['job'].result[0]

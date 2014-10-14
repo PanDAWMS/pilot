@@ -538,6 +538,18 @@ class PandaServerClient:
             # Use default metadata file
             filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
 
+        # Make sure the metadata file actually exists
+        if os.path.exists(filenamePayloadMetadata):
+            tolog("Verified existance of metadata file: %s" % (filenamePayloadMetadata))
+        else:
+            tolog("WARNING: metadata file does not exist: %s" % (filenamePayloadMetadata))
+            tolog("Looking for it in the pilot init dir..")
+            fname = os.path.basename(filenamePayloadMetadata)
+            path = os.path.join(self.__pilot_initdir, fname)
+            if os.path.exists(path):
+                filenamePayloadMetadata = path
+                tolog("Verified existance of metadata file: %s" % (filenamePayloadMetadata))
+
         return filenamePayloadMetadata
 
     def updatePandaServer(self, job, site, workerNode, port, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, useCoPilot=False, stdout_tail="", stdout_path="", additionalMetadata=None):
@@ -670,7 +682,7 @@ class PandaServerClient:
             if os.path.exists(filenamePayloadMetadata) and final:
 
                 # get the metadata created by the payload
-                payloadXML = getMetadata(site.workdir, job.jobId, athena=True)
+                payloadXML = getMetadata(site.workdir, job.jobId, athena=True, altpath=filenamePayloadMetadata)
 
                 # add the metadata to the node
                 if payloadXML != "" and payloadXML != None:

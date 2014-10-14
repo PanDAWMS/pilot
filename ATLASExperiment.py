@@ -2123,9 +2123,19 @@ class ATLASExperiment(Experiment):
                 tolog("2. path=%s" % (asetup_path))
                 # use special options for nightlies (not the release info set above)
                 # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
-                options = cacheVer + "," + rel_N + ",notest,here"
-                # options = rel_N + ",notest"
-#                options = cacheDir + "," + rel_N #+ ",notest"
+                # Special case for AtlasDerivation. In this case cacheVer = rel_N, so we don't want to add both cacheVer and rel_N,
+                # and we need to add cacheDir and the release itself
+                special_cacheDirs = ['AtlasDerivation'] # Add more cases if necessary
+                if cacheDir in special_cacheDirs:
+                    # strip any special cacheDirs from the release string, if present
+                    for special_cacheDir in special_cacheDirs:
+                        if special_cacheDir in atlasRelease:
+                            tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
+                            atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
+                            tolog("Release string updated: %s" % (atlasRelease))
+                    options = cacheDir + "," + atlasRelease + "," + rel_N + ",notest,here" # E.g. AtlasDerivation,19.1.X.Y-VAL,rel_3,notest,here
+                else:
+                    options = cacheVer + "," + rel_N + ",notest,here"
             else:
                 tolog("!!WARNING!!1111!! Failed to extract rel_N from homePackage=%s (forced to use default cmtsite setup)" % (homePackage))
                 asetup_path = "%s/cmtsite/asetup.sh" % (path)
