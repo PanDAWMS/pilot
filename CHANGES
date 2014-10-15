@@ -469,6 +469,9 @@ Removed repr() from jobId in getMetadata() (pUtil)
 Changed %d to %s in makeJobReport(), moveToExternal() (pUtil)
 Removed str() from jobId in moveLostOutputFiles() (pilot)
 Changed %d to %s in RecoverLostJobs(), getNewJob() (pilot)
+Updated extractAppdir() for allowing AtlasP1HLT and AtlasHLT jobs anywhere (ATLASSiteInformation
+Only using special setup for HLT for AFS, ie if $VO_ATLAS_RELEASE_DIR exists, in getProperSiterootAndCmtconfig(), getProperASetup() (ATLASExperiment)
+Verifying that atlasProject is not already added to cmd1 in updateCmd1WithProject() (ATLASExperiment)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

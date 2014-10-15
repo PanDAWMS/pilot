@@ -542,12 +542,16 @@ class ATLASSiteInformation(SiteInformation):
                     return ec, _appdir
 
         elif "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
-            tolog("Encountered HLT homepackage: %s" % (homePackage))
+            value = 'VO_ATLAS_RELEASE_DIR'
+            tolog("Encountered HLT homepackage: %s, will look for a set $%s" % (homePackage, value))
 
             # does a HLT directory exist?
-            ec, _appdir = self.getSpecialAppdir('VO_ATLAS_RELEASE_DIR')
-            if ec == 0 and _appdir != "":
-                return ec, _appdir
+            if os.environ.has_key(value):
+                ec, _appdir = self.getSpecialAppdir(value)
+                if ec == 0 and _appdir != "":
+                    return ec, _appdir
+            else:
+                tolog('$%s is not set' % (value))
 
         _appdir = appdir
         if "|" in _appdir and "^" in _appdir:

@@ -80,7 +80,7 @@ class ATLASExperiment(Experiment):
     def updateCmd1WithProject(self, cmd1, atlasProject):
         """ Add the known project to the setup command """
 
-        if atlasProject != "":
+        if atlasProject != "" and atlasProject not in cmd1:
             cmd1 = cmd1.replace("notest","%s,notest" % (atlasProject))
 
         tolog("cmd1 = %s" % (cmd1))
@@ -192,7 +192,7 @@ class ATLASExperiment(Experiment):
                 if ec != 0:
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
-                # Add the project to the setup (only for HLT jobs for now)
+                # Add the project to the setup (only for HLT jobs for now, both on cvmfs and afs)
                 if "AtlasP1HLT" in job.homePackage or "AtlasHLT" in job.homePackage:
                     cmd1 = self.updateCmd1WithProject(cmd1, atlasProject)
 
@@ -1872,7 +1872,8 @@ class ATLASExperiment(Experiment):
                 # e.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
 
                 # note: this format (using cmtconfig is only valid on CVMFS, not on AFS)
-                if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
+                # VO_ATLAS_RELEASE_DIR is only set on AFS (CERN)
+                if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage) and os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
                     tolog("Encountered HLT homepackage: %s (must use special siteroot)" % (homePackage))
                     siteroot = os.path.join(swbase, release)
                 else:
@@ -2151,9 +2152,8 @@ class ATLASExperiment(Experiment):
         else:
             cmd = ""
 
-        # HLT
-        if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
-            cmd = "export AtlasSetup=%s/../dist/AtlasSetup; " % readpar('appdir')
+        # HLT on AFS
+        if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
             try:
                 h = homePackage.split("/") # ['AtlasP1HLT', '18.1.0.1']
                 project = h[0]
@@ -2162,9 +2162,14 @@ class ATLASExperiment(Experiment):
                 tolog("!!WARNING!!1234!! Could not extract project and patch from %s" % (homePackage))
             else:
                 tolog("Extracted %s, %s from homePackage=%s" % (patch, project, homePackage))
-                options = "%s,%s,notest,afs" % (patch, project)
-                asetup_path = "source $AtlasSetup/scripts/asetup.sh"
-
+                if os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
+                    cmd = "export AtlasSetup=%s/../dist/AtlasSetup; " % readpar('appdir')
+                    options = "%s,%s,notest,afs" % (patch, project)
+                    asetup_path = "source $AtlasSetup/scripts/asetup.sh"
+                else:
+                    options = "%s,%s,notest" % (patch, project)
+                    cmd = "source"
+                    asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
         return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
