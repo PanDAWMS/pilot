@@ -281,7 +281,7 @@ class GlexecInterface(object):
 	pUtil.tolog('Pilot home dir is %s '%env['PilotHomeDir'])
         self.__site_workdir = re.split('Panda_Pilot',env['thisSite'].workdir)
         env['thisSite'].workdir = env['workdir'] + '/Panda_Pilot' + self.__site_workdir[1]
-	env['job'].datadir = env['thisSite'].workdir + '/PandaJob_' + str(env['job'].jobId) + '_data'
+	env['job'].datadir = env['thisSite'].workdir + '/PandaJob_' + env['job'].jobId + '_data'
         if not os.path.exists(env['thisSite'].workdir):
         	os.makedirs(env['thisSite'].workdir)
 		os.chmod(env['thisSite'].workdir,0777)

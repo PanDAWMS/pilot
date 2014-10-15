@@ -397,7 +397,7 @@ class PandaServerClient:
                 tolog("XML string set")
 
                 _skippedfname = os.path.join(workdir, "skipped.xml")
-                fname = "%s/metadata-%s.xml" % (workdir, str(job.jobId))
+                fname = "%s/metadata-%s.xml" % (workdir, job.jobId)
                 if os.path.exists(fname):
                     if os.path.exists(_skippedfname):
                         # add the skipped file info if needed
@@ -561,7 +561,7 @@ class PandaServerClient:
         jr = job recovery mode
         """
     
-        tolog("Updating job status in updatePandaServer(): PandaId=%d, result=%s, time=%s" % (job.getState()))
+        tolog("Updating job status in updatePandaServer(): PandaId=%s, result=%s, time=%s" % (job.getState()))
         tolog("job.prodSourceLabel=%s" % (job.prodSourceLabel))
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
@@ -636,7 +636,7 @@ class PandaServerClient:
         # read back node['xml'] from jobState file for CERNVM
         sendXML = True
         if site.sitename == "CERNVM":
-            _node = self.getNodeStructureFromFile(site.workdir, repr(job.jobId))
+            _node = self.getNodeStructureFromFile(site.workdir, job.jobId)
             if _node:
                 if _node.has_key('xml'):
                     if _node['xml'] != "":

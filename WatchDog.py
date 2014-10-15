@@ -21,7 +21,7 @@ class WatchDog:
             try:
                 _id, rc = os.waitpid(self.__env['jobDic'][k][0], os.WNOHANG)
             except OSError, e:
-                pUtil.tolog("Harmless exception when checking job %s, %s" % (self.__env['jobDic'][k][1].jobId, str(e)))
+                pUtil.tolog("Harmless exception when checking job %s, %s" % (self.__env['jobDic'][k][1].jobId, e))
                 if str(e).rstrip() == "[Errno 10] No child processes":
                     pilotErrorDiag = "Exception caught by pilot watchdog: %s" % str(e)
                     pUtil.tolog("!!FAILED!!1000!! Pilot setting state to failed since there are no child processes")

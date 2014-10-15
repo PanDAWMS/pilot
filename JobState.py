@@ -116,7 +116,7 @@ class JobState:
             status = False
         else:
             # get the appropriate filename
-            self.filename = self.getFilename(self.site.workdir, repr(self.job.jobId))
+            self.filename = self.getFilename(self.site.workdir, self.job.jobId)
 
             # add mode variable if needed
             if mode != "":
@@ -168,8 +168,8 @@ class JobState:
         # get the file extension
         extension = getExtension()
 
-        fileNameOld = "%s/jobState-%s.%s" % (site.workdir, repr(job.jobId), extension)
-        fileNameNew = "%s/jobState-%s.%s.MAXEDOUT" % (site.workdir, repr(job.jobId), extension)
+        fileNameOld = "%s/jobState-%s.%s" % (site.workdir, job.jobId, extension)
+        fileNameNew = "%s/jobState-%s.%s.MAXEDOUT" % (site.workdir, job.jobId, extension)
         if os.path.isfile(fileNameOld):
             # rename the job state file
             try:
@@ -195,10 +195,10 @@ class JobState:
 #
 #        # do not use self.filename in this case since this function is only
 #        # used in pilot.cleanup() where self.filename has not been set
-#        fileName = "%s/jobState-%s.%s" % (site.workdir, repr(job.jobId), extension)
+#        fileName = "%s/jobState-%s.%s" % (site.workdir, job.jobId, extension)
 
         # get the appropriate filename
-        fileName = self.getFilename(site.workdir, repr(job.jobId))
+        fileName = self.getFilename(site.workdir, job.jobId)
 
         if os.path.isfile(fileName):
             # remove the job state file

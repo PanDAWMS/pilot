@@ -145,9 +145,9 @@ class Cleaner:
                                     # query the job state file for job information
                                     if _job.result[0] == 'running' or _job.result[0] == 'starting' or (_job.result[0] == 'holding' and mod_time > 7*24*3600):
                                         if _job.result[0] == 'holding':
-                                            tolog("Job %d was found in %s state but has not been modified for a long time - will be cleaned up" % (_job.jobId, _job.result[0]))
+                                            tolog("Job %s was found in %s state but has not been modified for a long time - will be cleaned up" % (_job.jobId, _job.result[0]))
                                         else:
-                                            tolog("Job %d was found in %s state - will be cleaned up" % (_job.jobId, _job.result[0]))
+                                            tolog("Job %s was found in %s state - will be cleaned up" % (_job.jobId, _job.result[0]))
                                         tolog("Erasing directory: %s" % (_site.workdir))
                                         cmd = "rm -rf %s" % (_site.workdir)
                                         try:

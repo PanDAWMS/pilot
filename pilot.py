@@ -353,7 +353,7 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
 
     # open and parse xml to find the guids
     from xml.dom import minidom
-    _filename = "%s/metadata-%s.xml" % (thisSite.workdir, str(job.jobId))
+    _filename = "%s/metadata-%s.xml" % (thisSite.workdir, job.jobId)
     if os.path.isfile(_filename):
         try:
             xmldoc = minidom.parse(_filename)
@@ -703,9 +703,9 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
 
                                 #PN
                                 # uncomment this code for recovery of certain panda ids only
-#                                allowedJobIds = [1435974131]
+#                                allowedJobIds = ['1435974131']
 #                                if _job.jobId not in allowedJobIds:
-#                                    pUtil.tolog("Job id %d not in allowed id list: %s" % (_job.jobId, str(allowedJobIds)))
+#                                    pUtil.tolog("Job id %s not in allowed id list: %s" % (_job.jobId, str(allowedJobIds)))
 #                                    continue
 
                             if _job and _site and _node:
@@ -714,11 +714,11 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                 if _job.result[0] == 'holding' or _job.result[0] == 'lostheartbeat':
                                     pUtil.tolog("(1)")
 
-                                    pUtil.tolog("Job %d is currently in state \'%s\' (according to job state file - recover)" %\
+                                    pUtil.tolog("Job %s is currently in state \'%s\' (according to job state file - recover)" %\
                                           (_job.jobId, _job.result[0]))
                                 elif _job.result[0] == 'failed':
                                     pUtil.tolog("(2)")
-                                    pUtil.tolog("Job %d is currently in state \'%s\' (according to job state file - skip)" %\
+                                    pUtil.tolog("Job %s is currently in state \'%s\' (according to job state file - skip)" %\
                                           (_job.jobId, _job.result[0]))
 
                                     pUtil.tolog("Further recovery attempts will be prevented for this job (will leave work dir)")
@@ -741,7 +741,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                         releaseAtomicLockFile(fd, lockfile_name)
                                         continue
                                     elif not (jobStatus == 'holding' and jobStatusCode == 0):
-                                        pUtil.tolog("Job %d is currently in state \'%s\' with attemptNr = %d (according to server - will not be recovered)" %\
+                                        pUtil.tolog("Job %s is currently in state \'%s\' with attemptNr = %d (according to server - will not be recovered)" %\
                                               (_job.jobId, jobStatus, jobAttemptNr))
 
                                         if _job.attemptNr != jobAttemptNr or jobStatus == "transferring" or jobStatus == "failed" or \
@@ -766,7 +766,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                             # as the current jobAttemptNr from the server (protection against failed lost
                                             # heartbeat jobs due to reassigned panda job id numbers)
                                             if attemptNr != jobAttemptNr:
-                                                pUtil.tolog("!!WARNING!!1100!! Attempt number mismatch for job %d (according to server - will not be recovered)" %\
+                                                pUtil.tolog("!!WARNING!!1100!! Attempt number mismatch for job %s (according to server - will not be recovered)" %\
                                                       (_job.jobId))
                                                 pUtil.tolog("....Initial attempt number: %d" % (attemptNr))
                                                 pUtil.tolog("....Current attempt number: %d" % (jobAttemptNr))
@@ -786,7 +786,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                         # the job state as given by the dispatcher should only be different from that of
                                         # the job state file for 'lostheartbeat' jobs. This state is only set like this
                                         # in the job state file. The dispatcher will consider it as a 'holding' job.
-                                        pUtil.tolog("Job %d is currently in state \'%s\' (according to job state file: \'%s\') - recover" %\
+                                        pUtil.tolog("Job %s is currently in state \'%s\' (according to job state file: \'%s\') - recover" %\
                                               (_job.jobId, jobStatus, _job.result[0]))
 
                                 # only attempt recovery if the lost job ran on the same site as the current pilot
@@ -808,7 +808,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                     rt, retNode = updatePandaServer(_job, _site, _psport, ra = _recoveryAttempt, schedulerID = env['jobSchedulerId'], pilotID = env['pilotId'])
                                     if rt == 0:
                                         number_of_recoveries += 1
-                                        pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                        pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                         # did the server send back a command?
                                         if "tobekilled" in _job.action:
@@ -950,7 +950,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                             pilotID = env['pilotId'])
                                             if rt == 0:
                                                 number_of_recoveries += 1
-                                                pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                 # did the server send back a command?
                                                 if "tobekilled" in _job.action:
@@ -1014,7 +1014,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     pUtil.tolog("!!WARNING!!1110!! Panda server returned a \'tobekilled\' command")
                                                     _job.result[0] = "failed"
 
-                                                pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
                                                 if _job.result[0] == 'finished' or _job.result[0] == "failed":
                                                     if not JS.cleanup():
                                                         pUtil.tolog("!!WARNING!!1110!! Failed to cleanup")
@@ -1073,7 +1073,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                         pilotID = env['pilotId'])
                                         if rt == 0:
                                             number_of_recoveries += 1
-                                            pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                            pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
                                             # only cleanup work dir if no error code has been set
                                             if _job.result[0] == 'finished':
                                                 if not JS.cleanup():
@@ -1145,7 +1145,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                             pilotID = env['pilotId'])
                                             if rt == 0:
                                                 number_of_recoveries += 1
-                                                pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                 # this job can never be recovered - delete work dir
                                                 if not JS.cleanup():
@@ -1216,7 +1216,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                                             schedulerID = env['jobSchedulerId'], 
                                                                                             pilotID = env['pilotId'])
                                                             if rt == 0:
-                                                                pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                                pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                                 # did the server send back a command?
                                                                 if "tobekilled" in _job.action:
@@ -1230,7 +1230,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                         pUtil.tolog("(Fate of job state file left for next pilot)")
 
                                                             else:
-                                                                pUtil.tolog("!!WARNING!!1130!! Failed to update Panda server for job %d (exit code %d)" %\
+                                                                pUtil.tolog("!!WARNING!!1130!! Failed to update Panda server for job %s (exit code %d)" %\
                                                                       (_job.jobId, _job.result[2]))
                                                             # release the atomic lockfile and go to the next directory
                                                             releaseAtomicLockFile(fd, lockfile_name)
@@ -1347,7 +1347,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                                     schedulerID = env['jobSchedulerId'],
                                                                                     pilotID = env['pilotId'])
                                                     if rt == 0:
-                                                        pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                        pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                         # did the server send back a command?
                                                         if "tobekilled" in _job.action:
@@ -1361,7 +1361,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                 pUtil.tolog("(Fate of job state file left for next pilot)")
 
                                                     else:
-                                                        pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %d (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                        pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %s (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                     # release the atomic lockfile and go to the next directory
                                                     releaseAtomicLockFile(fd, lockfile_name)
@@ -1399,7 +1399,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                                     pilotID = env['pilotId'])
                                                     if rt == 0:
                                                         number_of_recoveries += 1
-                                                        pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                        pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                         # did the server send back a command?
                                                         if "tobekilled" in _job.action:
@@ -1418,7 +1418,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                 pUtil.tolog("!!WARNING!!1140!! Failed to cleanup")
 
                                                     else:
-                                                        pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %d (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                        pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %s (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                     # release the atomic lockfile and go to the next directory
                                                     releaseAtomicLockFile(fd, lockfile_name)
@@ -1453,7 +1453,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                                 schedulerID = env['jobSchedulerId'], 
                                                                                 pilotID = env['pilotId'])
                                                 if rt == 0:
-                                                    pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                    pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
                                                     number_of_recoveries += 1
 
                                                     # did the server send back a command?
@@ -1468,7 +1468,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                             pUtil.tolog("(Fate of job state file left for next pilot)")
 
                                                 else:
-                                                    pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %d (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                    pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %s (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                 # release the atomic lockfile and go to the next directory
                                                 releaseAtomicLockFile(fd, lockfile_name)
@@ -1522,7 +1522,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                         pilotID = env['pilotId'])
                                         if rt == 0:
                                             number_of_recoveries += 1
-                                            pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                            pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
                                             if not JS.cleanup():
                                                 pUtil.tolog("!!WARNING!!1140!! Failed to cleanup")
                                                 # release the atomic lockfile and go to the next directory
@@ -2176,7 +2176,7 @@ def getNewJob(tofile=True):
     # create the new job
     newJob = Job.Job()
     newJob.setJobDef(data)  # fill up the fields with correct values now
-    newJob.datadir = env['thisSite'].workdir + "/PandaJob_%d_data" % (newJob.jobId)
+    newJob.datadir = env['thisSite'].workdir + "/PandaJob_%s_data" % (newJob.jobId)
     newJob.experiment = env['experiment']
 
     if data.has_key('logGUID'):

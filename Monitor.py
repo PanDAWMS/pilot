@@ -401,7 +401,7 @@ class Monitor:
         """ kill the looping job """
     
         # the child process is looping, kill it
-        pilotErrorDiag = "Pilot has decided to kill looping job %d at %s" %\
+        pilotErrorDiag = "Pilot has decided to kill looping job %s at %s" %\
                          (job.jobId, pUtil.timeStamp())
         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
     
@@ -467,7 +467,7 @@ class Monitor:
     
                 # kill a job if signaled from panda server
                 if "tobekilled" in self.__env['jobDic'][k][1].action:
-                    pilotErrorDiag = "Pilot received a panda server signal to kill job %d at %s" %\
+                    pilotErrorDiag = "Pilot received a panda server signal to kill job %s at %s" %\
                                      (self.__env['jobDic'][k][1].jobId, pUtil.timeStamp())
                     pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
                     if self.__env['jobrec']:
@@ -739,7 +739,7 @@ class Monitor:
             pUtil.tolog("Created job workdir at %s" % (job.workdir))
             # copy the job def file into job workdir
             pUtil.tolog(os.getcwd())
-            copy("%s/Job_%d.py" % (os.getcwd(), job.jobId), "%s/newJobDef.py" % job.workdir)
+            copy("%s/Job_%s.py" % (os.getcwd(), job.jobId), "%s/newJobDef.py" % job.workdir)
 
             self.__storePilotInitdir(self.__env['job'].workdir, self.__env['pilot_initdir'])
     
@@ -1025,7 +1025,7 @@ class Monitor:
             # update job status and id
             self.__env['job'].result[0] = "starting"
             self.__env['job'].currentState = self.__env['job'].result[0]
-            os.environ['PandaID'] = str(self.__env['job'].jobId)
+            os.environ['PandaID'] = self.__env['job'].jobId
         
             # create job workdir
             ec, self.__env['job'] = self.__createJobWorkdir(self.__env['job'], sys.stderr)

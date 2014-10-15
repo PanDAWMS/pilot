@@ -348,7 +348,7 @@ if __name__ == "__main__":
 
         # prepare for the output file data directory
         # (will only created for jobs that end up in a 'holding' state)
-        job.datadir = runJob.getParentWorkDir() + "/PandaJob_%d_data" % (job.jobId)
+        job.datadir = runJob.getParentWorkDir() + "/PandaJob_%s_data" % (job.jobId)
 
         # register cleanup function
         atexit.register(runJob.cleanup, job)

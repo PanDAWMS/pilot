@@ -376,9 +376,9 @@ class JobRecovery:
                         continue
 
                     # uncomment this code for recovery of certain panda ids only
-                    # allowedJobIds = [1018129684,1018129685]
+                    # allowedJobIds = ['1018129684','1018129685']
                     # if _job.jobId not in allowedJobIds:
-                    #     tolog("Job id %d not in allowed id list" % (_job.jobId))
+                    #     tolog("Job id %s not in allowed id list" % (_job.jobId))
                     #     continue
 
                     # query the job state file for job information
@@ -387,7 +387,7 @@ class JobRecovery:
                         self.releaseAtomicLockFile(fd, lockfile_name)
                         continue
 
-                    tolog("Job %d is currently in state \'%s\' (according to job state file - recover)" %\
+                    tolog("Job %s is currently in state \'%s\' (according to job state file - recover)" %\
                           (_job.jobId, _job.result[0]))
 
                     # switch to the work dir of the old pilot
@@ -440,7 +440,7 @@ class JobRecovery:
 
         rt, retNode = self.updatePandaServer(_job, _site, self.__workNode, self.__psport, ra=self.__recoveryAttempt)
         if rt == 0:
-            tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+            tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
             # did the server send back a command?
             if "tobekilled" in _job.action:
@@ -491,7 +491,7 @@ class JobRecovery:
         if jobStatusCode == 20:
             tolog("Received general error code from dispatcher call (leave job for later pilot)")
         elif not (jobStatus == 'holding' and jobStatusCode == 0):
-            tolog("Job %d is currently in state \'%s\' with attemptNr = %d (according to server - will not be recovered)" % \
+            tolog("Job %s is currently in state \'%s\' with attemptNr = %d (according to server - will not be recovered)" % \
                   (_job.jobId, jobStatus, jobAttemptNr))
 
             if _job.attemptNr != jobAttemptNr or jobStatus == "transferring" or jobStatus == "failed" or \
@@ -507,7 +507,7 @@ class JobRecovery:
             # as the current jobAttemptNr from the server (protection against failed lost
             # heartbeat jobs due to reassigned panda job id numbers)
             if _job.attemptNr != jobAttemptNr:
-                tolog("WARNING: Attempt number mismatch for job %d (according to server - will not be recovered)" % (_job.jobId))
+                tolog("WARNING: Attempt number mismatch for job %s (according to server - will not be recovered)" % (_job.jobId))
                 tolog("....Initial attempt number: %d" % (_job.attemptNr))
                 tolog("....Current attempt number: %d" % (jobAttemptNr))
                 tolog("....Job status (server)   : %s" % (jobStatus))
@@ -525,7 +525,7 @@ class JobRecovery:
                 # the job state as given by the dispatcher should only be different from that of
                 # the job state file for 'lostheartbeat' jobs. This state is only set like this
                 # in the job state file. The dispatcher will consider it as a 'holding' job.
-                tolog("Job %d is currently in state \'%s\' (according to job state file: \'%s\') - recover" % (_job.jobId, jobStatus, _job.result[0]))
+                tolog("Job %s is currently in state \'%s\' (according to job state file: \'%s\') - recover" % (_job.jobId, jobStatus, _job.result[0]))
 
                 status = True
 

@@ -1785,7 +1785,7 @@ def getGuidsFromXML(dir, id=None, filename=None, metadata=""):
     else:
         # are we in recovery mode? then id is set
         if id:
-            metadata_filename = "%s/metadata-%s.xml" % (dir, repr(id))
+            metadata_filename = "%s/metadata-%s.xml" % (dir, id)
         else:
             metadata_filename = "%s/metadata.xml" % (dir)
 
@@ -2982,7 +2982,7 @@ def getMetadata(workdir, jobId, athena=False, altpath=""):
 
         # are we in recovery mode? then jobId is set
         if jobId:
-            filename = "metadata-%s.xml%s" % (repr(jobId), BAK)
+            filename = "metadata-%s.xml%s" % (jobId, BAK)
         else:
             filename = "metadata.xml%s" % (BAK)
 
@@ -3026,7 +3026,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
 
     tolog("..Job report..................................................................................................")
     tolog(". Pilot version             : %s" % (version))
-    tolog(". Job id                    : %d" % (job.jobId))
+    tolog(". Job id                    : %s" % (job.jobId))
     tolog(". Current job status        : %s" % (job.result[0]))
 
     if multi_trf:
@@ -3730,7 +3730,7 @@ def getStdoutDictionary(jobDic):
                     stdout = commands.getoutput(cmd)
                 except Exception, e:
                     tolog("!!WARNING!!1999!! Tail command threw an exception: %s" % (e))
-                    stdout_dictionary[jobId] = "(no stdout, caught exception: %s) % (e)"
+                    stdout_dictionary[jobId] = "(no stdout, caught exception: %s)" % (e)
                 else:
                     if stdout == "":
                         tolog("!!WARNING!!1999!! Tail revealed empty stdout for file %s" % (filename))
@@ -3980,8 +3980,8 @@ def moveToExternal(workdir, recoveryDir):
             logfile = os.path.join(_site.workdir, _job.logFile)
             logfile_copied = os.path.join(_site.workdir, "LOGFILECOPIED")
             logfile_registered = os.path.join(_site.workdir, "LOGFILEREGISTERED")
-            metadatafile1 = "metadata-%d.xml" % _job.jobId
-            metadatafile2 = "metadata-%d.xml.PAYLOAD" % _job.jobId
+            metadatafile1 = "metadata-%s.xml" % (_job.jobId)
+            metadatafile2 = "metadata-%s.xml.PAYLOAD" % (_job.jobId)
             surlDictionary = os.path.join(_site.workdir, "surlDictionary-%s.%s" % (_job.jobId, getExtension()))
             moveDic = {"workdir" : _job.workdir, "datadir" : _job.datadir, "logfile" : logfile, "logfile_copied" : logfile_copied,
                        "logfile_registered" : logfile_registered, "metadata1" : metadatafile1,

@@ -364,9 +364,9 @@ class RunJob(object):
 
             try:
                 tolog('job.workdir is %s pworkdir is %s ' % (job.workdir, self.__pworkdir)) # Eddie
-                copy2("%s/metadata-%d.xml" % (job.workdir, job.jobId), "%s/metadata-%d.xml" % (self.__pworkdir, job.jobId))
+                copy2("%s/metadata-%s.xml" % (job.workdir, job.jobId), "%s/metadata-%s.xml" % (self.__pworkdir, job.jobId))
             except Exception, e:
-                tolog("Warning: Could not copy metadata-%d.xml to site work dir - ddm Adder problems will occure in case of job recovery" % (job.jobId))
+                tolog("Warning: Could not copy metadata-%s.xml to site work dir - ddm Adder problems will occure in case of job recovery" % (job.jobId))
                 tolog('job.workdir is %s pworkdir is %s ' % (job.workdir, self.__pworkdir)) # Eddie
             if job.result[0] == 'holding' and job.result[1] == 0:
                 try:
@@ -740,7 +740,7 @@ class RunJob(object):
         """ rename and copy the trf metadata """
 
         oldMDName = "%s/metadata.xml" % (workdir)
-        _filename = "metadata-%s.xml.PAYLOAD" % (repr(jobId))
+        _filename = "metadata-%s.xml.PAYLOAD" % (jobId)
         newMDName = "%s/%s" % (workdir, _filename)
         try:
             os.rename(oldMDName, newMDName)
@@ -787,7 +787,7 @@ class RunJob(object):
             guid = job.tarFileGuid
 
         # create preliminary metadata (no metadata yet about log file - added later in pilot.py)
-        _fname = "%s/metadata-%d.xml" % (job.workdir, job.jobId)
+        _fname = "%s/metadata-%s.xml" % (job.workdir, job.jobId)
         try:
             _status = pUtil.PFCxml(job.experiment, _fname, list(job.outFiles), fguids=job.outFilesGuids, fntag="lfn", alog=job.logFile, alogguid=guid,\
                                    fsize=fsize, checksum=checksum, analJob=analysisJob)
@@ -1145,7 +1145,7 @@ if __name__ == "__main__":
 
         # prepare for the output file data directory
         # (will only created for jobs that end up in a 'holding' state)
-        job.datadir = runJob.getParentWorkDir() + "/PandaJob_%d_data" % (job.jobId)
+        job.datadir = runJob.getParentWorkDir() + "/PandaJob_%s_data" % (job.jobId)
 
         # register cleanup function
         atexit.register(runJob.cleanup, job)
