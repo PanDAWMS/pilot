@@ -2165,11 +2165,12 @@ class ATLASExperiment(Experiment):
                 if os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
                     cmd = "export AtlasSetup=%s/../dist/AtlasSetup; " % readpar('appdir')
                     options = "%s,%s,notest,afs" % (patch, project)
-                    asetup_path = "source $AtlasSetup/scripts/asetup.sh"
                 else:
+                    cmd = "export AtlasSetup=%s/AtlasSetup; " % (path)
                     options = "%s,%s,notest" % (patch, project)
-                    cmd = "source"
-                    asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
+                    #cmd = "source"
+                    #asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
+                asetup_path = "source $AtlasSetup/scripts/asetup.sh"
         return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):

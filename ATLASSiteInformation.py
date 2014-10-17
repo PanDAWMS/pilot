@@ -359,6 +359,13 @@ class ATLASSiteInformation(SiteInformation):
             surl = sitemover.getFullPath(scope, token, filename, analyJob, prodSourceLabel, alt=alt)
         else:
             surl = "%s%s" % (se, dst_gpfn)
+
+            # Correct the SURL which might start with something like 'token:ATLASMCTAPE:srm://srm-atlas.cern.ch:8443/srm/man/..'
+            # If so, remove the space token before the srm info
+            if surl.startswith('token'):
+                tolog("Removing space token part from SURL")
+                dummy, surl = sitemover.extractSE(surl)
+                
         tolog("SURL = %s" % (surl))
         tolog("dst_gpfn = %s" % (dst_gpfn))
         tolog("lfcdir = %s" % (lfcdir))
@@ -409,8 +416,8 @@ class ATLASSiteInformation(SiteInformation):
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov:8443//atlas/logs|https^https://ceph007.usatlas.bnl.gov:8443//atlas/logs")
-            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
+            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^https://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
 #            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
@@ -429,7 +436,16 @@ class ATLASSiteInformation(SiteInformation):
         if os.environ.get("COPYTOOLIN"):
             ec = self.replaceQueuedataField("copytoolin", os.environ.get("COPYTOOLIN"))
 
+#        if thisSite.sitename == "MWT2_SL6":
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^https://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
+#            ec = self.replaceQueuedataField("timefloor", "0")
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
+#        if thisSite.sitename == "BNL_CLOUD_MCORE":
+#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
+#            ec = self.replaceQueuedataField("timefloor", "0")
+
 #        if thisSite.sitename == "BNL_PROD_MCORE":
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov:8443//atlas/logs|https^https://ceph007.usatlas.bnl.gov:8443//atlas/logs")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
