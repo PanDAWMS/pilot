@@ -9,6 +9,8 @@ from RunJob import RunJob
 from RunJobEvent import RunJobEvent
 from RunJobHPC import RunJobHPC
 from RunJobTitan import RunJobTitan
+from RunJobHopper import RunJobHopper
+from RunJobEdison import RunJobEdison
 from RunJobMira import RunJobMira
 from RunJobNormal import RunJobNormal
 
@@ -17,9 +19,11 @@ class RunJobFactory(object):
     def newRunJob(self, _type="generic"):
         """ Generate a new site information object """
 
+
+
         # get all classes
         runJobClasses = [j for (i,j) in globals().iteritems() if isinstance(j, TypeType) and issubclass(j, RunJob)]
-
+        
         # loop over all subclasses
         for runJobClass in runJobClasses:
             si = runJobClass()

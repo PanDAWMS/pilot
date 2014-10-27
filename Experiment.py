@@ -766,7 +766,7 @@ class Experiment(object):
         return jobargs
 
     # Optional
-    def doSpecialLogFileTransfer(self):
+    def doSpecialLogFileTransfer(self, eventService=False):
         """ Should the log file be transfered to a special SE? """
 
         # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file

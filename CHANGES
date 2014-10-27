@@ -476,6 +476,29 @@ Updated getProperPaths() to handle non-rucio SURL properly (ATLASSiteInformation
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+59c:
+
+Bug fixes in S3OjectstoreSiteMover
+Skipping TURL based PFC in shouldPFC4TURLsBeCreated() if copyprefixin does not contain oldPrefix (Mover)
+Added eventService argument to doSpecialLogFileTransfer() (Experiment, ATLASExperiment)
+Sending job.eventService to doSpecialLogFileTransfer() from transferLogFile() (JobLog)
+Updated RunJobFactory for Hopper and Edison (RunJobFactory)
+Cleaned up some debugging log messages from PandaServerClient related to PandaID (PandaServerClient)
+Added stage-out error handling to RunJobEvent
+Created get/setErrorCode() used by stageOut() and main function (RunJobEvent)
+Printing the job definition backup filename instead of the full dispatcher response in backupDispatcherResponse() (pilot)
+Avoiding duplicated of "Put error: " at the beginning of pilotErrorDiag in stageOut() (RunJob, RunJobEvent)
+
+Code from Danila Oleynik:
+
+RunJobHopper and RunJobEdison (added to SVN)
+Updated to RunJobTitan
+
+Code from Edward Karavakis:
+glExec bug fixes (pilot, pUtil)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 Note: new modules have to be added to glexec_utils.py.
 
 TODO:

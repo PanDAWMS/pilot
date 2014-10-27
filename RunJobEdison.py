@@ -1,5 +1,5 @@
 # Class definition:
-#   RunJobTitan
+#   RunJobEdison
 #   [Add description here]
 #   Instances are generated with RunJobFactory via pUtil::getRunJob()
 #   Implemented as a singleton class
@@ -22,10 +22,10 @@ from PilotErrors import PilotErrors
 from datetime import datetime
 
 
-class RunJobTitan(RunJobHPC):
+class RunJobEdison(RunJobHPC):
 
     # private data members
-    __runjob = "RunJobTitan"                          # String defining the sub class
+    __runjob = "RunJobEdison"                   # String defining the sub class
     __instance = None                           # Boolean used by subclasses to become a Singleton
     #__error = PilotErrors()                    # PilotErrors object
 
@@ -53,7 +53,7 @@ class RunJobTitan(RunJobHPC):
     def getRunJobFileName(self):
         """ Return the filename of the module """
 
-        return super(RunJobTitan, self).getRunJobFileName()
+        return super(RunJobEdison, self).getRunJobFileName()
 
     # def argumentParser(self):  <-- see example in RunJob.py
 
@@ -72,7 +72,7 @@ class RunJobTitan(RunJobHPC):
         #  return number of nodes with possible maximum value for walltime according Titan policy
         #
         
-        cmd = 'showbf --blocking -p %s' % partition
+        cmd = 'showbf -p %s' % partition
         res_tuple = commands.getstatusoutput(cmd)
         showbf_str = ""
         if res_tuple[0] == 0:
@@ -100,22 +100,24 @@ class RunJobTitan(RunJobHPC):
                 else:
                     wal_time_sec = 12 * 3600
                 
-                # Fitting Titan policy 
-                # https://www.olcf.ornl.gov/kb_articles/titan-scheduling-policy/
-                if max_nodes:
-                    nodes = max_nodes if nodes > max_nodes else nodes
-                
-                if nodes < 125 and wal_time_sec > 2 * 3600:
-                    wal_time_sec = 2 * 3600
-                elif nodes < 312 and wal_time_sec > 6 * 3600:
-                    wal_time_sec = 6 * 3600
+                # Fitting Edison policy 
+                # https://www.nersc.gov/users/computational-systems/edison/running-jobs/queues-and-policies/
+                nodes = max_nodes if nodes > max_nodes else nodes
+            
+                if nodes < 682 and wal_time_sec > 48 * 3600:
+                    wal_time_sec = 48 * 3600
+                elif nodes < 4096 and wal_time_sec > 36 * 3600:
+                    wal_time_sec = 36 * 3600
+                elif nodes < 5462 and wal_time_sec > 12 * 3600:
+                    wal_time_sec = 12 * 3600
                 elif wal_time_sec > 12 * 3600:
                     wal_time_sec = 12 * 3600
-                    
-                
+
                 tolog ("Nodes: %s, Walltime (str): %s, Walltime (min) %s" % (nodes, d[3], wal_time_sec/60 ))
-    
+
                 res.update({nodes:wal_time_sec}) 
+        else:
+            tolog ("No availble resources. Default values will be used.")
         
         return res
 
@@ -132,54 +134,30 @@ class RunJobTitan(RunJobHPC):
         res_tuple = (0, 'Undefined')
     
         # special setup command. should be placed in queue defenition (or job defenition) ?
-        #setup_commands = ['source $MODULESHOME/init/bash',
-        #                  'source $PROJWORK/csc108/panitkin/setuptitan', 
-        #                  'export LD_LIBRARY_PATH=/opt/cray/lib64:$LD_LIBRARY_PATH',
-        #                  'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH']
-        
         setup_commands = ['source $MODULESHOME/init/bash',
-                          'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH',
-                          'source $PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/AtlasSetup/scripts/asetup.sh 18.9.0,slc6,gcc47',
-                          'module load python',
-                          'source $PROJWORK/csc108/panitkin/setuptitan',
-                          'mkdir -p tmp',
-                          'export TEMP=$PWD/tmp',
-                          'export TMPDIR=$TEMP',
-                          'export TMP=$TEMP',
-                          'mkdir -p results']
-        
+                          'export LD_LIBRARY_PATH=/opt/cray/lib64:$LD_LIBRARY_PATH',
+                          'export CRAY_ROOTFS=DSL',
+                          'module load python']
         
         # loop over all run commands (only >1 for multi-trfs)
         current_job_number = 0
         getstatusoutput_was_interrupted = False
         number_of_jobs = len(runCommandList)
         for cmd in runCommandList:
-            walltime = 0
             res = self.get_hpc_resources(self.partition_comp, self.max_nodes)
+            self.walltime = self.min_walltime / 60
+            nodes = self.nodes
             if res:
                 for n in sorted(res.keys(), reverse=True): 
-                    if self.min_walltime <= res[n] and self.nodes <= n:
+                    if self.min_walltime <= res[n]  and nodes <= n:
                         nodes = n
-                        walltime = res[n] / 60 
-                        walltime = walltime - 2
+                        self.walltime = res[n] / 60 
+                        self.walltime = self.walltime - 2
                         break
-                if walltime < self.walltime:
-                    tolog("Time gap or resources won't fit needed. Will wait for 90 sec. before restart.")
-                    time.sleep(90)
-                    repeat_num = repeat_num + 1
-                    return self.executePayload(thisExperiment, runCommandList, job, repeat_num)
-                else:
-                    self.walltime = walltime
-                    #self.walltime = self.min_walltime
-                    #nodes = self.nodes
-            else:
-                tolog("No available resources. Will wait for 90 sec. before repeat.")
-                time.sleep(90)
-                repeat_num = repeat_num + 1
-                return self.executePayload(thisExperiment, runCommandList, job, repeat_num)
-                #self.walltime = self.min_walltime
-                #nodes = self.nodes
-                
+                if self.walltime <= 0:
+                    self.walltime = self.min_walltime / 60
+                    nodes = self.nodes
+
             cpu_number = self.cpu_number_per_node * nodes
             
             tolog("Backfill parameters \nWalltime limit         : %s (min)\nRequested nodes (cores): %s (%s)" % (self.walltime,nodes,cpu_number))
@@ -188,13 +166,9 @@ class RunJobTitan(RunJobHPC):
             try:
                 # add the full job command to the job_setup.sh file
                 to_script = "\n".join(cmd['environment'])
-                #to_script = to_script + ("\nexport G4FORCENUMBEROFTHREADS=%s" % self.number_of_threads) # needed for GEANT
+                to_script = to_script + ("\nexport G4FORCENUMBEROFTHREADS=%s" % self.number_of_threads) # needed for GEANT
                 to_script =  to_script + "\n" + "\n".join(setup_commands)
-                #to_script = "%s\naprun -n %s -d %s %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
-                ''' Temporary, for multi-thread testing  '''
-                #to_script = "%s\naprun -n %s -d %s -cc 0,2,4,6,8,10,12,14 %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
-                ''' Floating point'''
-                to_script = "%s\naprun -n%s -S4 -j1 %s %s" % (to_script, cpu_number/2 ,cmd["payload"], cmd["parameters"])    
+                to_script = "%s\naprun -n %s -d %s %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
                 
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
                 
@@ -204,7 +178,8 @@ class RunJobTitan(RunJobHPC):
     
                     js = saga.job.Service("pbs://localhost")
                     jd = saga.job.Description()
-                    jd.project = self.project_id # should be taken from resourse description (pandaqueue)
+                    if self.project_id:
+                        jd.project = self.project_id # should be taken from resourse description (pandaqueue)
                     jd.wall_time_limit = self.walltime 
                     jd.executable      = to_script
                     jd.total_cpu_count = cpu_number 
@@ -219,7 +194,6 @@ class RunJobTitan(RunJobHPC):
                     #tolog("\n(PBS) Command: %s\n"  % to_script)
                     fork_job.run()
                     #tolog("\nCommand was started at %s.\nState is: %s" % ( str(datetime.now()), fork_job.state))
-                    
                     for i in range(self.waittime):
                         time.sleep(1)
                         if fork_job.state != saga.job.PENDING:
@@ -229,7 +203,8 @@ class RunJobTitan(RunJobHPC):
                         tolog("Wait time (%s s.) exceed, job will be rescheduled (%s)" % (self.waittime, repeat_num))
                         fork_job.cancel()
                         fork_job.wait()
-                        return self.executePayload(thisExperiment, runCommandList, job, repeat_num)
+                        if repeat_num < 10:
+                            return self.executePayload(thisExperiment, runCommandList, job, repeat_num)
                         
                         #tolog("Wait time (%s s.) exceed, job cancelled" % self.waittime)
                         
@@ -315,24 +290,24 @@ class RunJobTitan(RunJobHPC):
 
 if __name__ == "__main__":
 
-    tolog("Starting RunJobTitan")
+    tolog("Starting RunJobEdison")
     # Get error handler
     error = PilotErrors()
 
     # Get runJob object
-    runJob = RunJobTitan()
+    runJob = RunJobEdison()
     
-    # Setup HPC specific parameters for Titan
+    # Setup HPC specific parameters for Edison
     
-    runJob.cpu_number_per_node = 16
-    runJob.walltime = 60
-    runJob.max_nodes = 2000 
-    runJob.number_of_threads = 8  # 1 - one thread per task
+    runJob.cpu_number_per_node = 24
+    runJob.walltime = 120
+    runJob.max_nodes = 10 
+    runJob.number_of_threads = 1
     runJob.min_walltime = 30 * 60
     runJob.waittime = 5 * 60
-    runJob.nodes = 1
-    runJob.partition_comp = 'titan'
-    runJob.project_id = "CSC108"
+    runJob.nodes = 4
+    runJob.partition_comp = 'edison'
+    runJob.project_id = ""
     runJob.executed_queue = readpar('localqueue') 
     
     # Define a new parent group
@@ -599,9 +574,9 @@ if __name__ == "__main__":
         error = PilotErrors()
 
         if runJob.getGlobalPilotErrorDiag() != "":
-            pilotErrorDiag = "Exception caught in runJobTitan: %s" % (runJob.getGlobalPilotErrorDiag())
+            pilotErrorDiag = "Exception caught in runJobEdison: %s" % (runJob.getGlobalPilotErrorDiag())
         else:
-            pilotErrorDiag = "Exception caught in runJobTitan: %s" % str(errorMsg)
+            pilotErrorDiag = "Exception caught in runJobEdison: %s" % str(errorMsg)
 
         if 'format_exc' in traceback.__all__:
             pilotErrorDiag += ", " + traceback.format_exc()    

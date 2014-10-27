@@ -1,4 +1,4 @@
-import os, re
+import os, re, sys
 import commands
 from time import time
 import urlparse
@@ -44,13 +44,13 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         si = getSiteInformation(experiment)
         keyPair = None
-        if surl.startswith("s3://ceph003.usatlas.bnl.gov:8443"):
+        if re.search("^s3://.*\.usatlas\.bnl\.gov:8443", surl) != None:
             keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
         if surl.startswith("s3://s3.amazonaws.com:80"):
             keyPair = si.getSecurityKey('Amazon_ObjectStoreKey', 'Amazon_ObjectStoreKey.pub')
         if keyPair == None or keyPair["publicKey"] == None or keyPair["privateKey"] == None:
             tolog("Failed to get the keyPair for S3 objectstore %s " % (surl))
-            return ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
+            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
 
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"])
         return 0, ""
@@ -119,18 +119,30 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         return 0, "", size, checksum
 
     def getRemoteFileInfo(self, file):
-        size, md5 = self.s3Objectstore.getRemoteFileInfo(file)
+        try:
+            size, md5 = self.s3Objectstore.getRemoteFileInfo(file)
+        except:
+            tolog("Failed to get remote file information: %s" % (sys.exc_info()[1]))
+            return None, None
         return size, md5
 
     def stageInFile(self, source, destination, sourceSize, sourceChecksum):
         """StageIn the file. should be implementated by different site mover."""
-        size, md5 = self.s3Objectstore.stageInFile(source, destination, sourceSize, sourceChecksum)
-        return size, md5
+        try:
+            status, output = self.s3Objectstore.stageInFile(source, destination, sourceSize, sourceChecksum)
+        except:
+            tolog("Failed to stage in file: %s" % (sys.exc_info()[1]))
+            return PilotErrors.ERR_STAGEINFAILED, "S3Objectstore failed to stage in file"
+        return status, output
 
     def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token):
         """StageIn the file. should be implementated by different site mover."""
-        size, md5 = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token)
-        return size, md5
+        try:
+            status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token)
+        except:
+            tolog("Failed to stage out file: %s" % (sys.exc_info()[1]))
+            return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
+        return status, output
 
     def verifyStage(self, localSize, localChecksum, remoteSize, remoteChecksum):
         """Verify file stag successfull"""
@@ -170,6 +182,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         """Stage in the source file"""
         self.log("Starting to stagein file %s(size:%s, chksum:%s) to %s" % (source, sourceSize, sourceChecksum, destination))
 
+        if sourceSize == 0 or sourceSize == "":
+            sourceSize = None
+        if sourceChecksum == "" or sourceChecksum == "NULL":
+            sourceChecksum = None
+
         status, output = self.setup(experiment, source)
         if status:
             return status, output
@@ -179,6 +196,8 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if remoteChecksum == None or remoteChecksum == "":
             remoteSize, remoteChecksum = self.getRemoteFileInfo(source)
         self.log("remoteSize: %s, remoteChecksum: %s" % (remoteSize, remoteChecksum))
+        if remoteChecksum == None:
+            self.log("Failed to get remote file information")
 
         status, output = self.stageInFile(source, destination, remoteSize, remoteChecksum)
         self.log("stageInFile status: %s, output: %s" % (status, output))

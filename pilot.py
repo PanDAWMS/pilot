@@ -25,6 +25,8 @@ import glexec_utils
 from Configuration import Configuration
 from WatchDog import WatchDog
 from Monitor import Monitor
+import subprocess
+import hashlib
 
 
 # Initialize the configuration singleton
@@ -76,6 +78,13 @@ def usage():
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__
+
+def execute(program):
+    """Run a program on the command line. Return stderr, stdout and status."""
+    pipe = subprocess.Popen(program, bufsize=-1, shell=True, close_fds=False,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = pipe.communicate()
+    return stdout, stderr, pipe.wait()
 
 def argParser(argv):
     """ parse command line arguments for the main script """
@@ -1996,7 +2005,7 @@ def backupDispatcherResponse(response, tofile):
     except Exception, e:
         pUtil.tolog("!!WARNING!!1999!! Could not store job definition: %s" % str(e), tofile=tofile)
     else:
-        pUtil.tolog("Job definition stored (for later backup): %s" % str(response), tofile=tofile)
+        pUtil.tolog("Job definition stored (for later backup) in file %s" % (env['pandaJobDataFileName']), tofile=tofile)
 
 def getNewJob(tofile=True):
     """ Get a new job definition from the jobdispatcher or from file """
@@ -2549,14 +2558,50 @@ def runMain(runpars):
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))
 
-            if env['glexec'] == False:
+            if env['glexec'] == 'False':
                 monitor = Monitor(env)
                 monitor.monitor_job()
-            else:
+	    elif env['glexec'] == 'test':
+		pUtil.tolog('glexec is set to test, we will hard-fail miserably in case of errors')
                 payload = 'python -m glexec_aux'
                 my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
                 glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
                 glexec_interface.setup_and_run()
+            else:
+                # Try to ping the glexec infrastructure to test if it is ok.
+                # If it is ok, go ahead with glexec, if not, use the normal pilot mode without glexec.
+                temp_proxy_path = os.path.join('/tmp', str(hashlib.sha1(env['userProxy']).hexdigest()))
+                text_file = open(temp_proxy_path, 'w')
+                text_file.write(env['userProxy'])
+                text_file.close()
+                os.chmod(temp_proxy_path, 0700)
+
+                if os.environ.has_key('OSG_GLEXEC_LOCATION'):
+                        glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+                elif os.environ.has_key('GLEXEC_LOCATION'):
+                        glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
+                                             'sbin/glexec')
+                elif os.environ.has_key('GLITE_LOCATION'):
+                        glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
+                                             'sbin/glexec')
+                else:
+                        glexec_path = '/usr/sbin/glexec'
+
+                cmd = 'export GLEXEC_CLIENT_CERT='+temp_proxy_path+';'+glexec_path + ' /bin/true'
+                stdout, stderr, status = execute(cmd)
+                pUtil.tolog('cmd: %s' % cmd)
+                pUtil.tolog('status: %s' % status)
+                os.remove(temp_proxy_path)
+                if not (status or stderr):
+                        pUtil.tolog('glexec infrastructure seems to be working fine. Running in glexec mode!')
+                        payload = 'python -m glexec_aux'
+                        my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
+                        glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
+                        glexec_interface.setup_and_run()
+                else:
+                        pUtil.tolog('!!WARNING!! Problem with the glexec infrastructure! Will run the pilot in normal mode')
+                        monitor = Monitor(env)
+                        monitor.monitor_job()
 
             #Get the return code (Should be improved)
             if env['return'] == 'break':

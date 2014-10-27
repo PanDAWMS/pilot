@@ -853,6 +853,11 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename):
     tolog(". oldPrefix=%s" % str(oldPrefix))
     tolog(". newPrefix=%s" % str(newPrefix))
 
+    # special case for event service
+    if oldPrefix == "":
+        tolog("!!WARNING!!4444!! oldPrefix not set, using same value as newPrefix for TURL conversion")
+        oldPrefix = newPrefix
+
     # if the old/newPrefices were properly returned, we don't need to use lcg-getturls
     if oldPrefix == "" or newPrefix == "":
         useLcgGetturls = True

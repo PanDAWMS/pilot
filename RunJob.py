@@ -914,7 +914,11 @@ class RunJob(object):
             job.setState(["holding", job.result[1], rc])
         else:
             if job.pilotErrorDiag != "":
-                job.pilotErrorDiag = "Put error: " + tailPilotErrorDiag(job.pilotErrorDiag, size=256-len("pilot: Put error: "))
+                if job.pilotErrorDiag.startswith("Put error:"):
+                    pre = ""
+                else:
+                    pre = "Put error: "
+                job.pilotErrorDiag = pre + tailPilotErrorDiag(job.pilotErrorDiag, size=256-len("pilot: Put error: "))
 
             tolog("Put function returned code: %d" % (rc))
             if rc != 0:

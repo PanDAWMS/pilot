@@ -52,6 +52,7 @@ class RunJobEvent(RunJob):
     __runjob = "RunJobEvent"                     # String defining the sub class
     __instance = None                            # Boolean used by subclasses to become a Singleton
     __error = PilotErrors()                      # PilotErrors object
+    __errorCode = 0                              # Error code, e.g. set by stage-out method
     __experiment = "ATLAS"                       # Current experiment (can be set with pilot option -F <experiment>)
     __pilotserver = "localhost"                  # Default server
     __pilotport = 88888                          # Default port
@@ -220,6 +221,16 @@ class RunJobEvent(RunJob):
         """ Setter for __globalErrorCode """
 
         self.__globalErrorCode = code
+
+    def getErrorCode(self):
+        """ Getter for __errorCode """
+
+        return self.__errorCode
+
+    def setErrorCode(self, code):
+        """ Setter for __errorCode """
+
+        self.__errorCode = code
 
     def getInputDir(self):
         """ Getter for __inputDir """
@@ -820,116 +831,6 @@ class RunJobEvent(RunJob):
         if docleanup:
             self.sysExit()
 
-#    def setup(self, job, jobSite, thisExperiment):
-#        """ prepare the setup and get the run command list """
-#
-#        # start setup time counter
-#        t0 = time.time()
-#        ec = 0
-#        runCommandList = []
-#
-#        # split up the job parameters to be able to loop over the tasks
-#        jobParameterList = job.jobPars.split("\n")
-#        jobHomePackageList = job.homePackage.split("\n")
-#        jobTrfList = job.trf.split("\n")
-#        jobAtlasRelease = getAtlasRelease(job.release)
-#
-#        tolog("Number of transformations to process: %s" % len(jobParameterList))
-#        if len(jobParameterList) > 1:
-#            multi_trf = True
-#        else:
-#            multi_trf = False
-#
-#        # verify that the multi-trf job is setup properly
-#        ec, job.pilotErrorDiag, jobAtlasRelease = RunJobUtilities.verifyMultiTrf(jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRelease)
-#        if ec > 0:
-#            return ec, runCommandList, job, multi_trf
-#            
-#        os.chdir(jobSite.workdir)
-#        tolog("Current job workdir is %s" % os.getcwd())
-#
-#        # setup the trf(s)
-#        _i = 0
-#        _stdout = job.stdout
-#        _stderr = job.stderr
-#        _first = True
-#        for (_jobPars, _homepackage, _trf, _swRelease) in map(None, jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRelease):
-#            tolog("Preparing setup %d/%d" % (_i + 1, len(jobParameterList)))
-#
-#            # reset variables
-#            job.jobPars = _jobPars
-#            job.homePackage = _homepackage
-#            job.trf = _trf
-#            job.release = _swRelease
-#            if multi_trf:
-#                job.stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
-#                job.stderr = _stderr.replace(".txt", "_%d.txt" % (_i + 1))
-#
-#            # post process copysetup variable in case of directIn/useFileStager
-#            _copysetup = readpar('copysetup')
-#            _copysetupin = readpar('copysetupin')
-#            if "--directIn" in job.jobPars or "--useFileStager" in job.jobPars or _copysetup.count('^') == 5 or _copysetupin.count('^') == 5:
-#                # only need to update the queuedata file once
-#                if _first:
-#                    RunJobUtilities.updateCopysetups(job.jobPars)
-#                    _first = False
-#
-#            # setup the trf
-#            ec, job.pilotErrorDiag, cmd, job.spsetup, job.JEM, job.cmtconfig = thisExperiment.getJobExecutionCommand(job, jobSite, pilot_initdir)
-#            if ec > 0:
-#                # setup failed
-#                break
-#
-#            # add the setup command to the command list
-#            runCommandList.append(cmd)
-#            _i += 1
-#
-#        job.stdout = _stdout
-#        job.stderr = _stderr
-#        job.timeSetup = int(time.time() - t0)
-#        tolog("Total setup time: %d s" % (job.timeSetup))
-#
-#        return ec, runCommandList, job, multi_trf
-
-#def stageIn(job, jobSite, analysisJob, pilot_initdir, pworkdir):
-#    """ Perform the stage-in """
-#
-#    ec = 0
-#    statusPFCTurl = None
-#    usedFAXandDirectIO = False
-#
-#    # Prepare the input files (remove non-valid names) if there are any
-#    ins, job.filesizeIn, job.checksumIn = RunJobUtilities.prepareInFiles(job.inFiles, job.filesizeIn, job.checksumIn)
-#    if ins:
-#        tolog("Preparing for get command")
-#
-#        # Get the file access info (only useCT is needed here)
-#        useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
-#
-#        # Transfer input files
-#        tin_0 = os.times()
-#        ec, job.pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
-#            mover.get_data(job, jobSite, ins, stageinretry, analysisJob=analysisJob, usect=useCT,\
-#                           pinitdir=pilot_initdir, proxycheck=False, inputDir=inputDir, workDir=pworkdir)
-#        if ec != 0:
-#            job.result[2] = ec
-#        tin_1 = os.times()
-#        job.timeStageIn = int(round(tin_1[4] - tin_0[4]))
-#
-#        # Extract any FAX info from the dictionary
-#        if FAX_dictionary.has_key('N_filesWithoutFAX'):
-#            job.filesWithoutFAX = FAX_dictionary['N_filesWithoutFAX']
-#        if FAX_dictionary.has_key('N_filesWithFAX'):
-#            job.filesWithFAX = FAX_dictionary['N_filesWithFAX']
-#        if FAX_dictionary.has_key('bytesWithoutFAX'):
-#            job.bytesWithoutFAX = FAX_dictionary['bytesWithoutFAX']
-#        if FAX_dictionary.has_key('bytesWithFAX'):
-#            job.bytesWithFAX = FAX_dictionary['bytesWithFAX']
-#        if FAX_dictionary.has_key('usedFAXandDirectIO'):
-#            usedFAXandDirectIO = FAX_dictionary['usedFAXandDirectIO']
-#
-#    return job, ins, statusPFCTurl, usedFAXandDirectIO
-
     def getTrfExitInfo(self, exitCode, workdir):
         """ Get the trf exit code and info from job report if possible """
 
@@ -1008,41 +909,6 @@ class RunJobEvent(RunJob):
             tolog("Job report not found: %s" % (filename))
 
         return exitCode, exitAcronym, exitMsg
-
-#def extractDictionaryObject(object, dictionary):
-#    """ Extract an object from a dictionary """
-#
-#    _obj = None
-#
-#    try:
-#        _obj = dictionary[object]
-#    except Exception, e:
-#        tolog("Object %s not found in dictionary" % (object))
-#    else:
-#        tolog('Extracted \"%s\"=%s from dictionary' % (object, _obj))
-#
-#    return _obj
-
-#def moveTrfMetadata(pworkdir, jobId):
-#    """ rename and copy the trf metadata """
-#
-#    oldMDName = "%s/metadata.xml" % (globalJob.workdir)
-#    _filename = "metadata-%s.xml.PAYLOAD" % (jobId)
-#    newMDName = "%s/%s" % (globalJob.workdir, _filename)
-#    try:
-#        os.rename(oldMDName, newMDName)
-#    except:
-#        tolog("Warning: Could not open the original %s file, but harmless, pass it" % (oldMDName))
-#        pass
-#    else:
-#        tolog("Renamed %s to %s" % (oldMDName, newMDName))
-#        # now move it to the pilot work dir
-#        try:
-#            copy2(newMDName, "%s/%s" % (pworkdir, _filename))
-#        except Exception, e:
-#            tolog("Warning: Could not copy %s to site work dir: %s" % (_filename, str(e)))
-#        else:
-#            tolog("Metadata was transferred to site work dir: %s/%s" % (pworkdir, _filename))
 
     def convertToLFNs(self):
         """ Convert the output file names to LFNs """
@@ -1263,7 +1129,11 @@ class RunJobEvent(RunJob):
             self.__job.setState(["holding", self.__job.result[1], ec])
         else:
             if self.__job.pilotErrorDiag != "":
-                self.__job.pilotErrorDiag = "Put error: " + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("pilot: Put error: "))
+                if self.__job.pilotErrorDiag.startswith("Put error:"):
+                    pre = ""
+                else:
+                    pre = "Put error: "
+                self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("pilot: Put error: "))
 
             tolog("Put function returned code: %d" % (ec))
             if ec != 0:
@@ -1275,6 +1145,9 @@ class RunJobEvent(RunJob):
                     _state = "failed"
                     _msg = "FAILED"
                 tolog("!!%s!!1212!! %s" % (_msg, self.__error.getErrorStr(ec)))
+
+                # set the internal error, to be picked up at the end of the job
+                self.setErrorCode(ec)
 
         return ec, pilotErrorDiag
 
@@ -1307,9 +1180,6 @@ class RunJobEvent(RunJob):
             fsize = outputFileInfo[path][0]
             checksum = outputFileInfo[path][1]
             guid = outputFileInfo[path][2]
-
-            tolog("path=%s"%path)
-            # Use the put_data() function from the objectstore site mover
 
             # First backup some schedconfig fields that need to be modified for the secondary transfer                                                  
             copytool_org = readpar('copytool')
@@ -2431,8 +2301,15 @@ if __name__ == "__main__":
 
         # wrap up ..........................................................................................
 
-        job.jobState = "finished"
-        job.setState([job.jobState, 0, 0])
+        errorCode = runJob.getErrorCode()
+        if not runJob.getStatus() or errorCode != 0:
+            tolog("Detected at least one transfer failure, job will be set to failed")
+            job.jobState = "failed"
+            job.result[2] = errorCode
+        else:
+            tolog("No transfer failures detected, job will be set to finished")
+            job.jobState = "finished"
+        job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
 

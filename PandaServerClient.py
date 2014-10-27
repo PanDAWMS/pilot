@@ -562,8 +562,6 @@ class PandaServerClient:
         """
     
         tolog("Updating job status in updatePandaServer(): PandaId=%s, result=%s, time=%s" % (job.getState()))
-        tolog("job.prodSourceLabel=%s" % (job.prodSourceLabel))
-        tolog("1 jobId=%s, type=%s" % (job.jobId, type(job.jobId)))
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
         # removes any work directory after the LSF job finishes which of course makes job recovery impossible)
@@ -576,8 +574,6 @@ class PandaServerClient:
 
         # get the node structure expected by the server
         node = self.getNodeStructure(job, site, workerNode, spaceReport=spaceReport, log=log)
-
-        tolog("2 jobId=%s, type=%s" % (job.jobId, type(job.jobId)))
 
         # skip the server update (e.g. on NG)
         if not self.__updateServer:
@@ -631,8 +627,6 @@ class PandaServerClient:
             else:
                 tolog("Stdout tail will not be sent (debug=%s, stdout_tail=\'%s\')" % (str(job.debug), stdout_tail))
 
-        tolog("3 jobId=%s, type=%s" % (job.jobId, type(job.jobId)))
-
         # PN fake lostheartbeat
         #    if job.result[0] == "finished":
         #        node['state'] = "holding"
@@ -664,12 +658,8 @@ class PandaServerClient:
                     job.result[0] = "holding"
                     node['state'] = "holding"
 
-        tolog("4a jobId=%s, type=%s" % (job.jobId, type(job.jobId)))
-
         # update job state file
         _retjs = updateJobState(job, site, node, recoveryAttempt=ra)
-
-        tolog("4b jobId=%s, type=%s" % (job.jobId, type(job.jobId)))
 
         # is it the final update?
         if job.result[0] == 'finished' or job.result[0] == 'failed' or job.result[0] == 'holding':

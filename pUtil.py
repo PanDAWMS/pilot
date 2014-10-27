@@ -2372,11 +2372,19 @@ def parseDispatcherResponse(response):
 #        response = removeSubFromResponse(response)
 
     parList = cgi.parse_qsl(response, keep_blank_values=True)
-    tolog("Dispatcher response: %s" % str(parList))
 
     data = {}
     for p in parList:
-        data[p[0]] = p[1]
+        data[p[0]] = p[1]  
+ 
+    if 'userProxy' in str(parList):
+	for i in range(len(parList)):
+		if parList[i][0] == 'userProxy':
+			newList = list(parList[i])
+			newList[1] = 'hidden'
+			parList[i] = newList
+
+    tolog("Dispatcher response: %s" % str(parList))
 
     return data, response
 
@@ -3858,10 +3866,12 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
     # reset site.appdir
     thisSite.appdir = readpar('appdir')
 
-    if readpar('glexec') == "True" or readpar('glexec') == "test":
-        env['glexec'] = True
+    if readpar('glexec') == "True": 
+        env['glexec'] = 'True'
+    elif readpar('glexec') == "test":
+	env['glexec'] = 'test'
     else:
-        env['glexec'] = False
+        env['glexec'] = 'False'
 
     return ec, thisSite, _jobrec, hasQueuedata
 
