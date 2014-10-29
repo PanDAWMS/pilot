@@ -336,39 +336,112 @@ class SiteMover(object):
         return sitename
     getDQ2SiteName = staticmethod(getDQ2SiteName)
 
+    def getDefaultDQ2SiteName(self):
+        """ Return the DQ2 site name using the schedconfig.se info """
+
+        # Build a preliminary SURL using minimum information necessary for the getDQ2SiteName() method
+        _dummytoken, se = SiteMover.extractSE(readpar('se'))
+
+        # Get a preliminary path
+        sepath = readpar('seprodpath')
+        if sepath == "":
+            sepath = readpar('sepath')
+        surl = se + sepath
+
+        # Get the default DQ2 site name
+        return SiteMover.getDQ2SiteName(surl=surl)
+
+    def getTiersOfATLASAlternativeName(self, endpoint):
+        """ Return the alternativeName from TiersOfATLAS for a given edpoint """
+
+        alternativeName = ""
+        try:
+            from dq2.info import TiersOfATLAS
+        except:
+            # Note: do not print the exception since it sometimes can not be converted to a string (as seen at Taiwan)
+            tolog("!!WARNING!!1119!! TiersOfATLAS could not be imported from dq2.info")
+        else:
+            # Now get the alternativeName
+            tolog("endpoint=%s"%endpoint)
+            alternativeName = TiersOfATLAS.getSiteProperty(endpoint, 'alternateName')[0]
+
+        return alternativeName
+
+    def getTiersOfATLASSE(self, endpoint):
+        """ Return the se from TiersOfATLAS """
+
+        se = ""
+        try:
+            from dq2.info import TiersOfATLAS
+        except:
+            tolog("!!WARNING!!1119!! TiersOfATLAS could not be imported from dq2.info")
+        else:
+            # Get the sites list
+            sites = TiersOfATLAS.ToACache.sites
+
+            # Get the se info
+            try:
+                se = sites[endpoint]['srm']
+            except Exception, e:
+                tolog("!!WARNING!!1120!! No such endpoint in TiersOfATLAS: %s" % (e))
+            else:
+                tolog("Endpoint %s corresponds to se=%s (TiersOfATLAS)" % (endpoint, se))
+
+        return se
+
     def getGroupDiskPath(self, endpoint=""):
         """ Get the seprodpath from TiersOfATLAS instead of schedconfig if destination is a groupdisk """
         # We know it's a group disk if 'dst:' is present in the token descriptor (which in this case it the same as the endpoint name)
 
         sepath = ""
 
-        # Remove the dst: substring from the endpoint string
+        # Remove the dst: substring from the endpoint string unless the alternativeName is different between the site and the requested endpoint
         if "dst:" in endpoint:
             endpoint = endpoint[len('dst:'):]
 
-            try:
-                from dq2.info import TiersOfATLAS
-            except:
-                tolog("!!WARNING!!1119!! TiersOfATLAS could not be imported from dq2.info")
+            # Get the se from TiersOfATLAS
+            se = self.getTiersOfATLASSE(endpoint)
+            if se != "":
+                # Now extract the seprodpath from the srm info
+                sepath = SiteMover.extractSEPath(se)
+                
+                # Add /rucio to sepath if not there already
+                if not sepath.endswith('/rucio'):
+                    sepath += '/rucio'
             else:
-                # Get the sites list
-                sites = TiersOfATLAS.ToACache.sites
-                # Get the se info
-                try:
-                    se = sites[endpoint]['srm']
-                except Exception, e:
-                    tolog("!!WARNING!!1120!! No such endpoint in TiersOfATLAS: %s" % (e))
-                else:
-                    # Now extract the seprodpath from the srm info
-                    sepath = SiteMover.extractSEPath(se)
-
-                    # add /rucio to sepath if not there already
-                    if not sepath.endswith('/rucio'):
-                        sepath += '/rucio'
+                tolog("!!WARNING!!3999!! Group disk verification failed, space token will be reset to default value")
         else:
             tolog("!!WARNING!!2233!! Not a groupdisk endpoint: %s" % (endpoint))
 
         return sepath
+
+    def verifyGroupSpaceToken(self, token):
+        """ Make sure that space token is valid in case group disk is requested """
+        # In case a groupdisk space token is requested, make sure that the site's alternativeName is the same as the endpoints' alternativeName
+        # They will have different alternativeNames if the job originates from a different cloud
+        # Note: ATLAS specific
+
+        if token.startswith("dst:"):
+            # Found a groupdisk space token
+            _token = token[len('dst:'):]
+            tolog("token=%s"%_token)
+            tolog("sitename=%s"%self.getDefaultDQ2SiteName())
+            # Get the corresponding alternative name and compare it to the alternative name of the site
+            alternativeName_token = self.getTiersOfATLASAlternativeName(_token)
+            tolog("alternativeName_token = %s" % (alternativeName_token))
+            alternativeName_site = self.getTiersOfATLASAlternativeName(self.getDefaultDQ2SiteName())
+            tolog("alternativeName_site = %s" % (alternativeName_site))
+
+            # Only proceed ith getting the groupdisk path if the alternativeName's are the same
+            if alternativeName_token == alternativeName_site:
+                tolog("Verified groupdisk token (same alternativeName for site and endpoint)")
+            else:
+                tolog("!!WARNING!!3999!! Alternative names are not the same for site and requested endpoint, will reset GROUPDISK")
+                default_token, _se = SiteMover.extractSE(readpar('se'))
+                tolog("Requested space token %s reset to %s" % (_token, default_token))
+                token = default_token
+
+        return token
 
     def put_data_retfail(fail, errortext, surl=""):
         """
@@ -583,9 +656,18 @@ class SiteMover(object):
         # In this case, (e.g.) token = 'dst:AGLT2_PERF-MUONS'
         # Pilot should then consult TiersOfATLAS and get it from the corresponding srm entry 
         if "dst:" in token:
+            # if the job comes from a different cloud than the sites' cloud, destination will be set to "" and the
+            # default space token will be used instead (the transfer to groupdisk will be handled by DDM not pilot) 
             destination = self.getGroupDiskPath(endpoint=token)
-            tolog("GROUPDISK token requested (%s), destination=%s" % (token, destination))
-            return destination
+
+            if destination != "":
+                tolog("GROUPDISK token requested (%s), destination=%s" % (token, destination))
+                return destination
+            else:
+                # Reset the space token to the default value
+                default_token, _se = SiteMover.extractSE(readpar('se'))
+                tolog("Requested space token %s reset to %s" % (token, default_token))
+                token = default_token
 
         if not analyJob:
             # process the destination path with getDirList since it can have a complex structure

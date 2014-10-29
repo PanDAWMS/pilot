@@ -349,9 +349,6 @@ class Experiment(object):
         # set up analysis trf
         run_command += './%s %s' % (trfName, job.jobPars)
 
-#PN
-#        job.jobPars += ' --accessmode=filestager'
-
         # add options for file stager if necessary
         if dInfo:
             # in case of forced usePFCTurl

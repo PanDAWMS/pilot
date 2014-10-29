@@ -409,6 +409,26 @@ class ATLASExperiment(Experiment):
                     if ec != 0:
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
+                # should asetup be used? If so, sqeeze it into the run command (rather than moving the entire getAnalysisRunCommand() into this class)
+                m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
+                if m_cacheDirVer != None:
+                    # homePackage="AnalysisTransforms-AthAnalysisBase_2.0.14"
+                    # -> cacheDir = AthAnalysisBase, cacheVer = 2.0.14
+                    cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
+                    tolog("cacheDir = %s" % (cacheDir))
+                    tolog("cacheVer = %s" % (cacheVer))
+                    if cacheDir != "" and cacheVer != "":
+                        asetup = "export AtlasSetup=%s/%s/%s/%s/AtlasSetup; " % (swbase, cacheDir, cmtconfig, cacheVer)
+                        asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s;" % (cacheDir, cacheVer)
+
+                        # now squeeze it in
+                        cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
+                        tolog("Updated run command for special homePackage: %s" % (cmd))
+                    else:
+                        tolog("asetup not needed (mo special home package: %s)" % (homePackage))
+                else:
+                    tolog("asetup not needed (no special homePackage)")
+
             elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
                 
                 if 'HPC_Titan' in readpar("catchall"):

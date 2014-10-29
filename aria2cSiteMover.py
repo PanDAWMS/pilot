@@ -8,13 +8,10 @@ from subprocess import Popen, PIPE
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, getDirectAccessDic, extractPattern
+from pUtil import tolog, readpar, getDirectAccessDic, extractPattern, getSiteInformation 
 from timed_command import timed_command
 from FileStateClient import updateFileState
-#import lxml.etree as ET
-#import collections
 
-#my_se_only=True
 
 class replica:
     """ Replica """
@@ -82,22 +79,24 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	self.getSurl2httpsMap()
 	rucio_account=self.rucio_account
 	tolog("Rucio account: %s" %(rucio_account))
-	x509_proxy=self.sslKey
-	tolog("X509 proxy: %s" %(x509_proxy))
-	cmd="curl -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert $X509_USER_PROXY --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -X GET https://voatlasrucio-auth-prod.cern.ch/auth/x509_proxy| grep X-Rucio-Auth-Token"
+	cmd="curl -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert %s --cert %s --key %s --capath %s -X GET https://voatlasrucio-auth-prod.cern.ch/auth/x509_proxy| grep X-Rucio-Auth-Token"%(self.sslKey,self.sslKey,self.sslKey,self.sslCertDir)
         tolog("Command to be launched: %s" %(cmd))
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
         token_rucio_or, stderr= token_rucio_cmd.communicate()
         #I have to delete the last two characters of the token (a CR and a strange \r)
-        token_lenght=len(token_rucio_or)-2
-        token_rucio=token_rucio_or[:token_lenght]
-        tolog("Token on file: %s" %(token_rucio))
-	#tolog("In __init__: Std error from curl: %s" %(stderr))
+	if token_rucio_or:
+           token_lenght=len(token_rucio_or)-2
+           token_rucio=token_rucio_or[:token_lenght]
+           tolog("Token on file: %s" %(token_rucio))
+	   #tolog("In __init__: Std error from curl: %s" %(stderr))
 
-	if os.path.exists('token_file'):
+	   if os.path.exists('token_file'):
     		os.remove('token_file')
-	token_file=open('token_file', 'w')
-	token_file.write(token_rucio)
+	   token_file=open('token_file', 'w')
+	   token_file.write(token_rucio)
+	else:
+	   tolog("Cannot get Rucio token! Exiting...")
+	   #sys.exit() 
 
     def commandInPATH(self):
         _cmd_str = 'which %s'%self.copyCommand 
@@ -173,9 +172,15 @@ class aria2cSiteMover(SiteMover.SiteMover):
         token_file=open('token_file', 'r')
         token_rucio=token_file.readline() 
         tolog("Token I am using: %s" %(token_rucio))
-	cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
-	tolog("curl command to be executed: %s" %(cmd))
-
+	httpredirector = readpar('httpredirector')
+	if not httpredirector:
+	   cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
+	   tolog("curl command to be executed: %s" %(cmd))
+	else:
+	   tolog("HTTP redirector I am using: %s" %(httpredirector))
+	   cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+	   tolog("curl command to be executed: %s" %(cmd))
+		
 	metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
 	metalink, stderr=metalink_cmd.communicate()
         tolog("Metalink produced by rucio %s" %(metalink))
@@ -340,7 +345,6 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	metaL_file= open(metalink)
 	for line in metaL_file:
 	   for word in line.strip().split():
-		#tolog("parola = %s" % (word))
 		if word in ("<url"):
 			word_occour +=1 
 	tolog("number of links: %s" % (str(word_occour)))                        
@@ -438,6 +442,8 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # get the site information object
         si = getSiteInformation(experiment)
 
+	tolog("miaprova fsize=%s, fchecksum=%s" %(fsize, fchecksum))
+
         tolog("put_data received prodSourceLabel=%s" % (prodSourceLabel))
         if prodSourceLabel == 'ddm' and analysisJob:
             tolog("Treating PanDA Mover job as a production job during stage-out")
@@ -521,7 +527,8 @@ class aria2cSiteMover(SiteMover.SiteMover):
             source = "thisisjustatest"
 
         # determine which timeout option to use
-        timeout_option = "--connect-timeout 300 --max-time %d" % (self.timeout)
+        #commented by Lavorini timeout_option = "--connect-timeout 300 --max-time %d" % (self.timeout)
+        timeout_option = "--connect-timeout 300"
 
         sslCert = self.sslCert
         sslKey = self.sslKey
@@ -539,7 +546,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
             tolog("!!WARNING!!2990!! Command failed: %s" % (_cmd_str))
             o = o.replace('\n', ' ')
             tolog("!!WARNING!!2990!! check PUT command failed. Status=%s Output=%s" % (str(s), str(o)))
-            return 999999
+            #return 999999
 
         # cleanup the SURL if necessary (remove port and srm substring)
         if token:
@@ -563,12 +570,14 @@ class aria2cSiteMover(SiteMover.SiteMover):
             #               [-b,--nobdii] [-t timeout] [-v,--verbose]  [-V,--vo vo] [--version] src_file  dest_file
 
             # surl = putfile[putfile.index('srm://'):]
-            _cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s?spacetoken=%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl, token)
-            #_cmd_str = '%s lcg-cp --verbose --vo atlas -b %s -U srmv2 -S %s file://%s %s' % (envsetup, timeout_option, token, source, full_surl)
+            #_cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s?spacetoken=%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl, token)
+            _cmd_str = '%s lcg-cp --verbose --vo atlas -b %s -U srmv2 -S %s file://%s %s' % (envsetup, timeout_option, token, source, full_surl)
+            #_cmd_str = 'curl --insecure --verbose  --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -L %s file://%s' % (full_http_surl, source)
         else:
             # surl is the same as putfile
-            _cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl)
-            #_cmd_str = '%s lcg-cp --vo atlas --verbose -b %s -U srmv2 file://%s %s' % (envsetup, timeout_option, source, full_surl)
+            #_cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl)
+            _cmd_str = '%s lcg-cp --vo atlas --verbose -b %s -U srmv2 file://%s %s' % (envsetup, timeout_option, source, full_surl)
+            #_cmd_str = 'curl --insecure --verbose --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -L %s file://%s' % (full_http_surl, source)
 
         tolog("Executing command: %s" % (_cmd_str))
         ec = -1

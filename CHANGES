@@ -488,6 +488,10 @@ Added stage-out error handling to RunJobEvent
 Created get/setErrorCode() used by stageOut() and main function (RunJobEvent)
 Printing the job definition backup filename instead of the full dispatcher response in backupDispatcherResponse() (pilot)
 Avoiding duplicated of "Put error: " at the beginning of pilotErrorDiag in stageOut() (RunJob, RunJobEvent)
+Updated run command for special homePackage (AthAnalysisBase) in getJobExecutionCommand() (ATLASExperiment)
+Created getTiersOfATLASSE() used by getGroupDiskPath() (SiteMover)
+Created getDefaultDQ2SiteName() used by getGroupDiskPath() (SiteMover)
+Updated getPreDestination() for resetting groupdisk space token (SiteMover)
 
 Code from Danila Oleynik:
 
@@ -496,6 +500,9 @@ Updated to RunJobTitan
 
 Code from Edward Karavakis:
 glExec bug fixes (pilot, pUtil)
+
+Code from Vincenzo Lavorini
+Bug fix related to missing X509_CERT_DIR (aria2SiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

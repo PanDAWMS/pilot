@@ -2350,7 +2350,7 @@ def getSpaceTokenForFile(filename, _token, logFile, file_nr, fileListLength):
 
     return _token_file
 
-def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname, sitename, analysisJob, testLevel, pinitdir, proxycheck, _token_file, lfn,\
+def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname, sitename, analysisJob, testLevel, pinitdir, proxycheck, token, lfn,\
                        guid, spsetup, userid, report, cmtconfig, prodSourceLabel, outputDir, DN, fsize, checksum, logFile, _attempt, experiment, scope,\
                        fileDestinationSE, nFiles, logPath="", alt=False):
     """ Wrapper method for the sitemover put_data() method """
@@ -2362,6 +2362,9 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
     r_fchecksum = ""
     r_farch = ""
 
+    # Make a preliminary verification of the space token (in case there are special groupdisk space tokens)
+    token = sitemover.verifyGroupSpaceToken(token)
+
     try:
         # do no treat install jobs as an analysis job
         if prodSourceLabel == "software":
@@ -2370,7 +2373,7 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
         # execute put_data and test if it finishes on time
         s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover.put_data(pfn, ddm_storage, dsname=dsname, sitename=sitename,\
                                                                 analJob=analysisJob, testLevel=testLevel, pinitdir=pinitdir, proxycheck=proxycheck,\
-                                                                token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn, guid=guid, spsetup=spsetup,\
+                                                                token=token, timeout=DEFAULT_TIMEOUT, lfn=lfn, guid=guid, spsetup=spsetup,\
                                                                 userid=userid, report=report, cmtconfig=cmtconfig, prodSourceLabel=prodSourceLabel,\
                                                                 outputDir=outputDir, DN=DN, fsize=fsize, fchecksum=checksum, logFile=logFile,\
                                                                 attempt=_attempt, experiment=experiment, alt=alt, scope=scope, fileDestinationSE=fileDestinationSE,\
