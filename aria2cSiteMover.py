@@ -178,7 +178,8 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	   tolog("curl command to be executed: %s" %(cmd))
 	else:
 	   tolog("HTTP redirector I am using: %s" %(httpredirector))
-	   cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+           cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+	   #cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
 	   tolog("curl command to be executed: %s" %(cmd))
 		
 	metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
