@@ -174,15 +174,17 @@ class aria2cSiteMover(SiteMover.SiteMover):
         tolog("Token I am using: %s" %(token_rucio))
 	httpredirector = readpar('httpredirector')
 	if not httpredirector:
-	   cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
-	   tolog("curl command to be executed: %s" %(cmd))
+            cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
+            tolog("curl command to be executed: %s" %(cmd))
 	else:
-	   tolog("HTTP redirector I am using: %s" %(httpredirector))
-           cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+            if not httpredirector.startswith('https://') or not httpredirector.startswith('http://'):
+                httpredirector = "https://" + httpredirector
+            tolog("HTTP redirector I am using: %s" %(httpredirector))
+            cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
 	   #cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
-	   tolog("curl command to be executed: %s" %(cmd))
+            tolog("curl command to be executed: %s" %(cmd))
 		
-	metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
+        metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
 	metalink, stderr=metalink_cmd.communicate()
         tolog("Metalink produced by rucio %s" %(metalink))
         tolog("In surls2metalink: command std error: %s" %(stderr))

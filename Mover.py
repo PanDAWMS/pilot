@@ -1075,7 +1075,7 @@ def convertSURLtoTURLUsingDataset(surl, dataset):
 
     return turl
 
-def convertSURLtoTURLUsingHTTP(surl, dataset='', site='', redirector="https://voatlasrucio-redirect-prod-01.cern.ch"):
+def convertSURLtoTURLUsingHTTP(surl, dataset='', site='', redirector="https://rucio-lb-prod.cern.ch"):
     """ Convert SURL to TURL using the Rucio redirector """
 
     try:
@@ -1108,7 +1108,7 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
         copytool = "fax"
     elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
 
-        httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+        httpredirector = 'https://rucio-lb-prod.cern.ch'
         httpsite = ''
         httpinfo = ''
 
@@ -1119,9 +1119,9 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
         try:
             httpredirector = readpar('httpredirector')
         except:
-            httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+            httpredirector = 'https://rucio-lb-prod.cern.ch'
         if httpredirector == '':
-            httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+            httpredirector = 'https://rucio-lb-prod.cern.ch'
         try:
             httpinfo = readpar('allowhttp')
         except:
