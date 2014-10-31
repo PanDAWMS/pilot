@@ -1176,7 +1176,7 @@ if __name__ == "__main__":
                 runJob.setGlobalErrorCode(error.ERR_SIGUSR1)
             else:
                 runJob.setGlobalErrorCode(error.ERR_KILLSIGNAL)
-            runJob.setFailureCode(runJob.getGlobalErrorCode)
+            runJob.setFailureCode(runJob.getGlobalErrorCode())
             # print to stderr
             print >> sys.stderr, runJob.getGlobalPilotErrorDiag()
             raise SystemError(sig)
