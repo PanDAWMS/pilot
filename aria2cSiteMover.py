@@ -83,12 +83,12 @@ class aria2cSiteMover(SiteMover.SiteMover):
         tolog("Command to be launched: %s" %(cmd))
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
         token_rucio_or, stderr= token_rucio_cmd.communicate()
+	tolog("In __init__: Std error from curl: %s" %(stderr))
         #I have to delete the last two characters of the token (a CR and a strange \r)
 	if token_rucio_or:
            token_lenght=len(token_rucio_or)-2
            token_rucio=token_rucio_or[:token_lenght]
            tolog("Token on file: %s" %(token_rucio))
-	   #tolog("In __init__: Std error from curl: %s" %(stderr))
 
 	   if os.path.exists('token_file'):
     		os.remove('token_file')
@@ -177,11 +177,15 @@ class aria2cSiteMover(SiteMover.SiteMover):
             cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
             tolog("curl command to be executed: %s" %(cmd))
 	else:
-            if not httpredirector.startswith('https://') or not httpredirector.startswith('http://'):
-                httpredirector = "https://" + httpredirector
-            tolog("HTTP redirector I am using: %s" %(httpredirector))
-            cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
-	   #cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+            #if not httpredirector.startswith('https://') or not httpredirector.startswith('http://'):
+            #    httpredirector = "https://" + httpredirector
+            if "http" in httpredirector:
+           	tolog("HTTP redirector I am using: %s" %(httpredirector))
+                cmd = "curl -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+            else:
+           	tolog("HTTP redirector I am using: %s" %(httpredirector))
+                cmd = "curl -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+
             tolog("curl command to be executed: %s" %(cmd))
 		
         metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
@@ -268,14 +272,15 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # get a proper envsetup
         envsetup = self.getEnvsetup(get=True)
 
-        if proxycheck:
-            # do we have a valid proxy?
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
-            if s != 0:
-                self.__sendReport('PROXYFAIL', report)
-                return s, pilotErrorDiag
-        else:
-            tolog("Proxy verification turned off")
+        #if proxycheck:
+        #    # do we have a valid proxy?
+        #    s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
+        #    if s != 0:
+        #        self.__sendReport('PROXYFAIL', report)
+        #        return s, pilotErrorDiag
+        #else:
+        #    tolog("Proxy verification turned off")
+        tolog("Proxy verification turned off")
 
         getfile = gpfn
 
@@ -486,13 +491,14 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # get a proper envsetup
         envsetup = self.getEnvsetup()
 
-        if proxycheck:
-            s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
-            if s != 0:
-                self.__sendReport('NO_PROXY', report)
-                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
-        else:
-            tolog("Proxy verification turned off")
+        #if proxycheck:
+        #    s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
+        #    if s != 0:
+        #        self.__sendReport('NO_PROXY', report)
+        #        return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
+        #else:
+        #    tolog("Proxy verification turned off")
+        tolog("Proxy verification turned off")
 
         filename = os.path.basename(source)
         
