@@ -173,21 +173,22 @@ class GlexecInterface(object):
         elif os.environ.has_key('GLEXEC_LOCATION'):
             self.__glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
                                              'sbin/glexec')
+        elif os.path.exists('/usr/sbin/glexec'):
+	    pUtil.tolog('glexec is installed in the standard location')
+            self.__glexec_path = '/usr/sbin/glexec'
 	elif os.environ.has_key('GLITE_LOCATION'):
             self.__glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
                                              'sbin/glexec')
 	else:
+            pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
 	    self.__glexec_path = '/usr/sbin/glexec'
 
         self.__wrapper_path = os.path.join(os.path.dirname(self.__glexec_path),
                                           'glexec_wrapenv.pl')
         self.__unwrapper_path = os.path.join(os.path.dirname(self.__glexec_path),
                                             'glexec_unwrapenv.pl')
-        # TODO(rmedrano): hack to run our version of mkgltempdir.
         self.__mkgltempdir_path = os.path.join(os.path.dirname(self.__glexec_path),
                                                'mkgltempdir')
-        #self.__mkgltempdir_path = os.path.join(os.path.dirname('/home/ekaravak/'),
-        #                                      'mkgltempdir')
 
     def __extend_pythonpath(self):
         current_path = os.getcwd()

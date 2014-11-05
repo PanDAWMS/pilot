@@ -510,6 +510,12 @@ Bug fix related to missing X509_CERT_DIR (aria2SiteMover)
 Corrected runJob.getGlobalErrorCode -> runJob.getGlobalErrorCode() in sig2exc(), leading to wrong error code labelling (RunJob, RunJobEvent)
 New code from Vincenzo Lavorini; e.g. removed explicit https:// from command line in surls2metalink() (aria2cSiteMover)
 Replaced all four occurances of 'https://voatlasrucio-redirect-prod-01.cern.ch' with 'https://rucio-lb-prod.cern.ch' (Mover)
+Updated nightlies setup, fixing a problem with potentially repeated cacheVer strings in the asetup options list (seen with an SLC5 user job), in getProperASetup() (ATLASExperiment)
+New version of aria2c site mover using -1 curl option. Code from Vincenzo Lavorini (aria2cSiteMover)
+Changed time-out from 3600 s to 600 s (xrootdObjectstoreSiteMover)
+glExec update from Edward Karavakis to resolve issues at two Canadian sites that do not have the $GLEXEC_LOCATION env var set (pilot, glexec_utils)
+Skipping nCore checks for install jobs, in postGetJobActions() (ATLASExperiment)
+Getting JSON instead of XML in getPayloadMetadataFilename() (PandaServerClient)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

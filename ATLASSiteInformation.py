@@ -425,7 +425,8 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
-            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
+            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
+#            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 #            ec = self.replaceQueuedataField("copyprefixin", "^srm://gk05.swt2.uta.edu")
@@ -442,7 +443,6 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "MWT2_SL6":
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^https://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 #            ec = self.replaceQueuedataField("timefloor", "0")
-#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
 #        if thisSite.sitename == "BNL_CLOUD_MCORE":
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
 #            ec = self.replaceQueuedataField("timefloor", "0")

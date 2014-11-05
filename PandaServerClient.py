@@ -529,6 +529,7 @@ class PandaServerClient:
                     if isAGreaterOrEqualToB(version, v):
                         tolog("Will send metadata file %s since version %s is >= %s" % (_filename, version, v))
                         filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+                        tolog("Could have used %s" % (_filename))
                         #filenamePayloadMetadata = _filename
                     else:
                         filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
@@ -667,7 +668,7 @@ class PandaServerClient:
         else:
             final = False
 
-        # send the original xml if it exists (end of production job, ignore for event service job)
+        # send the original xml/json if it exists (end of production job, ignore for event service job)
         filenamePayloadMetadata = self.getPayloadMetadataFilename(site.workdir, job.jobId)
         payloadXMLProblem = False
 

@@ -79,7 +79,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	self.getSurl2httpsMap()
 	rucio_account=self.rucio_account
 	tolog("Rucio account: %s" %(rucio_account))
-	cmd="curl -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert %s --cert %s --key %s --capath %s -X GET https://voatlasrucio-auth-prod.cern.ch/auth/x509_proxy| grep X-Rucio-Auth-Token"%(self.sslKey,self.sslKey,self.sslKey,self.sslCertDir)
+	cmd="curl -1 -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert %s --cert %s --key %s --capath %s -X GET https://voatlasrucio-auth-prod.cern.ch/auth/x509_proxy| grep X-Rucio-Auth-Token"%(self.sslKey,self.sslKey,self.sslKey,self.sslCertDir)
         tolog("Command to be launched: %s" %(cmd))
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
         token_rucio_or, stderr= token_rucio_cmd.communicate()
@@ -174,17 +174,17 @@ class aria2cSiteMover(SiteMover.SiteMover):
         tolog("Token I am using: %s" %(token_rucio))
 	httpredirector = readpar('httpredirector')
 	if not httpredirector:
-            cmd = "curl -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
+            cmd = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
             tolog("curl command to be executed: %s" %(cmd))
 	else:
             #if not httpredirector.startswith('https://') or not httpredirector.startswith('http://'):
             #    httpredirector = "https://" + httpredirector
             if "http" in httpredirector:
            	tolog("HTTP redirector I am using: %s" %(httpredirector))
-                cmd = "curl -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
             else:
            	tolog("HTTP redirector I am using: %s" %(httpredirector))
-                cmd = "curl -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
 
             tolog("curl command to be executed: %s" %(cmd))
 		
@@ -580,13 +580,13 @@ class aria2cSiteMover(SiteMover.SiteMover):
 
             # surl = putfile[putfile.index('srm://'):]
             #_cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s?spacetoken=%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl, token)
-            _cmd_str = '%s lcg-cp --verbose --vo atlas -b %s -U srmv2 -S %s file://%s %s' % (envsetup, timeout_option, token, source, full_surl)
-            #_cmd_str = 'curl --insecure --verbose  --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -L %s file://%s' % (full_http_surl, source)
+            #_cmd_str = '%s lcg-cp --verbose --vo atlas -b %s -U srmv2 -S %s file://%s %s' % (envsetup, timeout_option, token, source, full_surl)
+            _cmd_str = 'curl -1 --verbose  --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -L %s file://%s' % (full_http_surl, source)
         else:
             # surl is the same as putfile
             #_cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl)
-            _cmd_str = '%s lcg-cp --vo atlas --verbose -b %s -U srmv2 file://%s %s' % (envsetup, timeout_option, source, full_surl)
-            #_cmd_str = 'curl --insecure --verbose --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -L %s file://%s' % (full_http_surl, source)
+            #_cmd_str = '%s lcg-cp --vo atlas --verbose -b %s -U srmv2 file://%s %s' % (envsetup, timeout_option, source, full_surl)
+            _cmd_str = 'curl -1 --verbose --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -L %s file://%s' % (full_http_surl, source)
 
         tolog("Executing command: %s" % (_cmd_str))
         ec = -1

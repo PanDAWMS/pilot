@@ -40,7 +40,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
     has_getsize = False
     has_md5sum = True
     has_chmod = False
-    timeout = 3600
+    timeout = 600
 
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path.strip()

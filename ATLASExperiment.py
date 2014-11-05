@@ -2156,7 +2156,12 @@ class ATLASExperiment(Experiment):
                             tolog("Release string updated: %s" % (atlasRelease))
                     options = cacheDir + "," + atlasRelease + "," + rel_N + ",notest,here" # E.g. AtlasDerivation,19.1.X.Y-VAL,rel_3,notest,here
                 else:
+                    # correct an already set cacheVer if necessary
+                    if cacheVer == rel_N:
+                        tolog("Found a cacheVer set to %s: resetting to atlasRelease=%s" % (cacheVer, atlasRelease))
+                        cacheVer = atlasRelease
                     options = cacheVer + "," + rel_N + ",notest,here"
+                    tolog("Options: %s" % (options))
             else:
                 tolog("!!WARNING!!1111!! Failed to extract rel_N from homePackage=%s (forced to use default cmtsite setup)" % (homePackage))
                 asetup_path = "%s/cmtsite/asetup.sh" % (path)
@@ -2655,12 +2660,11 @@ class ATLASExperiment(Experiment):
         pilotErrorDiag = ""
 
         # Make sure that ATHENA_PROC_NUMBER has a proper value for the current job
-        ec, pilotErrorDiag = self.verifyNCoresSettings(job.coreCount)
-        if ec != 0:
-            tolog("!!WARNING!!3222!! %s" % (pilotErrorDiag))
-            return ec, pilotErrorDiag
-
-        # ..
+        if job.prodSourceLabel != "install":
+            ec, pilotErrorDiag = self.verifyNCoresSettings(job.coreCount)
+            if ec != 0:
+                tolog("!!WARNING!!3222!! %s" % (pilotErrorDiag))
+                return ec, pilotErrorDiag
 
         return ec, pilotErrorDiag
 

@@ -2581,10 +2581,13 @@ def runMain(runpars):
                 elif os.environ.has_key('GLEXEC_LOCATION'):
                         glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
                                              'sbin/glexec')
+		elif os.path.exists('/usr/sbin/glexec'):
+			glexec_path = '/usr/sbin/glexec'
                 elif os.environ.has_key('GLITE_LOCATION'):
                         glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
                                              'sbin/glexec')
                 else:
+			pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
                         glexec_path = '/usr/sbin/glexec'
 
                 cmd = 'export GLEXEC_CLIENT_CERT='+temp_proxy_path+';'+glexec_path + ' /bin/true'
