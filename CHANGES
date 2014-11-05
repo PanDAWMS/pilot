@@ -1,0 +1,366 @@
+PanDA Pilot version PICARD 59a (HPC Extensions)
+
+Dedicated class for serving Hopper@NERSC added.
+SAGA API updated to latest version.
+------------------------------------------------------
+
+Complete change log for PanDA Pilot version PICARD 59a
+------------------------------------------------------
+
+Merge between 59a and 58i (Feb 7)
+
+Experiment                 : diff verified
+ATLASExperiment            : diff verified
+SiteInformation            : diff verified
+ATLASSiteInformation       : diff verified
+SiteMover                  : diff verified
+Mover                      : diff verified
+pUtil                      : diff verified
+runJob                     : diff verified
+RunJobUtilities            : diff verified
+Job                        : diff verified
+JobLog                     : differences, to be tested
+
+Merge between 59a and Eddie's version (Feb 10)
+
+pilot                      : done
+pUtil                      : done
+runJob                     : done
+Mover                      : done
+SiteMover                  : done
+Monitor                    : done
+glexec_aux                 : done
+my_proxy_utils             : done
+
+Feature tests, final version
+
+Proxy check                : OK
+Disk space check           : OK
+Pilot init dir in pUtil    : OK
+Cleaner                    : ? test at UTA, lots of old tmp garbage there
+Looping job killer         : BROKEN - fixed? Make sure no more 1112 pilot exceptions due to looping jobs
+User analysis job          : Testing at ANALY_MWT2_SL6 (FAX test below) OK
+prun                       : Test with Hello World example, then via HC?
+Multi-job loop             : Testing at UTA_PAUL_TEST, two queued jobs: OK (problems fixed, monitor_job() now returns exit info properly)
+Job recovery               : Test at UTA_PAUL_TEST
+FAX                        : Testing at ANALY_MWT2_SL6, broken LSM: OK (real test with RC jobs)
+Alt stage-out              : Repeat GoeGrid test
+Secondary log transfer     : Repeat object-store test
+Multi-trf                  : Ask Andrej, combine with Nordugrid test? see http://panda.cern.ch/server/pandamon/query?job=2136530336
+Nordugrid test             : Ask Andrej when all other tests are done
+RC tests                   : As soon as possible when a few more of the other tests are done
+PanDA mover                : OK
+glExec                     : Hand over preliminary code when a few more of the other tests are done
+RC tests, glExec           : Ask HC team to prepare RC tests when Eddie has confirmed that glExec still works
+Subprocess selection       : (is runEvent selected properly after last merge?), test with testEventService-UTA.py
+No TCP connection          : If a TCP server cannot be setup in Monitor, make sure the job is failed correctly (it isn't)
+lineno()                   : Usage of function lineno() is not correct; line number is not the same as process id..
+Are kill signals forwarded : ? Verify new signal handlers in RunJob and RunJobEvent
+maxmemory                  : Fixed
+
+Additional test of recently added features
+
+Job def download for a maximum of N seconds : (set getjobmaxtime)
+
+
+#### add new error codes 1217-1219 to proddb
+Update prodDB for ERR_RUNJOBEXC : "Exception caught by runJob" -> "Exception caught by RunJob*" ? not necessary??
+
+
+Replaced global fileList with function getFileList(), used in stageInPyModules() and removePyModules() (pUtil)
+Simplified file removal in removePyModules() (pUtil)
+Created dumpPilotInfo() (pUtil)
+Added initdir argument to getPilotVersion() (pUtil)
+Verifying that inFiles is set before checking its size in __killLoopingJob(), __checkPayloadStdout(), __checkWorkDir(), __checkLocalSpace() (Monitor)
+Added ERR_NOSUCHFILE to file corruption report in mover_get_data(), requested by Cedric Serfon (Mover)
+Created runEvent module
+Added new pilot error code 1218, ERR_RUNEVENTEXC, used by runEvent (PilotErrors)
+Created getSubprocessArguments() used by Monitor (Experiment)
+Created verifySoftwareDirectory() used by extractAppdir() (SiteInformation)
+Skipping some checks in specialChecks() for HPC systems, assuming schedconfig.resourcetype is set (ATLASExperiment)
+Added new environment variable 'verifySoftwareDirectory'. Normally the softwre directory should be verified, but potentially not on an HPC system (environment)
+Suggest to add new schedconfig field "resourcetype" (?) set to hpc for HPCs. Assumed for now, in *Experiment specialChecks()
+Removed the call to pUtil.setHTTPProxies() run runMain(), since it is no longer necessary to set http*_proxy at SLAC (pilot)
+Moved sleep call until end of each monitoring loop iteration, in monitor_job() (Monitor)
+Removed setHTTPProxies() which is no longer needed (for setting http[s]_proxy for SLAC) (pUtil)
+Removed call to setHTTPProxies() (pilot)
+Removed env variable settings from the top of runEvent, runJob (runEvent, runJob)
+Removed http[s]_proxy from env variable list (atlasProdPilot)
+Added timedCommand() to testCVMFS(), requested by Rodney Walker (ATLASExperiment)
+Created interpretProxyInfo() (SiteMover)
+Updated verifyProxy() to primarily use arcproxy instead of voms-proxy-info (SiteMover)
+Renamed all s11 to exitcode and o11 to output (SiteMover)
+Created getDN() (pilot)
+Trying to use arcproxy before voms-proxy-info in getDN() used in getDispatcherDictionary() (pilot)
+Added appdir to fields list in evaluateQueuedata() to be able to handle environmental variables (SiteInformation)
+Now handling |-signs in appdir, in evaluateQueuedata() (SiteInformation)
+Added new pilot option -G <getJobMaxTime> in usage(), argParser() (pilot)
+Reading -G option in argParser() (pilot)
+Added exception handling to int conversions in argParser() (pilot)
+Added getjobmaxtime to list of globals in set_environment() (environment)
+Rewrote getJob() to download jobs for a maximum time instead of maximum number of trials (pilot)
+Created *EventService* classes
+Created getEventService() (pUtil)
+Added event service variables to Job definition (Job)
+Created getSubprocessName() used in Monitor before spawning subprocess (Experiment)
+Removed useless experiment variable in transferLogFile() (JobLog)
+Renamed transferLogFile() to transferActualLogFile() (JobLog)
+Created new transferLogFile() acting as a wrapper to transferActualLogFile() (JobLog)
+Created doSpecialLogFileTransfer() (Experiment, ATLASExperiment)
+Added alt option for getFinalLCGPaths(), getPreDestination(), getFullPath() (SiteMover)
+Sending alt to getPreDestination() in getFinalLCGPaths(), getFullPath() (SiteMover)
+Sending alt to getFinalLCGPaths() in getProperPaths() (ATLASSiteInformation)
+Sending alt to five readpar() calls in getPreDestination() (SiteMover)
+Sending alt to three getMatchingDestinationPath() calls in getPreDestination() (SiteMover)
+Sending alt to getFullPath() in getProperPaths() (ATLASSiteInformation)
+Sending alt to readpar() in getFullPath() (SiteMover)
+Added specialTransfer option [used for secondary log transfer] in transferActualLogFile() (JobLog)
+Using specialTransfer option to avoid transfer check in transferActualLogFile() (JobLog)
+Added logPath to sitemover_put_data() in mover_put_data() which is set for special log transfers (Mover)
+Created getLogPath(), constructPathFromJobid() (JobLog)
+Now using getLogPath() from transferActualLogFile() (JobLog)
+Sending logPath to mover_put_data() call in transferActualLogFile() (JobLog)
+Receiving logPath in put_data() (FAXSiteMover)
+Added code for transferring log file to special SE in put_data (FAXSiteMover)
+Sending sitename to getProdCmd2() from getJobExecutionCommand(), added sitename option to getProdCmd2() (ATLASExperiment)
+Changed HLT if-statements to use CERN-RELEASE instead of HLT (ATLASExperiment) DOESNT WORK
+Added eventService boolean to Job class (Job)
+Receiving eventService boolean in setJobDef() (Job)
+Using eventService boolean in getSubprocessName() and its call in monitor_job() (Experiment, Monitor)
+Added prodDBlockTokenForOutput list to Job class (Job)
+Added prodDBlockTokenForOutput list to displayJob() (Job)
+Added prodDBlockTokenForOutput to setJobDef() (Job)
+Created extractInputOption() and updateJobParameters4Input() (ATLASExperiment)
+Will use the above methods from getJobExecutionCommand() [currently outcommented] (ATLASExperiment)
+Moved back verifyProxyValidity() definition (pilot)
+Moved back checkLocalDiskSpace() definition (pilot)
+Now using env['workerNode'].disk in checkLocalDiskSpace() instead of sending disk as function argument (pilot)
+Put back calls to verifyProxyValidity() and checkLocalDiskSpace() in runMain() (pilot)
+Now doing fastCleanup() after verifyProxyValidity() failure in runMain() (pilot)
+Created storePilotInitdir() used in pilot and environment
+Added PILOTVERSION to getFileList() (pUtil)
+Created getGlobalFilePaths() (SiteMover)
+Redefined convertSURLtoTURLUsingDataset() so that getGlobalFilePaths() could come from any site mover - needed by aria2cSiteMover (Mover)
+Calling convertSURLtoTURLUsingDataset() for FAX and aria2c in convertSURLtoTURL() (Mover)
+Renamed getReplicaDictionaryRucio() to getReplicaDictionaryFromRucio(), used in getReplicaDictionary() (Mover)
+Renamed all analJob to analyJob (SiteMover)
+Only running VmPeak script for production jobs (interpretPayloadStdout()) (ATLASExperiment)
+Now using decode_string() on pilotErrorDiag in handle() to prevent garbled error messages (UpdateHandler)
+Removed lfchost from getFileInfoFromMetadata() and its call in getFileInfo() (Mover)
+Removed lfchost from getFileInfo() and its call in mover_get_data() (Mover)
+Removed lfchost from mover_get_data() (Mover)
+Replaced usage of lfc_host with _lfcregister in file catalog registration decision in mover_put_data() (Mover)
+Removed setting of lfc_host and LFC_HOST env variable in mover_get_data() (Mover)
+Renamed lfc_hosts_list to host_list, lfc_host to host, in getPoolFileCatalog() (Mover)
+Renamed lfchost to host in getCatalogFileList() (Mover)
+Renamed lfc_hosts_list to hosts_list in getFileCatalogHosts() (Mover)
+Created optional getPanDAServerURL() (Experiment)
+Cleared argument url in getQueuedata() definition (SiteInformation)
+Importing getExperiment as getExperimentObject from pUtil (SiteInformation)
+Using getExperimentObject in getQueuedata() (SiteInformation)
+Renamed my_proxy_utils to glexec_utils (glexec_utils, pilot)
+Created getSubprocess() which creates and returns a process started with Popen() (Experiment)
+Created getJobExecutionCommand4EventService() (Experiment, ATLASExperiment)
+Switching to FAX site mover for transferType xrd/fax in getNewJob() (pilot)
+Renamed kids to children in checkProcesses, killProcesses() (processes)
+Added coreCount plus handling to job definition. Requested by Rodney Walker et al (Job)
+Created postGetJobActions() (Experiment, ATLASExperiment)
+Added rel_N to path if possible in getInstallDir() (ATLASExperiment)
+Only adding 'atlas_app/atlas_rel' to appdir if dir actually exists (pUtil)
+Added missing declaration of strXML in createFinalMetadata() (JobLog)
+Corrected ERR_NOATHENAMETADATA -> ERR_NOPAYLOADMETADATA in updatePandaServer() (PandaServerClient)
+Sending eventService boolean to mover_get_data() from get_data() (Mover)
+Added eventService argument to mover_get_data() (Mover)
+Sending eventService boolean to PFC4TURLs() from mover_get_data() (Mover)
+Added eventService argument to PFC4TURLs() (Mover)
+Sending eventService boolean to shouldPFC4TURLsBeCreated() from PFC4TURLs() (Mover)
+Added eventService argument to shouldPFC4TURLsBeCreated() (Mover)
+Overriding status boolean for event service in shouldPFC4TURLsBeCreated() (Mover)
+Added new logic for old/newPrefix in getPrefices() affected jobs using TURLs - make sure this doesn't affect FAX jobs (Mover)
+Checking if dbh exists before using it in isDBReleaseFile(). Needed for event service (i.e. runEvent will use code that uses isDBReleaseFile()
+but there is no dbh in that case) (Mover)
+Corrected fastCleanup() calls with too few arguments (two times in runMain()) (pilot)
+Added get/updateEventRanges to httpConnect() (pUtil)
+Added scopeIn, scopeOut, scopeLog to displayJob() (Job)
+Renamed logFile to filename, siteWorkdir to workdir in createFinalMetadata() (JobLog)
+Renamed createFinalMetadata() to createMetadataForOutput() (JobLog)
+Supporting TURL based PFCs in getOutFilesGuids() (RunJobUtilities)
+Created a new createFileMetadata() function for Event Service output files (runEvent)
+Added objectStorePath argument and handling to PFCxml() (pUtil)
+Removed call to backupPFC4Mover() in mover_get_data() (Mover)
+Now using default name PFC.xml instead of PoolFileCatalog.xml in getFileInfo() and mover_get_data() (Mover)
+Created getFileListFromXML(), getFileInfoFromXML(), getFileInfoDictionaryFromXML() to be used from runEvent (Mover)
+Corrected wrong variables names in updatePandaServer() causing job recovery to fail (pilot)
+Using new setup of asetup in getVerifiedAtlasSetupPath() for nightlies and skipping path verification (ATLASExperiment)
+Updated verifySetupCommand() to handle modern asetup verification (pUtil)
+Updated setJobDef() to handle swRelease cases like "Atlas-19.0.X.Y-VAL"
+Removed runJob.py from distribution. Replaced by RunJob.py
+Removed UberftpSiteMover.py from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed atlasProdPilot.py from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed dq2SiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed SRMSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed COGSiteMover from distribution (and updated SiteMoverFarm.py, my_proxy_utils.py, glexec_utils.py)
+Removed GOSiteMover from distribution (andupdated SiteMoverFarm.py and glexec_utils.py)
+Created __allowLoopingJobKiller(), used by __check_looping_jobs() (Monitor)
+Removed number of hosts limitation in getPoolFileCatalog() related to FAX jobs, requested by Johannes Elmsheuser (Mover)
+Created getGUID() and isValidGUID() (pUtil)
+Now using getGUID() instead of explicit uuidgen in Job, JobLog, pUtil, pilot
+Added new error code 1219, ERR_UUIDGEN, "Command uuidgen failed" to PilotErrors
+Moved getSwbase() from pUtil to ATLASExperiment
+Renamed createJobSetupScript() to updateJobSetupScript() (pUtil)
+Moved updateJobSetupScript() from pUtil to Experiment, method used by Monitor
+Added updateJobSetupScript() to ATLASExperiment
+Updated RunJob for updateJobSetupScript(), added thisExperiment to executePayload (RunJob)
+Removed addToJobSetupScript import and added getExperiment (curlSiteMover, aria2cSiteMover, xrdcpSiteMover, lcgcpSiteMover, stormSiteMover)
+Extracting experiment variable in get_data(), forwarding it to core_get_data() which uses it to get thisExperiment (curlSiteMover, lcgcpSiteMover)
+Extracting experiment variable in get_data() which uses it to get thisExperiment (xrdcpSiteMover)
+Now using updateJobSetupScript() instead of addToJobSetupScript() (curlSiteMover, xrdcpSiteMover, lcgcpSiteMover, stormSiteMover)
+Created purgeTokenExtractorDirs(), used by cleanup() (Cleaner)
+Moved verifyProxy() and interpretProxyInfo() from SiteMover to Experiment
+Removed function verifyProxyValidity(), no longer needed (pilot, pUtil)
+Removed function __verifyProxyValidity(), no longer needed (Monitor)
+Now using Experiment::verifyProxy() (pilot, Monitor, castorSiteMover, GFAL2SiteMover, aria2cSiteMover, curlSiteMover, lcgcpSiteMover, lcgcp2SiteMover)
+Added new argument -H <cache> used by LSST (pilot)
+Added new environment field, cache (environment)
+Added new argument -I to argParser() (pilot)
+Now using schedconfigURL instead of pshttpurl in handleQueuedata() calls (pilot, Monitor)
+Removed getPanDAServerURL(), not needed (Experiment)
+Renamed atlasRelease to release (Job, ATLASExperiment, JEMstub, NordugridATLASExperiment, RunJob, runEvent)
+Removed import of unused function getAtlasRelease() (PandaServerClient)
+Renamed getAtlasRelease() to getRelease() (pUtil)
+Moved getRelease() from pUtil to Experiment, ATLASExperiment, CMSExperiment
+Updated convertSURLtoTURLUsingHTTP() to use new schedconfig fields allowhttp and httpredirector. Code from Johannes Elmsheuser (Mover)
+Created setCache(), getCache() and added new data member __cache (Experiment)
+Added -H option to getSubprocessArguments() (Experiment)
+Added cache option to argumentParser() (RunJob)
+Added __cache data member (RunJob)
+Now sending __cache to setCache() in __main__() (RunJob)
+Removed unused dsname from getPoolFileCatalog() call in getPoolFileCatalog() (runEvent)
+Removed unused dsname from getPoolFileCatalog() call in createPFC4TRF() (EventService)
+Removed unused dsname from getPoolFileCatalog() call in getFileInfo(), (Mover)
+Removed unused dsname from getPoolFileCatalog() (Mover)
+Improved exception handling in getFileCatalog() (ATLASExperiment)
+Removed outdated code related to LRC and FileRegistration usage in transferActualLogFile() (JobLog)
+Removed outdated code related to LRC and FileRegistration usage in stageOut() (RunJob)
+Removed outdated code related to LRC and FileRegistration usage in moveLostOutputFiles() (pilot)
+Removed dq2url argument from transferLogFile() (JobLog)
+Removed dq2url usages related to transferLogFile() (pilot)
+Removed dq2url from RunJobEvent
+Removed dq2url usage in getAnalysisRunCommand() (Experiment)
+Removed dq2url usage for RunJobEvent in getSubprocessArguments() (Experiment)
+Renamed lfcRegistration to fileCatalogRegistration in RunJob
+Increased the maximum allowed LFN string length from 150 to 255 characters. Requested by Asoka de Silva et al (pUtil)
+Added scope_dict to sitemover_get_all_data() call in mover_get_data(), requested by Cedric Serdon (Mover)
+Added scope_dict argument to sitemover_get_all_data(), requested by Cedric Serdon (Mover)
+Added scope_dict to get_data() call in sitemover_get_all_data(), requested by Cedric Serdon (Mover)
+Added scope_dict to get_data() (aria2cSiteMover)
+Created extractHPCInfo() (pUtil)
+getSubprocessName() is now using extractHPCInfo() (Experiment)
+Updated getSubprocessName() for HPCs and event service jobs (Experiment)
+Added support for catchall field in allowAlternativeStageOut() (ATLASSiteInformation)
+Created getCVMFSPath(), used by testCVMFS(), verifyProxy() (ATLASExperiment)
+Created getFileSystemRootPath(), used by getLocalROOTSetup() (ATLASSiteInformation)
+Created getLocalROOTSetup(), used by site movers (ATLASSiteInformation)
+Sending si object to getLocalROOTSetup() from get_data(), put_data() (objectstoreSiteMover, FAXSiteMover)
+Added experiment variable to put_data() (objectstoreSiteMover, FAXSiteMover)
+Updated getLocalROOTSetup() to use si object to get path (objectstoreSiteMover, FAXSiteMover)
+Simplified verifySetupCommand() used by site movers. Moved longer version to ATLASExperiment (pUtil, ATLASExperiment)
+Updated doSpecialLogFileTransfer() to use catchall field for log to objectstore activation (ATLASExperiment)
+transferLogFile() is now using doSpecialLogFileTransfer() and the objectstoreSiteMover (JobLog)
+Removed outdated URLBASE from Mover, including its usage in mover_get/put_data() (Mover)
+Added aria2c to exception for file not being local in getCatalogFileList(), requested by Johannes Elmsheuser (Mover)
+Added pfc_name argument to get_data() (Mover)
+Sending inputpoolfcstring variable to mover_get_data() in get_data() (Mover)
+Added pfc_name argument to stageIn(), and sending it to Mover::get_data() (RunJob)
+Replaced analJob with analysisJob in RunJob
+Updated "Exception caught by runJob" -> "Exception caught by RunJob*" (PilotErrors)
+Updated comments in several modules; runJob -> RunJob
+Added the new classes to glexec_utils.py (see 'Added to distribution below')
+Corrected a missing argument (experiment) in call to pUtil.postJobTask() in runMain() (pilot)
+Created verifyJobState() used by toServer() (pUtil)
+Added jobsetID data member plus handling in Job class (Job)
+Added convertToLFNs() used by createFileMetadata() (RunJobEvent)
+Took back missing getsetWNMem(), duplicate from Monitor for now (pilot)
+Created updateDispatcherData4ES() and added a call to it from toServer() (pUtil)
+Created createEventRangeFileDictionary(), writeToInputFile(), getEventRangeInputFiles() used by updateDispatcherData4ES() (pUtil)
+Added exception for FAX failover jobs when sending info to PandaLogger from updatePandaServer(). Requested by
+Ilija Vukotic (PandaServerClient)
+Created getPrimaryRucioReplica() used by getCatalogFileList() to only select replicas with rucio paths in FAX mode. Requested
+by Ilija Vukotic (Mover)
+Updated doFileVerifications() for mv, used by Mover::verifyAvailableSpace() (SiteMover)
+Skipping input file size verification for mv site mover in verifyAvailableSpace(). Requested by Andrej Filipcic (Mover)
+Now sending env['experiment'] to httpConnect from getNewJob(), needed for updating copytoolin for merge jobs (pilot)
+Added experiment argument to httpConnect() and using it in toServer() call (pUtil)
+Added experiment argument to toServer() and sending it to updateDispatcherData4ES() (pUtil)
+Added missing signal.SIGUSR1 to __init__() (Monitor)
+Added missing signal.SIGUSR1 to __main__() (RunJob, RunJobEvent)
+
+Code contributions from Wen Guan, May 30, 2014:
+
+Added GFAL2SiteMover
+Updated SiteMoverFarm for GFAL2SiteMover
+Added new error code 1218, ERR_FILEEXISTS (PilotErrors)
+Added several new methods to SiteInformation as part of site mover refactoring: getCopySetup(), getCopyTool(), getCopyPrefix(), 
+getCopyFileAccessInfo(), getDirectInAccessMode() [currently used by GFAL2SiteMover only]
+objectstoreSiteMover
+
+Code contributions from Wen Guan, July 24, 2014
+
+update GFAL2SiteMover add getLocalEMISetup which uses ATLASSiteInformation to get setup command
+Add TimerCommand 
+update PilotErros add ERR_GETKEYPAIR
+update PilotErros add function getErrorName which get the error name from the error code
+add S3ObjectstoreSiteMover
+update ATLASSiteInformation add __securityKeys dict
+update ATLASSiteInformation add getSecurityKey function
+update ATLASSiteInformation update getLocalEMISetup to add --force in cvmfs
+update SiteInformation add getCopyPrefixList, getCopyPrefixPath, getSecurityKey, setSecurityKey
+rename ObjectstoreSiteMover to xrootdObjectstoreSiteMover
+refactor xrootdObjectstoreSiteMover, xrdcpSiteMover, FAXSiteMover
+add S3ObjectstoreSiteMover
+create new ObjectstoreSiteMover which will use implementation of xrootdObjectstoreSiteMover or S3ObjectstoreSiteMover
+refactor LocalSiteMover
+update SiteMover add useTracingService variable and update function sendTrace to add "if not self.useTracingService"
+update pUtil to fix extractFilePaths which can replace multiple environment variables in setup
+update xrdcpSiteMover add "thisExperiment.updateJobSetupScript" in stageInFiles
+fix bug in S3ObjectstoreSiteMover to add "create=True" when stageOutFile
+
+Code contribution from Vincenzo Lavorini, July 29, 2014
+
+Added the subprocess method Popen and Call, for managing CURL calls;
+Added filename and scope to the replica class
+In the __init__ phase of aria2cSiteMover class a rucio token is taken by a CURL call; the token is then saved to a file. N.B. The CURL call
+expect to have the $X509_USER_PROXY and the $RUCIO_ACCOUNT defined; the self.getSurl2httpsMap is deleted;
+In th surls2metalink method, the rucio token on the file i open, and the metalink is retrieved by a CURL call;
+get_data() now accepts a scope
+and last, in order to get the mover to work, I had to initialize the srmhost=None in surls2metalink method. But maybe this row must be deleted
+
+------------------------------------------------------
+
+Added to distribution:
+CHANGES                       : This file
+Configuration.py              : Singleton dictionary that can be read from JSON file
+CustomEncoder.py              : Convert configuration object to JSON
+Monitor.py                    : Monitoring loop of the pilot
+UpdateHandler.py              : Utility class
+WatchDog.py                   : Process cleanup
+environment.py                : Defaults for global variables
+glexec_aux.py                 : Entry point for glExec sandbox [merge with pilot.py?]
+glexec_utils.py               : glExec utilities, renamed from my_proxy_utils.py
+processes.py                  : Process handling
+runEvent.py                   : Subprocess module for Event Service use (replaced by RunJobEvent, runEvent removed from SVN)
+EventServiceFactory.py        : Factory for generating Event Service objects that can be experiment specific
+EventService.py               : Main class for Event Service classes (can be extended with ATLASEventService e.g.)
+ATLASEventService.py          : ATLAS specific event service class
+PilotYamplServer.py           : Yampl server class used by runEvent
+StoppableThread.py            : Threading class for threads that need a stop() method
+GFAL2SiteMover.py             : New site mover for GFAL2
+objectstoreSiteMover.py       : New site mover for Object Stores
+RunJob*.py                    : New RunJob classes
+TimerCommand.py               : New timer module
+xrootdObjectstoreSiteMover.py : Object store class using xrootd
+S3ObjectstoreSiteMover.py     : Object store class using S3 API
+
+Note: new modules have to be added to glexec_utils.py.
+
+Add new error code to DB
