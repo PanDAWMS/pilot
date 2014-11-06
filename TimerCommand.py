@@ -40,7 +40,7 @@ class TimerCommand(object):
 
     def runFunction(self, func, args, timeout=3600):
         def target(func, args, retQ):
-            ret= func(args)
+            ret= func(*args)
             retQ.put(ret)
             
         retQ = Queue()

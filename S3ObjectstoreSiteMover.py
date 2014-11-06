@@ -3,6 +3,7 @@ import commands
 from time import time
 import urlparse
 
+from TimerCommand import TimerCommand
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
@@ -18,7 +19,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     # no registration is done
     copyCommand = "S3"
     checksum_command = "adler32"
-    timeout = 3600
+    timeout = 600
 
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path.strip()
@@ -36,7 +37,8 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if not os.environ.get("PYTHONPATH"):
             os.environ["PYTHONPATH"] = "/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/"
         else:
-            os.environ["PYTHONPATH"] = "/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/" + ":" + os.environ["PYTHONPATH"]
+            if 'boto' not in os.environ["PYTHONPATH"]:
+                os.environ["PYTHONPATH"] = "/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/" + ":" + os.environ["PYTHONPATH"]
         if os.environ.get("http_proxy"):
             del os.environ['http_proxy']
         if os.environ.get("https_proxy"):
@@ -383,26 +385,48 @@ class S3ObjctStore:
         md5 = key.get_metadata("md5")
         return key.size, md5
 
-    def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
-        key = self.get_key(source)
-        key.get_contents_to_filename(destination)
-        if key.md5 != key.etag.strip('"').strip("'"):
-            return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
-        if sourceSize and sourceSize != key.size:
-            return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
-        if sourceChecksum and sourceChecksum != key.md5:
-            return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+    def s3StageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
+        try:
+            key = self.get_key(source)
+            if key is None:
+                return -1, "source file(%s) cannot be found" % source
+
+            key.get_contents_to_filename(destination)
+            if key.md5 != key.etag.strip('"').strip("'"):
+                return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
+            if sourceSize and sourceSize != key.size:
+                return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
+            if sourceChecksum and sourceChecksum != key.md5:
+                return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+        except Exception as e:
+            return -1, str(e)
         return 0, None
 
-    def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
-        key = self.get_key(destination, create=True)
-        key.set_metadata("md5", sourceChecksum)
-        size = key.set_contents_from_filename(source)
-        if key.md5 != key.etag.strip('"').strip("'"):
-            return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
-        if sourceSize and sourceSize != key.size:
-            return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
-        if sourceChecksum and sourceChecksum != key.md5:
-            return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+    def s3StageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
+        try:
+            key = self.get_key(destination, create=True)
+            if key is None:
+                return -1, "Failed to create S3 key on destionation(%s)" % destination
+
+            key.set_metadata("md5", sourceChecksum)
+            size = key.set_contents_from_filename(source)
+            if key.md5 != key.etag.strip('"').strip("'"):
+                return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
+            if sourceSize and sourceSize != key.size:
+                return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
+            if sourceChecksum and sourceChecksum != key.md5:
+                return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+        except Exception as e:
+            return -1, str(e)
         return 0, None
+
+    def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
+        timerCommand = TimerCommand()
+        ret = timerCommand.runFunction(self.s3StageInFile, args=(source, destination, sourceSize, sourceChecksum), timeout=600)
+        return ret
+
+    def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
+        timerCommand = TimerCommand()
+        ret = timerCommand.runFunction(self.s3StageOutFile, args=(source, destination, sourceSize, sourceChecksum, token), timeout=600)
+        return ret
 
