@@ -1,5 +1,5 @@
 # Class definition:
-#   RunJobTitan
+#   RunJobAnselm
 #   [Add description here]
 #   Instances are generated with RunJobFactory via pUtil::getRunJob()
 #   Implemented as a singleton class
@@ -65,60 +65,6 @@ class RunJobAnselm(RunJobHPC):
         # in environment.py (see e.g. loopingLimitDefaultProd)
 
         return False
-    
-    def get_hpc_resources(self, partition, max_nodes = None):
-    
-        #  Function collect information about current available resources and  
-        #  return number of nodes with possible maximum value for walltime according Titan policy
-        #
-        
-        cmd = 'showbf --blocking -p %s' % partition
-        res_tuple = commands.getstatusoutput(cmd)
-        showbf_str = ""
-        if res_tuple[0] == 0:
-            showbf_str = res_tuple[1]
-    
-        res = {}
-        tolog ("Available resources in %s  partition" % partition)
-        tolog (showbf_str)
-        if showbf_str:
-            shobf_out = showbf_str.splitlines()
-            tolog ("Fitted resources")
-            for l in shobf_out[2:]:
-                d = l.split()
-                nodes = int(d[2])
-                if not d[3] == 'INFINITY':
-                    wal_time_arr =  d[3].split(":")
-                    if len(wal_time_arr) < 4:
-                        wal_time_sec = int(wal_time_arr[0])*(60*60) + int(wal_time_arr[1])*60 + int(wal_time_arr[2]) 
-                        if wal_time_sec > 24 * 3600:
-                            wal_time_sec = 24 * 3600
-                    else:
-                        wal_time_sec = 24 * 3600
-                        if nodes > 1:
-                            nodes = nodes - 1
-                else:
-                    wal_time_sec = 12 * 3600
-                
-                # Fitting Titan policy 
-                # https://www.olcf.ornl.gov/kb_articles/titan-scheduling-policy/
-                if max_nodes:
-                    nodes = max_nodes if nodes > max_nodes else nodes
-                
-                if nodes < 125 and wal_time_sec > 2 * 3600:
-                    wal_time_sec = 2 * 3600
-                elif nodes < 312 and wal_time_sec > 6 * 3600:
-                    wal_time_sec = 6 * 3600
-                elif wal_time_sec > 12 * 3600:
-                    wal_time_sec = 12 * 3600
-                    
-                
-                tolog ("Nodes: %s, Walltime (str): %s, Walltime (min) %s" % (nodes, d[3], wal_time_sec/60 ))
-    
-                res.update({nodes:wal_time_sec}) 
-        
-        return res
-
 
     def jobStateChangeNotification(self, src_obj, fire_on, value):
         tolog("Job state changed to '%s'" % value)
@@ -130,13 +76,7 @@ class RunJobAnselm(RunJobHPC):
         
         t0 = os.times() 
         res_tuple = (0, 'Undefined')
-    
-        # special setup command. should be placed in queue defenition (or job defenition) ?
-        #setup_commands = ['source $MODULESHOME/init/bash',
-        #                  'source $PROJWORK/csc108/panitkin/setuptitan', 
-        #                  'export LD_LIBRARY_PATH=/opt/cray/lib64:$LD_LIBRARY_PATH',
-        #                  'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH']
-        
+            
         setup_commands = ['module load openmpi']
         
         cpu_number = self.cpu_number_per_node * self.nodes
@@ -266,7 +206,7 @@ if __name__ == "__main__":
     # Get runJob object
     runJob = RunJobAnselm()
     
-    # Setup HPC specific parameters for Titan
+    # Setup HPC specific parameters for Anselm
     
     runJob.cpu_number_per_node = 16
     runJob.walltime = 30
@@ -275,7 +215,6 @@ if __name__ == "__main__":
     runJob.min_walltime = 30 
     runJob.waittime = 5
     runJob.nodes = 2
-    #runJob.partition_comp = 'titan'
     runJob.project_id = "DD-13-2"
     runJob.executed_queue = readpar('localqueue') 
     
@@ -543,9 +482,9 @@ if __name__ == "__main__":
         error = PilotErrors()
 
         if runJob.getGlobalPilotErrorDiag() != "":
-            pilotErrorDiag = "Exception caught in runJobTitan: %s" % (runJob.getGlobalPilotErrorDiag())
+            pilotErrorDiag = "Exception caught in runJobAnselm: %s" % (runJob.getGlobalPilotErrorDiag())
         else:
-            pilotErrorDiag = "Exception caught in runJobTitan: %s" % str(errorMsg)
+            pilotErrorDiag = "Exception caught in runJobAnselm: %s" % str(errorMsg)
 
         if 'format_exc' in traceback.__all__:
             pilotErrorDiag += ", " + traceback.format_exc()    
