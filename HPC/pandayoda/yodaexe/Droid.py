@@ -42,8 +42,10 @@ class Droid:
     def postExecJob(self):
         if self.__copyInputFiles and self.__inputFiles is not None and self.__poolFileCatalog is not None:
             for inputFile in self.__inputFiles:
-                os.remove(inputFile)
-            
+                localInputFile = os.path.join(os.getcwd(), os.path.basename(inputFile))
+                self.__tmpLog.debug("Rank %s: Remove input file: %s" % (self.__rank, localInputFile))
+                os.remove(localInputFile)
+
         if self.__globalWorkingDir != self.__localWorkingDir:
             command = "mv " + self.__currentDir + " " + self.__globalWorkingDir
             self.__tmpLog.debug("Rank %s: copy files from local working directory to global working dir(cmd: %s)" % (self.__rank, command))
