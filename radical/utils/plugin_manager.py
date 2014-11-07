@@ -89,6 +89,9 @@ class PluginManager (object) :
 
     At this point, we leave the definition of the exact plugin signatures open,
     but expect that to be more strictly defined per plugin type in the future.
+
+    Note that the PluginManager construction is, at this point, not considered
+    thread safe.
     """
 
 
@@ -109,7 +112,6 @@ class PluginManager (object) :
 
         # load adaptors if registry didn't have any registered, yet
         if  not self._plugins :
-            self._plugins = dict ()
             self._load_plugins ()
             self._registry.register (self._namespace, self._plugins)
 
@@ -121,6 +123,9 @@ class PluginManager (object) :
         Load all plugins for the given namespace.  Previously loaded plugins
         are overloaded.
         """
+
+        # start wish a fresh plugin registry
+        self._plugins = dict () 
 
         self._logger.info ('loading plugins for namespace %s' % self._namespace)
 
@@ -151,8 +156,15 @@ class PluginManager (object) :
                 # from the full plugin file name, derive a short name for more
                 # useful logging, duplication checks etc. -- simply remove the
                 # namespace path portion...
-                idx    = pfile.find (npath) 
-                pshort = pfile[idx:]
+                if  pfile.startswith (spath) :
+                    pshort = pfile[len(spath):]
+                else :
+                    pshort = pfile
+
+              # print "pfile : %s" % pfile
+              # print "npath : %s" % npath
+              # print "spath : %s" % spath
+              # print "pshort: %s" % pshort
 
                 # check for duplication
                 if  pshort in seen :
@@ -192,20 +204,19 @@ class PluginManager (object) :
 
                     # make sure details are complete
                     if  not ptype  : 
-                        self._logger.warn ('not plugin type in %s' % pshort)
+                        self._logger.error ('no plugin type in %s' % pshort)
                         continue
 
                     if  not pname  : 
-                        self._logger.warn ('not plugin name in %s' % pshort)
+                        self._logger.error ('no plugin name in %s' % pshort)
                         continue
 
                     if  not pvers  : 
-                        self._logger.warn ('not plugin version in %s' % pshort)
+                        self._logger.error ('no plugin version in %s' % pshort)
                         continue
 
                     if  not pdescr : 
-                        self._logger.warn ('not plugin description in %s'
-                                % pshort)
+                        self._logger.error ('no plugin description in %s' % pshort)
                         continue
 
                     # now put the plugin and plugin info into the plugin
@@ -229,7 +240,7 @@ class PluginManager (object) :
                     self._logger.info  ('loading plugin %s' % pshort)
 
                 except Exception as e :
-                    self._logger.warn ('loading plugin %s failed: %s' % (pshort, e))
+                    self._logger.error ('loading plugin %s failed: %s' % (pshort, e))
 
 
     #---------------------------------------------------------------------------

@@ -3,15 +3,21 @@ __author__    = "Radical.Utils Development Team (Andre Merzky)"
 __copyright__ = "Copyright 2013, RADICAL@Rutgers"
 __license__   = "MIT"
 
+import re
+import fnmatch
 
 # see http://code.activestate.com/recipes/117236-dictionary-mixin-framework/
 
 # ------------------------------------------------------------------------------
 #
 class DictMixin :
-    '''Mixin defining all dictionary methods for classes that already have
-       a minimum dictionary interface including getitem, setitem, delitem,
-       and keys '''
+    '''
+    Mixin defining all dictionary methods for classes that already have
+    a minimum dictionary interface including getitem, setitem, delitem,
+    and keys.  Based on those methods, the mixin provides the remaining
+    interface functionality to make the class look like a fully compliant
+    dictionary.
+    '''
 
     # --------------------------------------------------------------------------
     #
@@ -102,7 +108,7 @@ class DictMixin :
 
 # ------------------------------------------------------------------------------
 #
-def dict_merge (a, b, policy=None, logger=None, _path=[]):
+def dict_merge (a, b, policy=None, wildcards=False, logger=None, _path=[]):
     # thanks to 
     # http://stackoverflow.com/questions/7204805/python-dictionaries-of-dictionaries-merge
     """
@@ -126,49 +132,68 @@ def dict_merge (a, b, policy=None, logger=None, _path=[]):
     if  not isinstance (b, dict) :
         raise TypeError ("*dict*_merge expects dicts, not '%s'" % type(b))
 
+            
+    # --------------------------------------------------------------------------
+    def merge_key (a, key_a, b, key_b) :
 
+        # need to resolve conflict
+        if  isinstance (a[key_a], dict) and isinstance (b[key_b], dict):
+            dict_merge (a[key_a], b[key_b], 
+                        policy    = policy, 
+                        wildcards = wildcards, 
+                        logger    = logger, 
+                        _path     = _path + [str(key)])
+        
+        elif a[key_a] == b[key_b]:
+            pass # same leaf value
+
+        elif  not a[key_a] and b[key_b] :
+            a[key_a] = b[key_b] # use b value
+
+        elif  not b[key_b] and a[key_a] :
+            pass # keep a value
+
+        elif  not b[key_b] and not a[key_a] :
+            pass # keep no a value
+
+        else:
+            if  policy == 'preserve' :
+                if  logger :
+                    logger.debug ("preserving key %s:%s \t(%s)" % (":".join(_path), key_b, b[key_b]))
+                pass # keep original value
+
+            elif policy == 'overwrite' :
+                if  logger :
+                    logger.debug ("overwriting key %s:%s \t(%s)" % (":".join(_path), key_b, b[key_b]))
+                a[key] = b[key] # use new value
+
+            else :
+                raise ValueError ('Conflict at %s (%s : %s)' \
+                               % ('.'.join(_path + [str(key)]), a[key_a], b[key_b]))
+    # --------------------------------------------------------------------------
+
+    # first a clean merge, i.e. no interpretation of wildcards
     for key in b:
         
         if  key in a:
 
-            # need to resolve conflict
-            if  isinstance (a[key], dict) and isinstance (b[key], dict):
-                dict_merge (a[key], b[key], 
-                            policy = policy, 
-                            logger = logger, 
-                            _path  = _path + [str(key)])
-            
-            elif a[key] == b[key]:
-                pass # same leaf value
-
-            elif  not a[key] and b[key] :
-                a[key] = b[key] # use b value
-
-            elif  not b[key] and a[key] :
-                pass # keep a value
-
-            elif  not b[key] and not a[key] :
-                pass # keep no a value
-
-            else:
-                if  policy == 'preserve' :
-                    if  logger :
-                        logger.debug ("preserving key %s:%s \t(%s)" % (":".join(_path), key, b[key]))
-                    pass # keep original value
-
-                elif policy == 'overwrite' :
-                    if  logger :
-                        logger.debug ("overwriting key %s:%s \t(%s)" % (":".join(_path), key, b[key]))
-                    a[key] = b[key] # use new value
-
-                else :
-                    raise ValueError ('Conflict at %s (%s : %s)' \
-                                   % ('.'.join(_path + [str(key)]), a[key], b[key]))
+        # need to resolve conflict
+            merge_key (a, key, b, key)
         
         else:
             # no conflict - simply add.  Not that this is a potential shallow
             # copy if b[key] is a complex type.
             a[key] = b[key]
+
+
+    # optionally, check if other merge options are also valid
+    for key_b in b:
+        if  wildcards :
+            if  '*' in key_b :
+                pat = re.compile (fnmatch.translate (key_b))
+                for key_a in a :
+                    if  pat.match (key_a) :
+                        merge_key (a, key_a, b, key_b)
 
     return a
 

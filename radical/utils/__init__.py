@@ -15,7 +15,7 @@ from lockable       import Lockable
 from registry       import Registry, READONLY, READWRITE
 from regex          import ReString, ReSult
 from reporter       import Reporter
-#from benchmark      import Benchmark
+from benchmark      import Benchmark
 from lease_manager  import LeaseManager
 
 # import utility methods
@@ -26,10 +26,14 @@ from read_json      import parse_json
 from read_json      import parse_json_str
 from tracer         import trace, untrace
 from which          import which
-from misc           import split_dburl #, mongodb_connect
+from misc           import split_dburl, mongodb_connect
 from misc           import parse_file_staging_directives 
 from misc           import time_diff
+from misc           import DebugHelper
 from get_version    import get_version
+
+# import decorators
+from timing         import timed_method
 
 # import sub-modules
 # from config         import Configuration, Configurable, ConfigOption, getConfig
@@ -42,8 +46,8 @@ import os
 
 _mod_root = os.path.dirname (__file__)
 
-version        = '0.7.7'  #open (_mod_root + "/VERSION",     "r").readline ().strip ()
-version_detail = 'la la la' # open (_mod_root + "/VERSION.git", "r").readline ().strip ()
+version        =   "0.7.8" #open (_mod_root + "/VERSION",     "r").readline ().strip ()
+version_detail =   "standalone" #open (_mod_root + "/VERSION.git", "r").readline ().strip ()
 
 
 # ------------------------------------------------------------------------------

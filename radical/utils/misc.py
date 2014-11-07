@@ -2,7 +2,6 @@
 
 import os
 import regex
-#import pymongo
 import url as ruu
 
 
@@ -59,7 +58,7 @@ def split_dburl (dburl, default_dburl=None) :
 
     return [host, port, dbname, cname, pname, user, pwd]
 
-'''
+
 # ------------------------------------------------------------------------------
 #
 def mongodb_connect (dburl, default_dburl=None) :
@@ -67,6 +66,17 @@ def mongodb_connect (dburl, default_dburl=None) :
     connect to the given mongodb, perform auth for the database (if a database
     was given).
     """
+
+    try :
+        import pymongo
+    except ImportError :
+        msg  = " \n\npymongo is not available -- install radical.utils with: \n\n"
+        msg += "  (1) pip install --upgrade -e '.[pymongo]'\n"
+        msg += "  (2) pip install --upgrade    'radical.utils[pymongo]'\n\n"
+        msg += "to resolve that dependency (or install pymongo manually).\n"
+        msg += "The first version will work for local installation, \n"
+        msg += "the second one for installation from pypi.\n\n"
+        raise ImportError (msg)
 
     [host, port, dbname, cname, pname, user, pwd] = split_dburl (dburl, default_dburl)
 
@@ -91,7 +101,7 @@ def mongodb_connect (dburl, default_dburl=None) :
 
 
     return mongo, db, dbname, cname, pname
-'''
+
 
 # ------------------------------------------------------------------------------
 #
@@ -169,4 +179,84 @@ def time_diff (dt_abs, dt_stamp) :
 
 
 # ------------------------------------------------------------------------------
+#
+def _get_stacktraces () :
+
+    import sys
+    import threading
+    import traceback
+
+    id2name = {}
+    for th in threading.enumerate():
+        id2name[th.ident] = th.name
+
+    code = []
+    for threadId, stack in sys._current_frames().items():
+        code.append("\n# Thread: %s(%d)" % (id2name[threadId], threadId))
+
+        for filename, lineno, name, line in traceback.extract_stack(stack):
+            code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+
+            if line:
+                code.append(" %s" % (line.strip()))
+
+    return "\n".join(code)
+
+
+# ------------------------------------------------------------------------------
+#
+class DebugHelper (object) :
+    """
+    When instantiated, and when "RADICAL_DEBUG" is set in the environmant, this
+    class will install a signal handler for SIGINFO.  When that signal is
+    received, a stacktrace for all threads is printed to stdout.  Note that 
+    <CTRL-T> also triggers that signal on the terminal.
+    """
+
+    def __init__ (self) :
+        import os
+
+        if 'RADICAL_DEBUG' in os.environ :
+            import signal
+            signal.signal(signal.SIGINFO, self.dump_stacktraces)
+
+
+    def dump_stacktraces (self, a, b) :
+        print _get_stacktraces ()
+
+
+# ------------------------------------------------------------------------------
+#
+def all_pairs (iterable, n) :
+    """
+    s -> (s0,s1,s2,...sn-1), (sn,sn+1,sn+2,...s2n-1), (s2n,s2n+1,s2n+2,...s3n-1), ...
+    """
+
+    from itertools import izip
+    return izip(*[iter(iterable)]*n)
+
+
+# ------------------------------------------------------------------------------
+# From https://docs.python.org/release/2.3.5/lib/itertools-example.html
+#
+def window (seq, n=2) :
+    """
+    Returns a sliding window (of width n) over data from the iterable"
+    s -> (s0,s1,...s[n-1]), (s1,s2,...,sn), ... 
+    """
+
+    from itertools import islice
+
+    it = iter(seq)
+    result = tuple(islice(it, n))
+
+    if len(result) == n :
+        yield result
+
+    for elem in it :
+        result = result[1:] + (elem,)
+        yield result
+
+# ------------------------------------------------------------------------------
+
 

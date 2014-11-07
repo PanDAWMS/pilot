@@ -24,6 +24,11 @@ def translate_exception (e, msg=None) :
         # this seems to have a specific cause already, leave it alone
         return e
 
+    import traceback
+    import logging
+    logging.debug (traceback.format_exc())
+
+
     cmsg = e._plain_message
 
     if  msg :
@@ -44,7 +49,7 @@ def translate_exception (e, msg=None) :
         e = se.AuthorizationFailed (cmsg)
 
     elif 'man-in-the-middle' in lmsg :
-        e = se.AuthenticationFailed ("ssh key mismatch detected: %s" % cmesg)
+        e = se.AuthenticationFailed ("ssh key mismatch detected: %s" % cmsg)
 
     elif 'pass' in lmsg :
         e = se.AuthenticationFailed (cmsg)
