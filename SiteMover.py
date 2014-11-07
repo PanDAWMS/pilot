@@ -3,6 +3,7 @@
 
 import os
 import commands
+import json
 import re
 import time
 from urllib import urlopen, urlencode
@@ -925,6 +926,40 @@ class SiteMover(object):
         try:
             # take care of the encoding
             data = urlencode({'API':'0_3_0', 'operation':'addReport', 'report':report})
+
+            from SiteInformation import SiteInformation
+            si = SiteInformation()
+            sslCertificate = si.getSSLCertificate()
+
+            # create the command
+            cmd = 'curl --connect-timeout 20 --max-time 120 --cacert %s -v -k -d "%s" %s' % (sslCertificate, data, url)
+            tolog("Executing command: %s" % (cmd))
+            s,o = commands.getstatusoutput(cmd)
+            if s != 0:
+                raise Exception(str(o))
+        except:
+            # if something fails, log it but ignore
+            from sys import exc_info
+            tolog('!!WARNING!!2999!! tracing failed: %s' % str(exc_info()))
+        else:
+            tolog("Tracing report sent")
+
+        self.sendTraceToRucio(report)
+
+    def sendTraceToRucio(self, report):
+        """ go straight to the tracing server and post the instrumentation dictionary """
+
+        if not self.useTracingService:
+            tolog("Experiment is not using Tracing service. skip sending tracing report")
+            return
+
+        url = 'https://rucio-lb-prod.cern.ch/traces/'
+        tolog("Tracing server: %s" % (url))
+        tolog("Sending tracing report: %s" % str(report))
+        try:
+            # take care of the encoding
+            #data = urlencode({'API':'0_3_0', 'operation':'addReport', 'report':report})
+            data = json.dumps(report).replace('"','\\"')
 
             from SiteInformation import SiteInformation
             si = SiteInformation()

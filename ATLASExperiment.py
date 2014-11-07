@@ -203,6 +203,8 @@ class ATLASExperiment(Experiment):
                         return self.__error.ERR_SETUPFAILURE, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
                 else:
                     cmd2 = ""
+                if 'HPC_HPC' in readpar("catchall") and 'setup-quick.sh' in cmd1:
+                    cmd2 = "export G4ATLAS_SKIPFILEPEEK=1"
 
                 # Set special_setup_cmd if necessary
                 special_setup_cmd = self.getSpecialSetupCommand()
@@ -478,7 +480,7 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
         # Pipe stdout/err for payload to files
-        if 'HPC_Titan' not in readpar("catchall"):
+        if 'HPC_Titan' not in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
             cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
@@ -2580,6 +2582,8 @@ class ATLASExperiment(Experiment):
         transferLogToObjectstore = False
 
         if "log_to_objectstore" in readpar('catchall') or eventService:
+            transferLogToObjectstore = True
+        if 'HPC_HPC' in readpar('catchall'):
             transferLogToObjectstore = True
 
         return transferLogToObjectstore

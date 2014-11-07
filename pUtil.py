@@ -39,6 +39,7 @@ def getFileList(path_dir=None):
         file_list = filter(lambda x: x.endswith('.py'), os.listdir(path_dir))
         file_list.append('PILOTVERSION')
         file_list.append('saga')
+        file_list.append('HPC')
         tolog("Copying: %s" % str(file_list))
         return file_list
     except KeyError:
@@ -1901,6 +1902,8 @@ class _Curl:
     def get(self, url, data, path):
         # make command
         com = '%s --silent --get' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com = '%s --tls --silent --get' % self.path
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -1946,6 +1949,8 @@ class _Curl:
     def post(self, url, data, path):
         # make command
         com = '%s --silent --show-error' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com = '%s --tls --silent --show-error' % self.path
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -1990,6 +1995,8 @@ class _Curl:
     def put(self, url, data):
         # make command
         com = '%s --silent' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com = '%s --tls --silent' % self.path
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
