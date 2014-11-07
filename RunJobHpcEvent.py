@@ -133,7 +133,7 @@ class RunJobHpcEvent(RunJob):
         self.__job = job
         # prepare for the output file data directory
         # (will only created for jobs that end up in a 'holding' state)
-        self.__job.datadir = self.getParentWorkDir() + "/PandaJob_%d_data" % (job.jobId)
+        self.__job.datadir = self.getParentWorkDir() + "/PandaJob_%s_data" % (job.jobId)
 
         # See if it's an analysis job or not
         trf = self.__job.trf

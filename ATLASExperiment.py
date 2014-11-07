@@ -203,7 +203,7 @@ class ATLASExperiment(Experiment):
                         return self.__error.ERR_SETUPFAILURE, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
                 else:
                     cmd2 = ""
-                if 'HPC_HPC' in readpar("catchall") and 'setup-quick.sh' in cmd1:
+                if 'HPC_HPC' in readpar("catchall"):
                     cmd2 = "export G4ATLAS_SKIPFILEPEEK=1"
 
                 # Set special_setup_cmd if necessary
@@ -2198,6 +2198,16 @@ class ATLASExperiment(Experiment):
                     #cmd = "source"
                     #asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
                 asetup_path = "source $AtlasSetup/scripts/asetup.sh"
+
+        # for HPC
+        if 'HPC_HPC' in readpar("catchall"):
+            quick_setup = "%s/setup-quick.sh" % (path)
+            tolog("quick setup path: %s" % quick_setup)
+            if os.path.exists(quick_setup):
+                cmd = "source %s" % (quick_setup)
+                asetup_path = ""
+                cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease --skipFileValidation --checkEventCount=False"
+
         return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
@@ -2280,7 +2290,8 @@ class ATLASExperiment(Experiment):
 
             # Test CVMFS
             if status:
-                status = self.testCVMFS()
+                if not 'HPC_HPC' in readpar('catchall'):
+                    status = self.testCVMFS()
         
         return status
 
