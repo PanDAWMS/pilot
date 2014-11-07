@@ -2583,6 +2583,7 @@ def runMain(runpars):
                                              'sbin/glexec')
 		elif os.path.exists('/usr/sbin/glexec'):
 			glexec_path = '/usr/sbin/glexec'
+	                os.environ['GLEXEC_LOCATION'] = '/usr'
                 elif os.environ.has_key('GLITE_LOCATION'):
                         glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
                                              'sbin/glexec')

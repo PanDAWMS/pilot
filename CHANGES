@@ -521,6 +521,14 @@ Added time-outs to S3ObjectstoreSiteMover (Wen Guan)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+59e:
+
+Added altloc argument to getPayloadMetadataFilename() and its call in updatePandaServer() (PandaServerClient)
+Looking for jobReport in alt location, improved log mesages in getPayloadMetadataFilename() (PandaServerClient)
+Setting GLEXEC_LOCATION in case this is not already set to solve issues seen at Canadian sites. Code from Edward Karavakis (pilot, glexec_utils)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 Note: new modules have to be added to glexec_utils.py.
 
 TODO:

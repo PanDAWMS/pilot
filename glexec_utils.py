@@ -174,8 +174,9 @@ class GlexecInterface(object):
             self.__glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
                                              'sbin/glexec')
         elif os.path.exists('/usr/sbin/glexec'):
-	    pUtil.tolog('glexec is installed in the standard location')
+	    pUtil.tolog('glexec is installed in the standard location. Adding the missing GLEXEC_LOCATION env var')
             self.__glexec_path = '/usr/sbin/glexec'
+	    os.environ['GLEXEC_LOCATION'] = '/usr'
 	elif os.environ.has_key('GLITE_LOCATION'):
             self.__glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
                                              'sbin/glexec')
