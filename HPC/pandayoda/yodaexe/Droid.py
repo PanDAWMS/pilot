@@ -227,18 +227,18 @@ class Droid:
 
     def __del__(self):
         self.__tmpLog.info('Rank %s: __del__ function' % self.__rank)
-        self.__esJobManager.terminate()
-        self.__esJobManager.flushMessages()
-        output = self.__esJobManager.getOutput()
-        while output:
-            self.__tmpLog.info("Rank %s: get output(%s)" % (self.__rank, output))
-            self.updateEventRange(output)
-            output = self.__esJobManager.getOutput()
+        #self.__esJobManager.terminate()
+        #self.__esJobManager.flushMessages()
+        #output = self.__esJobManager.getOutput()
+        #while output:
+        #    self.__tmpLog.info("Rank %s: get output(%s)" % (self.__rank, output))
+        #    self.updateEventRange(output)
+        #    output = self.__esJobManager.getOutput()
 
-        self.__tmpLog.info("Rank %s: post exec job" % self.__rank)
-        self.postExecJob()
-        self.__tmpLog.info("Rank %s: finish job" % self.__rank)
-        self.finishJob()
+        #self.__tmpLog.info("Rank %s: post exec job" % self.__rank)
+        #self.postExecJob()
+        #self.__tmpLog.info("Rank %s: finish job" % self.__rank)
+        #self.finishJob()
 
         self.__tmpLog.info('Rank %s: __del__ function' % self.__rank)
 
