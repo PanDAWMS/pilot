@@ -66,7 +66,7 @@ class RunJobTitan(RunJobHPC):
 
         return False
     
-    def get_hpc_resources(self, partition, max_nodes = None):
+    def get_backfill(self, partition, max_nodes = None):
     
         #  Function collect information about current available resources and  
         #  return number of nodes with possible maximum value for walltime according Titan policy
@@ -118,7 +118,28 @@ class RunJobTitan(RunJobHPC):
                 res.update({nodes:wal_time_sec}) 
         
         return res
+    
+    def get_hpc_resources(self, partition, max_nodes = None, min_nodes = 1, min_walltime = 30):
 
+        nodes = min_nodes
+        walltime =  min_walltime       
+        default = True
+        
+        backfill = self.get_backfill(partition, max_nodes)
+        if backfill:
+            for n in sorted(backfill.keys(), reverse=True): 
+                if min_walltime <= backfill[n] and nodes <= n:
+                    nodes = n
+                    walltime = backfill[n] / 60 
+                    walltime = walltime - 2
+                    default = False
+                    break
+                if walltime <= 0:
+                    walltime = min_walltime
+                    nodes = min_nodes
+        
+        return nodes, walltime, default
+      
 
     def jobStateChangeNotification(self, src_obj, fire_on, value):
         tolog("Job state changed to '%s'" % value)
@@ -132,21 +153,21 @@ class RunJobTitan(RunJobHPC):
         res_tuple = (0, 'Undefined')
     
         # special setup command. should be placed in queue defenition (or job defenition) ?
-        #setup_commands = ['source $MODULESHOME/init/bash',
-        #                  'source $PROJWORK/csc108/panitkin/setuptitan', 
-        #                  'export LD_LIBRARY_PATH=/opt/cray/lib64:$LD_LIBRARY_PATH',
-        #                  'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH']
-        
         setup_commands = ['source $MODULESHOME/init/bash',
-                          'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH',
-                          'source $PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/AtlasSetup/scripts/asetup.sh 18.9.0,slc6,gcc47',
-                          'module load python',
-                          'source $PROJWORK/csc108/panitkin/setuptitan',
-                          'mkdir -p tmp',
-                          'export TEMP=$PWD/tmp',
-                          'export TMPDIR=$TEMP',
-                          'export TMP=$TEMP',
-                          'mkdir -p results']
+                          'source $PROJWORK/csc108/panitkin/setuptitan', 
+                          'export LD_LIBRARY_PATH=/opt/cray/lib64:$LD_LIBRARY_PATH',
+                          'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH']
+        
+        #setup_commands = ['source $MODULESHOME/init/bash',
+        #                  'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH',
+        #                  'source $PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/AtlasSetup/scripts/asetup.sh 18.9.0,slc6,gcc47',
+        #                  'module load python',
+        #                  'source $PROJWORK/csc108/panitkin/setuptitan',
+        #                  'mkdir -p tmp',
+        #                  'export TEMP=$PWD/tmp',
+        #                  'export TMPDIR=$TEMP',
+        #                  'export TMP=$TEMP',
+        #                  'mkdir -p results']
         
         
         # loop over all run commands (only >1 for multi-trfs)
@@ -154,8 +175,12 @@ class RunJobTitan(RunJobHPC):
         getstatusoutput_was_interrupted = False
         number_of_jobs = len(runCommandList)
         for cmd in runCommandList:
+            nodes, walltime, d = self.get_hpc_resources(self.partition_comp, self.max_nodes, self.nodes, self.min_walltime)
+            cpu_number = self.cpu_number_per_node * nodes
+            
+            '''
             walltime = 0
-            res = self.get_hpc_resources(self.partition_comp, self.max_nodes)
+            res = self.get_hpc_resources(self.partition_comp, self.max_nodes, )
             if res:
                 for n in sorted(res.keys(), reverse=True): 
                     if self.min_walltime <= res[n] and self.nodes <= n:
@@ -177,12 +202,12 @@ class RunJobTitan(RunJobHPC):
                 time.sleep(90)
                 repeat_num = repeat_num + 1
                 return self.executePayload(thisExperiment, runCommandList, job, repeat_num)
-                #self.walltime = self.min_walltime
-                #nodes = self.nodes
                 
             cpu_number = self.cpu_number_per_node * nodes
+            '''
             
-            tolog("Backfill parameters \nWalltime limit         : %s (min)\nRequested nodes (cores): %s (%s)" % (self.walltime,nodes,cpu_number))
+            
+            tolog("Launch parameters \nWalltime limit         : %s (min)\nRequested nodes (cores): %s (%s)" % (self.walltime,nodes,cpu_number))
                     
             current_job_number += 1
             try:
@@ -192,9 +217,9 @@ class RunJobTitan(RunJobHPC):
                 to_script =  to_script + "\n" + "\n".join(setup_commands)
                 #to_script = "%s\naprun -n %s -d %s %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
                 ''' Temporary, for multi-thread testing  '''
-                #to_script = "%s\naprun -n %s -d %s -cc 0,2,4,6,8,10,12,14 %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
+                to_script = "%s\naprun -n %s -d %s -cc 0,2,4,6,8,10,12,14 %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
                 ''' Floating point'''
-                to_script = "%s\naprun -n%s -S4 -j1 %s %s" % (to_script, cpu_number/2 ,cmd["payload"], cmd["parameters"])    
+                #to_script = "%s\naprun -n%s -S4 -j1 %s %s" % (to_script, cpu_number/2 ,cmd["payload"], cmd["parameters"])    
                 
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
                 
@@ -205,7 +230,7 @@ class RunJobTitan(RunJobHPC):
                     js = saga.job.Service("pbs://localhost")
                     jd = saga.job.Description()
                     jd.project = self.project_id # should be taken from resourse description (pandaqueue)
-                    jd.wall_time_limit = self.walltime 
+                    jd.wall_time_limit = walltime 
                     jd.executable      = to_script
                     jd.total_cpu_count = cpu_number 
                     jd.output = job.stdout
@@ -218,9 +243,9 @@ class RunJobTitan(RunJobHPC):
                     
                     #tolog("\n(PBS) Command: %s\n"  % to_script)
                     fork_job.run()
-                    #tolog("\nCommand was started at %s.\nState is: %s" % ( str(datetime.now()), fork_job.state))
+                    tolog("Local Job ID: %s" % fork_job.id)
                     
-                    for i in range(self.waittime):
+                    for i in range(self.waittime * 60):
                         time.sleep(1)
                         if fork_job.state != saga.job.PENDING:
                             break
@@ -325,11 +350,11 @@ if __name__ == "__main__":
     # Setup HPC specific parameters for Titan
     
     runJob.cpu_number_per_node = 16
-    runJob.walltime = 60
+    runJob.walltime = 120
     runJob.max_nodes = 2000 
     runJob.number_of_threads = 8  # 1 - one thread per task
-    runJob.min_walltime = 30 * 60
-    runJob.waittime = 5 * 60
+    runJob.min_walltime = 60
+    runJob.waittime = 5
     runJob.nodes = 1
     runJob.partition_comp = 'titan'
     runJob.project_id = "CSC108"
