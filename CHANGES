@@ -526,6 +526,8 @@ Added time-outs to S3ObjectstoreSiteMover (Wen Guan)
 Added altloc argument to getPayloadMetadataFilename() and its call in updatePandaServer() (PandaServerClient)
 Looking for jobReport in alt location, improved log mesages in getPayloadMetadataFilename() (PandaServerClient)
 Setting GLEXEC_LOCATION in case this is not already set to solve issues seen at Canadian sites. Code from Edward Karavakis (pilot, glexec_utils)
+Changed the max stage-out time to 10 h in __main__() (RunJobEvent)
+Added rucio_test to argParser() to allow this prodSourceLabel to run user jobs (pilot)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

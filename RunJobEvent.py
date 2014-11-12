@@ -2205,7 +2205,7 @@ if __name__ == "__main__":
 
         # Do not stop the stageout thread until all output files have been transferred
         starttime = time.time()
-        maxtime = 15*60
+        maxtime = 10*60*60
 #        while len (runJob.getStageOutQueue()) > 0 and (time.time() - starttime < maxtime):
 #            tolog("stage-out queue: %s" % (runJob.getStageOutQueue()))
 #            tolog("(Will wait for a maximum of %d seconds, so far waited %d seconds)" % (maxtime, time.time() - starttime))
