@@ -530,6 +530,7 @@ Changed the max stage-out time to 10 h in __main__() (RunJobEvent)
 Added rucio_test to argParser() to allow this prodSourceLabel to run user jobs (pilot)
 Created sendTraceToRucio() used from sendTrace(). Code from Wen Guan (SiteMover)
 Improved boto addition to PYTHONPATH. Code from Wen Guan (S3ObjectstoreSiteMover)
+Updated getDefaultDQ2SiteName() to handle complex se[prod]paths to fix a problem with GROUPDISK jobs (SiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

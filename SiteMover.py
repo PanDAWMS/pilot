@@ -3,7 +3,6 @@
 
 import os
 import commands
-import json
 import re
 import time
 from urllib import urlopen, urlencode
@@ -341,13 +340,26 @@ class SiteMover(object):
         """ Return the DQ2 site name using the schedconfig.se info """
 
         # Build a preliminary SURL using minimum information necessary for the getDQ2SiteName() method
-        _dummytoken, se = SiteMover.extractSE(readpar('se'))
+        default_token, se = SiteMover.extractSE(readpar('se'))
+        tolog("default_token=%s, se=%s" % (default_token, se))
 
         # Get a preliminary path
         sepath = readpar('seprodpath')
         if sepath == "":
             sepath = readpar('sepath')
-        surl = se + sepath
+
+        # Note that the sepath might not be simple, but can contain complex structures (brackets and commas)
+        # First create a properly formatted selist list and then use the default token to get the corresponding proper sepath
+        destinationList = self.getDirList(sepath)
+        tolog("destinationList=%s"%str(destinationList))
+
+        # Now find the proper sepath
+        destination = self.getMatchingDestinationPath(default_token, destinationList)
+        tolog("destination=%s"%destination)
+
+        # Create the SURL
+        surl = se + destination
+        tolog("surl=%s"%surl)
 
         # Get the default DQ2 site name
         return SiteMover.getDQ2SiteName(surl=surl)
@@ -959,7 +971,8 @@ class SiteMover(object):
         try:
             # take care of the encoding
             #data = urlencode({'API':'0_3_0', 'operation':'addReport', 'report':report})
-            data = json.dumps(report).replace('"','\\"')
+            from json import dumps
+            data = dumps(report).replace('"','\\"')
 
             from SiteInformation import SiteInformation
             si = SiteInformation()
