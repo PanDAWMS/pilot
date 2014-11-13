@@ -528,6 +528,8 @@ Looking for jobReport in alt location, improved log mesages in getPayloadMetadat
 Setting GLEXEC_LOCATION in case this is not already set to solve issues seen at Canadian sites. Code from Edward Karavakis (pilot, glexec_utils)
 Changed the max stage-out time to 10 h in __main__() (RunJobEvent)
 Added rucio_test to argParser() to allow this prodSourceLabel to run user jobs (pilot)
+Created sendTraceToRucio() used from sendTrace(). Code from Wen Guan (SiteMover)
+Improved boto addition to PYTHONPATH. Code from Wen Guan (S3ObjectstoreSiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

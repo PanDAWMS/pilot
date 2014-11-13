@@ -34,11 +34,21 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def setup(self, experiment=None, surl=None):
         """ setup env """
-        if not os.environ.get("PYTHONPATH"):
-            os.environ["PYTHONPATH"] = "/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/"
-        else:
-            if 'boto' not in os.environ["PYTHONPATH"]:
-                os.environ["PYTHONPATH"] = "/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/" + ":" + os.environ["PYTHONPATH"]
+        try:
+            import boto
+            import boto.s3.connection
+            from boto.s3.key import Key
+        except ImportError:
+            tolog("Failed to import boto, add /cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/ to sys.path")
+            sys.path.append('/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/')
+            try:
+                import boto
+                import boto.s3.connection
+                from boto.s3.key import Key
+            except ImportError:
+                tolog("Failed to import boto again. exit")
+                return PilotErrors.ERR_UNKNOWN, "Failed to import boto"
+
         if os.environ.get("http_proxy"):
             del os.environ['http_proxy']
         if os.environ.get("https_proxy"):
