@@ -531,6 +531,7 @@ Added rucio_test to argParser() to allow this prodSourceLabel to run user jobs (
 Created sendTraceToRucio() used from sendTrace(). Code from Wen Guan (SiteMover)
 Improved boto addition to PYTHONPATH. Code from Wen Guan (S3ObjectstoreSiteMover)
 Updated getDefaultDQ2SiteName() to handle complex se[prod]paths to fix a problem with GROUPDISK jobs (SiteMover)
+New version of aria2cSiteMover from Vincenzo Lavorini
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
