@@ -455,9 +455,9 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("timefloor", "0")
 
 #        if thisSite.sitename == "AGLT2_SL6" or thisSite.sitename == "SWT2_CPB":
-        if thisSite.sitename == "BNL_PROD" or thisSite.sitename == "MWT2_MCORE":
-            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
+#        if thisSite.sitename == "BNL_PROD" or thisSite.sitename == "MWT2_MCORE":
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
 
 #            ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
