@@ -213,11 +213,11 @@ class RunJobHpcEvent(RunJob):
         # response = ret[1]
 
         if ret[0]: # non-zero return code
-            message = "Failed to download event range - error code = %d" % (ret[0])
+            message = "Failed to update event range - error code = %d" % (ret[0])
         else:
             message = ""
 
-        return message
+        return ret[0], message
 
 
     def getEventRanges(self, numRanges=2):
@@ -242,6 +242,20 @@ class RunJobHpcEvent(RunJob):
         else:
             message = response['eventRanges']
             return json.loads(message)
+
+
+    def updateHPCEventRanges(self):
+        for eventRangeID in self.self.__eventRanges:
+            if self.__eventRanges[eventRangeID] == 'stagedOut':
+                try:
+                    ret, message = self.updateEventRange(eventRangeID)
+                except Exception, e:
+                    tolog("Failed to update event range: %s, exception: %s " % (eventRangeID, str(e)))
+                else:
+                    if ret == 0:
+                        self.__eventRanges[eventRangeID] = "Done"
+                    else:
+                        tolog("Failed to update event range: %s" % eventRangeID)
 
 
     def prepareHPCJob(self):
@@ -401,15 +415,15 @@ class RunJobHpcEvent(RunJob):
         status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(output, self.__espath, lfn=os.path.basename(output), report=self.__report, token=self.__job.destinationDBlockToken, experiment=self.__job.experiment)
         if status == 0:
             try:
-                self.updateEventRange(eventRangeID)
-                self.__eventRanges[eventRangeID] = 'Done'
+                #self.updateEventRange(eventRangeID)
+                self.__eventRanges[eventRangeID] = 'stagedOut'
                 tolog("Remove staged out output file: %s" % output)
                 os.remove(output)
             except Exception, e:
-                tolog("!!WARNING!!2233!! updateEventRange threw an exception: %s" % (e))
-                self.__failedStageOuts.append(output_info)
+                tolog("!!WARNING!!2233!! remove ouput file threw an exception: %s" % (e))
+                #self.__failedStageOuts.append(output_info)
             else:
-                tolog("updateEventRange has returned")
+                tolog("remove output file has returned")
         else:
             tolog("!!WARNING!!1164!! Failed to upload file to objectstore: %d, %s" % (status, pilotErrorDiag))
             self.__failedStageOuts.append(output_info)
@@ -515,13 +529,18 @@ class RunJobHpcEvent(RunJob):
                 threadpool.add_task(self.stageOutHPCEvent, output)
 
             time.sleep(30)
+            self.updateHPCEventRanges()
 
         tolog("HPCManager Job Finished")
         outputs = hpcManager.getOutputs()
         for output in outputs:
             #self.stageOutHPCEvent(output)
             threadpool.add_task(self.stageOutHPCEvent, output)
+
+        self.updateHPCEventRanges()
         threadpool.wait_completion()
+        self.updateHPCEventRanges()
+
 
         tolog("HPC Stage out retry 1")
         half_stageout_threads = defRes['stageout_threads'] / 2
@@ -533,6 +552,7 @@ class RunJobHpcEvent(RunJob):
         for failedStageOut in failedStageOuts:
             threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
         threadpool.wait_completion()
+        self.updateHPCEventRanges()
 
         tolog("HPC Stage out retry 2")
         threadpool = ThreadPool(1)
@@ -541,6 +561,7 @@ class RunJobHpcEvent(RunJob):
         for failedStageOut in failedStageOuts:
             threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
         threadpool.wait_completion()
+        self.updateHPCEventRanges()
 
         self.__hpcStatus, self.__hpcLog = hpcManager.checkHPCJobLog()
         tolog("HPC job log status: %s, job log error: %s" % (self.__hpcStatus, self.__hpcLog))
@@ -565,9 +586,11 @@ class RunJobHpcEvent(RunJob):
         tolog("Total event ranges: %s" % len(self.__eventRanges))
         not_handled_events = self.__eventRanges.values().count('new')
         tolog("Not handled events: %s" % not_handled_events)
-        if not_handled_events:
+        stagedOut_events = self.__eventRanges.values().count('stagedOut')
+        tolog("stagedOut but not updated to panda server events: %s" % stagedOut_events)
+        if not_handled_events + stagedOut_events:
             tolog("Not all event ranges are handled. failed job")
-            self.failJob(0, 1220, self.__job, pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(self.__eventRanges), not_handled_events))
+            self.failJob(0, 1220, self.__job, pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(self.__eventRanges), not_handled_events + stagedOut_events))
 
         dsname, datasetDict = self.getDatasets()
         tolog("dsname = %s" % (dsname))
