@@ -245,7 +245,7 @@ class RunJobHpcEvent(RunJob):
 
 
     def updateHPCEventRanges(self):
-        for eventRangeID in self.self.__eventRanges:
+        for eventRangeID in self.__eventRanges:
             if self.__eventRanges[eventRangeID] == 'stagedOut':
                 try:
                     ret, message = self.updateEventRange(eventRangeID)
@@ -542,26 +542,28 @@ class RunJobHpcEvent(RunJob):
         self.updateHPCEventRanges()
 
 
-        tolog("HPC Stage out retry 1")
-        half_stageout_threads = defRes['stageout_threads'] / 2
-        if half_stageout_threads < 1:
-            half_stageout_threads = 1
-        threadpool = ThreadPool(half_stageout_threads)
-        failedStageOuts = self.__failedStageOuts
-        self.__failedStageOuts = []
-        for failedStageOut in failedStageOuts:
-            threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
-        threadpool.wait_completion()
-        self.updateHPCEventRanges()
+        if len(self.__failedStageOuts) > 0:
+            tolog("HPC Stage out retry 1")
+            half_stageout_threads = defRes['stageout_threads'] / 2
+            if half_stageout_threads < 1:
+                half_stageout_threads = 1
+            threadpool = ThreadPool(half_stageout_threads)
+            failedStageOuts = self.__failedStageOuts
+            self.__failedStageOuts = []
+            for failedStageOut in failedStageOuts:
+                threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
+            threadpool.wait_completion()
+            self.updateHPCEventRanges()
 
-        tolog("HPC Stage out retry 2")
-        threadpool = ThreadPool(1)
-        failedStageOuts = self.__failedStageOuts
-        self.__failedStageOuts = []
-        for failedStageOut in failedStageOuts:
-            threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
-        threadpool.wait_completion()
-        self.updateHPCEventRanges()
+        if len(self.__failedStageOuts) > 0:
+            tolog("HPC Stage out retry 2")
+            threadpool = ThreadPool(1)
+            failedStageOuts = self.__failedStageOuts
+            self.__failedStageOuts = []
+            for failedStageOut in failedStageOuts:
+                threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
+            threadpool.wait_completion()
+            self.updateHPCEventRanges()
 
         self.__hpcStatus, self.__hpcLog = hpcManager.checkHPCJobLog()
         tolog("HPC job log status: %s, job log error: %s" % (self.__hpcStatus, self.__hpcLog))
