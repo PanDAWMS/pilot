@@ -532,6 +532,9 @@ Created sendTraceToRucio() used from sendTrace(). Code from Wen Guan (SiteMover)
 Improved boto addition to PYTHONPATH. Code from Wen Guan (S3ObjectstoreSiteMover)
 Updated getDefaultDQ2SiteName() to handle complex se[prod]paths to fix a problem with GROUPDISK jobs (SiteMover)
 New version of aria2cSiteMover from Vincenzo Lavorini
+Corrected ['pilotId'] -> env['pilotId'] in argParser() (pilot)
+Now returning pilotErrorDiag from verifyReplicasDictionary(), received in getPoolFileCatalog() (Mover)
+Improved error message for replica missing in Rucio catalog, in getPoolFileCatalog() (Mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

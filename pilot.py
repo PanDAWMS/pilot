@@ -105,7 +105,7 @@ def argParser(argv):
         pass
     else:
         env['pilotId'] = gtag
-        print "pilot ID = %s" % ['pilotId']
+        print "pilot ID = %s" % env['pilotId']
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob

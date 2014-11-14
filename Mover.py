@@ -3396,14 +3396,17 @@ def verifyReplicasDictionary(replicas_dict, guids):
     """ Does the current replicas_dict contain replicas for all guids? """
 
     status = True
+    pilotErrorDiag = ""
 
     # Loop over all GUIDs and see if they are all in the replicas dictionary
     for guid in guids:
         if not guid in replicas_dict.keys():
             status = False
+            pilotErrorDiag = "Replica with guid=%s missing in Rucio catalog" % (guid)
+            tolog("!!WARNING!!1122!! %s" % (pilotErrorDiag))
             break
 
-    return status
+    return status, pilotErrorDiag
 
 def getRucioFileList(scope_dict, guid_token_dict, lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover):
     """ Building the file list using scope information """
@@ -3562,6 +3565,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     pilotErrorDiag = ""
     ec = 0
     replicas_dict = None
+    error = PilotErrors()
 
     xml_source = "[undefined]"
     region = readpar('region')
@@ -3619,11 +3623,15 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
                         replicas_dict[guid] += new_replicas_dict[guid]
 
                 # does the current replicas_dict contain replicas for all guids? If so, no need to continue 
-                status = verifyReplicasDictionary(replicas_dict, guid_token_dict.keys())
+                status, pilotErrorDiag = verifyReplicasDictionary(replicas_dict, guid_token_dict.keys())
                 if status:
                     tolog("Found all replicas, aborting loop over catalog hosts")
+                    # Clear any previous error messages since the replica was eventually found
+                    pilotErrorDiag = ""
                     break
-
+                else:
+                    tolog("!!WARNING!!2222!! Replica(s) missing in Rucio catalog")
+                    ec = error.ERR_REPNOTFOUND
             elif ec != 0:
                 if host_nr < len(lfc_hosts_list):
                     tolog("Replica lookup failed for host %s, will attempt to use another host" % (lfc_host))
