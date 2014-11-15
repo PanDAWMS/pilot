@@ -182,7 +182,8 @@ class HPCManager:
         # walltime is minutes
         # 1 Yoda and (self.__nodes -1) Droid
         # plus 1 cached event per node
-        return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER) + (int(self.__nodes) -1) * 1
+        #return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER) + (int(self.__nodes) -1) * 1
+        return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER)
 
     def submit(self):
         submit_script = "#!/bin/bash -l" + "\n"
