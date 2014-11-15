@@ -65,7 +65,7 @@ class HPCManager:
             self.__log.info("Executing command result: (status: %s, output: %s)" %(status, output))
 
     def getHPCResources(self, partition, max_nodes=None, min_nodes=2, min_walltime_m=30):
-        # copied from RunJobHopper
+        # copied from RunJobEdison
         cmd = 'showbf -p %s' % partition
         res_tuple = commands.getstatusoutput(cmd)
         showbf_str = ""
@@ -102,12 +102,13 @@ class HPCManager:
                 # https://www.nersc.gov/users/computational-systems/hopper/running-jobs/queues-and-policies/
                 nodes = max_nodes if nodes > max_nodes else nodes   
                    
-                if nodes < 65 and wal_time_sec > 96 * 3600:
-                    wal_time_sec = 96 * 3600
-                elif nodes < 683 and wal_time_sec > 48 * 3600:
+
+                if nodes < 682 and wal_time_sec > 48 * 3600:
                     wal_time_sec = 48 * 3600
-                elif nodes < 4097 and wal_time_sec > 36 * 3600:
+                elif nodes < 4096 and wal_time_sec > 36 * 3600:
                     wal_time_sec = 36 * 3600
+                elif nodes < 5462 and wal_time_sec > 12 * 3600:
+                    wal_time_sec = 12 * 3600
                 elif wal_time_sec > 12 * 3600:
                     wal_time_sec = 12 * 3600
 

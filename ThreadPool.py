@@ -1,4 +1,3 @@
-#!/usr/bin/python
 
 from Queue import Queue
 from threading import Thread
@@ -13,18 +12,23 @@ class Worker(Thread):
 
     def run(self):
         while True:
-            func, args, kargs = self.tasks.get()
             try:
-                func(*args, **kargs)
-            except Exception, e:
-                print e
+                func, args, kargs = self.tasks.get()
+                try:
+                    func(*args, **kargs)
+                except Exception, e:
+                    print "ThreadPool Worker exception: %s" % str(e)
+                except:
+                    print "ThreadPool Worker unknow exception."
+            except:
+                print "ThreadPool Worker unknow exception1"
             finally:
                 self.tasks.task_done()
 
 class ThreadPool:
     """Pool of threads consuming tasks from a queue"""
     def __init__(self, num_threads):
-        self.tasks = Queue(num_threads)
+        self.tasks = Queue()
         for _ in range(num_threads): Worker(self.tasks)
 
     def add_task(self, func, *args, **kargs):
