@@ -63,6 +63,9 @@ class TimerCommand(object):
                     process.join(2)
             except:
                 if process.is_alive():
-                    os.kill(int(process.pid), signal.SIGKILL)
+                    try:
+                        os.kill(int(process.pid), signal.SIGKILL)
+                    except:
+                        pass
                     process.join(2)
         return ret
