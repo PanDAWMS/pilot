@@ -168,9 +168,9 @@ class HPCManager:
         if mode == 'backfill':
             self.__queue = self.__backfill_queue
             self.__log.info("Run in backfill mode, using queue: %s" % self.__queue)
-        else:
-            if walltime > int(defaultResources['max_walltime_m']):
-                walltime = int(defaultResources['max_walltime_m'])
+
+        if walltime > int(defaultResources['max_walltime_m']):
+            walltime = int(defaultResources['max_walltime_m'])
 
         h, m = divmod(walltime, 60)
         self.__walltime = "%d:%02d:%02d" % (h, m, 0)
