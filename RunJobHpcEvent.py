@@ -209,7 +209,7 @@ class RunJobHpcEvent(RunJob):
         # tolog("node = %s" % str(node))
 
         # open connection
-        ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGE")
+        ret = httpConnect(node, url, path=self.__job.workdir, mode="UPDATEEVENTRANGE")
         # response = ret[1]
 
         if ret[0]: # non-zero return code

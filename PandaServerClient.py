@@ -786,7 +786,10 @@ class PandaServerClient:
                 toPandaLogger(params)
 
         # make the actual update, repeatedly if necessary (for the final update)
-        ret = makeHTTPUpdate(job.result[0], node, port, url=self.__pshttpurl, path=self.__pilot_initdir)
+        #ret = makeHTTPUpdate(job.result[0], node, port, url=self.__pshttpurl, path=self.__pilot_initdir)
+        if job.workdir.endswith("/"):
+            job.workdir = job.workdir[:-1]
+        ret = makeHTTPUpdate(job.result[0], node, port, url=self.__pshttpurl, path=os.path.dirname(job.workdir))
         if not ret[2]: # data is None for a failed update attempt
             tolog("makeHTTPUpdate returned: %s" % str(ret))
             return 1, None

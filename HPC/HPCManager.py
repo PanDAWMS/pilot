@@ -67,7 +67,9 @@ class HPCManager:
     def getHPCResources(self, partition, max_nodes=None, min_nodes=2, min_walltime_m=30):
         # copied from RunJobEdison
         cmd = 'showbf -p %s' % partition
+        self.__log.info("Executing command: '%s'" % cmd)
         res_tuple = commands.getstatusoutput(cmd)
+        self.__log.info("Executing command output: %s" % str(res_tuple))
         showbf_str = ""
         if res_tuple[0] == 0:
             showbf_str = res_tuple[1]
