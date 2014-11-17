@@ -693,7 +693,7 @@ class ATLASSiteInformation(SiteInformation):
                     return self.__securityKeys[keyName]
                 else:
                    tolog("!!WARNING!!4444!! Failed to get key frpm panda server")
-                   tolog("data = " % str(data))
+                   tolog("data = %s" % str(data))
             except:
                 _type, value, traceBack = sys.exc_info()
                 tolog("Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
