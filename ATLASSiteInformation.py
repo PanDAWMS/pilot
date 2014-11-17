@@ -735,6 +735,9 @@ class ATLASSiteInformation(SiteInformation):
                 if dic["StatusCode"][0] == "0":
                     self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
                     return self.__securityKeys[keyName]
+                else:
+                   tolog("failed to get key frpm panda server.")
+                   tolog(data)
             except:
                 _type, value, traceBack = sys.exc_info()
                 tolog("Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
