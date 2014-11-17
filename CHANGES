@@ -535,6 +535,7 @@ New version of aria2cSiteMover from Vincenzo Lavorini
 Corrected ['pilotId'] -> env['pilotId'] in argParser() (pilot)
 Now returning pilotErrorDiag from verifyReplicasDictionary(), received in getPoolFileCatalog() (Mover)
 Improved error message for replica missing in Rucio catalog, in getPoolFileCatalog() (Mover)
+Added missing return objects in stageOut() (S3ObjectstoreSiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
