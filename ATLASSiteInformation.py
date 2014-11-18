@@ -485,6 +485,7 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("objectstore", "s3://s3.amazonaws.com:80/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
             ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
             ec = self.replaceQueuedataField("timefloor", "0")
+            ec = self.replaceQueuedataField("coreCount", "0")
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=backfill,queue=debug,backfill_queue=regular,max_events=2100,initialtime_m=8,time_per_event_m=10,repo=m2015,nodes=26,min_nodes=2,max_nodes=50,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=8,time_per_event_m=10,repo=m2015,nodes=50,min_nodes=45,max_nodes=50,partition=edison,min_walltime_m=118,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
@@ -726,7 +727,7 @@ class ATLASSiteInformation(SiteInformation):
                 #host = '%s:%s' % (env['pshttpurl'], str(env['psport'])) # The key pair is not set on other panda server
                 host = 'aipanda007.cern.ch:25443'
                 path = '/server/panda/getKeyPair'
-                conn = httplib.HTTPSConnection(host,key_file=sslKey, cert_file=sslCert)
+                conn = httplib.HTTPSConnection(host,key_file=sslKey, cert_file=sslCert, timeout=30)
                 conn.request('POST',path,urllib.urlencode(node))
                 resp = conn.getresponse()
                 data = resp.read()
@@ -736,7 +737,7 @@ class ATLASSiteInformation(SiteInformation):
                     self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
                     return self.__securityKeys[keyName]
                 else:
-                   tolog("failed to get key frpm panda server.")
+                   tolog("failed to get key from panda server.")
                    tolog(data)
             except:
                 _type, value, traceBack = sys.exc_info()

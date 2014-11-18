@@ -119,6 +119,7 @@ class RunJobHpcEvent(RunJob):
             import newJobDef
             job = Job.Job()
             job.setJobDef(newJobDef.job)
+            job.coreCount = 0
             job.workdir = self.__jobSite.workdir
             job.experiment = self.getExperiment()
             # figure out and set payload file names
@@ -143,6 +144,9 @@ class RunJobHpcEvent(RunJob):
 
         # Update the job state file
         self.__job.jobState = "setup"
+        self.__job.setHpcStatus('init')
+        pUtil.updatePandaServer(self.__job)
+
 
         # Send [especially] the process group back to the pilot
         self.__job.setState([self.__job.jobState, 0, 0])
@@ -489,7 +493,14 @@ class RunJobHpcEvent(RunJob):
             logFileName = self.getPilotLogFilename()
         hpcManager = HPCManager(globalWorkingDir=self.__job.workdir, logFileName=logFileName, poolFileCatalog=self.__poolFileCatalogTemp, inputFiles=self.__inputFilesGlobal, copyInputFiles=self.__copyInputFiles)
 
+        self.HPCMode = "HPC_" + hpcManager.getMode(defRes)
+        self.__job.setMode(self.HPCMode)
+        self.__job.setHpcStatus('waitingResource')
+        rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+
         hpcManager.getFreeResources(defRes)
+
+        self.__job.setHpcStatus('gettingEvents')
 
         numRanges = hpcManager.getEventsNumber()
         tolog("HPC Manager needs events: %s, max_events: %s; use the smallest one." % (numRanges, defRes['max_events']))
@@ -516,6 +527,7 @@ class RunJobHpcEvent(RunJob):
         time_start = time.time()
         while not hpcManager.isFinished():
             state = hpcManager.poll()
+            self.__job.setHpcStatus(state)
             if old_state is None or old_state != state or time.time() > time_start + 60*10:
                 old_state = state
                 tolog("HPCManager Job stat: %s" % state)
@@ -532,6 +544,7 @@ class RunJobHpcEvent(RunJob):
             self.updateHPCEventRanges()
 
         tolog("HPCManager Job Finished")
+        self.__job.setHpcStatus('stagingOut')
         outputs = hpcManager.getOutputs()
         for output in outputs:
             #self.stageOutHPCEvent(output)
@@ -565,6 +578,7 @@ class RunJobHpcEvent(RunJob):
             threadpool.wait_completion()
             self.updateHPCEventRanges()
 
+        self.__job.setHpcStatus('finished')
         self.__hpcStatus, self.__hpcLog = hpcManager.checkHPCJobLog()
         tolog("HPC job log status: %s, job log error: %s" % (self.__hpcStatus, self.__hpcLog))
         

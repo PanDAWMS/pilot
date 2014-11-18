@@ -36,6 +36,8 @@ class HPCManager:
         self.__inputFiles = inputFiles
         self.__copyInputFiles = copyInputFiles
 
+        self.__mode = None
+
     def initJob(self, job):
         self.__log.info("initJob: %s" % job)
         # job = {"TokenExtractCmd": tokenExtractorCommand, "AthenaMPCmd": athenaMPCommand}
@@ -125,19 +127,28 @@ class HPCManager:
         self.__log.info("Get resources: %s" % res)
         return res
 
-    def getFreeResources(self, defaultResources):
+    def getMode(self, defaultResources):
         mode = defaultResources['mode']
+        self.__mode = mode
+
         self.__log.info("Running mode: %s" % mode)
         if defaultResources['partition'] is None:
             self.__log.info("Partition is not defined, will use normal mode")
             res = None
-        else:
-            res = self.getHPCResources(defaultResources['partition'], int(defaultResources['max_nodes']), int(defaultResources['min_nodes']), int(defaultResources['min_walltime_m']))
-            if mode == 'backfill':
-                while not res:
-                    self.__log.info("Run in backfill mode, waiting to get resources.")
-                    time.sleep(60)
-                    res = self.getHPCResources(defaultResources['partition'], int(defaultResources['max_nodes']), int(defaultResources['min_nodes']), int(defaultResources['min_walltime_m']))
+            self.__mode = 'normal'
+
+        return self.__mode
+
+    def getFreeResources(self, defaultResources):
+        mode = self.getMode(defaultResources)
+
+        res = None
+        if mode == 'backfill':
+            res = {}
+            while not res:
+                self.__log.info("Run in backfill mode, waiting to get resources.")
+                time.sleep(60)
+                res = self.getHPCResources(defaultResources['partition'], int(defaultResources['max_nodes']), int(defaultResources['min_nodes']), int(defaultResources['min_walltime_m']))
 
         self.__log.info("Get resources: %s" % res)
         nodes = int(defaultResources['min_nodes'])

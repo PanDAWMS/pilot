@@ -121,6 +121,12 @@ class PandaServerClient:
         if job.RSSMean > 0:
             jobMetrics += self.jobMetric(key="RSSMean", value=job.RSSMean)
 
+        # hpc status
+        if job.mode:
+            jobMetrics += self.jobMetric(key="mode", value=job.mode)
+        if job.hpcStatus:
+            jobMetrics += self.jobMetric(key="HPCStatus", value=job.hpcStatus)
+
         # report FAX transfers if at least one successful FAX transfer
         #if job.filesWithFAX > 0:
         #    jobMetrics += " filesWithFAX=%d" % (job.filesWithFAX)
