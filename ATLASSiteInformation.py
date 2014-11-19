@@ -662,10 +662,11 @@ class ATLASSiteInformation(SiteInformation):
 
         return cmd
 
-    # Required if use S3 objectstore
+    # Required for S3 objectstore
     def getSecurityKey(self, privateKeyName, publicKeyName):
         """ Return the key pair """
-        keyName=privateKeyName + "_" + publicKeyName
+
+        keyName = privateKeyName + "_" + publicKeyName
         if keyName in self.__securityKeys.keys():
             return self.__securityKeys[keyName]
         else:
@@ -680,10 +681,10 @@ class ATLASSiteInformation(SiteInformation):
                 node['privateKeyName'] = privateKeyName
                 node['publicKeyName'] = publicKeyName
                 #host = '%s:%s' % (env['pshttpurl'], str(env['psport'])) # The key pair is not set on other panda server
-                host = 'aipanda007.cern.ch:25443'
+                host = 'pandaserver.cern.ch:25443'
                 path = '/server/panda/getKeyPair'
-                conn = httplib.HTTPSConnection(host,key_file=sslKey, cert_file=sslCert)
-                conn.request('POST',path,urllib.urlencode(node))
+                conn = httplib.HTTPSConnection(host, key_file=sslKey, cert_file=sslCert, timeout=120)
+                conn.request('POST', path, urllib.urlencode(node))
                 resp = conn.getresponse()
                 data = resp.read()
                 conn.close()
@@ -692,13 +693,13 @@ class ATLASSiteInformation(SiteInformation):
                     self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
                     return self.__securityKeys[keyName]
                 else:
-                   tolog("!!WARNING!!4444!! Failed to get key frpm panda server")
+                   tolog("!!WARNING!!4444!! Failed to get key from PanDA server:")
                    tolog("data = %s" % str(data))
             except:
                 _type, value, traceBack = sys.exc_info()
-                tolog("Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
+                tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
                 tolog("ERROR: %s %s" % (_type, value))
-                
+
         return {"publicKey": None, "privateKey": None}
 
 if __name__ == "__main__":

@@ -524,7 +524,7 @@ Added time-outs to S3ObjectstoreSiteMover (Wen Guan)
 59e:
 
 Added altloc argument to getPayloadMetadataFilename() and its call in updatePandaServer() (PandaServerClient)
-Looking for jobReport in alt location, improved log mesages in getPayloadMetadataFilename() (PandaServerClient)
+Looking for jobReport in alt location, improved log messages in getPayloadMetadataFilename() (PandaServerClient)
 Setting GLEXEC_LOCATION in case this is not already set to solve issues seen at Canadian sites. Code from Edward Karavakis (pilot, glexec_utils)
 Changed the max stage-out time to 10 h in __main__() (RunJobEvent)
 Added rucio_test to argParser() to allow this prodSourceLabel to run user jobs (pilot)
@@ -537,6 +537,7 @@ Now returning pilotErrorDiag from verifyReplicasDictionary(), received in getPoo
 Improved error message for replica missing in Rucio catalog, in getPoolFileCatalog() (Mover)
 Added missing return objects in stageOut() (S3ObjectstoreSiteMover)
 Added debugging info to S3 key download in getSecurityKey() (ATLASSiteInformation)
+Changed aipanda007 to pandaserver.cern.ch in getSecurityKey() (ATLASSiteInformation)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
