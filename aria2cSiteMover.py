@@ -88,7 +88,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	if token_rucio_or:
            token_lenght=len(token_rucio_or)-2
            token_rucio=token_rucio_or[:token_lenght]
-           tolog("Token on file: %s" %(token_rucio))
+           #tolog("Token on file: %s" %(token_rucio))
 
 	   if os.path.exists('token_file'):
     		os.remove('token_file')
@@ -171,11 +171,11 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	
         token_file=open('token_file', 'r')
         token_rucio=token_file.readline() 
-        tolog("Token I am using: %s" %(token_rucio))
+        #tolog("Token I am using: %s" %(token_rucio))
 	httpredirector = readpar('httpredirector')
 	if not httpredirector:
             cmd = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
-            tolog("curl command to be executed: %s" %(cmd))
+            #tolog("curl command to be executed: %s" %(cmd))
 	else:
             #if not httpredirector.startswith('https://') or not httpredirector.startswith('http://'):
             #    httpredirector = "https://" + httpredirector
@@ -186,7 +186,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
            	tolog("HTTP redirector I am using: %s" %(httpredirector))
                 cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
 
-            tolog("curl command to be executed: %s" %(cmd))
+            #tolog("curl command to be executed: %s" %(cmd))
 		
         metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
 	metalink, stderr=metalink_cmd.communicate()
@@ -644,12 +644,12 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	#getting the remote checksum from Rucio:
 	token_file=open('token_file', 'r')
         token_rucio=token_file.readline()
-        tolog("Token I am using: %s" %(token_rucio))
+        #tolog("Token I am using: %s" %(token_rucio))
         httpredirector = readpar('httpredirector')
         if not httpredirector:
             #cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip |awk \'{FS=\"hash type=\"}; {print $2}\' |awk \'{FS=\">\"}; {print $2}\' |awk \'{FS=\"<\"} {print $1}\'| grep -v \'^$\'"%(token_rucio,scope,filename)
             cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio,scope,filename)
-            tolog("Getting remote checksum: command to be executed: %s" %(cmd))
+            #tolog("Getting remote checksum: command to be executed: %s" %(cmd))
         else:
             if "http" in httpredirector:
                 tolog("HTTP redirector I am using: %s" %(httpredirector))
@@ -658,7 +658,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
                 tolog("HTTP redirector I am using: %s" %(httpredirector))
                 cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
 
-            tolog("Getting remote checksum: command to be executed: %s" %(cmd))
+            #tolog("Getting remote checksum: command to be executed: %s" %(cmd))
 
         checksum_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
         remote_checksum, stderr=checksum_cmd.communicate()

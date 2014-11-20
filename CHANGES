@@ -539,10 +539,9 @@ Added missing return objects in stageOut() (S3ObjectstoreSiteMover)
 Added debugging info to S3 key download in getSecurityKey() (ATLASSiteInformation)
 Changed aipanda007 to pandaserver.cern.ch in getSecurityKey() (ATLASSiteInformation)
 Updated process handling. Code from Wen Guan (TimerCommand)
-
+Removed unwanted log messages (aria2cSiteMover)
+  
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-Note: new modules have to be added to glexec_utils.py.
 
 TODO:
 
