@@ -28,6 +28,7 @@ from ErrorDiagnosis import ErrorDiagnosis
 from pUtil import tolog, getExperiment, isAnalysisJob, httpConnect, createPoolFileCatalog, getSiteInformation, getDatasetDict
 from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getFilePathForObjectStore, getInitialTracingReport
+from PandaServerClient import PandaServerClient
 
 from HPC.HPCManager import HPCManager
 
@@ -143,9 +144,8 @@ class RunJobHpcEvent(RunJob):
         # Setup starts here ................................................................................
 
         # Update the job state file
-        self.__job.jobState = "setup"
+        self.__job.jobState = "starting"
         self.__job.setHpcStatus('init')
-        pUtil.updatePandaServer(self.__job)
 
 
         # Send [especially] the process group back to the pilot
@@ -153,8 +153,9 @@ class RunJobHpcEvent(RunJob):
         self.__job.jobState = self.__job.result
         rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), runJob.getPilotPort())
 
-        self.__JR = JobRecovery()
+        self.__JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=self.__job.workdir)
         self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
+        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
 
         # prepare the setup and get the run command list
         ec, runCommandList, job, multi_trf = self.setup(self.__job, self.__jobSite, self.__thisExperiment)
@@ -174,7 +175,7 @@ class RunJobHpcEvent(RunJob):
 
     def stageInHPCEvent(self):
         tolog("Setting stage-in state until all input files have been copied")
-        self.__job.jobState = "stagein"
+        self.__job.jobState = "transferring"
         self.__job.setState([self.__job.jobState, 0, 0])
         rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
         self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
@@ -466,6 +467,7 @@ class RunJobHpcEvent(RunJob):
         tolog("runHPCEvent")
         self.__job.jobState = "running"
         self.__job.setState([self.__job.jobState, 0, 0])
+        self.__job.pilotErrorDiag = None
         rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
         self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
 
@@ -497,10 +499,13 @@ class RunJobHpcEvent(RunJob):
         self.__job.setMode(self.HPCMode)
         self.__job.setHpcStatus('waitingResource')
         rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
 
         hpcManager.getFreeResources(defRes)
-
+        self.__job.coreCount = hpcManager.getCoreCount()
         self.__job.setHpcStatus('gettingEvents')
+        rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
 
         numRanges = hpcManager.getEventsNumber()
         tolog("HPC Manager needs events: %s, max_events: %s; use the smallest one." % (numRanges, defRes['max_events']))
@@ -532,6 +537,8 @@ class RunJobHpcEvent(RunJob):
                 old_state = state
                 tolog("HPCManager Job stat: %s" % state)
                 self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
+                rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+                self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
 
             if state and state == 'Complete':
                 break
@@ -545,6 +552,9 @@ class RunJobHpcEvent(RunJob):
 
         tolog("HPCManager Job Finished")
         self.__job.setHpcStatus('stagingOut')
+        rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
+
         outputs = hpcManager.getOutputs()
         for output in outputs:
             #self.stageOutHPCEvent(output)
@@ -579,6 +589,7 @@ class RunJobHpcEvent(RunJob):
             self.updateHPCEventRanges()
 
         self.__job.setHpcStatus('finished')
+        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
         self.__hpcStatus, self.__hpcLog = hpcManager.checkHPCJobLog()
         tolog("HPC job log status: %s, job log error: %s" % (self.__hpcStatus, self.__hpcLog))
         

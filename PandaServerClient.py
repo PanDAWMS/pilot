@@ -103,10 +103,13 @@ class PandaServerClient:
         # format: nEvents=<int> nEventsW=<int> vmPeakMax=<int> vmPeakMean=<int> RSSMean=<int> JEM=<string>
         #         hs06=<float> shutdownTime=<int> cpuFactor=<float> cpuLimit=<float> diskLimit=<float> jobStart=<int> memLimit=<int> runLimit=<float>
 
-        try:
-            coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-        except:
+        if job.coreCount:
             coreCount = job.coreCount
+        else:
+            try:
+                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+            except:
+                tolog("env ATHENA_PROC_NUMBER is not set. corecount is not set")
         jobMetrics = ""
         if coreCount and coreCount != "NULL":
             jobMetrics += self.jobMetric(key="coreCount", value=coreCount)
@@ -210,6 +213,12 @@ class PandaServerClient:
 
         # build the jobMetrics
         node['jobMetrics'] = self.getJobMetrics(job, workerNode)
+
+        # for hpc status
+        if job.hpcStatus:
+            node['jobSubStatus'] = job.hpcStatus
+        else:
+            node['jobSubStatus'] = ''
 
         # send pilotErrorDiag for finished, failed and holding jobs
         if job.result[0] == 'finished' or job.result[0] == 'failed' or job.result[0] == 'holding':

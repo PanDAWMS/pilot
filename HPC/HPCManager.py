@@ -191,6 +191,9 @@ class HPCManager:
         self.__ATHENA_PROC_NUMBER = defaultResources['ATHENA_PROC_NUMBER']
         self.__repo = defaultResources['repo']
 
+    def getCoreCount(self):
+        return self.__mppwidth
+
     def getEventsNumber(self):
         # walltime is minutes
         # 1 Yoda and (self.__nodes -1) Droid

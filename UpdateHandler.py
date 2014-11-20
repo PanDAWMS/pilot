@@ -136,6 +136,8 @@ class UpdateHandler(BaseRequestHandler):
                             self.__env['jobDic'][k][1].hpcStatus = jobinfo['hpcStatus']
                         if jobinfo.has_key("refreshNow"):
                             self.__env['jobDic'][k][1].refreshNow = jobinfo['refreshNow']
+                        if jobinfo.has_key("coreCount"):
+                            self.__env['jobDic'][k][1].coreCount = jobinfo['coreCount']
 
                     except Exception, e:
                         pUtil.tolog("!!WARNING!!1998!! Caught exception. Pilot server down? %s" % str(e))
