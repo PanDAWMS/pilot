@@ -11,8 +11,12 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, getDirectAccessDic, extractPattern, getSiteInformation 
 from timed_command import timed_command
 from FileStateClient import updateFileState
-from rucio.client import Client
 
+# use a try statement since the rucio module is e.g. not available on HPC sites
+try:
+    from rucio.client import Client
+except:
+    tolog("!!WARNING!!4444!! Cannot import rucio.client (not available)")
 
 class replica:
     """ Replica """
