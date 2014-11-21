@@ -546,6 +546,7 @@ Removed unwanted log messages (aria2cSiteMover)
 59f:
 
 Put a try-statement around the rucio.client import in aria2cSiteMover, not always available. Caused problem om Nordugrid HPC sites
+Added missing 'self' to isAGreaterOrEqualToB() in getPayloadMetadataFilename() (PandaServerClient)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
