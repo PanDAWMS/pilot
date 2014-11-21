@@ -840,9 +840,20 @@ class RunJobEvent(RunJob):
         # does the job report exist?
         extension = getExtension(alternative='pickle')
         if extension.lower() == "json":
-            filename = os.path.join(workdir, "jobReport.%s" % (extension))
+            _filename = "jobReport.%s" % (extension)
         else:
-            filename = os.path.join(workdir, "jobReportExtract.%s" % (extension))
+            _filename = "jobReportExtract.%s" % (extension)
+        filename = os.path.join(workdir, _filename)
+
+        # first backup the jobReport to the job workdir since it will be needed later
+        # (the current location will disappear since it will be tarred up in the jobs' log file)
+        d = os.path.join(workdir, '..')
+        try:
+            copy2(filename, os.path.join(d, _filename))
+        except Exception, e:
+            tolog("Warning: Could not backup %s to %s: %s" % (_filename, d, e))
+        else:
+            tolog("Backed up %s to %s" % (_filename, d))
 
         # It might take a short while longer until the job report is created (unknown why)
         count = 1

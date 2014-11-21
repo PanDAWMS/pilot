@@ -547,6 +547,7 @@ Removed unwanted log messages (aria2cSiteMover)
 
 Put a try-statement around the rucio.client import in aria2cSiteMover, not always available. Caused problem om Nordugrid HPC sites
 Added missing 'self' to isAGreaterOrEqualToB() in getPayloadMetadataFilename() (PandaServerClient)
+Copying jobReport to pilots workdir to make it available for PandaServerClient at the end of the job (RunJob, RunJobEvent)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
