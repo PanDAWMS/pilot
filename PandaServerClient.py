@@ -527,7 +527,8 @@ class PandaServerClient:
                     jobReport_dict = load(f)
                     version = jobReport_dict['reportVersion']
                 except Exception, e:
-                    pass
+                    filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+                    tolog("reportVersion not found in jobReport, using default metadata XML file")
                 else:
                     v = '1.0.0'
                     if self.isAGreaterOrEqualToB(version, v):
