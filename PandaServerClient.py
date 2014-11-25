@@ -533,9 +533,7 @@ class PandaServerClient:
                     v = '1.0.0'
                     if self.isAGreaterOrEqualToB(version, v):
                         tolog("Will send metadata file %s since version %s is >= %s" % (_filename, version, v))
-                        filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
-                        tolog("Could have used %s" % (_filename))
-                        #filenamePayloadMetadata = _filename
+                        filenamePayloadMetadata = _filename
                     else:
                         filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
                         tolog('Metadata version in file %s is too old (%s < %s), will send old XML file %s' % \
