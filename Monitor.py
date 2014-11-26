@@ -401,10 +401,11 @@ class Monitor:
         # verify output file sizes every five minutes
         if (int(time.time()) - self.__env['curtime_mem']) > 1*60: #self.__env['update_freq_mem']:
             # check the CGROUPS memory
-            status = getMaxMemoryUsageFromCGroups()
-            if not status:
-                # fail job here
-                pass
+            max_memory = getMaxMemoryUsageFromCGroups()
+            if max_memory::
+                pUtil.tolog("cgroups max_memory = %s" % (max_memory))
+            else:
+                pUtil.tolog("cgroups max_memory not defined")
 
             # update the time for checking memory
             self.__env['curtime_mem'] = int(time.time())

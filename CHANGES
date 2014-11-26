@@ -560,6 +560,7 @@ Removed misleading log messages related to process killing ('Going to kill pid .
 Added curtime_mem in monitor_job() (Monitor)
 Created __verify_memory_limits(), called from monitor_job() (Monitor)
 Created isCGROUPSSite(), used by __getsetWNMem() and its duplicate getsetWNMem() (Monitor, pilot)
+New version of aria2c Site Mover from Vincenzo Lavorini, e.g. updating the auth cluster (to rucio-auth-prod.cern.ch)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

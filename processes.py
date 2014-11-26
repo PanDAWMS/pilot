@@ -222,9 +222,9 @@ def killOrphans():
         pUtil.tolog("Found %d orphan process(es)" % (count))
 
 def getMaxMemoryUsageFromCGroups():
-    """ """
+    """ Read the max_memory from CGROUPS file memory.max_usage_in_bytes"""
 
-    max_memory = 0
+    max_memory = None
 
     # grep memory /proc/5409/cgroup
     # Get the CGroups max memory using the pilot pid
@@ -244,8 +244,16 @@ def getMaxMemoryUsageFromCGroups():
                 pUtil.tolog("Extracted path = %s" % (path))
 
                 pre = "/var/cgroups/memory"
-                path = os.path.join(pre, path)
+                path = os.path.join(pre, os.path.join(path, "memory.max_usage_in_bytes"))
                 pUtil.tolog("Path to CGROUPS memory info: %s" % (path))
+
+                try:
+                    f = open(path, 'r')
+                except IOError, e:
+                    pUtil.tolog("!!WARNING!!2212!! Could not open file %s: %s" % (path, e))
+                else:
+                    max_memory = f.read()
+                    f.close()
             else:
                 pUtil.tolog("!!WARNING!!2211!! Invalid format: %s (expected ..:memory:[path])" % (out))
     else:
