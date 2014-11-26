@@ -556,7 +556,9 @@ Copying jobReport to pilots workdir to make it available for PandaServerClient a
 Using default metadata XML file if reportVersion is not found in jobReport.json, in getPayloadMetadataFilename() (PandaServerClient)
 Now sending jobReport.json if report version >= 1.0.0 in getPayloadMetadataFilename() (PandaServerClient)
 Created getMaxMemoryUsageFromCGroups() [to be used by Monitor.py] (processes)
-
+Removed misleading log messages related to process killing ('Going to kill pid ..') (Monitor)
+Added curtime_mem in monitor_job() (Monitor)
+Created __verify_memory_limits(), called from monitor_job() (Monitor)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
