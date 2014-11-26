@@ -252,3 +252,17 @@ def getMaxMemoryUsageFromCGroups():
         pUtil.tolog("Path %s does not exist (not a CGROUPS site)")
 
     return max_memory
+
+def isCGROUPSSite():
+    """ Return True if site is a CGROUPS site """
+
+    status = False
+
+    # Make experiment specific?
+    if os.environ.has_key('ATLAS_CGROUPS_ACTIVE'):
+        cgroups = os.environ['ATLAS_CGROUPS_ACTIVE']
+        if cgroups != "":
+            if cgroups.lower() == "true":
+                status = True
+
+    return status

@@ -559,6 +559,8 @@ Created getMaxMemoryUsageFromCGroups() [to be used by Monitor.py] (processes)
 Removed misleading log messages related to process killing ('Going to kill pid ..') (Monitor)
 Added curtime_mem in monitor_job() (Monitor)
 Created __verify_memory_limits(), called from monitor_job() (Monitor)
+Created isCGROUPSSite(), used by __getsetWNMem() and its duplicate getsetWNMem() (Monitor, pilot)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
