@@ -244,7 +244,7 @@ def getMaxMemoryUsageFromCGroups():
                 pUtil.tolog("Extracted path = %s" % (path))
 
                 pre = "/var/cgroups/memory"
-                path = os.path.join(pre, os.path.join(path, "memory.max_usage_in_bytes"))
+                path = pre + os.path.join(path, "memory.max_usage_in_bytes")
                 pUtil.tolog("Path to CGROUPS memory info: %s" % (path))
 
                 try:

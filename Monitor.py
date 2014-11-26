@@ -397,18 +397,19 @@ class Monitor:
             # update the time for checking output file sizes
             self.__env['curtime_of'] = int(time.time())
 
-    def __verify_memory_limits(self):
-        # verify output file sizes every five minutes
-        if (int(time.time()) - self.__env['curtime_mem']) > 1*60: #self.__env['update_freq_mem']:
-            # check the CGROUPS memory
-            max_memory = getMaxMemoryUsageFromCGroups()
-            if max_memory::
-                pUtil.tolog("cgroups max_memory = %s" % (max_memory))
-            else:
-                pUtil.tolog("cgroups max_memory not defined")
-
-            # update the time for checking memory
-            self.__env['curtime_mem'] = int(time.time())
+# FOR TESTING ONLY
+#    def __verify_memory_limits(self):
+#        # verify output file sizes every five minutes
+#        if (int(time.time()) - self.__env['curtime_mem']) > 1*60: #self.__env['update_freq_mem']:
+#            # check the CGROUPS memory
+#            max_memory = getMaxMemoryUsageFromCGroups()
+#            if max_memory:
+#                pUtil.tolog("cgroups max_memory = %s" % (max_memory))
+#            else:
+#                pUtil.tolog("cgroups max_memory not defined")
+#
+#            # update the time for checking memory
+#            self.__env['curtime_mem'] = int(time.time())
             
     def __killLoopingJob(self, job, pid, setStageout=False):
         """ kill the looping job """
@@ -656,6 +657,12 @@ class Monitor:
         
             # Convert MB to Bytes for the setrlimit function
             _maxmemory = maxmemory*1024**2
+
+            max_memory = getMaxMemoryUsageFromCGroups()
+            if max_memory:
+                pUtil.tolog("cgroups max_memory = %s" % (max_memory))
+            else:
+                pUtil.tolog("cgroups max_memory not defined")
 
             # Only proceed if not a CGROUPS site
             if not isCGROUPSSite():
@@ -1180,7 +1187,7 @@ class Monitor:
                 self.create_softlink()
                 self.__monitor_processes()
                 self.__verify_output_sizes()              
-                self.__verify_memory_limits()
+                #self.__verify_memory_limits()
                 self.__check_looping_jobs()
 
                 # check if any jobs are done by scanning the process list
