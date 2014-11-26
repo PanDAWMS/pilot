@@ -221,3 +221,34 @@ def killOrphans():
     else:
         pUtil.tolog("Found %d orphan process(es)" % (count))
 
+def getMaxMemoryUsageFromCGroups():
+    """ """
+
+    max_memory = 0
+
+    # grep memory /proc/5409/cgroup
+    # Get the CGroups max memory using the pilot pid
+    pid = os.getpid()
+    path = "/proc/%d/cgroup" % (pid)
+    if os.path.exists(path):
+        cmd = "grep memory %s" % (path)
+        pUtil.tolog("Executing command: %s" % (cmd))
+        out = commands.getoutput(cmd)
+        if out == "":
+            pUtil.tolog("(Command did not return anything)")
+        else:
+            pUtil.tolog(out)
+            if ":memory:" in out:
+                pos = out.find('/')
+                path = out[pos:]
+                pUtil.tolog("Extracted path = %s" % (path))
+
+                pre = "/var/cgroups/memory"
+                path = os.path.join(pre, path)
+                pUtil.tolog("Path to CGROUPS memory info: %s" % (path))
+            else:
+                pUtil.tolog("!!WARNING!!2211!! Invalid format: %s (expected ..:memory:[path])" % (out))
+    else:
+        pUtil.tolog("Path %s does not exist (not a CGROUPS site)")
+
+    return max_memory

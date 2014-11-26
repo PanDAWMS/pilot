@@ -9,7 +9,7 @@ from shutil import copy, copy2
 from random import shuffle
 from glob import glob
 from JobRecovery import JobRecovery
-from processes import killProcesses, checkProcesses, killOrphans
+from processes import killProcesses, checkProcesses, killOrphans, getMaxMemoryUsageFromCGroups
 from PilotErrors import PilotErrors
 from FileStateClient import createFileStates, dumpFileStates, getFileState
 from WatchDog import WatchDog
@@ -1153,7 +1153,7 @@ class Monitor:
             self.__env['curtime_proc'] = self.__env['curtime']
             self.__env['create_softlink'] = True
             while True:
-                
+
                 pUtil.tolog("--- Main pilot monitoring loop (job id %s, state:%s (%s), iteration %d)" 
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
                 self.__check_remaining_space()        
@@ -1161,7 +1161,7 @@ class Monitor:
                 self.__monitor_processes()
                 self.__verify_output_sizes()              
                 self.__check_looping_jobs()
-                        
+
                 # check if any jobs are done by scanning the process list
                 # some jobs might have sent updates to the monitor thread about their final states at other times
                 self.__wdog.pollChildren()
