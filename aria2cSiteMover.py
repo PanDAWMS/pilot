@@ -11,12 +11,11 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, getDirectAccessDic, extractPattern, getSiteInformation 
 from timed_command import timed_command
 from FileStateClient import updateFileState
-
-# use a try statement since the rucio module is e.g. not available on HPC sites
 try:
-    from rucio.client import Client
+  from rucio.client import Client
 except:
-    tolog("!!WARNING!!4444!! Cannot import rucio.client (not available)")
+  tolog("!!WARNING!!4444!! Cannot import rucio.client (not available)")
+
 
 class replica:
     """ Replica """
@@ -81,18 +80,21 @@ class aria2cSiteMover(SiteMover.SiteMover):
         self._setup = setup_path
         self.copyCommand = 'aria2c'
         self.commandInPATH()
-	#self.getSurl2httpsMap()
 	rucio_account=self.rucio_account
 	tolog("Rucio account: %s" %(rucio_account))
-	cmd="curl -1 -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert %s --cert %s --key %s --capath %s -X GET https://voatlasrucio-auth-prod.cern.ch/auth/x509_proxy| grep X-Rucio-Auth-Token"%(self.sslKey,self.sslKey,self.sslKey,self.sslCertDir)
+	cmd="curl -1 -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert %s --cert %s --key %s --capath %s -X GET https://rucio-auth-prod.cern.ch/auth/x509_proxy| grep 'X-Rucio-Auth-Token:'"%(self.sslKey,self.sslKey,self.sslKey,self.sslCertDir)
         tolog("Command to be launched: %s" %(cmd))
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
-        token_rucio_or, stderr= token_rucio_cmd.communicate()
-        #I have to delete the last two characters of the token (a CR and a strange \r)
-	if token_rucio_or:
-           token_lenght=len(token_rucio_or)-2
-           token_rucio=token_rucio_or[:token_lenght]
-           #tolog("Token on file: %s" %(token_rucio))
+        token_rucio, stderr= token_rucio_cmd.communicate()
+	if token_rucio:
+	   if '\r' in token_rucio:
+	        pos2print=token_rucio.find('\r')
+                token_rucio=token_rucio[:pos2print]
+	   elif '\n' in token_rucio:
+	        pos2print=token_rucio.find('\n')
+	   pos2print=token_rucio.find("CN")
+           token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
+           tolog("Token on file: %s" %(token_rucio2print))
 
 	   if os.path.exists('token_file'):
     		os.remove('token_file')
@@ -167,37 +169,36 @@ class aria2cSiteMover(SiteMover.SiteMover):
         srmhost=None
         if dirAcc:
           srmhost = self.hostFromSurl(dirAcc['oldPrefix'])
-        #if srmhost:
-        #  self.surl2https_map[srmhost] = (dirAcc['oldPrefix'],dirAcc['newPrefix'])
         for guid in replicas.keys():
           reps = replicas[guid]
           tolog("Got replicas=%s for guid=%s" % (str(reps), guid))
 	
         token_file=open('token_file', 'r')
         token_rucio=token_file.readline() 
-        #tolog("Token I am using: %s" %(token_rucio))
+	pos2print=token_rucio.find("CN")
+        token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
+        tolog("Token I am using: %s" %(token_rucio2print))
 	httpredirector = readpar('httpredirector')
 	if not httpredirector:
             cmd = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
-            #tolog("curl command to be executed: %s" %(cmd))
+            cmd2print = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio2print,reps[0].scope,reps[0].filename)
 	else:
-            #if not httpredirector.startswith('https://') or not httpredirector.startswith('http://'):
-            #    httpredirector = "https://" + httpredirector
             if "http" in httpredirector:
            	tolog("HTTP redirector I am using: %s" %(httpredirector))
                 cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd2print = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
             else:
            	tolog("HTTP redirector I am using: %s" %(httpredirector))
                 cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd2print = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
 
-            #tolog("curl command to be executed: %s" %(cmd))
-		
+        tolog("curl command to be executed: %s" %(cmd2print))
         metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
 	metalink, stderr=metalink_cmd.communicate()
         tolog("Metalink produced by rucio %s" %(metalink))
 	if not "location" in metalink:
            tolog("In surls2metalink: command std error: %s" %(stderr))
-           tolog("!!WARNING!!1099!! No metalink to download file!")
+           tolog("!!WARNING!!1099!! No metalink to download file, or error in metalink!")
 	else:
            mlfile = open(metalinkFile,'w')
            mlfile.write(metalink)
@@ -345,7 +346,6 @@ class aria2cSiteMover(SiteMover.SiteMover):
 		if word in ("<url"):
 			word_occour +=1 
 	tolog("number of links: %s" % (str(word_occour)))                        
-	#tolog("number of links: %s", % (metalink))#(str(word_occour)))
 
         #--check-certificate=false makes it easier(sles11)
         _cmd_str = '%s -j %s --ca-certificate=%s --certificate=%s --private-key=%s --auto-file-renaming=false --continue --server-stat-of=aria2cperf.txt %s'%(self.copyCommand, str(word_occour),cabundleFile,sslCert,sslCert,metalink)
@@ -648,22 +648,25 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	#getting the remote checksum from Rucio:
 	token_file=open('token_file', 'r')
         token_rucio=token_file.readline()
-        #tolog("Token I am using: %s" %(token_rucio))
+	pos2print=token_rucio.find("CN")
+        token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
+        tolog("Token I am using: %s" %(token_rucio2print))
         httpredirector = readpar('httpredirector')
         if not httpredirector:
             #cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip |awk \'{FS=\"hash type=\"}; {print $2}\' |awk \'{FS=\">\"}; {print $2}\' |awk \'{FS=\"<\"} {print $1}\'| grep -v \'^$\'"%(token_rucio,scope,filename)
             cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio,scope,filename)
-            #tolog("Getting remote checksum: command to be executed: %s" %(cmd))
+            cmd2print = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio2print,scope,filename)
         else:
             if "http" in httpredirector:
                 tolog("HTTP redirector I am using: %s" %(httpredirector))
                 cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,scope,filename)
+                cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucioi2print,httpredirector,scope,filename)
             else:
                 tolog("HTTP redirector I am using: %s" %(httpredirector))
                 cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
 
-            #tolog("Getting remote checksum: command to be executed: %s" %(cmd))
-
+        tolog("Getting remote checksum: command to be executed: %s" %(cmd2print))
         checksum_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
         remote_checksum, stderr=checksum_cmd.communicate()
         tolog("Remote checksum as given by rucio %s" %(remote_checksum))
