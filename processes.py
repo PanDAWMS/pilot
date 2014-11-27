@@ -267,10 +267,11 @@ def isCGROUPSSite():
     status = False
 
     # Make experiment specific?
-    if os.environ.has_key('ATLAS_CGROUPS_ACTIVE'):
-        cgroups = os.environ['ATLAS_CGROUPS_ACTIVE']
+    if os.environ.has_key('ATLAS_CGROUPS_BASE'):
+        cgroups = os.environ['ATLAS_CGROUPS_BASE']
         if cgroups != "":
-            if cgroups.lower() == "true":
-                status = True
+            pUtil.tolog("ATLAS_CGROUPS_BASE = %s" % (cgroups))
+            //if cgroups.lower() == "true":
+            status = True
 
     return status
