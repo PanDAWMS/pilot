@@ -271,7 +271,7 @@ def isCGROUPSSite():
         cgroups = os.environ['ATLAS_CGROUPS_BASE']
         if cgroups != "":
             pUtil.tolog("ATLAS_CGROUPS_BASE = %s" % (cgroups))
-            //if cgroups.lower() == "true":
+            #if cgroups.lower() == "true":
             status = True
 
     return status
