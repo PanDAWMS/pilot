@@ -4296,9 +4296,12 @@ def sig2exc(sig, frm):
             # postJobTask(env['jobDic'][k][1], globalSite, globalWorkNode, env['experiment'], jr=False)
 
     # touch a KILLED file which will be seen by the multi-job loop, to prevent further jobs from being started
-    createLockFile(False, env['globalSite'].workdir, "KILLED")
+    try:
+        createLockFile(False, env['thisSite'].workdir, "KILLED")
+        writeToFile(os.path.join(env['thisSite'].workdir, "EXITCODE"), str(ec))
+    except Exception, e:
+        tolog("!!WARNING!!2211!! Caught exception: %s" % (e))
 
-    writeToFile(os.path.join(env['globalSite'].workdir, "EXITCODE"), str(ec))
     raise SystemError(sig) # this one will trigger the cleanup function to be called
 
 def extractPattern(source, pattern):
