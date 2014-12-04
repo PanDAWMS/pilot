@@ -1872,7 +1872,7 @@ class _Curl:
         # verification of the host certificate
         self._verifyHost = True
         # modified for Titan test
-        if 'HPC_' in readpar("catchall"):
+        if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             self._verifyHost = False
 
         # request a compressed response

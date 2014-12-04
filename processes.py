@@ -192,7 +192,7 @@ def checkProcesses(pid):
 def killOrphans():
     """ Find and kill all orphan processes belonging to current pilot user """
     
-    if 'HPC_' in readpar("catchall"):
+    if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
         pUtil.tolog("Pilot for HPC in execution. Orphans processes should be killed by batch system.")
         return 
     

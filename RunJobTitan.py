@@ -178,36 +178,7 @@ class RunJobTitan(RunJobHPC):
             nodes, walltime, d = self.get_hpc_resources(self.partition_comp, self.max_nodes, self.nodes, self.min_walltime)
             cpu_number = self.cpu_number_per_node * nodes
             
-            '''
-            walltime = 0
-            res = self.get_hpc_resources(self.partition_comp, self.max_nodes, )
-            if res:
-                for n in sorted(res.keys(), reverse=True): 
-                    if self.min_walltime <= res[n] and self.nodes <= n:
-                        nodes = n
-                        walltime = res[n] / 60 
-                        walltime = walltime - 2
-                        break
-                if walltime < self.walltime:
-                    tolog("Time gap or resources won't fit needed. Will wait for 90 sec. before restart.")
-                    time.sleep(90)
-                    repeat_num = repeat_num + 1
-                    return self.executePayload(thisExperiment, runCommandList, job, repeat_num)
-                else:
-                    self.walltime = walltime
-                    #self.walltime = self.min_walltime
-                    #nodes = self.nodes
-            else:
-                tolog("No available resources. Will wait for 90 sec. before repeat.")
-                time.sleep(90)
-                repeat_num = repeat_num + 1
-                return self.executePayload(thisExperiment, runCommandList, job, repeat_num)
-                
-            cpu_number = self.cpu_number_per_node * nodes
-            '''
-            
-            
-            tolog("Launch parameters \nWalltime limit         : %s (min)\nRequested nodes (cores): %s (%s)" % (self.walltime,nodes,cpu_number))
+            tolog("Launch parameters \nWalltime limit         : %s (min)\nRequested nodes (cores): %s (%s)" % (walltime,nodes,cpu_number))
                     
             current_job_number += 1
             try:
@@ -257,7 +228,10 @@ class RunJobTitan(RunJobHPC):
                         return self.executePayload(thisExperiment, runCommandList, job, repeat_num)
                         
                         #tolog("Wait time (%s s.) exceed, job cancelled" % self.waittime)
-                        
+                    
+                    job.coreCount = cpu_number
+                    rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), self.getPilotPort())
+                    
                     fork_job.wait()
                     tolog("Job State              : %s" % (fork_job.state))
                     tolog("Exitcode               : %s" % (fork_job.exit_code))
@@ -351,7 +325,7 @@ if __name__ == "__main__":
     
     runJob.cpu_number_per_node = 16
     runJob.walltime = 120
-    runJob.max_nodes = 2000 
+    runJob.max_nodes =  50 #2000 
     runJob.number_of_threads = 8  # 1 - one thread per task
     runJob.min_walltime = 60
     runJob.waittime = 5

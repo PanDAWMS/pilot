@@ -2227,7 +2227,7 @@ class ATLASExperiment(Experiment):
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
         
-        if 'HPC_' in readpar("catchall"):
+        if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             status = True
         else:
             # Test the LFC module
