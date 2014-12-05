@@ -2081,8 +2081,12 @@ def verifyJobState(state):
     if state in allowed_values:
         tolog("Job state \'%s\' is an allowed job state value" % (state))
     else:
-        tolog("!!WARNING!!3333!! Job state \'%s\' is not an allowed job state value, job will fail")
-        state = 'failed'
+        tolog("!!WARNING!!3333!! Job state \'%s\' is not an allowed server job state value, job can fail" % (state))
+        if state == 'setup' or state == 'stagein' or state == 'stageout':
+            state = 'running'
+            tolog("Switched to running state for server update")
+        else:
+            state = 'failed'
 
     return state
 
