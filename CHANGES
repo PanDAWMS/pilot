@@ -566,6 +566,7 @@ Corrected error message 'cmtside command was timed out' -> 'cmtsite command was 
 Now using ATLAS_CGROUPS_BASE in isCGROUPSSite() (processes)
 Replaced globalSite with thisSite, and added a try-statement, in sig2exc() (pUtil)
 Added protection for non-allowed server states in verifyJobState() (pUtil)
+Updates from Edward Karavakis for glexec (pilot, glexec_utils)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

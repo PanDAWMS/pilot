@@ -168,21 +168,30 @@ class GlexecInterface(object):
          - In gLite sites it is  $GLITE_LOCATION/sbin/glexec
          - In OSG sites it is $OSG_GLEXEC_LOCATION/glexec
         """
+
         if os.environ.has_key('OSG_GLEXEC_LOCATION'):
-            self.__glexec_path = os.environ['OSG_GLEXEC_LOCATION']
-        elif os.environ.has_key('GLEXEC_LOCATION'):
-            self.__glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
-                                             'sbin/glexec')
-        elif os.path.exists('/usr/sbin/glexec'):
-	    pUtil.tolog('glexec is installed in the standard location. Adding the missing GLEXEC_LOCATION env var')
-            self.__glexec_path = '/usr/sbin/glexec'
-	    os.environ['GLEXEC_LOCATION'] = '/usr'
-	elif os.environ.has_key('GLITE_LOCATION'):
-            self.__glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
-                                             'sbin/glexec')
-	else:
-            pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
-	    self.__glexec_path = '/usr/sbin/glexec'
+		if os.environ['OSG_GLEXEC_LOCATION'] != '':
+                	self.__glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+                else:
+                        pUtil.tolog('OSG_GLEXEC_LOCATION env var was set to an empty string, will force it to /usr/sbin/glexec')
+                        self.__glexec_path = '/usr/sbin/glexec'
+                        os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
+	elif os.environ.has_key('GLEXEC_LOCATION'):
+        	if os.environ['GLEXEC_LOCATION'] != '':
+                	self.__glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
+                else:
+                        pUtil.tolog('GLEXEC_LOCATION env var was set to an empty string, will force it to /usr/sbin/glexec')
+                        self.__glexec_path = '/usr/sbin/glexec'
+                        os.environ['GLEXEC_LOCATION'] = '/usr'
+	elif os.path.exists('/usr/sbin/glexec'):
+                pUtil.tolog('glexec is installed in the standard location. Adding the missing GLEXEC_LOCATION env var')
+                self.__glexec_path = '/usr/sbin/glexec'
+                os.environ['GLEXEC_LOCATION'] = '/usr'
+        elif os.environ.has_key('GLITE_LOCATION'):
+                self.__glexec_path = os.path.join(os.environ['GLITE_LOCATION'], 'sbin/glexec')
+        else:
+                pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
+                self.__glexec_path = '/usr/sbin/glexec'
 
         self.__wrapper_path = os.path.join(os.path.dirname(self.__glexec_path),
                                           'glexec_wrapenv.pl')

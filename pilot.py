@@ -2583,10 +2583,17 @@ def runMain(runpars):
                 os.chmod(temp_proxy_path, 0700)
 
                 if os.environ.has_key('OSG_GLEXEC_LOCATION'):
-                        glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+			if os.environ['OSG_GLEXEC_LOCATION'] != '':
+				glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+     			else:
+			        glexec_path = '/usr/sbin/glexec'
+                                os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
                 elif os.environ.has_key('GLEXEC_LOCATION'):
-                        glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
-                                             'sbin/glexec')
+			if os.environ['GLEXEC_LOCATION'] != '':
+	     			glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
+     			else:
+             			glexec_path = '/usr/sbin/glexec'
+                                os.environ['GLEXEC_LOCATION'] = '/usr'
 		elif os.path.exists('/usr/sbin/glexec'):
 			glexec_path = '/usr/sbin/glexec'
 	                os.environ['GLEXEC_LOCATION'] = '/usr'
