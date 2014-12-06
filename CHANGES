@@ -567,6 +567,7 @@ Now using ATLAS_CGROUPS_BASE in isCGROUPSSite() (processes)
 Replaced globalSite with thisSite, and added a try-statement, in sig2exc() (pUtil)
 Added protection for non-allowed server states in verifyJobState() (pUtil)
 Updates from Edward Karavakis for glexec (pilot, glexec_utils)
+Corrected undefined variable, t -> timeUsed, in errorToReport() (LocalSiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
