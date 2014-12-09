@@ -574,6 +574,7 @@ Corrected undefined variable, t -> timeUsed, in errorToReport() (LocalSiteMover,
 59h:
 
 Updated the xrdcp setup in getLocalROOTSetup() (ATLASSiteInformation)
+Created getTimeOut() to be used by site movers (SiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -3406,3 +3406,17 @@ class SiteMover(object):
         # (see e.g. FAXSiteMover, aria2cSiteMover for implementations)
 
         return []
+
+    def getTimeOut(self, filesize):
+        """ Get a proper time-out limit based on the file size """
+
+        # timeout_default = 3600
+        timeout_max = 6*3600
+        timeout_min = 5*60
+
+        # timeout = min + k*size
+        timeout = timeout_min + int(filesize/400000.0)
+        if timeout > timeout_max:
+            timeout = timeout_max
+
+        return timeout
