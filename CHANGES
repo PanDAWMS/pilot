@@ -575,6 +575,9 @@ Corrected undefined variable, t -> timeUsed, in errorToReport() (LocalSiteMover,
 
 Updated the xrdcp setup in getLocalROOTSetup() (ATLASSiteInformation)
 Created getTimeOut() to be used by site movers (SiteMover)
+Sending sourceSize to stageInFile() from stageIn() (FAXSiteMover)
+Added sourceSize argument to stageInFile() (FAXSiteMover)
+Using getTimeOut() from stageInFile() (FAXSiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
