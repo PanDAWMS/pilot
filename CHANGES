@@ -578,6 +578,7 @@ Created getTimeOut() to be used by site movers (SiteMover)
 Sending sourceSize to stageInFile() from stageIn() (FAXSiteMover)
 Added sourceSize argument to stageInFile() (FAXSiteMover)
 Using getTimeOut() from stageInFile() (FAXSiteMover)
+Added -f to xrdcp command in stageOutFile(), requested by Alessandro di Girolamo (xrdcpSiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

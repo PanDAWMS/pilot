@@ -563,7 +563,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         #checksum_option = " -adler " # currently use this one. --cksum will fail on some sites
 
         # surl is the same as putfile
-        _cmd_str = '%s xrdcp %s %s %s' % (self._setup, checksum_option, source, destination)
+        _cmd_str = '%s xrdcp -f %s %s %s' % (self._setup, checksum_option, source, destination)
 
 
         tolog("Executing command: %s" % (_cmd_str))
