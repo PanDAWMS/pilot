@@ -285,7 +285,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             self.log("Failed to convert file size to int: %s (using default)" % (e))
         else:
             timeout = self.getTimeOut(fsize)
-        self.log("Using time-out %d s for file size %d" % (timeout, sourceSize))
+        self.log("Using time-out %d s for file size %s" % (timeout, sourceSize))
         try:
             timerCommand = TimerCommand(_cmd_str)
             s, o = timerCommand.run(timeout=timeout)
