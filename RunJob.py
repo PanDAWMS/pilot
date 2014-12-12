@@ -1137,6 +1137,7 @@ if __name__ == "__main__":
         JR = JobRecovery()
         try:
             job = Job.Job()
+            job.workdir = jobSite.workdir
             job.setJobDef(newJobDef.job)
             job.workdir = jobSite.workdir
             job.experiment = runJob.getExperiment()

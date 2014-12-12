@@ -266,6 +266,18 @@ class Job:
             pUtil.tolog("Turning on Event Service for processing type = %s" % (self.processingType))
             self.eventService = True
 
+        # Event Service merge job
+        if self.workdir and data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
+            if data.has_key('writeToFile'):
+                writeToFile = data['writeToFile']
+                esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(writeToFile)
+                pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
+                pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
+                if esFileDictionary != {}:
+                    ec, fnames = pUtil.writeToInputFile(self.workdir, esFileDictionary, orderedFnameList)
+                    if ec == 0:
+                        data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
+
         # HPC job staus
         if data.has_key('mode'):
             self.mode = data.get("mode", None)

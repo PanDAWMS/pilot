@@ -203,8 +203,8 @@ class RunJobHpcEvent(RunJob):
         tolog("Updating an event range..")
 
         message = ""
-        url = "https://aipanda007.cern.ch:25443/server/panda"
-        # url = "https://pandaserver.cern.ch:25443/server/panda"
+        # url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
         node = {}
         node['eventRangeID'] = event_range_id
 
@@ -230,7 +230,9 @@ class RunJobHpcEvent(RunJob):
         tolog("Server: Downloading new event ranges..")
 
         message = ""
-        url = "https://aipanda007.cern.ch:25443/server/panda"
+        # url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
+
         node = {}
         node['pandaID'] = self.__job.jobId
         node['jobsetID'] = self.__job.jobsetID
