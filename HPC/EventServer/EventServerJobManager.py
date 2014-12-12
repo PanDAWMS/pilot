@@ -49,6 +49,7 @@ class EventServerJobManager():
         self.__TokenExtractorProcess = None
         self.__athenaMPProcess = None
         self.__athenaMP_isReady = False
+        self.__athenaMP_needEvents = 0
         self.__pollTimeout = 5
         self.__log = Logger.Logger()
         self.initSignalHandler()
@@ -95,6 +96,7 @@ class EventServerJobManager():
     def insertEventRange(self, message):
         self.__log.debug("Rank %s: insertEventRange to ESJobManager: %s" % (self.__rank, message))
         self.__eventRanges.append(message)
+        self.__athenaMP_needEvents -= 1
         if not "No more events" in message:
             eventRangeID = message['eventRangeID']
             if not eventRangeID in self.__eventRangesStatus:
@@ -149,10 +151,13 @@ class EventServerJobManager():
         return False
 
     def isReady(self):
-        return self.__athenaMP_isReady and self.__athenaMPProcess.poll() is None
+        #return self.__athenaMP_isReady and self.__athenaMPProcess.poll() is None
+        #return self.__athenaMP_needEvents > 0 and self.__athenaMPProcess.poll() is None
+        return len(self.__eventRanges) > 0 and self.__athenaMPProcess.poll() is None
 
     def isNeedMoreEvents(self):
-        return self.__athenaMP_isReady and len(self.__eventRanges) == 0
+        #return self.__athenaMP_isReady and len(self.__eventRanges) == 0
+        return self.__athenaMP_needEvents
 
     def handleMessage(self):
         try:
@@ -164,6 +169,7 @@ class EventServerJobManager():
             self.__log.debug("Rank %s: Received message: %s" % (self.__rank, message))
             if "Ready for events" in message:
                 self.__athenaMP_isReady = True
+                self.__athenaMP_needEvents += 1
             elif message.startswith("/"):
                 self.__outputMessage.append(message)
                 try:
@@ -263,7 +269,7 @@ class EventServerJobManager():
                 return -1
 
             self.handleMessage()
-            if self.isReady():
+            while self.isReady():
                 self.__log.info("Rank %s: AthenMP is ready." % self.__rank)
                 eventRange = self.getEventRange()
                 if eventRange is None:
