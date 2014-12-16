@@ -60,7 +60,8 @@ Commands:
     try:
         main(args.globalWorkingDir, args.localWorkingDir)
         print "HPCJob-Yoda success"
+        sys.exit(0)
     except Exception as e:
         print "HPCJob-Yoda failed"
         print(e)
-        exit(1)
+        sys.exit(1)

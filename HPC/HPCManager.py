@@ -202,6 +202,17 @@ class HPCManager:
         return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER)
 
     def submit(self):
+        for i in range(5):
+            status, jobid = self.submitJob()
+            if status != 0:
+                self.__log.info("Failed to submit this job to HPC. will sleep one minute and retry")
+                time.sleep(60)
+            else:
+                break
+        if status != 0:
+            self.__log.info("Failed to submit this job to HPC. All retries finished. will fail") 
+  
+    def submitJob(self):
         submit_script = "#!/bin/bash -l" + "\n"
         submit_script += "#PBS -q " + self.__queue + "\n"
         if self.__repo:

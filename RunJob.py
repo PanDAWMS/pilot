@@ -454,6 +454,8 @@ class RunJob(object):
     def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
         """ set the fail code and exit """
 
+        if pilotExitCode and job.attemptNr<4 and job.eventServiceMerge:
+            pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
         job.setState(["failed", transExitCode, pilotExitCode])
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag

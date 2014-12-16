@@ -93,6 +93,7 @@ class Job:
 
         # event service objects
         self.eventService = False          # True for event service jobs
+        self.eventServiceMerge = False     # True for event service merge jobs
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
 #        self.eventRangeID = None           # Set for event service jobs
@@ -265,6 +266,14 @@ class Job:
         if not self.eventService and self.processingType == "evtest":
             pUtil.tolog("Turning on Event Service for processing type = %s" % (self.processingType))
             self.eventService = True
+
+        # Event Service Merge variables
+        if data.has_key('eventServiceMerge'):
+            if data.get('eventServiceMerge', '').lower() == "true":
+                self.eventServiceMerge = True
+            else:
+                self.eventServiceMerge = False
+            pUtil.tolog("eventServiceMerge = %s" % str(self.eventServiceMerge))
 
         # Event Service merge job
         if self.workdir and data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":

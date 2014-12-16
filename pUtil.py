@@ -2307,7 +2307,7 @@ def updateJobPars(jobPars, fnames):
     for identifier in fnames.keys():
         jobPars = jobPars.replace("@%s" % (identifier), "@%s" % (fnames[identifier]))
         tolog("%s: %s" % (identifier, fnames[identifier]))
-    #jobPars = jobPars.replace("--inputHitsFile=", "")
+    jobPars = jobPars.replace("--inputHitsFile=", "")
     return jobPars
 
 def updateDispatcherData4ES(data, experiment, path):

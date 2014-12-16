@@ -603,23 +603,32 @@ class RunJobHpcEvent(RunJob):
         #if self.__output_es_files:
         #    ec = pUtil.removeFiles("/", self.__output_es_files)
 
+
+        errorCode = PilotErrors.ERR_UNKNOWN
+        if self.__job.attemptNr < 4:
+            errorCode = PilotErrors.ERR_ESRECOVERABLE
+
         #check HPC job status
-        if self.__hpcStatus:
-            self.failJob(0, 1220, self.__job, pilotErrorDiag="HPC job failed")
+        #if self.__hpcStatus:
+        #    self.failJob(0, 1220, self.__job, pilotErrorDiag="HPC job failed")
 
         if len(self.__eventRanges) == 0:
             tolog("Cannot get event ranges")
-            self.failJob(0, 1220, self.__job, pilotErrorDiag="Cannot get event ranges")
+            self.failJob(0, errorCode, self.__job, pilotErrorDiag="Cannot get event ranges")
 
         # check whether all event ranges are handled
         tolog("Total event ranges: %s" % len(self.__eventRanges))
         not_handled_events = self.__eventRanges.values().count('new')
         tolog("Not handled events: %s" % not_handled_events)
+        done_events = self.__eventRanges.values().count('Done')
+        tolog("Finished events: %s" % done_events)
         stagedOut_events = self.__eventRanges.values().count('stagedOut')
         tolog("stagedOut but not updated to panda server events: %s" % stagedOut_events)
+        if done_events + stagedOut_events:
+            errorCode = PilotErrors.ERR_ESRECOVERABLE
         if not_handled_events + stagedOut_events:
             tolog("Not all event ranges are handled. failed job")
-            self.failJob(0, 1220, self.__job, pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(self.__eventRanges), not_handled_events + stagedOut_events))
+            self.failJob(0, errorCode, self.__job, pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(self.__eventRanges), not_handled_events + stagedOut_events))
 
         dsname, datasetDict = self.getDatasets()
         tolog("dsname = %s" % (dsname))
