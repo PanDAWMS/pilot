@@ -2206,7 +2206,7 @@ class ATLASExperiment(Experiment):
             if os.path.exists(quick_setup):
                 cmd = "source %s" % (quick_setup)
                 asetup_path = ""
-                cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease --skipFileValidation --checkEventCount=False"
+                cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
 
         return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 

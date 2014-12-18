@@ -343,9 +343,20 @@ class RunJobHpcEvent(RunJob):
                     command_list_new.append(command_part)
             self.__runCommandList[0] = " ".join(command_list_new)
 
-            self.__runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.__poolFileCatalog)
+            self.__runCommandList[0] += ' --preExec \'from G4AtlasApps.SimFlags import simFlags;simFlags.RunNumber=222222;from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.Strategy="TokenScatterer";from AthenaCommon.AppMgr import ServiceMgr as svcMgr;from AthenaServices.AthenaServicesConf import OutputStreamSequencerSvc;outputStreamSequencerSvc = OutputStreamSequencerSvc();outputStreamSequencerSvc.SequenceIncidentName = "NextEventRange";outputStreamSequencerSvc.IgnoreInputFileBoundary = True;svcMgr += outputStreamSequencerSvc\' '
+            self.__runCommandList[0] += " '--skipFileValidation' '--checkEventCount=False' '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.__poolFileCatalog)
         else:
-            self.__runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.__poolFileCatalogTempName)
+            self.__runCommandList[0] += ' --preExec \'from G4AtlasApps.SimFlags import simFlags;simFlags.RunNumber=222222;from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.Strategy="TokenScatterer";from AthenaCommon.AppMgr import ServiceMgr as svcMgr;from AthenaServices.AthenaServicesConf import OutputStreamSequencerSvc;outputStreamSequencerSvc = OutputStreamSequencerSvc();outputStreamSequencerSvc.SequenceIncidentName = "NextEventRange";outputStreamSequencerSvc.IgnoreInputFileBoundary = True;svcMgr += outputStreamSequencerSvc\' '
+            self.__runCommandList[0] += " '--skipFileValidation' '--checkEventCount=False' '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.__poolFileCatalogTempName)
+
+        # should not have --DBRelease and UserFrontier.py in HPC
+        self.__runCommandList[0] = self.__runCommandList[0].replace("--DBRelease=current", "")
+        if 'RecJobTransforms/UseFrontier.py,' in self.__runCommandList[0]:
+            self.__runCommandList[0] = self.__runCommandList[0].replace('RecJobTransforms/UseFrontier.py,', '')
+        if ',RecJobTransforms/UseFrontier.py' in self.__runCommandList[0]:
+            self.__runCommandList[0] = self.__runCommandList[0].replace(',RecJobTransforms/UseFrontier.py', '')
+        if ' --postInclude=RecJobTransforms/UseFrontier.py ' in self.__runCommandList[0]:
+            self.__runCommandList[0] = self.__runCommandList[0].replace(' --postInclude=RecJobTransforms/UseFrontier.py ', ' ')
 
         #self.__runCommandList[0] = self.__runCommandList[0].replace(source_setup, source_setup + " --cmtextratags=ATLAS,useDBRelease --skipFileValidation --checkEventCount=False")
         # for tests, asetup has a bug
