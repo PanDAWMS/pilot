@@ -245,6 +245,11 @@ class PandaServerClient:
             if job.exeErrorDiag != "":
                 node['exeErrorCode'] = job.exeErrorCode
                 node['exeErrorDiag'] = job.exeErrorDiag
+
+                # verify that exeErrorCode is set, if not, use the info in result[1]
+                if job.exeErrorCode == 0:
+                    tolog("!!WARNING!!3333!! job.exeErrorDiag is set but not job.exeErrorCode: setting it to: %d" % (job.result[1]))
+                    job.exeErrorCode = job.result[1]
             else:
                 node['transExitCode'] = job.result[1]
             if (job.result[0] == 'failed') and (job.exeErrorCode != 0) and (job.result[1] != job.exeErrorCode):
