@@ -13,7 +13,7 @@ from glob import glob
 
 from PilotErrors import PilotErrors
 from JobState import JobState
-from processes import killProcesses
+from processes import killProcesses, isCGROUPSSite
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from JobLog import JobLog # import here to avoid issues seen at EELA with missing module
 import Mover as mover
@@ -105,7 +105,7 @@ def argParser(argv):
         pass
     else:
         env['pilotId'] = gtag
-        print "pilot ID = %s" % ['pilotId']
+        print "pilot ID = %s" % env['pilotId']
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
@@ -323,7 +323,7 @@ def argParser(argv):
 
     # force user jobs for ANALY sites
     if env['sitename'].startswith('ANALY_'):
-        if env['uflag'] != 'user' and env['uflag'] != 'self' and env['uflag'] != 'ptest':
+        if env['uflag'] != 'user' and env['uflag'] != 'self' and env['uflag'] != 'ptest' and env['uflag'] != 'rucio_test':
             env['uflag'] = 'user'
             pUtil.tolog("Pilot user flag has been reset for analysis site (to value: %s)" % (env['uflag']))
         else:
@@ -2324,13 +2324,19 @@ def getsetWNMem(memory):
     
         # Convert MB to Bytes for the setrlimit function
         _maxmemory = maxmemory*1024**2
-        try:
-            import resource
-            resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
-        except Exception, e:
-            pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
+
+        # Only proceed if not a CGROUPS site
+        if not isCGROUPSSite():
+            pUtil.tolog("Not a CGROUPS site, proceeding with setting the memory limit")
+            try:
+                import resource
+                resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
+            except Exception, e:
+                pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
+            else:
+                pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
         else:
-            pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
+            pUtil.tolog("Detected a CGROUPS site, will not set the memory limit")
 
         cmd = "ulimit -a"
         pUtil.tolog("Executing command: %s" % (cmd))
@@ -2577,12 +2583,20 @@ def runMain(runpars):
                 os.chmod(temp_proxy_path, 0700)
 
                 if os.environ.has_key('OSG_GLEXEC_LOCATION'):
-                        glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+			if os.environ['OSG_GLEXEC_LOCATION'] != '':
+				glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+     			else:
+			        glexec_path = '/usr/sbin/glexec'
+                                os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
                 elif os.environ.has_key('GLEXEC_LOCATION'):
-                        glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
-                                             'sbin/glexec')
+			if os.environ['GLEXEC_LOCATION'] != '':
+	     			glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
+     			else:
+             			glexec_path = '/usr/sbin/glexec'
+                                os.environ['GLEXEC_LOCATION'] = '/usr'
 		elif os.path.exists('/usr/sbin/glexec'):
 			glexec_path = '/usr/sbin/glexec'
+	                os.environ['GLEXEC_LOCATION'] = '/usr'
                 elif os.environ.has_key('GLITE_LOCATION'):
                         glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
                                              'sbin/glexec')

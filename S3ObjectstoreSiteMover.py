@@ -233,13 +233,13 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         status, output = self.setup(experiment, destination)
         if status:
-            return status, output
+            return status, output, None, None
 
         status, output, localSize, localChecksum = self.getLocalFileInfo(source)
         self.log("getLocalFileInfo  status: %s, output: %s, localSize: %s, localChecksum: %s" % ( status, output, localSize, localChecksum))
         if status:
             self.log("Failed to get local file(%s) info." % destination)
-            return status, output
+            return status, output, None, None
 
         status, output = self.stageOutFile(source, destination, localSize, localChecksum, token)
         self.log("stageOutFile status: %s, output: %s" % (status, output))

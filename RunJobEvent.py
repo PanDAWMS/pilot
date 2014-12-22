@@ -840,9 +840,20 @@ class RunJobEvent(RunJob):
         # does the job report exist?
         extension = getExtension(alternative='pickle')
         if extension.lower() == "json":
-            filename = os.path.join(workdir, "jobReport.%s" % (extension))
+            _filename = "jobReport.%s" % (extension)
         else:
-            filename = os.path.join(workdir, "jobReportExtract.%s" % (extension))
+            _filename = "jobReportExtract.%s" % (extension)
+        filename = os.path.join(workdir, _filename)
+
+        # first backup the jobReport to the job workdir since it will be needed later
+        # (the current location will disappear since it will be tarred up in the jobs' log file)
+        d = os.path.join(workdir, '..')
+        try:
+            copy2(filename, os.path.join(d, _filename))
+        except Exception, e:
+            tolog("Warning: Could not backup %s to %s: %s" % (_filename, d, e))
+        else:
+            tolog("Backed up %s to %s" % (_filename, d))
 
         # It might take a short while longer until the job report is created (unknown why)
         count = 1
@@ -2205,7 +2216,7 @@ if __name__ == "__main__":
 
         # Do not stop the stageout thread until all output files have been transferred
         starttime = time.time()
-        maxtime = 15*60
+        maxtime = 10*60*60
 #        while len (runJob.getStageOutQueue()) > 0 and (time.time() - starttime < maxtime):
 #            tolog("stage-out queue: %s" % (runJob.getStageOutQueue()))
 #            tolog("(Will wait for a maximum of %d seconds, so far waited %d seconds)" % (maxtime, time.time() - starttime))

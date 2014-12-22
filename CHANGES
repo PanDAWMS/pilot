@@ -521,7 +521,68 @@ Added time-outs to S3ObjectstoreSiteMover (Wen Guan)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Note: new modules have to be added to glexec_utils.py.
+59e:
+
+Added altloc argument to getPayloadMetadataFilename() and its call in updatePandaServer() (PandaServerClient)
+Looking for jobReport in alt location, improved log messages in getPayloadMetadataFilename() (PandaServerClient)
+Setting GLEXEC_LOCATION in case this is not already set to solve issues seen at Canadian sites. Code from Edward Karavakis (pilot, glexec_utils)
+Changed the max stage-out time to 10 h in __main__() (RunJobEvent)
+Added rucio_test to argParser() to allow this prodSourceLabel to run user jobs (pilot)
+Created sendTraceToRucio() used from sendTrace(). Code from Wen Guan (SiteMover)
+Improved boto addition to PYTHONPATH. Code from Wen Guan (S3ObjectstoreSiteMover)
+Updated getDefaultDQ2SiteName() to handle complex se[prod]paths to fix a problem with GROUPDISK jobs (SiteMover)
+New version of aria2cSiteMover from Vincenzo Lavorini
+Corrected ['pilotId'] -> env['pilotId'] in argParser() (pilot)
+Now returning pilotErrorDiag from verifyReplicasDictionary(), received in getPoolFileCatalog() (Mover)
+Improved error message for replica missing in Rucio catalog, in getPoolFileCatalog() (Mover)
+Added missing return objects in stageOut() (S3ObjectstoreSiteMover)
+Added debugging info to S3 key download in getSecurityKey() (ATLASSiteInformation)
+Changed aipanda007 to pandaserver.cern.ch in getSecurityKey() (ATLASSiteInformation)
+Updated process handling. Code from Wen Guan (TimerCommand)
+Removed unwanted log messages (aria2cSiteMover)
+  
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+59f:
+
+Put a try-statement around the rucio.client import in aria2cSiteMover, not always available. Caused problem om Nordugrid HPC sites
+Added missing 'self' to isAGreaterOrEqualToB() in getPayloadMetadataFilename() (PandaServerClient)
+Copying jobReport to pilots workdir to make it available for PandaServerClient at the end of the job (RunJob, RunJobEvent)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+59g:
+
+Using default metadata XML file if reportVersion is not found in jobReport.json, in getPayloadMetadataFilename() (PandaServerClient)
+Now sending jobReport.json if report version >= 1.0.0 in getPayloadMetadataFilename() (PandaServerClient)
+Created getMaxMemoryUsageFromCGroups() [to be used by Monitor.py] (processes)
+Removed misleading log messages related to process killing ('Going to kill pid ..') (Monitor)
+Added curtime_mem in monitor_job() (Monitor)
+Created __verify_memory_limits(), called from monitor_job() (Monitor)
+Created isCGROUPSSite(), used by __getsetWNMem() and its duplicate getsetWNMem() (Monitor, pilot)
+New version of aria2c Site Mover from Vincenzo Lavorini, e.g. updating the auth cluster (to rucio-auth-prod.cern.ch)
+__getsetWNMem() now using getMaxMemoryUsageFromCGroups() for testing purposes (Monitor)
+Corrected error message 'cmtside command was timed out' -> 'cmtsite command was timed out' in verifyCmtsiteCmd() (ATLASExperiment, TaiwanExperiment)
+Now using ATLAS_CGROUPS_BASE in isCGROUPSSite() (processes)
+Replaced globalSite with thisSite, and added a try-statement, in sig2exc() (pUtil)
+Added protection for non-allowed server states in verifyJobState() (pUtil)
+Updates from Edward Karavakis for glexec (pilot, glexec_utils)
+Corrected undefined variable, t -> timeUsed, in errorToReport() (LocalSiteMover, FAXSiteMover, GFAL2SiteMover, xrdcpSiteMover, xrootdObjectstoreSiteMover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+59h:
+
+Updated the xrdcp setup in getLocalROOTSetup() (ATLASSiteInformation)
+Created getTimeOut() to be used by site movers (SiteMover)
+Sending sourceSize to stageInFile() from stageIn() (FAXSiteMover)
+Added sourceSize argument to stageInFile() (FAXSiteMover)
+Using getTimeOut() from stageInFile() (FAXSiteMover)
+Added -f to xrdcp command in stageOutFile(), requested by Alessandro di Girolamo (xrdcpSiteMover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
 TODO:
 

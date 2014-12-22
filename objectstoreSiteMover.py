@@ -89,13 +89,13 @@ if __name__ == '__main__':
 
     # test S3 object store
     source = "/bin/hostname"
-    dest = "s3://cephgw02.usatlas.bnl.gov:8443//wguan_bucket/dir1/dir2/"
+    dest = "s3://ceph003.usatlas.bnl.gov:8443//wguan_bucket/dir1/dir2/NTUP_PHOTON.01255150._000001.root.1"
     lfn = "NTUP_PHOTON.01255150._000001.root.1"
     localSize = None
     localChecksum = None
     print f.put_data(source, dest, fsize=localSize, fchecksum=localChecksum, prodSourceLabel='ptest', experiment='ATLAS', report =report, lfn=lfn, guid='aa8ee1ae-54a5-468b-a0a0-41cf17477ffc')
 
-    gpfn = "s3://cephgw02.usatlas.bnl.gov:8443//wguan_bucket/dir1/dir2/NTUP_PHOTON.01255150._000001.root.1"
+    gpfn = "s3://ceph003.usatlas.bnl.gov:8443//wguan_bucket/dir1/dir2/NTUP_PHOTON.01255150._000001.root.1"
     lfn = "NTUP_PHOTON.01255150._000001.root.1"
     tmpDir = "/tmp/"
     localSize = None

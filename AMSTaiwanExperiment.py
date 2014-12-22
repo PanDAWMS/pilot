@@ -1292,7 +1292,7 @@ class AMSTaiwanExperiment(Experiment):
         elif exitcode != 0:
             from futil import is_timeout
             if is_timeout(exitcode):
-                pilotErrorDiag = "cmtside command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
+                pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
             else:
                 if "timed out" in _pilotErrorDiag:
                     pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)

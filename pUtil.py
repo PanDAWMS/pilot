@@ -2088,8 +2088,12 @@ def verifyJobState(state):
     if state in allowed_values:
         tolog("Job state \'%s\' is an allowed job state value" % (state))
     else:
-        tolog("!!WARNING!!3333!! Job state \'%s\' is not an allowed job state value, job will fail")
-        state = 'failed'
+        tolog("!!WARNING!!3333!! Job state \'%s\' is not an allowed server job state value, job can fail" % (state))
+        if state == 'setup' or state == 'stagein' or state == 'stageout':
+            state = 'running'
+            tolog("Switched to running state for server update")
+        else:
+            state = 'failed'
 
     return state
 
@@ -4310,9 +4314,12 @@ def sig2exc(sig, frm):
             # postJobTask(env['jobDic'][k][1], globalSite, globalWorkNode, env['experiment'], jr=False)
 
     # touch a KILLED file which will be seen by the multi-job loop, to prevent further jobs from being started
-    createLockFile(False, env['globalSite'].workdir, "KILLED")
+    try:
+        createLockFile(False, env['thisSite'].workdir, "KILLED")
+        writeToFile(os.path.join(env['thisSite'].workdir, "EXITCODE"), str(ec))
+    except Exception, e:
+        tolog("!!WARNING!!2211!! Caught exception: %s" % (e))
 
-    writeToFile(os.path.join(env['globalSite'].workdir, "EXITCODE"), str(ec))
     raise SystemError(sig) # this one will trigger the cleanup function to be called
 
 def extractPattern(source, pattern):

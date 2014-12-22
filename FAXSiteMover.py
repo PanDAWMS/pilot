@@ -262,7 +262,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return 0, output
 
-    def stageInFile(self, source, destination):
+    def stageInFile(self, source, destination, sourceSize):
         """StageIn the file. should be implementated by different site mover."""
         statusRet = 0
         outputRet = {}
@@ -279,8 +279,16 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         outputRet["report"]['relativeStart'] = time()
         outputRet["report"]['transferStart'] = time()
         try:
+            fsize = int(sourceSize)
+        except Exception, e:
+            timeout = self.timeout
+            self.log("Failed to convert file size to int: %s (using default)" % (e))
+        else:
+            timeout = self.getTimeOut(fsize)
+        self.log("Using time-out %d s for file size %s" % (timeout, sourceSize))
+        try:
             timerCommand = TimerCommand(_cmd_str)
-            s, o = timerCommand.run(timeout=self.timeout)
+            s, o = timerCommand.run(timeout=timeout)
         except Exception, e:
             tolog("!!WARNING!!2990!! Exception caught by stageInFile(): %s" % (str(e)))
             o = str(e)
@@ -404,7 +412,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         source = output['path']
 
-        status, output = self.stageInFile(source, destination)
+        status, output = self.stageInFile(source, destination, sourceSize)
         if status !=0:
             statusRet = status
             outputRet["errorLog"] = output["errorLog"]
@@ -1021,7 +1029,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 return PilotErrors.ERR_NOSUCHFILE, outputRet
         else:
             if timeUsed >= self.timeout:
-                pilotErrorDiag = "Copy command self timed out after %d s" % (t)
+                pilotErrorDiag = "Copy command self timed out after %d s" % (timeUsed)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 if stageMethod == "stageIN":
                     #self.__sendReport('GET_TIMEOUT', report)

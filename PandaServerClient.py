@@ -518,13 +518,17 @@ class PandaServerClient:
         
         return self.splittedname(A) >= self.splittedname(B)
 
-    def getPayloadMetadataFilename(self, workdir, jobId):
+    def getPayloadMetadataFilename(self, workdir, jobId, altloc=""):
         """ Return a proper path for the payload metadata """
 
         filenamePayloadMetadata = ""
 
         # Primarily use the jobReport.json if its' version is >= 1.0.0
         _filename = os.path.join(workdir, "jobReport.json")
+        if not os.path.exists(_filename) and altloc != "":
+            _filename = os.path.join(altloc, "jobReport.json")
+            tolog("Trying alternative location: %s" % (_filename))
+
         if os.path.exists(_filename):
             # Now check the version
             try:
@@ -538,20 +542,20 @@ class PandaServerClient:
                     jobReport_dict = load(f)
                     version = jobReport_dict['reportVersion']
                 except Exception, e:
-                    pass
+                    filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+                    tolog("reportVersion not found in jobReport, using default metadata XML file")
                 else:
                     v = '1.0.0'
-                    if isAGreaterOrEqualToB(version, v):
+                    if self.isAGreaterOrEqualToB(version, v):
                         tolog("Will send metadata file %s since version %s is >= %s" % (_filename, version, v))
-                        filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
-                        tolog("Could have used %s" % (_filename))
-                        #filenamePayloadMetadata = _filename
+                        filenamePayloadMetadata = _filename
                     else:
                         filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
                         tolog('Metadata version in file %s is too old (%s < %s), will send old XML file %s' % \
                                   (os.path.basename(_filename), version, v, os.path.basename(filenamePayloadMetadata)))
         else:
             # Use default metadata file
+            tolog("Did not find %s" % (_filename))
             filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
 
         # Make sure the metadata file actually exists
@@ -684,7 +688,7 @@ class PandaServerClient:
             final = False
 
         # send the original xml/json if it exists (end of production job, ignore for event service job)
-        filenamePayloadMetadata = self.getPayloadMetadataFilename(site.workdir, job.jobId)
+        filenamePayloadMetadata = self.getPayloadMetadataFilename(site.workdir, job.jobId, altloc=job.workdir)
         payloadXMLProblem = False
 
         # backward compatibility

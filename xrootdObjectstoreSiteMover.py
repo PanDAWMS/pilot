@@ -986,7 +986,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
                 return PilotErrors.ERR_NOSUCHFILE, outputRet
         else:
             if timeUsed >= self.timeout:
-                pilotErrorDiag = "Copy command self timed out after %d s" % (t)
+                pilotErrorDiag = "Copy command self timed out after %d s" % (timeUsed)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 if stageMethod == "stageIN":
                     #self.__sendReport('GET_TIMEOUT', report)
