@@ -193,6 +193,13 @@ class Yoda:
                 self.tmpLog.debug('db.updateEventRange failed: %s' % str(e))
 
 
+    def finishDroids(self):
+        self.tmpLog.debug('finish Droids')
+        # make message
+        res = {'StatusCode':0, 'State': 'finished'}
+        self.tmpLog.debug('res={0}'.format(str(res)))
+        self.comm.sendMessage(res)
+
     # main
     def run(self):
         # get logger
@@ -233,6 +240,7 @@ class Yoda:
         self.db.dumpUpdates(True)
         self.tmpLog.info("post Exec job")
         self.postExecJob()
+        self.finishDroids()
         self.tmpLog.info('done')
 
 

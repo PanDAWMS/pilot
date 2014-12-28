@@ -15,6 +15,7 @@ class Receiver:
         self.comm = MPI.COMM_WORLD
         self.stat = MPI.Status()
         self.nRank = self.comm.Get_size()
+        self.totalRanks = self.nRank
 
 
     # get rank of itself
@@ -68,6 +69,17 @@ class Receiver:
         return self.nRank > 1
 
 
+    def sendMessage(self, rData):
+        try:
+            #data = urllib.urlencode(rData)
+            data = json.dumps(rData)
+            for i in range(1, self.totalRanks):
+                self.comm.send(data,dest=i)
+            return True,None
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errMsg = 'failed to retrun response with {0}:{1}'.format(errtype.__name__,errvalue)
+            return False,errMsg,None
 
 
 # class to send requests
@@ -107,5 +119,19 @@ class Requester:
             return False,errMsg
             
         
-        
+    def waitMessage(self):
+        try:
+            # wait for message from Rank 0
+            while not self.comm.Iprobe(source=0):
+                time.sleep(1)
+            # get the answer
+            ansData = self.comm.recv()
+            # decode
+            #answer = cgi.parse_qs(ansData)
+            answer = json.loads(ansData)
+            return True,answer
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errMsg = 'failed to send the request with {0}:{1}'.format(errtype.__name__,errvalue)
+            return False,errMsg
 

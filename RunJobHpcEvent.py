@@ -49,6 +49,7 @@ class RunJobHpcEvent(RunJob):
         self.__output_es_files = []
         self.__eventRanges = {}
         self.__failedStageOuts = []
+        self._hpcManager = None
 
     def __new__(cls, *args, **kwargs):
         """ Override the __new__ method to make the class a singleton """
@@ -508,6 +509,7 @@ class RunJobHpcEvent(RunJob):
             logFileName = self.getPilotLogFilename()
         hpcManager = HPCManager(globalWorkingDir=self.__job.workdir, logFileName=logFileName, poolFileCatalog=self.__poolFileCatalogTemp, inputFiles=self.__inputFilesGlobal, copyInputFiles=self.__copyInputFiles)
 
+        self.__hpcManager = hpcManager
         self.HPCMode = "HPC_" + hpcManager.getMode(defRes)
         self.__job.setMode(self.HPCMode)
         self.__job.setHpcStatus('waitingResource')
@@ -546,8 +548,9 @@ class RunJobHpcEvent(RunJob):
         while not hpcManager.isFinished():
             state = hpcManager.poll()
             self.__job.setHpcStatus(state)
-            if old_state is None or old_state != state or time.time() > time_start + 60*10:
+            if old_state is None or old_state != state or time.time() > (time_start + 60*10):
                 old_state = state
+                time_start = time.time()
                 tolog("HPCManager Job stat: %s" % state)
                 self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
                 rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
@@ -608,6 +611,12 @@ class RunJobHpcEvent(RunJob):
         
 
     def finishJob(self):
+        try:
+            self.__hpcManager.finishJob()
+        except:
+            tolog(sys.exc_info()[1])
+            tolog(sys.exc_info()[2])
+
         # If payload leaves the input files, delete them explicitly
         if self.__job.inFiles:
             ec = pUtil.removeFiles(self.__job.workdir, self.__job.inFiles)
@@ -692,8 +701,13 @@ if __name__ == "__main__":
     os.setpgrp()
 
     runJob = RunJobHpcEvent()
-    runJob.setupHPCEvent()
-    runJob.getHPCEventJobFromEnv()
-    runJob.stageInHPCEvent()
-    runJob.runHPCEvent()
-    runJob.finishJob()
+    try:
+        runJob.setupHPCEvent()
+        runJob.getHPCEventJobFromEnv()
+        runJob.stageInHPCEvent()
+        runJob.runHPCEvent()
+    except:
+        tolog(sys.exc_info()[1])
+        tolog(sys.exc_info()[2])
+    finally:
+        runJob.finishJob()

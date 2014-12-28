@@ -590,6 +590,7 @@ class ATLASExperiment(Experiment):
                     "scratch",
                     "jobState-*-test.pickle",
                     "*.writing",
+                    "HPC",
                     "saga"]
 
         # remove core and pool.root files from AthenaMP sub directories

@@ -313,3 +313,10 @@ class HPCManager:
             self.__log.info("HPC job id is None. Finished")
             self.__isFinished = True
         return self.__isFinished
+
+    def finishJob(self):
+        if self.__jobid:
+            command = "qdel " + self.__jobid
+            status, output = commands.getstatusoutput(command)
+            self.__log.debug("Run Command: %s " % command)
+            self.__log.debug("Status: %s, Output: %s" % (status, output))

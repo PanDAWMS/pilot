@@ -147,6 +147,18 @@ class Droid:
                 return True
         return False
 
+    def waitYoda(self):
+        self.__tmpLog.debug("Rank %s: WaitYoda" % (self.__rank))
+        while True:
+            status, output = self.__comm.waitMessage()
+            self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
+            if status:
+                statusCode = output["StatusCode"]
+                state = output["State"]
+                if statusCode == 0 and state == 'finished':
+                    return True
+        return True
+
     def run(self):
         self.__tmpLog.info("Droid Starts")
         status, job = self.getJob()
@@ -207,6 +219,8 @@ class Droid:
         self.postExecJob()
         self.__tmpLog.info("Rank %s: finish job" % self.__rank)
         self.finishJob()
+        self.waitYoda()
+        return 0
 
     def stop(self, signum=None, frame=None):
         self.__tmpLog.info('Rank %s: stop signal received' % self.__rank)
