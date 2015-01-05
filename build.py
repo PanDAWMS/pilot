@@ -51,7 +51,7 @@ if filename != "":
     if os.path.exists("PILOT_INITDIR"):
         ec = executeCommand("rm -f PILOT_INITDIR", dump=False)
 
-    ec = executeCommand("rm -f %s *.pyc" % (filename), dump=False)
+    ec = executeCommand("rm -f *.tar.gz *.pyc", dump=False)
     if ec == 0:
         ec = executeCommand("tar cvfz %s *" % (filename), dump=False)
         if ec == 0:

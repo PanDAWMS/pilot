@@ -10,6 +10,10 @@
 # Authors:
 # - Wen Guan, <wguan@cern.ch>, 2014
 
+import os
+import signal
+import time
+
 from Queue import Empty, Full
 import subprocess, threading
 from multiprocessing import Process, Queue
@@ -40,7 +44,7 @@ class TimerCommand(object):
 
     def runFunction(self, func, args, timeout=3600):
         def target(func, args, retQ):
-            ret= func(args)
+            ret= func(*args)
             retQ.put(ret)
             
         retQ = Queue()
@@ -50,7 +54,18 @@ class TimerCommand(object):
             ret = retQ.get(block=True, timeout=timeout)
         except Empty:
             ret = (-1, "function timeout, killed")
-            process.join()
-            if process.is_alive():
-                process.terminate()
+            try:
+                if process.is_alive():
+                    process.terminate()
+                    process.join(2)
+                if process.is_alive():
+                    os.kill(int(process.pid), signal.SIGKILL)
+                    process.join(2)
+            except:
+                if process.is_alive():
+                    try:
+                        os.kill(int(process.pid), signal.SIGKILL)
+                    except:
+                        pass
+                    process.join(2)
         return ret

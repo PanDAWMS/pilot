@@ -16,7 +16,8 @@ from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, 
      getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
-            
+from SysLog import sysLog, dumpSysLogTail
+           
 # Note: DEFAULT_TIMEOUT and MAX_RETRY are reset in get_data()
 MAX_RETRY = 1
 MAX_NUMBER_OF_RETRIES = 3
@@ -852,6 +853,11 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename):
     tolog(". oldPrefix=%s" % str(oldPrefix))
     tolog(". newPrefix=%s" % str(newPrefix))
 
+    # special case for event service
+    if oldPrefix == "":
+        tolog("!!WARNING!!4444!! oldPrefix not set, using same value as newPrefix for TURL conversion")
+        oldPrefix = newPrefix
+
     # if the old/newPrefices were properly returned, we don't need to use lcg-getturls
     if oldPrefix == "" or newPrefix == "":
         useLcgGetturls = True
@@ -1069,7 +1075,7 @@ def convertSURLtoTURLUsingDataset(surl, dataset):
 
     return turl
 
-def convertSURLtoTURLUsingHTTP(surl, dataset='', site='', redirector="https://voatlasrucio-redirect-prod-01.cern.ch"):
+def convertSURLtoTURLUsingHTTP(surl, dataset='', site='', redirector="https://rucio-lb-prod.cern.ch"):
     """ Convert SURL to TURL using the Rucio redirector """
 
     try:
@@ -1102,7 +1108,7 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
         copytool = "fax"
     elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
 
-        httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+        httpredirector = 'https://rucio-lb-prod.cern.ch'
         httpsite = ''
         httpinfo = ''
 
@@ -1113,9 +1119,9 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
         try:
             httpredirector = readpar('httpredirector')
         except:
-            httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+            httpredirector = 'https://rucio-lb-prod.cern.ch'
         if httpredirector == '':
-            httpredirector = 'https://voatlasrucio-redirect-prod-01.cern.ch'
+            httpredirector = 'https://rucio-lb-prod.cern.ch'
         try:
             httpinfo = readpar('allowhttp')
         except:
@@ -1924,9 +1930,11 @@ def mover_get_data(lfns,
 
             # Update the dataset name
             dsname = getDataset(lfn, dsdict)
+            scope = getFileScope(scope_dict, lfn)
 
             # Update the tracing report
             report = updateReport(report, gpfn, dsname, fsize, sitemover)
+            report['scope'] = scope
 
             # The DBRelease file might already have been handled, go to next file
             if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
@@ -2342,7 +2350,7 @@ def getSpaceTokenForFile(filename, _token, logFile, file_nr, fileListLength):
 
     return _token_file
 
-def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname, sitename, analysisJob, testLevel, pinitdir, proxycheck, _token_file, lfn,\
+def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname, sitename, analysisJob, testLevel, pinitdir, proxycheck, token, lfn,\
                        guid, spsetup, userid, report, cmtconfig, prodSourceLabel, outputDir, DN, fsize, checksum, logFile, _attempt, experiment, scope,\
                        fileDestinationSE, nFiles, logPath="", alt=False):
     """ Wrapper method for the sitemover put_data() method """
@@ -2354,6 +2362,9 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
     r_fchecksum = ""
     r_farch = ""
 
+    # Make a preliminary verification of the space token (in case there are special groupdisk space tokens)
+    token = sitemover.verifyGroupSpaceToken(token)
+
     try:
         # do no treat install jobs as an analysis job
         if prodSourceLabel == "software":
@@ -2362,7 +2373,7 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
         # execute put_data and test if it finishes on time
         s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover.put_data(pfn, ddm_storage, dsname=dsname, sitename=sitename,\
                                                                 analJob=analysisJob, testLevel=testLevel, pinitdir=pinitdir, proxycheck=proxycheck,\
-                                                                token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn, guid=guid, spsetup=spsetup,\
+                                                                token=token, timeout=DEFAULT_TIMEOUT, lfn=lfn, guid=guid, spsetup=spsetup,\
                                                                 userid=userid, report=report, cmtconfig=cmtconfig, prodSourceLabel=prodSourceLabel,\
                                                                 outputDir=outputDir, DN=DN, fsize=fsize, fchecksum=checksum, logFile=logFile,\
                                                                 attempt=_attempt, experiment=experiment, alt=alt, scope=scope, fileDestinationSE=fileDestinationSE,\
@@ -2543,6 +2554,7 @@ def mover_put_data(outputpoolfcstring,
 
         # update tracing report
         report['dataset'] = dsname_report
+        report['scope'] = scope
 
         # get the currect space token for the given file
         _token_file = getSpaceTokenForFile(filename, token_list, logFile, file_nr, nFiles)
@@ -2557,9 +2569,6 @@ def mover_put_data(outputpoolfcstring,
         else:
             tolog("!!WARNING!!1888!! Unreasonable number of stage-out tries: %d (reset to default)" % (stageoutTries))
             put_RETRY = 2
-
-        #PN
-        put_RETRY = 1
         tolog("Number of stage-out tries: %d" % (stageoutTries))
 
         # loop over put_data() to allow for multple stage-out attempts
@@ -2574,29 +2583,47 @@ def mover_put_data(outputpoolfcstring,
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
-            # perform the stage-out
-            s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname,\
-                                                                                          sitename, analysisJob, testLevel, pinitdir, proxycheck,\
-                                                                                          _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
-                                                                                          prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
-                                                                                          _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                          logPath=logPath)
-            # increase normal stage-out counter if file was staged out
-            if s == 0:
-                N_filesNormalStageOut += 1
+            # perform the normal stage-out, unless we want to force alternative stage-out
+            if not si.forceAlternativeStageOut(flag=analysisJob):
+                s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname,\
+                                                                                                  sitename, analysisJob, testLevel, pinitdir, proxycheck,\
+                                                                                                  _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
+                                                                                                  prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
+                                                                                                  _attempt, experiment, scope, fileDestinationSE, nFiles,\
+                                                                                                  logPath=logPath)
+                # increase normal stage-out counter if file was staged out
+                if s == 0:
+                    N_filesNormalStageOut += 1
+                forceAltStageOut = False
+            else:
+                # first switch off allowAlternativeStageOut since it will not be needed
+                # update queuedata (remove allow_alt_stageout from catchall field)
+                catchall = readpar('catchall')
+                if 'allow_alt_stageout' in catchall:
+                    catchall = catchall.replace('allow_alt_stageout','')
+                    ec = si.replaceQueuedataField("catchall", catchall)
+                tolog("(will force alt stage-out, s=%d)" % (s))
+                forceAltStageOut = True
 
             # attempt alternative stage-out if required
             if s != 0:
-                tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (_attempt, s, pilotErrorDiag))
+                # report stage-out problem to syslog
+                sysLog("PanDA job %s failed to stage-out output file: %s" % (jobId, pilotErrorDiag))
+                #dumpSysLogTail()
 
-                # should alternative stage-out be attempted?
-                # (not for special log file transfers to object stores)
-                if logPath == "":
-                    useAlternativeStageOut = si.allowAlternativeStageOut()
+                if forceAltStageOut:
+                    tolog("Forcing alternative stage-out")
+                    useAlternativeStageOut = True
+                    _attempt = 2
                 else:
-                    useAlternativeStageOut = False
+                    tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (_attempt, s, pilotErrorDiag))
 
-                # useAlternativeStageOut = True
+                    # should alternative stage-out be attempted?
+                    # (not for special log file transfers to object stores)
+                    if logPath == "":
+                        useAlternativeStageOut = si.allowAlternativeStageOut(flag=analysisJob)
+                    else:
+                        useAlternativeStageOut = False
 
                 if "failed to remove file" in pilotErrorDiag and not useAlternativeStageOut:
                     tolog("Aborting stage-out retry since file could not be removed from storage/catalog")
@@ -2891,6 +2918,9 @@ def verifySpaceToken(spacetoken, setokens):
     else:
         if spacetoken == "":
             tolog("Warning: ended up with empty space token")
+        elif "dst:" in spacetoken:
+            tolog("Will not verify GROUPDISK space token: %s" % (spacetoken))
+            status = True
         else:
             tolog("Warning: Space token %s is not among allowed values: %s" % (spacetoken, str(setokenslist)))
 
@@ -2902,8 +2932,9 @@ def getFilePathForObjectStore(filetype="logs"):
     # For single object stores
     # root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs
     # For multiple object stores
-    # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.bnl.gov//atlas/logs
-
+    # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov//atlas/logs
+    # For https
+    # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs
     basepath = ""
 
     # Which form of the schedconfig.objectstore field do we currently have?
@@ -2933,7 +2964,7 @@ def getFilePathForObjectStore(filetype="logs"):
     else:
         tolog("!!WARNING!!3333!! Object store not defined in queuedata")
 
-    return basepath # os.path.join(basepath, str(jobId))
+    return basepath
 
 def getDDMStorage(ub, analysisJob, region, eventService, jobId):
     """ return the DDM storage (http version) """
@@ -3120,15 +3151,22 @@ def foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
 
     return found_match
 
-def getPrimaryRucioReplica(matched_replicas):
+def getPrimaryRucioReplica(matched_replicas, replicas):
     """ Return a replica with a proper rucio path """
 
     sfn = ""
+    # start with the matched replicas list
     for replica in matched_replicas:
-        if "/rucio/" in replica:
+        if "/rucio/" in replica: # here 'replica' is a string
             sfn = replica
             break
-
+    
+    # search the replicas list in case sfn is empty
+    if sfn == "":
+        for replica in replicas: # here 'replica' is an object
+            if "/rucio/" in replica.sfn:
+                sfn = replica.sfn
+                break
     return sfn
 
 def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, workdir, lfn_dict=None, fax_mode=False, scope_dict=None, replicas_dict=None):
@@ -3264,17 +3302,30 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
 #                matched_replicas.append(sfn)
 #                found = True
 #            else:
+
+            if (readpar('copytool').lower() == "fax" and readpar('copytoolin') == "") or readpar('copytoolin').lower() == "fax":
+                fax = True
+            else:
+                fax = False
             tolog("Checking list of SEs")
             found = False
             for se in _listSEs:
                 if sfn[:len(se)] == se:
                     tolog("Found matched replica: %s at %s" % (sfn, se))
-                    matched_replicas.append(sfn)
-                    found = True
+                    # don't bother if FAX is to be used, sort it out below instead
+                    if fax and not "rucio" in sfn:
+                        tolog("Skip this test since not a rucio path and we are in fax mode")
+                    else:
+                        matched_replicas.append(sfn)
+                        found = True
             if not found:
                 tolog("Could not find any matching se, try to use copyprefix instead")
                 if foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
-                    matched_replicas.append(sfn)
+                    # don't bother if FAX is to be used, sort it out below instead
+                    if fax and not "rucio" in sfn:
+                        tolog("Skip this test as well since not a rucio path and we are in fax mode")
+                    else:
+                        matched_replicas.append(sfn)
                 else:
                     tolog("Found no matched replicas using copyprefix")
 
@@ -3313,14 +3364,16 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                         if "rucio" in sfn:
                             _sfn = sfn
                         else:
-                            _sfn = getPrimaryRucioReplica(matched_replicas)
+                            # also send the full original replica list along with the matched replicas list, in case the latter only has
+                            # a TAPE replica
+                            _sfn = getPrimaryRucioReplica(matched_replicas, replicas)
                             if _sfn == "":
                                 pilotErrorDiag = "Could not find a primary rucio replica, FAX will fail so useless to continue"
                                 ec = error.ERR_REPNOTFOUND
                         if _sfn != "":
                             file_dict[guid] = _sfn
-                            tolog("Will use SURL=%s for the replica dictionary (will be overwritten later by FAX once it is known)" % (sfn))
-                            matched_replicas.append(sfn)
+                            tolog("Will use SURL=%s for the replica dictionary (will be overwritten later by FAX once it is known)" % (_sfn))
+                            matched_replicas.append(_sfn)
                             matched_replicas = removeDuplicates(matched_replicas)
                             storeMatchedReplicas(guid, matched_replicas, workdir)
                             pilotErrorDiag = "SURL not final, will be overwritten by FAX info later"
@@ -3343,14 +3396,17 @@ def verifyReplicasDictionary(replicas_dict, guids):
     """ Does the current replicas_dict contain replicas for all guids? """
 
     status = True
+    pilotErrorDiag = ""
 
     # Loop over all GUIDs and see if they are all in the replicas dictionary
     for guid in guids:
         if not guid in replicas_dict.keys():
             status = False
+            pilotErrorDiag = "Replica with guid=%s missing in Rucio catalog" % (guid)
+            tolog("!!WARNING!!1122!! %s" % (pilotErrorDiag))
             break
 
-    return status
+    return status, pilotErrorDiag
 
 def getRucioFileList(scope_dict, guid_token_dict, lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover):
     """ Building the file list using scope information """
@@ -3509,6 +3565,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     pilotErrorDiag = ""
     ec = 0
     replicas_dict = None
+    error = PilotErrors()
 
     xml_source = "[undefined]"
     region = readpar('region')
@@ -3566,11 +3623,15 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
                         replicas_dict[guid] += new_replicas_dict[guid]
 
                 # does the current replicas_dict contain replicas for all guids? If so, no need to continue 
-                status = verifyReplicasDictionary(replicas_dict, guid_token_dict.keys())
+                status, pilotErrorDiag = verifyReplicasDictionary(replicas_dict, guid_token_dict.keys())
                 if status:
                     tolog("Found all replicas, aborting loop over catalog hosts")
+                    # Clear any previous error messages since the replica was eventually found
+                    pilotErrorDiag = ""
                     break
-
+                else:
+                    tolog("!!WARNING!!2222!! Replica(s) missing in Rucio catalog")
+                    ec = error.ERR_REPNOTFOUND
             elif ec != 0:
                 if host_nr < len(lfc_hosts_list):
                     tolog("Replica lookup failed for host %s, will attempt to use another host" % (lfc_host))
@@ -3610,7 +3671,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
 
     # As a last step, remove any multiple identical copies of the replicas (SURLs)
     final_replicas_dict = {}
-    if replicas_dict != {}: # Protect against Nordugrid case
+    if replicas_dict != None: # Protect against Nordugrid case
         try:
             for guid in replicas_dict:
                 SURL_list = []
@@ -4037,6 +4098,26 @@ def getFileAccess(access_dict, lfn):
         file_access = None
 
     return file_access
+
+def getFileScope(scope_dict, lfn):
+    """ Get the special file access info if needed """
+
+    if scope_dict:
+        try:
+            file_scope = scope_dict[lfn]
+        except Exception, e:
+            tolog("No file scope: %s" % str(e))
+            file_scope = None
+        else:
+            if file_scope == "" or file_scope == "NULL" or file_scope == None:
+                tolog("No file scope")
+                file_scope = None
+            else:
+                tolog("file scope: %s" % str(file_scope))
+    else:
+        file_scope = None
+
+    return file_scope
 
 def updateReport(report, gpfn, dsname, fsize, sitemover):
     """ Update the tracing report with the DQ2 site name """

@@ -13,6 +13,7 @@ import sys
 import tempfile
 import Configuration
 import pUtil
+import glob
 
 # Eddie
 import re
@@ -167,24 +168,37 @@ class GlexecInterface(object):
          - In gLite sites it is  $GLITE_LOCATION/sbin/glexec
          - In OSG sites it is $OSG_GLEXEC_LOCATION/glexec
         """
+
         if os.environ.has_key('OSG_GLEXEC_LOCATION'):
-            self.__glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+		if os.environ['OSG_GLEXEC_LOCATION'] != '':
+                	self.__glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+                else:
+                        pUtil.tolog('OSG_GLEXEC_LOCATION env var was set to an empty string, will force it to /usr/sbin/glexec')
+                        self.__glexec_path = '/usr/sbin/glexec'
+                        os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
+	elif os.environ.has_key('GLEXEC_LOCATION'):
+        	if os.environ['GLEXEC_LOCATION'] != '':
+                	self.__glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
+                else:
+                        pUtil.tolog('GLEXEC_LOCATION env var was set to an empty string, will force it to /usr/sbin/glexec')
+                        self.__glexec_path = '/usr/sbin/glexec'
+                        os.environ['GLEXEC_LOCATION'] = '/usr'
+	elif os.path.exists('/usr/sbin/glexec'):
+                pUtil.tolog('glexec is installed in the standard location. Adding the missing GLEXEC_LOCATION env var')
+                self.__glexec_path = '/usr/sbin/glexec'
+                os.environ['GLEXEC_LOCATION'] = '/usr'
         elif os.environ.has_key('GLITE_LOCATION'):
-            self.__glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
-                                             'sbin/glexec')
-        elif os.environ.has_key('GLEXEC_LOCATION'):
-            self.__glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],
-                                             'sbin/glexec')
+                self.__glexec_path = os.path.join(os.environ['GLITE_LOCATION'], 'sbin/glexec')
+        else:
+                pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
+                self.__glexec_path = '/usr/sbin/glexec'
 
         self.__wrapper_path = os.path.join(os.path.dirname(self.__glexec_path),
                                           'glexec_wrapenv.pl')
         self.__unwrapper_path = os.path.join(os.path.dirname(self.__glexec_path),
                                             'glexec_unwrapenv.pl')
-        # TODO(rmedrano): hack to run our version of mkgltempdir.
         self.__mkgltempdir_path = os.path.join(os.path.dirname(self.__glexec_path),
                                                'mkgltempdir')
-        #self.__mkgltempdir_path = os.path.join(os.path.dirname('/home/ekaravak/'),
-        #                                      'mkgltempdir')
 
     def __extend_pythonpath(self):
         current_path = os.getcwd()
@@ -239,274 +253,12 @@ class GlexecInterface(object):
 		shutil.copy2(queuedatafile, os.path.join(self.sandbox_path, 'queuedata.json'))
                 os.chmod(os.path.join(self.sandbox_path, 'queuedata.json'), 0666)
 
-	# Eddie
-	shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'glexec_aux.py'),
-                     os.path.join(self.sandbox_path, 'glexec_aux.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'glexec_aux.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Monitor.py'),
-                     os.path.join(self.sandbox_path, 'Monitor.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Monitor.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'pUtil.py'),
-                     os.path.join(self.sandbox_path, 'pUtil.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'pUtil.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'environment.py'),
-                     os.path.join(self.sandbox_path, 'environment.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'environment.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Configuration.py'),
-                     os.path.join(self.sandbox_path, 'Configuration.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Configuration.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'JobRecovery.py'),
-                     os.path.join(self.sandbox_path, 'JobRecovery.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'JobRecovery.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PilotErrors.py'),
-                     os.path.join(self.sandbox_path, 'PilotErrors.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'PilotErrors.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'JobState.py'),
-                     os.path.join(self.sandbox_path, 'JobState.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'JobState.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'FileState.py'),
-                     os.path.join(self.sandbox_path, 'FileState.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'FileState.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'processes.py'),
-                     os.path.join(self.sandbox_path, 'processes.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'processes.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'FileStateClient.py'),
-                     os.path.join(self.sandbox_path, 'FileStateClient.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'FileStateClient.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'WatchDog.py'),
-                     os.path.join(self.sandbox_path, 'WatchDog.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'WatchDog.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PilotTCPServer.py'),
-                     os.path.join(self.sandbox_path, 'PilotTCPServer.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'PilotTCPServer.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'UpdateHandler.py'),
-                     os.path.join(self.sandbox_path, 'UpdateHandler.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'UpdateHandler.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'CustomEncoder.py'),
-                     os.path.join(self.sandbox_path, 'CustomEncoder.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'CustomEncoder.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ATLASSiteInformation.py'),
-                     os.path.join(self.sandbox_path, 'ATLASSiteInformation.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'ATLASSiteInformation.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'SiteMover.py'),
-                     os.path.join(self.sandbox_path, 'SiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'SiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'futil.py'),
-                     os.path.join(self.sandbox_path, 'futil.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'futil.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'timed_command.py'),
-                     os.path.join(self.sandbox_path, 'timed_command.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'timed_command.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'config.py'),
-                     os.path.join(self.sandbox_path, 'config.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'config.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'SiteInformation.py'),
-                     os.path.join(self.sandbox_path, 'SiteInformation.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'SiteInformation.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Job.py'),
-                     os.path.join(self.sandbox_path, 'Job.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Job.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Node.py'),
-                     os.path.join(self.sandbox_path, 'Node.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Node.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Site.py'),
-                     os.path.join(self.sandbox_path, 'Site.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Site.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ExperimentFactory.py'),
-                     os.path.join(self.sandbox_path, 'ExperimentFactory.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'ExperimentFactory.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Experiment.py'),
-                     os.path.join(self.sandbox_path, 'Experiment.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Experiment.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ATLASExperiment.py'),
-                     os.path.join(self.sandbox_path, 'ATLASExperiment.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'ATLASExperiment.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobUtilities.py'),
-                     os.path.join(self.sandbox_path, 'RunJobUtilities.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'RunJobUtilities.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'OtherExperiment.py'),
-                     os.path.join(self.sandbox_path, 'OtherExperiment.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'OtherExperiment.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'NordugridATLASExperiment.py'),
-                     os.path.join(self.sandbox_path, 'NordugridATLASExperiment.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'NordugridATLASExperiment.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PandaServerClient.py'),
-                     os.path.join(self.sandbox_path, 'PandaServerClient.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'PandaServerClient.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'JobLog.py'),
-                     os.path.join(self.sandbox_path, 'JobLog.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'JobLog.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Mover.py'),
-                     os.path.join(self.sandbox_path, 'Mover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Mover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'SiteMoverFarm.py'),
-                     os.path.join(self.sandbox_path, 'SiteMoverFarm.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'SiteMoverFarm.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'dCacheSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'dCacheSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'dCacheSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'BNLdCacheSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'BNLdCacheSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'BNLdCacheSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'xrootdSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'xrootdSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'xrootdSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'xrdcpSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'xrdcpSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'xrdcpSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'CastorSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'CastorSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'CastorSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'dCacheLFCSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'dCacheLFCSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'dCacheLFCSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'lcgcpSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'lcgcpSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'lcgcpSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'lcgcp2SiteMover.py'),
-                     os.path.join(self.sandbox_path, 'lcgcp2SiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'lcgcp2SiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'stormSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'stormSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'stormSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'mvSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'mvSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'mvSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'HUSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'HUSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'HUSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'rfcpLFCSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'rfcpLFCSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'rfcpLFCSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'castorSvcClassSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'castorSvcClassSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'castorSvcClassSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'LocalSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'LocalSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'LocalSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ChirpSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'ChirpSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'ChirpSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'curlSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'curlSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'curlSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'FAXSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'FAXSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'FAXSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'aria2cSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'aria2cSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'aria2cSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'SiteInformationFactory.py'),
-                     os.path.join(self.sandbox_path, 'SiteInformationFactory.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'SiteInformationFactory.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'CMSSiteInformation.py'),
-                     os.path.join(self.sandbox_path, 'CMSSiteInformation.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'CMSSiteInformation.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'NordugridATLASSiteInformation.py'),
-                     os.path.join(self.sandbox_path, 'NordugridATLASSiteInformation.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'NordugridATLASSiteInformation.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'OtherSiteInformation.py'),
-                     os.path.join(self.sandbox_path, 'OtherSiteInformation.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'OtherSiteInformation.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJob.py'),
-                     os.path.join(self.sandbox_path, 'RunJob.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'RunJob.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobEvent.py'),
-                     os.path.join(self.sandbox_path, 'RunJobEvent.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'RunJobEvent.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobHPC.py'),
-                     os.path.join(self.sandbox_path, 'RunJobHPC.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'RunJobHPC.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobTitan.py'),
-                     os.path.join(self.sandbox_path, 'RunJobTitan.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'RunJobTitan.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'RunJobMira.py'),
-                     os.path.join(self.sandbox_path, 'RunJobMira.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'RunJobMira.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ErrorDiagnosis.py'),
-                     os.path.join(self.sandbox_path, 'ErrorDiagnosis.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'ErrorDiagnosis.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Diagnosis.py'),
-                     os.path.join(self.sandbox_path, 'Diagnosis.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Diagnosis.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ProxyGuard.py'),
-                     os.path.join(self.sandbox_path, 'ProxyGuard.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'ProxyGuard.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'DBReleaseHandler.py'),
-                     os.path.join(self.sandbox_path, 'DBReleaseHandler.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'DBReleaseHandler.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'VmPeak.py'),
-                     os.path.join(self.sandbox_path, 'VmPeak.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'VmPeak.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'JobInfoXML.py'),
-                     os.path.join(self.sandbox_path, 'JobInfoXML.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'JobInfoXML.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'Cleaner.py'),
-                     os.path.join(self.sandbox_path, 'Cleaner.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'Cleaner.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'CMSExperiment.py'),
-                     os.path.join(self.sandbox_path, 'CMSExperiment.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'CMSExperiment.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'dataPilot.py'),
-                     os.path.join(self.sandbox_path, 'dataPilot.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'dataPilot.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'OtherSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'OtherSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'OtherSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'trivialPilot.py'),
-                     os.path.join(self.sandbox_path, 'trivialPilot.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'trivialPilot.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'globusPilot.py'),
-                     os.path.join(self.sandbox_path, 'globusPilot.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'globusPilot.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], '__init__.py'),
-                     os.path.join(self.sandbox_path, '__init__.py'))
-        os.chmod(os.path.join(self.sandbox_path, '__init__.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'JEMstub.py'),
-                     os.path.join(self.sandbox_path, 'JEMstub.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'JEMstub.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'glexec_utils.py'),
-                     os.path.join(self.sandbox_path, 'glexec_utils.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'glexec_utils.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'myproxyUtils.py'),
-                     os.path.join(self.sandbox_path, 'myproxyUtils.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'myproxyUtils.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PilotUtils.py'),
-                     os.path.join(self.sandbox_path, 'PilotUtils.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'PilotUtils.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'EventService.py'),
-                     os.path.join(self.sandbox_path, 'EventService.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'EventService.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'EventServiceFactory.py'),
-                     os.path.join(self.sandbox_path, 'EventServiceFactory.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'EventServiceFactory.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'ATLASEventService.py'),
-                     os.path.join(self.sandbox_path, 'ATLASEventService.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'ATLASEventService.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'MessageServer.py'),
-                     os.path.join(self.sandbox_path, 'MessageServer.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'MessageServer.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'StoppableThread.py'),
-                     os.path.join(self.sandbox_path, 'StoppableThread.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'StoppableThread.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'GFAL2SiteMover.py'),
-                     os.path.join(self.sandbox_path, 'GFAL2SiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'GFAL2SiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'GSIftpSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'GSIftpSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'GSIftpSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'objectstoreSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'objectstoreSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'objectstoreSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'S3ObjectstoreSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'S3ObjectstoreSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'S3ObjectstoreSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'xrootdObjectstoreSiteMover.py'),
-                     os.path.join(self.sandbox_path, 'xrootdObjectstoreSiteMover.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'xrootdObjectstoreSiteMover.py'), 0666)
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'TimerCommand.py'),
-                     os.path.join(self.sandbox_path, 'TimerCommand.py'))
-        os.chmod(os.path.join(self.sandbox_path, 'TimerCommand.py'), 0666)
+	for filename in glob.glob(os.path.join(os.environ['PilotHomeDir'], '*.py')):
+		shutil.copy2(filename, self.sandbox_path)
+		os.chmod(os.path.join(self.sandbox_path, filename), 0666)
+
+	shutil.copytree(os.path.join(os.environ['PilotHomeDir'], 'saga'),
+		os.path.join(self.sandbox_path, 'saga'))
 
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PILOTVERSION'),
                      os.path.join(self.sandbox_path, 'PILOTVERSION'))
@@ -540,7 +292,7 @@ class GlexecInterface(object):
 	pUtil.tolog('Pilot home dir is %s '%env['PilotHomeDir'])
         self.__site_workdir = re.split('Panda_Pilot',env['thisSite'].workdir)
         env['thisSite'].workdir = env['workdir'] + '/Panda_Pilot' + self.__site_workdir[1]
-	env['job'].datadir = env['thisSite'].workdir + '/PandaJob_' + str(env['job'].jobId) + '_data'
+	env['job'].datadir = env['thisSite'].workdir + '/PandaJob_' + env['job'].jobId + '_data'
         if not os.path.exists(env['thisSite'].workdir):
         	os.makedirs(env['thisSite'].workdir)
 		os.chmod(env['thisSite'].workdir,0777)

@@ -87,10 +87,10 @@ class Cleaner:
             tolog("Executing maxed-out dirs clean-up, stage 3/5")
             Cleaner.purgeMaxedoutDirs(self.path)
 
-            tolog("Executing AthenaMP clean-up, stage 4/5")
-            files = ['AthenaMP_*', 'fifo_*', 'TokenExtractorChannel*', 'zmq_EventService*', 'asetup*', 'tmp*.pkl']
-            for f in files:
-                Cleaner.purgeFiles(self.path, f, limit=24*3600)
+            tolog("Executing AthenaMP clean-up, stage 4/5 <SKIPPED>")
+            #files = ['AthenaMP_*', 'fifo_*', 'TokenExtractorChannel*', 'zmq_EventService*', 'asetup*', 'tmp*.pkl']
+            #for f in files:
+            #    Cleaner.purgeFiles(self.path, f, limit=48*3600)
 
             tolog("Executing PanDA Pilot dir clean-up, stage 5/5")
             JS = JobState()
@@ -145,9 +145,9 @@ class Cleaner:
                                     # query the job state file for job information
                                     if _job.result[0] == 'running' or _job.result[0] == 'starting' or (_job.result[0] == 'holding' and mod_time > 7*24*3600):
                                         if _job.result[0] == 'holding':
-                                            tolog("Job %d was found in %s state but has not been modified for a long time - will be cleaned up" % (_job.jobId, _job.result[0]))
+                                            tolog("Job %s was found in %s state but has not been modified for a long time - will be cleaned up" % (_job.jobId, _job.result[0]))
                                         else:
-                                            tolog("Job %d was found in %s state - will be cleaned up" % (_job.jobId, _job.result[0]))
+                                            tolog("Job %s was found in %s state - will be cleaned up" % (_job.jobId, _job.result[0]))
                                         tolog("Erasing directory: %s" % (_site.workdir))
                                         cmd = "rm -rf %s" % (_site.workdir)
                                         try:
@@ -275,7 +275,7 @@ class Cleaner:
             else:
                 mod_time = current_time - file_modification_time
                 if mod_time > limit:
-                    tolog("Found file %s (will now try to purge it)" % (_file))
+                    tolog("Found file %s last modified %d s ago (will now try to purge it)" % (_file, mod_time))
                     ec, rs = commands.getstatusoutput("rm -f %s" % (_file))
                     if ec != 0:
                         tolog("Failed to remove dir: %s" % (rs))

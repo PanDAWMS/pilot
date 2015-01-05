@@ -1,8 +1,9 @@
-import os, re
+import os, re, sys
 import commands
 from time import time
 import urlparse
 
+from TimerCommand import TimerCommand
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
@@ -18,10 +19,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     # no registration is done
     copyCommand = "S3"
     checksum_command = "adler32"
-    timeout = 3600
+    timeout = 600
 
     def __init__(self, setup_path, *args, **kwrds):
-        self._setup = setup_path
+        self._setup = setup_path.strip()
         self._defaultSetup = "source /cvmfs/atlas.cern.ch/repo/sw/external/boto/setup.sh; unset http_proxy; unset https_proxy"
         self.s3Objectstore = None
 
@@ -33,10 +34,21 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def setup(self, experiment=None, surl=None):
         """ setup env """
-        if not os.environ.get("PYTHONPATH"):
-            os.environ["PYTHONPATH"] = "/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/"
-        else:
-            os.environ["PYTHONPATH"] = "/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/" + ":" + os.environ["PYTHONPATH"]
+        try:
+            import boto
+            import boto.s3.connection
+            from boto.s3.key import Key
+        except ImportError:
+            tolog("Failed to import boto, add /cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/ to sys.path")
+            sys.path.append('/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/')
+            try:
+                import boto
+                import boto.s3.connection
+                from boto.s3.key import Key
+            except ImportError:
+                tolog("Failed to import boto again. exit")
+                return PilotErrors.ERR_UNKNOWN, "Failed to import boto"
+
         if os.environ.get("http_proxy"):
             del os.environ['http_proxy']
         if os.environ.get("https_proxy"):
@@ -44,13 +56,13 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         si = getSiteInformation(experiment)
         keyPair = None
-        if surl.startswith("s3://ceph003.usatlas.bnl.gov:8443"):
+        if re.search("^s3://.*\.usatlas\.bnl\.gov:8443", surl) != None:
             keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
         if surl.startswith("s3://s3.amazonaws.com:80"):
             keyPair = si.getSecurityKey('Amazon_ObjectStoreKey', 'Amazon_ObjectStoreKey.pub')
         if keyPair == None or keyPair["publicKey"] == None or keyPair["privateKey"] == None:
             tolog("Failed to get the keyPair for S3 objectstore %s " % (surl))
-            return ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
+            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
 
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"])
         return 0, ""
@@ -119,18 +131,30 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         return 0, "", size, checksum
 
     def getRemoteFileInfo(self, file):
-        size, md5 = self.s3Objectstore.getRemoteFileInfo(file)
+        try:
+            size, md5 = self.s3Objectstore.getRemoteFileInfo(file)
+        except:
+            tolog("Failed to get remote file information: %s" % (sys.exc_info()[1]))
+            return None, None
         return size, md5
 
     def stageInFile(self, source, destination, sourceSize, sourceChecksum):
         """StageIn the file. should be implementated by different site mover."""
-        size, md5 = self.s3Objectstore.stageInFile(source, destination, sourceSize, sourceChecksum)
-        return size, md5
+        try:
+            status, output = self.s3Objectstore.stageInFile(source, destination, sourceSize, sourceChecksum)
+        except:
+            tolog("Failed to stage in file: %s" % (sys.exc_info()[1]))
+            return PilotErrors.ERR_STAGEINFAILED, "S3Objectstore failed to stage in file"
+        return status, output
 
     def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token):
         """StageIn the file. should be implementated by different site mover."""
-        size, md5 = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token)
-        return size, md5
+        try:
+            status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token)
+        except:
+            tolog("Failed to stage out file: %s" % (sys.exc_info()[1]))
+            return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
+        return status, output
 
     def verifyStage(self, localSize, localChecksum, remoteSize, remoteChecksum):
         """Verify file stag successfull"""
@@ -170,6 +194,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         """Stage in the source file"""
         self.log("Starting to stagein file %s(size:%s, chksum:%s) to %s" % (source, sourceSize, sourceChecksum, destination))
 
+        if sourceSize == 0 or sourceSize == "":
+            sourceSize = None
+        if sourceChecksum == "" or sourceChecksum == "NULL":
+            sourceChecksum = None
+
         status, output = self.setup(experiment, source)
         if status:
             return status, output
@@ -179,6 +208,8 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if remoteChecksum == None or remoteChecksum == "":
             remoteSize, remoteChecksum = self.getRemoteFileInfo(source)
         self.log("remoteSize: %s, remoteChecksum: %s" % (remoteSize, remoteChecksum))
+        if remoteChecksum == None:
+            self.log("Failed to get remote file information")
 
         status, output = self.stageInFile(source, destination, remoteSize, remoteChecksum)
         self.log("stageInFile status: %s, output: %s" % (status, output))
@@ -202,13 +233,13 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         status, output = self.setup(experiment, destination)
         if status:
-            return status, output
+            return status, output, None, None
 
         status, output, localSize, localChecksum = self.getLocalFileInfo(source)
         self.log("getLocalFileInfo  status: %s, output: %s, localSize: %s, localChecksum: %s" % ( status, output, localSize, localChecksum))
         if status:
             self.log("Failed to get local file(%s) info." % destination)
-            return status, output
+            return status, output, None, None
 
         status, output = self.stageOutFile(source, destination, localSize, localChecksum, token)
         self.log("stageOutFile status: %s, output: %s" % (status, output))
@@ -364,26 +395,48 @@ class S3ObjctStore:
         md5 = key.get_metadata("md5")
         return key.size, md5
 
-    def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
-        key = self.get_key(source)
-        key.get_contents_to_filename(destination)
-        if key.md5 != key.etag.strip('"').strip("'"):
-            return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
-        if sourceSize and sourceSize != key.size:
-            return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
-        if sourceChecksum and sourceChecksum != key.md5:
-            return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+    def s3StageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
+        try:
+            key = self.get_key(source)
+            if key is None:
+                return -1, "source file(%s) cannot be found" % source
+
+            key.get_contents_to_filename(destination)
+            if key.md5 != key.etag.strip('"').strip("'"):
+                return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
+            if sourceSize and sourceSize != key.size:
+                return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
+            if sourceChecksum and sourceChecksum != key.md5:
+                return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+        except Exception as e:
+            return -1, str(e)
         return 0, None
 
-    def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
-        key = self.get_key(destination, create=True)
-        key.set_metadata("md5", sourceChecksum)
-        size = key.set_contents_from_filename(source)
-        if key.md5 != key.etag.strip('"').strip("'"):
-            return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
-        if sourceSize and sourceSize != key.size:
-            return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
-        if sourceChecksum and sourceChecksum != key.md5:
-            return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+    def s3StageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
+        try:
+            key = self.get_key(destination, create=True)
+            if key is None:
+                return -1, "Failed to create S3 key on destionation(%s)" % destination
+
+            key.set_metadata("md5", sourceChecksum)
+            size = key.set_contents_from_filename(source)
+            if key.md5 != key.etag.strip('"').strip("'"):
+                return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
+            if sourceSize and sourceSize != key.size:
+                return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
+            if sourceChecksum and sourceChecksum != key.md5:
+                return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+        except Exception as e:
+            return -1, str(e)
         return 0, None
+
+    def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
+        timerCommand = TimerCommand()
+        ret = timerCommand.runFunction(self.s3StageInFile, args=(source, destination, sourceSize, sourceChecksum), timeout=600)
+        return ret
+
+    def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
+        timerCommand = TimerCommand()
+        ret = timerCommand.runFunction(self.s3StageOutFile, args=(source, destination, sourceSize, sourceChecksum, token), timeout=600)
+        return ret
 

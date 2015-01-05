@@ -349,9 +349,6 @@ class Experiment(object):
         # set up analysis trf
         run_command += './%s %s' % (trfName, job.jobPars)
 
-#PN
-#        job.jobPars += ' --accessmode=filestager'
-
         # add options for file stager if necessary
         if dInfo:
             # in case of forced usePFCTurl
@@ -703,7 +700,7 @@ class Experiment(object):
         if eventService:
             tolog("Encountered an event service job")
             if isHPC:
-                name = "RunJobEvent" + _name
+                name = "RunJob%sEvent" % (_name)
             else:
                 name = "RunJobEvent"
 
@@ -766,7 +763,7 @@ class Experiment(object):
         return jobargs
 
     # Optional
-    def doSpecialLogFileTransfer(self):
+    def doSpecialLogFileTransfer(self, eventService=False):
         """ Should the log file be transfered to a special SE? """
 
         # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file

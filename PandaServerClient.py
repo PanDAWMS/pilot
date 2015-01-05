@@ -1,9 +1,10 @@
 import os
+from datetime import date
 from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger
+from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation
 from JobState import JobState
 from FileState import FileState
 
@@ -101,9 +102,14 @@ class PandaServerClient:
         # style: Number of events read | Number of events written | vmPeak maximum | vmPeak average | RSS average | JEM activation
         # format: nEvents=<int> nEventsW=<int> vmPeakMax=<int> vmPeakMean=<int> RSSMean=<int> JEM=<string>
         #         hs06=<float> shutdownTime=<int> cpuFactor=<float> cpuLimit=<float> diskLimit=<float> jobStart=<int> memLimit=<int> runLimit=<float>
+
+        try:
+            coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+        except:
+            coreCount = job.coreCount
         jobMetrics = ""
-        if job.coreCount and job.coreCount != "NULL":
-            jobMetrics += self.jobMetric(key="coreCount", value=job.coreCount)
+        if coreCount and coreCount != "NULL":
+            jobMetrics += self.jobMetric(key="coreCount", value=coreCount)
         if job.nEvents > 0:
             jobMetrics += self.jobMetric(key="nEvents", value=job.nEvents)
         if job.nEventsW > 0:
@@ -391,7 +397,7 @@ class PandaServerClient:
                 tolog("XML string set")
 
                 _skippedfname = os.path.join(workdir, "skipped.xml")
-                fname = "%s/metadata-%s.xml" % (workdir, str(job.jobId))
+                fname = "%s/metadata-%s.xml" % (workdir, job.jobId)
                 if os.path.exists(fname):
                     if os.path.exists(_skippedfname):
                         # add the skipped file info if needed
@@ -459,7 +465,99 @@ class PandaServerClient:
 
         return status
 
-    def updatePandaServer(self, job, site, workerNode, port, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, useCoPilot=False, stdout_tail="", additionalMetadata=None):
+    def getDateDirs(self):
+        """ Return a directory path based on the current date """
+        # E.g. 2014/09/22
+
+        year = date.today().strftime("%Y")
+        month = date.today().strftime("%m")
+        day = date.today().strftime("%d")
+
+        return "%s-%s-%s" % (year, month, day)
+
+    def tryint(self, x):
+        """ Used by numbered string comparison (to protect against unexpected letters in version number) """
+
+        try:
+            return int(x)
+        except ValueError:
+            return x
+
+    def splittedname(self, s):
+        """ Used by numbered string comparison """
+
+        # Can also be used for sorting:
+        # > names = ['YT4.11', '4.3', 'YT4.2', '4.10', 'PT2.19', 'PT2.9']
+        # > sorted(names, key=splittedname)
+        # ['4.3', '4.10', 'PT2.9', 'PT2.19', 'YT4.2', 'YT4.11']
+
+        from re import split
+        return tuple(self.tryint(x) for x in split('([0-9]+)', s))
+                        
+    def isAGreaterOrEqualToB(self, A, B):
+        """ Is numbered string A > B? """
+        # > a="1.2.3"
+        # > b="2.2.2"
+        # > e.isAGreaterThanB(a,b)
+        # False
+        
+        return self.splittedname(A) >= self.splittedname(B)
+
+    def getPayloadMetadataFilename(self, workdir, jobId, altloc=""):
+        """ Return a proper path for the payload metadata """
+
+        filenamePayloadMetadata = ""
+
+        # Primarily use the jobReport.json if its' version is >= 1.0.0
+        _filename = os.path.join(workdir, "jobReport.json")
+        if not os.path.exists(_filename) and altloc != "":
+            _filename = os.path.join(altloc, "jobReport.json")
+            tolog("Trying alternative location: %s" % (_filename))
+
+        if os.path.exists(_filename):
+            # Now check the version
+            try:
+                f = open(_filename, 'r')
+            except Exception, e:
+                tolog("!!WARNING!!2233!! Could not open %s: %s" % (_filename, e))
+            else:
+                # Now verify that the version is at least 1.0.0
+                from json import load
+                try:
+                    jobReport_dict = load(f)
+                    version = jobReport_dict['reportVersion']
+                except Exception, e:
+                    filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+                    tolog("reportVersion not found in jobReport, using default metadata XML file")
+                else:
+                    v = '1.0.0'
+                    if self.isAGreaterOrEqualToB(version, v):
+                        tolog("Will send metadata file %s since version %s is >= %s" % (_filename, version, v))
+                        filenamePayloadMetadata = _filename
+                    else:
+                        filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+                        tolog('Metadata version in file %s is too old (%s < %s), will send old XML file %s' % \
+                                  (os.path.basename(_filename), version, v, os.path.basename(filenamePayloadMetadata)))
+        else:
+            # Use default metadata file
+            tolog("Did not find %s" % (_filename))
+            filenamePayloadMetadata = "%s/metadata-%s.xml.PAYLOAD" % (workdir, jobId)
+
+        # Make sure the metadata file actually exists
+        if os.path.exists(filenamePayloadMetadata):
+            tolog("Verified existance of metadata file: %s" % (filenamePayloadMetadata))
+        else:
+            tolog("WARNING: metadata file does not exist: %s" % (filenamePayloadMetadata))
+            tolog("Looking for it in the pilot init dir..")
+            fname = os.path.basename(filenamePayloadMetadata)
+            path = os.path.join(self.__pilot_initdir, fname)
+            if os.path.exists(path):
+                filenamePayloadMetadata = path
+                tolog("Verified existance of metadata file: %s" % (filenamePayloadMetadata))
+
+        return filenamePayloadMetadata
+
+    def updatePandaServer(self, job, site, workerNode, port, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, useCoPilot=False, stdout_tail="", stdout_path="", additionalMetadata=None):
         """
         Update the job status with the jobdispatcher web server.
         State is a tuple of (jobId, ["jobstatus", transExitCode, pilotErrorCode], timestamp)
@@ -468,8 +566,7 @@ class PandaServerClient:
         jr = job recovery mode
         """
     
-        tolog("Updating job status in updatePandaServer(): PandaId=%d, result=%s, time=%s" % (job.getState()))
-        tolog("job.prodSourceLabel=%s" % (job.prodSourceLabel))
+        tolog("Updating job status in updatePandaServer(): PandaId=%s, result=%s, time=%s" % (job.getState()))
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
         # removes any work directory after the LSF job finishes which of course makes job recovery impossible)
@@ -499,6 +596,34 @@ class PandaServerClient:
             stdout_tail = stdout_tail[-2048:]
             node['stdout'] = stdout_tail
             tolog("Will send stdout tail:\n%s (length = %d)" % (stdout_tail, len(stdout_tail)))
+
+            # also send the full stdout to a text indexer if required
+            if stdout_path != "":
+                if "stdout_to_text_indexer" in readpar('catchall') and os.path.exists(stdout_path):
+                    tolog("Will send payload stdout to text indexer")
+
+                    # get the user name, which we will use to create a proper filename
+                    from SiteMover import SiteMover
+                    s = SiteMover()
+                    username = s.extractUsername(job.prodUserID)
+
+                    # get setup path for xrdcp
+                    try:
+                        si = getSiteInformation(job.experiment)
+                        setup_path = si.getLocalROOTSetup()
+
+                        filename = "PanDA_payload_stdout-%s.txt" % (job.jobId)
+                        dateDirs = self.getDateDirs()
+                        remotePath = os.path.join(os.path.join(username, dateDirs), filename)
+                        url = "root://faxbox.mwt2.org//group/logs/pilot/%s" % (remotePath)
+                        cmd = "%sxrdcp -f %s %s" % (setup_path, stdout_path, url)
+                        tolog("Executing command: %s" % (cmd))
+                        rc, rs = getstatusoutput(cmd)
+                        tolog("rc=%d, rs=%s" % (rc, rs))
+                    except Exception, e:
+                        tolog("!!WARNING!!3322!! Failed with text indexer: %s" % (e))
+            else:
+                tolog("stdout_path not set")
         else:
             if job.debug.lower() != "true":
                 tolog("Stdout tail will not be sent (debug=False)")
@@ -515,7 +640,7 @@ class PandaServerClient:
         # read back node['xml'] from jobState file for CERNVM
         sendXML = True
         if site.sitename == "CERNVM":
-            _node = self.getNodeStructureFromFile(site.workdir, repr(job.jobId))
+            _node = self.getNodeStructureFromFile(site.workdir, job.jobId)
             if _node:
                 if _node.has_key('xml'):
                     if _node['xml'] != "":
@@ -547,26 +672,33 @@ class PandaServerClient:
         else:
             final = False
 
-        # send the original xml if it exists (end of production job, ignore for event service job)
-        filenamePayloadXML = "%s/metadata-%s.xml.PAYLOAD" % (site.workdir, repr(job.jobId))
+        # send the original xml/json if it exists (end of production job, ignore for event service job)
+        filenamePayloadMetadata = self.getPayloadMetadataFilename(site.workdir, job.jobId, altloc=job.workdir)
         payloadXMLProblem = False
-        if not job.eventService:
-            if os.path.exists(filenamePayloadXML) and final:
+
+        # backward compatibility
+        try:
+            eventService = job.eventService
+        except:
+            eventService = False
+
+        if not eventService:
+            if os.path.exists(filenamePayloadMetadata) and final:
 
                 # get the metadata created by the payload
-                payloadXML = getMetadata(site.workdir, job.jobId, athena=True)
+                payloadXML = getMetadata(site.workdir, job.jobId, athena=True, altpath=filenamePayloadMetadata)
 
-            # add the metadata to the node
+                # add the metadata to the node
                 if payloadXML != "" and payloadXML != None:
                     tolog("Adding payload metadata of size %d to node dictionary (\'metaData\' field):\n%s" % (len(payloadXML), payloadXML))
                     node['metaData'] = payloadXML
                 else:
-                    pilotErrorDiag = "Empty Athena metadata in file: %s" % (filenamePayloadXML)
+                    pilotErrorDiag = "Empty Athena metadata in file: %s" % (filenamePayloadMetadata)
                     payloadXMLProblem = True
             else:
                 # athena XML should exist at the end of the job
-                if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not job.eventService:
-                    pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadXML)
+                if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not eventService:
+                    pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadMetadata)
                     payloadXMLProblem = True
         else:
             tolog("Will not send payload metadata for event service job")

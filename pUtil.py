@@ -11,6 +11,8 @@ import environment
 env = environment.set_environment()
 #env = Configuration()
 
+from processes import killProcesses
+
 # exit code
 EC_Failed = 255
 
@@ -37,7 +39,6 @@ def getFileList(path_dir=None):
         file_list = filter(lambda x: x.endswith('.py'), os.listdir(path_dir))
         file_list.append('PILOTVERSION')
         file_list.append('saga')
-        file_list.append('radical')
         tolog("Copying: %s" % str(file_list))
         return file_list
     except KeyError:
@@ -1089,7 +1090,7 @@ def createPoolFileCatalog(file_list, pfc_name="PoolFileCatalog.xml", forceLogica
 
         # Prepare plain text as can`t trust minidom on python <2.3
         pfc_text = '<?xml version="1.0" ?>\n'
-        pfc_text += '<!-- Edited By Panda Pilot3 -->\n'
+        pfc_text += '<!-- Edited By the PanDA Pilot -->\n'
         pfc_text += '<!DOCTYPE POOLFILECATALOG  SYSTEM "InMemory">\n'
         pfc_text += '<POOLFILECATALOG>\n'
 
@@ -1664,19 +1665,30 @@ def removeLEDuplicates(logMsg):
     return "\n".join(log_extracts_tmp)
 
 def writeToFile(filename, s):
-    """ write string s to file """
+    """ Write string s to file """
+
+    # Ignore write status
+    status = writeToFileWithStatus(filename, s)
+
+def writeToFileWithStatus(filename, s, attribute="w"):
+    """ Write string s to file with status return """
+
+    status = False
 
     try:
-        f = open(filename, "w")
+        f = open(filename, attribute)
     except Exception, e:
-        tolog("!!WARNING!!2990!! Could not open: %s, %s" % (filename, str(e)))
+        tolog("!!WARNING!!2990!! Could not open: %s, %s" % (filename, e))
     else:
         f.write("%s" % (s))
         f.close()
-        tolog('Wrote string "%s" to file: %s' % (s, filename))
+        tolog('Wrote string "%s" to file: %s' % (s.replace('\n',''), filename))
+        status = True
+
+    return status
 
 def readCodeFromFile(filename):
-    """ read exit code from file <workdir>/EXITCODE """
+    """ Wead exit code from file <workdir>/EXITCODE """
 
     ec = 0
     if os.path.exists(filename):
@@ -1773,7 +1785,7 @@ def getGuidsFromXML(dir, id=None, filename=None, metadata=""):
     else:
         # are we in recovery mode? then id is set
         if id:
-            metadata_filename = "%s/metadata-%s.xml" % (dir, repr(id))
+            metadata_filename = "%s/metadata-%s.xml" % (dir, id)
         else:
             metadata_filename = "%s/metadata.xml" % (dir)
 
@@ -1872,6 +1884,7 @@ class _Curl:
         # verification of the host certificate
         self._verifyHost = True
         # modified for Titan test
+
         if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             self._verifyHost = False
 
@@ -2069,8 +2082,12 @@ def verifyJobState(state):
     if state in allowed_values:
         tolog("Job state \'%s\' is an allowed job state value" % (state))
     else:
-        tolog("!!WARNING!!3333!! Job state \'%s\' is not an allowed job state value, job will fail")
-        state = 'failed'
+        tolog("!!WARNING!!3333!! Job state \'%s\' is not an allowed server job state value, job can fail" % (state))
+        if state == 'setup' or state == 'stagein' or state == 'stageout':
+            state = 'running'
+            tolog("Switched to running state for server update")
+        else:
+            state = 'failed'
 
     return state
 
@@ -2122,7 +2139,6 @@ def toServer(baseURL, cmd, data, path, experiment):
 
             # create the parameter list from the dispatcher response
             data, response = parseDispatcherResponse(response)
-            tolog("sdsdsds data=%s"%str(data))
             # update the dispatcher data for Event Service merge jobs
             if experiment != "": # experiment is only set for GETJOB, skip this otherwise
                 data = updateDispatcherData4ES(data, experiment, path)
@@ -2210,6 +2226,10 @@ def createESFileDictionary(writeToFile):
         # Extract the file name
         if ":" in fileInfo[i]:
             finfo = fileInfo[i].split(":")
+
+            # add cwd before the lfns
+            finfo[1] = "`pwd`/" + finfo[1]
+            finfo[1] = finfo[1].replace(',',',`pwd`/')
             esFileDictionary[finfo[0]] = finfo[1]
             orderedFnameList.append(finfo[0])
         else:
@@ -2253,21 +2273,13 @@ def updateESGUIDs(guids):
     # necessary since guids are used as dictionary keys in some places
 
     # replace the NULL values with different values
-    # guids = ['NULL','NULL','NULL','sasdasdasdasdd']
-    # -> ['DUMMYGUID0', 'DUMMYGUID1', 'DUMMYGUID2', 'sasdasdasdasdd']
+    # guids = 'NULL,NULL,NULL,sasdasdasdasdd'
+    # -> 'DUMMYGUID0,DUMMYGUID1,DUMMYGUID2,sasdasdasdasdd'
 
-    guids = guids.split(",")
-    i = 0
-    _guids = []
-    for guid in guids:
-        if guid == "NULL":
-            guid = "DUMMYGUID%d" % (i)
-            i += 1
-        _guids.append(guid)
+    for i in range(guids.count('NULL')):
+        guids = guids.replace('NULL', 'DUMMYGUID%d' % (i), 1)
 
-    _guids = "%s" % str(_guids)
-    tolog("Updated guids list: %s" % (_guids))
-    return _guids
+    return guids
 
 def getESInputFiles(esFileDictionary):
     """ Get all the input files from all the keys in the event range file dictionary """
@@ -2302,14 +2314,28 @@ def updateDispatcherData4ES(data, experiment, path):
     # Is this an event service merge job? If so, the input file list should be updated
     if data.has_key('eventServiceMerge'):
         if data['eventServiceMerge'].lower() == "true":
+            # Remove any --postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py from the jobPars
+            #if "--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py" in data['jobPars']:
+            #    data['jobPars'] = data['jobPars'].replace("--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py", "")
+            #    tolog("Removed \'--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py\' from jobPars")
+
             if data.has_key('writeToFile'):
                 writeToFile = data['writeToFile']
                 esFileDictionary, orderedFnameList = createESFileDictionary(writeToFile)
                 tolog("esFileDictionary=%s" % (esFileDictionary))
                 tolog("orderedFnameList=%s" % (orderedFnameList))
                 if esFileDictionary != {}:
+                    # Replace the @inputFor* directorive with the file list
+                    for name in orderedFnameList:
+                        tolog("Replacing @%s with %s" % (name, esFileDictionary[name]))
+                        data['jobPars'] = data['jobPars'].replace("@%s" % (name), esFileDictionary[name])
+
+                    # Remove the autoconf
+                    if "--autoConfiguration=everything " in data['jobPars']:
+                        data['jobPars'] = data['jobPars'].replace("--autoConfiguration=everything ", " ")
                     # Write event service file lists to the proper input file
-                    ec, fnames = writeToInputFile(path, esFileDictionary, orderedFnameList)
+                    #ec, fnames = writeToInputFile(path, esFileDictionary, orderedFnameList)
+                    ec = 0
                     if ec == 0:
                         #inputFiles = getESInputFiles(esFileDictionary)
 
@@ -2337,8 +2363,8 @@ def updateDispatcherData4ES(data, experiment, path):
                 tolog("writeToFile not present in job def")
         else:
             tolog("eventServiceMerge = %s" % (data['eventServiceMerge']))
-    else:
-        tolog("Not an event service merge job")
+    #else:
+    #    tolog("Not an event service merge job")
 
     return data
 
@@ -2351,11 +2377,19 @@ def parseDispatcherResponse(response):
 #        response = removeSubFromResponse(response)
 
     parList = cgi.parse_qsl(response, keep_blank_values=True)
-    tolog("Dispatcher response: %s" % str(parList))
 
     data = {}
     for p in parList:
-        data[p[0]] = p[1]
+        data[p[0]] = p[1]  
+ 
+    if 'userProxy' in str(parList):
+	for i in range(len(parList)):
+		if parList[i][0] == 'userProxy':
+			newList = list(parList[i])
+			newList[1] = 'hidden'
+			parList[i] = newList
+
+    tolog("Dispatcher response: %s" % str(parList))
 
     return data, response
 
@@ -2937,6 +2971,8 @@ def putMetadata(workdir, jobId, strXML):
 
     status = False
 
+    tolog("x1 jobId=%s, type=%s" % (jobId, type(jobId)))
+
     filename = os.path.join(workdir, "metadata-%s.xml" % (jobId))
     try:
         f = open(filename, "w")
@@ -2949,23 +2985,27 @@ def putMetadata(workdir, jobId, strXML):
 
     return status
 
-def getMetadata(workdir, id=None, athena=False):
+def getMetadata(workdir, jobId, athena=False, altpath=""):
     """ read metadata from file """
 
-    BAK = ""
-    if athena:
-        BAK = ".PAYLOAD"
-
-    # are we in recovery mode? then id is set
-    if id:
-        filename = "metadata-%s.xml%s" % (repr(id), BAK)
-    else:
-        filename = "metadata.xml%s" % (BAK)
-
-    # try to open and read the meta data from file
     strXML = None
-    tolog("Trying to read %s from dir: %s" % (filename, workdir))
-    fname = "%s/%s" % (workdir, filename)
+
+    if altpath == "":
+        BAK = ""
+        if athena:
+            BAK = ".PAYLOAD"
+
+        # are we in recovery mode? then jobId is set
+        if jobId:
+            filename = "metadata-%s.xml%s" % (jobId, BAK)
+        else:
+            filename = "metadata.xml%s" % (BAK)
+
+        fname = os.path.join(workdir, filename)
+    else:
+        fname = altpath
+
+    tolog("Trying to read metadata from file: %s" % (fname))
     if os.path.exists(fname):
         try:
             f = open(fname)
@@ -3001,7 +3041,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
 
     tolog("..Job report..................................................................................................")
     tolog(". Pilot version             : %s" % (version))
-    tolog(". Job id                    : %d" % (job.jobId))
+    tolog(". Job id                    : %s" % (job.jobId))
     tolog(". Current job status        : %s" % (job.result[0]))
 
     if multi_trf:
@@ -3308,6 +3348,9 @@ def extractFilePaths(s):
             for i in range(len(found)):
                 setup_paths.append(found[i])
 
+    if setup_paths == None:
+        return setup_paths
+
     # note: there is a special case if the first setup path contains an unevaluated environment variable, e.g.
     # s = "export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase; source $ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh --quiet;"
     # -> setup_paths = ['$ATLAS_LOCAL_ROOT_BASE/user/atlasLocalSetup.sh']
@@ -3315,33 +3358,8 @@ def extractFilePaths(s):
     # -> env_variables = {'ATLAS_LOCAL_ROOT_BASE': '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase'}
     # -> setup_paths = ['/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh']
 
-    if setup_paths[0].startswith('$'):
-        if s.startswith('export'):
-            # extract the env variable and its value
-            cmd = s.split(';')
-            pattern = re.compile(r"export (\S+)\=(\S+)")
-            t = re.findall(pattern, cmd[0]) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')]
-            if t != []:
-                try:
-                    e = re.findall(pattern, cmd[0])[0][0]
-                    v = re.findall(pattern, cmd[0])[0][1]
-                except:
-                    tolog("Could not extract env variable and value from t=%s (%s)" % (t, setup_paths[0]))
-                else:
-                    env_variables = {e: v}
-
-                if env_variables != {}:
-                    # finally replace the unevaluated env variable
-                    setup_paths[0] = setup_paths[0].replace("$" + e, v)
-
-            else:
-                tolog("Could not extract env variable from cmd=%s (%s)" % (cmd, setup_paths[0]))
-        else:
-            tolog("!!WARNING!!2991!! Setup path contains env variable but command does not begin with an export, cannot evaluate")
-
-
     pattern = re.compile(r"export (\S+)\=(\S+)")
-    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')]
+    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')] 
     if t != []:
         for i in range(len(setup_paths)):
             for match_pair in t:
@@ -3671,6 +3689,27 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
     sys.stdout.flush()
     sys.stderr.flush()
 
+def getStdoutFilename(workdir, preliminary_stdout_filename):
+    """ Return the proper stdout filename """
+    # In the case of runGen/runAthena, the preliminary filename should be updated since stdout is redirected at some point
+
+    from glob import glob
+    filename = ""
+
+    # look for redirected stdout
+    _path = os.path.join(os.path.join(workdir, "workDir"), "tmp.stdout.*")
+    tolog("path=%s"%(_path))
+    path_list = glob(_path)
+    if len(path_list) > 0:
+        # there should only be one path
+        tolog("Found redirected stdout: %s" % str(path_list))
+        filename = path_list[0]
+    else:
+        filename = preliminary_stdout_filename
+
+    tolog("Using stdout filename: %s" % (filename))
+    return filename
+
 def getStdoutDictionary(jobDic):
     """ Create a dictionary with the tails of all running payloads """
 
@@ -3695,7 +3734,9 @@ def getStdoutDictionary(jobDic):
             if nJobs > 1:
                 _stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
 
-            filename = "%s/%s" % (jobDic[k][1].workdir, _stdout)
+            #filename = "%s/%s" % (jobDic[k][1].workdir, _stdout)
+            # _stdout is the preliminary filename, but can be different, e.g. runGen/runAthena redirects stdout
+            filename = getStdoutFilename(jobDic[k][1].workdir, _stdout)
             if os.path.exists(filename):
                 try:
                     # get the tail
@@ -3704,7 +3745,7 @@ def getStdoutDictionary(jobDic):
                     stdout = commands.getoutput(cmd)
                 except Exception, e:
                     tolog("!!WARNING!!1999!! Tail command threw an exception: %s" % (e))
-                    stdout_dictionary[jobId] = "(no stdout, caught exception: %s) % (e)"
+                    stdout_dictionary[jobId] = "(no stdout, caught exception: %s)" % (e)
                 else:
                     if stdout == "":
                         tolog("!!WARNING!!1999!! Tail revealed empty stdout for file %s" % (filename))
@@ -3713,6 +3754,11 @@ def getStdoutDictionary(jobDic):
                         # add to tail dictionary
                         stdout_dictionary[jobId] = stdout
 
+                        # also keep track of the path to the stdout so we can send it to a text indexer if required
+                        index = "path-%s" % (jobId)
+                        stdout_dictionary[index] = filename
+
+                        tolog("Stored path=%s at index %s" % (stdout_dictionary[index], index))
                 # add the number of lines (later this should always be sent)
                 pattern = re.compile(r"(\d+) [\S+]")
                 cmd = "wc -l %s" % (filename)
@@ -3825,14 +3871,16 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
     # reset site.appdir
     thisSite.appdir = readpar('appdir')
 
-    if readpar('glexec') == "True" or readpar('glexec') == "test":
-        env['glexec'] = True
+    if readpar('glexec') == "True": 
+        env['glexec'] = 'True'
+    elif readpar('glexec') == "test":
+	env['glexec'] = 'test'
     else:
-        env['glexec'] = False
+        env['glexec'] = 'False'
 
     return ec, thisSite, _jobrec, hasQueuedata
 
-def postJobTask(job, thisSite, thisNode, experiment, jr=False, ra=0, stdout_tail=None):
+def postJobTask(job, thisSite, thisNode, experiment, jr=False, ra=0, stdout_tail=None, stdout_path=None):
     """
     update Panda server with output info (xml) and make/save the tarball of the job workdir,
     only for finished or failed jobs.
@@ -3845,7 +3893,7 @@ def postJobTask(job, thisSite, thisNode, experiment, jr=False, ra=0, stdout_tail
     joblog = JobLog()
 
     # create the log
-    joblog.postJobTask(job, thisSite, experiment, thisNode, jr=jr, ra=ra)
+    joblog.postJobTask(job, thisSite, experiment, thisNode, jr=jr, ra=ra, stdout_tail=stdout_tail, stdout_path=stdout_path)
 
 def verifyRecoveryDir(recoveryDir):
     """
@@ -3900,6 +3948,7 @@ def moveToExternal(workdir, recoveryDir):
     JS = JobState()
 
     # grab all job state files from the workdir
+    from glob import glob
     job_state_files = glob("%s/jobState-*.pickle" % (workdir))
 
     # purge any test job state files (testing for new job rec algorithm)
@@ -3948,8 +3997,8 @@ def moveToExternal(workdir, recoveryDir):
             logfile = os.path.join(_site.workdir, _job.logFile)
             logfile_copied = os.path.join(_site.workdir, "LOGFILECOPIED")
             logfile_registered = os.path.join(_site.workdir, "LOGFILEREGISTERED")
-            metadatafile1 = "metadata-%d.xml" % _job.jobId
-            metadatafile2 = "metadata-%d.xml.PAYLOAD" % _job.jobId
+            metadatafile1 = "metadata-%s.xml" % (_job.jobId)
+            metadatafile2 = "metadata-%s.xml.PAYLOAD" % (_job.jobId)
             surlDictionary = os.path.join(_site.workdir, "surlDictionary-%s.%s" % (_job.jobId, getExtension()))
             moveDic = {"workdir" : _job.workdir, "datadir" : _job.datadir, "logfile" : logfile, "logfile_copied" : logfile_copied,
                        "logfile_registered" : logfile_registered, "metadata1" : metadatafile1,
@@ -4181,7 +4230,7 @@ def shellExitCode(exitCode):
     else:
         return 0
 
-def updatePandaServer(job, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, stdout_tail=""):
+def updatePandaServer(job, xmlstr=None, spaceReport=False, log=None, ra=0, jr=False, stdout_tail="", stdout_path=""):
     """ Update the panda server with the latest job info """
 
     # create and instantiate the client object
@@ -4194,7 +4243,7 @@ def updatePandaServer(job, xmlstr=None, spaceReport=False, log=None, ra=0, jr=Fa
     # update the panda server
     return client.updatePandaServer(job, env['thisSite'], env['workerNode'], env['psport'],
                                     xmlstr = xmlstr, spaceReport = spaceReport, log = log, ra = ra, jr = jr,
-                                    useCoPilot = env['useCoPilot'], stdout_tail = stdout_tail)
+                                    useCoPilot = env['useCoPilot'], stdout_tail = stdout_tail, stdout_path = stdout_path)
 
 def sig2exc(sig, frm):
     """ Signal handler """
@@ -4252,9 +4301,12 @@ def sig2exc(sig, frm):
             # postJobTask(env['jobDic'][k][1], globalSite, globalWorkNode, env['experiment'], jr=False)
 
     # touch a KILLED file which will be seen by the multi-job loop, to prevent further jobs from being started
-    createLockFile(False, env['globalSite'].workdir, "KILLED")
+    try:
+        createLockFile(False, env['thisSite'].workdir, "KILLED")
+        writeToFile(os.path.join(env['thisSite'].workdir, "EXITCODE"), str(ec))
+    except Exception, e:
+        tolog("!!WARNING!!2211!! Caught exception: %s" % (e))
 
-    writeToFile(os.path.join(env['globalSite'].workdir, "EXITCODE"), str(ec))
     raise SystemError(sig) # this one will trigger the cleanup function to be called
 
 def extractPattern(source, pattern):
@@ -4328,7 +4380,10 @@ def getGUID():
 
 def extractHPCInfo(infoStr):
     """ Extract HPC name from the info string """
-    # Return: isHPCSite (True/False), HPC_name (string)                                                                                                                                # infoStr = "blabla HPC_Titan" -> True, "Titan"                                                                                                                                    # infoStr = "blabla bla" -> False, None                                                                                                                                            # The HPC name will be capitalized (titan -> Titan)                                                                                                                                                      
+    # Return: isHPCSite (True/False), HPC_name (string)
+    # infoStr = "blabla HPC_Titan" -> True, "Titan"
+    # infoStr = "blabla bla" -> False, None
+    # The HPC name will be capitalized (titan -> Titan)                                                                                                                                                  
     name = None
     isHPCSite = False
 
@@ -4339,3 +4394,23 @@ def extractHPCInfo(infoStr):
         isHPCSite = True
 
     return isHPCSite, name
+
+def getInitialDirs(path, n):
+    """ Get the initial n sub directories in a given path """
+
+    # E.g. path = "/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies", n = 3
+    # -> subpath = "/cvmfs/atlas-nightlies.cern.ch/repo"
+
+    subpath = ""
+    if path[0] == "/":
+        s = path.split("/")
+        if n <= len(s):
+            subpath = "/"
+            for i in range(1, n+1):
+                subpath = os.path.join(subpath, s[i])
+        else:
+            subpath = path
+    else:
+        tolog("!!WARNING!!2211!! Not a path: %s" % (path))
+
+    return subpath

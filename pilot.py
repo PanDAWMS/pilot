@@ -1,26 +1,5 @@
 #!/usr/bin/python -u 
 
-
-# test code in getInstallDir() related to setting of siteroot, now adding cmtconfig etc for non-vo-atlas-sw-dir
-
-# alternative SE stageout activated in mover: useAlternativeStageOut
-# UTA hardcoded in transferLogFile for secondary log transfer test
-# CERN-RELEASE in getJobExecutionCommand()
-# transferLogFile(), goegrid hardcoded, JobLog - turned on
-
-# put_RETRY = 1 Mover
-
-# Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file registrations using DQ2 functions
-# test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
-
-# ral, cern-prod, goegrid, brunel, atlassiteinformation
-# mwt2_mcore
-
-# todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
-# todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation
-
-
-
 import commands
 import getopt
 import os
@@ -34,7 +13,7 @@ from glob import glob
 
 from PilotErrors import PilotErrors
 from JobState import JobState
-from processes import killProcesses
+from processes import killProcesses, isCGROUPSSite
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from JobLog import JobLog # import here to avoid issues seen at EELA with missing module
 import Mover as mover
@@ -46,6 +25,8 @@ import glexec_utils
 from Configuration import Configuration
 from WatchDog import WatchDog
 from Monitor import Monitor
+import subprocess
+import hashlib
 
 
 # Initialize the configuration singleton
@@ -98,6 +79,13 @@ def usage():
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__
 
+def execute(program):
+    """Run a program on the command line. Return stderr, stdout and status."""
+    pipe = subprocess.Popen(program, bufsize=-1, shell=True, close_fds=False,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = pipe.communicate()
+    return stdout, stderr, pipe.wait()
+
 def argParser(argv):
     """ parse command line arguments for the main script """
 
@@ -117,7 +105,7 @@ def argParser(argv):
         pass
     else:
         env['pilotId'] = gtag
-        print "pilot ID = %s" % ['pilotId']
+        print "pilot ID = %s" % env['pilotId']
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
@@ -245,7 +233,7 @@ def argParser(argv):
                 env['proxycheckFlag'] = True
             else:
                 env['proxycheckFlag'] = False
-        
+
         elif o == "-u": 
             env['uflag'] = a
         
@@ -335,15 +323,11 @@ def argParser(argv):
 
     # force user jobs for ANALY sites
     if env['sitename'].startswith('ANALY_'):
-        if env['uflag'] != 'user' and env['uflag'] != 'self' and env['uflag'] != 'ptest':
+        if env['uflag'] != 'user' and env['uflag'] != 'self' and env['uflag'] != 'ptest' and env['uflag'] != 'rucio_test':
             env['uflag'] = 'user'
             pUtil.tolog("Pilot user flag has been reset for analysis site (to value: %s)" % (env['uflag']))
         else:
             pUtil.tolog("Pilot user flag: %s" % str(env['uflag']))
-
-    # do not bother with checking the proxy for ptest jobs
-    #if env['uflag'] == 'ptest':
-    #    env['proxycheckFlag'] = False
 
 def moveLostOutputFiles(job, thisSite, remaining_files):
     """
@@ -378,7 +362,7 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
 
     # open and parse xml to find the guids
     from xml.dom import minidom
-    _filename = "%s/metadata-%s.xml" % (thisSite.workdir, str(job.jobId))
+    _filename = "%s/metadata-%s.xml" % (thisSite.workdir, job.jobId)
     if os.path.isfile(_filename):
         try:
             xmldoc = minidom.parse(_filename)
@@ -728,9 +712,9 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
 
                                 #PN
                                 # uncomment this code for recovery of certain panda ids only
-#                                allowedJobIds = [1435974131]
+#                                allowedJobIds = ['1435974131']
 #                                if _job.jobId not in allowedJobIds:
-#                                    pUtil.tolog("Job id %d not in allowed id list: %s" % (_job.jobId, str(allowedJobIds)))
+#                                    pUtil.tolog("Job id %s not in allowed id list: %s" % (_job.jobId, str(allowedJobIds)))
 #                                    continue
 
                             if _job and _site and _node:
@@ -739,11 +723,11 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                 if _job.result[0] == 'holding' or _job.result[0] == 'lostheartbeat':
                                     pUtil.tolog("(1)")
 
-                                    pUtil.tolog("Job %d is currently in state \'%s\' (according to job state file - recover)" %\
+                                    pUtil.tolog("Job %s is currently in state \'%s\' (according to job state file - recover)" %\
                                           (_job.jobId, _job.result[0]))
                                 elif _job.result[0] == 'failed':
                                     pUtil.tolog("(2)")
-                                    pUtil.tolog("Job %d is currently in state \'%s\' (according to job state file - skip)" %\
+                                    pUtil.tolog("Job %s is currently in state \'%s\' (according to job state file - skip)" %\
                                           (_job.jobId, _job.result[0]))
 
                                     pUtil.tolog("Further recovery attempts will be prevented for this job (will leave work dir)")
@@ -766,7 +750,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                         releaseAtomicLockFile(fd, lockfile_name)
                                         continue
                                     elif not (jobStatus == 'holding' and jobStatusCode == 0):
-                                        pUtil.tolog("Job %d is currently in state \'%s\' with attemptNr = %d (according to server - will not be recovered)" %\
+                                        pUtil.tolog("Job %s is currently in state \'%s\' with attemptNr = %d (according to server - will not be recovered)" %\
                                               (_job.jobId, jobStatus, jobAttemptNr))
 
                                         if _job.attemptNr != jobAttemptNr or jobStatus == "transferring" or jobStatus == "failed" or \
@@ -791,7 +775,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                             # as the current jobAttemptNr from the server (protection against failed lost
                                             # heartbeat jobs due to reassigned panda job id numbers)
                                             if attemptNr != jobAttemptNr:
-                                                pUtil.tolog("!!WARNING!!1100!! Attempt number mismatch for job %d (according to server - will not be recovered)" %\
+                                                pUtil.tolog("!!WARNING!!1100!! Attempt number mismatch for job %s (according to server - will not be recovered)" %\
                                                       (_job.jobId))
                                                 pUtil.tolog("....Initial attempt number: %d" % (attemptNr))
                                                 pUtil.tolog("....Current attempt number: %d" % (jobAttemptNr))
@@ -811,7 +795,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                         # the job state as given by the dispatcher should only be different from that of
                                         # the job state file for 'lostheartbeat' jobs. This state is only set like this
                                         # in the job state file. The dispatcher will consider it as a 'holding' job.
-                                        pUtil.tolog("Job %d is currently in state \'%s\' (according to job state file: \'%s\') - recover" %\
+                                        pUtil.tolog("Job %s is currently in state \'%s\' (according to job state file: \'%s\') - recover" %\
                                               (_job.jobId, jobStatus, _job.result[0]))
 
                                 # only attempt recovery if the lost job ran on the same site as the current pilot
@@ -833,7 +817,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                     rt, retNode = updatePandaServer(_job, _site, _psport, ra = _recoveryAttempt, schedulerID = env['jobSchedulerId'], pilotID = env['pilotId'])
                                     if rt == 0:
                                         number_of_recoveries += 1
-                                        pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                        pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                         # did the server send back a command?
                                         if "tobekilled" in _job.action:
@@ -861,18 +845,18 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                 # should any file be registered? (data dirs will not exist in the following checks
                                 # since late registration requires that all files have already been transferred)
                                 # (Note: only for LRC sites)
-                                rc = checkForLateRegistration(thisSite.dq2url, _job, _site, _node, type="output")
-                                if rc == False:
-                                    pUtil.tolog("Resume this rescue operation later due to the previous errors")
-                                    # release the atomic lockfile and go to the next directory
-                                    releaseAtomicLockFile(fd, lockfile_name)
-                                    continue
-                                rc = checkForLateRegistration(thisSite.dq2url, _job, _site, _node, type="log")
-                                if rc == False:
-                                    pUtil.tolog("Resume this rescue operation later due to the previous errors")
-                                    # release the atomic lockfile and go to the next directory
-                                    releaseAtomicLockFile(fd, lockfile_name)
-                                    continue
+#                                rc = checkForLateRegistration(thisSite.dq2url, _job, _site, _node, type="output")
+#                                if rc == False:
+#                                    pUtil.tolog("Resume this rescue operation later due to the previous errors")
+#                                    # release the atomic lockfile and go to the next directory
+#                                    releaseAtomicLockFile(fd, lockfile_name)
+#                                    continue
+#                                rc = checkForLateRegistration(thisSite.dq2url, _job, _site, _node, type="log")
+#                                if rc == False:
+#                                    pUtil.tolog("Resume this rescue operation later due to the previous errors")
+#                                    # release the atomic lockfile and go to the next directory
+#                                    releaseAtomicLockFile(fd, lockfile_name)
+#                                    continue
 
                                 # does log exist?
                                 logfile = "%s/%s" % (_site.workdir, _job.logFile)
@@ -975,7 +959,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                             pilotID = env['pilotId'])
                                             if rt == 0:
                                                 number_of_recoveries += 1
-                                                pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                 # did the server send back a command?
                                                 if "tobekilled" in _job.action:
@@ -1039,7 +1023,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     pUtil.tolog("!!WARNING!!1110!! Panda server returned a \'tobekilled\' command")
                                                     _job.result[0] = "failed"
 
-                                                pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
                                                 if _job.result[0] == 'finished' or _job.result[0] == "failed":
                                                     if not JS.cleanup():
                                                         pUtil.tolog("!!WARNING!!1110!! Failed to cleanup")
@@ -1098,7 +1082,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                         pilotID = env['pilotId'])
                                         if rt == 0:
                                             number_of_recoveries += 1
-                                            pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                            pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
                                             # only cleanup work dir if no error code has been set
                                             if _job.result[0] == 'finished':
                                                 if not JS.cleanup():
@@ -1170,7 +1154,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                             pilotID = env['pilotId'])
                                             if rt == 0:
                                                 number_of_recoveries += 1
-                                                pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                 # this job can never be recovered - delete work dir
                                                 if not JS.cleanup():
@@ -1241,7 +1225,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                                             schedulerID = env['jobSchedulerId'], 
                                                                                             pilotID = env['pilotId'])
                                                             if rt == 0:
-                                                                pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                                pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                                 # did the server send back a command?
                                                                 if "tobekilled" in _job.action:
@@ -1255,7 +1239,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                         pUtil.tolog("(Fate of job state file left for next pilot)")
 
                                                             else:
-                                                                pUtil.tolog("!!WARNING!!1130!! Failed to update Panda server for job %d (exit code %d)" %\
+                                                                pUtil.tolog("!!WARNING!!1130!! Failed to update Panda server for job %s (exit code %d)" %\
                                                                       (_job.jobId, _job.result[2]))
                                                             # release the atomic lockfile and go to the next directory
                                                             releaseAtomicLockFile(fd, lockfile_name)
@@ -1372,7 +1356,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                                     schedulerID = env['jobSchedulerId'],
                                                                                     pilotID = env['pilotId'])
                                                     if rt == 0:
-                                                        pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                        pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                         # did the server send back a command?
                                                         if "tobekilled" in _job.action:
@@ -1386,7 +1370,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                 pUtil.tolog("(Fate of job state file left for next pilot)")
 
                                                     else:
-                                                        pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %d (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                        pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %s (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                     # release the atomic lockfile and go to the next directory
                                                     releaseAtomicLockFile(fd, lockfile_name)
@@ -1424,7 +1408,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                                     pilotID = env['pilotId'])
                                                     if rt == 0:
                                                         number_of_recoveries += 1
-                                                        pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                        pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                         # did the server send back a command?
                                                         if "tobekilled" in _job.action:
@@ -1443,7 +1427,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                 pUtil.tolog("!!WARNING!!1140!! Failed to cleanup")
 
                                                     else:
-                                                        pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %d (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                        pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %s (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                     # release the atomic lockfile and go to the next directory
                                                     releaseAtomicLockFile(fd, lockfile_name)
@@ -1478,7 +1462,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                                 schedulerID = env['jobSchedulerId'], 
                                                                                 pilotID = env['pilotId'])
                                                 if rt == 0:
-                                                    pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                    pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
                                                     number_of_recoveries += 1
 
                                                     # did the server send back a command?
@@ -1493,7 +1477,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                             pUtil.tolog("(Fate of job state file left for next pilot)")
 
                                                 else:
-                                                    pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %d (exit code %d)" % (_job.jobId, _job.result[2]))
+                                                    pUtil.tolog("!!WARNING!!1140!! Failed to update Panda server for job %s (exit code %d)" % (_job.jobId, _job.result[2]))
 
                                                 # release the atomic lockfile and go to the next directory
                                                 releaseAtomicLockFile(fd, lockfile_name)
@@ -1547,7 +1531,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                         pilotID = env['pilotId'])
                                         if rt == 0:
                                             number_of_recoveries += 1
-                                            pUtil.tolog("Lost job %d updated (exit code %d)" % (_job.jobId, _job.result[2]))
+                                            pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
                                             if not JS.cleanup():
                                                 pUtil.tolog("!!WARNING!!1140!! Failed to cleanup")
                                                 # release the atomic lockfile and go to the next directory
@@ -1911,8 +1895,6 @@ def getDispatcherDictionary(_diskSpace, tofile):
              'getProxyKey':      _getProxyKey,
              'workingGroup':     env['workingGroup']}
 
-    pUtil.tolog("3 env[\'workerNode\'].mem=%s" % (env['workerNode'].mem))
-
     if env['countryGroup'] == "":
         pUtil.tolog("No country group selected")
     else:
@@ -2023,7 +2005,7 @@ def backupDispatcherResponse(response, tofile):
     except Exception, e:
         pUtil.tolog("!!WARNING!!1999!! Could not store job definition: %s" % str(e), tofile=tofile)
     else:
-        pUtil.tolog("Job definition stored (for later backup): %s" % str(response), tofile=tofile)
+        pUtil.tolog("Job definition stored (for later backup) in file %s" % (env['pandaJobDataFileName']), tofile=tofile)
 
 def getNewJob(tofile=True):
     """ Get a new job definition from the jobdispatcher or from file """
@@ -2342,13 +2324,19 @@ def getsetWNMem(memory):
     
         # Convert MB to Bytes for the setrlimit function
         _maxmemory = maxmemory*1024**2
-        try:
-            import resource
-            resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
-        except Exception, e:
-            pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
+
+        # Only proceed if not a CGROUPS site
+        if not isCGROUPSSite():
+            pUtil.tolog("Not a CGROUPS site, proceeding with setting the memory limit")
+            try:
+                import resource
+                resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
+            except Exception, e:
+                pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
+            else:
+                pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
         else:
-            pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
+            pUtil.tolog("Detected a CGROUPS site, will not set the memory limit")
 
         cmd = "ulimit -a"
         pUtil.tolog("Executing command: %s" % (cmd))
@@ -2558,25 +2546,79 @@ def runMain(runpars):
                 else:
                     pUtil.tolog("!!WARNING!!1231!! Post getJob() actions encountered a problem - job will fail")
 
-                    # job must be failed correctly
-                    pUtil.tolog("Updating PanDA server for the failed job (error code %d)" % (ec))
-                    env['job'].result[0] = 'failed'
-                    env['job'].currentState = env['job'].result[0]
-                    env['job'].result[2] = ec
-                    pUtil.postJobTask(env['job'], env['thisSite'], env['workerNode'], env['experiment'], jr=False)
-                    pUtil.fastCleanup(env['thisSite'].workdir)
-                    return pUtil.shellExitCode(ec)
+                    try:
+                        # job must be failed correctly
+                        pUtil.tolog("Updating PanDA server for the failed job (error code %d)" % (ec))
+                        env['job'].result[0] = 'failed'
+                        env['job'].currentState = env['job'].result[0]
+                        env['job'].result[2] = ec
+                        # note: job.workdir has not been created yet so cannot create log file
+                        env['pilotErrorDiag'] = "Post getjob actions failed - workdir does not exist, cannot create job log, see batch log"
+                        pUtil.tolog("!!WARNING!!2233!! Work dir has not been created yet so cannot create job log in this case - refer to batch log")
+                        updatePandaServer(env['job'], env['thisSite'], env['psport'], schedulerID = env['jobSchedulerId'], pilotID = env['pilotId'])
+#                        pUtil.postJobTask(env['job'], env['thisSite'], env['workerNode'], env['experiment'], jr=False)
+                        pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
+                        return pUtil.shellExitCode(ec)
+                    except Exception, e:
+                        pUtil.tolog("Caught exception: %s" % (e))
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))
 
-            if env['glexec'] == False:
+            if env['glexec'] == 'False':
                 monitor = Monitor(env)
                 monitor.monitor_job()
-            else:
+	    elif env['glexec'] == 'test':
+		pUtil.tolog('glexec is set to test, we will hard-fail miserably in case of errors')
                 payload = 'python -m glexec_aux'
                 my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
                 glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
                 glexec_interface.setup_and_run()
+            else:
+                # Try to ping the glexec infrastructure to test if it is ok.
+                # If it is ok, go ahead with glexec, if not, use the normal pilot mode without glexec.
+                temp_proxy_path = os.path.join('/tmp', str(hashlib.sha1(env['userProxy']).hexdigest()))
+                text_file = open(temp_proxy_path, 'w')
+                text_file.write(env['userProxy'])
+                text_file.close()
+                os.chmod(temp_proxy_path, 0700)
+
+                if os.environ.has_key('OSG_GLEXEC_LOCATION'):
+			if os.environ['OSG_GLEXEC_LOCATION'] != '':
+				glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+     			else:
+			        glexec_path = '/usr/sbin/glexec'
+                                os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
+                elif os.environ.has_key('GLEXEC_LOCATION'):
+			if os.environ['GLEXEC_LOCATION'] != '':
+	     			glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
+     			else:
+             			glexec_path = '/usr/sbin/glexec'
+                                os.environ['GLEXEC_LOCATION'] = '/usr'
+		elif os.path.exists('/usr/sbin/glexec'):
+			glexec_path = '/usr/sbin/glexec'
+	                os.environ['GLEXEC_LOCATION'] = '/usr'
+                elif os.environ.has_key('GLITE_LOCATION'):
+                        glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
+                                             'sbin/glexec')
+                else:
+			pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
+                        glexec_path = '/usr/sbin/glexec'
+
+                cmd = 'export GLEXEC_CLIENT_CERT='+temp_proxy_path+';'+glexec_path + ' /bin/true'
+                stdout, stderr, status = execute(cmd)
+                pUtil.tolog('cmd: %s' % cmd)
+                pUtil.tolog('status: %s' % status)
+                os.remove(temp_proxy_path)
+                if not (status or stderr):
+                        pUtil.tolog('glexec infrastructure seems to be working fine. Running in glexec mode!')
+                        payload = 'python -m glexec_aux'
+                        my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
+                        glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
+                        glexec_interface.setup_and_run()
+                else:
+                        pUtil.tolog('!!WARNING!! Problem with the glexec infrastructure! Will run the pilot in normal mode')
+                        monitor = Monitor(env)
+                        monitor.monitor_job()
 
             #Get the return code (Should be improved)
             if env['return'] == 'break':

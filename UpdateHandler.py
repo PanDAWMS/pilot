@@ -27,7 +27,7 @@ class UpdateHandler(BaseRequestHandler):
     
             # update self.__env['jobDic']
             for k in self.__env['jobDic'].keys():
-                if self.__env['jobDic'][k][1].jobId == int(jobinfo["jobid"]): # job pid matches
+                if self.__env['jobDic'][k][1].jobId == jobinfo["jobid"]: # job pid matches
 #                if self.__env['jobDic'][k][2] == int(jobinfo["pgrp"]) and self.__env['jobDic'][k][1].jobId == int(jobinfo["jobid"]): # job pid matches
                     # protect with try statement in case the pilot server goes down (jobinfo will be corrupted)
                     try:

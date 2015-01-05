@@ -273,7 +273,7 @@ class SiteInformation(object):
 
         if url == "":
             exp = getExperimentObject(self.__experiment)
-            url = exp.SchedconfigURL()
+            url = exp.getSchedconfigURL()
             tolog("The schedconfig URL was not set by the wrapper - Will use default server url = %s (hardcoded)" % (url))
 
         if not os.environ.has_key('PilotHomeDir'):
@@ -661,6 +661,8 @@ class SiteInformation(object):
 
         ec = 0
 
+        tolog("Extracting appdir (current value=%s)" % (appdir))
+
         # override processingType for analysis jobs that use nightlies
         if "rel_" in homePackage:
             tolog("Temporarily modifying processingType from %s to nightlies" % (processingType))
@@ -725,9 +727,17 @@ class SiteInformation(object):
 
         return self.__experiment
 
-    def allowAlternativeStageOut(self):
+    def allowAlternativeStageOut(self, flag=None):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
+        # Argument 'flag' can be used for special conditions
+
+        return False
+
+    def forceAlternativeStageOut(self, flag=None):
+        """ Force stage-out to use alternative SE """
+        # Argument 'flag' can be used for special conditions
+        # See allowAlternativeStageOut()
 
         return False
 

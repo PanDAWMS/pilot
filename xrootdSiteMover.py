@@ -361,6 +361,13 @@ class xrootdSiteMover(SiteMover.SiteMover):
 
         # are we transfering to a space token?
         if token != None and token != "":
+            # Special case for GROUPDISK (do not remove dst: bit before this stage, needed in several places)
+            if "dst:" in token:
+                token = token[len('dst:'):]
+                tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+                token = "ATLASGROUPDISK"
+                tolog("Space token descriptor reset to: %s" % (token))
+
             # get the proper destination
             #destination = self.getDestination(analyJob, token)
 

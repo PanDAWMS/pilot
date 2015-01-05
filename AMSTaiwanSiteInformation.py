@@ -16,10 +16,10 @@ from pUtil import readpar                    # Used to read values from the sche
 from pUtil import getExtension               # Used to determine file type of Tier-1 info file
 from PilotErrors import PilotErrors          # Error codes
 
-class ATLASSiteInformation(SiteInformation):
+class AMSTaiwanSiteInformation(SiteInformation):
 
     # private data members
-    __experiment = "ATLAS"
+    __experiment = "AMSTaiwan"
     __instance = None
     __error = PilotErrors()                  # PilotErrors object
     __securityKeys = {}
@@ -35,7 +35,7 @@ class ATLASSiteInformation(SiteInformation):
         """ Override the __new__ method to make the class a singleton """
 
         if not cls.__instance:
-            cls.__instance = super(ATLASSiteInformation, cls).__new__(cls, *args, **kwargs)
+            cls.__instance = super(AMSTaiwanSiteInformation, cls).__new__(cls, *args, **kwargs)
 
         return cls.__instance
 
@@ -359,13 +359,6 @@ class ATLASSiteInformation(SiteInformation):
             surl = sitemover.getFullPath(scope, token, filename, analyJob, prodSourceLabel, alt=alt)
         else:
             surl = "%s%s" % (se, dst_gpfn)
-
-            # Correct the SURL which might start with something like 'token:ATLASMCTAPE:srm://srm-atlas.cern.ch:8443/srm/man/..'
-            # If so, remove the space token before the srm info
-            if surl.startswith('token'):
-                tolog("Removing space token part from SURL")
-                dummy, surl = sitemover.extractSE(surl)
-                
         tolog("SURL = %s" % (surl))
         tolog("dst_gpfn = %s" % (dst_gpfn))
         tolog("lfcdir = %s" % (lfcdir))
@@ -416,25 +409,18 @@ class ATLASSiteInformation(SiteInformation):
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
-            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
+            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
 #            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
-            ec = self.replaceQueuedataField("copytoolin", "fax")
             ec = self.replaceQueuedataField("copytool", "lsm")
-#            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
+            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
-#            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
-#            ec = self.replaceQueuedataField("copyprefixin", "^srm://gk05.swt2.uta.edu")
+            #ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 # Event Service tests:
 # now set in AGIS   ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
-#            ec = self.replaceQueuedataField("corecount", "4")
+            ec = self.replaceQueuedataField("corecount", "4")
             ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
         if os.environ.get("COPYTOOL"):
@@ -442,38 +428,10 @@ class ATLASSiteInformation(SiteInformation):
         if os.environ.get("COPYTOOLIN"):
             ec = self.replaceQueuedataField("copytoolin", os.environ.get("COPYTOOLIN"))
 
-#        if thisSite.sitename == "MWT2_SL6":
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^https://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("timefloor", "0")
-#        if thisSite.sitename == "BNL_CLOUD_MCORE":
-#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
-#            ec = self.replaceQueuedataField("timefloor", "0")
-
-#        if thisSite.sitename == "SWT2_CPB" or thisSite.sitename == "AGLT2_SL6":
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore,stdout_to_text_indexer")
-#            ec = self.replaceQueuedataField("copyprefixin", "srm://uct2-dc1.uchicago.edu,root://xrddoor.mwt2.org:1096")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("timefloor", "0")
-
-#        if thisSite.sitename == "AGLT2_SL6" or thisSite.sitename == "SWT2_CPB":
-#        if thisSite.sitename == "BNL_PROD" or thisSite.sitename == "MWT2_MCORE":
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
-
-#            ec = self.replaceQueuedataField("status", "online")
+#        if thisSite.sitename == "BNL_PROD_MCORE":
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
 
-#        if thisSite.sitename == "BNL_PROD":
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
-#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore,stdout_to_text_indexer")
-#            ec = self.replaceQueuedataField("copytoolin", "fax")
-#            ec = self.replaceQueuedataField("allowfax", "True")
-
-#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov:8443//atlas/logs|https^https://ceph007.usatlas.bnl.gov:8443//atlas/logs")
-#            ec = self.replaceQueuedataField("timefloor", "0")
+#        if thisSite.sitename == "CERN-PROD" or thisSite.sitename == "BNL_PROD_MCORE" or thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "MWT2_MCORE":
 #            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
         _status = self.readpar('status')
@@ -566,8 +524,6 @@ class ATLASSiteInformation(SiteInformation):
 
         ec = 0
 
-        tolog("Extracting appdir (ATLAS: current value=%s)" % (appdir))
-
         # override processingType for analysis jobs that use nightlies
         if "rel_" in homePackage:
             tolog("Temporarily modifying processingType from %s to nightlies" % (processingType))
@@ -580,16 +536,12 @@ class ATLASSiteInformation(SiteInformation):
                     return ec, _appdir
 
         elif "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
-            value = 'VO_ATLAS_RELEASE_DIR'
-            tolog("Encountered HLT homepackage: %s, will look for a set $%s" % (homePackage, value))
+            tolog("Encountered HLT homepackage: %s" % (homePackage))
 
             # does a HLT directory exist?
-            if os.environ.has_key(value):
-                ec, _appdir = self.getSpecialAppdir(value)
-                if ec == 0 and _appdir != "":
-                    return ec, _appdir
-            else:
-                tolog('$%s is not set' % (value))
+            ec, _appdir = self.getSpecialAppdir('VO_ATLAS_RELEASE_DIR')
+            if ec == 0 and _appdir != "":
+                return ec, _appdir
 
         _appdir = appdir
         if "|" in _appdir and "^" in _appdir:
@@ -652,10 +604,9 @@ class ATLASSiteInformation(SiteInformation):
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
 
-        # cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
-        # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
-        # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
-        cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath()) 
+        cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
+        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
+        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
 
         return cmd
 
@@ -669,11 +620,10 @@ class ATLASSiteInformation(SiteInformation):
 
         return cmd
 
-    # Required for S3 objectstore
+    # Required if use S3 objectstore
     def getSecurityKey(self, privateKeyName, publicKeyName):
         """ Return the key pair """
-
-        keyName = privateKeyName + "_" + publicKeyName
+        keyName=privateKeyName + "_" + publicKeyName
         if keyName in self.__securityKeys.keys():
             return self.__securityKeys[keyName]
         else:
@@ -688,10 +638,10 @@ class ATLASSiteInformation(SiteInformation):
                 node['privateKeyName'] = privateKeyName
                 node['publicKeyName'] = publicKeyName
                 #host = '%s:%s' % (env['pshttpurl'], str(env['psport'])) # The key pair is not set on other panda server
-                host = 'pandaserver.cern.ch:25443'
+                host = 'aipanda007.cern.ch:25443'
                 path = '/server/panda/getKeyPair'
-                conn = httplib.HTTPSConnection(host, key_file=sslKey, cert_file=sslCert, timeout=120)
-                conn.request('POST', path, urllib.urlencode(node))
+                conn = httplib.HTTPSConnection(host,key_file=sslKey, cert_file=sslCert)
+                conn.request('POST',path,urllib.urlencode(node))
                 resp = conn.getresponse()
                 data = resp.read()
                 conn.close()
@@ -699,14 +649,11 @@ class ATLASSiteInformation(SiteInformation):
                 if dic["StatusCode"][0] == "0":
                     self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
                     return self.__securityKeys[keyName]
-                else:
-                   tolog("!!WARNING!!4444!! Failed to get key from PanDA server:")
-                   tolog("data = %s" % str(data))
             except:
                 _type, value, traceBack = sys.exc_info()
-                tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
+                tolog("Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
                 tolog("ERROR: %s %s" % (_type, value))
-
+                
         return {"publicKey": None, "privateKey": None}
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ class Job:
     """ Job definition """
 
     def __init__(self):
-        self.jobId = 0                     # panda job id
+        self.jobId = '0'                   # panda job id
         self.homePackage = None            # package name
         self.trf = None                    # trf name
         self.inFiles = None                # list of input files
@@ -118,7 +118,7 @@ class Job:
             _spsetup = self.spsetup
         else:
             _spsetup = "(not defined)"
-        pUtil.tolog("\nPandaID=%d\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\scopeOut=%s\nscopeLog=%s" %\
+        pUtil.tolog("\nPandaID=%s\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\scopeOut=%s\nscopeLog=%s" %\
                     (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
 
     def mkJobWorkdir(self, sitewd):
@@ -158,10 +158,10 @@ class Job:
         """ set values for a job object from a dictionary data
         which is usually from cgi messages from panda server """
 
-        self.jobId = int(data.get('PandaID', '0'))
+        self.jobId = data.get('PandaID', '0')
         self.taskID = data.get('taskID', '')
 
-        self.outputFilesXML = "OutputFiles-%s.xml" % str(self.jobId)
+        self.outputFilesXML = "OutputFiles-%s.xml" % (self.jobId)
 
         self.homePackage = data.get('homepackage', '')
         self.trf = data.get('transformation', '')
@@ -306,6 +306,13 @@ class Job:
         self.prodSourceLabel = data.get('prodSourceLabel', '')
         destinationDblock = data.get('destinationDblock', '')
 
+
+        # PN tmp
+#        skip = False
+#        if data.has_key('eventServiceMerge'):
+#            if data['eventServiceMerge'] == 'True':
+#                skip = True
+
         # figure out the real output files and log files and their destinationDblock right here
         outfList = outFiles.split(",")
         pUtil.tolog("outfList = %s" % (outfList))
@@ -321,8 +328,10 @@ class Job:
                 logFileDblock = outfdbList[i]
                 i_log = i
             else:
+#                if not skip: #PN tmp
                 outs.append(outfList[i])
                 outdb.append(outfdbList[i])
+
         # put the space token for the log file at the end of the list
         if i_log != -1:
             try:

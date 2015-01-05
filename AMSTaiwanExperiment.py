@@ -34,10 +34,10 @@ import time
 import commands
 from glob import glob
 
-class ATLASExperiment(Experiment):
+class AMSTaiwanExperiment(Experiment):
 
     # private data members
-    __experiment = "ATLAS"                 # String defining the experiment
+    __experiment = "AMSTaiwan"                # String defining the experiment
     __instance = None                      # Boolean used by subclasses to become a Singleton
     __warning = ""
     __analysisJob = False
@@ -58,7 +58,7 @@ class ATLASExperiment(Experiment):
         """ Override the __new__ method to make the class a singleton """
 
         if not cls.__instance:
-            cls.__instance = super(ATLASExperiment, cls).__new__(cls, *args, **kwargs)
+            cls.__instance = super(AMSTaiwanExperiment, cls).__new__(cls, *args, **kwargs)
 
         return cls.__instance
 
@@ -80,7 +80,7 @@ class ATLASExperiment(Experiment):
     def updateCmd1WithProject(self, cmd1, atlasProject):
         """ Add the known project to the setup command """
 
-        if atlasProject != "" and atlasProject not in cmd1:
+        if atlasProject != "":
             cmd1 = cmd1.replace("notest","%s,notest" % (atlasProject))
 
         tolog("cmd1 = %s" % (cmd1))
@@ -192,7 +192,7 @@ class ATLASExperiment(Experiment):
                 if ec != 0:
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
-                # Add the project to the setup (only for HLT jobs for now, both on cvmfs and afs)
+                # Add the project to the setup (only for HLT jobs for now)
                 if "AtlasP1HLT" in job.homePackage or "AtlasHLT" in job.homePackage:
                     cmd1 = self.updateCmd1WithProject(cmd1, atlasProject)
 
@@ -302,18 +302,13 @@ class ATLASExperiment(Experiment):
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 try:
-                    coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+                    coreCount = int(job.coreCount)
                 except:
-                    coreCount = -1
-                if coreCount == -1:
-                    try:
-                        coreCount = int(job.coreCount)
-                    except:
-                        pass
-                    else:
-                        if coreCount >= 1:
-                            cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
-                            tolog("Added multi-core support to cmd2: %s" % (cmd2))
+                    pass
+                else:
+                    if coreCount >= 1:
+                        cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
+                        tolog("Added multi-core support to cmd2: %s" % (cmd2))
 
                 # Prepend cmd0 to cmd1 if set and if release < 16.1.0
                 if cmd0 != "" and job.release < "16.1.0":
@@ -409,36 +404,16 @@ class ATLASExperiment(Experiment):
                     if ec != 0:
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
-                # should asetup be used? If so, sqeeze it into the run command (rather than moving the entire getAnalysisRunCommand() into this class)
-                m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
-                if m_cacheDirVer != None:
-                    # homePackage="AnalysisTransforms-AthAnalysisBase_2.0.14"
-                    # -> cacheDir = AthAnalysisBase, cacheVer = 2.0.14
-                    cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
-                    tolog("cacheDir = %s" % (cacheDir))
-                    tolog("cacheVer = %s" % (cacheVer))
-                    if cacheDir != "" and cacheVer != "":
-                        asetup = "export AtlasSetup=%s/%s/%s/%s/AtlasSetup; " % (swbase, cacheDir, cmtconfig, cacheVer)
-                        asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s;" % (cacheDir, cacheVer)
-
-                        # now squeeze it in
-                        cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
-                        tolog("Updated run command for special homePackage: %s" % (cmd))
-                    else:
-                        tolog("asetup not needed (mo special home package: %s)" % (homePackage))
-                else:
-                    tolog("asetup not needed (no special homePackage)")
-
             elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
                 
-                if 'HPC_' in readpar("catchall"):
+                if 'HPC_Titan' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": ("%s/%s" % (job.homePackage, job.trf)),
                            "parameters": job.jobPars }
                 else:
                     cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
             else:
-                if 'HPC_' in readpar("catchall"):
+                if 'HPC_Titan' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": job.trf,
                            "parameters": job.jobPars }
@@ -451,10 +426,10 @@ class ATLASExperiment(Experiment):
 
         # add FRONTIER debugging and RUCIO env variables
         
-        if 'HPC_' in readpar("catchall"):
-            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
+        if 'HPC_Titan' in readpar("catchall"):
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename)
         else: 
-            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename)
 
         # Is JEM allowed to be used?
         if self.isJEMAllowed():
@@ -478,7 +453,7 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
         # Pipe stdout/err for payload to files
-        if 'HPC_' not in readpar("catchall"):
+        if 'HPC_Titan' not in readpar("catchall"):
             cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
@@ -588,8 +563,7 @@ class ATLASExperiment(Experiment):
                     "scratch",
                     "jobState-*-test.pickle",
                     "*.writing",
-                    "saga",
-                    "radical"]
+                    "saga"]
 
         # remove core and pool.root files from AthenaMP sub directories
         try:
@@ -1705,28 +1679,13 @@ class ATLASExperiment(Experiment):
 
         return cmd3
 
-    def addEnvVars2Cmd(self, cmd, jobId, processingType, sitename, analysisJob):
+    def addEnvVars2Cmd(self, cmd, jobId, processingType, sitename):
         """ Add env variables """
 
         _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
         _frontier1 = 'export FRONTIER_ID=\"[%s]\";' % (jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
-        _ttc = 'export ROOT_TTREECACHE_SIZE=1;'
 
-        # Unset ATHENA_PROC_NUMBER if set for event service Merge jobs
-        if "Merge_tf" in cmd and os.environ.has_key('ATHENA_PROC_NUMBER'):
-            _unset = "unset ATHENA_PROC_NUMBER;"
-        else:
-            _unset = ""
-
-        _coreCount = ""
-        if analysisJob:
-            try:
-                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-            except:
-                pass
-            else:
-                _coreCount = 'export ROOTCORE_NCPUS=%d;' % (coreCount)
         if processingType == "":
             _rucio = ''
             tolog("!!WARNING!!1887!! RUCIO_APPID needs job.processingType but it is not set!")
@@ -1734,26 +1693,15 @@ class ATLASExperiment(Experiment):
             _rucio = 'export RUCIO_APPID=\"%s\";' % (processingType)
         _rucio += 'export RUCIO_ACCOUNT=\"pilot\";'
 
-        return _sitename + _ttc + _frontier1 + _frontier2 + _rucio + _coreCount + _unset + cmd
+        return _sitename + _frontier1 + _frontier2 + _rucio + cmd
 
-    def getEnvVars2Cmd(self, jobId, processingType, sitename, analysisJob):
+    def getEnvVars2Cmd(self, jobId, processingType, sitename):
         """ Return array with enviroment variables """
 
         variables = []
         variables.append('export PANDA_RESOURCE=\"%s\";' % (sitename))
         variables.append('export FRONTIER_ID=\"[%s]\";' % (jobId))
         variables.append('export CMSSW_VERSION=$FRONTIER_ID;')
-        variables.append('export ROOT_TTREECACHE_SIZE=1;')
-
-        _coreCount = ""
-        if analysisJob:
-            try:
-                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-            except:
-                pass
-            else:
-                _coreCount = 'export ROOTCORE_NCPUS=%d;' % (coreCount)
-                variables.append(_coreCount)
 
         if processingType == "":
             tolog("!!WARNING!!1887!! RUCIO_APPID needs job.processingType but it is not set!")
@@ -1893,8 +1841,7 @@ class ATLASExperiment(Experiment):
                 # e.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
 
                 # note: this format (using cmtconfig is only valid on CVMFS, not on AFS)
-                # VO_ATLAS_RELEASE_DIR is only set on AFS (CERN)
-                if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage) and os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
+                if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
                     tolog("Encountered HLT homepackage: %s (must use special siteroot)" % (homePackage))
                     siteroot = os.path.join(swbase, release)
                 else:
@@ -2040,7 +1987,7 @@ class ATLASExperiment(Experiment):
         rel_N = None
         path = None
         skipVerification = False # verification not possible for more complicated setup (nightlies)
-        if 'HPC_' in readpar("catchall"):
+        if 'HPC_Titan' in readpar("catchall"):
             skipVerification = True # verification not possible for more complicated setup (nightlies)
 
         # First try with the cmtconfig in the path. If that fails, try without it
@@ -2145,24 +2092,9 @@ class ATLASExperiment(Experiment):
                 tolog("2. path=%s" % (asetup_path))
                 # use special options for nightlies (not the release info set above)
                 # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
-                # Special case for AtlasDerivation. In this case cacheVer = rel_N, so we don't want to add both cacheVer and rel_N,
-                # and we need to add cacheDir and the release itself
-                special_cacheDirs = ['AtlasDerivation'] # Add more cases if necessary
-                if cacheDir in special_cacheDirs:
-                    # strip any special cacheDirs from the release string, if present
-                    for special_cacheDir in special_cacheDirs:
-                        if special_cacheDir in atlasRelease:
-                            tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
-                            atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
-                            tolog("Release string updated: %s" % (atlasRelease))
-                    options = cacheDir + "," + atlasRelease + "," + rel_N + ",notest,here" # E.g. AtlasDerivation,19.1.X.Y-VAL,rel_3,notest,here
-                else:
-                    # correct an already set cacheVer if necessary
-                    if cacheVer == rel_N:
-                        tolog("Found a cacheVer set to %s: resetting to atlasRelease=%s" % (cacheVer, atlasRelease))
-                        cacheVer = atlasRelease
-                    options = cacheVer + "," + rel_N + ",notest,here"
-                    tolog("Options: %s" % (options))
+                options = cacheVer + "," + rel_N + ",notest,here"
+                # options = rel_N + ",notest"
+#                options = cacheDir + "," + rel_N #+ ",notest"
             else:
                 tolog("!!WARNING!!1111!! Failed to extract rel_N from homePackage=%s (forced to use default cmtsite setup)" % (homePackage))
                 asetup_path = "%s/cmtsite/asetup.sh" % (path)
@@ -2178,8 +2110,9 @@ class ATLASExperiment(Experiment):
         else:
             cmd = ""
 
-        # HLT on AFS
-        if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
+        # HLT
+        if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
+            cmd = "export AtlasSetup=%s/../dist/AtlasSetup; " % readpar('appdir')
             try:
                 h = homePackage.split("/") # ['AtlasP1HLT', '18.1.0.1']
                 project = h[0]
@@ -2188,15 +2121,9 @@ class ATLASExperiment(Experiment):
                 tolog("!!WARNING!!1234!! Could not extract project and patch from %s" % (homePackage))
             else:
                 tolog("Extracted %s, %s from homePackage=%s" % (patch, project, homePackage))
-                if os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
-                    cmd = "export AtlasSetup=%s/../dist/AtlasSetup; " % readpar('appdir')
-                    options = "%s,%s,notest,afs" % (patch, project)
-                else:
-                    cmd = "export AtlasSetup=%s/AtlasSetup; " % (path)
-                    options = "%s,%s,notest" % (patch, project)
-                    #cmd = "source"
-                    #asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
+                options = "%s,%s,notest,afs" % (patch, project)
                 asetup_path = "source $AtlasSetup/scripts/asetup.sh"
+
         return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
@@ -2271,7 +2198,7 @@ class ATLASExperiment(Experiment):
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
         
-?        if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
+        if 'HPC_Titan' in readpar("catchall"):
             status = True
         else:
             # Test the LFC module
@@ -2570,7 +2497,7 @@ class ATLASExperiment(Experiment):
         return allowjem
 
     # Optional
-    def doSpecialLogFileTransfer(self, eventService=False):
+    def doSpecialLogFileTransfer(self):
         """ Should the log file be transfered to a special SE? """
 
         # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file
@@ -2580,7 +2507,7 @@ class ATLASExperiment(Experiment):
 
         transferLogToObjectstore = False
 
-        if "log_to_objectstore" in readpar('catchall') or eventService:
+        if "log_to_objectstore" in readpar('catchall'):
             transferLogToObjectstore = True
 
         return transferLogToObjectstore
@@ -2661,11 +2588,12 @@ class ATLASExperiment(Experiment):
         pilotErrorDiag = ""
 
         # Make sure that ATHENA_PROC_NUMBER has a proper value for the current job
-        if job.prodSourceLabel != "install":
-            ec, pilotErrorDiag = self.verifyNCoresSettings(job.coreCount)
-            if ec != 0:
-                tolog("!!WARNING!!3222!! %s" % (pilotErrorDiag))
-                return ec, pilotErrorDiag
+        ec, pilotErrorDiag = self.verifyNCoresSettings(job.coreCount)
+        if ec != 0:
+            tolog("!!WARNING!!3222!! %s" % (pilotErrorDiag))
+            return ec, pilotErrorDiag
+
+        # ..
 
         return ec, pilotErrorDiag
 

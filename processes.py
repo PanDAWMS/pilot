@@ -7,6 +7,7 @@ import pUtil
 from subprocess import Popen, PIPE
 from pUtil import readpar
 
+
 def findProcessesInGroup(cpids, pid):
     """ recursively search for the children processes belonging to pid and return their pids
     here pid is the parent pid for all the children to be found
@@ -208,7 +209,9 @@ def killOrphans():
             pid = ids.group(1)
             ppid = ids.group(2)
             comm = ids.group(3)
-            if ppid == '1':
+            if comm == 'cvmfs2':
+                pUtil.tolog("Ignoring possible orphan process running cvmfs2: pid=%s, ppid=%s" % (pid, ppid))
+            elif ppid == '1':
                 count += 1
                 pUtil.tolog("Found orphan process: pid=%s, ppid=%s" % (pid, ppid))
                 cmd = 'kill -9 %s' % (pid)
@@ -223,3 +226,57 @@ def killOrphans():
     else:
         pUtil.tolog("Found %d orphan process(es)" % (count))
 
+def getMaxMemoryUsageFromCGroups():
+    """ Read the max_memory from CGROUPS file memory.max_usage_in_bytes"""
+
+    max_memory = None
+
+    # grep memory /proc/5409/cgroup
+    # Get the CGroups max memory using the pilot pid
+    pid = os.getpid()
+    path = "/proc/%d/cgroup" % (pid)
+    if os.path.exists(path):
+        cmd = "grep memory %s" % (path)
+        pUtil.tolog("Executing command: %s" % (cmd))
+        out = commands.getoutput(cmd)
+        if out == "":
+            pUtil.tolog("(Command did not return anything)")
+        else:
+            pUtil.tolog(out)
+            if ":memory:" in out:
+                pos = out.find('/')
+                path = out[pos:]
+                pUtil.tolog("Extracted path = %s" % (path))
+
+                pre = "/var/cgroups/memory"
+                path = pre + os.path.join(path, "memory.max_usage_in_bytes")
+                pUtil.tolog("Path to CGROUPS memory info: %s" % (path))
+
+                try:
+                    f = open(path, 'r')
+                except IOError, e:
+                    pUtil.tolog("!!WARNING!!2212!! Could not open file %s: %s" % (path, e))
+                else:
+                    max_memory = f.read()
+                    f.close()
+            else:
+                pUtil.tolog("!!WARNING!!2211!! Invalid format: %s (expected ..:memory:[path])" % (out))
+    else:
+        pUtil.tolog("Path %s does not exist (not a CGROUPS site)")
+
+    return max_memory
+
+def isCGROUPSSite():
+    """ Return True if site is a CGROUPS site """
+
+    status = False
+
+    # Make experiment specific?
+    if os.environ.has_key('ATLAS_CGROUPS_BASE'):
+        cgroups = os.environ['ATLAS_CGROUPS_BASE']
+        if cgroups != "":
+            pUtil.tolog("ATLAS_CGROUPS_BASE = %s" % (cgroups))
+            # if cgroups.lower() == "true":
+            status = True
+
+    return status

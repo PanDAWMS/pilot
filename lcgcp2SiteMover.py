@@ -326,7 +326,13 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             csumtype = "default"
 
         # get a proper envsetup
-        envsetup = self.getEnvsetup(alt=alt)
+        if alt:
+            # use a cvmfs setup for stage-out to alternative SE
+            envsetup = si.getLocalEMISetup()
+            if envsetup[-1] != ";":
+                envsetup += "; "
+        else:
+            envsetup = self.getEnvsetup(alt=alt)
 
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
@@ -384,6 +390,13 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
 
         # cleanup the SURL if necessary (remove port and srm substring)
         if token:
+            # Special case for GROUPDISK (do not remove dst: bit before this stage, needed in several places)
+            if "dst:" in token:
+                token = token[len('dst:'):]
+                tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+                token = "ATLASGROUPDISK"
+                tolog("Space token descriptor reset to: %s" % (token))
+
             # used lcg-cp options:
             # --srcsetype: specify SRM version
             #   --verbose: verbosity on
@@ -410,8 +423,8 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             _cmd_str = '%s lcg-cp --vo atlas --verbose -b %s -U srmv2 file://%s %s' % (envsetup, timeout_option, source, full_surl)
 
         #PN
-        #if not ".log." in full_surl and not alt and not analysisJob:
-        #    _cmd_str = _cmd_str.replace("lcg-cp", "lcg-cpXXX")
+#        if not ".log." in full_surl and not alt and not analysisJob:
+#            _cmd_str = _cmd_str.replace("lcg-cp", "lcg-cpXXX")
 
         tolog("Executing command: %s" % (_cmd_str))
         ec = -1

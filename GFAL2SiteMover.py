@@ -17,7 +17,7 @@ from time import time
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths, getExperiment
+from pUtil import tolog, readpar, getSiteInformation, extractFilePaths, getExperiment
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
 
@@ -37,7 +37,8 @@ class GFAL2SiteMover(SiteMover.SiteMover):
     timeout = 3600
 
     def __init__(self, setup_path, *args, **kwrds):
-        self._setup = setup_path
+        self._setup = setup_path.strip()
+        self.__isSetuped = False
         self._defaultSetup = None
 
     def get_timeout(self):
@@ -53,13 +54,18 @@ class GFAL2SiteMover(SiteMover.SiteMover):
     def getSetup(self):
         """ Return the setup string (pacman setup os setup script) for the copy command used by the mover """
         _setup_str = ""
-        if self._setup:
+        self._setup = self._setup.strip()
+        tolog("self setup: %s" % self._setup)
+        if self._setup and self._setup != "" and self._setup.strip() != "":
             if not self._setup.endswith(";"):
                 self._setup += ";"
             if not "alias" in self._setup:
                 if "atlasLocalSetup.sh" in self._setup and "--quiet" not in self._setup:
                     self._setup = self._setup.replace("atlasLocalSetup.sh", "atlasLocalSetup.sh --quiet")
-                _setup_str = "source %s" % self._setup
+                if self._setup.startswith("export") or self._setup.startswith("source"):
+                    _setup_str = "%s" % self._setup
+                else:
+                    _setup_str = "source %s" % self._setup
             else:
                 _setup_str = self._setup
 
@@ -147,6 +153,8 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
     def setup(self, experiment):
         """ setup env """
+        if self.__isSetuped:
+            return 0, None
         thisExperiment = getExperiment(experiment)
         self.useTracingService = thisExperiment.useTracingService()
         si = getSiteInformation(experiment)
@@ -166,6 +174,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         self.log("site setup verifying: status: %s, output: %s" % (status, output["errorLog"]))
         if status == 0:
             self._setup = envsetupTest
+            self.__isSetuped = True
             return status, output
         else:
             if self._defaultSetup:
@@ -182,6 +191,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
                 self.log("default setup verifying: status: %s, output: %s" % (status, output["errorLog"]))
                 if status == 0:
                     self._setup = envsetupTest
+                    self.__isSetuped = True
                     return status, output
 
         return status, output
@@ -489,6 +499,13 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
         # cleanup the SURL if necessary (remove port and srm substring)
         if token:
+            # Special case for GROUPDISK (do not remove dst: bit before this stage, needed in several places)
+            if "dst:" in token:
+                token = token[len('dst:'):]
+                tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
+                token = "ATLASGROUPDISK"
+                tolog("Space token descriptor reset to: %s" % (token))
+
             _cmd_str = '%s gfal-copy --verbose %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" -S %s file:%s %s' % (self._setup, timeout_option, token, source, destination)
         else:
             # surl is the same as putfile
@@ -885,7 +902,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
                 return PilotErrors.ERR_NOSUCHFILE, outputRet
         else:
             if timeUsed >= self.timeout:
-                pilotErrorDiag = "Copy command self timed out after %d s" % (t)
+                pilotErrorDiag = "Copy command self timed out after %d s" % (timeUsed)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 if stageMethod == "stageIN":
                     #self.__sendReport('GET_TIMEOUT', report)

@@ -20,7 +20,7 @@ import SiteMover
 import xrdcpSiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths, getExperiment, extractPattern
+from pUtil import tolog, readpar, getSiteInformation, extractFilePaths, getExperiment, extractPattern
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
 
@@ -41,7 +41,8 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
     timeout = 3600
 
     def __init__(self, setup_path, *args, **kwrds):
-        self._setup = setup_path
+        self._setup = setup_path.strip()
+        self.__isSetuped = False
         self._defaultSetup = None
 
     def get_timeout(self):
@@ -57,13 +58,19 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
     def getSetup(self):
         """ Return the setup string (pacman setup os setup script) for the copy command used by the mover """
         _setup_str = ""
-        if self._setup:
+        self._setup = self._setup.strip()
+        tolog("self setup: %s" % self._setup)
+
+        if self._setup and self._setup != "" and self._setup.strip() != "":
             if not self._setup.endswith(";"):
                 self._setup += ";"
             if not "alias" in self._setup:
                 if "atlasLocalSetup.sh" in self._setup and "--quiet" not in self._setup:
                     self._setup = self._setup.replace("atlasLocalSetup.sh", "atlasLocalSetup.sh --quiet")
-                _setup_str = "source %s" % self._setup
+                if self._setup.startswith("export") or self._setup.startswith("source"):
+                    _setup_str = "%s" % self._setup
+                else:
+                    _setup_str = "source %s" % self._setup
             else:
                 _setup_str = self._setup
 
@@ -151,6 +158,8 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
     def setup(self, experiment):
         """ setup env """
+        if self.__isSetuped:
+            return 0, None
         thisExperiment = getExperiment(experiment)
         self.useTracingService = thisExperiment.useTracingService()
         si = getSiteInformation(experiment)
@@ -170,6 +179,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         self.log("site setup verifying: status: %s, output: %s" % (status, output["errorLog"]))
         if status == 0:
             self._setup = envsetupTest
+            self.__isSetuped = True
             return status, output
         else:
             if self._defaultSetup:
@@ -186,6 +196,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 self.log("default setup verifying: status: %s, output: %s" % (status, output["errorLog"]))
                 if status == 0:
                     self._setup = envsetupTest
+                    self.__isSetuped = True
                     return status, output
 
         return status, output
@@ -251,7 +262,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return 0, output
 
-    def stageInFile(self, source, destination):
+    def stageInFile(self, source, destination, sourceSize):
         """StageIn the file. should be implementated by different site mover."""
         statusRet = 0
         outputRet = {}
@@ -268,8 +279,16 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         outputRet["report"]['relativeStart'] = time()
         outputRet["report"]['transferStart'] = time()
         try:
+            fsize = int(sourceSize)
+        except Exception, e:
+            timeout = self.timeout
+            self.log("Failed to convert file size to int: %s (using default)" % (e))
+        else:
+            timeout = self.getTimeOut(fsize)
+        self.log("Using time-out %d s for file size %s" % (timeout, sourceSize))
+        try:
             timerCommand = TimerCommand(_cmd_str)
-            s, o = timerCommand.run(timeout=self.timeout)
+            s, o = timerCommand.run(timeout=timeout)
         except Exception, e:
             tolog("!!WARNING!!2990!! Exception caught by stageInFile(): %s" % (str(e)))
             o = str(e)
@@ -393,7 +412,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         source = output['path']
 
-        status, output = self.stageInFile(source, destination)
+        status, output = self.stageInFile(source, destination, sourceSize)
         if status !=0:
             statusRet = status
             outputRet["errorLog"] = output["errorLog"]
@@ -1010,7 +1029,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 return PilotErrors.ERR_NOSUCHFILE, outputRet
         else:
             if timeUsed >= self.timeout:
-                pilotErrorDiag = "Copy command self timed out after %d s" % (t)
+                pilotErrorDiag = "Copy command self timed out after %d s" % (timeUsed)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 if stageMethod == "stageIN":
                     #self.__sendReport('GET_TIMEOUT', report)

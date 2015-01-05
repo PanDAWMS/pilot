@@ -1,15 +1,20 @@
 import os, re, sys
 import commands
 from time import time
+from subprocess import call
 import urllib2
 from subprocess import Popen, PIPE
 
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, getDirectAccessDic, extractPattern, getExperiment
+from pUtil import tolog, readpar, getDirectAccessDic, extractPattern, getSiteInformation 
 from timed_command import timed_command
 from FileStateClient import updateFileState
+try:
+  from rucio.client import Client
+except:
+  tolog("!!WARNING!!4444!! Cannot import rucio.client (not available)")
 
 
 class replica:
@@ -60,24 +65,44 @@ class aria2cSiteMover(SiteMover.SiteMover):
     except:
         os.environ['X509_CERT_DIR'] = "/etc/grid-security/certificates"
         sslCertDir = os.environ['X509_CERT_DIR']
+
+    try:
+	rucio_account=os.environ['RUCIO_ACCOUNT']
+    except:
+	rucio_account=""
+
+    try:
+        site_name = os.environ['SITE_NAME']
+    except:
+        site_name = ""
                
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path
         self.copyCommand = 'aria2c'
         self.commandInPATH()
-        self.getSurl2httpsMap()
-
-        cmd="curl -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert $X509_USER_PROXY --cert $X509_USER_PROXY --capath /etc/grid-security/certificates/ -X GET https://voatlasrucio-auth-prod.cern.ch/auth/x509_proxy| grep X-Rucio-Auth-Token"
+	rucio_account=self.rucio_account
+	tolog("Rucio account: %s" %(rucio_account))
+	cmd="curl -1 -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert %s --cert %s --key %s --capath %s -X GET https://rucio-auth-prod.cern.ch/auth/x509_proxy| grep 'X-Rucio-Auth-Token:'"%(self.sslKey,self.sslKey,self.sslKey,self.sslCertDir)
+        tolog("Command to be launched: %s" %(cmd))
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
-        token_rucio_or, stderr= token_rucio_cmd.communicate()
-        #I have to delete the final character of the token (a space)
-        token_lenght=len(token_rucio_or)-1
-        token_rucio=token_rucio_or[:token_lenght]
-        tolog("Token I am using:",token_rucio)
-        if os.path.exists('token_file'):
-                os.remove('token_file')
-        token_file=open('token_file', 'w')
-        token_file.write(token_rucio)
+        token_rucio, stderr= token_rucio_cmd.communicate()
+	if token_rucio:
+	   if '\r' in token_rucio:
+	        pos2print=token_rucio.find('\r')
+                token_rucio=token_rucio[:pos2print]
+	   elif '\n' in token_rucio:
+	        pos2print=token_rucio.find('\n')
+	   pos2print=token_rucio.find("CN")
+           token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
+           tolog("Token on file: %s" %(token_rucio2print))
+
+	   if os.path.exists('token_file'):
+    		os.remove('token_file')
+	   token_file=open('token_file', 'w')
+	   token_file.write(token_rucio)
+	else:
+	   tolog("In __init__: Std error from curl: %s" %(stderr))
+           tolog("!!WARNING!!2999!! Cannot get Rucio token!")
 
     def commandInPATH(self):
         _cmd_str = 'which %s'%self.copyCommand 
@@ -85,7 +110,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         s, o = commands.getstatusoutput(_cmd_str)
         if s != 0:
           tolog("aria2c not found in PATH")
-        cvmfs_aria2c = '/cvmfs/atlas.cern.ch/repo/sw/local/x86_64-slc5-gcc43-opt/bin/aria2c'  
+        cvmfs_aria2c = '/cvmfs/atlas.cern.ch/repo/sw/local/x86_64-slc6-gcc44-opt/bin/aria2c'
         if os.path.exists(cvmfs_aria2c):
           tolog("Using %s"%cvmfs_aria2c)
           self.copyCommand = cvmfs_aria2c
@@ -133,31 +158,51 @@ class aria2cSiteMover(SiteMover.SiteMover):
         to cover surls from remote SEs.
         For now just add the mapping for the local SE from copysetup.
         """
+	site_name=self.site_name
+	local_se_token=site_name+"_DATADISK"
+	tolog("local SE token: %s"%(local_se_token))
        # self.surl2https_map has key is srm hostname, then tuple of (from,to) regexp replace
-        
         dirAcc = getDirectAccessDic(readpar('copysetupin'))
         if not dirAcc:
           dirAcc = getDirectAccessDic(readpar('copysetup'))
        # extract srm host for key
-	srmhost=None
+        srmhost=None
         if dirAcc:
           srmhost = self.hostFromSurl(dirAcc['oldPrefix'])
-        if srmhost:
-          self.surl2https_map[srmhost] = (dirAcc['oldPrefix'],dirAcc['newPrefix'])
         for guid in replicas.keys():
           reps = replicas[guid]
           tolog("Got replicas=%s for guid=%s" % (str(reps), guid))
-
+	
         token_file=open('token_file', 'r')
-        token_rucio=token_file.readline()
-        cmd = "curl -H \"%s\" -H 'Accept: application/metalink+xml'  --cacert /etc/pki/tls/certs/CERN-bundle.pem https://voatlasrucio-server-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
-        metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
-        metalink, stderr=metalink_cmd.communicate()
-        tolog(metalink)
-        mlfile = open(metalinkFile,'w')
-        mlfile.write(metalink)
-        mlfile.close()
+        token_rucio=token_file.readline() 
+	pos2print=token_rucio.find("CN")
+        token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
+        tolog("Token I am using: %s" %(token_rucio2print))
+	httpredirector = readpar('httpredirector')
+	if not httpredirector:
+            cmd = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
+            cmd2print = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio2print,reps[0].scope,reps[0].filename)
+	else:
+            if "http" in httpredirector:
+           	tolog("HTTP redirector I am using: %s" %(httpredirector))
+                cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd2print = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
+            else:
+           	tolog("HTTP redirector I am using: %s" %(httpredirector))
+                cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd2print = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
 
+        tolog("curl command to be executed: %s" %(cmd2print))
+        metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
+	metalink, stderr=metalink_cmd.communicate()
+        tolog("Metalink produced by rucio %s" %(metalink))
+	if not "location" in metalink:
+           tolog("In surls2metalink: command std error: %s" %(stderr))
+           tolog("!!WARNING!!1099!! No metalink to download file, or error in metalink!")
+	else:
+           mlfile = open(metalinkFile,'w')
+           mlfile.write(metalink)
+           mlfile.close()
 
     def hostFromSurl(self,surl):
         re_srmhost = re.compile('^srm://([^/|:|\(]*)')
@@ -172,7 +217,6 @@ class aria2cSiteMover(SiteMover.SiteMover):
         """ copy input file from SE to local dir """
        # determine which timeout option to use
         timeout_option = "--connect-timeout 300 --timeout %d" % (self.timeout)
-
         sslCert = self.sslCert
         sslKey = self.sslKey
         sslCertDir = self.sslCertDir
@@ -193,9 +237,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         token = pdict.get('token', None)
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
-        experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
-        scope_dict = pdict.get('scope_dict', None)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)
@@ -219,17 +261,15 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # get a proper envsetup
         envsetup = self.getEnvsetup(get=True)
 
-        # get the experiment object
-        thisExperiment = getExperiment(experiment)
-
-        if proxycheck:
-            # do we have a valid proxy?
-            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
-            if s != 0:
-                self.__sendReport('PROXYFAIL', report)
-                return s, pilotErrorDiag
-        else:
-            tolog("Proxy verification turned off")
+        #if proxycheck:
+        #    # do we have a valid proxy?
+        #    s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
+        #    if s != 0:
+        #        self.__sendReport('PROXYFAIL', report)
+        #        return s, pilotErrorDiag
+        #else:
+        #    tolog("Proxy verification turned off")
+        tolog("Proxy verification turned off")
 
         getfile = gpfn
 
@@ -263,12 +303,24 @@ class aria2cSiteMover(SiteMover.SiteMover):
                     return 0, pilotErrorDiag
                 else:
                     tolog("Normal file transfer")
+
+
+
+        # Build ca bundle if not already there
+        cabundleFile='cabundle.pem'
+        if not os.path.exists(cabundleFile):
+           _cmd_str = 'cat %s/*.0 > %s'%(sslCertDir,cabundleFile)  
+           tolog("Executing command: %s" % (_cmd_str))                        
+           s, o = commands.getstatusoutput(_cmd_str)
+
+
         # If metalink file not created(including all inputs)
         # then make one just for this input
-        
+
         if os.path.exists('AllInput.xml.meta4'):
           metalink='AllInput.xml.meta4'
         else:    
+	  tolog("Getting metalink from Rucio")
           rep = replica()
           rep.sfn = gpfn
           rep.filesize = fsize
@@ -278,23 +330,25 @@ class aria2cSiteMover(SiteMover.SiteMover):
             rep.scope = fscope
           else:
             scope = extractPattern(gpfn,r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
-            rep.scope = scope.replace("/",".")
-            print "provaaaaaaaaaa", rep.scope
+            rep.scope = scope.replace("/",".") 
           replicas = {guid:[rep]}
         
           self.surls2metalink(replicas,'oneInput.xml.meta4')
           metalink='oneInput.xml.meta4'
 
-        # Build ca bundle if not already there
-        cabundleFile='cabundle.pem'
-        if not os.path.exists(cabundleFile):
-           _cmd_str = 'cat %s/*.0 > %s'%(sslCertDir,cabundleFile)  
-           tolog("Executing command: %s" % (_cmd_str))                        
-           s, o = commands.getstatusoutput(_cmd_str)
            
         # build the copy command
+	#search how many links are available for download	
+	word_occour=0
+	metaL_file= open(metalink)
+	for line in metaL_file:
+	   for word in line.strip().split():
+		if word in ("<url"):
+			word_occour +=1 
+	tolog("number of links: %s" % (str(word_occour)))                        
+
         #--check-certificate=false makes it easier(sles11)
-        _cmd_str = '%s --check-certificate=false --ca-certificate=%s --certificate=%s --private-key=%s --auto-file-renaming=false --continue --server-stat-of=aria2cperf.txt %s'%(self.copyCommand,cabundleFile,sslCert,sslCert,metalink)
+        _cmd_str = '%s -j %s --ca-certificate=%s --certificate=%s --private-key=%s --auto-file-renaming=false --continue --server-stat-of=aria2cperf.txt %s'%(self.copyCommand, str(word_occour),cabundleFile,sslCert,sslCert,metalink)
 
         
         # invoke the transfer commands
@@ -348,7 +402,6 @@ class aria2cSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" %\
                                  (csumtype, os.path.basename(gpfn), dstfchecksum, fchecksum)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-
                 # report corrupted file to consistency server
                 self.reportFileCorruption(gpfn)
 
@@ -378,7 +431,6 @@ class aria2cSiteMover(SiteMover.SiteMover):
         dsname = pdict.get('dsname', '')
         testLevel = pdict.get('testLevel', '0')
         extradirs = pdict.get('extradirs', '')
-        experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
         experiment = pdict.get('experiment', '')
         analysisJob = pdict.get('analJob', False)
@@ -426,16 +478,14 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # get a proper envsetup
         envsetup = self.getEnvsetup()
 
-        # get the experiment object
-        thisExperiment = getExperiment(experiment)
-
-        if proxycheck:
-            s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
-            if s != 0:
-                self.__sendReport('NO_PROXY', report)
-                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
-        else:
-            tolog("Proxy verification turned off")
+        #if proxycheck:
+        #    s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
+        #    if s != 0:
+        #        self.__sendReport('NO_PROXY', report)
+        #        return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
+        #else:
+        #    tolog("Proxy verification turned off")
+        tolog("Proxy verification turned off")
 
         filename = os.path.basename(source)
         
@@ -444,9 +494,30 @@ class aria2cSiteMover(SiteMover.SiteMover):
         if ec != 0:
             self.__sendReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
+	#here begins the new magic... from Vincenzo Lavorini
+        sitemover = SiteMover.SiteMover()
+        v_path = sitemover.getPathFromScope(scope, filename)
+        rucio_c = Client()
+	if "ATLAS" in token:
+	   token_ok=token[+5:]
+	else:
+	   token_ok=token
+        local_se_token=self.site_name+"_"+token_ok
+        v_hostname= [j['hostname'] for j in rucio_c.get_protocols(local_se_token)]
+        v_port= [j['port'] for j in rucio_c.get_protocols(local_se_token)]
+        v_prefix= [j['prefix'] for j in rucio_c.get_protocols(local_se_token)]
+        v_address= "https://%s:%s%s"%(v_hostname[0],v_port[0],v_prefix[0])
+        tolog("prova1 address is %s" % (v_address))
+        if "rucio/" in v_address  and "/rucio" in v_path:
+           v_address=v_address[:-7]
+           tolog("prova2 address is %s" % (v_address))
+        elif "rucio" in v_address and "rucio" in v_path :
+           v_address=v_address[:-6]
+           tolog("prova3 address is %s" % (v_address))
+        full_http_surl=v_address+v_path
+        tolog("prova3 full_http__surl is %s" % (full_http_surl))
 
-        putfile = surl
-        full_surl = putfile
+        full_surl =surl 
         if full_surl[:len('token:')] == 'token:':
             # remove the space token (e.g. at Taiwan-LCG2) from the SURL info
             full_surl = full_surl[full_surl.index('srm://'):]
@@ -454,47 +525,49 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # srm://dcache01.tier2.hep.manchester.ac.uk/pnfs/tier2.hep.manchester.ac.uk/data/atlas/dq2/
         #testpanda.destDB/testpanda.destDB.604b4fbc-dbe9-4b05-96bb-6beee0b99dee_sub0974647/
         #86ecb30d-7baa-49a8-9128-107cbfe4dd90_0.job.log.tgz
-        tolog("putfile: %s" % (putfile))
-        tolog("full_surl: %s" % (full_surl))
+	#putfile=surl
+        #tolog("putfile: %s" % (putfile))
+        #tolog("full_surl: %s" % (full_surl))
 
         # get https surl
-        full_http_surl = full_surl.replace("srm://", "https://")
+        #full_http_surl = full_surl.replace("srm://", "https://")
         
-        # get the DQ2 site name from ToA
-        try:
-            _dq2SiteName = self.getDQ2SiteName(surl=putfile)
-        except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
-        else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+        # get the DQ2 site name from ToA ---why? Is it needed?
+        #try:
+        #    _dq2SiteName = self.getDQ2SiteName(surl=putfile)
+        #except Exception, e:
+        #    tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+        #else:
+        #    report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
+        #    tolog("DQ2 site name: %s" % (_dq2SiteName))
 
         if testLevel == "1":
             source = "thisisjustatest"
 
         # determine which timeout option to use
-        timeout_option = "--connect-timeout 300 --max-time %d" % (self.timeout)
+        #commented by Lavorini timeout_option = "--connect-timeout 300 --max-time %d" % (self.timeout)
+        timeout_option = "--connect-timeout 300"
 
         sslCert = self.sslCert
         sslKey = self.sslKey
         sslCertDir = self.sslCertDir
 
         # check htcopy if it is existed or env is set properly
-        _cmd_str = 'which htcopy'
-        try:
-            s, o = commands.getstatusoutput(_cmd_str)
-        except Exception, e:
-            tolog("!!WARNING!!2990!! Exception caught: %s (%d, %s)" % (str(e), s, o))
-            o = str(e)
+        #_cmd_str = 'which htcopy'
+        #try:
+        #    s, o = commands.getstatusoutput(_cmd_str)
+        #except Exception, e:
+        #    tolog("!!WARNING!!2990!! Exception caught: %s (%d, %s)" % (str(e), s, o))
+        #    o = str(e)
         
-        if s != 0:
-            tolog("!!WARNING!!2990!! Command failed: %s" % (_cmd_str))
-            o = o.replace('\n', ' ')
-            tolog("!!WARNING!!2990!! check PUT command failed. Status=%s Output=%s" % (str(s), str(o)))
-            return 999999
+        #if s != 0:
+        #    tolog("!!WARNING!!2990!! Command failed: %s" % (_cmd_str))
+        #    o = o.replace('\n', ' ')
+        #    tolog("!!WARNING!!2990!! check PUT command failed. Status=%s Output=%s" % (str(s), str(o)))
+            #return 999999
 
         # cleanup the SURL if necessary (remove port and srm substring)
-        if token:
+        #if token:
             # used lcg-cp options:
             # --srcsetype: specify SRM version
             #   --verbose: verbosity on
@@ -515,35 +588,28 @@ class aria2cSiteMover(SiteMover.SiteMover):
             #               [-b,--nobdii] [-t timeout] [-v,--verbose]  [-V,--vo vo] [--version] src_file  dest_file
 
             # surl = putfile[putfile.index('srm://'):]
-            _cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s?spacetoken=%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl, token)
+            #_cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s?spacetoken=%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl, token)
             #_cmd_str = '%s lcg-cp --verbose --vo atlas -b %s -U srmv2 -S %s file://%s %s' % (envsetup, timeout_option, token, source, full_surl)
-        else:
+        #else:
             # surl is the same as putfile
-            _cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl)
+            #_cmd_str = '%s htcopy --ca-path %s --user-cert %s --user-key %s "%s"' % (envsetup, sslCertDir, sslCert, sslKey, full_http_surl)
             #_cmd_str = '%s lcg-cp --vo atlas --verbose -b %s -U srmv2 file://%s %s' % (envsetup, timeout_option, source, full_surl)
+        _cmd_str = 'curl -1 --verbose --cert %s --key %s --cacert %s --capath %s -L %s -T %s' % (self.sslKey,self.sslKey,self.sslKey,self.sslCertDir,full_http_surl, source)
 
         tolog("Executing command: %s" % (_cmd_str))
-        ec = -1
         t0 = os.times()
-        o = '(not defined)'
+        _cmd=Popen(_cmd_str,stdout=PIPE,stderr=PIPE, shell=True )
+	_cmd_out, _cmd_stderr= _cmd.communicate()
         report['relativeStart'] = time()
         report['transferStart'] =  time()
-        try:
-            ec, o = commands.getstatusoutput(_cmd_str)
-        except Exception, e:
-            tolog("!!WARNING!!2999!! lcg-cp threw an exception: %s" % (o))
-            o = str(e)
         report['validateStart'] = time()
         t1 = os.times()
         t = t1[4] - t0[4]
+        tolog("Curl command output = %s" % (_cmd_out))
         tolog("Command finished after %f s" % (t))
-        tolog("ec = %d, o = %s, len(o) = %d" % (ec, o, len(o)))
-
-        if ec != 0:
-            tolog("!!WARNING!!2990!! Command failed: %s" % (_cmd_str))
-            check_syserr(ec, o)
-            tolog('!!WARNING!!2990!! put_data failed: Status=%d Output=%s' % (ec, str(o)))
-
+	if "bytes uploaded" not in _cmd_out:
+            tolog("!!WARNING!!1137!! Command failed: %s" % (_cmd_str))
+        '''
             # check if file was partially transferred, if so, remove it
             _ec = self.removeFile(envsetup, self.timeout, dst_gpfn)
             if _ec == -2:
@@ -577,17 +643,45 @@ class aria2cSiteMover(SiteMover.SiteMover):
                         pilotErrorDiag += o
                     self.__sendReport('CP_ERROR', report)
                     return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
-
+	'''
         verified = False
-
-        # try to get the remote checksum with lcg-get-checksum
-        remote_checksum = self.lcgGetChecksum(envsetup, self.timeout, full_surl)
-        if not remote_checksum:
-            # try to grab the remote file info using lcg-ls command
-            remote_checksum, remote_fsize = self.getRemoteFileInfo(envsetup, self.timeout, full_surl)
+	#getting the remote checksum from Rucio:
+	token_file=open('token_file', 'r')
+        token_rucio=token_file.readline()
+	pos2print=token_rucio.find("CN")
+        token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
+        tolog("Token I am using: %s" %(token_rucio2print))
+        httpredirector = readpar('httpredirector')
+        if not httpredirector:
+            #cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip |awk \'{FS=\"hash type=\"}; {print $2}\' |awk \'{FS=\">\"}; {print $2}\' |awk \'{FS=\"<\"} {print $1}\'| grep -v \'^$\'"%(token_rucio,scope,filename)
+            cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio,scope,filename)
+            cmd2print = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio2print,scope,filename)
         else:
-            tolog("Setting remote file size to None (not needed)")
-            remote_fsize = None
+            if "http" in httpredirector:
+                tolog("HTTP redirector I am using: %s" %(httpredirector))
+                cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,scope,filename)
+                cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucioi2print,httpredirector,scope,filename)
+            else:
+                tolog("HTTP redirector I am using: %s" %(httpredirector))
+                cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
+
+        tolog("Getting remote checksum: command to be executed: %s" %(cmd2print))
+        checksum_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
+        remote_checksum, stderr=checksum_cmd.communicate()
+        tolog("Remote checksum as given by rucio %s" %(remote_checksum))
+        tolog("In checking checksum: command std error: %s" %(stderr))
+	if not remote_checksum:
+            pilotErrorDiag = "Cannot get the checksum of file on SE"
+            tolog("!!WARNING!!1137!! %s" % (pilotErrorDiag))
+            # try to get the remote checksum with lcg-get-checksum
+            remote_checksum = self.lcgGetChecksum(envsetup, self.timeout, full_surl)
+            if not remote_checksum:
+                # try to grab the remote file info using lcg-ls command
+                remote_checksum, remote_fsize = self.getRemoteFileInfo(envsetup, self.timeout, full_surl)
+            else:
+                tolog("Setting remote file size to None (not needed)")
+                remote_fsize = None
 
         # compare the checksums if the remote checksum was extracted
         tolog("Remote checksum: %s" % str(remote_checksum))
@@ -698,11 +792,11 @@ class aria2cSiteMover(SiteMover.SiteMover):
 
 
 
-# export PilotHomeDir=pants
 
 if __name__ == "__main__":
 #  surl='https://fozzie.ndgf.org:2881/atlas/disk/atlashotdisk/ddo/DBRelease/v200202/ddo.000001.Atlas.Ideal.DBRelease.v200202/DBRelease-20.2.2.tar.gz'
   surl='srm://lcg-lrz-se.lrz-muenchen.de/pnfs/lrz-muenchen.de/data/atlas/dq2/atlashotdisk/ddo/DBRelease/v200201/ddo.000001.Atlas.Ideal.DBRelease.v200201/DBRelease-20.2.1.tar.gz'
 
   mover=aria2cSiteMover("")
-  mover.get_data(surl,'somelfn','/tmp',616103906,'checky','guidguid')
+  #mover.get_data(surl,'somelfn','/tmp',616103906,'checky','guidguid')
+  mover.get_data(surl,'somelfn','/tmp',616103906,'checky','scope','guidguid')

@@ -9,12 +9,13 @@ from shutil import copy, copy2
 from random import shuffle
 from glob import glob
 from JobRecovery import JobRecovery
-from processes import killProcesses, checkProcesses, killOrphans
+from processes import killProcesses, checkProcesses, killOrphans, getMaxMemoryUsageFromCGroups, isCGROUPSSite
 from PilotErrors import PilotErrors
 from FileStateClient import createFileStates, dumpFileStates, getFileState
 from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
+from RunJobFactory import RunJobFactory
 
 import inspect
 
@@ -69,7 +70,6 @@ class Monitor:
             pUtil.tolog("subprocessName = %s" % (subprocessName))
 
             # Now get an instance of the corresponding class from the RunJobFactory
-            from RunJobFactory import RunJobFactory
             factory = RunJobFactory()
             _rJ = factory.newRunJob(subprocessName)
             self.__runJob = _rJ()
@@ -124,7 +124,7 @@ class Monitor:
                             pilotErrorDiag = "Payload stdout file too big: %d B (larger than limit %d B)" % (fsize, self.__env['localsizelimit_stdout'] * 1024)
                             pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
                             # kill the job
-                            pUtil.tolog("Going to kill pid %d" %lineno())
+                            #pUtil.tolog("Going to kill pid %d" %lineno())
                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             self.__env['jobDic'][k][1].result[0] = "failed"
                             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -222,7 +222,7 @@ class Monitor:
             pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
             for k in self.__env['jobDic'].keys():
                 # kill the job
-                pUtil.tolog("Going to kill pid %d" %lineno())
+                #pUtil.tolog("Going to kill pid %d" %lineno())
                 killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                 self.__env['jobDic'][k][1].result[0] = "failed"
                 self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -311,7 +311,7 @@ class Monitor:
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
             # kill the job
-            pUtil.tolog("Going to kill pid %d" %lineno())
+            #pUtil.tolog("Going to kill pid %d" %lineno())
             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
             self.__env['jobDic'][k][1].result[0] = "failed"
             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -396,12 +396,26 @@ class Monitor:
 
             # update the time for checking output file sizes
             self.__env['curtime_of'] = int(time.time())
+
+# FOR TESTING ONLY
+#    def __verify_memory_limits(self):
+#        # verify output file sizes every five minutes
+#        if (int(time.time()) - self.__env['curtime_mem']) > 1*60: #self.__env['update_freq_mem']:
+#            # check the CGROUPS memory
+#            max_memory = getMaxMemoryUsageFromCGroups()
+#            if max_memory:
+#                pUtil.tolog("cgroups max_memory = %s" % (max_memory))
+#            else:
+#                pUtil.tolog("cgroups max_memory not defined")
+#
+#            # update the time for checking memory
+#            self.__env['curtime_mem'] = int(time.time())
             
     def __killLoopingJob(self, job, pid, setStageout=False):
         """ kill the looping job """
     
         # the child process is looping, kill it
-        pilotErrorDiag = "Pilot has decided to kill looping job %d at %s" %\
+        pilotErrorDiag = "Pilot has decided to kill looping job %s at %s" %\
                          (job.jobId, pUtil.timeStamp())
         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
     
@@ -450,11 +464,16 @@ class Monitor:
                 # get the tail if possible
                 try:
                     self.__env['stdout_tail'] = stdout_dictionary[self.__env['jobDic'][k][1].jobId]
-                except:
+                    index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
+                    self.__env['stdout_path'] = stdout_dictionary[index]
+                    pUtil.tolog("stdout_path=%s at index=%s" % (self.__env['stdout_path'], index))
+                except Exception, e:
                     self.__env['stdout_tail'] = "(stdout tail not available)"
-    
+                    self.__env['stdout_path'] = ""
+                    pUtil.tolog("no stdout_path: %s" % (e))
+
                 # update the panda server
-                ret, retNode = pUtil.updatePandaServer(self.__env['jobDic'][k][1], stdout_tail = self.__env['stdout_tail'])
+                ret, retNode = pUtil.updatePandaServer(self.__env['jobDic'][k][1], stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
                 if ret == 0:
                     pUtil.tolog("Successfully updated panda server at %s" % pUtil.timeStamp())
                 else:
@@ -462,14 +481,14 @@ class Monitor:
     
                 # kill a job if signaled from panda server
                 if "tobekilled" in self.__env['jobDic'][k][1].action:
-                    pilotErrorDiag = "Pilot received a panda server signal to kill job %d at %s" %\
+                    pilotErrorDiag = "Pilot received a panda server signal to kill job %s at %s" %\
                                      (self.__env['jobDic'][k][1].jobId, pUtil.timeStamp())
                     pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
                     if self.__env['jobrec']:
                         self.__env['jobrec'] = False
                         pUtil.tolog("Switching off job recovery")
                     # kill the real job process(es)
-                    pUtil.tolog("Going to kill pid %d" %lineno())
+                    #pUtil.tolog("Going to kill pid %d" %lineno())
                     killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                     self.__env['jobDic'][k][1].result[0] = "failed"
                     self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -479,6 +498,7 @@ class Monitor:
                 # did we receive a command to turn on debug mode?
                 if "debug" in self.__env['jobDic'][k][1].action.lower():
                     pUtil.tolog("Pilot received a command to turn on debug mode from the server")
+#                    self.__env['update_freq_server'] = 2*60
                     self.__env['update_freq_server'] = 5*60
                     pUtil.tolog("Server update frequency lowered to %d s" % (self.__env['update_freq_server']))
                     self.__env['jobDic'][k][1].debug = "True"
@@ -637,13 +657,25 @@ class Monitor:
         
             # Convert MB to Bytes for the setrlimit function
             _maxmemory = maxmemory*1024**2
-            try:
-                import resource
-                resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
-            except Exception, e:
-                pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
+
+            max_memory = getMaxMemoryUsageFromCGroups()
+            if max_memory:
+                pUtil.tolog("cgroups max_memory = %s" % (max_memory))
             else:
-                pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
+                pUtil.tolog("cgroups max_memory not defined")
+
+            # Only proceed if not a CGROUPS site
+            if not isCGROUPSSite():
+                pUtil.tolog("Not a CGROUPS site, proceeding with setting the memory limit")
+                try:
+                    import resource
+                    resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
+                except Exception, e:
+                    pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
+                else:
+                    pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
+            else:
+                pUtil.tolog("Detected a CGROUPS site, will not set the memory limit")
 
             cmd = "ulimit -a"
             pUtil.tolog("Executing command: %s" % (cmd))
@@ -733,7 +765,7 @@ class Monitor:
             pUtil.tolog("Created job workdir at %s" % (job.workdir))
             # copy the job def file into job workdir
             pUtil.tolog(os.getcwd())
-            copy("%s/Job_%d.py" % (os.getcwd(), job.jobId), "%s/newJobDef.py" % job.workdir)
+            copy("%s/Job_%s.py" % (os.getcwd(), job.jobId), "%s/newJobDef.py" % job.workdir)
 
             self.__storePilotInitdir(self.__env['job'].workdir, self.__env['pilot_initdir'])
     
@@ -806,13 +838,16 @@ class Monitor:
                 # get the tail if possible
                 try:
                     self.__env['stdout_tail'] = stdout_dictionary[self.__env['jobDic'][k][1].jobId]
+                    index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
+                    self.__env['stdout_path'] = stdout_dictionary[index]
                 except:
                     self.__env['stdout_tail'] = "(stdout tail not available)"
+                    self.__env['stdout_path'] = ""
         
                 # cleanup the job workdir, save/send the job tarball to DDM, and update
                 # panda server with the final job state
                 pUtil.postJobTask(self.__env['jobDic'][k][1], self.__env['thisSite'], self.__env['workerNode'], 
-                                  self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'])
+                                  self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
                 if k == "prod":
                     prodJobDone = True
     
@@ -831,7 +866,7 @@ class Monitor:
                 pUtil.tolog("Killing remaining subprocesses (if any)")
                 if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
                     killOrphans()
-                pUtil.tolog("Going to kill pid %d" %lineno()) 
+                #pUtil.tolog("Going to kill pid %d" %lineno()) 
                 killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                 if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
                     killOrphans()
@@ -900,10 +935,7 @@ class Monitor:
             self.__env['workerNode'].collectWNInfo(self.__env['thisSite'].workdir)
         
             # overwrite mem since this should come from either pilot argument or queuedata
-            self.__env['workerNode.mem'] = self.__getsetWNMem()
-#            self.__env['workerNode'].mem = self.__getsetWNMem()
-            pUtil.tolog("1 workerNode.mem=%s" % (self.__env['workerNode'].mem))
-            pUtil.tolog("2 workerNode.mem=%s" % (self.__env['workerNode.mem']))
+            self.__env['workerNode'].mem = self.__getsetWNMem()
 
             # update the globals used in the exception handler
             globalSite = self.__env['thisSite']
@@ -913,10 +945,11 @@ class Monitor:
             thisExperiment = pUtil.getExperiment(self.__env['experiment'])
 
             # do we have a valid proxy?
-            ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="")
-            if ec != 0:
-                self.__env['return'] = ec
-                return
+            if self.__env['proxycheckFlag']:
+                ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="")
+                if ec != 0:
+                    self.__env['return'] = ec
+                    return
 
             # do we have enough local disk space to run the job?
             ec = self.__checkLocalDiskSpace(self.__env['workerNode'].disk)
@@ -954,9 +987,13 @@ class Monitor:
             self.__env['jobIds'].append(self.__env['job'].jobId)
         
             # does the application directory exist?
-            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(self.__env['thisSite'].appdir, 
+            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(pUtil.readpar('appdir'),
                                                                                self.__env['job'].processingType, 
                                                                                self.__env['job'].homePackage)
+
+#            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(self.__env['thisSite'].appdir, 
+#                                                                               self.__env['job'].processingType, 
+#                                                                               self.__env['job'].homePackage)
             if ec != 0:
                 self.__env['job'].result[0] = 'failed'
                 self.__env['job'].currentState = self.__env['job'].result[0]
@@ -1014,7 +1051,7 @@ class Monitor:
             # update job status and id
             self.__env['job'].result[0] = "starting"
             self.__env['job'].currentState = self.__env['job'].result[0]
-            os.environ['PandaID'] = str(self.__env['job'].jobId)
+            os.environ['PandaID'] = self.__env['job'].jobId
         
             # create job workdir
             ec, self.__env['job'] = self.__createJobWorkdir(self.__env['job'], sys.stderr)
@@ -1130,9 +1167,9 @@ class Monitor:
                     os.execvpe(self.__env['pyexe'], jobargs, os.environ)
 
             # Control variables for looping jobs
-            self.__env['LastTimeFilesWereModified'] = {}
+            self.__env['lastTimeFilesWereModified'] = {}
             for k in self.__env['jobDic'].keys(): # loop over production and possible analysis job
-                self.__env['LastTimeFilesWereModified'][k] = int(time.time())
+                self.__env['lastTimeFilesWereModified'][k] = int(time.time())
         
             # main monitoring loop
             iteration = 1
@@ -1140,17 +1177,19 @@ class Monitor:
             self.__env['curtime_sp'] = self.__env['curtime']
             self.__env['curtime_of'] = self.__env['curtime']
             self.__env['curtime_proc'] = self.__env['curtime']
+            #self.__env['curtime_mem'] = self.__env['curtime']
             self.__env['create_softlink'] = True
             while True:
-                
+
                 pUtil.tolog("--- Main pilot monitoring loop (job id %s, state:%s (%s), iteration %d)" 
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
                 self.__check_remaining_space()        
                 self.create_softlink()
                 self.__monitor_processes()
                 self.__verify_output_sizes()              
+                #self.__verify_memory_limits()
                 self.__check_looping_jobs()
-                        
+
                 # check if any jobs are done by scanning the process list
                 # some jobs might have sent updates to the monitor thread about their final states at other times
                 self.__wdog.pollChildren()
