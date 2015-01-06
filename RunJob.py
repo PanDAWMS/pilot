@@ -20,7 +20,7 @@ from optparse import OptionParser
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment
+     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment, getGUID
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
@@ -284,7 +284,7 @@ class RunJob(object):
                     self.__pilotport = int(options.pilotport)
                 except Exception, e:
                     tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
-            # self.__queuename is not needed
+# self.__queuename is not needed
             if options.queuename:
                 queuename = options.queuename
             if options.sitename:
@@ -364,9 +364,9 @@ class RunJob(object):
 
             try:
                 tolog('job.workdir is %s pworkdir is %s ' % (job.workdir, self.__pworkdir)) # Eddie
-                copy2("%s/metadata-%d.xml" % (job.workdir, job.jobId), "%s/metadata-%d.xml" % (self.__pworkdir, job.jobId))
+                copy2("%s/metadata-%s.xml" % (job.workdir, job.jobId), "%s/metadata-%s.xml" % (self.__pworkdir, job.jobId))
             except Exception, e:
-                tolog("Warning: Could not copy metadata-%d.xml to site work dir - ddm Adder problems will occure in case of job recovery" % (job.jobId))
+                tolog("Warning: Could not copy metadata-%s.xml to site work dir - ddm Adder problems will occure in case of job recovery" % (job.jobId))
                 tolog('job.workdir is %s pworkdir is %s ' % (job.workdir, self.__pworkdir)) # Eddie
             if job.result[0] == 'holding' and job.result[1] == 0:
                 try:
@@ -584,11 +584,23 @@ class RunJob(object):
         # does the job report exist?
         extension = getExtension(alternative='pickle')
         if extension.lower() == "json":
-            filename = os.path.join(workdir, "jobReport.%s" % (extension))
+            _filename = "jobReport.%s" % (extension)
         else:
-            filename = os.path.join(workdir, "jobReportExtract.%s" % (extension))
+            _filename = "jobReportExtract.%s" % (extension)
+        filename = os.path.join(workdir, _filename)
+
         if os.path.exists(filename):
             tolog("Found job report: %s" % (filename))
+
+            # first backup the jobReport to the job workdir since it will be needed later
+            # (the current location will disappear since it will be tarred up in the jobs' log file)
+            d = os.path.join(workdir, '..')
+            try:
+                copy2(filename, os.path.join(d, _filename))
+            except Exception, e:
+                tolog("Warning: Could not backup %s to %s: %s" % (_filename, d, e))
+            else:
+                tolog("Backed up %s to %s" % (_filename, d))
 
             # search for the exit code
             try:
@@ -740,7 +752,7 @@ class RunJob(object):
         """ rename and copy the trf metadata """
 
         oldMDName = "%s/metadata.xml" % (workdir)
-        _filename = "metadata-%s.xml.PAYLOAD" % (repr(jobId))
+        _filename = "metadata-%s.xml.PAYLOAD" % (jobId)
         newMDName = "%s/%s" % (workdir, _filename)
         try:
             os.rename(oldMDName, newMDName)
@@ -787,7 +799,7 @@ class RunJob(object):
             guid = job.tarFileGuid
 
         # create preliminary metadata (no metadata yet about log file - added later in pilot.py)
-        _fname = "%s/metadata-%d.xml" % (job.workdir, job.jobId)
+        _fname = "%s/metadata-%s.xml" % (job.workdir, job.jobId)
         try:
             _status = pUtil.PFCxml(job.experiment, _fname, list(job.outFiles), fguids=job.outFilesGuids, fntag="lfn", alog=job.logFile, alogguid=guid,\
                                    fsize=fsize, checksum=checksum, analJob=analysisJob)
@@ -914,7 +926,11 @@ class RunJob(object):
             job.setState(["holding", job.result[1], rc])
         else:
             if job.pilotErrorDiag != "":
-                job.pilotErrorDiag = "Put error: " + tailPilotErrorDiag(job.pilotErrorDiag, size=256-len("pilot: Put error: "))
+                if job.pilotErrorDiag.startswith("Put error:"):
+                    pre = ""
+                else:
+                    pre = "Put error: "
+                job.pilotErrorDiag = pre + tailPilotErrorDiag(job.pilotErrorDiag, size=256-len("pilot: Put error: "))
 
             tolog("Put function returned code: %d" % (rc))
             if rc != 0:
@@ -966,6 +982,118 @@ class RunJob(object):
         except IOError, e:
             pass
         tolog(out)
+
+    # Methods used by event service RunJob* modules ..............................................................
+
+    def stripSetupCommand(self, cmd, trfName):
+        """ Remove the trf part of the setup command """
+
+        location = cmd.find(trfName)
+        return cmd[:location]
+
+    def executeMakeRunEventCollectionScript(self, cmd, eventcollection_filename):
+        """ Define and execute the event collection script """
+
+        cmd += "get_files -jo %s" % (eventcollection_filename)
+        tolog("Execute command: %s" % (cmd))
+
+        # WARNING: PUT A TIMER AROUND THIS COMMAND
+        rc, rs = commands.getstatusoutput(cmd)
+
+        return rc, rs
+
+    def prependMakeRunEventCollectionScript(self, input_file, output_file, eventcollection_filename):
+        """ Prepend the event collection script """
+
+        status = False
+        eventcollection_filename_mod = ""
+
+        with open(eventcollection_filename) as f1:
+            eventcollection_filename_mod = eventcollection_filename.replace(".py",".2.py")
+            with open(eventcollection_filename_mod, "w") as f2:
+                f2.write("EvtMax = -1\n")
+                f2.write("In = [ \'%s\' ]\n" % (input_file))
+                f2.write("Out = \'%s\'\n" % (output_file))
+                for line in f1:
+                    f2.write(line)
+                f2.close()
+                f1.close()
+                status = True
+
+        return status, eventcollection_filename_mod
+
+    def executeTAGFileCommand(self, cmd, eventcollection_filename_mod):
+        """ Execute the TAG file creation script using athena """
+
+        cmd += "athena.py %s >MakeRunEventCollection-stdout.txt" % (eventcollection_filename_mod)
+        tolog("Executing command: %s" % (cmd))
+
+        # WARNING: PUT A TIMER AROUND THIS COMMAND
+        rc, rs = commands.getstatusoutput(cmd)
+
+        return rc, rs
+
+    def swapAthenaProcNumber(self, swap_value):
+        """ Swap the current ATHENA_PROC_NUMBER so that it does not upset the job """
+        # Note: only needed during TAG file creation
+
+        athena_proc_number = 0
+        try:
+            athena_proc_number = int(os.environ['ATHENA_PROC_NUMBER'])
+        except Exception, e:
+            tolog("ATHENA_PROC_NUMBER not defined, setting it to: %s" % (swap_value))
+            os.environ['ATHENA_PROC_NUMBER'] = str(swap_value)
+        else:
+            if swap_value == 0:
+                del os.environ['ATHENA_PROC_NUMBER']
+                tolog("Unset ATHENA_PROC_NUMBER")
+            else:
+                os.environ['ATHENA_PROC_NUMBER'] = str(swap_value)
+                tolog("ATHENA_PROC_NUMBER swapped from \'%d\' to \'%d\'" % (athena_proc_number, swap_value))
+
+        return athena_proc_number
+
+    def createTAGFile(self, jobExecutionCommand, trfName, inFiles, eventcollection_filename):
+        """ Create a TAG file """
+
+        tag_file = ""
+        tag_file_guid = getGUID()
+
+        # We cannot have ATHENA_PROC_NUMBER set to a value larger than 1, since that will
+        # activate AthenaMP. Reset it for now, and swap it back at the end of this method
+        athena_proc_number = self.swapAthenaProcNumber(0)
+        
+        # Remove everything after the trf command from the job execution command
+        cmd = self.stripSetupCommand(jobExecutionCommand, trfName)
+        tolog("Stripped command: %s" % (cmd))
+
+        # Define and execute the event collection script
+        if cmd != "":
+            rc, rs = self.executeMakeRunEventCollectionScript(cmd, eventcollection_filename)
+            # Prepend the event collection script
+            if rc == 0:
+                input_file = inFiles[0]
+                tag_file = input_file + ".TAG"
+                status, eventcollection_filename_mod = self.prependMakeRunEventCollectionScript(input_file, tag_file, eventcollection_filename)
+
+                # Finally create the TAG file
+                if status:
+                    rc, rs = self.executeTAGFileCommand(cmd, eventcollection_filename_mod)
+                    if rc != 0:
+                        tolog("!!WARNING!!3337!! Failed to create TAG file: rc=%d, rs=%s" % (rc, rs))
+                        tag_file = ""
+            else:
+                tolog("!!WARNING!!3339!! Failed to download %s: rc=%d, rs=%s " % (eventcollection_filename, rc, rs))
+        else:
+            tolog("!!WARNING!!3330!! Failed to strip the job execution command, cannot create TAG file")
+
+        # Now swap the ATHENA_PROC_NUMBER since it is needed for activating AthenaMP
+        dummy = self.swapAthenaProcNumber(athena_proc_number)
+
+        return tag_file, tag_file_guid
+
+    # (end event service methods) ................................................................................
+
 
 # main process starts here
 if __name__ == "__main__":
@@ -1060,7 +1188,7 @@ if __name__ == "__main__":
                 runJob.setGlobalErrorCode(error.ERR_SIGUSR1)
             else:
                 runJob.setGlobalErrorCode(error.ERR_KILLSIGNAL)
-            runJob.setFailureCode(runJob.getGlobalErrorCode)
+            runJob.setFailureCode(runJob.getGlobalErrorCode())
             # print to stderr
             print >> sys.stderr, runJob.getGlobalPilotErrorDiag()
             raise SystemError(sig)
@@ -1135,7 +1263,7 @@ if __name__ == "__main__":
             runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
 
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
-        runJob.copyInputForFiles(job.workdir)
+        #runJob.copyInputForFiles(job.workdir)
 
         # (stage-in ends here) .............................................................................
 

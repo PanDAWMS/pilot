@@ -186,9 +186,9 @@ class RunJobTitan(RunJobHPC):
                 to_script = "\n".join(cmd['environment'])
                 #to_script = to_script + ("\nexport G4FORCENUMBEROFTHREADS=%s" % self.number_of_threads) # needed for GEANT
                 to_script =  to_script + "\n" + "\n".join(setup_commands)
-                #to_script = "%s\naprun -n %s -d %s %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
-                ''' Temporary, for multi-thread testing  '''
-                to_script = "%s\naprun -n %s -d %s -cc 0,2,4,6,8,10,12,14 %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
+                to_script = "%s\naprun -n %s -d %s %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
+                #''' Temporary, for multi-thread testing  '''
+                #to_script = "%s\naprun -n %s -d %s -cc 0,2,4,6,8,10,12,14 %s %s" % (to_script, cpu_number/self.number_of_threads, self.number_of_threads ,cmd["payload"], cmd["parameters"])    
                 ''' Floating point'''
                 #to_script = "%s\naprun -n%s -S4 -j1 %s %s" % (to_script, cpu_number/2 ,cmd["payload"], cmd["parameters"])    
                 
@@ -230,7 +230,7 @@ class RunJobTitan(RunJobHPC):
                         #tolog("Wait time (%s s.) exceed, job cancelled" % self.waittime)
                     
                     job.coreCount = cpu_number
-                    rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), self.getPilotPort())
+                    #rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), self.getPilotPort())
                     
                     fork_job.wait()
                     tolog("Job State              : %s" % (fork_job.state))

@@ -5,7 +5,6 @@ import time
 import re
 import pUtil
 from subprocess import Popen, PIPE
-from pUtil import readpar
 
 
 def findProcessesInGroup(cpids, pid):
@@ -192,6 +191,8 @@ def checkProcesses(pid):
 
 def killOrphans():
     """ Find and kill all orphan processes belonging to current pilot user """
+    
+    from pUtil import readpar
     
     if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
         pUtil.tolog("Pilot for HPC in execution. Orphans processes should be killed by batch system.")
