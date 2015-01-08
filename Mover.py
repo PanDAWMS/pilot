@@ -1346,7 +1346,8 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
 
     # override if necessary for event service
     if eventService:
-        status = True
+        if not 'HPC_HPC' in readpar('catchall'):
+            status = True
 
     if status:
         tolog("TURL based PFC required")

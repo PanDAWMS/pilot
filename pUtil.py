@@ -39,6 +39,7 @@ def getFileList(path_dir=None):
         file_list = filter(lambda x: x.endswith('.py'), os.listdir(path_dir))
         file_list.append('PILOTVERSION')
         file_list.append('saga')
+        file_list.append('HPC')
         tolog("Copying: %s" % str(file_list))
         return file_list
     except KeyError:
@@ -1901,6 +1902,8 @@ class _Curl:
     def get(self, url, data, path):
         # make command
         com = '%s --silent --get' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com = '%s --tls --silent --get' % self.path
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -1946,6 +1949,8 @@ class _Curl:
     def post(self, url, data, path):
         # make command
         com = '%s --silent --show-error' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com = '%s --tls --silent --show-error' % self.path
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -1990,6 +1995,8 @@ class _Curl:
     def put(self, url, data):
         # make command
         com = '%s --silent' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com = '%s --tls --silent' % self.path
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
@@ -2227,8 +2234,8 @@ def createESFileDictionary(writeToFile):
             finfo = fileInfo[i].split(":")
 
             # add cwd before the lfns
-            finfo[1] = "`pwd`/" + finfo[1]
-            finfo[1] = finfo[1].replace(',',',`pwd`/')
+            #finfo[1] = "`pwd`/" + finfo[1]
+            #finfo[1] = finfo[1].replace(',',',`pwd`/')
             esFileDictionary[finfo[0]] = finfo[1]
             orderedFnameList.append(finfo[0])
         else:
@@ -2252,17 +2259,21 @@ def writeToInputFile(path, esFileDictionary, orderedFnameList):
     fnames = {}
     i = 0
     for fname in esFileDictionary.keys():
-        _path = os.path.join(path, fname)
+        _path = os.path.join(path, fname.replace('.pool.root.', '.txt.'))
         try:
             f = open(_path, "w")
         except IOError, e:
             tolog("!!WARNING!!4445!! Failed to open file %s: %s" % (_path, e))
             ec = -1
         else:
-            f.write(esFileDictionary[fname])
+            f.write("--inputHitsFile\n")
+            for inputFile in esFileDictionary[fname].split(","):
+                pfn = os.path.join(path, inputFile)
+                f.write(pfn + "\n")
+            #f.write(esFileDictionary[fname].replace(",","\n"))
             f.close()
             tolog("Wrote input file list to file %s: %s" % (_path, str(esFileDictionary[fname])))
-            fnames[orderedFnameList[i]] = _path
+            fnames[fname] = _path
         i += 1
 
     return ec, fnames
@@ -2298,8 +2309,9 @@ def updateJobPars(jobPars, fnames):
     """ Replace the @identifiers with the full paths """
 
     for identifier in fnames.keys():
-        jobPars.replace("@%s" % (identifier), "@%s" % (fnames[identifier]))
-
+        jobPars = jobPars.replace("@%s" % (identifier), "@%s" % (fnames[identifier]))
+        tolog("%s: %s" % (identifier, fnames[identifier]))
+    jobPars = jobPars.replace("--inputHitsFile=", "")
     return jobPars
 
 def updateDispatcherData4ES(data, experiment, path):
@@ -2324,10 +2336,12 @@ def updateDispatcherData4ES(data, experiment, path):
                 tolog("esFileDictionary=%s" % (esFileDictionary))
                 tolog("orderedFnameList=%s" % (orderedFnameList))
                 if esFileDictionary != {}:
+                    """
                     # Replace the @inputFor* directorive with the file list
                     for name in orderedFnameList:
                         tolog("Replacing @%s with %s" % (name, esFileDictionary[name]))
                         data['jobPars'] = data['jobPars'].replace("@%s" % (name), esFileDictionary[name])
+                    """
 
                     # Remove the autoconf
                     if "--autoConfiguration=everything " in data['jobPars']:

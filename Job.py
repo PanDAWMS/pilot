@@ -93,6 +93,7 @@ class Job:
 
         # event service objects
         self.eventService = False          # True for event service jobs
+        self.eventServiceMerge = False     # True for event service merge jobs
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
 #        self.eventRangeID = None           # Set for event service jobs
@@ -101,6 +102,11 @@ class Job:
 #        self.lfn = None                    # LFNs of input files to be read by the Event Server (NOT by the pilot)
 #        self.guid = None                   # GUIDs of input files to be read by the Event Server (NOT by the pilot)
         # self.attemptNr = ""              # (defined above)
+
+        # job mode, for example, HPC_normal, HPC_backfill
+        self.mode = None
+        self.hpcStatus = None
+        self.refreshNow = False
 
         # walltime counting for various steps
         self.timeSetup = 0
@@ -153,6 +159,18 @@ class Job:
     def getState(self):
         '''returns jobId, job status and time stamp'''
         return self.jobId, self.result, pUtil.timeStamp()
+
+    def setMode(self, mode):
+        self.mode = mode
+
+    def getMode(self, mode):
+        return self.mode
+
+    def setHpcStatus(self, hpcStatus):
+        self.hpcStatus = hpcStatus
+
+    def getHpcStatus(self):
+        return self.hpcStatus
 
     def setJobDef(self, data):
         """ set values for a job object from a dictionary data
@@ -248,6 +266,32 @@ class Job:
         if not self.eventService and self.processingType == "evtest":
             pUtil.tolog("Turning on Event Service for processing type = %s" % (self.processingType))
             self.eventService = True
+
+        # Event Service Merge variables
+        if data.has_key('eventServiceMerge'):
+            if data.get('eventServiceMerge', '').lower() == "true":
+                self.eventServiceMerge = True
+            else:
+                self.eventServiceMerge = False
+            pUtil.tolog("eventServiceMerge = %s" % str(self.eventServiceMerge))
+
+        # Event Service merge job
+        if self.workdir and data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
+            if data.has_key('writeToFile'):
+                writeToFile = data['writeToFile']
+                esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(writeToFile)
+                pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
+                pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
+                if esFileDictionary != {}:
+                    ec, fnames = pUtil.writeToInputFile(self.workdir, esFileDictionary, orderedFnameList)
+                    if ec == 0:
+                        data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
+
+        # HPC job staus
+        if data.has_key('mode'):
+            self.mode = data.get("mode", None)
+        if data.has_key('hpcStatus'):
+            self.hpcStatus = data.get('hpcStatus', None)
 
 #        self.eventRangeID = data.get('eventRangeID', None)
 #        self.startEvent = data.get('startEvent', None)

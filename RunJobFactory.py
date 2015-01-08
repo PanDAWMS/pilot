@@ -13,6 +13,7 @@ from RunJobHopper import RunJobHopper
 from RunJobEdison import RunJobEdison
 from RunJobMira import RunJobMira
 from RunJobNormal import RunJobNormal
+from RunJobHpcEvent import RunJobHpcEvent
 
 class RunJobFactory(object):
 

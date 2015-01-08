@@ -203,6 +203,8 @@ class ATLASExperiment(Experiment):
                         return self.__error.ERR_SETUPFAILURE, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
                 else:
                     cmd2 = ""
+                if 'HPC_HPC' in readpar("catchall"):
+                    cmd2 = "export G4ATLAS_SKIPFILEPEEK=1"
 
                 # Set special_setup_cmd if necessary
                 special_setup_cmd = self.getSpecialSetupCommand()
@@ -478,7 +480,7 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
         # Pipe stdout/err for payload to files
-        if 'HPC_Titan' not in readpar("catchall"):
+        if 'HPC_Titan' not in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
             cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
@@ -588,6 +590,7 @@ class ATLASExperiment(Experiment):
                     "scratch",
                     "jobState-*-test.pickle",
                     "*.writing",
+                    "HPC",
                     "saga"]
 
         # remove core and pool.root files from AthenaMP sub directories
@@ -2196,6 +2199,16 @@ class ATLASExperiment(Experiment):
                     #cmd = "source"
                     #asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
                 asetup_path = "source $AtlasSetup/scripts/asetup.sh"
+
+        # for HPC
+        if 'HPC_HPC' in readpar("catchall"):
+            quick_setup = "%s/setup-quick.sh" % (path)
+            tolog("quick setup path: %s" % quick_setup)
+            if os.path.exists(quick_setup):
+                cmd = "source %s" % (quick_setup)
+                asetup_path = ""
+                cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
+
         return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
@@ -2278,7 +2291,8 @@ class ATLASExperiment(Experiment):
 
             # Test CVMFS
             if status:
-                status = self.testCVMFS()
+                if not 'HPC_HPC' in readpar('catchall'):
+                    status = self.testCVMFS()
         
         return status
 
@@ -2580,6 +2594,8 @@ class ATLASExperiment(Experiment):
         transferLogToObjectstore = False
 
         if "log_to_objectstore" in readpar('catchall') or eventService:
+            transferLogToObjectstore = True
+        if 'HPC_HPC' in readpar('catchall'):
             transferLogToObjectstore = True
 
         return transferLogToObjectstore

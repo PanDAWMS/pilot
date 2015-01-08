@@ -103,10 +103,13 @@ class PandaServerClient:
         # format: nEvents=<int> nEventsW=<int> vmPeakMax=<int> vmPeakMean=<int> RSSMean=<int> JEM=<string>
         #         hs06=<float> shutdownTime=<int> cpuFactor=<float> cpuLimit=<float> diskLimit=<float> jobStart=<int> memLimit=<int> runLimit=<float>
 
-        try:
-            coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-        except:
+        if job.coreCount:
             coreCount = job.coreCount
+        else:
+            try:
+                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+            except:
+                tolog("env ATHENA_PROC_NUMBER is not set. corecount is not set")
         jobMetrics = ""
         if coreCount and coreCount != "NULL":
             jobMetrics += self.jobMetric(key="coreCount", value=coreCount)
@@ -120,6 +123,12 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="vmPeakMean", value=job.vmPeakMean)
         if job.RSSMean > 0:
             jobMetrics += self.jobMetric(key="RSSMean", value=job.RSSMean)
+
+        # hpc status
+        if job.mode:
+            jobMetrics += self.jobMetric(key="mode", value=job.mode)
+        if job.hpcStatus:
+            jobMetrics += self.jobMetric(key="HPCStatus", value=job.hpcStatus)
 
         # report FAX transfers if at least one successful FAX transfer
         #if job.filesWithFAX > 0:
@@ -204,6 +213,12 @@ class PandaServerClient:
 
         # build the jobMetrics
         node['jobMetrics'] = self.getJobMetrics(job, workerNode)
+
+        # for hpc status
+        if job.hpcStatus:
+            node['jobSubStatus'] = job.hpcStatus
+        else:
+            node['jobSubStatus'] = ''
 
         # send pilotErrorDiag for finished, failed and holding jobs
         if job.result[0] == 'finished' or job.result[0] == 'failed' or job.result[0] == 'holding':
@@ -796,7 +811,10 @@ class PandaServerClient:
                 toPandaLogger(params)
 
         # make the actual update, repeatedly if necessary (for the final update)
-        ret = makeHTTPUpdate(job.result[0], node, port, url=self.__pshttpurl, path=self.__pilot_initdir)
+        #ret = makeHTTPUpdate(job.result[0], node, port, url=self.__pshttpurl, path=self.__pilot_initdir)
+        if job.workdir.endswith("/"):
+            job.workdir = job.workdir[:-1]
+        ret = makeHTTPUpdate(job.result[0], node, port, url=self.__pshttpurl, path=os.path.dirname(job.workdir))
         if not ret[2]: # data is None for a failed update attempt
             tolog("makeHTTPUpdate returned: %s" % str(ret))
             return 1, None
