@@ -117,10 +117,8 @@ class PilotErrors:
     ERR_CORECOUNTMISMATCH = 1217
     ERR_UUIDGEN = 1219
     ERR_UNKNOWN = 1220
-
     ERR_FILEEXIST = 1221
     ERR_GETKEYPAIR = 1222
-
     ERR_ESRECOVERABLE = 1224
     ERR_ESMERGERECOVERABLE = 1225
 
@@ -247,8 +245,8 @@ class PilotErrors:
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)",
         ERR_FILEEXIST : "File already exist",
         ERR_GETKEYPAIR : "Failed to get security key pair",
-        ERR_ESMERGERECOVERABLE : "An recoverable Event Service Merge error",
-        ERR_ESRECOVERABLE: "An recoverable Event Service error"
+        ERR_ESMERGERECOVERABLE : "Recoverable Event Service Merge error",
+        ERR_ESRECOVERABLE: "Recoverable Event Service error"
         }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]

@@ -588,6 +588,41 @@ Now making sure that exeErrorCode is properly set in getNodeStructure() (PandaSe
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+59j:
+
+Code merge: Code from Wen Guan:
+Added Hpc identifier in getSubprocessName() (Experiment)
+Added new data members to Job class: eventServiceMerge, mode, hpcStatus, refreshNow (Job)
+Added new setter methods for the data members above; setMode(), getMode(), setHpcStatus(), getHpcStatus() (Job)
+Setting new variables mentioned above (Job)
+Added HPC directory to distribution
+Added HPC directory to file list in getFileList() (pUtil)
+Corrected for HPC environment in curl command in _Curl::get(),post(),put() (pUtil)
+Outcommented the pwd part in createESFileDictionary() (pUtil)
+Replacing .pool.root. with .txt. in writeToInputFile() (pUtil)
+Updated the inputHitsFile handling in writeToInputFile(), updateJobPars() (pUtil)
+Added exception for catchall = HPC_HPC in shouldPFC4TURLsBeCreated() (Mover)
+Getting the coreCount primarily from job.coreCount in getJobMetrics() (PandaServerClient)
+Forwarding HPC parameters mode and HPCStatus to jobMetrics in getJobMetrics() (PandaServerClient)
+Setting jobSubStatus to job.hpcStatus in getNodeStructure() (PandaServerClient)
+Making the makeHTTPUpdate() call in the job.workdir instead of __pilot_initdir in updatePandaServer()
+Adding --tls to curl command in post(),put(),get() (pUtil)
+Added new error codes; 1224 (ERR_ESRECOVERABLE), 1225 (ERR_ESMERGERECOVERABLE) (PilotErrors)
+Using ERR_ESRECOVERABLE in failJob() (RunJob)
+Now importing RunJobHpcEvent (RunJobFactory)
+New files added to distribution (ThreadPool.py, RunJobHpcEvent.py)
+Sending mode,hpcStatus,refreshNow,coreCount to pilot from updateJobInfo() (RunJobUtilities)
+Receiving mode,hpcStatus,refreshNow,coreCount in handle() (UpdateHandler)
+
+Code merge: Code from Danila Oleynik:
+Code merge: Code from Luke Wayne (AMS):
+
+ADD NEW ERROR CODES TO THE DQ
+
+CHANGE VERSION NUMBER TO 60A
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file 
