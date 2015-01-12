@@ -615,7 +615,10 @@ Sending mode,hpcStatus,refreshNow,coreCount to pilot from updateJobInfo() (RunJo
 Receiving mode,hpcStatus,refreshNow,coreCount in handle() (UpdateHandler)
 
 Code merge: Code from Danila Oleynik:
+
 Code merge: Code from Luke Wayne (AMS):
+New version of AMSTaiwanExperiment
+New version of AMSTaiwanSiteInformation
 
 ADD NEW ERROR CODES TO THE DQ
 
