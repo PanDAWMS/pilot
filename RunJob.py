@@ -454,6 +454,8 @@ class RunJob(object):
     def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
         """ set the fail code and exit """
 
+        if pilotExitCode and job.attemptNr < 4 and job.eventServiceMerge:
+            pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
         job.setState(["failed", transExitCode, pilotExitCode])
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
@@ -1149,6 +1151,7 @@ if __name__ == "__main__":
         JR = JobRecovery()
         try:
             job = Job.Job()
+            job.workdir = jobSite.workdir
             job.setJobDef(newJobDef.job)
             job.workdir = jobSite.workdir
             job.experiment = runJob.getExperiment()

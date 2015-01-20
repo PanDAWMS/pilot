@@ -143,6 +143,7 @@ class RunJobEdison(RunJobHPC):
         
         return nodes, walltime
 
+
     def jobStateChangeNotification(self, src_obj, fire_on, value):
         tolog("Job state changed to '%s'" % value)
         return True

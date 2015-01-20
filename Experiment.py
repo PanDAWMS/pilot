@@ -696,6 +696,10 @@ class Experiment(object):
         if isHPC:
             name = "RunJob" + _name # e.g. "RunJobTitan" is the proper subprocess name for the Titan plug-in
 
+        # for es merge jobs
+        if _name == "Hpc":
+            name = "RunJob"
+
         # Are we going to run an event service job?
         if eventService:
             tolog("Encountered an event service job")

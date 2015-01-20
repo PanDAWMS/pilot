@@ -203,6 +203,8 @@ class ATLASExperiment(Experiment):
                         return self.__error.ERR_SETUPFAILURE, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
                 else:
                     cmd2 = ""
+                if 'HPC_HPC' in readpar("catchall"):
+                    cmd2 = "export G4ATLAS_SKIPFILEPEEK=1"
 
                 # Set special_setup_cmd if necessary
                 special_setup_cmd = self.getSpecialSetupCommand()
@@ -588,6 +590,7 @@ class ATLASExperiment(Experiment):
                     "scratch",
                     "jobState-*-test.pickle",
                     "*.writing",
+                    "HPC",
                     "saga",
                     "radical"]
 
@@ -2197,6 +2200,16 @@ class ATLASExperiment(Experiment):
                     #cmd = "source"
                     #asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
                 asetup_path = "source $AtlasSetup/scripts/asetup.sh"
+
+        # for HPC
+        if 'HPC_HPC' in readpar("catchall"):
+            quick_setup = "%s/setup-quick.sh" % (path)
+            tolog("quick setup path: %s" % quick_setup)
+            if os.path.exists(quick_setup):
+                cmd = "source %s" % (quick_setup)
+                asetup_path = ""
+                cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
+
         return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
@@ -2581,6 +2594,8 @@ class ATLASExperiment(Experiment):
         transferLogToObjectstore = False
 
         if "log_to_objectstore" in readpar('catchall') or eventService:
+            transferLogToObjectstore = True
+        if 'HPC_HPC' in readpar('catchall'):
             transferLogToObjectstore = True
 
         return transferLogToObjectstore

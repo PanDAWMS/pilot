@@ -118,7 +118,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         # get the experiment object
         thisExperiment = getExperiment(experiment)
 
-        status, output = thisExperiment.verifyProxy(envsetup=_setupStr)
+        status, output = thisExperiment.verifyProxy(envsetup=_setupStr, limit=2)
         return status, output
 
     def verifySetup(self, _setupStr, experiment, proxycheck=True):

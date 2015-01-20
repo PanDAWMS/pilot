@@ -14,6 +14,7 @@ from RunJobEdison import RunJobEdison
 from RunJobAnselm import RunJobAnselm
 from RunJobMira import RunJobMira
 from RunJobNormal import RunJobNormal
+from RunJobHpcEvent import RunJobHpcEvent
 
 class RunJobFactory(object):
 
