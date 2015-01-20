@@ -590,7 +590,7 @@ Now making sure that exeErrorCode is properly set in getNodeStructure() (PandaSe
 
 59j:
 New version of aria2c site mover from Vincenzo Lavorini
-Updates for ES merge by Wen Guan (Job, pUtil)
+Updates for ES merge by Wen Guan (Job, pUtil, RunJob)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
