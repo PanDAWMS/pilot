@@ -14,8 +14,7 @@ from FileStateClient import updateFileState
 try:
   from rucio.client import Client
 except:
-  tolog("!!WARNING!!4444!! Cannot import rucio.client (not available)")
-
+  tolog("WARNING: Rucio python modules not available")
 
 class replica:
     """ Replica """
@@ -345,10 +344,10 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	   for word in line.strip().split():
 		if word in ("<url"):
 			word_occour +=1 
-	tolog("number of links: %s" % (str(word_occour)))                        
+	tolog("number of links: %s, using only the first" % (str(word_occour)))                        
 
         #--check-certificate=false makes it easier(sles11)
-        _cmd_str = '%s -j %s --ca-certificate=%s --certificate=%s --private-key=%s --auto-file-renaming=false --continue --server-stat-of=aria2cperf.txt %s'%(self.copyCommand, str(word_occour),cabundleFile,sslCert,sslCert,metalink)
+        _cmd_str = '%s -j 1 --ca-certificate=%s --certificate=%s --private-key=%s --auto-file-renaming=false --continue --server-stat-of=aria2cperf.txt %s'%(self.copyCommand, cabundleFile,sslCert,sslCert,metalink)
 
         
         # invoke the transfer commands
@@ -652,36 +651,43 @@ class aria2cSiteMover(SiteMover.SiteMover):
         token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
         tolog("Token I am using: %s" %(token_rucio2print))
         httpredirector = readpar('httpredirector')
-        if not httpredirector:
-            #cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip |awk \'{FS=\"hash type=\"}; {print $2}\' |awk \'{FS=\">\"}; {print $2}\' |awk \'{FS=\"<\"} {print $1}\'| grep -v \'^$\'"%(token_rucio,scope,filename)
-            cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio,scope,filename)
-            cmd2print = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio2print,scope,filename)
-        else:
-            if "http" in httpredirector:
-                tolog("HTTP redirector I am using: %s" %(httpredirector))
-                cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,scope,filename)
-                cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucioi2print,httpredirector,scope,filename)
-            else:
-                tolog("HTTP redirector I am using: %s" %(httpredirector))
-                cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
-                cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
 
-        tolog("Getting remote checksum: command to be executed: %s" %(cmd2print))
-        checksum_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
-        remote_checksum, stderr=checksum_cmd.communicate()
-        tolog("Remote checksum as given by rucio %s" %(remote_checksum))
-        tolog("In checking checksum: command std error: %s" %(stderr))
-	if not remote_checksum:
-            pilotErrorDiag = "Cannot get the checksum of file on SE"
-            tolog("!!WARNING!!1137!! %s" % (pilotErrorDiag))
-            # try to get the remote checksum with lcg-get-checksum
-            remote_checksum = self.lcgGetChecksum(envsetup, self.timeout, full_surl)
-            if not remote_checksum:
-                # try to grab the remote file info using lcg-ls command
-                remote_checksum, remote_fsize = self.getRemoteFileInfo(envsetup, self.timeout, full_surl)
-            else:
-                tolog("Setting remote file size to None (not needed)")
-                remote_fsize = None
+	trial_n=1
+	remote_checksum="none"
+	while (remote_checksum == "none" and trial_n<8):
+	   trial_n+=1
+           if not httpredirector:
+               #cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip |awk \'{FS=\"hash type=\"}; {print $2}\' |awk \'{FS=\">\"}; {print $2}\' |awk \'{FS=\"<\"} {print $1}\'| grep -v \'^$\'"%(token_rucio,scope,filename)
+               cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio,scope,filename)
+               cmd2print = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio2print,scope,filename)
+           else:
+               if "http" in httpredirector:
+                   tolog("HTTP redirector I am using: %s" %(httpredirector))
+                   cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,scope,filename)
+                   cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucioi2print,httpredirector,scope,filename)
+               else:
+                   tolog("HTTP redirector I am using: %s" %(httpredirector))
+                   cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                   cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
+   
+           tolog("Getting remote checksum: command to be executed: %s" %(cmd2print))
+           checksum_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
+           remote_checksum, stderr=checksum_cmd.communicate()
+           tolog("Remote checksum as given by rucio %s" %(remote_checksum))
+	   if (remote_checksum == "none"):
+               tolog("In checking checksum: command std error: %s" %(stderr))
+               pilotErrorDiag = "Cannot get the checksum of file on SE"
+               tolog("!!WARNING!!1137!! %s" % (pilotErrorDiag))
+               tolog("!!WARNING!!1137!! trial numebr %s" % (trial_n))
+	       time.sleep(3) 
+               # try to get the remote checksum with lcg-get-checksum
+               #remote_checksum = self.lcgGetChecksum(envsetup, self.timeout, full_surl)
+               #if not remote_checksum:
+               #    # try to grab the remote file info using lcg-ls command
+               #    remote_checksum, remote_fsize = self.getRemoteFileInfo(envsetup, self.timeout, full_surl)
+               #else:
+               #    tolog("Setting remote file size to None (not needed)")
+               #    remote_fsize = None
 
         # compare the checksums if the remote checksum was extracted
         tolog("Remote checksum: %s" % str(remote_checksum))
