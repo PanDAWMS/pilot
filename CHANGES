@@ -593,6 +593,7 @@ New version of aria2c site mover from Vincenzo Lavorini
 Updates for ES merge by Wen Guan (Job, pUtil, RunJob)
 New error code ErR_BADALLOC, 1223, "TRF failed due to bad_alloc" (PilotErrors)
 Added new methods to ErrorDiagnosis; will be moved to separate module later
+Added exception for runargs in removePyModules() (pUtil)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
