@@ -35,7 +35,7 @@ class ErrorDiagnosis(Diagnosis):
         thisExperiment = getExperiment(job.experiment)
         if not thisExperiment:
             job.pilotErrorDiag = "ErrorDiagnosis did not get an experiment object from the factory"
-            job.result[2] = __error.ERR_GENERALERROR # change to better/new error code
+            job.result[2] = self.__error.ERR_GENERALERROR # change to better/new error code
             tolog("!!WARNING!!3234!! %s" % (job.pilotErrorDiag))
             return job
 
@@ -146,7 +146,7 @@ class ErrorDiagnosis(Diagnosis):
             if jobReportErrors != []:
                 bad_alloc, pilotErrorDiag = self.isBadAlloc(jobReportErrors)
                 if bad_alloc:
-                    ec = __error.ERR_BADALLOC # get the corresponding error code
+                    ec = self.__error.ERR_BADALLOC # get the corresponding error code
 
         return ec, pilotErrorDiag
 
@@ -157,7 +157,7 @@ class ErrorDiagnosis(Diagnosis):
         thisExperiment = getExperiment(job.experiment)
         if not thisExperiment:
             job.pilotErrorDiag = "ErrorDiagnosis did not get an experiment object from the factory"
-            job.result[2] = __error.ERR_GENERALERROR # change to better/new error code
+            job.result[2] = self.__error.ERR_GENERALERROR # change to better/new error code
             tolog("!!WARNING!!3234!! %s" % (job.pilotErrorDiag))
             return job
 
