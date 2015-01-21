@@ -433,7 +433,9 @@ class SiteMover(object):
         # In case a groupdisk space token is requested, make sure that the site's alternativeName is the same as the endpoints' alternativeName
         # They will have different alternativeNames if the job originates from a different cloud
         # Note: ATLAS specific
-
+        if not token:
+            return None
+        
         if token.startswith("dst:"):
             # Found a groupdisk space token
             _token = token[len('dst:'):]
