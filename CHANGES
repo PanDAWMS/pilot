@@ -601,6 +601,9 @@ Added exception for runargs in removePyModules() (pUtil)
 
 Removed the old outdated sendTrace() and renamed sendTraceToRucio() to sendTrace() (SiteMover)
 Added new data member prodDBlocks to Job class, which will contain the correct container or dataset name for traces  (Job)
+Created getProperDatasetNames() (Mover)
+Sending rucio_dataset_dictionary to mover_get_data() (Mover)
+Now sending the proper container/dataset name to the tracing server (Mover)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)

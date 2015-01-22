@@ -65,6 +65,36 @@ def createZippedDictionary(list1, list2):
 
     return d
 
+def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
+    """ Get all proper dataset names """
+
+    dsname = ""
+    dsdict = {}
+    rucio_dataset_dictionary = {}
+
+    # fill the dataset dictionary
+    if realDatasetsIn and len(realDatasetsIn) == 1 and realDatasetsIn[0] != 'NULL':
+        dsname = realDatasetsIn[0]
+        if not dsdict.has_key(dsname): dsdict[dsname] = []
+        dsdict[dsname].append(inFiles[0])
+    elif realDatasetsIn and len(realDatasetsIn) > 1:
+        for i in range(len(inFiles)):
+            inFile = inFiles[i]
+            dsname = realDatasetsIn[i]
+            if not dsdict.has_key(dsname):
+                dsdict[dsname] = []
+            dsdict[dsname].append(inFile)
+
+    # finally fill the proper dataset/container dictionary to be used for rucio traces
+    for i in range(len(inFiles)):
+        inFile = inFiles[i]
+        proper_dsname = prodDBlocks[i]
+        if not rucio_dataset_dictionary.has_key(proper_dsname):
+            rucio_dataset_dictionary[proper_dsname] = []
+        rucio_dataset_dictionary[proper_dsname].append(inFile)
+
+    return dsname, dsdict, rucio_dataset_dictionary
+
 def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pinitdir="", proxycheck=True, inputDir="", workDir="", pfc_name="PoolFileCatalog.xml"):
     """ call the mover and stage-in input files """
 
@@ -87,18 +117,8 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
     dbh = DBReleaseHandler(workdir=job.workdir)
 
     try:
-        dsname = ""
-        dsdict = {}
-        if job.realDatasetsIn and len(job.realDatasetsIn) == 1 and job.realDatasetsIn[0] != 'NULL':
-            dsname = job.realDatasetsIn[0]
-            if not dsdict.has_key(dsname): dsdict[dsname] = []
-            dsdict[dsname].append(job.inFiles[0])
-        elif job.realDatasetsIn and len(job.realDatasetsIn) > 1:
-            for i in range(len(job.inFiles)):
-                inFile = job.inFiles[i]
-                dsname = job.realDatasetsIn[i]
-                if not dsdict.has_key(dsname): dsdict[dsname] = []
-                dsdict[dsname].append(inFile)
+        # get all proper dataset names
+        dsname, dsdict, rucio_dataset_dictionary = getProperDatasetNames(job.realDatasetsIn, job.prodDBlocks, job.inFiles)
 
         # define the Pool File Catalog name, which can be different for event service jobs (PFC.xml vs PoolFileCatalog.xml)
         inputpoolfcstring = "xmlcatalog_file:%s" % (pfc_name)
@@ -111,7 +131,7 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
                            access_dict=access_dict, inputDir=inputDir, jobId=job.jobId, DN=job.prodUserID, workDir=workDir,\
                            scope_dict=scope_dict, jobDefId=job.jobDefinitionID, dbh=dbh, jobPars=job.jobPars, cmtconfig=job.cmtconfig,\
                            filesizeIn=job.filesizeIn, checksumIn=job.checksumIn, transferType=job.transferType, experiment=job.experiment,\
-                           eventService=job.eventService, inputpoolfcstring=inputpoolfcstring)
+                           eventService=job.eventService, inputpoolfcstring=inputpoolfcstring, rucio_dataset_dictionary=rucio_dataset_dictionary)
 
         tolog("Get function finished with exit code %d" % (rc))
 
@@ -1744,6 +1764,7 @@ def mover_get_data(lfns,
                    ub="outdated", # to be removed
                    dsname="",
                    dsdict={},
+                   rucio_dataset_dictionary={},
                    guids=[],
                    analysisJob=False,
                    usect=True,
@@ -1931,10 +1952,14 @@ def mover_get_data(lfns,
 
             # Update the dataset name
             dsname = getDataset(lfn, dsdict)
+            proper_dsname = getDataset(lfn, rucio_dataset_dictionary)
             scope = getFileScope(scope_dict, lfn)
 
-            # Update the tracing report
-            report = updateReport(report, gpfn, dsname, fsize, sitemover)
+            tolog("dsname=%s, proper_dsname=%s" % (dsname, proper_dsname))
+            tolog("rucio_dataset_dictionary=%s" % str(rucio_dataset_dictionary))
+
+            # Update the tracing report with the proper container/dataset name
+            report = updateReport(report, gpfn, proper_dsname, fsize, sitemover)
             report['scope'] = scope
 
             # The DBRelease file might already have been handled, go to next file
