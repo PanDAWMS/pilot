@@ -9,20 +9,11 @@ __license__   = "MIT"
 import os
 import shutil
 
-<<<<<<< HEAD
-import saga.adaptors.base
-import saga.adaptors.cpi.filesystem
-import saga.url
-import saga.utils.misc
-
-
-=======
 import saga.url
 import saga.adaptors.base
 import saga.adaptors.cpi.filesystem
 import saga.utils.misc
 
->>>>>>> origin/titan
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
 
@@ -352,9 +343,4 @@ class DummyFile (saga.adaptors.cpi.filesystem.File) :
         shutil.copy2 (src, tgt)
 
 
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
-
->>>>>>> origin/titan
 
