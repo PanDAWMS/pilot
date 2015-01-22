@@ -1,12 +1,9 @@
-<<<<<<< HEAD
-=======
 
 __author__    = "Andre Merzky, Ashley Z, Ole Weidner"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
->>>>>>> origin/titan
 # TODO: Create function to check for all the iRODS error codes and give
 #       a better error readout?
 
@@ -31,25 +28,6 @@ __author__    = "Ashley Zebrowski"
 __copyright__ = "Copyright 2012-2013, Ashley Zebrowski"
 __license__   = "MIT"
 
-<<<<<<< HEAD
-import errno
-import os
-import pwd
-import shutil
-import string
-import sys
-import time
-
-import saga.adaptors.base
-import saga.adaptors.cpi.replica
-import saga.namespace as ns
-import saga.url
-import saga.utils.misc
-import saga.utils.pty_shell
-
-
-#from saga.utils.cmdlinewrapper import CommandLineWrapper
-=======
 import os
 import pwd
 import sys
@@ -66,7 +44,6 @@ import shutil
 import saga.namespace as ns
 #from saga.utils.cmdlinewrapper import CommandLineWrapper
 
->>>>>>> origin/titan
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
 
@@ -86,10 +63,7 @@ _ADAPTOR_DOC           = {
     'details'          : """This adaptor interacts with the iRODS data
                             management system, by using the iRODS command line
                             tools.""",
-<<<<<<< HEAD
-=======
     "example"          : "examples/replica/irods/irods_test.py",
->>>>>>> origin/titan
     'schemas'          : {'irods'  : 'irods schema'
     },
 }
@@ -264,11 +238,7 @@ class Adaptor (saga.adaptors.base.Base):
             for item in out.strip().split("\n"):
     
                 # if we are listing a directory or remote resource file location i.e.
-<<<<<<< HEAD
-                # (bliss-irods)[azebro1@gw68 bliss]$ ils -L /osg/home/azebro1
-=======
                 # [azebro1@gw68]$ ils -L /osg/home/azebro1
->>>>>>> origin/titan
                 # /osg/home/azebro1:
                 #    azebro1           1 UFlorida-SSERCA_FTP            12 2012-11-14.09:55 & irods-test.txt
                 #          /data/cache/UFlorida-SSERCA_FTPplaceholder/home/azebro1/irods-test.txt    osgGridFtpGroup
@@ -997,10 +967,4 @@ class IRODSFile (saga.adaptors.cpi.replica.LogicalFile) :
             raise saga.NoSuccess ("Couldn't download file. %s" % ex)
 
         return
-
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
-
->>>>>>> origin/titan
 
