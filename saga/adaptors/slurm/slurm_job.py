@@ -9,20 +9,6 @@ __license__   = "MIT"
 #TODO: Throw errors if a user does not specify the MINIMUM number of
 #      attributes required for SLURM in a job description
 
-<<<<<<< HEAD
-from copy import deepcopy
-import os
-import re
-import string
-import textwrap
-import time
-
-import saga.adaptors.base
-import saga.adaptors.cpi.job
-import saga.utils.pty_shell
-import saga.utils.which
-
-=======
 import saga.utils.pty_shell
 
 import saga.url as surl
@@ -35,7 +21,6 @@ import time
 import textwrap
 import string
 import tempfile
->>>>>>> origin/titan
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -264,16 +249,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         _cpi_base = super  (SLURMJobService, self)
         _cpi_base.__init__ (api, adaptor)
 
-<<<<<<< HEAD
-        self.exit_code_re = re.compile("""(?<=ExitCode=)[0-9]*""")
-        self.scontrol_jobstate_re = re.compile("""(?<=JobState=)[a-zA-Z]*""")
-        # TODO make sure this formats properly and works right!
-        self.scontrol_start_time_re = re.compile("""(?<=StartTime=)[^ ]*""")
-        self.scontrol_end_time_re = re.compile("""(?<=EndTime=)[^ ]*""")
-        self.scontrol_create_time_re = re.compile("""(?<=SubmitTime=)[^ ]*""")
-        self.scontrol_exec_hosts_re = re.compile("""(?<=ExcNodeList=)[^ ]*""")
-        self.scontrol_comp_time_re = re.compile("""(?<=RunTime=)[^ ]*""")
-=======
         # TODO make sure this formats properly and works right!
         self.exit_code_re            = re.compile(r"\bExitCode  \b=(\d*)", re.VERBOSE)
         self.scontrol_jobstate_re    = re.compile(r"\bJobState  \b=(\S*)", re.VERBOSE)
@@ -282,7 +257,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         self.scontrol_end_time_re    = re.compile(r"\bEndTime   \b=(\S*)", re.VERBOSE)
         self.scontrol_comp_time_re   = re.compile(r"\bRunTime   \b=(\S*)", re.VERBOSE)
         self.scontrol_exec_hosts_re  = re.compile(r"\bNodeList  \b=(\S*)", re.VERBOSE)
->>>>>>> origin/titan
 
         # these are the commands that we need in order to interact with SLURM
         # the adaptor will try to find them when it first opens the shell
@@ -373,13 +347,8 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         shell_url += self.rm.host
 
         #add port
-<<<<<<< HEAD
-        if self.rm.port:
-            shell_url += ":" + self.rm.port
-=======
         if  self.rm.port:
             shell_url += ":" + str(self.rm.port)
->>>>>>> origin/titan
 
         shell_url = saga.url.Url(shell_url)
 
@@ -451,10 +420,7 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         wall_time_limit = None
         queue = None
         project = None
-<<<<<<< HEAD
-=======
         job_memory = None
->>>>>>> origin/titan
         job_contact = None
         
         # check to see what's available in our job description
@@ -505,14 +471,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         if jd.attribute_exists("project"):
             project = jd.project
 
-<<<<<<< HEAD
-        if jd.attribute_exists("job_contact"):
-            job_contact = jd.job_contact[0]
-
-        slurm_script = "#!/bin/bash\n"
-
-        if job_name:
-=======
         if jd.attribute_exists("total_physical_memory"):
             job_memory = jd.total_physical_memory
 
@@ -522,7 +480,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         slurm_script = "#!/bin/sh\n\n"
 
         if  job_name:
->>>>>>> origin/titan
             slurm_script += '#SBATCH -J "%s"\n' % job_name
 
         if spmd_variation:
@@ -547,39 +504,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
             log_error_and_raise("More processes (%s) requested than total number of CPUs! (%s)" % (number_of_processes, total_cpu_count), saga.NoSuccess, self._logger)
 
         #make sure we aren't doing funky math
-<<<<<<< HEAD
-        if total_cpu_count % number_of_processes != 0:
-            log_error_and_raise("total_cpu_count (%s) must be evenly divisible by number_of_processes (%s)" %(total_cpu_count, number_of_processes), saga.NoSuccess, self._logger)
-
-        slurm_script += "#SBATCH --ntasks=%s\n" % (number_of_processes)
-        slurm_script += "#SBATCH --cpus-per-task=%s\n" % (total_cpu_count/number_of_processes)
-
-        if cwd is not "":
-            slurm_script += "#SBATCH -D %s\n" % cwd
-
-        if output:
-            slurm_script+= "#SBATCH -o %s\n" % output
-        
-        if error:
-            slurm_script += "#SBATCH -e %s\n" % error
-
-        if wall_time_limit:
-            hours = wall_time_limit / 60
-            minutes = wall_time_limit % 60
-            slurm_script += "#SBATCH -t %s:%s:00\n" % (str(hours).zfill(2), str(minutes).zfill(2))
-
-        if queue:
-            slurm_script += "#SBATCH -p %s\n" % queue
-
-        if project:
-            slurm_script += "#SBATCH -A %s\n" % project
-
-        if job_contact:
-            slurm_script += "#SBATCH --mail-user=%s\n" % job_contact
-
-        # make sure we are not missing anything important
-        if not queue:
-=======
         if  total_cpu_count % number_of_processes != 0:
             log_error_and_raise ("total_cpu_count (%s) must be evenly " \
                                  "divisible by number_of_processes (%s)" \
@@ -617,7 +541,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
 
         # make sure we are not missing anything important
         if  not queue:
->>>>>>> origin/titan
             raise saga.BadParameter._log (self._logger, 
                                           "No queue has been specified, "
                                           "and the SLURM adaptor "
@@ -630,28 +553,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
 
         # create our commandline - escape $ so that environment variables
         # get interpreted properly
-<<<<<<< HEAD
-        exec_n_args = exe + arg
-        exec_n_args = exec_n_args.replace('$', '\\$')
-        slurm_script += exec_n_args
-
-        # escape all double quotes, otherwise 'echo |' further down
-        # won't work
-        slurm_script = slurm_script.replace('"', '\\"')
-
-        # escape '!' - this doesn't work well with bash either:
-        # see: http://superuser.com/questions/133780/in-bash-how-do-i-escape-an-exclamation-mark
-        slurm_script = slurm_script.replace("!", "\"'!'\"")
-
-
-        self._logger.info("SLURM script generated:\n%s" % slurm_script)
-        self._logger.debug("Transferring SLURM script to remote host")
-
-        # try to create the working directory (if defined)
-        # WRANING: this assumes a shared filesystem between login node and
-        #           comnpute nodes.
-        if jd.working_directory is not None:
-=======
         exec_n_args   = exe + arg
         exec_n_args   = exec_n_args.replace('$', '\\$')
         slurm_script += exec_n_args
@@ -660,7 +561,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         # WRANING: this assumes a shared filesystem between login node and
         #           comnpute nodes.
         if  jd.working_directory is not None:
->>>>>>> origin/titan
             self._logger.info("Creating working directory %s" % jd.working_directory)
             ret, out, _ = self.shell.run_sync("mkdir -p %s" % (jd.working_directory))
             if ret != 0:
@@ -669,9 +569,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
                 log_error_and_raise(message, saga.NoSuccess, self._logger)
 
 
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync("""echo "%s" | sbatch""" % slurm_script)
-=======
         # write script into a tmp file for staging
         fhandle, fname = tempfile.mkstemp (suffix='.slurm', prefix='tmp_', text=True)
         os.write (fhandle, slurm_script)
@@ -689,7 +586,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
 
         # clean up tmp file
         os.remove (fname)
->>>>>>> origin/titan
 
         # find out what our job ID will be
         # TODO: Could make this more efficient
@@ -712,19 +608,11 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         # create local jobs dictionary entry
         self.jobs[self.job_id] = {
                 'state': saga.job.PENDING,
-<<<<<<< HEAD
-                'exec_hosts': None,
-                'returncode': None,
-                'create_time': None,
-                'start_time': None,
-                'end_time': None,
-=======
                 'create_time': None,
                 'start_time': None,
                 'end_time': None,
                 'comp_time': None,
                 'exec_hosts': None,
->>>>>>> origin/titan
                 'gone': False
             }
 
@@ -752,11 +640,7 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
     def _slurm_to_saga_jobstate(self, slurmjs):
         """ translates a slurm one-letter state to saga
         """
-<<<<<<< HEAD
-        if slurmjs == "CANCELED" or slurmjs == 'CA':
-=======
         if slurmjs == "CANCELLED" or slurmjs == 'CA':
->>>>>>> origin/titan
             return saga.job.CANCELED
         elif slurmjs == "COMPLETED" or slurmjs == 'CD':
             return saga.job.DONE
@@ -785,32 +669,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         """ get the job exit code from the wrapper shell """
         rm, pid     = self._adaptor.parse_id (id)
         ret, out, _ = self.shell.run_sync("scontrol show job %s" % pid)
-<<<<<<< HEAD
-
-        exit_code_found = False
-        
-        # dig out our exitcode
-        for line in out.split("\n"):
-            #if we find exitcode text in this line
-            if "ExitCode" in line:
-                self._logger.debug("Exitcode found in line: %s" % line)
-
-                # run our regex
-                re_search = self.exit_code_re.search(line)
-
-                # if we have a match, yank out the exitcode
-                if re_search:
-                    self.exit_code = re_search.group()
-
-                # if no match, we have no exitcode
-                else:
-                    self.exit_code = None
-                    
-                self._logger.debug("Returning exit code %s" % self.exit_code)
-                
-                # return whatever our exit code is
-                return int(self.exit_code)
-=======
         match       = self.exit_code_re.search (out)
 
         if match:
@@ -822,7 +680,6 @@ class SLURMJobService (saga.adaptors.cpi.job.Service) :
         self._logger.debug("Returning exit code %s" % self.exit_code)
         return self.exit_code
 
->>>>>>> origin/titan
         
         ### couldn't get the exitcode -- maybe should change this to just return
         ### None?  b/c we will lose the code if a program waits too
@@ -1062,10 +919,6 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
             return prev_info
 
         # curr. info will contain the new job info collect. it starts off
-<<<<<<< HEAD
-        # as a copy of prev_info
-        curr_info = deepcopy(prev_info)
-=======
         # as a copy of prev_info (don't use deepcopy because there is an API 
         # object in the dict -> recursion)
         curr_info = dict()
@@ -1077,80 +930,16 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
         curr_info['comp_time'  ] = prev_info.get ('comp_time'  )
         curr_info['exec_hosts' ] = prev_info.get ('exec_hosts' )
         curr_info['gone'       ] = prev_info.get ('gone'       )
->>>>>>> origin/titan
 
         rm, pid = self._adaptor.parse_id(job_id)
 
         # update current info with scontrol
         ret, out, _ = self.js.shell.run_sync('scontrol show job %s' % pid)
-<<<<<<< HEAD
-        #self._logger.debug("Updating job status using the following information:\n%s" % out) 
-=======
       # self._logger.debug("Updating job status using the following information:\n%s" % out) 
->>>>>>> origin/titan
 
         # update the state
         curr_info['state'] = self._job_get_state(job_id)
 
-<<<<<<< HEAD
-        # figure out when the job was created
-        create_time_search = self.js.scontrol_create_time_re.search(out)
-        create_time=None
-        if create_time_search:
-            create_time = create_time_search.group(0)
-
-        curr_info['create_time'] = create_time
-
-        self._logger.debug("create_time for job %s detected as %s" % \
-                               (pid, create_time))
-
-        # determine the job's start time
-        start_time_search = self.js.scontrol_start_time_re.search(out)
-        start_time=None
-        if start_time_search:
-            start_time = start_time_search.group(0)
-
-        curr_info['start_time'] = start_time
-
-        self._logger.debug("start_time for job %s detected as %s" % \
-                               (pid, start_time))
-
-        # determine the job's end time
-        end_time_search = self.js.scontrol_end_time_re.search(out)
-        end_time=None
-        if end_time_search:
-            end_time = end_time_search.group(0)
-
-        curr_info['end_time'] = end_time
-
-        self._logger.debug("end_time for job %s detected as %s" % \
-                               (pid, end_time))
-
-        # determine the job's execution hosts
-        exec_hosts_search = self.js.scontrol_exec_hosts_re.search(out)
-        exec_hosts=None
-        if exec_hosts_search:
-            exec_hosts = exec_hosts_search.group(0)
-
-        curr_info['exec_hosts'] = exec_hosts
-
-        self._logger.debug("exec_hosts for job %s detected as %s" % \
-                               (pid, exec_hosts))
-
-        # determine the job's comp time
-        comp_time_search = self.js.scontrol_comp_time_re.search(out)
-        comp_time=None
-        if comp_time_search:
-            comp_time = comp_time_search.group(0)
-
-        curr_info['comp_time'] = comp_time
-
-        self._logger.debug("comp_time for job %s detected as %s" % \
-                               (pid, comp_time))
-
-        return curr_info
-
-=======
 
         match = self.js.scontrol_create_time_re.search(out)
         if match:
@@ -1185,7 +974,6 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
         return curr_info
 
 
->>>>>>> origin/titan
     def _job_get_state (self, job_id) :
         """ get the job state from the wrapper shell """
 
@@ -1206,22 +994,6 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
             or self._state == saga.job.DONE:
             return self._state
 
-<<<<<<< HEAD
-        rm, pid     = self._adaptor.parse_id (job_id)
-
-        #self.scontrol_jobstate_re = re.compile("""(?<=JobState=)[a-zA-Z]*""")
-
-        try:
-            ret, out, _ = self.js.shell.run_sync('scontrol show job %s' % pid)
-            m = self.js.scontrol_jobstate_re.search(out)
-            if m:
-                scontrol_state = m.group(0)
-            else:
-                # no jobstate found from scontrol
-                return saga.job.UNKNOWN
-
-            return self.js._slurm_to_saga_jobstate(scontrol_state)
-=======
         rm, pid = self._adaptor.parse_id (job_id)
 
         try:
@@ -1240,7 +1012,6 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
                     return saga.job.UNKNOWN
 
             return self.js._slurm_to_saga_jobstate(slurm_state)
->>>>>>> origin/titan
 
         except Exception, ex:
             raise saga.NoSuccess("Error getting the job state for "
@@ -1250,8 +1021,6 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
                                    "Internal SLURM adaptor error"
                                    " in _job_get_state")
 
-<<<<<<< HEAD
-=======
     def _sacct_jobstate_match (self, pid):
         """ get the job state from the slurm accounting data """
         ret, sacct_out, _ = self.js.shell.run_sync(
@@ -1270,7 +1039,6 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
 
         return None
 
->>>>>>> origin/titan
     # ----------------------------------------------------------------
     #
     @SYNC_CALL
@@ -1421,10 +1189,4 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
         """
         self._id = self.js._job_run (self.jd)
         self._started = True
-
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
-
->>>>>>> origin/titan
 
