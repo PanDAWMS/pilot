@@ -7,10 +7,6 @@ __license__   = "MIT"
 import saga.adaptors.cpi.decorators as cpi_dec
 import saga.adaptors.cpi.namespace  as cpi_ns
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/titan
 SYNC  = cpi_dec.CPI_SYNC_CALL
 ASYNC = cpi_dec.CPI_ASYNC_CALL
 
@@ -108,10 +104,4 @@ class File (cpi_ns.entry.Entry) :
     @ASYNC
     def write_e_async        (self, emode, spec, data, ttype) : pass
 
-
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
-
->>>>>>> origin/titan
 
