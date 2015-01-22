@@ -600,6 +600,7 @@ Added exception for runargs in removePyModules() (pUtil)
 60a:
 
 Removed the old outdated sendTrace() and renamed sendTraceToRucio() to sendTrace() (SiteMover)
+Added new data member prodDBlocks to Job class, which will contain the correct container or dataset name for traces  (Job)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
