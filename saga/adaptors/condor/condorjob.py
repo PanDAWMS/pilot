@@ -7,21 +7,6 @@ __license__   = "MIT"
 """ Condor job adaptor implementation
 """
 
-<<<<<<< HEAD
-from cgi import parse_qs
-from copy import deepcopy
-import os
-import re
-import time
-
-import saga.adaptors.base
-import saga.adaptors.cpi.job
-from saga.job.constants import *
-import saga.utils.pty_shell
-import saga.utils.which
-from transferdirectives import TransferDirectives
-
-=======
 import saga.utils.pty_shell
 
 import saga.url as surl
@@ -36,7 +21,6 @@ import os
 import time
 from urlparse import parse_qs
 from tempfile import NamedTemporaryFile
->>>>>>> origin/titan
 
 SYNC_CALL = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -91,14 +75,11 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
     """
     condor_file = str()
 
-<<<<<<< HEAD
-=======
     #
     # HTCondor quoting/escaping:
     # http://research.cs.wisc.edu/htcondor/manual/current/condor_submit.html#SECTION0012514000000000000000
     #
 
->>>>>>> origin/titan
     ##### OPTIONS PASSED VIA JOB SERVICE URL #####
     ##
     if option_dict is not None:
@@ -106,11 +87,7 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
         # special treatment for universe - defaults to 'vanilla'
         if 'universe' not in option_dict:
             condor_file += "\nuniverse = vanilla"
-<<<<<<< HEAD
-=======
 
-
->>>>>>> origin/titan
         for (key, value) in option_dict.iteritems():
             condor_file += "\n%s = %s" % (key, value)
 
@@ -124,19 +101,11 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
     condor_file += "\nexecutable = /bin/env"
 
     # arguments -> arguments
-<<<<<<< HEAD
-    arguments = 'arguments = \\"/bin/sh -c \''
-
-    # The actual executable becomes the first argument.
-    if jd.executable is not None:
-        arguments += "%s " % jd.executable
-=======
     arguments = 'arguments = \"/bin/sh -c \''
 
     # The actual executable becomes the first argument.
     if jd.executable is not None:
         arguments += "%s" % jd.executable
->>>>>>> origin/titan
 
     if jd.arguments is not None:
 
@@ -153,60 +122,6 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
             arg = arg.replace('"', '""')
     
             # Escape dollars (for environment variables)
-<<<<<<< HEAD
-            arg = arg.replace('$', '\\$')
-    
-            arguments += "%s " % arg
-
-    # close the quote opened earlier 
-    arguments += '\'\\"'
-
-    condor_file += "\n%s" % arguments
-
-    # file_transfer -> transfer_input_files
-    if jd.file_transfer is not None:
-        td = TransferDirectives(jd.file_transfer)
-
-        if len(td.in_append_dict) > 0:
-            raise Exception('FileTransfer append syntax (>>) not supported by Condor: %s' % td.in_append_dict)
-        if len(td.out_append_dict) > 0:
-            raise Exception('FileTransfer append syntax (<<) not supported by Condor: %s' % td.out_append_dict)
-
-        if len(td.in_overwrite_dict) > 0:
-            transfer_input_files = "transfer_input_files = "
-            for (source, target) in td.in_overwrite_dict.iteritems():
-                # make sure source is file an not dir
-                (s_path, s_entry) = os.path.split(source)
-                if len(s_entry) < 1:
-                    raise Exception('Condor accepts only files (not directories) as FileTransfer sources: %s' % source)
-                # make sure target is just a file
-                (t_path, t_entry) = os.path.split(target)
-                if len(t_path) > 1:
-                    raise Exception('Condor accepts only filenames (without paths) as FileTransfer targets: %s' % target)
-                # make sure source and target file are the same
-                if s_entry != t_entry:
-                    raise Exception('For Condor source file name and target file name have to be identical: %s != %s' % (s_entry, t_entry))
-                # entry ok - add to job script
-                transfer_input_files += "%s, " % source
-            condor_file += "\n%s" % transfer_input_files
-
-        if len(td.out_overwrite_dict) > 0:
-            transfer_output_files = "transfer_output_files = "
-            for (source, target) in td.out_overwrite_dict.iteritems():
-                # make sure source is file an not dir
-                (s_path, s_entry) = os.path.split(source)
-                if len(s_entry) < 1:
-                    raise Exception('Condor accepts only files (not directories) as FileTransfer sources: %s' % source)
-                # make sure target is just a file
-                (t_path, t_entry) = os.path.split(target)
-                if len(t_path) > 1:
-                    raise Exception('Condor accepts only filenames (without paths) as FileTransfer targets: %s' % target)
-                # make sure source and target file are the same
-                if s_entry != t_entry:
-                    raise Exception('For Condor source file name and target file name have to be identical: %s != %s' % (s_entry, t_entry))
-                # entry ok - add to job script
-                transfer_output_files += "%s, " % source
-=======
             #arg = arg.replace('$', '\\$')
     
             arguments += " %s" % arg
@@ -231,7 +146,6 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
             transfer_output_files = "transfer_output_files = "
             for target in td.transfer_output_files:
                 transfer_output_files += "%s, " % target
->>>>>>> origin/titan
             condor_file += "\n%s" % transfer_output_files
 
     # always define log. if 'jd.output' is defined, we use it 
@@ -257,14 +171,6 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
         condor_file += "\nerror = %s " % jd.error 
 
     # environment -> environment
-<<<<<<< HEAD
-    environment = "environment = "
-    if jd.environment is not None:
-        variable_list = str()
-        for key in jd.environment.keys(): 
-            variable_list += "%s=%s;" % (key, jd.environment[key])
-        environment += "%s " % variable_list
-=======
     # http://research.cs.wisc.edu/htcondor/manual/current/condor_submit.html#SECTION0012514000000000000000
     environment = "environment ="
     if jd.environment is not None:
@@ -272,7 +178,6 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
         for key in jd.environment.keys(): 
             variable_list += "%s=%s " % (key, jd.environment[key])
         environment += " \"%s\"" % variable_list.strip()
->>>>>>> origin/titan
     condor_file += "\n%s" % environment
 
     # project -> +ProjectName
@@ -284,21 +189,13 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
         hosts = ""
         for host in jd.candidate_hosts:
             hosts += "%s, " % host
-<<<<<<< HEAD
-        sitelist = "+SiteList = \"%s\"" % hosts
-=======
         sitelist = "+SiteList = \\\"%s\\\"" % hosts
->>>>>>> origin/titan
         requirements += "(stringListMember(GLIDEIN_ResourceName,SiteList) == True)"
         condor_file += "\n%s" % sitelist
         condor_file += "\n%s" % requirements
 
-<<<<<<< HEAD
-    condor_file += "\n\nqueue"
-=======
     condor_file += "\n\nqueue\n"
     condor_file += "\n##### END OF FILE #####\n"
->>>>>>> origin/titan
 
     return condor_file
 
@@ -358,11 +255,7 @@ The (HT)Condor(-G) adaptor allows to run and manage jobs on a
 """,
     "example": "examples/jobs/condorjob.py",
     "schemas": {"condor"        : "connect to a local gateway",
-<<<<<<< HEAD
-                "condor+ssh"    : "conenct to a remote gateway via SSH",
-=======
                 "condor+ssh"    : "connect to a remote gateway via SSH",
->>>>>>> origin/titan
                 "condor+gsissh ": "connect to a remote gateway via GSISSH"}
 }
 
@@ -370,13 +263,8 @@ The (HT)Condor(-G) adaptor allows to run and manage jobs on a
 # the adaptor info is used to register the adaptor with SAGA
 #
 _ADAPTOR_INFO = {
-<<<<<<< HEAD
-    "name"             :    _ADAPTOR_NAME,
-    "version"          : "v0.1",
-=======
     "name"             : _ADAPTOR_NAME,
     "version"          : "v0.2",
->>>>>>> origin/titan
     "schemas"          : _ADAPTOR_SCHEMAS,
     "capabilities"     : _ADAPTOR_CAPABILITIES,
     "cpis": [
@@ -404,18 +292,10 @@ class Adaptor (saga.adaptors.base.Base):
     #
     def __init__(self):
 
-<<<<<<< HEAD
-        saga.adaptors.base.Base.__init__(self,
-            _ADAPTOR_INFO, _ADAPTOR_OPTIONS)
-
-        self.id_re = re.compile('^\[(.*)\]-\[(.*?)\]$')
-        self.opts = self.get_config()
-=======
         saga.adaptors.base.Base.__init__(self, _ADAPTOR_INFO, _ADAPTOR_OPTIONS)
 
         self.id_re = re.compile('^\[(.*)\]-\[(.*?)\]$')
         self.opts  = self.get_config (_ADAPTOR_NAME)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -471,11 +351,7 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
         self.query_options = dict()
 
         rm_scheme = rm_url.scheme
-<<<<<<< HEAD
-        pty_url   = deepcopy(rm_url)
-=======
         pty_url   = surl.Url (rm_url)
->>>>>>> origin/titan
 
         # this adaptor supports options that can be passed via the
         # 'query' component of the job service URL.
@@ -483,15 +359,9 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
             for key, val in parse_qs(rm_url.query).iteritems():
                 self.query_options[key] = val[0]
 
-<<<<<<< HEAD
-        # we need to extrac the scheme for PTYShell. That's basically the
-        # job.Serivce Url withou the condor+ part. We use the PTYShell to execute
-        # condor commands either locally or via gsissh or ssh.
-=======
         # we need to extract the scheme for PTYShell. That's basically the
         # job.Service Url without the condor+ part. We use the PTYShell to
         # execute condor commands either locally or via gsissh or ssh.
->>>>>>> origin/titan
         if rm_scheme == "condor":
             pty_url.scheme = "fork"
         elif rm_scheme == "condor+ssh":
@@ -501,11 +371,7 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
 
         # these are the commands that we need in order to interact with Condor.
         # the adaptor will try to find them during initialize(self) and bail
-<<<<<<< HEAD
-        # out in case they are note avaialbe.
-=======
         # out in case they are not available.
->>>>>>> origin/titan
         self._commands = {'condor_version': None,
                           'condor_submit':  None,
                           'condor_q':       None,
@@ -570,15 +436,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
     def _job_run(self, jd):
         """ runs a job via qsub
         """
-<<<<<<< HEAD
-        # create a Condor job script from SAGA job description
-        script = _condorscript_generator(url=self.rm, logger=self._logger, jd=jd,
-            option_dict=self.query_options)
-        self._logger.info("Generated Condor script: %s" % script)
-
-        ret, out, _ = self.shell.run_sync('echo "%s" | %s -' \
-            % (script, self._commands['condor_submit']['path']))
-=======
 
         # Because we do funky shit with env and sh, we need to explicitly add
         # the executable to the transfer list.
@@ -633,7 +490,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
         ret, out, _ = self.shell.run_sync('%s -verbose %s' \
             % (self._commands['condor_submit']['path'], submit_file_name))
 
->>>>>>> origin/titan
 
         if ret != 0:
             # something went wrong
@@ -649,11 +505,7 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
             # we don't want the 'query' part of the URL to be part of the ID,
             # simply because it can get terribly long (and ugly). to get rid
             # of it, we clone the URL and set the query part to None.
-<<<<<<< HEAD
-            rm_clone = deepcopy(self.rm)
-=======
             rm_clone = surl.Url (self.rm)
->>>>>>> origin/titan
             rm_clone.query = ""
             rm_clone.path = ""
 
@@ -668,11 +520,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
                 'create_time':  None,
                 'start_time':   None,
                 'end_time':     None,
-<<<<<<< HEAD
-                'gone':         False
-            }
-
-=======
                 'gone':         False,
                 'transfers':    None,
                 'stdout':       None,
@@ -687,7 +534,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
                 raise NotImplemented("GSISSH support for Condor not implemented.")
             os.remove(submit_file.name)
 
->>>>>>> origin/titan
             return job_id
 
     # ----------------------------------------------------------------
@@ -699,13 +545,8 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
         rm, pid = self._adaptor.parse_id(job_id)
 
         # run the Condor 'condor_q' command to get some infos about our job
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync("%s -long %s | \
-            egrep '(JobStatus)|(ExitStatus)|(CompletionDate)'" \
-=======
         ret, out, _ = self.shell.run_sync("unset GREP_OPTIONS; %s -long %s | \
             grep -E '(JobStatus)|(ExitStatus)|(CompletionDate)'" \
->>>>>>> origin/titan
             % (self._commands['condor_q']['path'], pid))
         if ret != 0:
             message = "Couldn't reconnect to job '%s': %s" % (job_id, out)
@@ -720,14 +561,10 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
                 'create_time':  None,
                 'start_time':   None,
                 'end_time':     None,
-<<<<<<< HEAD
-                'gone':         False
-=======
                 'gone':         False,
                 'transfers':    None,
                 'stdout':       None,
                 'stderr':       None
->>>>>>> origin/titan
             }
 
             results = out.split('\n')
@@ -746,8 +583,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
 
             return job_info
 
-<<<<<<< HEAD
-=======
     def _handle_file_transfers(self, jd):
 
         td = jd.transfer_directives
@@ -801,7 +636,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
                 td.transfer_output_files.append(target)
 
 
->>>>>>> origin/titan
     # ----------------------------------------------------------------
     #
     def _job_get_info(self, job_id):
@@ -810,11 +644,7 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
 
         # if we don't have the job in our dictionary, we don't want it
         if job_id not in self.jobs:
-<<<<<<< HEAD
-            message = "Unkown job ID: %s. Can't update state." % job_id
-=======
             message = "Unknown job ID: %s. Can't update state." % job_id
->>>>>>> origin/titan
             log_error_and_raise(message, saga.NoSuccess, self._logger)
 
         # prev. info contains the info collect when _job_get_info
@@ -828,10 +658,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
             return prev_info
 
         # curr. info will contain the new job info collect. it starts off
-<<<<<<< HEAD
-        # as a copy of prev_info
-        curr_info = deepcopy(prev_info)
-=======
         # as a copy of prev_info (don't use deepcopy because there is an API 
         # object in the dict -> recursion)
         curr_info = dict()
@@ -843,60 +669,27 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
         curr_info['start_time' ] = prev_info.get ('start_time' )
         curr_info['end_time'   ] = prev_info.get ('end_time'   )
         curr_info['gone'       ] = prev_info.get ('gone'       )
->>>>>>> origin/titan
 
         rm, pid = self._adaptor.parse_id(job_id)
 
         # run the Condor 'condor_q' command to get some infos about our job
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync("%s -long %s | \
-            egrep '(JobStatus)|(ExitStatus)|(CompletionDate)'" \
-            % (self._commands['condor_q']['path'], pid))
-
-        if ret != 0:
-            #if ("Unknown Job Id" in out):
-                # Let's see if the previous job state was runnig or pending. in
-                # that case, the job is gone now, which can either mean DONE,
-                # or FAILED. the only thing we can do is set it to 'DONE'
-=======
         ret, out, _ = self.shell.run_sync("unset GREP_OPTIONS; %s -long %s | \
             grep -E '(JobStatus)|(ExitStatus)|(CompletionDate)'" \
             % (self._commands['condor_q']['path'], pid))
 
         if ret != 0:
->>>>>>> origin/titan
             if prev_info['state'] in [saga.job.RUNNING, saga.job.PENDING]:
 
                 # run the Condor 'condor_history' command to get info about 
                 # finished jobs
-<<<<<<< HEAD
-                ret, out, _ = self.shell.run_sync("%s -long %s | \
-                    egrep '(ExitCode)'" \
-=======
                 ret, out, _ = self.shell.run_sync("unset GREP_OPTIONS; %s -long -match 1 %s | \
                     grep -E '(ExitCode)|(TransferOutput)|(CompletionDate)|(JobCurrentStartDate)|(QDate)|(Err)|(Out)'" \
->>>>>>> origin/titan
                     % (self._commands['condor_history']['path'], pid))
                 
                 if ret != 0:
                     message = "Error getting job history via 'condor_history': %s" % out
                     log_error_and_raise(message, saga.NoSuccess, self._logger)
 
-<<<<<<< HEAD
-                # sometimes we get other crap (like biff)
-                out = out.split('\n')[0] 
-
-                if len(out.split('=')) != 2:
-                    message = "No ExitCode found via 'condor_history'"
-                    log_error_and_raise(message, saga.NoSuccess, self._logger)
-
-                _, val = out.split('=')
-                retcode = int(val.strip())
-                    
-                curr_info['returncode'] = retcode
-
-                if retcode == 0:
-=======
                 # parse the egrep result. this should look something like this:
                 # ExitCode = 0
                 # TransferOutput = "radical.txt"
@@ -923,7 +716,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
                             curr_info['stderr'] = val
 
                 if curr_info['returncode'] == 0:
->>>>>>> origin/titan
                     curr_info['state'] = saga.job.DONE
                 else:
                     curr_info['state'] = saga.job.FAILED
@@ -955,8 +747,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
                     elif key == 'CompletionDate':
                         curr_info['end_time'] = val
 
-<<<<<<< HEAD
-=======
         if curr_info['gone'] is True:
             # If we are running over SSH, copy the output to our local system
             if self.shell.url.scheme == "ssh":
@@ -999,7 +789,6 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
                     self._logger.info("Transferring file %s" % f)
                     self.shell.stage_from_remote(f, f)
 
->>>>>>> origin/titan
         # return the new job info dict
         return curr_info
 
@@ -1098,11 +887,7 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
             message = "Error canceling job via 'condor_rm': %s" % out
             log_error_and_raise(message, saga.NoSuccess, self._logger)
 
-<<<<<<< HEAD
-        # assume the job was succesfully canceld
-=======
         # assume the job was successfully canceled
->>>>>>> origin/titan
         self.jobs[job_id]['state'] = saga.job.CANCELED
 
     # ----------------------------------------------------------------
@@ -1188,11 +973,7 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
         """
         ids = []
 
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync("%s | grep `whoami`"\
-=======
         ret, out, _ = self.shell.run_sync("unset GREP_OPTIONS; %s | grep `whoami`"\
->>>>>>> origin/titan
             % self._commands['condor_q']['path'])
 
         if ret != 0 and len(out) > 0:
@@ -1206,11 +987,7 @@ class CondorJobService (saga.adaptors.cpi.job.Service):
                 # 112059.svc.uc.futuregrid testjob oweidner 0 Q batch
                 # 112061.svc.uc.futuregrid testjob oweidner 0 Q batch
                 if len(line.split()) > 1:
-<<<<<<< HEAD
-                    rm_clone = deepcopy(self.rm)
-=======
                     rm_clone = surl.Url (self.rm)
->>>>>>> origin/titan
                     rm_clone.query = ""
                     rm_clone.path = ""
 
@@ -1279,11 +1056,7 @@ class CondorJob (saga.adaptors.cpi.job.Job):
     #
     @SYNC_CALL
     def get_state(self):
-<<<<<<< HEAD
-        """ mplements saga.adaptors.cpi.job.Job.get_state()
-=======
         """ implements saga.adaptors.cpi.job.Job.get_state()
->>>>>>> origin/titan
         """
         if self._started is False:
             # jobs that are not started are always in 'NEW' state
