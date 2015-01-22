@@ -1,15 +1,10 @@
 
-<<<<<<< HEAD
-import redis
-
-=======
 __author__    = "Andre Merzky"
 __copyright__ = "Copyright 2013, The SAGA Project"
 __license__   = "MIT"
 
 
 import redis
->>>>>>> origin/titan
 
 r = redis.Redis (host='localhost', password='securedis')
 
