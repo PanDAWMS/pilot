@@ -1,33 +1,18 @@
 
-<<<<<<< HEAD
-__author__    = "Andre Merzky"
-=======
 __author__    = "Andre Merzky, Ole Weidner"
->>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-<<<<<<< HEAD
-=======
 import radical.utils.signatures as rus
->>>>>>> origin/titan
 
 import saga.adaptors.base    as sab
 import saga.attributes       as sa
 import saga.base             as sb
-<<<<<<< HEAD
-from   saga.constants import LIFE_TIME, REMOTE_ID, REMOTE_HOST, REMOTE_PORT, TOKEN
-from   saga.constants import TYPE, SERVER, USER_CERT, CERT_REPOSITORY
-from   saga.constants import USER_PROXY, USER_KEY, USER_ID, USER_PASS, USER_VO
-import saga.utils.signatures as sus
-
-=======
 
 from   saga.constants import TYPE,       SERVER,    USER_CERT,   CERT_REPOSITORY
 from   saga.constants import USER_PROXY, USER_KEY,  USER_ID,     USER_PASS,   USER_VO
 from   saga.constants import LIFE_TIME,  REMOTE_ID, REMOTE_HOST, REMOTE_PORT, TOKEN
->>>>>>> origin/titan
 
 # ------------------------------------------------------------------------------
 #
@@ -65,19 +50,11 @@ class Context (sb.Base, sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Context', 
-                  basestring, 
-                  sus.optional (sab.Base),
-                  sus.optional (dict))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Context', 
                   basestring, 
                   rus.optional (sab.Base),
                   rus.optional (dict))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def __init__ (self, ctype, _adaptor=None, _adaptor_state={}) : 
         '''
         ctype: string
@@ -114,13 +91,8 @@ class Context (sb.Base, sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Context')
-    @sus.returns (basestring)
-=======
     @rus.takes   ('Context')
     @rus.returns (basestring)
->>>>>>> origin/titan
     def __str__  (self) :
 
         d = self.as_dict ()
@@ -138,13 +110,8 @@ class Context (sb.Base, sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Context')
-    @sus.returns (basestring)
-=======
     @rus.takes   ('Context')
     @rus.returns (basestring)
->>>>>>> origin/titan
     def __repr__ (self) :
 
         return str(self)
@@ -152,25 +119,13 @@ class Context (sb.Base, sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes      ('Context', 
-                     ('Session', '_DefaultSession'))
-    @sus.returns    (sus.nothing)
-=======
     @rus.takes      ('Context', 
                      ('Session', '_DefaultSession'))
     @rus.returns    (rus.nothing)
->>>>>>> origin/titan
     def _initialize (self, session) :
         '''
         ret:  None
         '''
         self._adaptor._initialize (session)
 
-
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
-
->>>>>>> origin/titan
 

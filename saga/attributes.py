@@ -3,36 +3,6 @@ __author__    = "Andre Merzky, Ole Weidner"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
-<<<<<<< HEAD
-# >>> class MyDict(dict):
-# >>>     def __missing__(self, key):
-#             self[key] = rv = []
-#             return rv
-#    
-# >>> m = MyDict()
-# >>> m["foo"].append(1)
-# >>> m["foo"].append(2)
-# >>> dict(m)
-# {'foo': [1, 2]}
-
-""" Attribute interface """
-
-import datetime
-import datetime
-import inspect
-from   pprint import pprint
-import re
-import string
-import traceback
-
-import saga.exceptions       as se
-import saga.utils.signatures as sus
-
-
-# ------------------------------------------------------------------------------
-# FIXME: add a tagging 'Monitorable' interface, which enables callbacks.
-=======
-
 """ Attribute interface """
 
 import radical.utils            as ru
@@ -54,7 +24,6 @@ from   pprint import pprint
 # FIXME: add a tagging 'Monitorable' interface, which enables callbacks.
 
 
->>>>>>> origin/titan
 now   = datetime.datetime.now 
 never = datetime.datetime.min
 
@@ -188,24 +157,15 @@ class _AttributesBase (object) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('_AttributesBase')
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('_AttributesBase')
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def __init__ (self) :
         pass
 
 
 # ------------------------------------------------------------------------------
 #
-<<<<<<< HEAD
-class Attributes (_AttributesBase) :
-=======
 class Attributes (_AttributesBase, ru.DictMixin) :
->>>>>>> origin/titan
     """
     Attribute Interface Class
 
@@ -349,17 +309,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  sus.anything,
-                  sus.anything)
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   rus.anything,
                   rus.anything)
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def __init__ (self, *args, **kwargs) :
         """
         This method is not supposed to be directly called by the consumer of
@@ -368,11 +321,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         _attributes_t_init makes sure that the basic structures are in place on
         the attribute dictionary - this saves us ton of safety checks later on.
         """
-<<<<<<< HEAD
-        # FIXME: add the ability to initalize the attributes via a dict
 
-=======
->>>>>>> origin/titan
         # initialize state
         d = self._attributes_t_init ()
 
@@ -382,29 +331,20 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
         for arg in args :
             if  isinstance (arg, dict) :
-<<<<<<< HEAD
-                for key in arg.keys () :
-                    self.set_attribute (key, arg[key])
-=======
                 d['extensible']  = True   # it is just being extended ;)
                 d['camelcasing'] = True   # default for dict inits
                 for key in arg.keys () :
                     us_key = self._attributes_t_underscore (key)
                     self._attributes_i_set (us_key, arg[key], force=True, flow=self._UP)
->>>>>>> origin/titan
             else :
                 raise se.BadParameter ("initialization expects dictionary")
 
         for key in kwargs.keys () :
             self.set_attribute (key, kwargs[key])
 
-<<<<<<< HEAD
-=======
         # make iterable
         self._iterpos = 0
         self.list_attributes ()
-
->>>>>>> origin/titan
 
 
     # --------------------------------------------------------------------------
@@ -416,15 +356,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
     #
     # Naming: _attributes_t_*
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  sus.optional (basestring))
-    @sus.returns (dict)
-=======
     @rus.takes   ('Attributes', 
                   rus.optional (basestring))
     @rus.returns (dict)
->>>>>>> origin/titan
+
     def _attributes_t_init (self, key=None) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -462,11 +397,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
 
         # check if we know about the given attribute
-<<<<<<< HEAD
-        if key :
-=======
         if  key :
->>>>>>> origin/titan
             if not key in d['attributes'] :
                 raise se.DoesNotExist ("attribute key is invalid: %s"  %  (key))
 
@@ -476,15 +407,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring)
-    @sus.returns (basestring)
-=======
     @rus.takes   ('Attributes', 
                   basestring)
     @rus.returns (basestring)
->>>>>>> origin/titan
     def _attributes_t_keycheck (self, key) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -503,11 +428,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         d = self._attributes_t_init ()
 
         # perform name validity checks if key is new
-<<<<<<< HEAD
-        if not key in d['attributes'] :
-=======
         if  not key in d['attributes'] :
->>>>>>> origin/titan
             # FIXME: we actually don't have any tests, yet.  We should allow to
             # configure such via, say, _attributes_add_check (callable (key))
             pass
@@ -516,11 +437,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         # if key is known, check for aliasing
         else: 
             # check if we know about the given attribute
-<<<<<<< HEAD
-            if d['attributes'][key]['mode'] == ALIAS :
-=======
             if  d['attributes'][key]['mode'] == ALIAS :
->>>>>>> origin/titan
                 alias = d['attributes'][key]['alias']
                 print "attribute key / property name '%s' is deprecated - use '%s'"  %  (key, alias)
                 key   = alias
@@ -530,17 +447,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.anything)
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.anything)
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
+
     def _attributes_t_call_cb (self, key, val) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -554,11 +465,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         d = self._attributes_t_init (key)
 
         # avoid recursion
-<<<<<<< HEAD
-        if d['attributes'][key]['recursion'] :
-=======
         if  d['attributes'][key]['recursion'] :
->>>>>>> origin/titan
             return
 
         callbacks = d['attributes'][key]['callbacks']
@@ -579,28 +486,19 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                 d['attributes'][key]['recursion'] = False
 
             # remove callbacks which return 'False', or raised and exception
-<<<<<<< HEAD
-            if not ret :
-=======
             if  not ret :
->>>>>>> origin/titan
                 callbacks.remove (cb)
 
 
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.anything)
-    @sus.returns (sus.nothing)
-=======
+
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.anything)
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
+
     def _attributes_t_call_setter (self, key, val) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -613,16 +511,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         d = self._attributes_t_init (key)
 
         # avoid recursion
-<<<<<<< HEAD
-        if d['attributes'][key]['recursion'] :
-            return
-
-        # no callbacks for private keys
-        if key[0] == '_' and d['private'] :
-            return
-
-
-=======
         if  d['attributes'][key]['recursion'] :
             return
 
@@ -630,7 +518,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         if  key[0] == '_' and d['private'] :
             return
 
->>>>>>> origin/titan
         # key_setter overwrites results from all_setter
         all_setter = d['setter']
         key_setter = d['attributes'][key]['setter']
@@ -645,15 +532,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         #
         # always raise and lower the recursion shield.
         can_ignore = 0
-<<<<<<< HEAD
-        if all_setter and key_setter : can_ignore = 1
-
-        if all_setter :
-=======
         if  all_setter and key_setter : can_ignore = 1
 
         if  all_setter :
->>>>>>> origin/titan
             try :
                 d['attributes'][key]['recursion'] = True
                 all_setter (key, val)
@@ -666,11 +547,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
             finally :
                 d['attributes'][key]['recursion'] = False
 
-<<<<<<< HEAD
-        if key_setter :
-=======
         if  key_setter :
->>>>>>> origin/titan
             try :
                 d['attributes'][key]['recursion'] = True
                 key_setter (val)
@@ -684,15 +561,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring)
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring)
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_t_call_getter (self, key) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -705,19 +576,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         d = self._attributes_t_init (key)
 
         # avoid recursion
-<<<<<<< HEAD
-        if d['attributes'][key]['recursion'] :
-            return
-
-        # no callbacks for private keys
-        if key[0] == '_' and d['private'] :
-=======
         if  d['attributes'][key]['recursion'] :
             return
 
         # no callbacks for private keys
         if  key[0] == '_' and d['private'] :
->>>>>>> origin/titan
             return
 
         # key getter overwrites results from all_getter
@@ -725,15 +588,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         key_getter = d['attributes'][key]['getter']
 
 
-<<<<<<< HEAD
-        # # Note that attributes have a time-to-live (ttl).  If a _attributes_i_set
-        # # operation is attempted within 'time-of-last-update + ttl', the operation
-        # # is not triggering backend setter hooks, to avoid trashing (hooks are
-=======
         # # Note that attributes have a time-to-live (ttl).  If a _attributes_i_get
         # # operation is attempted within 'time-of-last-update + ttl', the operation
         # # is not triggering backend getter hooks, to avoid trashing (hooks are
->>>>>>> origin/titan
         # # expected to be costly).  The force flag set to True will request to call 
         # # registered getter hooks even if ttl is not yet expired.
         # 
@@ -749,11 +606,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
 
         # get the value from the native getter (from the backend), and
-<<<<<<< HEAD
-        # set it via the attribute setter.  The setter will not call
-=======
         # get it via the attribute getter.  The getter will not call
->>>>>>> origin/titan
         # attrib setters or callbacks, due to the recursion guard.
         #
         # If both are present, we can ignore *one* exception.  If one 
@@ -761,16 +614,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         #
         # always raise and lower the recursion shield.
         retries = 1
-<<<<<<< HEAD
-        if all_getter and key_getter : retries = 2
-
-        if all_getter :
-
-=======
         if  all_getter and key_getter : retries = 2
 
         if  all_getter :
->>>>>>> origin/titan
             try :
                 d['attributes'][key]['recursion'] = True
                 val=all_getter (key)
@@ -781,11 +627,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
             finally :
               d['attributes'][key]['recursion'] = False
 
-<<<<<<< HEAD
-        if key_getter :
-=======
         if  key_getter :
->>>>>>> origin/titan
             try :
                 d['attributes'][key]['recursion'] = True
                 val=key_getter ()
@@ -800,15 +642,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring)
-    @sus.returns (sus.list_of (basestring))
-=======
     @rus.takes   ('Attributes', 
                   basestring)
     @rus.returns (rus.list_of (basestring))
->>>>>>> origin/titan
     def _attributes_t_call_lister (self) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -821,11 +657,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         d = self._attributes_t_init ()
 
         # avoid recursion
-<<<<<<< HEAD
-        if d['recursion'] :
-=======
         if  d['recursion'] :
->>>>>>> origin/titan
             return
 
         lister = d['lister']
@@ -846,19 +678,12 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  int,
-                  callable)
-    @sus.returns (sus.anything)
-=======
+
     @rus.takes   ('Attributes', 
                   basestring,
                   int,
                   callable)
     @rus.returns (rus.anything)
->>>>>>> origin/titan
     def _attributes_t_call_caller (self, key, id, cb) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -871,28 +696,16 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         d = self._attributes_t_init (key)
 
         # avoid recursion
-<<<<<<< HEAD
-        if d['recursion'] :
-            return
-
-        # no callbacks for private keys
-        if key[0] == '_' and d['private'] :
-=======
         if  d['recursion'] :
             return
 
         # no callbacks for private keys
         if  key[0] == '_' and d['private'] :
->>>>>>> origin/titan
             return
 
         caller = d['caller']
 
-<<<<<<< HEAD
-        if caller :
-=======
         if  caller :
->>>>>>> origin/titan
 
             # the caller is simply called, and it is expected that it internally
             # adds/removes callbacks as needed
@@ -910,17 +723,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring)
-    @sus.returns (basestring)
-    def _attributes_t_underscore (self, key) :
-=======
     @rus.takes   ('Attributes', 
                   basestring)
     @rus.returns (basestring)
     def _attributes_t_underscore (self, key, force=False) :
->>>>>>> origin/titan
         """ 
         This internal function is not to be used by the consumer of this API.
 
@@ -933,12 +739,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         # make sure interface is ready to use
         d = self._attributes_t_init ()
 
-
-<<<<<<< HEAD
-        if d['camelcasing'] :
-=======
         if  force or d['camelcasing'] :
->>>>>>> origin/titan
             temp = Attributes._camel_case_regex_1.sub(r'\1_\2', key)
             return Attributes._camel_case_regex_2.sub(r'\1_\2', temp).lower()
         else :
@@ -948,15 +749,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring)
-    @sus.returns (sus.anything)
-=======
     @rus.takes   ('Attributes', 
                   basestring)
     @rus.returns (rus.anything)
->>>>>>> origin/titan
     def _attributes_t_conversion (self, key, val) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -975,22 +770,14 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         d = self._attributes_t_init ()
 
         # if the key is not known
-<<<<<<< HEAD
-        if not key in d['attributes'] :
-=======
         if  not key in d['attributes'] :
->>>>>>> origin/titan
             # cannot handle unknown attributes.  Attributes which have been
             # registered earlier will be fine, as they have type information.
             return val
 
         # check if a value is given.  If not, revert to the default value
         # (if available)
-<<<<<<< HEAD
-        if val == None :
-=======
         if  val == None :
->>>>>>> origin/titan
             if 'default' in d['attributes'][key] :
                 val = d['attributes'][key]['default']
 
@@ -1001,11 +788,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         # apply all value checks on the conversion result
         for check in d['attributes'][key]['checks'] :
             ret = check (key, val)
-<<<<<<< HEAD
-            if ret != True :
-=======
             if  ret != True :
->>>>>>> origin/titan
                 raise se.BadParameter ("attribute value %s is not valid: %s"  %  (key, ret))
 
         # aaaand done
@@ -1014,17 +797,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.anything)
-    @sus.returns (sus.anything)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.anything)
     @rus.returns (rus.anything)
->>>>>>> origin/titan
     def _attributes_t_conversion_flavor (self, key, val) :
         """ 
         This internal function is not to be used by the consumer of this API.
@@ -1034,11 +810,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         #        convert the flavors...
 
         # easiest conversion of them all... ;-)
-<<<<<<< HEAD
-        if val == None :
-=======
         if  val == None :
->>>>>>> origin/titan
             return None
 
         # make sure interface is ready to use.
@@ -1047,11 +819,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         # check if we need to serialize a list into a scalar
         f = d['attributes'][key]['flavor']
         t = d['attributes'][key]['type']
-<<<<<<< HEAD
-        if f == VECTOR :
-            # we want a vector
-            if isinstance (val, list) :
-=======
         if  f == ANY :
             # leave it alone
             return val
@@ -1059,7 +826,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         elif  f == VECTOR :
             # we want a vector
             if  isinstance (val, list) :
->>>>>>> origin/titan
                 # val is already vec - apply type conversion on all elems
                 ret = []
                 for elem in val :
@@ -1067,11 +833,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                 return ret
             else :
                 # need to create vec from scalar
-<<<<<<< HEAD
-                if isinstance (val, basestring) :
-=======
                 if  isinstance (val, basestring) :
->>>>>>> origin/titan
                     # for string values, we split on white spaces and type-convert 
                     # all elements
                     vec = val.split ()
@@ -1116,24 +878,16 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                 return out
 
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> origin/titan
             # can't handle any other types...
 
 
         elif f == SCALAR :
             # we want a scalar
-<<<<<<< HEAD
-=======
             
             if  t == ANY :
                 # no need to do anything, really
                 return val
 
->>>>>>> origin/titan
             if isinstance (val, list) :
                 # need to create scalar from vec
                 if len (val) > 1 :
@@ -1163,17 +917,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.anything)
-    @sus.returns (sus.anything)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.anything)
     @rus.returns (rus.anything)
->>>>>>> origin/titan
     def _attributes_t_conversion_type (self, key, val) :
         """ 
         This internal function is not to be used by the consumer of this API.
@@ -1202,15 +949,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring)
-    @sus.returns (basestring)
-=======
     @rus.takes   ('Attributes', 
                   basestring)
     @rus.returns (basestring)
->>>>>>> origin/titan
     def _attributes_t_wildcard2regex (self, pattern) :
         """ 
         This internal function is not to be used by the consumer of this API.
@@ -1306,33 +1047,19 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
         # if the key is not known
         if not key in d['attributes'] :
-<<<<<<< HEAD
-            if key[0] == '_' and d['private'] :
-                # if the set is private, we can register the new key.  It
-                # won't have any callbacks at this point.
-                self._attributes_register (key, None, ANY, SCALAR, WRITEABLE,
-                        EXTENDED, flow=flow)
-=======
-
             if key[0] == '_' and d['private'] :
                 # if the set is private, we can register the new key.  It
                 # won't have any callbacks at this point.
                 self._attributes_register (key, None, ANY, ANY, WRITEABLE, EXTENDED, flow=flow)
->>>>>>> origin/titan
 
             elif flow==self._UP or d['extensible'] :
                 # if the set is extensible, we can register the new key.  It
                 # won't have any callbacks at this point.
-<<<<<<< HEAD
-                self._attributes_register (key, None, ANY, SCALAR, WRITEABLE,
-                        EXTENDED, flow=flow)
-=======
                 self._attributes_register (key, None, ANY, ANY, WRITEABLE, EXTENDED, flow=flow)
 
             elif force :
                 # someone *really* wants this attrib to be set...
                 self._attributes_register (key, None, ANY, SCALAR, WRITEABLE, EXTENDED, flow=flow)
->>>>>>> origin/titan
 
             else :
                 # we cannot add new keys on non-extensible / non-private sets
@@ -1446,11 +1173,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         # call list hooks to update state for listing
         self._attributes_t_call_lister ()
 
-<<<<<<< HEAD
-        ret = []
-=======
         ret    = []
->>>>>>> origin/titan
         for key in sorted(d['attributes'].iterkeys()) :
             if d['attributes'][key]['mode'] != ALIAS :
                 if d['attributes'][key]['exists'] :
@@ -1476,10 +1199,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         return ret
 
 
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/titan
     # --------------------------------------------------------------------------
     #
     def _attributes_i_find (self, pattern, flow) :
@@ -1525,11 +1244,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         # now dig out matching keys. List hooks are triggered in
         # _attributes_i_list(flow).
         matches = []
-<<<<<<< HEAD
-        for key in self._attributes_i_list (flow) :
-=======
         for key in self._attributes_i_list (flow=flow) :
->>>>>>> origin/titan
             val = str(self._attributes_i_get (key, flow=flow))
 
             if ( (pc_key == None) or pc_key.search (key) ) and \
@@ -1541,17 +1256,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (bool)
->>>>>>> origin/titan
     def _attributes_i_exists (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1577,17 +1285,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (bool)
->>>>>>> origin/titan
     def _attributes_i_is_extended (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1607,17 +1308,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (bool)
->>>>>>> origin/titan
     def _attributes_i_is_private (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1637,17 +1331,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (bool)
->>>>>>> origin/titan
     def _attributes_i_is_readonly (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1672,17 +1359,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (bool)
->>>>>>> origin/titan
     def _attributes_i_is_writeable (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1698,17 +1378,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (bool)
->>>>>>> origin/titan
     def _attributes_i_is_removable (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1727,17 +1400,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (bool)
->>>>>>> origin/titan
     def _attributes_i_is_vector (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1758,17 +1424,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (bool)
->>>>>>> origin/titan
     def _attributes_i_is_final (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1792,19 +1451,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  callable,
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (int)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   callable,
                   rus.one_of (_UP, _DOWN))
     @rus.returns (int)
->>>>>>> origin/titan
     def _attributes_i_add_cb (self, key, cb, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1828,19 +1479,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.optional (int),
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.optional (int),
                   rus.one_of (_UP, _DOWN))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_i_del_cb (self, key, id=None, flow=_DOWN) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1877,19 +1520,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
     #
     # Naming: _attributes_*
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.optional (sus.optional (sus.anything)),
-                  sus.optional (sus.one_of (ANY, URL, INT, FLOAT, STRING, BOOL, ENUM, TIME)),
-                  sus.optional (sus.one_of (SCALAR, VECTOR, DICT)),
-                  sus.optional (sus.one_of (READONLY, WRITEABLE, ALIAS, FINAL)),
-                  sus.optional (sus.one_of (bool, EXTENDED)),
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-    def _attributes_register (self, key, default=None, typ=ANY, flavor=SCALAR,
-                              mode=WRITEABLE, ext=False, flow=_DOWN) :
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.optional (rus.optional (rus.anything)),
@@ -1901,7 +1531,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
     @rus.returns (rus.nothing)
     def _attributes_register (self, key,      default=None, typ=ANY, flavor=ANY,
                               mode=WRITEABLE, ext=False,    flow=_DOWN) :
->>>>>>> origin/titan
         """
         This interface method is not part of the public consumer API, but can
         safely be called from within derived classes.
@@ -1930,15 +1559,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         # retain old values
         val    = default
         exists = False
-<<<<<<< HEAD
-        if us_key in  d['attributes'] :
-=======
 
         if  default != None :
             exists = True
 
         if us_key in d['attributes'] :
->>>>>>> origin/titan
             val    = d['attributes'][us_key]['value']
             exists = True
 
@@ -1995,21 +1620,12 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (sus.nothing)
-    def _attributes_register_deprecated (self, key, alias, flow) :
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (rus.nothing)
     def _attributes_register_deprecated (self, key, alias, flow=_DOWN) :
->>>>>>> origin/titan
         """
         Often enough, there is the need to use change attribute names.  It is
         good practice to not simply rename attributes, and thus effectively
@@ -2033,11 +1649,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
             # new code
             self._attributes_register ('fruit', 'Appel', STRING, SCALAR, WRITEABLE)
-<<<<<<< HEAD
-            self._attributes_register_deprecated ('apple', 'fruit)
-=======
             self._attributes_register_deprecated ('apple', 'fruit')
->>>>>>> origin/titan
 
         In some cases, you may want to deprecate a variable and not replace it
         with a new one.  In order to keep this interface simple, this can be
@@ -2045,11 +1657,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
             # new code
             self._attributes_register ('deprecated_apple', 'Appel', STRING, SCALAR, WRITEABLE)
-<<<<<<< HEAD
-            self._attributes_register_deprecated ('apple', 'deprecated_apple)
-=======
             self._attributes_register_deprecated ('apple', 'deprecated_apple')
->>>>>>> origin/titan
 
         This way, the user will either see a warning, or has to explicitly use
         'deprecated_apple' as attribute name -- which should be warning enough,
@@ -2080,17 +1688,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_unregister (self, key, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2120,17 +1721,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.one_of (_UP, _DOWN))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_remove (self, key, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2152,19 +1746,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.optional (sus.list_of (sus.anything)),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.optional (rus.list_of (rus.anything)),
                   rus.optional (rus.one_of  (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_set_enums (self, key, enums=None, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2182,16 +1768,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  sus.optional (bool),
-                  sus.optional (callable),
-                  sus.optional (callable),
-                  sus.optional (callable),
-                  sus.optional (callable),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   rus.optional (bool),
                   rus.optional (callable),
@@ -2200,7 +1776,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                   rus.optional (callable),
                   rus.optional (rus.one_of  (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_extensible (self, e=True, 
                                 getter=None, setter=None, 
                                 lister=None, caller=None, 
@@ -2227,17 +1802,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  sus.optional (bool),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   rus.optional (bool),
                   rus.optional (rus.one_of  (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_allow_private (self, p=True, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2256,17 +1824,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  sus.optional (bool),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   rus.optional (bool),
                   rus.optional (rus.one_of  (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_camelcasing (self, c=True, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2285,17 +1846,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  'Attributes', 
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns ('Attributes')
-=======
     @rus.takes   ('Attributes', 
                   'Attributes', 
                   rus.optional (rus.one_of  (_UP, _DOWN)))
     @rus.returns ('Attributes')
->>>>>>> origin/titan
     def _attributes_deep_copy (self, other, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2354,21 +1908,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
             if d['attributes'][key]['private' ] and key in orig_d['attributes'] :
                 # don't copy private keys
                 other_d['attributes'][key] = orig_d['attributes'][key]
-<<<<<<< HEAD
-                continue
-
-            if        d['attributes'][key]['value'] == None :
-                other_d['attributes'][key]['value'] = None
-            else :
-                if        d['attributes'][key]['flavor'] == VECTOR :
-                    other_d['attributes'][key]['value']  = list (d['attributes'][key]['value'])
-                else :
-                    other_d['attributes'][key]['value']  =       d['attributes'][key]['value']
-=======
 
             else :
                 other_d['attributes'][key]['value']  = copy.deepcopy (d['attributes'][key]['value'])
->>>>>>> origin/titan
 
         # set the new dictionary as state for copied class
         _AttributesBase.__setattr__ (other, '_d', other_d)
@@ -2378,12 +1920,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  sus.optional (basestring),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes',
                   ('Attributes', dict))
     @rus.returns ('Attributes')
@@ -2398,7 +1934,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                   rus.optional (basestring),
                   rus.optional (rus.one_of  (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_dump (self, msg=None, flow=_DOWN) :
         """ 
         This interface method is not part of the public consumer API, but can
@@ -2411,11 +1946,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         d = self._attributes_t_init ()
 
 
-<<<<<<< HEAD
-        keys_all   = sorted (d['attributes'].iterkeys ())
-=======
         keys_all = sorted (d['attributes'].iterkeys ())
->>>>>>> origin/titan
 
         print "---------------------------------------"
         print str (type (self))
@@ -2432,12 +1963,8 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
         keys_exist = []
         for key in keys_all :
-<<<<<<< HEAD
-            if  d['attributes'][key]['exists'] :
-=======
             if  'exists' in d['attributes'][key] and \
                 d['attributes'][key]['exists']   :
->>>>>>> origin/titan
                 keys_exist.append (key)
 
         print "'Registered' attributes"
@@ -2450,11 +1977,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                               d['attributes'][key]['type'],
                               d['attributes'][key]['flavor'],
                               d['attributes'][key]['mode'],
-<<<<<<< HEAD
-                      len(d['attributes'][key]['callbacks']),
-=======
                           len(d['attributes'][key]['callbacks']),
->>>>>>> origin/titan
                               d['attributes'][key]['value']
                               )
 
@@ -2485,11 +2008,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                               d['attributes'][key]['type'],
                               d['attributes'][key]['flavor'],
                               d['attributes'][key]['mode'],
-<<<<<<< HEAD
-                      len(d['attributes'][key]['callbacks']),
-=======
                           len(d['attributes'][key]['callbacks']),
->>>>>>> origin/titan
                               d['attributes'][key]['value']
                               )
 
@@ -2510,19 +2029,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.anything),
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.anything),
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_set_final (self, key, val=None, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2562,19 +2073,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (float),
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (float),
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_set_ttl (self, key, ttl=0.0, flow=_DOWN) :
         """ set attributes TTL in seconds (float) -- see L{_attributes_i_set} """
 
@@ -2588,19 +2091,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   callable,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_add_check (self, key, check, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2627,19 +2122,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   callable,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_set_getter (self, key, getter, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2697,19 +2184,12 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
+
     @rus.takes   ('Attributes', 
                   basestring,
                   callable,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_set_setter (self, key, setter, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2728,17 +2208,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   callable,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_set_global_lister (self, lister, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2755,17 +2228,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   callable,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_set_global_caller (self, caller, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2782,19 +2248,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-    def _attributes_set_global_getter (self, getter, flow) :
-=======
     @rus.takes   ('Attributes', 
                   callable,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
     def _attributes_set_global_getter (self, getter, flow=_DOWN) :
->>>>>>> origin/titan
         """
         This interface method is not part of the public consumer API, but can
         safely be called from within derived classes.
@@ -2810,17 +2268,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   callable,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def _attributes_set_global_setter (self, setter, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2842,19 +2293,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
     # The GFD.90 interface supports CamelCasing, and thus converts all keys to
     # underscore before using them.
     # 
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.anything,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.anything,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def set_attribute (self, key, val, _flow=_DOWN) :
         """
         set_attribute(key, val)
@@ -2890,17 +2333,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.anything)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.anything)
->>>>>>> origin/titan
     def get_attribute (self, key, _flow=_DOWN) :
         """
         get_attribute(key)
@@ -2918,19 +2354,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.list_of (sus.anything),
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.list_of (rus.anything),
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def set_vector_attribute (self, key, val, _flow=_DOWN) :
         """
         set_vector_attribute (key, val)
@@ -2949,17 +2377,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.list_of (sus.anything))
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.list_of (rus.anything))
->>>>>>> origin/titan
     def get_vector_attribute (self, key, _flow=_DOWN) :
         """
         get_vector_attribute (key)
@@ -2978,17 +2399,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def remove_attribute (self, key, _flow=_DOWN) :
         """
         remove_attribute (key)
@@ -3006,15 +2420,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.list_of (basestring))
-=======
     @rus.takes   ('Attributes', 
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.list_of (basestring))
->>>>>>> origin/titan
     def list_attributes (self, _flow=_DOWN) :
         """
         list_attributes ()
@@ -3022,26 +2430,15 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         List all attributes which have been explicitly set. 
         """
 
-<<<<<<< HEAD
-        return self._attributes_i_list (_flow)
-=======
         return self._attributes_i_list (flow=_flow)
->>>>>>> origin/titan
 
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.list_of (basestring))
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.list_of (basestring))
->>>>>>> origin/titan
     def find_attributes (self, pattern, _flow=_DOWN) :
         """
         find_attributes (pattern)
@@ -3057,17 +2454,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (bool)
->>>>>>> origin/titan
     def attribute_exists (self, key, _flow=_DOWN) :
         """
         attribute_exist (key)
@@ -3083,17 +2473,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (bool)
->>>>>>> origin/titan
     def attribute_is_readonly (self, key, _flow=_DOWN) :
         """
         attribute_is_readonly (key)
@@ -3109,17 +2492,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (bool)
->>>>>>> origin/titan
     def attribute_is_writeable (self, key, _flow=_DOWN) :
         """
         attribute_is_writeable (key)
@@ -3134,17 +2510,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (bool)
->>>>>>> origin/titan
     def attribute_is_removable (self, key, _flow=_DOWN) :
         """
         attribute_is_writeable (key)
@@ -3159,17 +2528,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (bool)
->>>>>>> origin/titan
     def attribute_is_vector (self, key, _flow=_DOWN) :
         """
         attribute_is_vector (key)
@@ -3186,19 +2548,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
     #
     # fold the GFD.90 monitoring API into the attributes API
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  callable, 
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (int)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   callable, 
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (int)
->>>>>>> origin/titan
     def add_callback (self, key, cb, _flow=_DOWN) :
         """
         add_callback (key, cb)
@@ -3236,19 +2590,11 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring,
-                  int, 
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring,
                   int, 
                   rus.optional (rus.one_of (_UP, _DOWN)))
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def remove_callback (self, key, id, _flow=_DOWN) :
         """
         remove_callback (key, id)
@@ -3273,15 +2619,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
     #
     # we assume that properties are always used in under_score notation.
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring)
-    @sus.returns (sus.anything)
-=======
     @rus.takes   ('Attributes', 
                   basestring)
     @rus.returns (rus.anything)
->>>>>>> origin/titan
     def __getattr__ (self, key) :
         """ see L{get_attribute} (key) for details. """
         
@@ -3291,17 +2631,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring, 
-                  sus.anything)
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring, 
                   rus.anything)
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def __setattr__ (self, key, val) :
         """ see L{set_attribute} (key, val) for details. """
 
@@ -3311,15 +2644,9 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes', 
-                  basestring)
-    @sus.returns (sus.nothing)
-=======
     @rus.takes   ('Attributes', 
                   basestring)
     @rus.returns (rus.nothing)
->>>>>>> origin/titan
     def __delattr__ (self, key) :
         """ see L{remove_attribute} (key) for details. """
         
@@ -3328,33 +2655,20 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    @sus.takes   ('Attributes')
-    @sus.returns (basestring)
-    def __str__  (self) :
-        """ return a string representation of all set attributes """
-
-        s = "%s %s" % (type(self), str(self.as_dict))
-=======
     @rus.takes   ('Attributes')
     @rus.returns (basestring)
     def __str__  (self) :
         """ return a string representation of all set attributes """
 
         s = "%s %s" % (type(self), str(self.as_dict()))
->>>>>>> origin/titan
 
         return s
 
 
-<<<<<<< HEAD
-    ####################################
-=======
     # --------------------------------------------------------------------------
     #
     @rus.takes   ('Attributes')
     @rus.returns (dict)
->>>>>>> origin/titan
     def as_dict (self) :
         """ return a dict representation of all set attributes """
 
@@ -3366,8 +2680,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         return d
 
 
-<<<<<<< HEAD
-=======
     # --------------------------------------------------------------------------
     #
     # Python dictionary interface, via the DictMixin
@@ -3419,7 +2731,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
 
 
->>>>>>> origin/titan
 # ------------------------------------------------------------------------------
 
 # FIXME: add 
@@ -3429,17 +2740,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 #   - fire_metric()
 #   - list_metrics()
 #   - get_metric()
-<<<<<<< HEAD
-#   - list_calbacks()
-
-# ------------------------------------------------------------------------------
-
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
 #   - list_callbacks()
 
 # ------------------------------------------------------------------------------
-
-
->>>>>>> origin/titan
 
