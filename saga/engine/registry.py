@@ -1,9 +1,5 @@
 
-<<<<<<< HEAD
-__author__    = "Andre Merzky, Ashley Z, Ole Weidner"
-=======
 __author__    = "Andre Merzky, Ole Weidner"
->>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
@@ -32,13 +28,6 @@ adaptor_registry = [
                     "saga.adaptors.redis.redis_advert",
                     "saga.adaptors.sge.sgejob",
                     "saga.adaptors.pbs.pbsjob",
-<<<<<<< HEAD
-                    "saga.adaptors.irods.irods_replica",
-                    "saga.adaptors.condor.condorjob",
-                    "saga.adaptors.slurm.slurm_job",
-                    "saga.adaptors.http.http_file",
-                    "saga.adaptors.aws.ec2_resource"
-=======
                     "saga.adaptors.lsf.lsfjob",
                     # "saga.adaptors.irods.irods_replica",
                     "saga.adaptors.condor.condorjob",
@@ -47,5 +36,4 @@ adaptor_registry = [
                     "saga.adaptors.aws.ec2_resource",
                     "saga.adaptors.loadl.loadljob",
                     "saga.adaptors.globus_online.go_file"
->>>>>>> origin/titan
                    ]
