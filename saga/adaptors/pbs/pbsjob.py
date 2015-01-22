@@ -1,9 +1,5 @@
 
-<<<<<<< HEAD
-__author__    = "Andre Merzky, Mark Santcroos, Ole Weidner"
-=======
 __author__    = "Andre Merzky, Ole Weidner"
->>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
@@ -11,28 +7,6 @@ __license__   = "MIT"
 """ PBS job adaptor implementation
 """
 
-<<<<<<< HEAD
-from cgi  import parse_qs
-from copy import deepcopy
-import os 
-import re
-import threading
-import time
-
-import saga.adaptors.base
-import saga.adaptors.cpi.job
-from saga.job.constants import *
-import saga.utils.pty_shell
-import saga.utils.threads   as sut
-import saga.utils.which
-
-
-SYNC_CALL = saga.adaptors.cpi.decorators.SYNC_CALL
-ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
-
-SYNC_WAIT_UPDATE_INTERVAL = 1  # seconds
-MONITOR_UPDATE_INTERVAL = 3  # seconds
-=======
 import threading
 
 import saga.url             as surl
@@ -54,7 +28,6 @@ ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
 
 SYNC_WAIT_UPDATE_INTERVAL =  1  # seconds
 MONITOR_UPDATE_INTERVAL   = 60  # seconds
->>>>>>> origin/titan
 
 
 # --------------------------------------------------------------------
@@ -66,11 +39,7 @@ class _job_state_monitor(threading.Thread):
 
         self.logger = job_service._logger
         self.js = job_service
-<<<<<<< HEAD
-        self._stop = sut.Event()
-=======
         self._stop = threading.Event()
->>>>>>> origin/titan
 
         super(_job_state_monitor, self).__init__()
         self.setDaemon(True)
@@ -83,43 +52,6 @@ class _job_state_monitor(threading.Thread):
         return self._stop.isSet()
 
     def run(self):
-<<<<<<< HEAD
-        while self.stopped() is False:
-            try:
-                # do bulk updates here! we don't want to pull information
-                # job by job. that would be too inefficient!
-                jobs = self.js.jobs
-                job_keys = jobs.keys()
-
-                for job in job_keys:
-                    # if the job hasn't been started, we can't update its
-                    # state. we can tell if a job has been started if it
-                    # has a job id
-                    if jobs[job]['job_id'] is not None:
-                        # we only need to monitor jobs that are not in a
-                        # terminal state, so we can skip the ones that are 
-                        # either done, failed or canceled
-                        state = jobs[job]['state']
-                        if (state != saga.job.DONE) and (state != saga.job.FAILED) and (state != saga.job.CANCELED):
-
-                            job_info = self.js._job_get_info(job)
-                            self.logger.info("Job monitoring thread updating Job %s (state: %s)" % (job, job_info['state']))
-
-                            if job_info['state'] != jobs[job]['state']:
-                                # fire job state callback if 'state' has changed
-                                if job._api() is not None:
-                                    job._api()._attributes_i_set('state', job_info['state'], job._api()._UP, True)
-                                else:
-                                    self.logger.warning("api() object is 'None' for job object %s - can't fire callback." % str(job))
-
-                            # update job info
-                            self.js.jobs[job] = job_info
-
-                time.sleep(MONITOR_UPDATE_INTERVAL)
-            except Exception as e:
-                self.logger.warning("Exception caught in job monitoring thread: %s" % e)
-
-=======
 
         while self.stopped() is False:
 
@@ -157,7 +89,6 @@ class _job_state_monitor(threading.Thread):
             finally :
                 time.sleep (MONITOR_UPDATE_INTERVAL)
 
->>>>>>> origin/titan
 
 # --------------------------------------------------------------------
 #
@@ -173,13 +104,9 @@ def log_error_and_raise(message, exception, logger):
 def _pbs_to_saga_jobstate(pbsjs):
     """ translates a pbs one-letter state to saga
     """
-<<<<<<< HEAD
-    if pbsjs == 'C':
-=======
     if pbsjs == 'C': # Torque
         return saga.job.DONE
     elif pbsjs == 'F': # PBS Pro
->>>>>>> origin/titan
         return saga.job.DONE
     elif pbsjs == 'E':
         return saga.job.RUNNING
@@ -218,11 +145,7 @@ def _pbscript_generator(url, logger, jd, ppn, pbs_version, is_cray=False, queue=
     if jd.name is not None:
         pbs_params += "#PBS -N %s \n" % jd.name
 
-<<<<<<< HEAD
-    if is_cray is False:
-=======
     if (is_cray is "") or not('Version: 4.2.7' in pbs_version):
->>>>>>> origin/titan
         # qsub on Cray systems complains about the -V option:
         # Warning:
         # Your job uses the -V option, which requests that all of your
@@ -243,14 +166,9 @@ def _pbscript_generator(url, logger, jd, ppn, pbs_version, is_cray=False, queue=
 
     # a workaround is to do an explicit 'cd'
     if jd.working_directory is not None:
-<<<<<<< HEAD
-        workdir_directives  = 'export PBS_O_WORKDIR=%s \n' % jd.working_directory
-        workdir_directives += 'cd $PBS_O_WORKDIR \n'
-=======
         workdir_directives  = 'export    PBS_O_WORKDIR=%s \n' % jd.working_directory
         workdir_directives += 'mkdir -p  %s\n' % jd.working_directory
         workdir_directives += 'cd        %s\n' % jd.working_directory
->>>>>>> origin/titan
     else:
         workdir_directives = ''
 
@@ -299,9 +217,6 @@ def _pbscript_generator(url, logger, jd, ppn, pbs_version, is_cray=False, queue=
         pbs_params += "#PBS -q %s \n" % queue
 
     if jd.project is not None:
-<<<<<<< HEAD
-        pbs_params += "#PBS -A %s \n" % str(jd.project)
-=======
         if 'PBSPro_1' in pbs_version:
             # On PBS Pro we set both -P(roject) and -A(accounting),
             # as we don't know what the admins decided, and just
@@ -312,7 +227,6 @@ def _pbscript_generator(url, logger, jd, ppn, pbs_version, is_cray=False, queue=
             # Torque
             pbs_params += "#PBS -A %s \n" % str(jd.project)
 
->>>>>>> origin/titan
     if jd.job_contact is not None:
         pbs_params += "#PBS -m abe \n"
 
@@ -320,36 +234,6 @@ def _pbscript_generator(url, logger, jd, ppn, pbs_version, is_cray=False, queue=
     if jd.total_cpu_count is None:
         jd.total_cpu_count = 1
 
-<<<<<<< HEAD
-    if is_cray is True:
-        # Special cases for PBS/TORQUE on Cray. Different PBSes,
-        # different flags. A complete nightmare...
-        if 'PBSPro_10' in pbs_version:
-            logger.info("Using Cray specific '#PBS -l mppwidth=xx' flags (PBSPro_10).")
-            if jd.total_cpu_count is not None:
-                pbs_params += "#PBS -l mppwidth=%s \n" % jd.total_cpu_count
-        elif '4.2.6' in pbs_version:
-            logger.info("Using Titan (Cray XP) specific '#PBS -l nodes=xx' against '#PBS -l size=xx'.")
-            nnodes = int(jd.total_cpu_count)//int(ppn)
-            if nnodes: 
-                pbs_params += "#PBS -l nodes=%s \n" % str(nnodes)
-            else:
-                pbs_params += "#PBS -l nodes=1 \n"
-        else:
-            logger.info("Using Cray XT specific '#PBS -l size=xx' flags (TORQUE).")
-            if jd.total_cpu_count is not None:
-                pbs_params += "#PBS -l size=%s \n" % jd.total_cpu_count
-    else:
-        # Default case, i.e, standard HPC cluster (non-Cray)
-        tcc = int(jd.total_cpu_count)
-        tbd = float(tcc) / float(ppn)
-        if float(tbd) > int(tbd):
-            pbs_params += "#PBS -l nodes=%s:ppn=%s \n" \
-                % (str(int(tbd) + 1), ppn)
-        else:
-            pbs_params += "#PBS -l nodes=%s:ppn=%s \n" \
-                % (str(int(tbd)), ppn)
-=======
     tcc = jd.total_cpu_count
     nnodes = tcc / ppn
     if tcc % ppn > 0:
@@ -392,7 +276,6 @@ def _pbscript_generator(url, logger, jd, ppn, pbs_version, is_cray=False, queue=
             ppn = jd.total_cpu_count
 
         pbs_params += "#PBS -l nodes=%d:ppn=%d \n" % (nnodes, ppn)
->>>>>>> origin/titan
 
     # escape all double quotes and dollarsigns, otherwise 'echo |'
     # further down won't work
@@ -499,18 +382,10 @@ class Adaptor (saga.adaptors.base.Base):
     #
     def __init__(self):
 
-<<<<<<< HEAD
-        saga.adaptors.base.Base.__init__(self,
-            _ADAPTOR_INFO, _ADAPTOR_OPTIONS)
-
-        self.id_re = re.compile('^\[(.*)\]-\[(.*?)\]$')
-        self.opts = self.get_config()
-=======
         saga.adaptors.base.Base.__init__(self, _ADAPTOR_INFO, _ADAPTOR_OPTIONS)
 
         self.id_re = re.compile('^\[(.*)\]-\[(.*?)\]$')
         self.opts  = self.get_config (_ADAPTOR_NAME)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -584,13 +459,8 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
         """
         self.rm      = rm_url
         self.session = session
-<<<<<<< HEAD
-        self.ppn     = 1
-        self.is_cray = False
-=======
         self.ppn     = None
         self.is_cray = ""
->>>>>>> origin/titan
         self.queue   = None
         self.shell   = None
         self.jobs    = dict()
@@ -600,11 +470,7 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
         self.mt.start()
 
         rm_scheme = rm_url.scheme
-<<<<<<< HEAD
-        pty_url   = deepcopy(rm_url)
-=======
         pty_url   = surl.Url(rm_url)
->>>>>>> origin/titan
 
         # this adaptor supports options that can be passed via the
         # 'query' component of the job service URL.
@@ -612,12 +478,6 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
             for key, val in parse_qs(rm_url.query).iteritems():
                 if key == 'queue':
                     self.queue = val[0]
-<<<<<<< HEAD
-
-
-        # we need to extrac the scheme for PTYShell. That's basically the
-        # job.Serivce Url withou the pbs+ part. We use the PTYShell to execute
-=======
                 elif key == 'craytype':
                     self.is_cray = val[0]
                 elif key == 'ppn':
@@ -626,7 +486,6 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
 
         # we need to extract the scheme for PTYShell. That's basically the
         # job.Service Url without the pbs+ part. We use the PTYShell to execute
->>>>>>> origin/titan
         # pbs commands either locally or via gsissh or ssh.
         if rm_scheme == "pbs":
             pty_url.scheme = "fork"
@@ -637,21 +496,13 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
 
         # these are the commands that we need in order to interact with PBS.
         # the adaptor will try to find them during initialize(self) and bail
-<<<<<<< HEAD
-        # out in case they are note avaialbe.
-=======
         # out in case they are note available.
->>>>>>> origin/titan
         self._commands = {'pbsnodes': None,
                           'qstat':    None,
                           'qsub':     None,
                           'qdel':     None}
 
-<<<<<<< HEAD
-        self.shell = saga.utils.pty_shell.PTYShell(pty_url, self.session)
-=======
         self.shell = sups.PTYShell(pty_url, self.session)
->>>>>>> origin/titan
 
       # self.shell.set_initialize_hook(self.initialize)
       # self.shell.set_finalize_hook(self.finalize)
@@ -693,28 +544,6 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
         # let's try to figure out if we're working on a Cray XT machine.
         # naively, we assume that if we can find the 'aprun' command in the
         # path that we're logged in to a Cray machine.
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync('which aprun')
-        if ret != 0:
-            self.is_cray = False
-        else:
-            self._logger.info("Host '%s' seems to be a Cray XT class machine." \
-                % self.rm.host)
-            self.is_cray = True
-
-        # see if we can get some information about the cluster, e.g.,
-        # different queues, number of processes per node, etc.
-        # TODO: this is quite a hack. however, it *seems* to work quite
-        #       well in practice.
-        ret, out, _ = self.shell.run_sync('%s -a | egrep "(np|pcpu)"' % \
-            self._commands['pbsnodes']['path'])
-        if ret != 0:
-
-            message = "Error running pbsnodes: %s" % out
-            log_error_and_raise(message, saga.NoSuccess, self._logger)
-        else:
-            # this is black magic. we just assume that the highest occurence
-=======
         if self.is_cray == "":
             ret, out, _ = self.shell.run_sync('which aprun')
             if ret != 0:
@@ -747,49 +576,30 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
             log_error_and_raise(message, saga.NoSuccess, self._logger)
         else:
             # this is black magic. we just assume that the highest occurrence
->>>>>>> origin/titan
             # of a specific np is the number of processors (cores) per compute
             # node. this equals max "PPN" for job scripts
             ppn_list = dict()
             for line in out.split('\n'):
                 np = line.split(' = ')
                 if len(np) == 2:
-<<<<<<< HEAD
-                    np = np[1].strip()
-=======
                     np_str = np[1].strip()
                     if np_str == '<various>':
                         continue
                     else:
                         np = int(np_str)
->>>>>>> origin/titan
                     if np in ppn_list:
                         ppn_list[np] += 1
                     else:
                         ppn_list[np] = 1
             self.ppn = max(ppn_list, key=ppn_list.get)
-<<<<<<< HEAD
-            self._logger.debug("Found the following 'ppn' configurations: %s. \
-    Using %s as default ppn." 
-                % (ppn_list, self.ppn))
-=======
             self._logger.debug("Found the following 'ppn' configurations: %s. "
                 "Using %s as default ppn."  % (ppn_list, self.ppn))
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
     def _job_run(self, job_obj):
         """ runs a job via qsub
         """
-<<<<<<< HEAD
-        # get the job description
-        jd = job_obj.jd
-
-        if (self.queue is not None) and (jd.queue is not None):
-            self._logger.warning("Job service was instantiated explicitly with \
-'queue=%s', but job description tries to a differnt queue: '%s'. Using '%s'." %
-=======
 
         # get the job description
         jd = job_obj.get_description()
@@ -801,7 +611,6 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
         if (self.queue is not None) and (jd.queue is not None):
             self._logger.warning("Job service was instantiated explicitly with \
 'queue=%s', but job description tries to a different queue: '%s'. Using '%s'." %
->>>>>>> origin/titan
                                 (self.queue, jd.queue, self.queue))
 
         try:
@@ -817,13 +626,8 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
             log_error_and_raise(str(ex), saga.BadParameter, self._logger)
 
         # try to create the working directory (if defined)
-<<<<<<< HEAD
-        # WRANING: this assumes a shared filesystem between login node and
-        #           comnpute nodes.
-=======
         # WARNING: this assumes a shared filesystem between login node and
         #          compute nodes.
->>>>>>> origin/titan
         if jd.working_directory is not None:
             self._logger.info("Creating working directory %s" % jd.working_directory)
             ret, out, _ = self.shell.run_sync("mkdir -p %s" % (jd.working_directory))
@@ -836,11 +640,7 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
         # (1) we create a temporary file with 'mktemp' and write the contents of 
         #     the generated PBS script into it
         # (2) we call 'qsub <tmpfile>' to submit the script to the queueing system
-<<<<<<< HEAD
-        cmdline = """SCRIPTFILE=`mktemp -t SAGA-Python-PBSJobScript.XXXXXX` &&  echo "%s" > $SCRIPTFILE && %s $SCRIPTFILE""" %  (script, self._commands['qsub']['path'])
-=======
         cmdline = """SCRIPTFILE=`mktemp -t SAGA-Python-PBSJobScript.XXXXXX` &&  echo "%s" > $SCRIPTFILE && %s $SCRIPTFILE && rm -f $SCRIPTFILE""" %  (script, self._commands['qsub']['path'])
->>>>>>> origin/titan
         ret, out, _ = self.shell.run_sync(cmdline)
 
         if ret != 0:
@@ -865,16 +665,6 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
             job_id = "[%s]-[%s]" % (self.rm, lines[-1].strip().split('.')[0])
             self._logger.info("Submitted PBS job with id: %s" % job_id)
 
-<<<<<<< HEAD
-            # update job dictionary
-            self.jobs[job_obj]['job_id'] = job_id
-            self.jobs[job_obj]['submitted'] = job_id
-
-            # set status to 'pending' and manually trigger callback
-            self.jobs[job_obj]['state'] = saga.job.PENDING
-            job_obj._api()._attributes_i_set('state', self.jobs[job_obj]['state'], job_obj._api()._UP, True)
-
-=======
             state = saga.job.PENDING
 
             # populate job info dict
@@ -894,15 +684,11 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
 
             # set status to 'pending' and manually trigger callback
             job_obj._attributes_i_set('state', state, job_obj._UP, True)
->>>>>>> origin/titan
 
             # return the job id
             return job_id
 
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/titan
     # ----------------------------------------------------------------
     #
     def _retrieve_job(self, job_id):
@@ -917,15 +703,9 @@ class PBSJobService (saga.adaptors.cpi.job.Service):
         else:
             qstat_flag ='-f1'
 
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync("%s %s %s | \
-            egrep '(job_state)|(exec_host)|(exit_status)|(ctime)|\
-            (start_time)|(comp_time)'" % (self._commands['qstat']['path'], qstat_flag, pid))
-=======
         ret, out, _ = self.shell.run_sync("unset GREP_OPTIONS; %s %s %s | \
 grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|\
 (start_time)|(comp_time)|(stime)|(qtime)|(mtime)'" % (self._commands['qstat']['path'], qstat_flag, pid))
->>>>>>> origin/titan
 
         if ret != 0:
             message = "Couldn't reconnect to job '%s': %s" % (job_id, out)
@@ -934,10 +714,7 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|\
         else:
             # the job seems to exist on the backend. let's gather some data
             job_info = {
-<<<<<<< HEAD
-=======
                 'job_id':       job_id,
->>>>>>> origin/titan
                 'state':        saga.job.UNKNOWN,
                 'exec_hosts':   None,
                 'returncode':   None,
@@ -955,19 +732,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|\
                     val = val.strip()  # beginning and the end of the string
 
                     if key == 'job_state':
-<<<<<<< HEAD
-                        job_info['state'] = _pbs_to_saga_jobstate(val)
-                    elif key == 'exec_host':
-                        job_info['exec_hosts'] = val.split('+')
-                    elif key == 'exit_status':
-                        job_info['returncode'] = int(val)
-                    elif key == 'ctime':
-                        job_info['create_time'] = val
-                    elif key == 'start_time':
-                        job_info['start_time'] = val
-                    elif key == 'comp_time':
-                        job_info['end_time'] = val
-=======
                         curr_info['state'] = _pbs_to_saga_jobstate(val)
                     elif key == 'exec_host':
                         curr_info['exec_hosts'] = val.split('+')  # format i73/7+i73/6+...
@@ -979,55 +743,22 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|\
                         curr_info['start_time'] = val
                     elif key in ['comp_time','mtime']:
                         curr_info['end_time'] = val
->>>>>>> origin/titan
 
             return job_info
 
     # ----------------------------------------------------------------
     #
-<<<<<<< HEAD
-    def _job_get_info(self, job_obj):
-=======
     def _job_get_info(self, job_id):
->>>>>>> origin/titan
         """ get job attributes via qstat
         """
 
         # if we don't have the job in our dictionary, we don't want it
-<<<<<<< HEAD
-        if job_obj not in self.jobs:
-            message = "Unkown job object: %s. Can't update state." % job_obj._id
-=======
         if job_id not in self.jobs:
             message = "Unknown job id: %s. Can't update state." % job_id
->>>>>>> origin/titan
             log_error_and_raise(message, saga.NoSuccess, self._logger)
 
         # prev. info contains the info collect when _job_get_info
         # was called the last time
-<<<<<<< HEAD
-        prev_info = self.jobs[job_obj]
-
-        # if the 'gone' flag is set, there's no need to query the job
-        # state again. it's gone forever
-        if prev_info['gone'] is True:
-            return prev_info
-
-        # curr. info will contain the new job info collect. it starts off
-        # as a copy of prev_info
-        curr_info = deepcopy(prev_info)
-
-        rm, pid = self._adaptor.parse_id(job_obj._id)
-
-        # run the PBS 'qstat' command to get some infos about our job
-        if 'PBSPro_10' in self._commands['qstat']['version']:
-            qstat_flag = '-f'
-        else:
-            qstat_flag ='-f1'
-        ret, out, _ = self.shell.run_sync("%s %s %s | \
-            egrep '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
-|(comp_time)'" % (self._commands['qstat']['path'], qstat_flag, pid))
-=======
         prev_info = self.jobs[job_id]
 
         # if the 'gone' flag is set, there's no need to query the job
@@ -1060,7 +791,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|\
         ret, out, _ = self.shell.run_sync("unset GREP_OPTIONS; %s %s %s | \
 grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
 |(comp_time)|(mtime)|(stime)|(qtime)|(etime)'" % (self._commands['qstat']['path'], qstat_flag, pid))
->>>>>>> origin/titan
 
         if ret != 0:
             if ("Unknown Job Id" in out):
@@ -1071,10 +801,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
                 # we can also set the end time
                 self._logger.warning("Previously running job has disappeared. This probably means that the backend doesn't store informations about finished jobs. Setting state to 'DONE'.")
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/titan
                 if prev_info['state'] in [saga.job.RUNNING, saga.job.PENDING]:
                     curr_info['state'] = saga.job.DONE
                 else:
@@ -1099,15 +825,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
                         curr_info['state'] = _pbs_to_saga_jobstate(val)
                     elif key == 'exec_host':
                         curr_info['exec_hosts'] = val.split('+')  # format i73/7+i73/6+...
-<<<<<<< HEAD
-                    elif key == 'exit_status':
-                        curr_info['returncode'] = int(val)
-                    elif key == 'ctime':
-                        curr_info['create_time'] = val
-                    elif key == 'start_time':
-                        curr_info['start_time'] = val
-                    elif key == 'comp_time':
-=======
                     elif key in ['exit_status','Exit_status']:
                         curr_info['returncode'] = int(val)
                     elif key == 'ctime':
@@ -1115,7 +832,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
                     elif key in ['start_time','stime']:
                         curr_info['start_time'] = val
                     elif key in ['comp_time','mtime']:
->>>>>>> origin/titan
                         curr_info['end_time'] = val
 
         # return the new job info dict
@@ -1123,19 +839,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
 
     # ----------------------------------------------------------------
     #
-<<<<<<< HEAD
-    def _job_get_state(self, job_obj):
-        """ get the job's state
-        """
-        return self.jobs[job_obj]['state']
-
-    # ----------------------------------------------------------------
-    #
-    def _job_get_exit_code(self, job_obj):
-        """ get the job's exit code
-        """
-        ret = self.jobs[job_obj]['returncode']
-=======
     def _job_get_state(self, job_id):
         """ get the job's state
         """
@@ -1147,7 +850,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
         """ get the job's exit code
         """
         ret = self.jobs[job_id]['returncode']
->>>>>>> origin/titan
 
         # FIXME: 'None' should cause an exception
         if ret == None : return None
@@ -1155,40 +857,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
 
     # ----------------------------------------------------------------
     #
-<<<<<<< HEAD
-    def _job_get_execution_hosts(self, job_obj):
-        """ get the job's exit code
-        """
-        return self.jobs[job_obj]['exec_hosts']
-
-    # ----------------------------------------------------------------
-    #
-    def _job_get_create_time(self, job_obj):
-        """ get the job's creation time
-        """
-        return self.jobs[job_obj]['create_time']
-
-    # ----------------------------------------------------------------
-    #
-    def _job_get_start_time(self, job_obj):
-        """ get the job's start time
-        """
-        return self.jobs[job_obj]['start_time']
-
-    # ----------------------------------------------------------------
-    #
-    def _job_get_end_time(self, job_obj):
-        """ get the job's end time
-        """
-        return self.jobs[job_obj]['end_time']
-
-    # ----------------------------------------------------------------
-    #
-    def _job_cancel(self, job_obj):
-        """ cancel the job via 'qdel'
-        """
-        rm, pid = self._adaptor.parse_id(job_obj._id)
-=======
     def _job_get_execution_hosts(self, job_id):
         """ get the job's exit code
         """
@@ -1221,7 +889,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
         """ cancel the job via 'qdel'
         """
         rm, pid = self._adaptor.parse_id(job_id)
->>>>>>> origin/titan
 
         ret, out, _ = self.shell.run_sync("%s %s\n" \
             % (self._commands['qdel']['path'], pid))
@@ -1231,36 +898,20 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
             log_error_and_raise(message, saga.NoSuccess, self._logger)
 
         # assume the job was succesfully canceled
-<<<<<<< HEAD
-        self.jobs[job_obj]['state'] = saga.job.CANCELED
-
-    # ----------------------------------------------------------------
-    #
-    def _job_wait(self, job_obj, timeout):
-=======
         self.jobs[job_id]['state'] = saga.job.CANCELED
 
 
     # ----------------------------------------------------------------
     #
     def _job_wait(self, job_id, timeout):
->>>>>>> origin/titan
         """ wait for the job to finish or fail
         """
         time_start = time.time()
         time_now   = time_start
-<<<<<<< HEAD
-        rm, pid    = self._adaptor.parse_id(job_obj._id)
-
-        while True:
-            #state = self._job_get_state(job_id=job_id, job_obj=job_obj)
-            state = self.jobs[job_obj]['state']  # this gets updated in the bg.
-=======
         rm, pid    = self._adaptor.parse_id(job_id)
 
         while True:
             state = self.jobs[job_id]['state']  # this gets updated in the bg.
->>>>>>> origin/titan
 
             if state == saga.job.DONE or \
                state == saga.job.FAILED or \
@@ -1290,42 +941,13 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
                          "reconnect":       False
                          }
 
-<<<<<<< HEAD
-        # create a new job object
-        job_obj = saga.job.Job(_adaptor=self._adaptor,
-                               _adaptor_state=adaptor_state)
-
-        # add job to internal list of known jobs.
-        self.jobs[job_obj._adaptor] = {
-            'state':        saga.job.NEW,
-            'job_id':       None,
-            'exec_hosts':   None,
-            'returncode':   None,
-            'create_time':  None,
-            'start_time':   None,
-            'end_time':     None,
-            'gone':         False,
-            'submitted':    False
-        }
-
-        return job_obj
-=======
         # create and return a new job object
         return saga.job.Job(_adaptor=self._adaptor,
                             _adaptor_state=adaptor_state)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
     @SYNC_CALL
-<<<<<<< HEAD
-    def get_job(self, jobid):
-        """ Implements saga.adaptors.cpi.job.Service.get_job()
-        """
-
-        # try to get some information about this job
-        job_info = self._retrieve_job(jobid)
-=======
     def get_job(self, job_id):
         """ Implements saga.adaptors.cpi.job.Service.get_job()
         """
@@ -1343,7 +965,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
 
         # try to get some information about this job
         job_info = self._retrieve_job(job_id)
->>>>>>> origin/titan
 
         # this dict is passed on to the job adaptor class -- use it to pass any
         # state information you need there.
@@ -1352,17 +973,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
                          "job_description": saga.job.Description(),
                          "job_schema":      self.rm.schema,
                          "reconnect":       True,
-<<<<<<< HEAD
-                         "reconnect_jobid": jobid
-                         }
-
-        job = saga.job.Job(_adaptor=self._adaptor,
-                           _adaptor_state=adaptor_state)
-
-        # throw it into our job dictionary.
-        self.jobs[job._adaptor] = job_info
-        return job
-=======
                          "reconnect_jobid": job_id
                          }
 
@@ -1376,7 +986,6 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
         self.jobs[job_id] = job_info
 
         return job_obj
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1394,11 +1003,7 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
         """
         ids = []
 
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync("%s | grep `whoami`" %
-=======
         ret, out, _ = self.shell.run_sync("unset GREP_OPTIONS; %s | grep `whoami`" %
->>>>>>> origin/titan
                                           self._commands['qstat']['path'])
 
         if ret != 0 and len(out) > 0:
@@ -1413,13 +1018,8 @@ grep -E -i '(job_state)|(exec_host)|(exit_status)|(ctime)|(start_time)\
                 # 112059.svc.uc.futuregrid testjob oweidner 0 Q batch
                 # 112061.svc.uc.futuregrid testjob oweidner 0 Q batch
                 if len(line.split()) > 1:
-<<<<<<< HEAD
-                    jobid = "[%s]-[%s]" % (self.rm, line.split()[0].split('.')[0])
-                    ids.append(str(jobid))
-=======
                     job_id = "[%s]-[%s]" % (self.rm, line.split()[0].split('.')[0])
                     ids.append(str(job_id))
->>>>>>> origin/titan
 
         return ids
 
@@ -1474,17 +1074,10 @@ class PBSJob (saga.adaptors.cpi.job.Job):
         self.js = job_info["job_service"]
 
         if job_info['reconnect'] is True:
-<<<<<<< HEAD
-            self._id = job_info['reconnect_jobid']
-            self._started = True
-        else:
-            self._id = None
-=======
             self._id      = job_info['reconnect_jobid']
             self._started = True
         else:
             self._id      = None
->>>>>>> origin/titan
             self._started = False
 
         return self.get_api()
@@ -1495,14 +1088,10 @@ class PBSJob (saga.adaptors.cpi.job.Job):
     def get_state(self):
         """ implements saga.adaptors.cpi.job.Job.get_state()
         """
-<<<<<<< HEAD
-        return self.js._job_get_state(job_obj=self)
-=======
         if  self._started is False:
             return saga.job.NEW
 
         return self.js._job_get_state(job_id=self._id)
->>>>>>> origin/titan
             
     # ----------------------------------------------------------------
     #
@@ -1514,11 +1103,7 @@ class PBSJob (saga.adaptors.cpi.job.Job):
             log_error_and_raise("Can't wait for job that hasn't been started",
                 saga.IncorrectState, self._logger)
         else:
-<<<<<<< HEAD
-            self.js._job_wait(job_obj=self, timeout=timeout)
-=======
             self.js._job_wait(job_id=self._id, timeout=timeout)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1530,11 +1115,7 @@ class PBSJob (saga.adaptors.cpi.job.Job):
             log_error_and_raise("Can't wait for job that hasn't been started",
                 saga.IncorrectState, self._logger)
         else:
-<<<<<<< HEAD
-            self.js._job_cancel(self)
-=======
             self.js._job_cancel(self._id)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1542,11 +1123,7 @@ class PBSJob (saga.adaptors.cpi.job.Job):
     def run(self):
         """ implements saga.adaptors.cpi.job.Job.run()
         """
-<<<<<<< HEAD
-        self._id = self.js._job_run(self)
-=======
         self._id = self.js._job_run(self._api())
->>>>>>> origin/titan
         self._started = True
 
     # ----------------------------------------------------------------
@@ -1574,11 +1151,7 @@ class PBSJob (saga.adaptors.cpi.job.Job):
         if self._started is False:
             return None
         else:
-<<<<<<< HEAD
-            return self.js._job_get_exit_code(self)
-=======
             return self.js._job_get_exit_code(self._id)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1589,11 +1162,7 @@ class PBSJob (saga.adaptors.cpi.job.Job):
         if self._started is False:
             return None
         else:
-<<<<<<< HEAD
-            return self.js._job_get_create_time(self)
-=======
             return self.js._job_get_create_time(self._id)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1604,11 +1173,7 @@ class PBSJob (saga.adaptors.cpi.job.Job):
         if self._started is False:
             return None
         else:
-<<<<<<< HEAD
-            return self.js._job_get_start_time(self)
-=======
             return self.js._job_get_start_time(self._id)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1619,11 +1184,7 @@ class PBSJob (saga.adaptors.cpi.job.Job):
         if self._started is False:
             return None
         else:
-<<<<<<< HEAD
-            return self.js._job_get_end_time(self)
-=======
             return self.js._job_get_end_time(self._id)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1634,9 +1195,6 @@ class PBSJob (saga.adaptors.cpi.job.Job):
         if self._started is False:
             return None
         else:
-<<<<<<< HEAD
-            return self.js._job_get_execution_hosts(self)
-=======
             return self.js._job_get_execution_hosts(self._id)
 
     # ----------------------------------------------------------------
@@ -1648,4 +1206,3 @@ class PBSJob (saga.adaptors.cpi.job.Job):
         return self.jd
 
 
->>>>>>> origin/titan
