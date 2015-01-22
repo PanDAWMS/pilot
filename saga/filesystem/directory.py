@@ -1,9 +1,14 @@
 
+<<<<<<< HEAD
 __author__    = "Andre Merzky, Ole Weidner"
+=======
+__author__    = "Andre Merzky, Ole Weidner, Alexander Grill"
+>>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
+<<<<<<< HEAD
 import saga.adaptors.base        as sab
 from   saga.constants            import SYNC, ASYNC, TASK
 from   saga.filesystem.constants import *
@@ -12,6 +17,18 @@ import saga.session              as ss
 import saga.task                 as st
 import saga.url                  as surl
 import saga.utils.signatures     as sus
+=======
+import radical.utils.signatures  as rus
+
+import saga.adaptors.base        as sab
+import saga.session              as ss
+import saga.task                 as st
+import saga.url                  as surl
+import saga.namespace.directory  as nsdir
+
+from   saga.filesystem.constants import *
+from   saga.constants            import SYNC, ASYNC, TASK
+>>>>>>> origin/titan
 
 
 # ------------------------------------------------------------------------------
@@ -42,6 +59,7 @@ class Directory (nsdir.Directory) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Directory', 
                   sus.optional ((surl.Url, basestring)), 
                   sus.optional (int), 
@@ -50,6 +68,16 @@ class Directory (nsdir.Directory) :
                   sus.optional (dict), 
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('Directory', 
+                  rus.optional ((surl.Url, basestring)), 
+                  rus.optional (int, rus.nothing), 
+                  rus.optional (ss.Session),
+                  rus.optional (sab.Base), 
+                  rus.optional (dict), 
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self, url=None, flags=READ, session=None, 
                   _adaptor=None, _adaptor_state={}, _ttype=None) : 
         """
@@ -79,8 +107,20 @@ class Directory (nsdir.Directory) :
         """
 
         # param checks
+<<<<<<< HEAD
         url = surl.Url (url)
 
+=======
+        if  not flags : flags = 0
+        url = surl.Url (url)
+
+        if  not url.schema :
+            url.schema = 'file'
+
+        if  not url.host :
+            url.host = 'localhost'
+
+>>>>>>> origin/titan
         self._nsdirec = super  (Directory, self)
         self._nsdirec.__init__ (url, flags, session, 
                                 _adaptor, _adaptor_state, _ttype=_ttype)
@@ -89,12 +129,21 @@ class Directory (nsdir.Directory) :
     # --------------------------------------------------------------------------
     #
     @classmethod
+<<<<<<< HEAD
     @sus.takes   ('Directory', 
                   sus.optional ((surl.Url, basestring)), 
                   sus.optional (int), 
                   sus.optional (ss.Session),
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns (st.Task)
+=======
+    @rus.takes   ('Directory', 
+                  rus.optional ((surl.Url, basestring)), 
+                  rus.optional (int, rus.nothing), 
+                  rus.optional (ss.Session),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns (st.Task)
+>>>>>>> origin/titan
     def create (cls, url=None, flags=READ, session=None, ttype=None) :
         """
         url:       saga.Url
@@ -104,6 +153,10 @@ class Directory (nsdir.Directory) :
         ret:       saga.Task
         """
 
+<<<<<<< HEAD
+=======
+        if  not flags : flags = 0
+>>>>>>> origin/titan
         _nsdir = super (Directory, cls)
         return _nsdir.create (url, flags, session, ttype=ttype)
 
@@ -111,11 +164,19 @@ class Directory (nsdir.Directory) :
     #
     # filesystem directory methods
     #
+<<<<<<< HEAD
     @sus.takes   ('Directory', 
                   (surl.Url, basestring),
                   sus.optional (int),
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns (('File', st.Task))
+=======
+    @rus.takes   ('Directory', 
+                  (surl.Url, basestring),
+                  rus.optional (int, rus.nothing),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns (('File', st.Task))
+>>>>>>> origin/titan
     def open (self, path, flags=READ, ttype=None) :
         """
         open(path, flags=READ)
@@ -127,17 +188,38 @@ class Directory (nsdir.Directory) :
         :type path:      str()
         :param flags:    :ref:`filesystemflags`
         """
+<<<<<<< HEAD
         url = surl.Url(path)
+=======
+        if  not flags : flags = 0
+        
+        url = surl.Url(path)
+
+        if  not url.schema :
+            url.schema = 'file'
+
+        if  not url.host :
+            url.host = 'localhost'
+
+>>>>>>> origin/titan
         return self._adaptor.open (url, flags, ttype=ttype)
 
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Directory', 
                   (surl.Url, basestring),
                   sus.optional (int),
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns (('Directory', st.Task))
+=======
+    @rus.takes   ('Directory', 
+                  (surl.Url, basestring),
+                  rus.optional (int, rus.nothing),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns (('Directory', st.Task))
+>>>>>>> origin/titan
     def open_dir (self, path, flags=READ, ttype=None) :
         """
         open_dir(path, flags=READ)
@@ -155,15 +237,36 @@ class Directory (nsdir.Directory) :
             dir = saga.namespace.Directory("sftp://localhost/tmp/")
             data = dir.open_dir ('data/', saga.namespace.Create)
         """
+<<<<<<< HEAD
         return self._adaptor.open_dir (path, flags, ttype=ttype)
+=======
+        if  not flags : flags = 0
+
+        url = surl.Url(path)
+
+        if  not url.schema :
+            url.schema = 'file'
+
+        if  not url.host :
+            url.host = 'localhost'
+
+        return self._adaptor.open_dir (url, flags, ttype=ttype)
+>>>>>>> origin/titan
 
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Directory', 
                   sus.optional ((surl.Url, basestring)),
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((int, st.Task))
+=======
+    @rus.takes   ('Directory', 
+                  rus.optional ((surl.Url, basestring)),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((int, st.Task))
+>>>>>>> origin/titan
     def get_size (self, path=None, ttype=None) :
         """
         get_size(path=None)
@@ -183,15 +286,39 @@ class Directory (nsdir.Directory) :
             print size
         """
         if path   :  return self._adaptor.get_size      (path, ttype=ttype)
+<<<<<<< HEAD
         else      :  return self._adaptor.get_size_self (     ttype=ttype)
+=======
+        else      :  return self._adaptor.get_size_self (      ttype=ttype)
+>>>>>>> origin/titan
 
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Directory', 
                   sus.optional ((surl.Url, basestring)),
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((bool, st.Task))
+=======
+    @rus.takes   ('Directory', 
+                  rus.optional (bool))
+    @rus.returns (st.Task)
+    def close     (self, kill=True, ttype=None) :
+        '''
+        kill :    bool
+        ttype:    saga.task.type enum
+        ret:      string / bytearray / saga.Task
+        '''
+        return self._adaptor.close ()
+
+    # --------------------------------------------------------------------------
+    #
+    @rus.takes   ('Directory', 
+                  rus.optional ((surl.Url, basestring)),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((bool, st.Task))
+>>>>>>> origin/titan
     def is_file (self, path=None, ttype=None) :
         """
         is_file(path=None)
@@ -203,12 +330,20 @@ class Directory (nsdir.Directory) :
         :param path:     (Optional) name/path of an entry
         :type path:      str()
         """
+<<<<<<< HEAD
         if path    :  return self._adaptor.is_file      (path, ttype=ttype)
+=======
+        if path   :  return self._adaptor.is_file      (path, ttype=ttype)
+>>>>>>> origin/titan
         else      :  return self._adaptor.is_file_self (     ttype=ttype)
 
 
     size  = property (get_size)  # int
 
     
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+# ------------------------------------------------------------------------------
+>>>>>>> origin/titan
 

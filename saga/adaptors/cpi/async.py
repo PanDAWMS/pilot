@@ -6,7 +6,10 @@ __license__   = "MIT"
 
 import saga.adaptors.cpi.decorators as cpi_dec
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/titan
 SYNC  = cpi_dec.CPI_SYNC_CALL
 ASYNC = cpi_dec.CPI_ASYNC_CALL
 
@@ -23,5 +26,9 @@ class Async (object) :
     def task_cancel (self, task)          : pass
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

@@ -10,7 +10,10 @@ __license__   = "MIT"
 
 import saga.exceptions as se
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/titan
 # 4.1.3 File Transfer Specifications (GFD90 p 176-177)
 #
 # The syntax of a file transfer directive for the job description is modeled on 
@@ -30,6 +33,10 @@ import saga.exceptions as se
 #      Overwrites the local file if it exists.
 # '<<' copies the remote file to the local file after the job finishes. 
 #      Appends to the local file if it exists.
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/titan
 class TransferDirectives(object):
 
     def __init__(self, directives_list):
@@ -107,5 +114,9 @@ def _test_():
 
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

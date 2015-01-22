@@ -1,4 +1,5 @@
 
+<<<<<<< HEAD
 """ shell based resource adaptor implementation """
 
 import os
@@ -14,6 +15,26 @@ import saga.utils.which
 
 ANY = COMPUTE | STORAGE
 
+=======
+__author__    = "Andre Merzky, Ashley Z, Ole Weidner"
+__copyright__ = "Copyright 2012-2013, The SAGA Project"
+__license__   = "MIT"
+
+
+""" shell based resource adaptor implementation """
+
+import saga.utils.pty_shell
+
+import saga.adaptors.cpi.base
+import saga.adaptors.cpi.resource
+
+from   saga.resource.constants import *
+ANY = COMPUTE | STORAGE
+
+import re
+import os
+import time
+>>>>>>> origin/titan
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -382,5 +403,9 @@ class ShellResourceCompute (saga.adaptors.cpi.resource.Compute) :
         # we never get here...
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

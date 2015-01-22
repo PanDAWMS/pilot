@@ -6,6 +6,7 @@ __license__   = "MIT"
 
 """ Provides the SAGA runtime. """
 
+<<<<<<< HEAD
 import inspect
 import pprint
 import re
@@ -17,6 +18,21 @@ import saga.exceptions      as se
 import saga.utils.config    as sconf
 import saga.utils.logger    as slog
 import saga.utils.singleton as single
+=======
+import re
+import sys
+import pprint
+import string
+import inspect
+
+import radical.utils         as ru
+import radical.utils.config  as ruc
+import radical.utils.logger  as rul
+
+import saga.exceptions      as se
+
+import saga.engine.registry  # adaptors to load
+>>>>>>> origin/titan
 
 
 ############# These are all supported options for saga.engine ####################
@@ -30,12 +46,61 @@ _config_options = [
     'valid_options' : [True, False],
     'documentation' : 'load adaptors which are marked as beta (i.e. not released).',
     'env_variable'  : None
+<<<<<<< HEAD
+=======
+    },
+    # FIXME: is there a better place to register util level options?
+    { 
+    'category'      : 'saga.utils.pty',
+    'name'          : 'prompt_pattern', 
+    'type'          : str, 
+    'default'       : '[\$#%>\]]\s*$',
+    'documentation' : 'use this regex to detect shell prompts',
+    'env_variable'  : None
+    },
+    { 
+    'category'      : 'saga.utils.pty',
+    'name'          : 'ssh_copy_mode', 
+    'type'          : str, 
+    'default'       : 'sftp',
+    'valid_options' : ['sftp', 'scp', 'rsync+ssh', 'rsync'],
+    'documentation' : 'use the specified protocol for pty level file transfer',
+    'env_variable'  : 'SAGA_PTY_SSH_COPYMODE'
+    },
+    { 
+    'category'      : 'saga.utils.pty',
+    'name'          : 'connection_pool_ttl', 
+    'type'          : int, 
+    'default'       : 10*60,
+    'documentation' : 'minimum time a connection is kept alive in a connection pool',
+    'env_variable'  : 'SAGA_PTY_CONN_POOL_TTL'
+    },
+    { 
+    'category'      : 'saga.utils.pty',
+    'name'          : 'connection_pool_size', 
+    'type'          : int, 
+    'default'       : 10,
+    'documentation' : 'maximum number of connections kept in a connection pool',
+    'env_variable'  : 'SAGA_PTY_CONN_POOL_SIZE'
+    },
+    { 
+    'category'      : 'saga.utils.pty',
+    'name'          : 'connection_pool_wait', 
+    'type'          : int, 
+    'default'       : 10*60,
+    'documentation' : 'maximum number of seconds to wait for any connection in the connection pool to become available before raising a timeout error',
+    'env_variable'  : 'SAGA_PTY_CONN_POOL_WAIT'
+>>>>>>> origin/titan
     }
 ]
 
 ################################################################################
 ##
+<<<<<<< HEAD
 class Engine(sconf.Configurable): 
+=======
+class Engine(ruc.Configurable): 
+>>>>>>> origin/titan
     """ Represents the SAGA engine runtime system.
 
         The Engine is a singleton class that takes care of adaptor
@@ -115,7 +180,11 @@ class Engine(sconf.Configurable):
                       return
     """
 
+<<<<<<< HEAD
     __metaclass__ = single.Singleton
+=======
+    __metaclass__ = ru.Singleton
+>>>>>>> origin/titan
 
 
 
@@ -128,12 +197,22 @@ class Engine(sconf.Configurable):
 
 
         # set the configuration options for this object
+<<<<<<< HEAD
         sconf.Configurable.__init__(self, 'saga.engine', _config_options)
         self._cfg = self.get_config()
 
 
         # Initialize the logging
         self._logger = slog.getLogger ('saga.engine')
+=======
+        ruc.Configurable.__init__       (self, 'saga')
+        ruc.Configurable.config_options (self, 'saga.engine', _config_options)
+        self._cfg = self.get_config('saga.engine')
+
+
+        # Initialize the logging, and log version (this is a singleton!)
+        self._logger = rul.getLogger ('saga', 'Engine')
+>>>>>>> origin/titan
 
 
         # load adaptors
@@ -155,7 +234,11 @@ class Engine(sconf.Configurable):
         """
 
         # get the engine config options
+<<<<<<< HEAD
         global_config = sconf.getConfig()
+=======
+        global_config = ruc.getConfig('saga')
+>>>>>>> origin/titan
 
 
         # get the list of adaptors to load
@@ -181,7 +264,11 @@ class Engine(sconf.Configurable):
                 adaptor_module = __import__ (module_name, fromlist=['Adaptor'])
 
             except Exception as e:
+<<<<<<< HEAD
                 self._logger.error ("Skipping adaptor %s 1: module loading failed: %s" % (module_name, e))
+=======
+                self._logger.warn ("Skipping adaptor %s 1: module loading failed: %s" % (module_name, e))
+>>>>>>> origin/titan
                 continue # skip to next adaptor
 
 
@@ -196,11 +283,19 @@ class Engine(sconf.Configurable):
                 adaptor_info     = adaptor_instance.register ()
 
             except se.SagaException as e:
+<<<<<<< HEAD
                 self._logger.error ("Skipping adaptor %s: loading failed: '%s'" % (module_name, e))
                 continue # skip to next adaptor
 
             except Exception as e:
                 self._logger.error ("Skipping adaptor %s: loading failed: '%s'" % (module_name, e))
+=======
+                self._logger.warn ("Skipping adaptor %s: loading failed: '%s'" % (module_name, e))
+                continue # skip to next adaptor
+
+            except Exception as e:
+                self._logger.warn ("Skipping adaptor %s: loading failed: '%s'" % (module_name, e))
+>>>>>>> origin/titan
                 continue # skip to next adaptor
 
 
@@ -212,7 +307,11 @@ class Engine(sconf.Configurable):
                 adaptor_instance.sanity_check ()
 
             except Exception as e:
+<<<<<<< HEAD
                 self._logger.error ("Skipping adaptor %s: failed self test: %s" % (module_name, e))
+=======
+                self._logger.warn ("Skipping adaptor %s: failed self test: %s" % (module_name, e))
+>>>>>>> origin/titan
                 continue # skip to next adaptor
 
 
@@ -260,10 +359,17 @@ class Engine(sconf.Configurable):
                 adaptor_enabled = adaptor_config['enabled'].get_value ()
 
             except se.SagaException as e:
+<<<<<<< HEAD
                 self._logger.error ("Skipping adaptor %s: initialization failed: %s" % (module_name, e))
                 continue # skip to next adaptor
             except Exception as e:
                 self._logger.error ("Skipping adaptor %s: initialization failed: %s" % (module_name, e))
+=======
+                self._logger.warn ("Skipping adaptor %s: initialization failed: %s" % (module_name, e))
+                continue # skip to next adaptor
+            except Exception as e:
+                self._logger.warn ("Skipping adaptor %s: initialization failed: %s" % (module_name, e))
+>>>>>>> origin/titan
                 continue # skip to next adaptor
 
 
@@ -337,12 +443,20 @@ class Engine(sconf.Configurable):
 
                 if  len(cpi_type_nselems) < 2 or \
                     len(cpi_type_nselems) > 3    :
+<<<<<<< HEAD
                     self._logger.error ("Skipping adaptor %s: cpi type not valid: '%s'" \
+=======
+                    self._logger.warn ("Skipping adaptor %s: cpi type not valid: '%s'" \
+>>>>>>> origin/titan
                                      % (module_name, cpi_type))
                     continue # skip to next cpi info
 
                 if cpi_type_nselems[0] != 'saga' :
+<<<<<<< HEAD
                     self._logger.error ("Skipping adaptor %s: cpi namespace not valid: '%s'" \
+=======
+                    self._logger.warn ("Skipping adaptor %s: cpi namespace not valid: '%s'" \
+>>>>>>> origin/titan
                                      % (module_name, cpi_type))
                     continue # skip to next cpi info
 
@@ -370,7 +484,11 @@ class Engine(sconf.Configurable):
                     cpi_type_modname = cpi_type_modname_2 
 
                 if  not cpi_type_modname :
+<<<<<<< HEAD
                     self._logger.error ("Skipping adaptor %s: cpi type not known: '%s'" \
+=======
+                    self._logger.warn ("Skipping adaptor %s: cpi type not known: '%s'" \
+>>>>>>> origin/titan
                                      % (module_name, cpi_type))
                     continue # skip to next cpi info
 
@@ -384,7 +502,11 @@ class Engine(sconf.Configurable):
                             cpi_ok = True
 
                 if not cpi_ok :
+<<<<<<< HEAD
                     self._logger.error ("Skipping adaptor %s: doesn't implement cpi '%s (%s)'" \
+=======
+                    self._logger.warn ("Skipping adaptor %s: doesn't implement cpi '%s (%s)'" \
+>>>>>>> origin/titan
                                      % (module_name, cpi_class, cpi_type))
                     continue # skip to next cpi info
 
@@ -416,7 +538,11 @@ class Engine(sconf.Configurable):
                     # make sure this tuple was not registered, yet
                     if info in self._adaptor_registry[cpi_type][adaptor_schema] :
 
+<<<<<<< HEAD
                         self._logger.error ("Skipping adaptor %s: already registered '%s - %s'" \
+=======
+                        self._logger.warn ("Skipping adaptor %s: already registered '%s - %s'" \
+>>>>>>> origin/titan
                                          % (module_name, cpi_class, adaptor_instance))
                         continue  # skip to next cpi info
 
@@ -563,5 +689,9 @@ class Engine(sconf.Configurable):
         pprint.pprint (self._adaptor_registry)
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

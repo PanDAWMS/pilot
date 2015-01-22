@@ -1,4 +1,5 @@
 
+<<<<<<< HEAD
 __author__    = "Andre Merzky"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
@@ -8,6 +9,18 @@ import saga.attributes       as sa
 import saga.exceptions       as se
 import saga.utils.signatures as sus
 
+=======
+__author__    = "Andre Merzky, Ole Weidner"
+__copyright__ = "Copyright 2012-2013, The SAGA Project"
+__license__   = "MIT"
+
+
+import radical.utils.signatures as rus
+
+import saga.attributes       as sa
+import saga.exceptions       as se
+import constants             as const
+>>>>>>> origin/titan
 
 #-------------------------------------------------------------------------------
 #
@@ -83,9 +96,15 @@ class Description (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Description', 
                   sus.optional (dict))
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('Description', 
+                  rus.optional (dict))
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self, d=None):
         """
         __init__()
@@ -127,9 +146,15 @@ class Description (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Description', 
                   'Description')
     @sus.returns ('Description')
+=======
+    @rus.takes   ('Description', 
+                  'Description')
+    @rus.returns ('Description')
+>>>>>>> origin/titan
     def __deepcopy__ (self, other) :
         """
         An alias for `clone()`.
@@ -138,9 +163,15 @@ class Description (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Description', 
                   sus.optional ('Description'))
     @sus.returns ('Description')
+=======
+    @rus.takes   ('Description', 
+                  rus.optional ('Description'))
+    @rus.returns ('Description')
+>>>>>>> origin/titan
     def clone (self, other=None) :
         """ 
         clone()
@@ -171,9 +202,15 @@ class ComputeDescription (Description) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('ComputeDescription', 
                   sus.optional (dict))
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('ComputeDescription', 
+                  rus.optional (dict))
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self, d=None) :
         
         if  d :
@@ -198,9 +235,15 @@ class StorageDescription (Description) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('StorageDescription', 
                   sus.optional (dict))
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('StorageDescription', 
+                  rus.optional (dict))
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self, d=None) :
         
         if  d :
@@ -224,9 +267,15 @@ class NetworkDescription (Description) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('NetworkDescription', 
                   sus.optional (dict))
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('NetworkDescription', 
+                  rus.optional (dict))
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self, d=None) :
         
         if  d :
@@ -241,5 +290,9 @@ class NetworkDescription (Description) :
 
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

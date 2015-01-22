@@ -191,9 +191,10 @@ def checkProcesses(pid):
 
 def killOrphans():
     """ Find and kill all orphan processes belonging to current pilot user """
-
+    
     pUtil.tolog("Searching for orphan processes")
-    cmd = "ps -o pid,ppid,comm -u %s" % (commands.getoutput("whoami"))
+    cmd = "ps -o pid,ppid,args -u %s" % (commands.getoutput("whoami"))
+
     processes = commands.getoutput(cmd)
     pattern = re.compile('(\d+)\s+(\d+)\s+(\S+)')
 
@@ -203,18 +204,20 @@ def killOrphans():
         if ids:
             pid = ids.group(1)
             ppid = ids.group(2)
-            comm = ids.group(3)
-            if comm == 'cvmfs2':
-                pUtil.tolog("Ignoring possible orphan process running cvmfs2: pid=%s, ppid=%s" % (pid, ppid))
+            args = ids.group(3)
+            if 'cvmfs2' in args:
+                pUtil.tolog("Ignoring possible orphan process running cvmfs2: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
+            elif 'pilots_starter.py' in args:
+                pUtil.tolog("Ignoring Pilot Launcher: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
             elif ppid == '1':
                 count += 1
-                pUtil.tolog("Found orphan process: pid=%s, ppid=%s" % (pid, ppid))
+                pUtil.tolog("Found orphan process: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
                 cmd = 'kill -9 %s' % (pid)
                 ec, rs = commands.getstatusoutput(cmd)
                 if ec != 0:
                     pUtil.tolog("!!WARNING!!2999!! %s" % (rs))
                 else:
-                    pUtil.tolog("Killed orphaned process %s (%s)" % (pid, comm))
+                    pUtil.tolog("Killed orphaned process %s (%s)" % (pid, args))
 
     if count == 0:
         pUtil.tolog("Did not find any orphan processes")

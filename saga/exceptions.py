@@ -7,10 +7,17 @@ __license__   = "MIT"
 """ Exception classes
 """
 
+<<<<<<< HEAD
 import operator
 import sys
 import traceback
 import weakref
+=======
+import sys
+import weakref
+import operator
+import traceback
+>>>>>>> origin/titan
 
 
 # We have the choice of doing signature checks in exceptions, or to raise saga
@@ -18,8 +25,14 @@ import weakref
 # the saga.exceptions in signatures, thus can *not* have signature checks
 # here...
 #
+<<<<<<< HEAD
 # import saga.utils.signatures as sus
 # import saga.base             as sb
+=======
+# import saga.base             as sb
+
+
+>>>>>>> origin/titan
 # ------------------------------------------------------------------------------
 #
 class SagaException (Exception) :
@@ -55,10 +68,13 @@ class SagaException (Exception) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         """ 
         Create a new exception object.
@@ -145,24 +161,33 @@ class SagaException (Exception) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (basestring)
+=======
+>>>>>>> origin/titan
     def __str__ (self) :
         return self.get_message ()
 
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (basestring)
+=======
+>>>>>>> origin/titan
     def __repr__ (self) :
         return "%s\n%s" % (self._message, self._traceback)
 
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns ('SagaException')
+=======
+>>>>>>> origin/titan
     def _clone (self) :
         """ This method is used internally -- see :func:`_get_exception_stack`."""
 
@@ -214,8 +239,11 @@ class SagaException (Exception) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (basestring)
+=======
+>>>>>>> origin/titan
     def get_message (self) :
         """ Return the exception message as a string.  That message is also
         available via the 'message' property."""
@@ -224,8 +252,11 @@ class SagaException (Exception) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (basestring)
+=======
+>>>>>>> origin/titan
     def _get_plain_message (self) :
         """ Return the plain error message as a string. """
         return self._message
@@ -233,8 +264,11 @@ class SagaException (Exception) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (basestring)
+=======
+>>>>>>> origin/titan
     def get_type (self):
         """ Return the type of the exception as string.
         """
@@ -243,8 +277,11 @@ class SagaException (Exception) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (sb.Base)
+=======
+>>>>>>> origin/titan
     def get_object (self) :
         """ Return the object that raised this exception. An object may not
         always be available -- for example, exceptions raised during object
@@ -260,9 +297,12 @@ class SagaException (Exception) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException', 
   #               'SagaException')
   # @sus.returns (sb.Base)
+=======
+>>>>>>> origin/titan
     def _add_exception (self, e) :
         """
         Some sub-operation raised a SAGA exception, but other exceptions may
@@ -284,8 +324,11 @@ class SagaException (Exception) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns ('SagaException')
+=======
+>>>>>>> origin/titan
     def _get_exception_stack (self) :
         """ 
         This method is internally used by the saga-python engine, and is only
@@ -315,24 +358,33 @@ class SagaException (Exception) :
                 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (sus.list_of ('SagaException'))
+=======
+>>>>>>> origin/titan
     def get_all_exceptions (self) :
         return self._exceptions
 
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (sus.list_of (basestring))
+=======
+>>>>>>> origin/titan
     def get_all_messages (self) :
         return self._messages
 
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
   # @sus.takes   ('SagaException')
   # @sus.returns (basestring)
+=======
+>>>>>>> origin/titan
     def get_traceback (self) :
         return self._traceback
 
@@ -354,10 +406,13 @@ class NotImplemented(SagaException):
 
     _rank = 11
 
+<<<<<<< HEAD
   # @sus.takes   ('NotImplemented', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -370,10 +425,13 @@ class IncorrectURL(SagaException):
 
     _rank = 10
     
+<<<<<<< HEAD
   # @sus.takes   ('IncorrectUrl', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -385,10 +443,13 @@ class BadParameter(SagaException):
 
     _rank = 9
     
+<<<<<<< HEAD
   # @sus.takes   ('BadParameter', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -400,10 +461,13 @@ class AlreadyExists(SagaException):
 
     _rank = 8
     
+<<<<<<< HEAD
   # @sus.takes   ('AlreadyExists', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -415,10 +479,13 @@ class DoesNotExist(SagaException):
 
     _rank = 7
     
+<<<<<<< HEAD
   # @sus.takes   ('DoesNotExist', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -430,10 +497,13 @@ class IncorrectState(SagaException):
 
     _rank = 6
     
+<<<<<<< HEAD
   # @sus.takes   ('IncorrestState', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -445,10 +515,13 @@ class PermissionDenied(SagaException):
 
     _rank = 5
     
+<<<<<<< HEAD
   # @sus.takes   ('PermissionDenied', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -457,12 +530,18 @@ class PermissionDenied(SagaException):
 #
 class AuthorizationFailed(SagaException): 
     """ The backend could not establish a valid identity. (rank: 4)"""
+<<<<<<< HEAD
     _rank = 4
     
   # @sus.takes   ('AuthorizationFailed', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+
+    _rank = 4
+    
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -474,10 +553,13 @@ class AuthenticationFailed(SagaException):
 
     _rank = 3
     
+<<<<<<< HEAD
   # @sus.takes   ('AuthenticationFailed', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -489,10 +571,13 @@ class Timeout(SagaException):
 
     _rank = 2
     
+<<<<<<< HEAD
   # @sus.takes   ('Timeout', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
@@ -504,13 +589,20 @@ class NoSuccess(SagaException):
 
     _rank = 1
     
+<<<<<<< HEAD
   # @sus.takes   ('NoSuccess', 
   #               basestring, 
   #               sus.optional (sb.Base))
   # @sus.returns (sus.nothing)
+=======
+>>>>>>> origin/titan
     def __init__ (self, msg, parent=None, api_object=None, from_log=False) :
         SagaException.__init__ (self, msg, parent, api_object, from_log)
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

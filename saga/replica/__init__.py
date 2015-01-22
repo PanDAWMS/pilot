@@ -5,7 +5,12 @@ __license__   = "MIT"
 
 
 from saga.replica.constants          import *
+<<<<<<< HEAD
 from saga.replica.logical_directory  import LogicalDirectory
 from saga.replica.logical_file       import LogicalFile
 
+=======
+from saga.replica.logical_file       import LogicalFile
+from saga.replica.logical_directory  import LogicalDirectory
+>>>>>>> origin/titan
 

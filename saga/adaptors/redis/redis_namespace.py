@@ -1,4 +1,12 @@
 
+<<<<<<< HEAD
+=======
+__author__    = "Andre Merzky"
+__copyright__ = "Copyright 2012-2013, The SAGA Project"
+__license__   = "MIT"
+
+
+>>>>>>> origin/titan
 """ A collection of utilities which maps a namespace structure to redis nosql
 keys.  It mirrors the Python ``os`` API, to some extent.
 
@@ -42,6 +50,7 @@ TODO:
 
 """
 
+<<<<<<< HEAD
 import os
 import re
 import string
@@ -54,6 +63,24 @@ from   saga.exceptions       import *
 from   saga.utils.logger     import getLogger
 import saga.utils.misc       as sumisc
 import saga.utils.threads    as sut
+=======
+import re
+import os
+import time
+import string
+import redis
+
+import radical.utils         as ru
+import radical.utils.logger  as rul
+import radical.utils.threads as rut
+
+import redis_cache
+
+from   saga.exceptions       import *
+from   saga.advert.constants import *
+
+import saga.utils.misc       as sumisc
+>>>>>>> origin/titan
 
 
 TYPE   = 'type'
@@ -86,7 +113,11 @@ def redis_ns_name (path) :
 
 # --------------------------------------------------------------------
 #
+<<<<<<< HEAD
 class redis_ns_monitor (sut.SagaThread) :
+=======
+class redis_ns_monitor (ru.Thread) :
+>>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -99,7 +130,11 @@ class redis_ns_monitor (sut.SagaThread) :
         self.pat = {}
         self.pat['ATTRIBUTE'] = re.compile ('\s*\[(?P<key>[^=]+)=(?P<val>.+)]\s*')
 
+<<<<<<< HEAD
         sut.SagaThread.__init__ (self, self.work)
+=======
+        rut.Thread.__init__ (self, self.work)
+>>>>>>> origin/titan
         self.setDaemon (True)
 
 
@@ -199,7 +234,11 @@ class redis_ns_server (redis.Redis) :
         t2 = time.time ()
 
         # add a logger 
+<<<<<<< HEAD
         self.logger = getLogger ("redis-%s"  % self.host)
+=======
+        self.logger = rul.getLogger ('saga', "redis-%s"  % self.host)
+>>>>>>> origin/titan
 
         # create a cache dict and attach to redis client instance.  Cache
         # lifetime is set to 10 times the redis-connect latency.
@@ -651,5 +690,9 @@ class redis_ns_entry :
 
   
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

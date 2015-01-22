@@ -6,6 +6,7 @@ __license__   = "MIT"
 
 """ SAGA job interface """
 
+<<<<<<< HEAD
 import description           as descr
 import saga.adaptors.base    as sab
 import saga.async            as sasync
@@ -18,6 +19,22 @@ import saga.task             as st
 import saga.url              as surl
 import saga.utils.signatures as sus
 
+=======
+import radical.utils.signatures as rus
+
+from   saga.constants        import SYNC, ASYNC, TASK
+from   saga.job.constants    import *
+
+import saga.adaptors.base    as sab
+import saga.attributes       as sa
+import saga.exceptions       as se
+import saga.async            as sasync
+import saga.task             as st
+import saga.base             as sb
+import saga.url              as surl
+
+import description           as descr
+>>>>>>> origin/titan
 
 # ------------------------------------------------------------------------------
 #
@@ -51,12 +68,21 @@ class Job (sb.Base, st.Task, sasync.Async) :
     
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   sus.optional (basestring),
                   sus.optional (sab.Base),
                   sus.optional (dict),
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('Job',
+                  rus.optional (basestring),
+                  rus.optional (sab.Base),
+                  rus.optional (dict),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self, _method_type='run', _adaptor=None, _adaptor_state={}, _ttype=None) : 
         '''
         _adaptor`` references the adaptor class instance which created this task
@@ -123,8 +149,13 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job')
     @sus.returns (basestring)
+=======
+    @rus.takes   ('Job')
+    @rus.returns (basestring)
+>>>>>>> origin/titan
     def __str__  (self) :
         """
         __str__()
@@ -140,9 +171,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((sus.nothing, basestring, st.Task))
+=======
+    @rus.takes   ('Job',
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.nothing, basestring, st.Task))
+>>>>>>> origin/titan
     def get_id   (self, ttype=None) :
         """
         get_id()
@@ -155,9 +192,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes          ('Job',
                          sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns        ((basestring, st.Task))
+=======
+    @rus.takes          ('Job',
+                         rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns        ((basestring, st.Task))
+>>>>>>> origin/titan
     def get_description (self, ttype=None) :
         """
         get_description()
@@ -195,9 +238,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes    ('Job',
                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns  ((file, st.Task))
+=======
+    @rus.takes    ('Job',
+                   rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns  ((file, st.Task))
+>>>>>>> origin/titan
     def get_stdin (self, ttype=None) :
         """
         get_stdin()
@@ -209,9 +258,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes     ('Job',
                     sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns   ((file, st.Task))
+=======
+    @rus.takes     ('Job',
+                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns   ((file, st.Task))
+>>>>>>> origin/titan
     def get_stdout (self, ttype=None) :
         """
         get_stdout()
@@ -223,9 +278,29 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes     ('Job',
                     sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns   ((file, st.Task))
+=======
+    @rus.takes     ('Job',
+                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns   ((str, st.Task))
+    def get_stdout_string (self, ttype=None) :
+        """
+        get_stdout_string()
+
+        Return the job's STDOUT.
+        """
+        return self._adaptor.get_stdout_string (ttype=ttype)
+
+
+    # --------------------------------------------------------------------------
+    #
+    @rus.takes     ('Job',
+                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns   ((file, st.Task))
+>>>>>>> origin/titan
     def get_stderr (self, ttype=None) :
         """
         get_stderr()
@@ -240,9 +315,32 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((sus.nothing, st.Task))
+=======
+    @rus.takes     ('Job',
+                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns   ((str, st.Task))
+    def get_stderr_string (self, ttype=None) :
+        """
+        get_stderr_string()
+
+        Return the job's STDERR.
+
+        ttype:     saga.task.type enum
+        ret:       string.
+        """
+        return self._adaptor.get_stderr_string (ttype=ttype)
+
+
+    # --------------------------------------------------------------------------
+    #
+    @rus.takes   ('Job',
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.nothing, st.Task))
+>>>>>>> origin/titan
     def suspend  (self, ttype=None) :
         """
         suspend()
@@ -254,9 +352,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((sus.nothing, st.Task))
+=======
+    @rus.takes   ('Job',
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.nothing, st.Task))
+>>>>>>> origin/titan
     def resume   (self, ttype=None) :
         """
         resume()
@@ -268,9 +372,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes     ('Job',
                     sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns   ((sus.nothing, st.Task))
+=======
+    @rus.takes     ('Job',
+                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns   ((rus.nothing, st.Task))
+>>>>>>> origin/titan
     def checkpoint (self, ttype=None) :
         """
         checkpoint()
@@ -282,10 +392,17 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   descr.Description,
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((sus.nothing, st.Task))
+=======
+    @rus.takes   ('Job',
+                  descr.Description,
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.nothing, st.Task))
+>>>>>>> origin/titan
     def migrate  (self, jd, ttype=None) :
         """
         jd:        saga.job.Description  
@@ -297,10 +414,17 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   int,
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((sus.nothing, st.Task))
+=======
+    @rus.takes   ('Job',
+                  int,
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.nothing, st.Task))
+>>>>>>> origin/titan
     def signal   (self, signum, ttype=None) :
         """
         signal(signum)
@@ -324,9 +448,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
     #
     # task methods flattened into job :-/
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((sus.nothing, st.Task))
+=======
+    @rus.takes   ('Job',
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.nothing, st.Task))
+>>>>>>> origin/titan
     def run      (self, ttype=None) :
         """
         run()
@@ -366,10 +496,17 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   float,
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((sus.nothing, st.Task))
+=======
+    @rus.takes   ('Job',
+                  float,
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.nothing, st.Task))
+>>>>>>> origin/titan
     def cancel   (self, timeout=None, ttype=None) :
         """
         cancel(timeout)
@@ -412,10 +549,17 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Job',
                   sus.optional (float),
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns ((bool, st.Task))
+=======
+    @rus.takes   ('Job',
+                  rus.optional (float),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((bool, st.Task))
+>>>>>>> origin/titan
     def wait     (self, timeout=None, ttype=None) :
         """
         wait(timeout)
@@ -476,9 +620,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes    ('Job',
                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns  ((sus.one_of (UNKNOWN, NEW, PENDING, RUNNING, SUSPENDED, DONE, FAILED, CANCELED), st.Task))
+=======
+    @rus.takes    ('Job',
+                   rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns  ((rus.one_of (UNKNOWN, NEW, PENDING, RUNNING, SUSPENDED, DONE, FAILED, CANCELED), st.Task))
+>>>>>>> origin/titan
     def get_state (self, ttype=None) :
         """
         get_state()
@@ -511,9 +661,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes     ('Job',
                     sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns   ((sus.anything, st.Task))
+=======
+    @rus.takes     ('Job',
+                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns   ((rus.anything, st.Task))
+>>>>>>> origin/titan
     def get_result (self, ttype=None) :
         """
         get_result()
@@ -523,9 +679,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes     ('Job',
                     sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns   ((sb.Base, st.Task))
+=======
+    @rus.takes     ('Job',
+                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns   ((sb.Base, st.Task))
+>>>>>>> origin/titan
     def get_object (self, ttype=None) :
         """ :todo: describe me
             :note: this will return the job_service which created the job.
@@ -535,9 +697,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes     ('Job',
                     sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns   ((se.SagaException, st.Task))
+=======
+    @rus.takes     ('Job',
+                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns   ((se.SagaException, st.Task))
+>>>>>>> origin/titan
     def get_exception (self, ttype=None) :
         """ :todo: describe me
 
@@ -550,8 +718,13 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes     ('Job')
     @sus.returns   (sus.nothing)
+=======
+    @rus.takes     ('Job')
+    @rus.returns   (rus.nothing)
+>>>>>>> origin/titan
     def re_raise   (self) :
         """ :todo: describe me
 
@@ -565,9 +738,15 @@ class Job (sb.Base, st.Task, sasync.Async) :
     # 
     # attribute getters
     #
+<<<<<<< HEAD
     @sus.takes         ('Job',
                         sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns       ((sus.nothing, int, st.Task))
+=======
+    @rus.takes         ('Job',
+                        rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns       ((rus.nothing, int, st.Task))
+>>>>>>> origin/titan
     def _get_exit_code (self, ttype=None) :
         ec = self._adaptor.get_exit_code(ttype=ttype)
         if ec in [None, ""]:
@@ -579,41 +758,71 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes       ('Job',
                       sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns     ((sus.nothing, float, st.Task))
+=======
+    @rus.takes       ('Job',
+                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns     ((rus.nothing, float, st.Task))
+>>>>>>> origin/titan
     def _get_created (self, ttype=None) :
         return self._adaptor.get_created (ttype=ttype)
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes       ('Job',
                       sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns     ((sus.nothing, float, st.Task))
+=======
+    @rus.takes       ('Job',
+                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns     ((rus.nothing, float, st.Task))
+>>>>>>> origin/titan
     def _get_started (self, ttype=None) :
         return self._adaptor.get_started (ttype=ttype)
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes       ('Job',
                       sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns     ((sus.nothing, float, st.Task))
+=======
+    @rus.takes       ('Job',
+                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns     ((rus.nothing, float, st.Task))
+>>>>>>> origin/titan
     def _get_finished (self, ttype=None) :
         return self._adaptor.get_finished (ttype=ttype)
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes       ('Job',
                       sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns     ((sus.nothing, sus.list_of (basestring), st.Task))
+=======
+    @rus.takes       ('Job',
+                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns     ((rus.nothing, rus.list_of (basestring), st.Task))
+>>>>>>> origin/titan
     def _get_execution_hosts (self, ttype=None) :
         return self._adaptor.get_execution_hosts (ttype=ttype)
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes       ('Job',
                       sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns     ((sus.nothing, surl.Url, st.Task))
+=======
+    @rus.takes       ('Job',
+                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns     ((rus.nothing, surl.Url, st.Task))
+>>>>>>> origin/titan
     def _get_service_url (self, ttype=None) :
         return self._adaptor.get_service_url (ttype=ttype)
 
@@ -693,12 +902,21 @@ class Self (Job) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Self',
                   sus.optional (basestring),
                   sus.optional (sab.Base),
                   sus.optional (dict),
                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('Self',
+                  rus.optional (basestring),
+                  rus.optional (sab.Base),
+                  rus.optional (dict),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self, _method_type='run', _adaptor=None, _adaptor_state={}, _ttype=None) : 
 
     
@@ -706,5 +924,9 @@ class Self (Job) :
         self._base.__init__ (_method_type, _adaptor, _adaptor_state, _ttype=_ttype)
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

@@ -11,6 +11,7 @@ from RunJobHPC import RunJobHPC
 from RunJobTitan import RunJobTitan
 from RunJobHopper import RunJobHopper
 from RunJobEdison import RunJobEdison
+from RunJobAnselm import RunJobAnselm
 from RunJobMira import RunJobMira
 from RunJobNormal import RunJobNormal
 from RunJobHpcEvent import RunJobHpcEvent

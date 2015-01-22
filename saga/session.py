@@ -4,6 +4,7 @@ __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
+<<<<<<< HEAD
 import saga.base
 import saga.context
 import saga.engine.engine
@@ -11,6 +12,18 @@ import saga.exceptions       as se
 import saga.utils.logger
 import saga.utils.signatures as sus
 import saga.utils.singleton
+=======
+import radical.utils            as ru
+import radical.utils.signatures as rus
+import radical.utils.logger     as rul
+
+import saga.exceptions          as se
+
+import saga.engine.engine
+import saga.context
+import saga.base
+
+>>>>>>> origin/titan
 
 
 # ------------------------------------------------------------------------------
@@ -35,7 +48,11 @@ class _ContextList (list) :
         if  session : 
             self._logger  = session._logger
         else :
+<<<<<<< HEAD
             self._logger  = saga.utils.logger.getLogger ('ContextList')
+=======
+            self._logger  = rul.getLogger ('saga', 'ContextList')
+>>>>>>> origin/titan
 
         base_list = super  (_ContextList, self)
         base_list.__init__ (*args, **kwargs)
@@ -61,8 +78,12 @@ class _ContextList (list) :
 
         # try to initialize that context, i.e. evaluate its attributes and
         # infer additional runtime information as needed
+<<<<<<< HEAD
         logger.debug ("adding  context : %s" \
                    % (ctx_clone))
+=======
+      # logger.debug ("adding  context : %s" % (ctx_clone))
+>>>>>>> origin/titan
 
         if  not session :
             logger.warning ("cannot initialize context - no session: %s" \
@@ -83,12 +104,21 @@ class _ContextList (list) :
 #
 class _DefaultSession (object) :
 
+<<<<<<< HEAD
     __metaclass__ = saga.utils.singleton.Singleton
 
     # --------------------------------------------------------------------------
     #
     @sus.takes   ('_DefaultSession')
     @sus.returns (sus.nothing)
+=======
+    __metaclass__ = ru.Singleton
+
+    # --------------------------------------------------------------------------
+    #
+    @rus.takes   ('_DefaultSession')
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self) :
 
         # the default session picks up default contexts, from all context
@@ -96,8 +126,24 @@ class _DefaultSession (object) :
         # dig through the registered context adaptors, and ask each of them for
         # default contexts.
 
+<<<<<<< HEAD
         self.contexts  = _ContextList ()
         self._logger   = saga.utils.logger.getLogger ('saga.DefaultSession')
+=======
+        self.contexts       = _ContextList ()
+        self._logger        = rul.getLogger ('saga', 'DefaultSession')
+
+        # FIXME: at the moment, the lease manager is owned by the session.  
+        # Howevwer, the pty layer is the main user of the lease manager,
+        # and we thus keep the lease manager options in the pty subsection.  
+        # So here we are, in the session, evaluating the pty config options...
+        config = saga.engine.engine.Engine ().get_config ('saga.utils.pty')
+        self._lease_manager = ru.LeaseManager (
+                max_pool_size = config['connection_pool_size'].get_value (),
+                max_pool_wait = config['connection_pool_wait'].get_value (),
+                max_obj_age   = config['connection_pool_ttl'].get_value ()
+                )
+>>>>>>> origin/titan
 
         _engine = saga.engine.engine.Engine ()
 
@@ -132,6 +178,10 @@ class _DefaultSession (object) :
                         continue
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/titan
 # ------------------------------------------------------------------------------
 #
 class Session (saga.base.SimpleBase) :
@@ -183,9 +233,15 @@ class Session (saga.base.SimpleBase) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Session', 
                   sus.optional(bool))
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('Session', 
+                  rus.optional(bool))
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__ (self, default=True) :
         """
         default: bool
@@ -199,17 +255,46 @@ class Session (saga.base.SimpleBase) :
         # shared list of the default session singleton.  Otherwise, we create
         # a private list which is not populated.
 
+<<<<<<< HEAD
         if  default :
             default_session  = _DefaultSession ()
             self.contexts    = default_session.contexts 
         else :
             self.contexts    = _ContextList (session=self)
+=======
+        # a session also has a lease manager, for adaptors in this session to use.
+
+        if  default :
+            default_session     = _DefaultSession ()
+            self.contexts       = default_session.contexts 
+            self._lease_manager = default_session._lease_manager
+        else :
+            self.contexts       = _ContextList (session=self)
+
+            # FIXME: at the moment, the lease manager is owned by the session.  
+            # Howevwer, the pty layer is the main user of the lease manager,
+            # and we thus keep the lease manager options in the pty subsection.  
+            # So here we are, in the session, evaluating the pty config options...
+            config = self.get_config ('saga.utils.pty')
+            self._lease_manager = ru.LeaseManager (
+                    max_pool_size = config['connection_pool_size'].get_value (),
+                    max_pool_wait = config['connection_pool_wait'].get_value (),
+                    max_obj_age   = config['connection_pool_ttl'].get_value ()
+                    )
+
+
+>>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Session')
     @sus.returns (basestring)
+=======
+    @rus.takes   ('Session')
+    @rus.returns (basestring)
+>>>>>>> origin/titan
     def __str__  (self):
         """String represenation."""
 
@@ -218,9 +303,15 @@ class Session (saga.base.SimpleBase) :
 
     # ----------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes      ('Session', 
                      saga.context.Context)
     @sus.returns    (sus.nothing)
+=======
+    @rus.takes      ('Session', 
+                     saga.context.Context)
+    @rus.returns    (rus.nothing)
+>>>>>>> origin/titan
     def add_context (self, ctx) :
         """
         ctx:     saga.Context
@@ -235,9 +326,15 @@ class Session (saga.base.SimpleBase) :
 
     # ----------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Session', 
                   saga.context.Context)
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('Session', 
+                  saga.context.Context)
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def remove_context (self, ctx) :
         """
         ctx:     saga.Context
@@ -253,8 +350,13 @@ class Session (saga.base.SimpleBase) :
 
     # ----------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Session')
     @sus.returns (sus.list_of (saga.context.Context))
+=======
+    @rus.takes   ('Session')
+    @rus.returns (rus.list_of (saga.context.Context))
+>>>>>>> origin/titan
     def list_contexts  (self) :
         """
         ret:     list[saga.Context]
@@ -266,6 +368,22 @@ class Session (saga.base.SimpleBase) :
         return self.contexts
 
 
+<<<<<<< HEAD
 
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+    # ----------------------------------------------------------------
+    #
+    @rus.takes   ('Session')
+    @rus.returns (dict)
+    def get_config (self, section="") :
+        """
+        ret:     radical.utils.Configuration
+        
+        Return the session configuration (optional a specific section).
+        """
+
+        return saga.engine.engine.Engine ().get_config (section)
+
+>>>>>>> origin/titan
 

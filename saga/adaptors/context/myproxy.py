@@ -7,11 +7,18 @@ __license__   = "MIT"
 import os
 import subprocess
 
+<<<<<<< HEAD
 import saga.adaptors.base
 import saga.adaptors.cpi.context
 import saga.adaptors.cpi.decorators
 import saga.context
 
+=======
+import saga.context
+import saga.adaptors.base
+import saga.adaptors.cpi.decorators
+import saga.adaptors.cpi.context
+>>>>>>> origin/titan
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -169,5 +176,9 @@ class ContextMyProxy (saga.adaptors.cpi.context.Context) :
         session.add_context (new_ctx)
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

@@ -6,7 +6,10 @@ __license__   = "MIT"
 
 import saga.namespace.constants as ns
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/titan
 # filesystem flags enum:
 OVERWRITE      = ns.OVERWRITE       #      1
 RECURSIVE      = ns.RECURSIVE       #      2
@@ -28,5 +31,9 @@ CURRENT        = "Current"
 END            = "End"
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

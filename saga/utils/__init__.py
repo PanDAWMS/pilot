@@ -5,6 +5,7 @@ __license__   = "MIT"
 
 
 # import logger
+<<<<<<< HEAD
 # import threads
 # import config
 # import contrib
@@ -19,3 +20,13 @@ from plugin_manager import PluginManager
 
 
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+# 
+# from   pty_process import *
+# from   exception   import *
+# from   misc        import *
+
+
+
+
+>>>>>>> origin/titan

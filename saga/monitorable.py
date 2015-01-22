@@ -1,15 +1,27 @@
 
 __author__    = "Andre Merzky"
+<<<<<<< HEAD
 __copyright__ = "Copyright 2013, The SAGA Project"
+=======
+__copyright__ = "Copyright 2012-2013, The SAGA Project"
+>>>>>>> origin/titan
 __license__   = "MIT"
 
 
 """ Monitorable interface """
 
+<<<<<<< HEAD
 import saga.attributes       as sa
 import saga.base             as sb
 import saga.exceptions       as se
 import saga.utils.signatures as sus
+=======
+import radical.utils.signatures as rus
+
+import saga.attributes       as sa
+import saga.base             as sb
+import saga.exceptions       as se
+>>>>>>> origin/titan
 
 
 # ------------------------------------------------------------------------------
@@ -41,8 +53,13 @@ class Monitorable (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Monitorable')
     @sus.returns (sus.list_of (basestring))
+=======
+    @rus.takes   ('Monitorable')
+    @rus.returns (rus.list_of (basestring))
+>>>>>>> origin/titan
     def list_metrics (self) :
 
         self._check ()
@@ -53,8 +70,13 @@ class Monitorable (sa.Attributes) :
     #
     # Metrics are not implemented in SAGA-Python
     #
+<<<<<<< HEAD
   # @sus.takes   ('Monitorable', basestring)
   # @sus.returns ('Metric')
+=======
+  # @rus.takes   ('Monitorable', basestring)
+  # @rus.returns ('Metric')
+>>>>>>> origin/titan
   # def get_metric (name) :
   #
   #     self._check ()
@@ -63,10 +85,17 @@ class Monitorable (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Monitorable',
                   basestring,
                   sus.one_of ('saga.Callback', callable))
     @sus.returns (int)
+=======
+    @rus.takes   ('Monitorable',
+                  basestring,
+                  rus.one_of ('saga.Callback', callable))
+    @rus.returns (int)
+>>>>>>> origin/titan
     def add_callback (self, name, cb) :
 
         self._check ()
@@ -75,9 +104,15 @@ class Monitorable (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Monitorable',
                   int)
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('Monitorable',
+                  int)
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def remove_callback (self, cookie) :
 
         self._check ()
@@ -85,5 +120,9 @@ class Monitorable (sa.Attributes) :
 
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

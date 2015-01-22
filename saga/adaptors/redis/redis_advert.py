@@ -1,8 +1,17 @@
 
+<<<<<<< HEAD
+=======
+__author__    = "Andre Merzky, Ole Weidner"
+__copyright__ = "Copyright 2012-2013, The SAGA Project"
+__license__   = "MIT"
+
+
+>>>>>>> origin/titan
 """ Redis advert adaptor implementation """
 
 import traceback
 
+<<<<<<< HEAD
 import redis_namespace as rns
 import saga.adaptors.base
 import saga.adaptors.cpi.advert
@@ -10,6 +19,15 @@ import saga.exceptions as se
 import saga.url
 import saga.utils.misc as sumisc
 
+=======
+import saga.url
+import saga.adaptors.base
+import saga.adaptors.cpi.advert
+import saga.exceptions as se
+import saga.utils.misc as sumisc
+
+import redis_namespace as rns
+>>>>>>> origin/titan
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -247,7 +265,11 @@ class RedisDirectory (saga.adaptors.cpi.advert.Directory) :
     @SYNC_CALL
     def attribute_lister (self) :
 
+<<<<<<< HEAD
         data = self._nsentry.get_data ()
+=======
+        data = self._nsdir.get_data ()
+>>>>>>> origin/titan
 
         for key in data.keys () :
             self._api ()._attributes_i_set (key, data[key], self._api ()._UP)
@@ -339,7 +361,11 @@ class RedisDirectory (saga.adaptors.cpi.advert.Directory) :
             if  not sumisc.url_is_compatible (tgt, self._url) :
                 raise se.BadParameter ("cannot chdir to %s, leaves namespace" % tgt)
 
+<<<<<<< HEAD
             self._url = sumisc.url_make_absolute (tgt, self_url)
+=======
+            self._url = sumisc.url_make_absolute (tgt, self._url)
+>>>>>>> origin/titan
             self._init_check ()
 
 
@@ -525,5 +551,9 @@ class RedisEntry (saga.adaptors.cpi.advert.Entry) :
   #     shutil.copy2 (src, tgt)
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

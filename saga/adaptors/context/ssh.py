@@ -6,11 +6,18 @@ __license__   = "MIT"
 
 import os
 
+<<<<<<< HEAD
 import saga.adaptors.base
 import saga.adaptors.cpi.context
 import saga.context
 import saga.exceptions as se
 
+=======
+import saga.context
+import saga.exceptions as se
+import saga.adaptors.base
+import saga.adaptors.cpi.context
+>>>>>>> origin/titan
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -279,16 +286,28 @@ class ContextSSH (saga.adaptors.cpi.context.Context) :
 
         import subprocess
         if  not subprocess.call (["sh", "-c", "grep ENCRYPTED %s > /dev/null" % key]) :
+<<<<<<< HEAD
             if  not pwd  :
                 raise se.PermissionDenied ("ssh key '%s' is encrypted, need password" % (key))
 
 
         if  subprocess.call (["sh", "-c", "ssh-keygen -y -f %s -P %s > /dev/null" % (key, pwd)]) :
             raise se.PermissionDenied ("ssh key '%s' is encrypted, incorrect password" % (key))
+=======
+            if  pwd  :
+                if  subprocess.call (["sh", "-c", "ssh-keygen -y -f %s -P %s > /dev/null" % (key, pwd)]) :
+                    raise se.PermissionDenied ("ssh key '%s' is encrypted, incorrect password" % (key))
+            else :
+                self._logger.error ("ssh key '%s' is encrypted, unknown password" % (key))
+>>>>>>> origin/titan
 
 
         self._logger.info ("init SSH context for key  at '%s' done" % key)
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

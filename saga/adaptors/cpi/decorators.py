@@ -6,8 +6,13 @@ __license__   = "MIT"
 
 """ Provides a number of call decorators. """
 
+<<<<<<< HEAD
 import inspect
 import re
+=======
+import re
+import inspect
+>>>>>>> origin/titan
 
 import saga.exceptions as se
 import saga.task       as st
@@ -128,5 +133,9 @@ def CPI_ASYNC_CALL (cpi_async_function) :
     return wrap_function
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

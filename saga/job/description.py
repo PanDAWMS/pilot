@@ -1,14 +1,24 @@
 
+<<<<<<< HEAD
 __author__    = "Andre Merzky, Ole Weidner"
+=======
+__author__    = "Andre Merzky, Ole Weidner, Thomas Schatz"
+>>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
 """ SAGA job description interface """
 
+<<<<<<< HEAD
 import saga
 import saga.utils.signatures as sus
 
+=======
+import radical.utils.signatures as rus
+
+import saga
+>>>>>>> origin/titan
 
 #-------------------------------------------------------------------------------
 #
@@ -17,8 +27,13 @@ class Description (saga.Attributes) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Description')
     @sus.returns (sus.nothing)
+=======
+    @rus.takes   ('Description')
+    @rus.returns (rus.nothing)
+>>>>>>> origin/titan
     def __init__(self):
 
         # set attribute interface properties
@@ -46,7 +61,11 @@ class Description (saga.Attributes) :
         self._attributes_register  (saga.job.CLEANUP              , None, sa.BOOL,   sa.SCALAR, sa.WRITEABLE)
         self._attributes_register  (saga.job.JOB_START_TIME       , None, sa.TIME,   sa.SCALAR, sa.WRITEABLE)
         self._attributes_register  (saga.job.WALL_TIME_LIMIT      , None, sa.INT,    sa.SCALAR, sa.WRITEABLE)
+<<<<<<< HEAD
         self._attributes_register  (saga.job.TOTAL_PHYSICAL_MEMORY, None, sa.STRING, sa.SCALAR, sa.WRITEABLE)
+=======
+        self._attributes_register  (saga.job.TOTAL_PHYSICAL_MEMORY, None, sa.INT,    sa.SCALAR, sa.WRITEABLE)
+>>>>>>> origin/titan
         self._attributes_register  (saga.job.CPU_ARCHITECTURE     , None, sa.ENUM,   sa.SCALAR, sa.WRITEABLE)
         self._attributes_register  (saga.job.OPERATING_SYSTEM_TYPE, None, sa.ENUM,   sa.SCALAR, sa.WRITEABLE)
         self._attributes_register  (saga.job.CANDIDATE_HOSTS      , None, sa.STRING, sa.VECTOR, sa.WRITEABLE)
@@ -83,18 +102,30 @@ class Description (saga.Attributes) :
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Description',
                   ('Description', dict))
     @sus.returns ('Description')
+=======
+    @rus.takes   ('Description',
+                  ('Description', dict))
+    @rus.returns ('Description')
+>>>>>>> origin/titan
     def __deepcopy__ (self, memo) :
         other = saga.job.Description ()
         return self.clone (other)
 
     # --------------------------------------------------------------------------
     #
+<<<<<<< HEAD
     @sus.takes   ('Description',
                   'Description')
     @sus.returns ('Description')
+=======
+    @rus.takes   ('Description',
+                  'Description')
+    @rus.returns ('Description')
+>>>>>>> origin/titan
     def clone (self, other=None) :
         """ 
         clone()
@@ -115,5 +146,9 @@ class Description (saga.Attributes) :
 
 
 
+<<<<<<< HEAD
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+=======
+
+>>>>>>> origin/titan
 

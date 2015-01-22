@@ -432,15 +432,15 @@ class ATLASExperiment(Experiment):
                     tolog("asetup not needed (no special homePackage)")
 
             elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
-                
-                if 'HPC_Titan' in readpar("catchall"):
+
+                if 'HPC_' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": ("%s/%s" % (job.homePackage, job.trf)),
                            "parameters": job.jobPars }
                 else:
                     cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
             else:
-                if 'HPC_Titan' in readpar("catchall"):
+                if 'HPC_' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": job.trf,
                            "parameters": job.jobPars }
@@ -452,8 +452,7 @@ class ATLASExperiment(Experiment):
             special_setup_cmd = self.getSpecialSetupCommand()
 
         # add FRONTIER debugging and RUCIO env variables
-        
-        if 'HPC_Titan' in readpar("catchall"):
+        if 'HPC_' in readpar("catchall"):
             cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
         else: 
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
@@ -480,7 +479,7 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
         # Pipe stdout/err for payload to files
-        if 'HPC_Titan' not in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
+        if 'HPC_' not in readpar("catchall"):
             cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
@@ -591,7 +590,8 @@ class ATLASExperiment(Experiment):
                     "jobState-*-test.pickle",
                     "*.writing",
                     "HPC",
-                    "saga"]
+                    "saga",
+                    "radical"]
 
         # remove core and pool.root files from AthenaMP sub directories
         try:
@@ -2042,7 +2042,7 @@ class ATLASExperiment(Experiment):
         rel_N = None
         path = None
         skipVerification = False # verification not possible for more complicated setup (nightlies)
-        if 'HPC_Titan' in readpar("catchall"):
+        if 'HPC_' in readpar("catchall"):
             skipVerification = True # verification not possible for more complicated setup (nightlies)
 
         # First try with the cmtconfig in the path. If that fails, try without it
@@ -2283,7 +2283,7 @@ class ATLASExperiment(Experiment):
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
         
-        if 'HPC_Titan' in readpar("catchall"):
+        if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             status = True
         else:
             # Test the LFC module
@@ -2291,8 +2291,7 @@ class ATLASExperiment(Experiment):
 
             # Test CVMFS
             if status:
-                if not 'HPC_HPC' in readpar('catchall'):
-                    status = self.testCVMFS()
+                status = self.testCVMFS()
         
         return status
 

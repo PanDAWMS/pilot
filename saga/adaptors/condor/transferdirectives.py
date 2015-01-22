@@ -1,5 +1,9 @@
 
+<<<<<<< HEAD
 __author__    = "Ole Weidner"
+=======
+__author__    = "Andre Merzky, Ole Weidner"
+>>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
@@ -10,7 +14,10 @@ __license__   = "MIT"
 
 import saga.exceptions as se
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/titan
 # 4.1.3 File Transfer Specifications (GFD90 p 176-177)
 #
 # The syntax of a file transfer directive for the job description is modeled on
@@ -30,6 +37,11 @@ import saga.exceptions as se
 #      Overwrites the local file if it exists.
 # '<<' copies the remote file to the local file after the job finishes.
 #      Appends to the local file if it exists.
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> origin/titan
 class TransferDirectives(object):
 
     def __init__(self, directives_list):
@@ -57,7 +69,11 @@ class TransferDirectives(object):
                 (local, remote) = directive.split('>')
                 self._in_overwrite[local.strip()] = remote.strip()
             else:
+<<<<<<< HEAD
                 msg = "'%s' is not a valid transfer directive string."
+=======
+                msg = "'%s' is not a valid transfer directive string." % directive
+>>>>>>> origin/titan
                 raise se.BadParameter(msg)
 
     def _dicts_to_string_list(self):
