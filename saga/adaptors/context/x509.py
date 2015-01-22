@@ -6,16 +6,9 @@ __license__   = "MIT"
 
 import os
 
-<<<<<<< HEAD
-import saga.adaptors.base
-import saga.adaptors.cpi.context
-import saga.context
-
-=======
 import saga.context
 import saga.adaptors.base
 import saga.adaptors.cpi.context
->>>>>>> origin/titan
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -156,10 +149,4 @@ class ContextX509 (saga.adaptors.cpi.context.Context) :
                                                  % (api.user_proxy, str(e)))
         else :
             fh.close ()
-
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
-
->>>>>>> origin/titan
 
