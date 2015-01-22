@@ -4,16 +4,9 @@ __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-<<<<<<< HEAD
-import saga.adaptors.cpi.attributes as cpi_att
-import saga.adaptors.cpi.decorators as cpi_dec
-import saga.adaptors.cpi.namespace  as cpi_ns
-
-=======
 import saga.adaptors.cpi.decorators as cpi_dec
 import saga.adaptors.cpi.namespace  as cpi_ns
 import saga.adaptors.cpi.attributes as cpi_att
->>>>>>> origin/titan
 
 SYNC  = cpi_dec.CPI_SYNC_CALL
 ASYNC = cpi_dec.CPI_ASYNC_CALL
@@ -89,9 +82,4 @@ class LogicalFile (cpi_ns.entry.Entry,
     def download_async        (self, name, src, flags, ttype)  : pass
 
 
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
-
->>>>>>> origin/titan
 
