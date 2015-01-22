@@ -1,11 +1,6 @@
-<<<<<<< HEAD
-
-__author__    = "Andre Merzky, Ole Weidner"
-=======
 # -*- coding: utf-8 -*-
 
 __author__    = "Andre Merzky, Christian P.-Llamas, Ole Weidner, Thomas Schatz, Alexander Grill"
->>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
@@ -13,20 +8,6 @@ __license__   = "MIT"
 """ SGE job adaptor implementation
 """
 
-<<<<<<< HEAD
-from cgi import parse_qs
-from copy import deepcopy
-import os
-import re
-import time
-
-import saga.adaptors.base
-import saga.adaptors.cpi.job
-from saga.job.constants import *
-import saga.utils.pty_shell
-import saga.utils.which
-
-=======
 import saga.utils.pty_shell
 
 import saga.url as surl
@@ -41,181 +22,10 @@ import time
 from cgi import parse_qs
 from StringIO import StringIO
 from datetime import datetime
->>>>>>> origin/titan
 
 SYNC_CALL = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
 
-<<<<<<< HEAD
-
-# --------------------------------------------------------------------
-#
-def log_error_and_raise(message, exception, logger):
-    logger.error(message)
-    raise exception(message)
-
-
-# --------------------------------------------------------------------
-#
-def _sge_to_saga_jobstate(sgejs):
-    """ translates a sge one-letter state to saga
-    """
-    if sgejs == 'c':
-        return saga.job.DONE
-    elif sgejs == 'E':
-        return saga.job.RUNNING
-    elif sgejs == 'H':
-        return saga.job.PENDING
-    elif sgejs == 'qw':
-        return saga.job.PENDING
-    elif sgejs == 'r':
-        return saga.job.RUNNING
-    elif sgejs == 't':
-        return saga.job.RUNNING
-    elif sgejs == 'w':
-        return saga.job.PENDING
-    elif sgejs == 's':
-        return saga.job.PENDING
-    elif sgejs == 'X':
-        return saga.job.CANCELED
-    elif sgejs == 'Eqw':
-        return saga.job.FAILED
-    else:
-        return saga.job.UNKNOWN
-
-
-# --------------------------------------------------------------------
-# simple parser for getting memory requirements flags and multipliers from the memreqs part of the job.Service url
-#
-def _parse_memreqs(s):
-    flags = []
-    multipliers = []
-    while not s=='':
-        # find multiplier
-        m = re.match(r'\d+\.?\d*|\d*\.?\d+', s)
-        if m:
-            multipliers.append(float(s[m.start():m.end()]))
-            s = s[m.end():]
-        else:
-            multipliers.append(1.)        
-        # find flag
-        pos = s.find('~')
-        if pos < 0:
-            flags.append(s)
-            s = ''
-        else:                
-            flags.append(s[:pos])
-            s = s[pos+1:]
-    return flags, multipliers
-
-# --------------------------------------------------------------------
-#
-#
-def _sgescript_generator(url, logger, jd, pe_list, queue=None, memreqs=None):
-    """ generates an SGE script from a SAGA job description
-    """
-    sge_params = str()
-    exec_n_args = str()
-
-    # if no cores are requested at all, we default to one
-    if jd.total_cpu_count is None:
-        jd.total_cpu_count = 1
-
-    # check spmd variation. this translates to the SGE qsub -pe flag.
-    if jd.spmd_variation is not None:
-        if jd.spmd_variation not in pe_list:
-            raise Exception("'%s' is not a valid option for jd.spmd_variation. \
-Valid options are: %s" % (jd.spmd_variation, pe_list))
-    else:
-        if jd.total_cpu_count > 1:
-            raise Exception("jd.spmd_variation need to be set in order for jd.total_cpu_count to be greater than 1. Valid options for jd.spmd_variation are: %s" % (pe_list))
-
-    if jd.executable is not None:
-        exec_n_args += "%s " % (jd.executable)
-    if jd.arguments is not None:
-        for arg in jd.arguments:
-            exec_n_args += "%s " % (arg)
-
-    if jd.name is not None:
-        sge_params += "#$ -N %s \n" % jd.name
-
-    sge_params += "#$ -V \n"
-
-    if jd.environment is not None and len(jd.environment) > 0:
-        variable_list = str()
-        for key in jd.environment.keys():
-            variable_list += "%s=%s," % (key, jd.environment[key])
-        sge_params += "#$ -v %s \n" % variable_list
-
-    if jd.working_directory is not None:
-        sge_params += "#$ -wd %s \n" % jd.working_directory
-    if jd.output is not None:
-        sge_params += "#$ -o %s \n" % jd.output
-    if jd.error is not None:
-        sge_params += "#$ -e %s \n" % jd.error
-    if jd.wall_time_limit is not None:
-        hours = jd.wall_time_limit / 60
-        minutes = jd.wall_time_limit % 60
-        sge_params += "#$ -l h_rt=%s:%s:00 \n" % (str(hours), str(minutes))
-
-    if (jd.queue is not None) and (queue is not None):
-        sge_params += "#$ -q %s \n" % queue
-    elif (jd.queue is not None) and (queue is None):
-        sge_params += "#$ -q %s \n" % jd.queue
-    elif (jd.queue is None) and (queue is not None):
-        sge_params += "#$ -q %s \n" % queue
-    else:
-        raise Exception("No queue defined.")
-
-    if jd.project is not None:
-        sge_params += "#$ -A %s \n" % str(jd.project)
-    if jd.job_contact is not None:
-        sge_params += "#$ -m be \n"
-        sge_params += "#$ -M %s \n" % jd.contact
-
-    # memory requirements - TOTAL_PHYSICAL_MEMORY
-    # it is assumed that the value passed through jd is always in Megabyte
-    if jd.total_physical_memory is not None:
-        # this is (of course) not the same for all SGE installations. some 
-        # use virtual_free, some use a combination of mem_req / h_vmem. 
-        # It is very annoying. We need some sort of configuration variable 
-        # that can control this. Yes, ugly and not very saga-ish, but 
-        # the only way to do this, IMHO...
-        if memreqs is None:
-            raise Exception("When using 'total_physical_memory' with the SGE adaptor, the query parameters of the job.Service URL must define the attributes used by your particular instance of SGE to control memory allocation.\n 'virtual_free', 'h_vmem' or 'mem_req' are commonly encountered examples of such attributes.\n A valid job.Service URL could be for instance:\n 'sge+ssh://myserver.edu?memreqs=virtual_free~1.5h_vmem'\n here the attribute 'virtual_free' would be set to 'total_physical_memory' and the attribute 'h_vmem' would be set to 1.5*'total_physical_memory', '~' is used as a separator.")            
-        
-        flags, multipliers = _parse_memreqs(memreqs)
-        for flag,mult in zip(flags, multipliers):
-            sge_params += "#$ -l %s=%sm \n" % (flag, int (round (mult*int(jd.total_physical_memory) ) ) )
-
-    # if no cores are requested at all, we default to one
-    if jd.total_cpu_count is None:
-        jd.total_cpu_count = 1
-
-    # we need to translate the # cores requested into
-    # multiplicity, i.e., if one core is requested and
-    # the cluster consists of 16-way SMP nodes, we will
-    # request 16. If 17 cores are requested, we will
-    # request 32... and so on ... self.__ppn represents
-    # the core count per single node
-    #count = int(int(jd.total_cpu_count) / int(ppn))
-    #if int(jd.total_cpu_count) % int(ppn) != 0:
-    #    count = count + 1
-    #count = count * int(ppn)
-
-    # escape all double quotes and dollarsigns, otherwise 'echo |'
-    # further down won't work
-    # only escape '$' in args and exe. not in the params
-    exec_n_args = exec_n_args.replace('$', '\\$')
-
-    if jd.spmd_variation is not None:
-        sge_params += "#$ -pe %s %s" % (jd.spmd_variation, jd.total_cpu_count)       
-
-    sgescript = "\n#!/bin/bash \n%s \n%s" % (sge_params, exec_n_args)
-
-    sgescript = sgescript.replace('"', '\\"')
-    return sgescript
-=======
 _QSTAT_JOB_STATE_RE = re.compile(r"^([^ ]+) ([0-9]{2}/[0-9]{2}/[0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2}) (.+)$")
 
 class SgeKeyValueParser(object):
@@ -292,7 +102,6 @@ class SgeKeyValueParser(object):
 def log_error_and_raise(message, exception, logger):
     logger.error(message)
     raise exception(message)
->>>>>>> origin/titan
 
 # --------------------------------------------------------------------
 # some private defs
@@ -304,10 +113,6 @@ _PTY_TIMEOUT = 2.0
 #
 _ADAPTOR_NAME          = "saga.adaptor.sgejob"
 _ADAPTOR_SCHEMAS       = ["sge", "sge+ssh", "sge+gsissh"]
-<<<<<<< HEAD
-_ADAPTOR_OPTIONS       = []
-
-=======
 _ADAPTOR_OPTIONS       = [
     { 
     'category'         : 'saga.adaptor.sgejob',
@@ -331,7 +136,7 @@ _ADAPTOR_OPTIONS       = [
     'env_variable'     : None
     },
 ]
->>>>>>> origin/titan
+
 # --------------------------------------------------------------------
 # the adaptor capabilities & supported attributes
 #
@@ -382,17 +187,10 @@ The SGE (Sun/Oracle Grid Engine) adaptor allows to run and manage jobs on
 # the adaptor info is used to register the adaptor with SAGA
 #
 _ADAPTOR_INFO = {
-<<<<<<< HEAD
-    "name"        :    _ADAPTOR_NAME,
-    "version"     : "v0.1",
-    "schemas"     : _ADAPTOR_SCHEMAS,
-    "capabilities":  _ADAPTOR_CAPABILITIES,
-=======
     "name"         : _ADAPTOR_NAME,
     "version"      : "v0.1",
     "schemas"      : _ADAPTOR_SCHEMAS,
     "capabilities" : _ADAPTOR_CAPABILITIES,
->>>>>>> origin/titan
     "cpis": [
         {
         "type": "saga.job.Service",
@@ -409,13 +207,8 @@ _ADAPTOR_INFO = {
 ###############################################################################
 # The adaptor class
 class Adaptor (saga.adaptors.base.Base):
-<<<<<<< HEAD
-    """ this is the actual adaptor class, which gets loaded by SAGA (i.e. by 
-        the SAGA engine), and which registers the CPI implementation classes 
-=======
     """ this is the actual adaptor class, which gets loaded by SAGA (i.e. by
         the SAGA engine), and which registers the CPI implementation classes
->>>>>>> origin/titan
         which provide the adaptor's functionality.
     """
 
@@ -423,13 +216,6 @@ class Adaptor (saga.adaptors.base.Base):
     #
     def __init__(self):
 
-<<<<<<< HEAD
-        saga.adaptors.base.Base.__init__(self,
-            _ADAPTOR_INFO, _ADAPTOR_OPTIONS)
-
-        self.id_re = re.compile('^\[(.*)\]-\[(.*?)\]$')
-        self.opts = self.get_config()
-=======
         saga.adaptors.base.Base.__init__(self, _ADAPTOR_INFO, _ADAPTOR_OPTIONS)
 
         self.id_re = re.compile('^\[(.*)\]-\[(.*?)\]$')
@@ -437,7 +223,6 @@ class Adaptor (saga.adaptors.base.Base):
 
         self.purge_on_start = self.opts['purge_on_start'].get_value()
         self.purge_older_than = self.opts['purge_older_than'].get_value()
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -473,12 +258,6 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
 
         self._adaptor = adaptor
 
-<<<<<<< HEAD
-
-
-
-=======
->>>>>>> origin/titan
     # ----------------------------------------------------------------
     #
     def __del__(self):
@@ -500,20 +279,12 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
         self.memreqs = None
         self.shell   = None
         self.mandatory_memreqs = list()
-<<<<<<< HEAD
-
-
-
-        rm_scheme = rm_url.scheme
-        pty_url   = deepcopy(rm_url)
-=======
         self.accounting = False
         self.temp_path = "$HOME/.saga/adaptors/sge_job"
 
 
         rm_scheme = rm_url.scheme
         pty_url   = surl.Url (rm_url)
->>>>>>> origin/titan
 
         # this adaptor supports options that can be passed via the
         # 'query' component of the job service URL.
@@ -536,20 +307,12 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
 
         # these are the commands that we need in order to interact with SGE.
         # the adaptor will try to find them during initialize(self) and bail
-<<<<<<< HEAD
-        # out in case they are note avaialbe.
-        self._commands = {'qstat': None,
-                          'qsub':  None,
-                          'qdel':  None,
-                          'qconf': None}
-=======
         # out in case they are not available.
         self._commands = {'qstat': None,
                           'qsub':  None,
                           'qdel':  None,
                           'qconf': None,
                           'qacct': None}
->>>>>>> origin/titan
 
         self.shell = saga.utils.pty_shell.PTYShell(pty_url, self.session)
 
@@ -567,10 +330,6 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
         if  self.shell :
             self.shell.finalize (True)
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/titan
     # ----------------------------------------------------------------
     #
     def initialize(self):
@@ -600,11 +359,7 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
                     version = out.strip().split('\n')[0]
 
                     # add path and version to the command dictionary
-<<<<<<< HEAD
-                    self._commands[cmd] = {"path":    path,
-=======
                     self._commands[cmd] = {"path":    "unset GREP_OPTIONS; %s" % path,
->>>>>>> origin/titan
                                            "version": version}
 
         self._logger.info("Found SGE tools: %s" % self._commands)
@@ -621,11 +376,7 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
                     self.pe_list.append(pe)
             self._logger.debug("Available processing elements: %s" %
                 (self.pe_list))
-<<<<<<< HEAD
-         
-=======
 
->>>>>>> origin/titan
         # find out mandatory and optional memory attributes 
         ret, out, _ = self.shell.run_sync('%s -sc' % (self._commands['qconf']['path']))
         if ret != 0:
@@ -633,11 +384,7 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
             log_error_and_raise(message, saga.NoSuccess, self._logger)
         else: 
             mandatory_attrs = []
-<<<<<<< HEAD
-            optional_attrs = []           
-=======
             optional_attrs = []
->>>>>>> origin/titan
             for line in out.split('\n'):
                 if (line != '') and (line[0] != '#'):
                     [name, _, att_type, _, requestable, _, _, _] = line.split()
@@ -651,11 +398,7 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
         if self.memreqs is None:
             flags = []
         else:
-<<<<<<< HEAD
-            flags, _ = _parse_memreqs(self.memreqs) 
-=======
             flags, _ = self.__parse_memreqs(self.memreqs)
->>>>>>> origin/titan
         # if there are mandatory memory attributes store them and check that they were specified in the job.Service URL
         if not (mandatory_attrs == []):
             self.mandatory_memreqs = mandatory_attrs
@@ -664,27 +407,15 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
                 if not attr in flags:
                     missing_flags.append(attr)
             if not (missing_flags == []):
-<<<<<<< HEAD
-                message = "The following memory attribute(s) are mandatory in your SGE environment and thus must be specified in the job service URL: %s" % ' '.join(missing_flags)
-                log_error_and_raise(message, saga.BadParameter, self._logger) 
-        # if memory attributes were specified in the job.Service URL, check that they correspond to existing optional or mandatory memory attributes
-        invalid_attrs = []              
-=======
                 message = "The following memory attribute(s) are mandatory in your SGE environment and thus " \
                           "must be specified in the job service URL: %s" % ' '.join(missing_flags)
                 log_error_and_raise(message, saga.BadParameter, self._logger) 
         # if memory attributes were specified in the job.Service URL, check that they correspond to existing optional or mandatory memory attributes
         invalid_attrs = []
->>>>>>> origin/titan
         for f in flags:
             if not (f in optional_attrs or f in mandatory_attrs):
                 invalid_attrs.append(f)
         if not (invalid_attrs == []):
-<<<<<<< HEAD
-            message = "The following memory attribute(s) were specified in the job.Service URL but are not valid memory attributes in your SGE environment: %s" % ' '.join(invalid_attrs)
-            log_error_and_raise(message, saga.BadParameter, self._logger)
-                    
-=======
             message = "The following memory attribute(s) were specified in the job.Service URL but are not valid " \
                       "memory attributes in your SGE environment: %s" % ' '.join(invalid_attrs)
             log_error_and_raise(message, saga.BadParameter, self._logger)
@@ -701,7 +432,6 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
             ret, out, _ = self.shell.run_sync(cmd)
             if ret == 0 and out != "0":
                 self._logger.info("Purged %s temporary files" % out)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -710,9 +440,6 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
             if  self.shell :
                 self.shell.finalize (True)
 
-<<<<<<< HEAD
-    def _remote_mkdir(self, path):
-=======
     # ----------------------------------------------------------------
     #
     # private members
@@ -786,7 +513,6 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
         Creates a directory on the remote host.
         :param path: the remote directory to be created.
         """
->>>>>>> origin/titan
         # check if the path exists
         ret, out, _ = self.shell.run_sync(
                         "(test -d %s && echo -n 0) || (mkdir -p %s && echo -n 1)" % (path, path))
@@ -798,26 +524,6 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
             message = "Couldn't create remote directory - %s" % (out)
             log_error_and_raise(message, saga.NoSuccess, self._logger)
 
-<<<<<<< HEAD
-    # ----------------------------------------------------------------
-    #
-    def _job_run(self, jd):
-        """ runs a job via qsub
-        """
-        if (self.queue is not None) and (jd.queue is not None):
-            self._logger.warning("Job service was instantiated explicitly with \
-'queue=%s', but job description tries to a differnt queue: '%s'. Using '%s'." %
-                (self.queue, jd.queue, self.queue))
-        # In SGE environments with mandatory memory attributes, 'total_physical_memory' must be specified        
-        if (not (self.mandatory_memreqs == [])) and (jd.total_physical_memory is None):
-            log_error_and_raise("Your SGE environments has mandatory memory attributes, so 'total_physical_memory' must be specified in your job descriptor", saga.BadParameter, self._logger)            
-        try:
-            # create a SGE job script from SAGA job description
-            script = _sgescript_generator(url=self.rm, logger=self._logger,
-                                          jd=jd, pe_list=self.pe_list,
-                                          queue=self.queue,
-                                          memreqs=self.memreqs)
-=======
     def __job_info_from_accounting(self, sge_job_id, max_retries=10):
         """ Returns job information from the SGE accounting using qacct.
         It may happen that when the job exits from the queue system the results in
@@ -1074,28 +780,11 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
         try:
             # create a SGE job script from SAGA job description
             script = self.__generate_qsub_script(jd)
->>>>>>> origin/titan
 
             self._logger.info("Generated SGE script: %s" % script)
         except Exception, ex:
             log_error_and_raise(str(ex), saga.BadParameter, self._logger)
 
-<<<<<<< HEAD
-        # try to create the working directory (if defined)
-        # WARNING: this assumes a shared filesystem between login node and
-        #           compute nodes.
-        if jd.working_directory is not None and len(jd.working_directory) > 0:
-            self._remote_mkdir(jd.working_directory)
-
-        if jd.output is not None and len(jd.output) > 0:
-            self._remote_mkdir(os.path.dirname(jd.output))
-
-        if jd.error is not None and len(jd.error) > 0:
-            self._remote_mkdir(os.path.dirname(jd.output))
-
-        # submit the SGE script
-        cmdline = """echo "%s" | %s""" % (script, self._commands['qsub']['path'])
-=======
         # try to create the working/output/error directories (if defined)
         # WARNING: this assumes a shared filesystem between login node and
         #           compute nodes.
@@ -1115,42 +804,10 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
         # (2) we call 'qsub <tmpfile>' to submit the script to the queueing system
         cmdline = """SCRIPTFILE=`mktemp -t SAGA-Python-SGEJobScript.XXXXXX` &&  echo "%s" > $SCRIPTFILE && %s -notify $SCRIPTFILE && rm -f $SCRIPTFILE""" %  (script, self._commands['qsub']['path'])
         #cmdline = 'echo "%s" | %s -notify' % (script, self._commands['qsub']['path'])
->>>>>>> origin/titan
         ret, out, _ = self.shell.run_sync(cmdline)
 
         if ret != 0:
             # something went wrong
-<<<<<<< HEAD
-            message = "Error running job via 'qsub': %s. Commandline was: %s" \
-                % (out, cmdline)
-            log_error_and_raise(message, saga.NoSuccess, self._logger)
-        else:
-            # stdout contains the job id:
-            # Your job 1036608 ("testjob") has been submitted
-            pid = None
-            for line in out.split('\n'):
-                if line.find("Your job") != -1:
-                    pid = line.split()[2]
-            if pid is None:
-                message = "Couldn't parse job id from 'qsub' output: %s" % out
-                log_error_and_raise(message, saga.NoSuccess, self._logger)
-
-            job_id = "[%s]-[%s]" % (self.rm, pid)
-            self._logger.info("Submitted SGE job with id: %s" % job_id)
-
-            # add job to internal list of known jobs.
-            self.jobs[job_id] = {
-                'state':        saga.job.PENDING,
-                'exec_hosts':   None,
-                'returncode':   None,
-                'create_time':  None,
-                'start_time':   None,
-                'end_time':     None,
-                'gone':         False
-            }
-
-            return job_id
-=======
             message = "Error running job via 'qsub': %s. Commandline was: %s" % (out, cmdline)
             log_error_and_raise(message, saga.NoSuccess, self._logger)
 
@@ -1179,49 +836,10 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
         }
 
         return job_id
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
     def _retrieve_job(self, job_id):
-<<<<<<< HEAD
-        """ see if we can get some info about a job that we don't
-            know anything about
-        """
-        rm, pid = self._adaptor.parse_id(job_id)
-
-        # run the SGE 'qstat' command to get some infos about our job
-        ret, out, _ = self.shell.run_sync("echo -n \"JID: \" && %s | grep %s \
-                && %s -f -j %s | egrep '(submission_time)'" \
-                % (self._commands['qstat']['path'], pid,
-                   self._commands['qstat']['path'], pid))
-
-        if ret != 0:
-            message = "Couldn't reconnect to job '%s': %s" % (job_id, out)
-            log_error_and_raise(message, saga.NoSuccess, self._logger)
-        else:
-            # the job seems to exist on the backend. let's gather some data
-            job_info = {
-                'state':        saga.job.UNKNOWN,
-                'exec_hosts':   None,
-                'returncode':   None,
-                'create_time':  None,
-                'start_time':   None,
-                'end_time':     None,
-                'gone':         False
-            }
-
-            results = out.split('\n')
-            for result in results:
-                if 'JID:' in result:
-                    job_state = _sge_to_saga_jobstate(out.split()[5])
-                    job_info['state'] = job_state
-                elif 'submission_time:' in result:
-                    val = result.replace('submission_time:', '')
-                    job_info['create_time'] = val.strip()
-
-            return job_info
-=======
         """ retrieve job information
         :param job_id: SAGA job id
         :return: job information dictionary
@@ -1303,16 +921,11 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
                 "state", "returncode", "exec_hosts", "create_time", "start_time", "end_time", "gone"]])))
 
         return job_info
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
     def _job_get_info(self, job_id):
-<<<<<<< HEAD
-        """ get job attributes via qstat
-=======
         """ get job attributes
->>>>>>> origin/titan
         """
 
         # if we don't have the job in our dictionary, we don't want it
@@ -1330,44 +943,6 @@ class SGEJobService (saga.adaptors.cpi.job.Service):
             self._logger.warning("Job information is not available anymore.")
             return prev_info
 
-<<<<<<< HEAD
-        # curr. info will contain the new job info collect. it starts off
-        # as a copy of prev_info
-        curr_info = deepcopy(prev_info)
-
-        rm, pid = self._adaptor.parse_id(job_id)
-
-        # run the SGE 'qstat' command to get some infos about our job
-        ret, out, _ = self.shell.run_sync("echo -n \"JID: \" && %s | grep %s \
-                && %s -f -j %s | egrep '(submission_time)'" \
-                % (self._commands['qstat']['path'], pid,
-                   self._commands['qstat']['path'], pid))
-
-        if ret != 0:
-            # Let's see if the previous job state was runnig or pending. in
-            # that case, the job is gone now, which can either mean DONE,
-            # or FAILED. the only thing we can do is set it to 'DONE'
-            if prev_info['state'] in [saga.job.RUNNING, saga.job.PENDING]:
-                curr_info['state'] = saga.job.DONE
-                curr_info['gone'] = True
-                self._logger.warning("Previously running job has \
-disappeared. This probably means that the backend doesn't store informations \
-about finished jobs. Setting state to 'DONE'.")
-            else:
-                curr_info['gone'] = True
-
-        else:
-            results = out.split('\n')
-            for result in results:
-                if 'JID:' in result:
-                    job_state = _sge_to_saga_jobstate(out.split()[5])
-                    curr_info['state'] = job_state
-                elif 'submission_time:' in result:
-                    val = result.replace('submission_time:', '')
-                    curr_info['create_time'] = val.strip()
-
-        # return the new job info dict
-=======
         # if the job is in a terminal state don't expect it to change anymore
         if prev_info["state"] in [saga.job.CANCELED, saga.job.FAILED, saga.job.DONE]:
             return prev_info
@@ -1380,7 +955,6 @@ about finished jobs. Setting state to 'DONE'.")
 
         # update the job info cache and return it
         self.jobs[job_id] = curr_info
->>>>>>> origin/titan
         return curr_info
 
     # ----------------------------------------------------------------
@@ -1478,11 +1052,8 @@ about finished jobs. Setting state to 'DONE'.")
             message = "Error canceling job via 'qdel': %s" % out
             log_error_and_raise(message, saga.NoSuccess, self._logger)
 
-<<<<<<< HEAD
-=======
         self.__clean_remote_job_info(pid)
 
->>>>>>> origin/titan
         # assume the job was succesfully canceld
         self.jobs[job_id]['state'] = saga.job.CANCELED
 
@@ -1505,10 +1076,7 @@ about finished jobs. Setting state to 'DONE'.")
             if state == saga.job.DONE or \
                state == saga.job.FAILED or \
                state == saga.job.CANCELED:
-<<<<<<< HEAD
-=======
                     self.__clean_remote_job_info(pid)
->>>>>>> origin/titan
                     return True
             # avoid busy poll
             time.sleep(0.5)
@@ -1543,17 +1111,11 @@ about finished jobs. Setting state to 'DONE'.")
         """ Implements saga.adaptors.cpi.job.Service.get_job()
         """
 
-<<<<<<< HEAD
-        # try to get some information about this job and throw it into
-        # our job dictionary.
-        self.jobs[jobid] = self._retrieve_job(jobid)
-=======
         # try to get some information about this job
         job_info = self._retrieve_job(jobid)
 
         # save it into our job dictionary.
         self.jobs[jobid] = job_info
->>>>>>> origin/titan
 
         # this dict is passed on to the job adaptor class -- use it to pass any
         # state information you need there.
@@ -1584,11 +1146,7 @@ about finished jobs. Setting state to 'DONE'.")
         """
         ids = []
 
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync("%s | grep `whoami`"\
-=======
         ret, out, _ = self.shell.run_sync("unset GREP_OPTIONS; %s | grep `whoami`"\
->>>>>>> origin/titan
             % self._commands['qstat']['path'])
         if ret != 0 and len(out) > 0:
             message = "Failed to list jobs via 'qstat': %s" % out
@@ -1597,15 +1155,10 @@ about finished jobs. Setting state to 'DONE'.")
             # qstat | grep `whoami` exits with 1 if the list is empty
             pass
         else:
-<<<<<<< HEAD
-            jobid = "[%s]-[%s]" % (self.rm, out.split()[0])
-            ids.append(jobid)
-=======
             for line in out.split("\n"):
                 if len(line.split()) > 1:
                     jobid = "[%s]-[%s]" % (self.rm, line.split()[0])
                     ids.append(jobid)
->>>>>>> origin/titan
 
         return ids
 
@@ -1667,15 +1220,12 @@ class SGEJob (saga.adaptors.cpi.job.Job):
     # ----------------------------------------------------------------
     #
     @SYNC_CALL
-<<<<<<< HEAD
-=======
     def get_description (self):
         return self.jd
 
     # ----------------------------------------------------------------
     #
     @SYNC_CALL
->>>>>>> origin/titan
     def get_state(self):
         """ mplements saga.adaptors.cpi.job.Job.get_state()
         """
