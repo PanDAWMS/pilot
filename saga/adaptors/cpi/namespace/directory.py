@@ -4,14 +4,8 @@ __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-<<<<<<< HEAD
-import entry
-import saga.adaptors.cpi.decorators as cpi_dec
-
-=======
 import saga.adaptors.cpi.decorators as cpi_dec
 import entry
->>>>>>> origin/titan
 
 SYNC  = cpi_dec.CPI_SYNC_CALL
 ASYNC = cpi_dec.CPI_ASYNC_CALL
@@ -40,15 +34,9 @@ class Directory (entry.Entry) :
     # namespace directory methods
     #
     @SYNC
-<<<<<<< HEAD
-    def change_dir              (self, url, ttype)             : pass
-    @ASYNC
-    def change_dir_async        (self, url, ttype)             : pass
-=======
     def change_dir              (self, url, flags, ttype)      : pass
     @ASYNC
     def change_dir_async        (self, url, flags, ttype)      : pass
->>>>>>> origin/titan
 
     @SYNC
     def list                    (self, npat, ttype)            : pass
@@ -121,10 +109,4 @@ class Directory (entry.Entry) :
     @ASYNC
     def make_dir_async          (self, tgt, flags, ttype)      : pass
 
-
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
-
->>>>>>> origin/titan
 
