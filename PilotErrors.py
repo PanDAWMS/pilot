@@ -119,6 +119,7 @@ class PilotErrors:
     ERR_UNKNOWN = 1220
     ERR_FILEEXIST = 1221
     ERR_GETKEYPAIR = 1222
+    ERR_BADALLOC = 1223
     ERR_ESRECOVERABLE = 1224
     ERR_ESMERGERECOVERABLE = 1225
 
@@ -245,6 +246,7 @@ class PilotErrors:
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)",
         ERR_FILEEXIST : "File already exist",
         ERR_GETKEYPAIR : "Failed to get security key pair",
+        ERR_BADALLOC : "TRF failed due to bad_alloc",
         ERR_ESMERGERECOVERABLE : "Recoverable Event Service Merge error",
         ERR_ESRECOVERABLE: "Recoverable Event Service error"
         }

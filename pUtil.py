@@ -541,15 +541,16 @@ def stageInPyModules(initdir, workdir):
 
     return ec
 
-def removePyModules(dir):
+def removePyModules(_dir):
     """ Remove pilot python modules from workdir """
 
-    if dir:
-        for k in getFileList(path_dir=dir):
-            try:
-                os.system("rm -rf %s/%s*"%(dir,k))
-            except:
-                pass
+    if _dir:
+        for k in getFileList(path_dir=_dir):
+            if not "runargs" in k:
+                try:
+                    os.system("rm -rf %s/%s*" % (_dir, k))
+                except:
+                    pass
 
 def setTimeConsumed(t_tuple):
     """ set the system+user time spent by the job """

@@ -589,6 +589,15 @@ Now making sure that exeErrorCode is properly set in getNodeStructure() (PandaSe
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 59j:
+New version of aria2c site mover from Vincenzo Lavorini
+Updates for ES merge by Wen Guan (Job, pUtil, RunJob)
+New error code ERR_BADALLOC, 1223, "TRF failed due to bad_alloc" (PilotErrors)
+Added new methods to ErrorDiagnosis; will be moved to separate module later
+Added exception for runargs in removePyModules() (pUtil)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+60a:
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
@@ -627,9 +636,7 @@ New version of AMSTaiwanSiteInformation
 Code from Vincenzo Lavorini:
 New version of aria2c site mover
 
-ADD NEW ERROR CODES TO THE DQ
-
-CHANGE VERSION NUMBER TO 60A
+ADD NEW ERROR CODES
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
