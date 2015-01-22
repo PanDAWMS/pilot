@@ -599,6 +599,8 @@ Added exception for runargs in removePyModules() (pUtil)
 
 60a:
 
+Removed the old outdated sendTrace() and renamed sendTraceToRucio() to sendTrace() (SiteMover)
+
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
 Added new data members to Job class: eventServiceMerge, mode, hpcStatus, refreshNow (Job)
@@ -633,8 +635,6 @@ Code merge: Code from Luke Wayne (AMS):
 New version of AMSTaiwanExperiment
 New version of AMSTaiwanSiteInformation
 
-Code from Vincenzo Lavorini:
-New version of aria2c site mover
 
 ADD NEW ERROR CODES
 
