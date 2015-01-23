@@ -1,19 +1,13 @@
-<<<<<<< HEAD
-#!/bin/bash
-=======
 #!/bin/sh
 
 # be friendly to bash users (and yes, the leading space is on purpose)
 HISTIGNORE='*'
 export HISTIGNORE
->>>>>>> origin/titan
 
 # this script uses only POSIX shell functionality, and does not rely on bash or
 # other shell extensions.  It expects /bin/sh to be a POSIX compliant shell
 # thought.
 
-<<<<<<< HEAD
-=======
 
 # --------------------------------------------------------------------
 # on argument quoting
@@ -30,7 +24,6 @@ export HISTIGNORE
 # http://www.unix.com/shell-programming-and-scripting/165648-set-x-within-script-capture-file.html
 
 
->>>>>>> origin/titan
 # --------------------------------------------------------------------
 #
 # Fucking /bin/kill by Ubuntu sometimes understands --, sometimes does not :-P
@@ -56,10 +49,7 @@ RETVAL=""
 
 # this is where this 'daemon' keeps state for all started jobs
 BASE=$HOME/.saga/adaptors/shell_job/
-<<<<<<< HEAD
-=======
 NOTIFICATIONS="$BASE/notifications"
->>>>>>> origin/titan
 
 # this process will terminate when idle for longer than TIMEOUT seconds
 TIMEOUT=30
@@ -79,11 +69,7 @@ EXIT_VAL=1
 # shell if it is idle for longer than TIMEOUT seconds
 #
 \trap cleanup_handler QUIT TERM EXIT
-<<<<<<< HEAD
-# trap idle_handler ALRM
-=======
 # \trap idle_handler ALRM
->>>>>>> origin/titan
 \trap '' ALRM
 
 cleanup_handler (){
@@ -123,8 +109,6 @@ idle_checker () {
 
 # --------------------------------------------------------------------
 #
-<<<<<<< HEAD
-=======
 # When sending command stdout and stderr back, we encode into 
 # hexadecimal via od, to keep the protocol simple.  This is done by 
 # the 'encode' function which sets 'ENCODED' to the result of that 
@@ -164,7 +148,6 @@ decode () {
 
 # --------------------------------------------------------------------
 #
->>>>>>> origin/titan
 # it is suprisingly difficult to get seconds since epoch in POSIX -- 
 # 'date +%%s' is a GNU extension...  Anyway, awk to the rescue! 
 #
@@ -207,11 +190,7 @@ verify_in () {
 
 
 # --------------------------------------------------------------------
-<<<<<<< HEAD
-# ensure that given job id has valid stdou file
-=======
 # ensure that given job id has valid stdout file
->>>>>>> origin/titan
 verify_out () {
   verify_dir $1
   if ! test -r "$DIR/out";   then ERROR="pid $1 has no stdout"; return 1; fi
@@ -222,11 +201,7 @@ verify_out () {
 # ensure that given job id has valid stderr file
 verify_err () {
   verify_dir $1
-<<<<<<< HEAD
-  if ! test -r "$DIR/err";   then ERROR="stderr $1 has no sterr"; return 1; fi
-=======
   if ! test -r "$DIR/err";   then ERROR="pid $1 has no stderr"; return 1; fi
->>>>>>> origin/titan
 }
 
 
@@ -242,36 +217,6 @@ create_monitor () {
   # denoting the job to monitor.   The monitor will write 3 pids to a named pipe
   # (listened to by the wrapper):
   #
-<<<<<<< HEAD
-  #   rpid: pid of shell running the job 
-  #   mpid: pid of this monitor.sh instance (== pid of process group for cancel)
-  SAGA_PID=\$1
-  shift
-  DIR="\$*"
-
-  # subscript which represents the job.  The 'exec' call will replace the
-  # script's shell instance with the job executable, leaving the I/O
-  # redirections intact.
-  \\touch "\$DIR/in"
-
-  (
-    \\printf  "RUNNING \\n"     >> "\$DIR/state"  ;
-    \\exec /bin/sh "\$DIR/cmd"   < "\$DIR/in" > "\$DIR/out" 2> "\$DIR/err"
-  ) 1> /dev/null 2>/dev/null 3</dev/null &
-
-  RPID=\$!
-  MPID=\$\$
-
-  \\printf "\$RPID\\n" >  "\$DIR/rpid"  # real job id
-  \\printf "\$MPID\\n" >  "\$DIR/mpid"  # monitor pid
-  
-
-  # we don't care when the wrapper sees these, print can hang forever as far as
-  # we care...
-  ( \\printf "OK\\n" > "\$DIR/fifo" & )
-  
-
-=======
   #   rpid: pid of the actual job              (not exposed to user)
   #   mpid: pid of this monitor.sh instance    (== pid of process group for cancel)
   #   upid: mpid + unique postfix on pid reuse (== SAGA id)
@@ -332,7 +277,6 @@ create_monitor () {
   \\printf "\$UPID\\n" >> "$BASE/fifo"
   
   # start monitoring the job
->>>>>>> origin/titan
   while true
   do
     \\wait \$RPID
@@ -344,13 +288,10 @@ create_monitor () {
     if test -e "\$DIR/suspended"
     then
       \\rm -f "\$DIR/suspended"
-<<<<<<< HEAD
-=======
       TIME=\`\\awk 'BEGIN{srand(); print srand()}'\`
       \\printf "SUSPEND: \$TIME\\n"        >> "\$DIR/stats"
       \\printf "\$SAGA_PID:SUSPENDED: \\n" >> "$NOTIFICATIONS"
 
->>>>>>> origin/titan
       # need to wait again
       continue
     fi
@@ -358,39 +299,26 @@ create_monitor () {
     if test -e "\$DIR/resumed"
     then
       \\rm -f "\$DIR/resumed"
-<<<<<<< HEAD
-=======
       TIME=\`\\awk 'BEGIN{srand(); print srand()}'\`
       \\printf "RESUME : \$TIME\\n"      >> "\$DIR/stats"
       \\printf "\$SAGA_PID:RUNNING: \\n" >> "$NOTIFICATIONS"
 
->>>>>>> origin/titan
       # need to wait again
       continue
     fi
 
-<<<<<<< HEAD
-    STOP=\`\\awk 'BEGIN{srand(); print srand()}'\`
-    \\printf "STOP  : \$STOP\\n"  >> "\$DIR/stats"
-=======
     TIME=\`\\awk 'BEGIN{srand(); print srand()}'\`
     \\printf "STOP   : \$TIME\\n"  >> "\$DIR/stats"
->>>>>>> origin/titan
 
     # evaluate exit val
     \\printf "\$retv\\n" > "\$DIR/exit"
 
-<<<<<<< HEAD
-    test   "\$retv" -eq 0  && \\printf "DONE \\n"   >> "\$DIR/state"
-    test   "\$retv" -eq 0  || \\printf "FAILED \\n" >> "\$DIR/state"
-=======
     test   "\$retv" -eq 0  && \\printf            "DONE   \\n" >> "\$DIR/state"
     test   "\$retv" -eq 0  || \\printf            "FAILED \\n" >> "\$DIR/state"
 
     test   "\$retv" -eq 0  && \\printf "\$SAGA_PID:DONE:\$retv   \\n" >> "\$NOTIFICATIONS"
     test   "\$retv" -eq 0  || \\printf "\$SAGA_PID:FAILED:\$retv \\n" >> "\$NOTIFICATIONS"
 
->>>>>>> origin/titan
 
     # done waiting
     break
@@ -405,8 +333,6 @@ EOT
 
 # --------------------------------------------------------------------
 #
-<<<<<<< HEAD
-=======
 # list all job IDs
 #
 cmd_monitor () {
@@ -428,7 +354,6 @@ cmd_monitor () {
 
 # --------------------------------------------------------------------
 #
->>>>>>> origin/titan
 # run a job in the background.  Note that the returned job ID is actually the
 # pid of the shell process which wraps the actual job, monitors its state, and
 # serves its I/O channels.  The actual job id is stored in the 'pid' file in the
@@ -465,91 +390,6 @@ cmd_monitor () {
 # surprise really...
 
 cmd_run () {
-<<<<<<< HEAD
-  #
-  # do a double fork to avoid zombies (need to do a wait in this process)
-
-
-  cmd_run2 "$@" &
-
-  SAGA_PID=$!      # this is the (SAGA-level) job id!
-  \wait $SAGA_PID  # this will return very quickly -- look at cmd_run2... ;-)
-
-  if test "$SAGA_PID" = '0'  
-  then
-    # some error occured, assume RETVAL is set
-    ERROR="NOK"
-    return
-  fi
-
-  # success
-  RETVAL=$SAGA_PID 
-
-  # we have to wait though 'til the job enters RUNNING (this is a sync job
-  # startup)
-  DIR="$BASE/$SAGA_PID"
-
-  while true
-  do
-    \grep "RUNNING" "$DIR/state" && break
-    \sleep 0  # sleep 0 will wait for just some millisecs
-  done
-}
-
-
-cmd_run2 () {
-  # this is the second part of the double fork -- run the actual workload in the
-  # background and return - voila!  Note: no wait here, as the spawned script is
-  # supposed to stay alive with the job.
-  #
-  # NOTE: we could, in principle, separate SUBMIT from RUN -- in this case, move
-  # the job into NEW state.
-
-  # turn off debug tracing -- stdout interleaving will mess with parsing.
-  set +x 
-
-  SAGA_PID=`sh -c '\printf "$PPID"'`
-  DIR="$BASE/$SAGA_PID"
-
-  timestamp
-  START=$TIMESTAMP
-
-  test -d "$DIR"            && \rm    -rf "$DIR"     # re-use old pid if needed
-  test -d "$DIR"            || \mkdir -p  "$DIR"  || (RETVAL="cannot use job id"; return 0)
-  \printf "START : $START\n"  > "$DIR/stats"
-  \printf "NEW \n"           >> "$DIR/state"
-
-  cmd_run_process "$SAGA_PID" "$@" &
-  DAEMON_PID=$!      # this is the (SAGA-level) job id!
-  \wait $DAEMON_PID   # this will return very quickly -- look at cmd_run2... ;-)
-  return $!
-}
-
-
-cmd_run_process () {
-  # this command runs the job.  PPID will point to the id of the spawning
-  # script, which, coincidentally, we designated as job ID -- nice:
-  SAGA_PID=$1
-  shift
-
-  DIR="$BASE/$SAGA_PID"
-
-  \mkfifo "$DIR/fifo"           # to communicate with the monitor
-  \printf "$*\n" >  "$DIR/cmd"  # job to run by the monitor
-
-  # start the monitor script, which makes sure
-  # that the job state is properly watched and captured.
-  # The monitor script is ran asynchronously, so that its
-  # lifetime will not be bound to the manager script lifetime.  Also, it runs in
-  # an interactive shell, i.e. in a new process group, so that we can signal the
-  # monitor and the actual job processes all at once (think suspend, cancel).
-  ( /bin/sh -i -c "sh $BASE/monitor.sh  $SAGA_PID \"$DIR\" 2>&1 > \"$DIR/monitor.log\" & exit" )
-
-  \read -r TEST < "$DIR/fifo"
-  \rm -rf $DIR/fifo
-
-  exit
-=======
 
   # do a double fork to avoid zombies.  Use 'set -m' to force a new process
   # group for the monitor
@@ -568,7 +408,6 @@ cmd_run_process () {
   # return job id
   RETVAL="$SAGA_PID"
 
->>>>>>> origin/titan
 }
 
 
@@ -640,12 +479,8 @@ cmd_wait () {
       RUNNING   )        ;;
       SUSPENDED )        ;;
       UNKNOWN   )        ;;   # FIXME: should be an error?
-<<<<<<< HEAD
-      *         ) ERROR="NOK - invalid state '$RETVAL'"; return ;;  
-=======
       *         ) ERROR="NOK - invalid state '$RETVAL'"
                   return ;;  
->>>>>>> origin/titan
     esac
 
     \sleep 1
@@ -796,32 +631,20 @@ cmd_stdin () {
 
   DIR="$BASE/$1"
   shift
-<<<<<<< HEAD
-  \printf "$*" >> "$DIR/in"
-=======
   \printf "$@" >> "$DIR/in"
->>>>>>> origin/titan
   RETVAL="stdin refreshed"
 }
 
 
 # --------------------------------------------------------------------
 #
-<<<<<<< HEAD
-# print uuencoded string of job's stdout
-=======
 # print encoded string of job's stdout
->>>>>>> origin/titan
 #
 cmd_stdout () {
   verify_out $1 || return
 
   DIR="$BASE/$1"
-<<<<<<< HEAD
-  RETVAL=`uuencode "$DIR/out" "/dev/stdout"`
-=======
   RETVAL=`cat "$DIR/out" | od -t x1 -A n #| cut -c 2- | tr -d ' \n'`
->>>>>>> origin/titan
 }
 
 
@@ -833,11 +656,7 @@ cmd_stderr () {
   verify_err $1 || return
 
   DIR="$BASE/$1"
-<<<<<<< HEAD
-  RETVAL=`uuencode "$DIR/err" "/dev/stdout"`
-=======
   RETVAL=`cat "$DIR/err" | od -t x1 -A n #| cut -c 2- | tr -d ' \n'`
->>>>>>> origin/titan
 }
 
 
@@ -852,12 +671,8 @@ cmd_list () {
 
 # --------------------------------------------------------------------
 #
-<<<<<<< HEAD
-# purge working directories of given jobs (all non-final jobs as default)
-=======
 # purge working directories of given jobs 
 # default (no job id given): purge all final jobs older than 1 day
->>>>>>> origin/titan
 #
 cmd_purge () {
 
@@ -871,14 +686,10 @@ cmd_purge () {
     do
       dir=`dirname "$d"`
       id=`basename "$dir"`
-<<<<<<< HEAD
-      \rm -rf "$BASE/$id" >/dev/null 2>&1
-=======
       \find  "$BASE/$id"      -type f -mtime +1 -print | xargs -n 100 rm -f
       \rmdir "$BASE/$id"      >/dev/null 2>&1
       \find  "$NOTIFICATIONS" -type f -mtime +1 -print | xargs -n 100 rm -f
       \touch "$NOTIFICATIONS"
->>>>>>> origin/titan
     done
     RETVAL="purged finished jobs"
   fi
@@ -887,8 +698,6 @@ cmd_purge () {
 
 # --------------------------------------------------------------------
 #
-<<<<<<< HEAD
-=======
 # purge tmp files for bulks etc.
 #
 cmd_purge_tmps () {
@@ -904,7 +713,6 @@ cmd_purge_tmps () {
 
 # --------------------------------------------------------------------
 #
->>>>>>> origin/titan
 # quit this script gracefully
 #
 cmd_quit () {
@@ -939,22 +747,6 @@ cmd_quit () {
 #
 listen() {
 
-<<<<<<< HEAD
-  # we need our home base cleaned
-  test -d "$BASE" || \mkdir -p  "$BASE"  || exit 1
-  \touch  "$BASE/bulk.$$"
-  \rm  -f "$BASE/bulk.$$"
-  \touch  "$BASE/bulk.$$"
-
-  # make sure we get killed when idle
-  idle_checker $$ 1>/dev/null 2>/dev/null 3</dev/null &
-  IDLE=$!
-
-  # report our own pid
-  if ! test -z $1; then
-    \printf "PID: $$\n" # FIXME: this should be $1
-  fi
-=======
   # make sure the base has a monitor script....
   create_monitor
 
@@ -976,7 +768,6 @@ listen() {
   # create fifo to communicate with the monitors
   \rm -f  "$BASE/fifo"
   \mkfifo "$BASE/fifo"
->>>>>>> origin/titan
 
   # prompt for commands...
   \printf "PROMPT-0->\n"
@@ -1019,10 +810,7 @@ listen() {
       # simply invoke the right function for each command, or complain if command
       # is not known
       case $CMD in
-<<<<<<< HEAD
-=======
         MONITOR   ) cmd_monitor "$ARGS"  ;;
->>>>>>> origin/titan
         RUN       ) cmd_run     "$ARGS"  ;;
         LRUN      ) cmd_lrun    "$ARGS"  ;;
         SUSPEND   ) cmd_suspend "$ARGS"  ;;
@@ -1055,11 +843,8 @@ listen() {
       elif test "$ERROR" = "NOOP"; then
         # nothing
         true
-<<<<<<< HEAD
-=======
       elif test "$ERROR" = "EXIT"; then
         exit
->>>>>>> origin/titan
       else
         \printf "ERROR\n"
         \printf "$ERROR\n"
@@ -1100,16 +885,6 @@ listen() {
 \stty -echo   2> /dev/null
 \stty -echonl 2> /dev/null
 
-<<<<<<< HEAD
-# FIXME: this leads to timing issues -- disabled for benchmarking
-# if test "$PURGE_ON_START" = "True"
-# then
-#   cmd_purge
-# fi
-
-create_monitor
-listen $1
-=======
 # confirm existence
 \printf "PID: $$\n"
 
@@ -1121,7 +896,6 @@ then
 fi
 
 listen
->>>>>>> origin/titan
 #
 # --------------------------------------------------------------------
 
