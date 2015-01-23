@@ -1955,9 +1955,6 @@ def mover_get_data(lfns,
             proper_dsname = getDataset(lfn, rucio_dataset_dictionary)
             scope = getFileScope(scope_dict, lfn)
 
-            tolog("dsname=%s, proper_dsname=%s" % (dsname, proper_dsname))
-            tolog("rucio_dataset_dictionary=%s" % str(rucio_dataset_dictionary))
-
             # Update the tracing report with the proper container/dataset name
             report = updateReport(report, gpfn, proper_dsname, fsize, sitemover)
             report['scope'] = scope
