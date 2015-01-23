@@ -164,13 +164,6 @@ class File (nsentry.Entry) :
         '''
         return self._adaptor.read (size, ttype=ttype)
 
-  
-    # --------------------------------------------------------------------------
-    #
-    @sus.takes   ('File', 
-                  basestring,
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((int, st.Task))
     # --------------------------------------------------------------------------
     #
     @rus.takes   ('File', 
