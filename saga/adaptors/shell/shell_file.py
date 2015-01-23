@@ -435,7 +435,6 @@ class ShellDirectory (saga.adaptors.cpi.filesystem.Directory) :
 
 
     # ----------------------------------------------------------------
->>>>>>> origin/titan
     @SYNC_CALL
     def get_url (self) :
 
