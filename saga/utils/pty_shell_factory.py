@@ -1,29 +1,9 @@
 
-<<<<<<< HEAD
-__author__    = "Andre Merzky"
-=======
 __author__    = "Andre Merzky, Ole Weidner"
->>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-<<<<<<< HEAD
-import getpass
-import os
-import pwd
-import string
-import sys
-
-import saga
-import saga.exceptions         as se
-import saga.utils.logger       as sul
-import saga.utils.misc         as sumisc
-import saga.utils.pty_process  as supp
-import saga.utils.singleton    as sus
-import saga.utils.threads      as sut
-import saga.utils.which        as suw
-=======
 import os
 import sys
 import pwd
@@ -39,7 +19,6 @@ import saga.utils.misc         as sumisc
 import saga.utils.pty_process  as supp
 
 import pty_exceptions               as ptye
->>>>>>> origin/titan
 
 
 # ------------------------------------------------------------------------------
@@ -64,18 +43,11 @@ import pty_exceptions               as ptye
 #   LoginGraceTime seconds : disconnect if no login after n seconds
 #
 # ------------------------------------------------------------------------------
-<<<<<<< HEAD
-# these arrays help to map requested client schemas to master schemas
-_SCHEMAS_SH  = ['sh', 'fork', 'local', 'file']
-_SCHEMAS_SSH = ['ssh', 'scp', 'sftp']
-_SCHEMAS_GSI = ['gsissh', 'gsiscp', 'gsisftp', 'gsiftp']
-=======
 
 # these arrays help to map requested client schemas to master schemas
 _SCHEMAS_SH  = ['sh', 'fork', 'local', 'file']
 _SCHEMAS_SSH = ['ssh', 'scp', 'sftp']
 _SCHEMAS_GSI = ['gsissh', 'gsiscp', 'gsisftp']
->>>>>>> origin/titan
 
 _SCHEMAS = _SCHEMAS_SH + _SCHEMAS_SSH + _SCHEMAS_GSI
 
@@ -86,41 +58,18 @@ _SCHEMAS = _SCHEMAS_SH + _SCHEMAS_SSH + _SCHEMAS_GSI
 # ssh versions...
 
 # ssh master/slave flag magic # FIXME: make timeouts configurable
-<<<<<<< HEAD
-_SSH_FLAGS_MASTER   = "-o ControlMaster=yes -o ControlPath=%(ctrl)s"
-_SSH_FLAGS_SLAVE    = "-o ControlMaster=no  -o ControlPath=%(ctrl)s"
-=======
 # _SSH_FLAGS_MASTER = "-o ControlMaster=yes  -o ControlPath=%(ctrl)s -o TCPKeepAlive=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=20 -2 "
 # _SSH_FLAGS_SLAVE  = "-o ControlMaster=no   -o ControlPath=%(ctrl)s -o TCPKeepAlive=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=20 -2 "
 _SSH_FLAGS_MASTER   = "-o ControlMaster=auto -o ControlPath=%(ctrl)s -o TCPKeepAlive=no  -o ServerAliveInterval=10 -o ServerAliveCountMax=20"
 _SSH_FLAGS_SLAVE    = "-o ControlMaster=auto -o ControlPath=%(ctrl)s -o TCPKeepAlive=no  -o ServerAliveInterval=10 -o ServerAliveCountMax=20"
 _SCP_FLAGS          = ""
 _SFTP_FLAGS         = ""
->>>>>>> origin/titan
 
 # FIXME: right now, we create a shell connection as master --
 # but a master does not actually need a shell, as it is never really
 # used to run commands...
 _SCRIPTS = {
     'ssh' : { 
-<<<<<<< HEAD
-        'master'        : "%(ssh_env)s %(ssh_exe)s   %(ssh_args)s  %(m_flags)s  %(host_str)s",
-        'shell'         : "%(ssh_env)s %(ssh_exe)s   %(ssh_args)s  %(s_flags)s  %(host_str)s",
-      # 'copy_to'       : "%(scp_env)s %(scp_exe)s   %(scp_args)s  %(s_flags)s  %(src)s %(root)s/%(tgt)s",
-      # 'copy_from'     : "%(scp_env)s %(scp_exe)s   %(scp_args)s  %(s_flags)s  %(root)s/%(src)s %(tgt)s",
-        'copy_to'       : "%(sftp_env)s %(sftp_exe)s %(sftp_args)s %(s_flags)s  %(host_str)s",
-        'copy_from'     : "%(sftp_env)s %(sftp_exe)s %(sftp_args)s %(s_flags)s  %(host_str)s",
-        'copy_to_in'    : "progress \n put %(cp_flags)s %(src)s %(tgt)s \n exit \n",            
-        'copy_from_in'  : "progress \n get %(cp_flags)s %(src)s %(tgt)s \n exit \n",
-    },
-    'sh' : { 
-        'master'        : "%(sh_env)s %(sh_exe)s  %(sh_args)s",
-        'shell'         : "%(sh_env)s %(sh_exe)s  %(sh_args)s",
-        'copy_to'       : "%(sh_env)s %(sh_exe)s  %(sh_args)s",
-        'copy_from'     : "%(sh_env)s %(sh_exe)s  %(sh_args)s",
-        'copy_to_in'    : "cd ~ && exec %(cp_exe)s %(cp_flags)s %(src)s %(tgt)s",
-        'copy_from_in'  : "cd ~ && exec %(cp_exe)s %(cp_flags)s %(src)s %(tgt)s",
-=======
         'master'       : '%(ssh_env)s "%(ssh_exe)s" %(ssh_args)s %(m_flags)s %(host_str)s',
         'shell'        : '%(ssh_env)s "%(ssh_exe)s" %(ssh_args)s %(s_flags)s %(host_str)s'
     },
@@ -144,7 +93,6 @@ _SCRIPTS = {
         'copy_from'    : '%(sh_env)s "%(sh_exe)s"  %(sh_args)s',
         'copy_to_in'   : 'cd ~ && "%(cp_exe)s" -v %(cp_flags)s "%(src)s" "%(tgt)s"',
         'copy_from_in' : 'cd ~ && "%(cp_exe)s" -v %(cp_flags)s "%(src)s" "%(tgt)s"',
->>>>>>> origin/titan
     }
 }
 
@@ -189,52 +137,27 @@ class PTYShellFactory (object) :
 
     """
 
-<<<<<<< HEAD
-    __metaclass__ = sus.Singleton
-=======
     __metaclass__ = ru.Singleton
->>>>>>> origin/titan
 
 
     # --------------------------------------------------------------------------
     #
     def __init__ (self) :
 
-<<<<<<< HEAD
-        self.logger   = sul.getLogger ('PTYShellFactory')
-        self.registry = {}
-        self.rlock    = sut.RLock ('pty shell factory')
-=======
         self.logger     = rul.getLogger ('saga', 'PTYShellFactory')
         self.registry   = {}
         self.rlock      = ru.RLock ('pty shell factory')
->>>>>>> origin/titan
 
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    def initialize (self, url, session=None, logger=None) :
-=======
     def initialize (self, url, session=None, prompt=None, logger=None, posix=True) :
->>>>>>> origin/titan
 
         with self.rlock :
 
             # make sure we have a valid url type
             url = saga.Url (url)
 
-<<<<<<< HEAD
-            if  not logger :
-                logger = sul.getLogger ('PTYShellFactory')
-
-            # collect all information we have/need about the requested master
-            # connection
-            info = self._create_master_entry (url, session, logger)
-
-            # we got master info - register the master, and create the instance!
-            type_s = str(info['type'])
-=======
             if  not prompt :
                 prompt = "^(.*[\$#%>\]])\s*$"
 
@@ -247,7 +170,6 @@ class PTYShellFactory (object) :
 
             # we got master info - register the master, and create the instance!
             type_s = str(info['shell_type'])
->>>>>>> origin/titan
             user_s = str(info['user'])
             host_s = str(info['host_str'])
 
@@ -257,11 +179,7 @@ class PTYShellFactory (object) :
             if not type_s in self.registry[host_s][user_s] :
 
                 # new master: create an instance, and register it
-<<<<<<< HEAD
-                m_cmd = _SCRIPTS[info['type']]['master'] % info
-=======
                 m_cmd = info['scripts'][info['shell_type']]['master'] % info
->>>>>>> origin/titan
 
                 logger.debug ("open master pty for [%s] [%s] %s: %s'" \
                                 % (type_s, host_s, user_s, m_cmd))
@@ -269,18 +187,11 @@ class PTYShellFactory (object) :
                 info['pty'] = supp.PTYProcess (m_cmd, logger=logger)
                 if not info['pty'].alive () :
                     raise se.NoSuccess._log (logger, \
-<<<<<<< HEAD
-                	  "Shell not connected to %s" % info['host_str'])
-
-                # authorization, prompt setup, etc
-                self._initialize_pty (info['pty'], info, is_shell=True)
-=======
                           "Shell not connected to %s" % info['host_str'])
 
                 # authorization, prompt setup, etc.  Initialize as shell if not
                 # explicitly marked as non-posix shell
                 self._initialize_pty (info['pty'], info, is_shell=posix)
->>>>>>> origin/titan
 
                 # master was created - register it
                 self.registry[host_s][user_s][type_s] = info
@@ -293,11 +204,7 @@ class PTYShellFactory (object) :
 
                 if  not info['pty'].alive (recover=True) :
                     raise se.IncorrectState._log (logger, \
-<<<<<<< HEAD
-                	  "Lost shell connection to %s" % info['host_str'])
-=======
                           "Lost shell connection to %s" % info['host_str'])
->>>>>>> origin/titan
 
             return info
 
@@ -313,10 +220,7 @@ class PTYShellFactory (object) :
 
             shell_pass = info['pass']
             key_pass   = info['key_pass']
-<<<<<<< HEAD
-=======
             prompt     = info['prompt']
->>>>>>> origin/titan
             logger     = info['logger']
             latency    = info['latency']
 
@@ -332,13 +236,6 @@ class PTYShellFactory (object) :
             try :
                 prompt_patterns = ["[Pp]assword:\s*$",             # password   prompt
                                    "Enter passphrase for .*:\s*$", # passphrase prompt
-<<<<<<< HEAD
-                                   "want to continue connecting",  # hostkey confirmation
-                                   ".*HELLO_\\d+_SAGA$",           # prompt detection helper
-                                   "^(.*[\$#%>])\s*$"]             # greedy native shell prompt 
-
-                # find a prompt
-=======
                                    "Token_Response.*:\s*$",        # passtoken  prompt
                                    "want to continue connecting",  # hostkey confirmation
                                    ".*HELLO_\\d+_SAGA$",           # prompt detection helper
@@ -348,17 +245,13 @@ class PTYShellFactory (object) :
                 # use a very aggressive, but portable prompt setting scheme.
                 # Error messages may appear for tcsh and others
                 pty_shell.write (" export PS1='$' ; set prompt='$'\n")
->>>>>>> origin/titan
                 n, match = pty_shell.find (prompt_patterns, delay)
 
                 # this loop will run until we finally find the shell prompt, or
                 # if we think we have tried enough and give up.  On success
                 # we'll try to set a different prompt, and when we found that,
                 # too, we exit the loop and are be ready to running shell
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/titan
                 # commands.
                 retries       = 0
                 retry_trigger = True
@@ -380,28 +273,15 @@ class PTYShellFactory (object) :
                         if  retries > 100 :
                             raise se.NoSuccess ("Could not detect shell prompt (timeout)")
 
-<<<<<<< HEAD
-=======
-                        # make sure we retry a finite time...
-                        retries += 1
-
->>>>>>> origin/titan
                         if  not retry_trigger : 
                             # just waiting for the *right* trigger or prompt, 
                             # don't need new ones...
                             continue
 
-<<<<<<< HEAD
-                        retries += 1
-
-                        if  is_shell :
-                            pty_shell.write ("printf 'HELLO_%%d_SAGA\\n' %d\n" % retries)
-=======
                         if  is_shell :
                             # use a very aggressive, but portable prompt setting scheme
                             pty_shell.write (" export PS1='$' > /dev/null 2>&1 || set prompt='$'\n")
                             pty_shell.write (" printf 'HELLO_%%d_SAGA\\n' %d\n" % retries)
->>>>>>> origin/titan
                             used_trigger = True
 
                         # FIXME:  consider better timeout
@@ -415,11 +295,7 @@ class PTYShellFactory (object) :
                             raise se.AuthenticationFailed ("prompted for unknown password (%s)" \
                                                           % match)
 
-<<<<<<< HEAD
-                        pty_shell.write ("%s\n" % shell_pass)
-=======
                         pty_shell.write ("%s\n" % shell_pass, nolog=True)
->>>>>>> origin/titan
                         n, match = pty_shell.find (prompt_patterns, delay)
 
 
@@ -439,18 +315,12 @@ class PTYShellFactory (object) :
                             raise se.AuthenticationFailed ("prompted for unknown key password (%s)" \
                                                           % key)
 
-<<<<<<< HEAD
-                        pty_shell.write ("%s\n" % key_pass[key])
-=======
                         pty_shell.write ("%s\n" % key_pass[key], nolog=True)
->>>>>>> origin/titan
                         n, match = pty_shell.find (prompt_patterns, delay)
 
 
                     # --------------------------------------------------------------
                     elif n == 2 :
-<<<<<<< HEAD
-=======
                         logger.info ("got token prompt")
                         import getpass
                         token = getpass.getpass ("enter token: ")
@@ -460,18 +330,13 @@ class PTYShellFactory (object) :
 
                     # --------------------------------------------------------------
                     elif n == 3 :
->>>>>>> origin/titan
                         logger.info ("got hostkey prompt")
                         pty_shell.write ("yes\n")
                         n, match = pty_shell.find (prompt_patterns, delay)
 
 
                     # --------------------------------------------------------------
-<<<<<<< HEAD
-                    elif n == 3 :
-=======
                     elif n == 4 :
->>>>>>> origin/titan
 
                         # one of the trigger commands got through -- we can now
                         # hope to find the prompt (or the next trigger...)
@@ -484,11 +349,7 @@ class PTYShellFactory (object) :
 
 
                     # --------------------------------------------------------------
-<<<<<<< HEAD
-                    elif n == 4 :
-=======
                     elif n == 5 :
->>>>>>> origin/titan
 
                         logger.debug ("got initial shell prompt (%s) (%s)" %  (n, match))
 
@@ -500,94 +361,11 @@ class PTYShellFactory (object) :
                                 trigger = "HELLO_%d_SAGA" % retries
 
                                 if  not trigger in found_trigger :
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/titan
                                     logger.debug ("waiting for prompt trigger %s: (%s) (%s)" \
                                                % (trigger, n, match))
                                     # but more retries won't help...
                                     retry_trigger = False
-<<<<<<< HEAD
-                                    n = None
-                                    while not n :
-                                        n, match = pty_shell.find (prompt_patterns, delay)
-                                    continue
-
-
-                        logger.info ("got initial shell prompt (%s) (%s)" \
-                                   % (n, match))
-
-                        # we are done waiting for a prompt
-                        break
-                
-                
-            except Exception as e :
-                raise self._translate_exception (e)
-
-
-    # --------------------------------------------------------------------------
-    #
-    def run_shell (self, info) :
-        """ 
-        This initiates a master connection.  If there is a suitable master
-        connection in the registry, it is re-used, and no new master connection
-        is created.  If needed, the existing master connection is revived.  
-        """
-
-      # if True :
-        with self.rlock :
-
-            s_cmd = _SCRIPTS[info['type']]['shell'] % info
-
-            # at this point, we do have a valid, living master
-            sh_slave = supp.PTYProcess (s_cmd, info['logger'])
-
-            # authorization, prompt setup, etc
-            self._initialize_pty (sh_slave, info, is_shell=True)
-
-            return sh_slave
-
-
-    # --------------------------------------------------------------------------
-    #
-    def run_copy_to (self, info, src, tgt, cp_flags="") :
-        """ 
-        This initiates a slave copy connection.   Src is interpreted as local
-        path, tgt as path on the remote host.
-        """
-
-      # if True :
-        with self.rlock :
-
-            repl = dict ({'src'      : src, 
-                          'tgt'      : tgt, 
-                          'cp_flags' : cp_flags}.items ()+ info.items ())
-
-            # at this point, we do have a valid, living master
-            s_cmd = _SCRIPTS[info['type']]['copy_to']    % repl
-            s_in  = _SCRIPTS[info['type']]['copy_to_in'] % repl
-
-            cp_slave = supp.PTYProcess (s_cmd, info['logger'])
-
-            self._initialize_pty (cp_slave, info)
-
-            cp_slave.write ("%s\n" % s_in)
-            cp_slave.wait  ()
-
-            if  cp_slave.exit_code != 0 :
-                raise se.NoSuccess._log (info['logger'], "file copy failed: %s" % cp_slave.cache[-256:])
-
-            info['logger'].debug ("copy done")
-
-
-    # --------------------------------------------------------------------------
-    #
-    def run_copy_from (self, info, src, tgt, cp_flags="") :
-        """ 
-        This initiates a slave copy connection.   Src is interpreted as path on
-        the remote host, tgt as local path.
-=======
                                     attempts      = 0
                                     n             = None
 
@@ -636,33 +414,11 @@ class PTYShellFactory (object) :
         This initiates a master connection.  If there is a suitable master
         connection in the registry, it is re-used, and no new master connection
         is created.  If needed, the existing master connection is revived.  
->>>>>>> origin/titan
         """
 
       # if True :
         with self.rlock :
 
-<<<<<<< HEAD
-            repl = dict ({'src'      : src, 
-                          'tgt'      : tgt, 
-                          'cp_flags' : cp_flags}.items ()+ info.items ())
-
-            # at this point, we do have a valid, living master
-            s_cmd = _SCRIPTS[info['type']]['copy_from']    % repl
-            s_in  = _SCRIPTS[info['type']]['copy_from_in'] % repl
-
-            cp_slave = supp.PTYProcess (s_cmd, info['logger'])
-
-            self._initialize_pty (cp_slave, info)
-
-            cp_slave.write ("%s\n" % s_in)
-            cp_slave.wait  ()
-
-            if  cp_slave.exit_code != 0 :
-                raise se.NoSuccess._log (info['logger'], "file copy failed: %s" % cp_slave.cache[-256:])
-
-            info['logger'].debug ("copy done")
-=======
             s_cmd = info['scripts'][info['shell_type']]['shell'] % info
 
             # at this point, we do have a valid, living master
@@ -672,62 +428,15 @@ class PTYShellFactory (object) :
             self._initialize_pty (sh_slave, info, is_shell=True)
 
             return sh_slave
->>>>>>> origin/titan
 
 
     # --------------------------------------------------------------------------
     #
-<<<<<<< HEAD
-    def _create_master_entry (self, url, session, logger) :
-=======
     def _create_master_entry (self, url, session, prompt, logger) :
->>>>>>> origin/titan
         # FIXME: cache 'which' results, etc
         # FIXME: check 'which' results
 
         with self.rlock :
-<<<<<<< HEAD
-      # if True :
-
-            info = {}
-
-            info['schema']    = url.schema.lower ()
-            info['host_str']  = url.host
-            info['logger']    = logger
-            info['pass']      = ""
-            info['key_pass']  = {}
-
-            # find out what type of shell we have to deal with
-            if  info['schema']   in _SCHEMAS_SSH :
-                info['type']     = "ssh"
-                info['ssh_exe']  = suw.which ("ssh")
-                info['scp_exe']  = suw.which ("scp")
-                info['sftp_exe'] = suw.which ("sftp")
-
-            elif info['schema']  in _SCHEMAS_GSI :
-                info['type']     = "ssh"
-                info['ssh_exe']  = suw.which ("gsissh")
-                info['scp_exe']  = suw.which ("gsiscp")
-                info['sftp_exe'] = suw.which ("gsisftp")
-
-            elif info['schema']  in _SCHEMAS_SH :
-                info['type']     = "sh"
-                info['sh_args']  = "-i"
-                info['sh_env']   = "/usr/bin/env TERM=vt100"
-                info['cp_env']   = "/usr/bin/env TERM=vt100"
-                info['fs_root']  = "/"
-
-                if  "SHELL" in os.environ :
-                    info['sh_exe'] =  suw.which (os.environ["SHELL"])
-                    info['cp_exe'] =  suw.which ("cp")
-                else :
-                    info['sh_exe'] =  suw.which ("sh")
-                    info['cp_exe'] =  suw.which ("cp")
-
-            else :
-                raise se.BadParameter._log (self.logger, \
-                	  "cannot handle schema '%s://'" % url.schema)
-=======
 
 
             info = {}
@@ -788,7 +497,6 @@ class PTYShellFactory (object) :
             else :
                 raise se.BadParameter._log (self.logger, \
                           "cannot handle schema '%s://'" % url.schema)
->>>>>>> origin/titan
 
 
             # depending on type, create command line (args, env etc)
@@ -808,13 +516,9 @@ class PTYShellFactory (object) :
                 info['latency'] = 1.0  # generic value assuming slow link
                 info['logger'].warning ("Could not contact host '%s': %s" % (url, e))
                 
-<<<<<<< HEAD
-            if  info['type'] == "sh" :
-=======
             if  info['shell_type'] == "sh" :
 
                 info['sh_env'] = "/usr/bin/env TERM=vt100 "  # avoid ansi escapes
->>>>>>> origin/titan
 
                 if not sumisc.host_is_local (url.host) :
                     raise se.BadParameter._log (self.logger, \
@@ -830,13 +534,8 @@ class PTYShellFactory (object) :
                 info['scp_env']   =  "/usr/bin/env TERM=vt100 "  # avoid ansi escapes
                 info['sftp_env']  =  "/usr/bin/env TERM=vt100 "  # avoid ansi escapes
                 info['ssh_args']  =  "-t "                       # force pty
-<<<<<<< HEAD
-                info['scp_args']  =  ""
-                info['sftp_args'] =  ""
-=======
                 info['scp_args']  =  _SCP_FLAGS
                 info['sftp_args'] =  _SFTP_FLAGS
->>>>>>> origin/titan
 
                 if  session :
 
@@ -851,15 +550,6 @@ class PTYShellFactory (object) :
                                 if  context.attribute_exists ("user_id") and context.user_id :
                                     info['user']  = context.user_id
 
-<<<<<<< HEAD
-                                if  context.attribute_exists ("user_cert")  and  context.user_cert  :
-                                    info['ssh_args']  += "-o IdentityFile=%s " % context.user_cert 
-                                    info['scp_args']  += "-o IdentityFile=%s " % context.user_cert 
-                                    info['sftp_args'] += "-o IdentityFile=%s " % context.user_cert 
-
-                                    if  context.attribute_exists ("user_pass") and context.user_pass :
-                                        info['key_pass'][context.user_cert] = context.user_pass
-=======
                                 if  context.attribute_exists ("user_key")  and  context.user_key  :
                                     info['ssh_args']  += "-o IdentityFile=%s " % context.user_key 
                                     info['scp_args']  += "-o IdentityFile=%s " % context.user_key 
@@ -867,7 +557,6 @@ class PTYShellFactory (object) :
 
                                     if  context.attribute_exists ("user_pass") and context.user_pass :
                                         info['key_pass'][context.user_key] = context.user_pass
->>>>>>> origin/titan
 
                         if  context.type.lower () == "userpass" :
                             if  info['schema'] in _SCHEMAS_SSH + _SCHEMAS_GSI :
@@ -917,18 +606,6 @@ class PTYShellFactory (object) :
 
                 if  'user' in info and info['user'] :
                     info['host_str'] = "%s@%s"  % (info['user'], info['host_str'])
-<<<<<<< HEAD
-                    info['ctrl'] = "%s_%%h_%%p.%s.%s.ctrl" % (ctrl_base, os.getpid (), info['user'])
-                else :
-                    info['user'] = getpass.getuser ()
-                    info['ctrl'] = "%s_%%h_%%p.%s.ctrl" % (ctrl_base, os.getpid ())
-
-                info['m_flags']  = _SSH_FLAGS_MASTER % ({'ctrl' : info['ctrl']})
-                info['s_flags']  = _SSH_FLAGS_SLAVE  % ({'ctrl' : info['ctrl']})
-                info['fs_root']  = url
-
-                info['fs_root'].path = "/"
-=======
                     info['ctrl'] = "%s_%%h_%%p.%s.ctrl" % (ctrl_base, info['user'])
                 else :
                     info['user'] = getpass.getuser ()
@@ -955,61 +632,9 @@ class PTYShellFactory (object) :
                 # FIXME: port needs to be handled as parameter
               # if  url.port : 
               #     info['scp_root'] += ":%d" % url.port
->>>>>>> origin/titan
 
 
             # keep all collected info in the master dict, and return it for
             # registration
             return info
 
-<<<<<<< HEAD
-
-    # ----------------------------------------------------------------
-    #
-    def _translate_exception (self, e) :
-        """
-        In many cases, we should be able to roughly infer the exception cause
-        from the error message -- this is centrally done in this method.  If
-        possible, it will return a new exception with a more concise error
-        message and appropriate exception type.
-        """
-
-        if  not issubclass (e.__class__, se.SagaException) :
-            # we do not touch non-saga exceptions
-            return e
-
-        if  not issubclass (e.__class__, se.NoSuccess) :
-            # this seems to have a specific cause already, leave it alone
-            return e
-
-        cmsg = e._plain_message
-        lmsg = cmsg.lower ()
-
-        if 'auth' in lmsg :
-            e = se.AuthorizationFailed (cmsg)
-
-        elif 'pass' in lmsg :
-            e = se.AuthenticationFailed (cmsg)
-
-        elif 'ssh_exchange_identification' in lmsg :
-            e = se.AuthenticationFailed ("too frequent login attempts, or sshd misconfiguration: %s" % cmsg)
-
-        elif 'denied' in lmsg :
-            e = se.PermissionDenied (cmsg)
-
-        elif 'shared connection' in lmsg :
-            e = se.NoSuccess ("Insufficient system resources: %s" % cmsg)
-
-        elif 'pty allocation' in lmsg :
-            e = se.NoSuccess ("Insufficient system resources: %s" % cmsg)
-
-        elif 'Connection to master closed' in lmsg :
-            e = se.NoSuccess ("Connection failed (insufficient system resources?): %s" % cmsg)
-
-        return e
-
-
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-
-=======
->>>>>>> origin/titan

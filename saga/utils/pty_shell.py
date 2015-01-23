@@ -1,26 +1,9 @@
 
-<<<<<<< HEAD
-__author__    = "Andre Merzky"
-=======
 __author__    = "Andre Merzky, Ole Weidner"
->>>>>>> origin/titan
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-<<<<<<< HEAD
-import errno
-import os
-import re
-import sys
-
-import saga.exceptions              as se
-import saga.session                 as ss
-import saga.utils.logger            as sul
-import saga.utils.pty_shell_factory as supsf
-
-
-=======
 import re
 import os
 import sys
@@ -40,7 +23,6 @@ import pty_exceptions               as ptye
 
 # ------------------------------------------------------------------------------
 #
->>>>>>> origin/titan
 _PTY_TIMEOUT = 2.0
 
 # ------------------------------------------------------------------------------
@@ -101,11 +83,7 @@ class PTYShell (object) :
 
         # run a simple shell command, merge stderr with stdout.  $$ is the pid
         # of the shell instance.
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync ("mkdir -p /tmp/data.$$/" )
-=======
         ret, out, _ = self.shell.run_sync (" mkdir -p /tmp/data.$$/" )
->>>>>>> origin/titan
 
         # check if mkdir reported success
         if  ret != 0 :
@@ -117,11 +95,7 @@ class PTYShell (object) :
 
         # check size of staged script (this is actually done on PTYShell level
         # already, with no extra hop):
-<<<<<<< HEAD
-        ret, out, _ = self.shell.run_sync ("stat -c '%s' /tmp/data.$$/job_1.pbs" )
-=======
         ret, out, _ = self.shell.run_sync (" stat -c '%s' /tmp/data.$$/job_1.pbs" )
->>>>>>> origin/titan
         if  ret != 0 :
             raise saga.NoSuccess ("failed to check size (%s)(%s)" % (ret, out))
 
@@ -202,14 +176,6 @@ class PTYShell (object) :
     #   - use ssh mechanisms for master timeout (and persist), as custom
     #     mechanisms will interfere with gc_timout.
 
-<<<<<<< HEAD
-    # ----------------------------------------------------------------
-    #
-    def __init__ (self, url, session=None, logger=None, init=None, opts={}) :
-
-        if  None != logger  : self.logger  = logger
-        else                : self.logger  = sul.getLogger ('PTYShell') 
-=======
     # unique ID per connection, for debugging
     _pty_id = 0
 
@@ -224,21 +190,12 @@ class PTYShell (object) :
 
         if   session : self.session = session
         else         : self.session = ss.Session (default=True)
->>>>>>> origin/titan
 
         self.logger.debug ("PTYShell init %s" % self)
 
         self.url         = url      # describes the shell to run
         self.init        = init     # call after reconnect
         self.opts        = opts     # options...
-<<<<<<< HEAD
-        self.latency     = 0.0      # set by factory
-
-        self.prompt      = None
-        self.prompt_re   = None
-        self.initialized = False
-
-=======
         self.posix       = posix    # /bin/sh compatible?
         self.latency     = 0.0      # set by factory
         self.cp_slave    = None     # file copy channel
@@ -262,7 +219,6 @@ class PTYShell (object) :
 
         self.logger.info ("PTY prompt pattern: %s" % self.prompt)
 
->>>>>>> origin/titan
         # we need a local dir for file staging caches.  At this point we use
         # $HOME, but should make this configurable (FIXME)
         self.base = os.environ['HOME'] + '/.saga/adaptors/shell/'
@@ -278,11 +234,6 @@ class PTYShell (object) :
 
         
         self.factory    = supsf.PTYShellFactory   ()
-<<<<<<< HEAD
-        self.pty_info   = self.factory.initialize (url, session, self.logger)
-        self.pty_shell  = self.factory.run_shell  (self.pty_info)
-
-=======
         self.pty_info   = self.factory.initialize (self.url,    self.session, 
                                                    self.prompt, self.logger, 
                                                    posix=self.posix)
@@ -290,14 +241,11 @@ class PTYShell (object) :
 
         self._trace ('init : %s' % self.pty_shell.command)
 
->>>>>>> origin/titan
         self.initialize ()
 
 
     # ----------------------------------------------------------------
     #
-<<<<<<< HEAD
-=======
     def _trace (self, msg) :
 
       # print " === %5d : %s : %s" % (self._pty_id, self.pty_shell, msg)
@@ -306,7 +254,6 @@ class PTYShell (object) :
 
     # ----------------------------------------------------------------
     #
->>>>>>> origin/titan
     def __del__ (self) :
 
         self.logger.debug ("PTYShell del  %s" % self)
@@ -325,41 +272,6 @@ class PTYShell (object) :
                 return
 
 
-<<<<<<< HEAD
-            # run a POSIX compatible shell, usually /bin/sh, in interactive mode
-            # also, turn off tty echo
-            command_shell = "exec /bin/sh -i"
-
-            # use custom shell if so requested
-            if  'shell' in self.opts and self.opts['shell'] :
-                command_shell = "exec %s" % self.opts['shell']
-                self.logger.info ("custom  command shell: %s" % command_shell)
-
-
-            self.logger.debug    ("running command shell: %s" % command_shell)
-            self.pty_shell.write ("stty -echo ; %s\n"         % command_shell)
-
-            # make sure this worked, and that we find the prompt. We use
-            # a versatile prompt pattern to account for the custom shell case.
-            self.find (["^(.*[\$#%>])\s*$"])
-
-            # make sure this worked, and that we find the prompt. We use
-            # a versatile prompt pattern to account for the custom shell case.
-            try :
-                # set and register new prompt
-                self.run_async  ("unset PROMPT_COMMAND ; "
-                                     + "PS1='PROMPT-$?->'; "
-                                     + "PS2=''; "
-                                     + "export PS1 PS2 2>&1 >/dev/null\n")
-                self.set_prompt (new_prompt="PROMPT-(\d+)->$")
-
-                self.logger.debug ("got new shell prompt")
-
-            except Exception as e :
-                raise se.NoSuccess ("Shell startup on target host failed: %s" % e)
-
-            self.initialized = True
-=======
             if  self.posix :
                 # run a POSIX compatible shell, usually /bin/sh, in interactive mode
                 # also, turn off tty echo
@@ -411,7 +323,6 @@ class PTYShell (object) :
 
             self.initialized = True
             self.finalized   = False
->>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
@@ -421,13 +332,9 @@ class PTYShell (object) :
         try :
             if  kill_pty and self.pty_shell :
                 with self.pty_shell.rlock :
-<<<<<<< HEAD
-                    self.pty_shell.finalize ()
-=======
                     if not self.finalized :
                         self.pty_shell.finalize ()
                         self.finalized = True
->>>>>>> origin/titan
 
         except Exception as e :
             pass
@@ -448,20 +355,12 @@ class PTYShell (object) :
                 return self.pty_shell.alive (recover)
 
             except Exception as e :
-<<<<<<< HEAD
-                raise self._translate_exception (e)
-=======
                 raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
     #
-<<<<<<< HEAD
-    def find_prompt (self) :
-=======
     def find_prompt (self, timeout=_PTY_TIMEOUT) :
->>>>>>> origin/titan
         """
         If run_async was called, a command is running on the shell.  find_prompt
         can be used to collect its output up to the point where the shell prompt
@@ -480,11 +379,7 @@ class PTYShell (object) :
                 fret  = None
 
                 while fret == None :
-<<<<<<< HEAD
-                    fret, match = self.pty_shell.find ([self.prompt], _PTY_TIMEOUT)
-=======
                     fret, match = self.pty_shell.find ([self.prompt], timeout)
->>>>>>> origin/titan
                 
               # self.logger.debug  ("find prompt '%s' in '%s'" % (self.prompt, match))
                 ret, txt = self._eval_prompt (match)
@@ -492,11 +387,7 @@ class PTYShell (object) :
                 return (ret, txt)
 
             except Exception as e :
-<<<<<<< HEAD
-                raise self._translate_exception (e)
-=======
                 raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
@@ -512,11 +403,7 @@ class PTYShell (object) :
                 return self.pty_shell.find (patterns, timeout=timeout)
 
             except Exception as e :
-<<<<<<< HEAD
-                raise self._translate_exception (e)
-=======
                 raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
@@ -564,14 +451,11 @@ class PTYShell (object) :
         up to the first occurence is returned.
         """
 
-<<<<<<< HEAD
-=======
         def escape (txt) :
             pat = re.compile(r'\x1b[^m]*m')
             return pat.sub ('', txt)
 
 
->>>>>>> origin/titan
         with self.pty_shell.rlock :
 
             old_prompt     = self.prompt
@@ -620,28 +504,17 @@ class PTYShell (object) :
 
                 except Exception as e :
                     self.prompt = old_prompt
-<<<<<<< HEAD
-                    raise self._translate_exception (e, "Could not set shell prompt")
-=======
                     raise ptye.translate_exception (e, "Could not set shell prompt")
->>>>>>> origin/titan
 
 
             # got a valid prompt -- but we have to sync the output again in
             # those cases where we had to use triggers to actually get the
             # prompt
             if triggers > 0 :
-<<<<<<< HEAD
-                self.run_async ('printf "SYNCHRONIZE_PROMPT\n"')
-
-                # FIXME: better timout value?
-                fret, match = self.pty_shell.find (["SYNCHRONIZE_PROMPT"], timeout=1.0)  
-=======
                 self.run_async (' printf "SYNCHRONIZE_PROMPT\n"')
 
                 # FIXME: better timout value?
                 fret, match = self.pty_shell.find (["SYNCHRONIZE_PROMPT"], timeout=10.0)  
->>>>>>> origin/titan
 
                 if  fret == None :
                     # not find prompt after blocking?  BAD!  Restart the shell
@@ -684,14 +557,6 @@ class PTYShell (object) :
                     self.logger.debug  ("could not parse prompt (%s) (%s)" % (prompt, data))
                     raise se.NoSuccess ("could not parse prompt (%s) (%s)" % (prompt, data))
 
-<<<<<<< HEAD
-                if  len (result.groups ()) != 2 :
-                    self.logger.debug  ("prompt does not capture exit value (%s)" % prompt)
-                    raise se.NoSuccess ("prompt does not capture exit value (%s)" % prompt)
-
-                txt =     result.group (1)
-                ret = int(result.group (2)) 
-=======
                 txt = result.group (1)
                 ret = 0
 
@@ -710,7 +575,6 @@ class PTYShell (object) :
                         ret = 0
                         self.logger.warn  ("prompt not suitable for error checks (%s)" % prompt)
                         txt += "\n%s" % result.group (2)
->>>>>>> origin/titan
 
                 # if that worked, we can permanently set new_prompt
                 if  new_prompt :
@@ -720,11 +584,7 @@ class PTYShell (object) :
 
             except Exception as e :
                 
-<<<<<<< HEAD
-                raise self._translate_exception (e, "Could not eval prompt")
-=======
                 raise ptye.translate_exception (e, "Could not eval prompt")
->>>>>>> origin/titan
 
 
 
@@ -779,11 +639,8 @@ class PTYShell (object) :
         """
 
         with self.pty_shell.rlock :
-<<<<<<< HEAD
-=======
          
             self._trace ("run sync  : %s" % command)
->>>>>>> origin/titan
 
             # we expect the shell to be in 'ground state' when running a syncronous
             # command -- thus we can check if the shell is alive before doing so,
@@ -843,24 +700,15 @@ class PTYShell (object) :
                 stdout = None
                 stderr = None
 
-<<<<<<< HEAD
-=======
                 if  iomode == None :
                     iomode =  STDOUT
 
->>>>>>> origin/titan
                 if  iomode == IGNORE :
                     pass
 
                 if  iomode == MERGED :
                     stdout =  txt
 
-<<<<<<< HEAD
-                if  iomode == SEPARATE :
-                    stdout =  txt
-
-                    self.pty_shell.write ("cat %s\n" % _err)
-=======
                 if  iomode == STDOUT :
                     stdout =  txt
 
@@ -869,7 +717,6 @@ class PTYShell (object) :
                     stdout =  txt
 
                     self.pty_shell.write (" cat %s\n" % _err)
->>>>>>> origin/titan
                     fret, match = self.pty_shell.find ([self.prompt], timeout=-1.0)  # blocks
 
                     if  fret == None :
@@ -879,22 +726,6 @@ class PTYShell (object) :
                                               % command)
 
                     _ret, _stderr = self._eval_prompt (match)
-<<<<<<< HEAD
-                    if  _ret :
-                        raise se.IncorrectState ("run_sync failed, no stderr (%s: %s)" \
-                                              % (_ret, _stderr))
-                    stderr =  _stderr
-
-
-                if  iomode == STDOUT :
-                    stdout =  txt
-
-                if  iomode == STDERR :
-                    stderr =  txt
-
-                if  iomode == None :
-                    stdout =  txt
-=======
 
                     if  _ret :
                         raise se.IncorrectState ("run_sync failed, no stderr (%s: %s)" \
@@ -905,16 +736,11 @@ class PTYShell (object) :
                 if  iomode == STDERR :
                     # got stderr in branch above
                     stdout =  None
->>>>>>> origin/titan
 
                 return (ret, stdout, stderr)
 
             except Exception as e :
-<<<<<<< HEAD
-                raise self._translate_exception (e)
-=======
                 raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
@@ -934,11 +760,8 @@ class PTYShell (object) :
 
         with self.pty_shell.rlock :
 
-<<<<<<< HEAD
-=======
           # self._trace ("run async : %s" % command)
 
->>>>>>> origin/titan
             # we expect the shell to be in 'ground state' when running an asyncronous
             # command -- thus we can check if the shell is alive before doing so,
             # and restart if needed
@@ -948,17 +771,10 @@ class PTYShell (object) :
 
             try :
                 command = command.strip ()
-<<<<<<< HEAD
-                self.send ("%s\n" % command)
-
-            except Exception as e :
-                raise self._translate_exception (e)
-=======
                 self.send (" %s\n" % command)
 
             except Exception as e :
                 raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
@@ -978,11 +794,7 @@ class PTYShell (object) :
                 self.pty_shell.write ("%s" % data)
 
             except Exception as e :
-<<<<<<< HEAD
-                raise self._translate_exception (e)
-=======
                 raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1004,11 +816,8 @@ class PTYShell (object) :
 
         try :
 
-<<<<<<< HEAD
-=======
           # self._trace ("write     : %s -> %s" % (src, tgt))
 
->>>>>>> origin/titan
             # FIXME: make this relative to the shell's pwd?  Needs pwd in
             # prompt, and updating pwd state on every find_prompt.
 
@@ -1019,14 +828,6 @@ class PTYShell (object) :
             fhandle.flush  ()
             fhandle.close  ()
 
-<<<<<<< HEAD
-            self.factory.run_copy_to (self.pty_info, fname, tgt)
-
-            os.remove (fname)
-
-        except Exception as e :
-            raise self._translate_exception (e)
-=======
             ret = self.stage_to_remote (fname, tgt)
 
             os.remove (fname)
@@ -1035,7 +836,6 @@ class PTYShell (object) :
 
         except Exception as e :
             raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
@@ -1049,24 +849,13 @@ class PTYShell (object) :
         """
 
         try :
-<<<<<<< HEAD
-=======
 
           # self._trace ("read      : %s" % src)
 
->>>>>>> origin/titan
             # FIXME: make this relative to the shell's pwd?  Needs pwd in
             # prompt, and updating pwd state on every find_prompt.
 
             # first, write data into a tmp file
-<<<<<<< HEAD
-            fname   = self.base + "/staging.%s" % id(self)
-
-            self.factory.run_copy_from (self.pty_info, src, fname)
-
-            fhandle = open (fname, 'r')
-            out = fhandle.read  ()
-=======
             fname = self.base + "/staging.%s" % id(self)
             _     = self.stage_from_remote (src, fname)
 
@@ -1074,7 +863,6 @@ class PTYShell (object) :
 
             fhandle = open (fname, 'r')
             out     = fhandle.read  ()
->>>>>>> origin/titan
             fhandle.close  ()
 
             os.remove (fname)
@@ -1082,11 +870,7 @@ class PTYShell (object) :
             return out
 
         except Exception as e :
-<<<<<<< HEAD
-            raise self._translate_exception (e)
-=======
             raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
 
     # ----------------------------------------------------------------
@@ -1104,26 +888,16 @@ class PTYShell (object) :
                     relative to the shell's URL.
         """
 
-<<<<<<< HEAD
-=======
         self._trace ("stage to  : %s -> %s" % (src, tgt))
 
->>>>>>> origin/titan
         # FIXME: make this relative to the shell's pwd?  Needs pwd in
         # prompt, and updating pwd state on every find_prompt.
 
         try :
-<<<<<<< HEAD
-            self.factory.run_copy_to (self.pty_info, src, tgt, cp_flags)
-
-        except Exception as e :
-            raise self._translate_exception (e)
-=======
             return self.run_copy_to (src, tgt, cp_flags)
 
         except Exception as e :
             raise ptye.translate_exception (e)
->>>>>>> origin/titan
 
     # ----------------------------------------------------------------
     #
@@ -1140,73 +914,12 @@ class PTYShell (object) :
                     relative to the current working directory.
         """
 
-<<<<<<< HEAD
-=======
         self._trace ("stage from: %s -> %s" % (src, tgt))
 
->>>>>>> origin/titan
         # FIXME: make this relative to the shell's pwd?  Needs pwd in
         # prompt, and updating pwd state on every find_prompt.
 
         try :
-<<<<<<< HEAD
-            self.factory.run_copy_from (self.pty_info, src, tgt, cp_flags)
-
-        except Exception as e :
-            raise self._translate_exception (e)
-
-
-    # ----------------------------------------------------------------
-    #
-    def _translate_exception (self, e, msg=None) :
-        """
-        In many cases, we should be able to roughly infer the exception cause
-        from the error message -- this is centrally done in this method.  If
-        possible, it will return a new exception with a more concise error
-        message and appropriate exception type.
-        """
-
-        if  not issubclass (e.__class__, se.SagaException) :
-            # we do not touch non-saga exceptions
-            return e
-
-        if  not issubclass (e.__class__, se.NoSuccess) :
-            # this seems to have a specific cause already, leave it alone
-            return e
-
-        cmsg = e._plain_message
-        lmsg = cmsg.lower ()
-
-        if  msg :
-            cmsg = "%s (%s)" % (cmsg, msg)
-
-        if 'auth' in lmsg :
-            e = se.AuthorizationFailed (cmsg)
-
-        elif 'pass' in lmsg :
-            e = se.AuthenticationFailed (cmsg)
-
-        elif 'ssh_exchange_identification' in lmsg :
-            e = se.AuthenticationFailed ("too frequent login attempts, or sshd misconfiguration: %s" % cmsg)
-
-        elif 'denied' in lmsg :
-            e = se.PermissionDenied (cmsg)
-
-        elif 'shared connection' in lmsg :
-            e = se.NoSuccess ("Insufficient system resources: %s" % cmsg)
-
-        elif 'pty allocation' in lmsg :
-            e = se.NoSuccess ("Insufficient system resources: %s" % cmsg)
-
-        elif 'Connection to master closed' in lmsg :
-            e = se.NoSuccess ("Connection failed (insufficient system resources?): %s" % cmsg)
-
-        # print e.traceback
-        return e
-
-
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
             return self.run_copy_from (src, tgt, cp_flags)
 
         except Exception as e :
@@ -1429,5 +1142,4 @@ class PTYShell (object) :
 
 
 
->>>>>>> origin/titan
 
