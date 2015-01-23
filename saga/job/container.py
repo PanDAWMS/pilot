@@ -66,9 +66,5 @@ class Container (st.Container):
         return jobs
 
 
-<<<<<<< HEAD
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
-=======
 
->>>>>>> origin/titan
 
