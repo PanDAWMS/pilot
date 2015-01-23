@@ -6,10 +6,6 @@ __license__   = "MIT"
 
 import saga.namespace.constants as ns
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/titan
 # replica flags enum:
 OVERWRITE      = ns.OVERWRITE       #      1
 RECURSIVE      = ns.RECURSIVE       #      2
