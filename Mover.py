@@ -905,7 +905,11 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary):
                 dataset = getDataset(os.path.basename(fileList[i]), dsdict)
 
                 # convert the SURL to a TURL
-                convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], dataset, tokens_dictionary[fileList[i]], old_prefix=oldPrefix, new_prefix=newPrefix, prefix_dictionary=prefix_dictionary)
+                if tokens_dictionary.has_key(fileList[i]):
+                    token = tokens_dictionary[fileList[i]]
+                else:
+                    token = ""
+                convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], dataset, token, old_prefix=oldPrefix, new_prefix=newPrefix, prefix_dictionary=prefix_dictionary)
         else:
             excludedFilesDic[guidList[i]] = fileList[i]
 
