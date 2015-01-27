@@ -604,6 +604,10 @@ Added new data member prodDBlocks to Job class, which will contain the correct c
 Created getProperDatasetNames() (Mover)
 Sending rucio_dataset_dictionary to mover_get_data() (Mover)
 Now sending the proper container/dataset name to the tracing server (Mover)
+Added fileList argument to getPrefices and from its call in (Mover)
+Created matchCopyprefixReplica(), used by getPrefices() (Mover)
+Added prefix_dictionary argument to convertSURLtoTURL() and from its call in getTURLs() (Mover)
+Now overwriting old/newPrefix if prefix_dictionary has an entry for key value 'surl' in convertSURLtoTURL() (Mover)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)

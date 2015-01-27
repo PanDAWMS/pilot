@@ -869,9 +869,10 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename):
     dumpOrderedItems(fileList)
 
     # get the old/newPrefix needed for the SURL to TURL conversions
-    oldPrefix, newPrefix = getPrefices()
-    tolog(". oldPrefix=%s" % str(oldPrefix))
-    tolog(". newPrefix=%s" % str(newPrefix))
+    oldPrefix, newPrefix, prefix_dictionary = getPrefices(fileList)
+    tolog("Prefix dictionary = %s" % str(prefix_dictionary))
+    tolog("oldPrefix=%s" % str(oldPrefix))
+    tolog("newPrefix=%s" % str(newPrefix))
 
     # special case for event service
     if oldPrefix == "":
@@ -904,7 +905,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename):
                 dataset = getDataset(os.path.basename(fileList[i]), dsdict)
 
                 # convert the SURL to a TURL
-                convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], dataset, old_prefix=oldPrefix, new_prefix=newPrefix)
+                convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], dataset, old_prefix=oldPrefix, new_prefix=newPrefix, prefix_dictionary=prefix_dictionary)
         else:
             excludedFilesDic[guidList[i]] = fileList[i]
 
@@ -1021,17 +1022,27 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename):
 
     return ec, pilotErrorDiag, turlFileInfoDic
 
-def getPrefices():
-    """ Get the old/newPrefix needed for the SURL to TURL conversions """
+def getPrefices(fileList):
+    """ Get the old/newPrefices as a dictionary needed for the SURL to TURL conversions """
+    # Format:
+    #   prefix_dictionary[surl] = [oldPrefix, newPrefix]
+    # Note: this function returns oldPrefix, newPrefix, prefix_dictionary
+    # old/newPrefix are the fixed prefices defined in copysetup[in]
+    # In case copyprefix[in] can be used, ie if it is set, it may contain a list of copyprefices that can sort out
+    # more complicated cases
+
+    prefix_dictionary = {}
 
     # get the file access info (only old/newPrefix are needed here)
     useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
 
+    # get the copyprefices
+    copyprefix = readpar('copyprefixin')
+    if copyprefix == "":
+        copyprefix = readpar('copyprefix')
+
     # should we fall back to copyprefix or use the faxredirector? (this is the case for FAX test jobs since they reset old/newPrefix)
     if oldPrefix == "" or newPrefix == "" or not (oldPrefix and newPrefix):
-        copyprefix = readpar('copyprefixin')
-        if copyprefix == "":
-            copyprefix = readpar('copyprefix')
 
         # special case for FAX on sites that are not setup for direct i/o in the normal way
         if (readpar('copytoolin').lower() == "fax") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "fax"):
@@ -1055,12 +1066,25 @@ def getPrefices():
             oldPrefix = prefices[0]
             newPrefix = prefices[1]
 
+    else: # old/newPrefix are set
+
+        # handle copyprefix lists
+        pfroms, ptos = getCopyprefixLists(copyprefix)
+        tolog("Copyprefix lists: %s, %s" % (str(pfroms), str(ptos)))
+
+        # create a prefix dictionary for all the files
+        for surl in fileList:
+            # first get the proper old/newPrefices
+            oldPrefix, newPrefix = matchCopyprefixReplica(surl, pfroms, ptos)
+            # then fill the dictionary
+            prefix_dictionary[surl] = [oldPrefix, newPrefix]
+
     if oldPrefix != "" and newPrefix != "":
         tolog("Will use oldPrefix=%s and newPrefix=%s for SURL to TURL conversion" % (oldPrefix, newPrefix))
     else:
         tolog("WARNING: old/newPrefix not known")
 
-    return oldPrefix, newPrefix
+    return oldPrefix, newPrefix, prefix_dictionary
 
 def conditionalSURLCleanup(pattern, replacement, surl, old_prefix):
     """ Remove pattern from SURL if present but not present in old_prefix """
@@ -1118,10 +1142,11 @@ def convertSURLtoTURLUsingHTTP(surl, dataset='', site='', redirector="https://ru
 
     return turl
 
-def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
+def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix='', prefix_dictionary={}):
     """ Convert SURL to TURL """
 
     # Use old/newPrefix, or dataset name in FAX direct i/o mode
+    # If prefix_dictionary is set, it will primarily used for the conversion
 
     # Special cases for FAX and aria2c
     if (readpar('copytoolin').lower() == "fax") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "fax"):
@@ -1152,12 +1177,15 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix=''):
             allowhttp = httpinfo
         
         return convertSURLtoTURLUsingHTTP(surl, dataset, httpsite, httpredirector)
-#    elif (readpar('copytoolin').lower() == "aria2c") or (readpar('copytoolin') == "" and readpar('copytool').lower() == "aria2c"):
-#        copytool = "aria2c"
     else:
         copytool = "other"
     if copytool != "other":
         return convertSURLtoTURLUsingDataset(surl, dataset)
+
+    # if the prefix_dictionary is set and has an entry for the current surl, overwrite the old/newPrefix
+    if prefix_dictionary.has_key(surl):
+        old_prefix, new_prefix = prefix_dictionary[surl]
+        tolog("Prefices overwritten for surl=%s, oldPrefix=%s, newPrefix=%s", surl, old_prefix, new_prefix)
 
     # old prefix for regex
     old_prefix_re = old_prefix.replace('?','\?')
@@ -3173,6 +3201,26 @@ def foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
             #    tolog("Did not find it there either (pto)")
 
     return found_match
+
+def matchCopyprefixReplica(surl, pfroms, ptos):
+    """ Match and return prefix matching copyprefix """
+    # e.g. surl = srm://srm-atlas.cern.ch/castor/cern.ch/grid/atlas/... and 
+    # copyprefix = srm://srm-eosatlas.cern.ch,srm://srm-atlas.cern.ch^root://eosatlas.cern.ch/,root://castoratlas-xrdssl/
+    # -> oldPrefix = srm://srm-atlas.cern.ch, newPrefix = root://castoratlas-xrdssl/
+    # These values will then be used for the SURL to TURL conversion
+
+    oldPrefix = ""
+    newPrefix = ""
+
+    for (pfrom, pto) in map(None, pfroms, ptos):
+        if pfrom:
+            if surl[:len(pfrom)] == pfrom:
+                tolog("Copyprefix matched replica %s (SURL) using pfrom" % (surl))
+                oldPrefix = pfrom
+                newPrefix = pto
+                break
+
+    return oldPrefix, newPrefix
 
 def getPrimaryRucioReplica(matched_replicas, replicas):
     """ Return a replica with a proper rucio path """
