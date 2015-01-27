@@ -848,7 +848,7 @@ def getDefaultStorage(pfn):
 
     return defaultSE
 
-def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename):
+def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary):
     """ Return a dictionary with TURLs """
     # Try to do the SURL to TURL conversion using copysetup or copyprefix
     # and fall back to lcg-getturls if the previous attempts fail
@@ -905,7 +905,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename):
                 dataset = getDataset(os.path.basename(fileList[i]), dsdict)
 
                 # convert the SURL to a TURL
-                convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], dataset, old_prefix=oldPrefix, new_prefix=newPrefix, prefix_dictionary=prefix_dictionary)
+                convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], dataset, tokens_dictionary[fileList[i]], old_prefix=oldPrefix, new_prefix=newPrefix, prefix_dictionary=prefix_dictionary)
         else:
             excludedFilesDic[guidList[i]] = fileList[i]
 
@@ -1119,7 +1119,7 @@ def convertSURLtoTURLUsingDataset(surl, dataset):
 
     return turl
 
-def convertSURLtoTURLUsingHTTP(surl, dataset='', site='', redirector="https://rucio-lb-prod.cern.ch"):
+def convertSURLtoTURLUsingHTTP(surl, token, dataset='', site='', redirector="https://rucio-lb-prod.cern.ch"):
     """ Convert SURL to TURL using the Rucio redirector """
 
     try:
@@ -1142,7 +1142,7 @@ def convertSURLtoTURLUsingHTTP(surl, dataset='', site='', redirector="https://ru
 
     return turl
 
-def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix='', prefix_dictionary={}):
+def convertSURLtoTURL(surl, dataset, token, old_prefix="", new_prefix="", prefix_dictionary={}):
     """ Convert SURL to TURL """
 
     # Use old/newPrefix, or dataset name in FAX direct i/o mode
@@ -1175,8 +1175,8 @@ def convertSURLtoTURL(surl, dataset, old_prefix='', new_prefix='', prefix_dictio
             allowhttp, httpsite = httpinfo.split("^")
         else:
             allowhttp = httpinfo
-        
-        return convertSURLtoTURLUsingHTTP(surl, dataset, httpsite, httpredirector)
+
+        return convertSURLtoTURLUsingHTTP(surl, token, dataset, httpsite, httpredirector)
     else:
         copytool = "other"
     if copytool != "other":
@@ -1320,7 +1320,7 @@ def getThinFileInfoDic(fileInfoDic):
 
     return thinFileInfoDic
 
-def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict):
+def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_dictionary):
     """ Perform automatic configuration of copysetup[in] (i.e. for direct access/file stager)"""
 
     # (remember to replace preliminary old/newPrefix)
@@ -1336,7 +1336,7 @@ def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict):
     thinFileInfoDic = getThinFileInfoDic(fileInfoDic)
 
     # get the TURLs
-    ec, pilotErrorDiag, turlFileInfoDic = getTURLs(thinFileInfoDic, dsdict, sitemover, sitename)
+    ec, pilotErrorDiag, turlFileInfoDic = getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary)
     if ec == 0:
         tolog("getTURL returned dictionary: %s" % str(turlFileInfoDic))
 
@@ -1726,7 +1726,7 @@ def createStandardPFC4TRF(createdPFCTURL, pfc_name_turl, pfc_name, guidfname):
         # No PFC only if no PFC was returned by DQ2
         createPFC4TRF(pfc_name, guidfname)
 
-def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService):
+def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary):
     """ Create a TURL based PFC if necessary/requested """
     # I.e if copy tool should not be used [useCT=False] and if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False]
 
@@ -1736,7 +1736,7 @@ def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, 
 
     # first check if there is a need to create the PFC
     if shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
-        ec, pilotErrorDiag = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict)
+        ec, pilotErrorDiag = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict, tokens_dictionary)
         if ec == 0:
             tolog("PFC created with TURLs")
             createdPFCTURL = True
@@ -1783,11 +1783,22 @@ def getAlternativeReplica(gpfn, guid, replica_number, createdPFCTURL, replica_di
 
     return gpfn
 
+def getSurlTokenDictionary(lfns, tokens):
+    """ Create a SURL vs space tokens dictionary """
+
+    dictionary = {}
+
+    if len(lfns) == len(tokens):
+        dictionary = dict(zip(lfns, tokens))
+    else:
+        tolog("!!WARNING!!2233!! Cannot create dictionary from lists of different lengths: %s, %s" % (str(lfns), str(tokens)))
+
+    return dictionary
+
 def mover_get_data(lfns,
                    path,
                    sitename,
                    stageinTries,
-# event service                   inputpoolfcstring="xmlcatalog_file:PFC.xml",
                    inputpoolfcstring="xmlcatalog_file:PoolFileCatalog.xml",
                    ub="outdated", # to be removed
                    dsname="",
@@ -1901,9 +1912,12 @@ def mover_get_data(lfns,
     # Until the Mover PFC file is no longer needed, call the TURL based PFC "PoolFileCatalogTURL.xml"
     pfc_name_turl = pfc_name.replace(".xml", "TURL.xml")
 
+    # Create a SURL to space token dictionary
+    tokens_dictionary = getSurlTokenDictionary(lfns, tokens)
+
     # Create a TURL based PFC if necessary/requested (i.e. if copy tool should not be used [useCT=False] and
     # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
-    ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService)
+    ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary)
     if ec != 0:
         return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 
