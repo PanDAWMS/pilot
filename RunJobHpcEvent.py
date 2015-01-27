@@ -539,7 +539,8 @@ class RunJobHpcEvent(RunJob):
 
         hpcManager.initJob(hpcJob)
         hpcManager.initEventRanges(eventRanges)
-        
+        hpcManager.initJobRanks()
+
         hpcManager.submit()
         threadpool = ThreadPool(defRes['stageout_threads'])
 

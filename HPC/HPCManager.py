@@ -201,6 +201,15 @@ class HPCManager:
         #return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER) + (int(self.__nodes) -1) * 1
         return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER)
 
+    def initJobRanks(self):
+        numRanges = 0
+        if self.__eventRanges:
+            numRanges = len(self.__eventRanges)
+        eventsPerNode = int(self.__ATHENA_PROC_NUMBER) * (int(self.__eventsPerWorker) - 1)
+        nodes = numRanges/eventsPerNode + (numRanges%eventsPerNode + eventsPerNode - 1)/eventsPerNode + 1
+        if nodes < int(self.__nodes):
+            self.__nodes = nodes
+
     def submit(self):
         for i in range(5):
             status, jobid = self.submitJob()
