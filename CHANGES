@@ -619,6 +619,7 @@ Sending the space token corresponding to the LFN to convertSURLtoTURL() from get
 Added token argument to convertSURLtoTURL() (Mover)
 Sending token to convertSURLtoTURLUsingHTTP() from convertSURLtoTURL() (Mover)
 Added token argument to convertSURLtoTURLUsingHTTP() requested by Johannes Elmsheuser (Mover)
+Support for event index, removed usage and handling of tag files (RunJobEvent)
  
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
