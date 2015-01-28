@@ -2116,8 +2116,8 @@ if __name__ == "__main__":
                     break
 
                 # Update the token extractor file list and keep track of added guids to the file list
-                eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges, eventRangeFilesDictionary)
-                eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary, input_tag_file)
+                #eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges, eventRangeFilesDictionary)
+                #eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary, input_tag_file)
 
                 # Get the current list of eventRangeIDs
                 currentEventRangeIDs = runJob.extractEventRangeIDs(event_ranges)
