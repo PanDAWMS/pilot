@@ -1434,12 +1434,12 @@ class RunJobEvent(RunJob):
         #status = writeToFileWithStatus(filename, s)
 
         # Define the options
-        options = ""
-        if useEventIndex:
-            options += "--useEI "
-        #if self.__yamplChannelName:
-        #    options += "--yampl %s " % (self.__yamplChannelName)
-        options += "-v --source %s" % (filename)
+        #options = ""
+        #if useEventIndex:
+        #    options += "--useEI "
+        ##if self.__yamplChannelName:
+        ##    options += "--yampl %s " % (self.__yamplChannelName)
+        #options += "-v --source %s" % (filename)
 
         # Define the command
         # old style: cmd = "%s TokenExtractor -src PFN:%s RootCollection" % (setup, input_tag_file)
