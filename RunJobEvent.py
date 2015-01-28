@@ -1424,14 +1424,14 @@ class RunJobEvent(RunJob):
 
         return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
 
-    def getTokenExtractorProcess(self, thisExperiment, setup, input_tag_file, input_tag_file_guid, stdout=None, stderr=None, useEventIndex=False):
+    def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None, useEventIndex=False):
         """ Execute the TokenExtractor """
 
         # First create a file with format: <guid>,PFN:<input_tag_file>
-        filename = os.path.join(os.getcwd(), "tokenextractor_input_list.txt")
-        self.setTokenExtractorInputListFilename(filename) # needed later when we add the files from the event ranges
-        s = self.getTokenExtractorInputListEntry(input_tag_file_guid, input_tag_file)
-        status = writeToFileWithStatus(filename, s)
+        #filename = os.path.join(os.getcwd(), "tokenextractor_input_list.txt")
+        #self.setTokenExtractorInputListFilename(filename) # needed later when we add the files from the event ranges
+        #s = self.getTokenExtractorInputListEntry(input_tag_file_guid, input_tag_file)
+        #status = writeToFileWithStatus(filename, s)
 
         # Define the options
         options = ""
@@ -1443,6 +1443,8 @@ class RunJobEvent(RunJob):
 
         # Define the command
         # old style: cmd = "%s TokenExtractor -src PFN:%s RootCollection" % (setup, input_tag_file)
+        # cmd = "%s TokenExtractor %s" % (setup, options)
+        options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=%s\"' % (input_file_guid)
         cmd = "%s TokenExtractor %s" % (setup, options)
 
         # Execute and return the TokenExtractor subprocess object
@@ -2040,37 +2042,19 @@ if __name__ == "__main__":
         athenamp_stderr = None
 
         # Create and start the TokenExtractor
-#        input_tag_file, input_tag_file_guid = runJob.getTAGFileInfo(job.inFiles, job.inFilesGuids)
-        input_tag_file, input_tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
-        if input_tag_file != "" and input_tag_file_guid != "":
-            tolog("Will run TokenExtractor on file %s" % (input_tag_file))
 
-            # Extract the proper setup string from the run command
-            setupString = thisEventService.extractSetup(runCommandList[0])
-            tolog("The Token Extractor will be setup using: %s" % (setupString))
+        # Extract the proper setup string from the run command
+        setupString = thisEventService.extractSetup(runCommandList[0])
+        tolog("The Token Extractor will be setup using: %s" % (setupString))
 
-            # Create the file objects
-            tokenextractor_stdout, tokenextractor_stderr = runJob.getStdoutStderrFileObjects(stdoutName="tokenextractor_stdout.txt", stderrName="tokenextractor_stderr.txt")
+        # Create the file objects
+        tokenextractor_stdout, tokenextractor_stderr = runJob.getStdoutStderrFileObjects(stdoutName="tokenextractor_stdout.txt", stderrName="tokenextractor_stderr.txt")
 
-            # Get the Token Extractor command
-            tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_tag_file, input_tag_file_guid,\
+        # Get the Token Extractor command
+        input_files = runJob.getLFNList()
+        input_file_guids = runJob.getGUIDList()
+        tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_files[0], input_file_guids[0],\
                                                                         stdout=tokenextractor_stdout, stderr=tokenextractor_stderr)
-
-#            out, err = tokenExtractorProcess.communicate()
-#            errcode = tokenExtractorProcess.returncode
-        else:
-            pilotErrorDiag = "Required TAG file/guid could not be identified"
-            tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
-
-            # stop threads
-            # ..
-
-            job.result[0] = "failed"
-            # job.result[2] = error. event service error code
-            runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
-
-        # athenamp gets stuck here as soon as it is launched. why? it appears to be blocking
-        # try to print stdout/err
 
         # Create the file objects
         athenamp_stdout, athenamp_stderr = runJob.getStdoutStderrFileObjects(stdoutName="athenamp_stdout.txt", stderrName="athenamp_stderr.txt")
