@@ -2051,8 +2051,8 @@ if __name__ == "__main__":
         tokenextractor_stdout, tokenextractor_stderr = runJob.getStdoutStderrFileObjects(stdoutName="tokenextractor_stdout.txt", stderrName="tokenextractor_stderr.txt")
 
         # Get the Token Extractor command
-        input_files = runJob.getLFNList()
-        input_file_guids = runJob.getGUIDList()
+        input_files = job.inFiles
+        input_file_guids = job.inFilesGuids
         tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_files[0], input_file_guids[0],\
                                                                         stdout=tokenextractor_stdout, stderr=tokenextractor_stderr)
 
