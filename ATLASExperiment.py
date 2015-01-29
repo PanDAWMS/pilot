@@ -316,6 +316,9 @@ class ATLASExperiment(Experiment):
                         if coreCount >= 1:
                             cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
                             tolog("Added multi-core support to cmd2: %s" % (cmd2))
+                # make sure that MAKEFLAGS is always set
+                if not "MAKEFLAGS=" in cmd2:
+                    cmd2 += 'export MAKEFLAGS="j1 QUICK=1 -l1";'
 
                 # Prepend cmd0 to cmd1 if set and if release < 16.1.0
                 if cmd0 != "" and job.release < "16.1.0":
@@ -1726,7 +1729,7 @@ class ATLASExperiment(Experiment):
             try:
                 coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
             except:
-                pass
+                _coreCount = 'export ROOTCORE_NCPUS=1;'
             else:
                 _coreCount = 'export ROOTCORE_NCPUS=%d;' % (coreCount)
         if processingType == "":

@@ -620,6 +620,8 @@ Added token argument to convertSURLtoTURL() (Mover)
 Sending token to convertSURLtoTURLUsingHTTP() from convertSURLtoTURL() (Mover)
 Added token argument to convertSURLtoTURLUsingHTTP() requested by Johannes Elmsheuser (Mover)
 Support for event index, removed usage and handling of tag files (RunJobEvent)
+Always setting MAKEFLAGS for analysis jobs in getJobExecutionCommand() (ATLASExperiment)
+Always setting ROOTCORE_NCPUS in addEnvVars2Cmd() (ATLASExperiment)
  
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
