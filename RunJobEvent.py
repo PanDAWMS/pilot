@@ -1339,10 +1339,10 @@ class RunJobEvent(RunJob):
                         self.__stageout_queue.append(path)
                         tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(self.__stageout_queue)))
 
-                        cmd = "ls -lF %s" % (path)
-                        tolog("zxzxzx Executing command: %s" % (cmd))
-                        out = commands.getoutput(cmd)
-                        tolog("\n%s" % (out))
+                        #cmd = "ls -lF %s" % (path)
+                        #tolog("zxzxzx Executing command: %s" % (cmd))
+                        #out = commands.getoutput(cmd)
+                        #tolog("\n%s" % (out))
                 else:
                     tolog("Pilot received message:%s" % buf)
             except Exception, e:
