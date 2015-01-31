@@ -52,6 +52,7 @@ class EventServerJobManager():
         self.__athenaMP_needEvents = 0
         self.__pollTimeout = 5
         self.__log = Logger.Logger()
+        self.__childProcs = []
         self.initSignalHandler()
 
     def handler(self, signal, frame):
@@ -205,17 +206,18 @@ class EventServerJobManager():
         return result
 
     def getChildren(self, pid):
-        self.__childProcs = []
+        #self.__childProcs = []
         self.__childProcs.append(pid)
         childProcs = self.findChildProcesses(pid)
         for child in childProcs:
             #print "Child Process found: %s" % child
-            self.__childProcs.append(child)
+            #self.__childProcs.append(child)
             self.getChildren(child)
 
     def killProcess(self, pid):
         if pid > -1:
-            for process in self.getChildren(pid):
+            self.getChildren(pid)
+            for process in self.__childProcs:
                 try:
                     os.kill(int(process), signal.SIGKILL)
                 except Exception, e:
