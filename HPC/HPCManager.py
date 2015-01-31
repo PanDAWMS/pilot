@@ -25,6 +25,7 @@ class HPCManager:
         self.__mppwidth = None
         self.__mppnppn = None
         self.__walltime = None
+        self.__walltime_m = 0
         # Number of AthenaMP workers per rank
         self.__ATHENA_PROC_NUMBER = 2
         self.__eventsPerWorker = 3
@@ -183,6 +184,7 @@ class HPCManager:
         if walltime > int(defaultResources['max_walltime_m']):
             walltime = int(defaultResources['max_walltime_m'])
 
+        self.__walltime_m = walltime
         h, m = divmod(walltime, 60)
         self.__walltime = "%d:%02d:%02d" % (h, m, 0)
         self.__eventsPerWorker = (int(walltime) - int(initialtime_m) - 5)/time_per_event_m
@@ -209,6 +211,11 @@ class HPCManager:
         nodes = numRanges/eventsPerNode + (numRanges%eventsPerNode + eventsPerNode - 1)/eventsPerNode + 1
         if nodes < int(self.__nodes):
             self.__nodes = nodes
+            self.__mppwidth = int(self.__nodes) * int(self.__cpuPerNode)
+            if self.__nodes <= 5 and self.__mode != 'backfill':
+                 self.__walltime_m =  self.__walltime_m * 2
+                 h, m = divmod(self.__walltime_m, 60)
+                 self.__walltime = "%d:%02d:%02d" % (h, m, 0)
 
     def submit(self):
         for i in range(5):
