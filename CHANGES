@@ -623,6 +623,7 @@ Support for event index, removed usage and handling of tag files (RunJobEvent)
 Always setting MAKEFLAGS for analysis jobs in getJobExecutionCommand() (ATLASExperiment)
 Always setting ROOTCORE_NCPUS in addEnvVars2Cmd() (ATLASExperiment)
 Removed unnecessary import of Popen from RunJobEvent
+Created getPlainCopyPrefices() used by shouldPFC4TURLsBeCreated() (Mover)
  
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)

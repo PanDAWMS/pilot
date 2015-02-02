@@ -1026,6 +1026,26 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary):
 
     return ec, pilotErrorDiag, turlFileInfoDic
 
+def getPlainCopyPrefices():
+    """ Return the old/newPrefix as defined in copyprefix """
+
+    oldPrefix = ""
+    newPrefix = ""
+
+    # get the copyprefices
+    copyprefix = readpar('copyprefixin')
+    if copyprefix == "":
+        copyprefix = readpar('copyprefix')
+
+    if "^" in copyprefix:
+        prefices = copyprefix.split("^")
+        oldPrefix = prefices[0]
+        newPrefix = prefices[1]
+    else:
+        tolog("!!WARNING!!4444!! Unexpected copyprefix[in] format: %s" % (copyprefix))
+
+    return oldPrefix, newPrefix
+    
 def getPrefices(fileList):
     """ Get the old/newPrefices as a dictionary needed for the SURL to TURL conversions """
     # Format:
@@ -1369,8 +1389,9 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
         # get the file access info
         useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
 
-        # forced TURL
-        if directIn:
+        # forced TURL (only if copyprefix has enough info)
+        _oldPrefix, _newPrefix = getPlainCopyPrefices()
+        if directIn and (_oldPrefix != "" and _newPrefix != ""):
             tolog("Reset old/newPrefix (forced TURL mode)")
             oldPrefix = ""
             newPrefix = ""
