@@ -20,7 +20,6 @@ import traceback
 from optparse import OptionParser
 from json import loads
 from shutil import copy2
-from subprocess import Popen
 from xml.dom import minidom
 
 # Pilot modules
