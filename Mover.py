@@ -1189,7 +1189,7 @@ def convertSURLtoTURL(surl, dataset, token, old_prefix="", new_prefix="", prefix
     # if the prefix_dictionary is set and has an entry for the current surl, overwrite the old/newPrefix
     if prefix_dictionary.has_key(surl):
         old_prefix, new_prefix = prefix_dictionary[surl]
-        tolog("Prefices overwritten for surl=%s, oldPrefix=%s, newPrefix=%s", surl, old_prefix, new_prefix)
+        tolog("Prefices overwritten for surl=%s, oldPrefix=%s, newPrefix=%s" % (surl, old_prefix, new_prefix))
 
     # old prefix for regex
     old_prefix_re = old_prefix.replace('?','\?')
