@@ -1391,7 +1391,7 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
 
         # forced TURL (only if copyprefix has enough info)
         _oldPrefix, _newPrefix = getPlainCopyPrefices()
-        if directIn and (_oldPrefix != "" and _newPrefix != ""):
+        if directIn and (_oldPrefix != "" and _newPrefix != "" and _oldPrefix != "dummy" and _newPrefix != "dummy"):
             tolog("Reset old/newPrefix (forced TURL mode)")
             oldPrefix = ""
             newPrefix = ""

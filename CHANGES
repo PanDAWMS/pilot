@@ -624,6 +624,7 @@ Always setting MAKEFLAGS for analysis jobs in getJobExecutionCommand() (ATLASExp
 Always setting ROOTCORE_NCPUS in addEnvVars2Cmd() (ATLASExperiment)
 Removed unnecessary import of Popen from RunJobEvent
 Created getPlainCopyPrefices() used by shouldPFC4TURLsBeCreated() (Mover)
+Added exception for dummy in shouldPFC4TURLsBeCreated() (Mover)
  
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
