@@ -2058,8 +2058,10 @@ def mover_get_data(lfns,
                 if s == error.ERR_GETADMISMATCH or s == error.ERR_GETMD5MISMATCH or s == error.ERR_GETWRONGSIZE or s == error.ERR_NOSUCHFILE:
                     reportFileCorruption(gpfn, sitemover)
 
-                fail = s
-                break
+                if (gpfn.startswith("s3:") or 'objectstore' in gpfn) and '.log.tgz' in gpfn:
+                    tolog("!!FAILED!!2999!! Failed to transfer a log file from S3 objectstore. Will skip it and continue the job.")
+                else:
+                    fail = s
 
             # Build the dictionary used to create the PFC for the TRF
             # In the case of FAX, use the global paths if direct access is to be used for the particlar file
