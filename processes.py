@@ -246,7 +246,11 @@ def getMaxMemoryUsageFromCGroups():
                 path = out[pos:]
                 pUtil.tolog("Extracted path = %s" % (path))
 
-                pre = "/var/cgroups/memory"
+                if os.environ.has_key('ATLAS_CGROUPS_BASE'):
+                    pre = os.environ['ATLAS_CGROUPS_BASE']
+                else:
+                    pre = "/var/cgroups/memory"
+
                 path = pre + os.path.join(path, "memory.max_usage_in_bytes")
                 pUtil.tolog("Path to CGROUPS memory info: %s" % (path))
 
