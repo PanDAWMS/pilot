@@ -848,8 +848,10 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
         dsname = pdict.get('dsname', '')
+        sourceSite = pdict.get('sourceSite', '')
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
+        computingSite = pdict.get('sitename', '')
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)
@@ -868,7 +870,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         # get the global path (likely to update the gpfn/SURL)
         tolog("SURL=%s" % (gpfn))
-        gpfn = self.findGlobalFilePath(gpfn, dsname)
+        gpfn = self.findGlobalFilePath(gpfn, dsname, computingSite, sourceSite)
         if gpfn == "":
             ec = error.ERR_STAGEINFAILED
             pilotErrorDiag = "Failed to get global paths for FAX transfer"
@@ -1217,7 +1219,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return self.verifyGlobalPath(output, verbose=False)
 
-    def findGlobalFilePath(self, surl, dsname):
+    def findGlobalFilePath(self, surl, dsname, computingSite, sourceSite):
         """ Find the global path for the given file"""
 
         global_path = ""

@@ -2163,7 +2163,7 @@ def mover_get_data(lfns,
                 # The site mover needed here is the FAX site mover since the global file path methods are defined there only
                 old_sitemover = sitemover
                 sitemover = getSiteMover("fax", "")
-                guidfname[guid] = sitemover.findGlobalFilePath(lfn, dsname, sourceSite)
+                guidfname[guid] = sitemover.findGlobalFilePath(lfn, dsname, sitename, sourceSite)
 
                 # Restore the old sitemover
                 del sitemover
