@@ -91,6 +91,7 @@ class Job:
         self.experiment = "undefined"      # Which experiment this job belongs to
         self.coreCount = None              # Number of cores as requested by the task
         self.pgrp = 0                      # Process group (RunJob* subprocess)
+        self.sourceSite = ""               # Keep track of the original source site of the job (useful for overflow jobs to get to the proper FAX redirector)
 
         # event service objects
         self.eventService = False          # True for event service jobs
@@ -346,6 +347,12 @@ class Job:
 
         if data.has_key('coreCount'):
             self.coreCount = str(data['coreCount'])
+        else:
+            # use default
+            pass
+
+        if data.has_key('sourceSite'):
+            self.sourceSite = str(data['sourceSite'])
         else:
             # use default
             pass

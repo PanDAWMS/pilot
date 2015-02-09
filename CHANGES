@@ -632,8 +632,9 @@ Removed unnecessary import of Popen from RunJobEvent
 Created getPlainCopyPrefices() used by shouldPFC4TURLsBeCreated() (Mover)
 Added exception for dummy in shouldPFC4TURLsBeCreated() (Mover)
 getMaxMemoryUsageFromCGroups() now uses ATLAS_CGROUPS_BASE if available (to support older cgroups installations), otherwise defaults to /var/cgroups/memory (processes)
-Added trfName to extractSetup() to improve source extraction (bug fix for token extractor usage) (EventService)
-Now sending trfName to extractSetup() (bug fix for token extractor usage) (RunJobEvent)
+Added trf name to extractSetup() to improve source extraction (bug fix for token extractor usage) (EventService)
+Now sending trf name to extractSetup() (bug fix for token extractor usage) (RunJobEvent)
+Added sourceSite to Job class, useful for overflow jobs to get to the proper FAX redirector (Job)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
