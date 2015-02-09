@@ -635,6 +635,11 @@ getMaxMemoryUsageFromCGroups() now uses ATLAS_CGROUPS_BASE if available (to supp
 Added trf name to extractSetup() to improve source extraction (bug fix for token extractor usage) (EventService)
 Now sending trf name to extractSetup() (bug fix for token extractor usage) (RunJobEvent)
 Added sourceSite to Job class, useful for overflow jobs to get to the proper FAX redirector (Job)
+Sending job.sourceSite to mover_get_data() from get_data() (Mover)
+Added sourceSite argument to mover_get_data(), sitemover_get_data() (Mover)
+Sending sourceSite to sitemover_get_data() from mover_get_data() (Mover)
+Sending sourceSite to get_data() from sitemover_get_data() (Mover)
+Sending sourceSite to sitemover.findGlobalFilePath() from mover_get_data() (Mover)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)

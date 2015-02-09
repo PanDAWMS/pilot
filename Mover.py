@@ -125,7 +125,7 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
 
         tolog("Calling get function with dsname=%s, dsdict=%s" % (dsname, str(dsdict)))
         rc, pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
-            mover_get_data(ins, job.workdir, jobSite.sitename, stageinTries, ub=jobSite.dq2url, dsname=dsname,\
+            mover_get_data(ins, job.workdir, jobSite.sitename, stageinTries, ub=jobSite.dq2url, dsname=dsname, sourceSite=job.sourceSite,\
                            dsdict=dsdict, guids=job.inFilesGuids, analysisJob=analysisJob, usect=usect, pinitdir=pinitdir,\
                            proxycheck=proxycheck, spsetup=job.spsetup, tokens=job.dispatchDBlockToken, userid=job.prodUserID,\
                            access_dict=access_dict, inputDir=inputDir, jobId=job.jobId, DN=job.prodUserID, workDir=workDir,\
@@ -1522,7 +1522,7 @@ def abortStageIn(dbh, lfns, DBReleaseIsAvailable):
 def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_attempt, replica_number, N_files_on_tape, N_root_files, N_non_root_files,\
                        gpfn, lfn, path, fsize=None, spsetup=None, fchecksum=None, guid=None, analysisJob=None, usect=None, pinitdir=None, proxycheck=None,\
                        sitename=None, token=None, timeout=None, dsname=None, userid=None, report=None, access=None, inputDir=None, jobId=None,\
-                       workDir=None, cmtconfig=None, experiment=None, scope_dict=None):
+                       workDir=None, cmtconfig=None, experiment=None, scope_dict=None, sourceSite=""):
     """ Wrapper for the actual stage-in command from the relevant sitemover """
 
     s = -1
@@ -1536,7 +1536,7 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
         # (the direct reading list will be None for all site movers except the xrootdSiteMover when it encounters a root file)
         s, pErrorText = sitemover.get_data(gpfn, lfn, path, fsize=fsize, spsetup=spsetup, fchecksum=fchecksum, guid=guid,\
                                            analJob=analysisJob, usect=usect, pinitdir=pinitdir, proxycheck=proxycheck, sitename=sitename,\
-                                           token=token, timeout=timeout, dsname=dsname, userid=userid, report=report,\
+                                           token=token, timeout=timeout, dsname=dsname, userid=userid, report=report, sourceSite=sourceSite,\
                                            access=access, inputDir=inputDir, jobId=jobId, workDir=workDir, cmtconfig=cmtconfig, experiment=experiment, scope_dict=scope_dict)
     except Exception, e:
         pilotErrorDiag = "Unexpected exception: %s" % (get_exc_plus())
@@ -1851,7 +1851,8 @@ def mover_get_data(lfns,
                    checksumIn=[],
                    transferType=None,
                    experiment="",
-                   eventService=False):
+                   eventService=False,
+                   sourceSite=""):
     """
     This method is called by a job to get the required input data.
     The parameters passed are a list of LFNs, working directory path, site name, 
@@ -2074,7 +2075,8 @@ def mover_get_data(lfns,
                                                                                                                              dsname=dsname, userid=userid, report=report,\
                                                                                                                              access=file_access, inputDir=inputDir, jobId=jobId,\
                                                                                                                              workDir=workDir, cmtconfig=cmtconfig,\
-                                                                                                                             experiment=experiment, scope_dict=scope_dict)
+                                                                                                                             experiment=experiment, scope_dict=scope_dict,\
+                                                                                                                             sourceSite=sourceSite)
                     # Get out of the multiple replica loop
                     if replica_transferred:
                         break
@@ -2161,7 +2163,7 @@ def mover_get_data(lfns,
                 # The site mover needed here is the FAX site mover since the global file path methods are defined there only
                 old_sitemover = sitemover
                 sitemover = getSiteMover("fax", "")
-                guidfname[guid] = sitemover.findGlobalFilePath(lfn, dsname)
+                guidfname[guid] = sitemover.findGlobalFilePath(lfn, dsname, sourceSite)
 
                 # Restore the old sitemover
                 del sitemover
