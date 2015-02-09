@@ -2043,7 +2043,7 @@ if __name__ == "__main__":
         # Create and start the TokenExtractor
 
         # Extract the proper setup string from the run command
-        setupString = thisEventService.extractSetup(runCommandList[0])
+        setupString = thisEventService.extractSetup(runCommandList[0], job.trfName)
         tolog("The Token Extractor will be setup using: %s" % (setupString))
 
         # Create the file objects

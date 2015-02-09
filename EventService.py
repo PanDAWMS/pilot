@@ -142,12 +142,14 @@ class EventService(object):
         return ec, pilotErrorDiag, replicas_dic
 
     # Optional
-    def extractSetup(self, runCommand):
+    def extractSetup(self, runCommand, trfName):
         """ Extract the 'source /path/asetup.sh ...' from the run command """
 
         # Use this method to extract the setup script from (e.g.) the run command string or otherwise define the proper setup for the Token Extractor
 
         cmd = ""
+        # first remove the trf so that is not included
+        runCommand = runCommand[:runCommand.find(trfName)]
 
         _cmd = re.search('(source.+\;)', runCommand)
         if _cmd:
