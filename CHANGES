@@ -647,6 +647,7 @@ Getting computingSite (from sitename) in get_data() (FAXSiteMover)
 Sending sitename (as computingSite) to findGlobalFilePath() from mover_get_data() (Mover)
 Added computingSite argument to findGlobalFilePath() (FAXSiteMover)
 Sending computingSite to findGlobalFilePath() from get_data() (FAXSiteMover)
+Created getFAXRedirectors(), used by findGlobalFilePath() (FAXSiteMover)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
