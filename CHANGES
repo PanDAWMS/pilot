@@ -647,7 +647,10 @@ Getting computingSite (from sitename) in get_data() (FAXSiteMover)
 Sending sitename (as computingSite) to findGlobalFilePath() from mover_get_data() (Mover)
 Added computingSite argument to findGlobalFilePath() (FAXSiteMover)
 Sending computingSite to findGlobalFilePath() from get_data() (FAXSiteMover)
-Created getFAXRedirectors(), used by findGlobalFilePath() (FAXSiteMover)
+Created getFAXRedirectors(), used by getGlobalFilePaths() (FAXSiteMover)
+Sending computingSite, sourceSite to getGlobalFilePaths() from findGlobalFilePath() (FAXSiteMover)
+Added computingSite, sourceSite arguments to getGlobalFilePaths() (FAXSiteMover)
+Now selecting fax redirector depending on file type (read: lib vs no lib file) using in getGlobalFilePaths() (FAXSiteMover)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)

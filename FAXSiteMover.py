@@ -1082,7 +1082,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return 'global_paths-%s.txt' % (fdsname)
 
-    def getGlobalFilePaths(self, surl, dsname):
+    def getGlobalFilePaths(self, surl, dsname, computingSite, sourceSite):
         """ Get the global file paths using to_native_lfn() [dsname needed] or Rucio naming convension [surl needed to extract the scope] """
 
         #tolog("Guessing the global path using to_native_lfn()..")
@@ -1090,9 +1090,17 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         # this method will in fact only ever return a single path, but keep 'paths' as a list for consistency with getGlobalFilePathsDQ2()
         paths = []
 
-        # get the global redirector
+        # get the global redirectors (several, since the lib file might not be at the same place for overflow jobs)
+        fax_redirectors_dictionary = self.getFAXRedirectors(computingSite, sourceSite)
+
+        # select the proper fax redirector
+        if ".lib." in surl:
+            redirector = fax_redirectors_dictionary['computingsite']
+        else:
+            redirector = fax_redirectors_dictionary['sourcesite']
+
         # correct the redirector in case the protocol and/or trailing slash are missing
-        redirector = self.updateRedirector(readpar('faxredirector'))
+        redirector = self.updateRedirector(redirector)
 
         # use the proper Rucio method to generate the path if possible (if scope is present in the SURL)
         scope = extractPattern(surl, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
@@ -1282,7 +1290,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 tolog("!!WARNING!!3333!! Failed to get global file path")
         else:
             # get the global file paths from file/DQ2
-            paths = self.getGlobalFilePaths(surl, dsname)
+            paths = self.getGlobalFilePaths(surl, dsname, computingSite, sourceSite)
 
             if paths[0][-1] == ":": # this is necessary to prevent rucio paths having ":/" as will be the case if os.path.join is used
                 global_path = paths[0] + filename
