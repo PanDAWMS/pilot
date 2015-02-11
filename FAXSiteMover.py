@@ -1248,14 +1248,14 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             else:
                 # verify the dictionary
                 if fax_redirectors_dictionary.has_key('computingsite'):
-                    if fax_redirectors_dictionary['computingsite'] == "":
+                    if fax_redirectors_dictionary['computingsite'] == "" or fax_redirectors_dictionary['computingsite'].lower() == "null":
                         fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
                         tolog("!!WARNING!!5555!! FAX computingsite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
                 else:
                     fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
                     tolog("!!WARNING!!5556!! FAX computingsite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
                 if fax_redirectors_dictionary.has_key('sourcesite'):
-                    if fax_redirectors_dictionary['sourcesite'] == "":
+                    if fax_redirectors_dictionary['sourcesite'] == "" or fax_redirectors_dictionary['sourcesite'].lower() == "null":
                         fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
                         tolog("!!WARNING!!5555!! FAX sourcesite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
                 else:
