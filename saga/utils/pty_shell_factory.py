@@ -273,6 +273,9 @@ class PTYShellFactory (object) :
                         if  retries > 100 :
                             raise se.NoSuccess ("Could not detect shell prompt (timeout)")
 
+                        # make sure we retry a finite time...
+                        retries += 1
+
                         if  not retry_trigger : 
                             # just waiting for the *right* trigger or prompt, 
                             # don't need new ones...

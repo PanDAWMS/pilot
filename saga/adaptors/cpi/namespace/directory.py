@@ -110,3 +110,5 @@ class Directory (entry.Entry) :
     def make_dir_async          (self, tgt, flags, ttype)      : pass
 
 
+
+

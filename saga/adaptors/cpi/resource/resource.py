@@ -93,3 +93,5 @@ class Compute (Resource) : pass
 class Storage (Resource) : pass
 class Network (Resource) : pass
 
+
+

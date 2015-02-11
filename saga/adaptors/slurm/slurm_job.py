@@ -1190,3 +1190,5 @@ class SLURMJob (saga.adaptors.cpi.job.Job):
         self._id = self.js._job_run (self.jd)
         self._started = True
 
+
+

@@ -500,3 +500,5 @@ class Directory (entry.Entry) :
         else      :  return self._nsentry.read_link (     ttype=ttype)
   
 
+
+

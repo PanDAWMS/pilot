@@ -29,6 +29,7 @@ import saga.exceptions as se
 #      Overwrites the local file if it exists.
 # '<<' copies the remote file to the local file after the job finishes. 
 #      Appends to the local file if it exists.
+
 class TransferDirectives(object):
 
     def __init__(self, directives_list):
@@ -103,6 +104,8 @@ def _test_():
     print tdp.in_overwrite_dict
     print tdp.out_append_dict
     print tdp.out_overwrite_dict
+
+
 
 
 

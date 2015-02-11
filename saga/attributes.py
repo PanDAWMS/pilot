@@ -3,6 +3,7 @@ __author__    = "Andre Merzky, Ole Weidner"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
+
 """ Attribute interface """
 
 import radical.utils            as ru
@@ -321,7 +322,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         _attributes_t_init makes sure that the basic structures are in place on
         the attribute dictionary - this saves us ton of safety checks later on.
         """
-
         # initialize state
         d = self._attributes_t_init ()
 
@@ -347,6 +347,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
         self.list_attributes ()
 
 
+
     # --------------------------------------------------------------------------
     #
     # Internal interface tools.
@@ -359,7 +360,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
     @rus.takes   ('Attributes', 
                   rus.optional (basestring))
     @rus.returns (dict)
-
     def _attributes_t_init (self, key=None) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -451,7 +451,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                   basestring,
                   rus.anything)
     @rus.returns (rus.nothing)
-
     def _attributes_t_call_cb (self, key, val) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -493,12 +492,10 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-
     @rus.takes   ('Attributes', 
                   basestring,
                   rus.anything)
     @rus.returns (rus.nothing)
-
     def _attributes_t_call_setter (self, key, val) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -678,7 +675,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-
     @rus.takes   ('Attributes', 
                   basestring,
                   int,
@@ -738,6 +734,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
         # make sure interface is ready to use
         d = self._attributes_t_init ()
+
 
         if  force or d['camelcasing'] :
             temp = Attributes._camel_case_regex_1.sub(r'\1_\2', key)
@@ -1047,6 +1044,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
         # if the key is not known
         if not key in d['attributes'] :
+
             if key[0] == '_' and d['private'] :
                 # if the set is private, we can register the new key.  It
                 # won't have any callbacks at this point.
@@ -1197,6 +1195,7 @@ class Attributes (_AttributesBase, ru.DictMixin) :
                             ret.append (k)
 
         return ret
+
 
 
     # --------------------------------------------------------------------------
@@ -2184,7 +2183,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 
     # --------------------------------------------------------------------------
     #
-
     @rus.takes   ('Attributes', 
                   basestring,
                   callable,
@@ -2743,4 +2741,6 @@ class Attributes (_AttributesBase, ru.DictMixin) :
 #   - list_callbacks()
 
 # ------------------------------------------------------------------------------
+
+
 

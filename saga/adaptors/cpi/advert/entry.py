@@ -62,3 +62,5 @@ class Entry (cpi_ns.entry.Entry,
     def delete_object_async     (self, ttype)                        : pass
 
 
+
+

@@ -136,7 +136,6 @@ _ADAPTOR_OPTIONS       = [
     'env_variable'     : None
     },
 ]
-
 # --------------------------------------------------------------------
 # the adaptor capabilities & supported attributes
 #

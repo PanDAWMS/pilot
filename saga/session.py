@@ -145,6 +145,7 @@ class _DefaultSession (object) :
                         continue
 
 
+
 # ------------------------------------------------------------------------------
 #
 class Session (saga.base.SimpleBase) :

@@ -29,6 +29,8 @@ import saga.exceptions as se
 #      Overwrites the local file if it exists.
 # '<<' copies the remote file to the local file after the job finishes.
 #      Appends to the local file if it exists.
+
+
 class TransferDirectives(object):
 
     def __init__(self, directives_list):

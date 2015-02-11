@@ -124,6 +124,7 @@ class Adaptor (saga.adaptors.base.Base):
 
         self._default_contexts = list()
 
+
     # ----------------------------------------------------------------
     #
     def sanity_check (self) :

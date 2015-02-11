@@ -88,6 +88,7 @@ def _condorscript_generator(url, logger, jd, option_dict=None):
         if 'universe' not in option_dict:
             condor_file += "\nuniverse = vanilla"
 
+
         for (key, value) in option_dict.iteritems():
             condor_file += "\n%s = %s" % (key, value)
 
