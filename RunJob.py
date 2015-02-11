@@ -672,7 +672,7 @@ class RunJob(object):
 
         # run the payload process, which could take days to finish
         t0 = os.times()
-        tolog("t0 = %s" % str(t1))
+        tolog("t0 = %s" % str(t0))
         res_tuple = (0, 'Undefined')
 
         # loop over all run commands (only >1 for multi-trfs)
