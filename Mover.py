@@ -848,7 +848,7 @@ def getDefaultStorage(pfn):
 
     return defaultSE
 
-def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary):
+def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, computingSite, sourceSite):
     """ Return a dictionary with TURLs """
     # Try to do the SURL to TURL conversion using copysetup or copyprefix
     # and fall back to lcg-getturls if the previous attempts fail
@@ -909,7 +909,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary):
                     token = tokens_dictionary[fileList[i]]
                 else:
                     token = ""
-                convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], dataset, token, old_prefix=oldPrefix, new_prefix=newPrefix, prefix_dictionary=prefix_dictionary)
+                convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], dataset, token, computingSite, sourceSite, old_prefix=oldPrefix, new_prefix=newPrefix, prefix_dictionary=prefix_dictionary)
         else:
             excludedFilesDic[guidList[i]] = fileList[i]
 
@@ -1118,7 +1118,7 @@ def conditionalSURLCleanup(pattern, replacement, surl, old_prefix):
     else:
         return surl
 
-def convertSURLtoTURLUsingDataset(surl, dataset):
+def convertSURLtoTURLUsingDataset(surl, dataset, computingSite, sourceSite):
     """ Convert SURL to TURL using the dataset name """
 
     turl = ""
@@ -1130,7 +1130,7 @@ def convertSURLtoTURLUsingDataset(surl, dataset):
     sitemover = getSiteMover(copycmd, setup)
 
     # get the global file paths from file
-    paths = sitemover.getGlobalFilePaths(surl, dataset)
+    paths = sitemover.getGlobalFilePaths(surl, dataset, computingSite, sourceSite)
     if paths != []:
         if paths[0][-1] == ":": # this is necessary to prevent rucio paths having ":/" as will be the case if os.path.join is used
             turl = paths[0] + os.path.basename(surl)
@@ -1166,7 +1166,7 @@ def convertSURLtoTURLUsingHTTP(surl, token, dataset='', site='', redirector="htt
 
     return turl
 
-def convertSURLtoTURL(surl, dataset, token, old_prefix="", new_prefix="", prefix_dictionary={}):
+def convertSURLtoTURL(surl, dataset, token, computingSite, sourceSite, old_prefix="", new_prefix="", prefix_dictionary={}):
     """ Convert SURL to TURL """
 
     # Use old/newPrefix, or dataset name in FAX direct i/o mode
@@ -1204,7 +1204,7 @@ def convertSURLtoTURL(surl, dataset, token, old_prefix="", new_prefix="", prefix
     else:
         copytool = "other"
     if copytool != "other":
-        return convertSURLtoTURLUsingDataset(surl, dataset)
+        return convertSURLtoTURLUsingDataset(surl, dataset, computingSite, sourceSite)
 
     # if the prefix_dictionary is set and has an entry for the current surl, overwrite the old/newPrefix
     if prefix_dictionary.has_key(surl):
@@ -1344,7 +1344,7 @@ def getThinFileInfoDic(fileInfoDic):
 
     return thinFileInfoDic
 
-def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_dictionary):
+def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_dictionary, computingSite, sourceSite):
     """ Perform automatic configuration of copysetup[in] (i.e. for direct access/file stager)"""
 
     # (remember to replace preliminary old/newPrefix)
@@ -1360,7 +1360,7 @@ def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_d
     thinFileInfoDic = getThinFileInfoDic(fileInfoDic)
 
     # get the TURLs
-    ec, pilotErrorDiag, turlFileInfoDic = getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary)
+    ec, pilotErrorDiag, turlFileInfoDic = getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, computingSite, sourceSite)
     if ec == 0:
         tolog("getTURL returned dictionary: %s" % str(turlFileInfoDic))
 
@@ -1751,7 +1751,7 @@ def createStandardPFC4TRF(createdPFCTURL, pfc_name_turl, pfc_name, guidfname):
         # No PFC only if no PFC was returned by DQ2
         createPFC4TRF(pfc_name, guidfname)
 
-def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary):
+def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, computingSite, sourceSite):
     """ Create a TURL based PFC if necessary/requested """
     # I.e if copy tool should not be used [useCT=False] and if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False]
 
@@ -1761,7 +1761,7 @@ def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, 
 
     # first check if there is a need to create the PFC
     if shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
-        ec, pilotErrorDiag = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict, tokens_dictionary)
+        ec, pilotErrorDiag = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict, tokens_dictionary, computingSite, sourceSite)
         if ec == 0:
             tolog("PFC created with TURLs")
             createdPFCTURL = True
@@ -1943,7 +1943,7 @@ def mover_get_data(lfns,
 
     # Create a TURL based PFC if necessary/requested (i.e. if copy tool should not be used [useCT=False] and
     # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
-    ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary)
+    ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite)
     if ec != 0:
         return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 

@@ -3368,7 +3368,7 @@ class SiteMover(object):
 
         return full_path
 
-    def getGlobalFilePaths(self, surl, dataset):
+    def getGlobalFilePaths(self, surl, dataset, computingSite, sourceSite):
         """ Get the global file paths """
 
         # Note: this method depends on the site mover used, so should be defined there, and as virtual here
