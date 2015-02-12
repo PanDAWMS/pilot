@@ -651,6 +651,7 @@ Created getFAXRedirectors(), used by getGlobalFilePaths() (FAXSiteMover)
 Sending computingSite, sourceSite to getGlobalFilePaths() from findGlobalFilePath() (FAXSiteMover)
 Added computingSite, sourceSite arguments to getGlobalFilePaths() (FAXSiteMover)
 Now selecting fax redirector depending on file type (read: lib vs no lib file) using in getGlobalFilePaths() (FAXSiteMover)
+Added pwg*, pwhg*, *PROC* to removeRedundantFiles() (ATLASexperiment)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)

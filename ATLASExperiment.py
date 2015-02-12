@@ -592,6 +592,9 @@ class ATLASExperiment(Experiment):
                     "scratch",
                     "jobState-*-test.pickle",
                     "*.writing",
+                    "pwg*",
+                    "pwhg*",
+                    "*PROC*",
                     "HPC",
                     "saga",
                     "radical"]
