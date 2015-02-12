@@ -1264,7 +1264,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                         fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
                         tolog("!!WARNING!!5556!! FAX aourcesite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
         else:
-            tolog("sourceSite is not set, use faxredirector value" from AGIS)
+            tolog("sourceSite is not set, use faxredirector value from AGIS")
             fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
             fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
 
