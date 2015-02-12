@@ -121,6 +121,7 @@ class RunJobTitan(RunJobHPC):
     
     def get_hpc_resources(self, partition, max_nodes = None, min_nodes = 1, min_walltime = 30):
 
+        tolog("Looking for gap more than '%s' min" % min_walltime)
         nodes = min_nodes
         walltime =  min_walltime       
         default = True
@@ -154,9 +155,18 @@ class RunJobTitan(RunJobHPC):
     
         # special setup command. should be placed in queue defenition (or job defenition) ?
         setup_commands = ['source $MODULESHOME/init/bash',
+                          'tmp_dirname=$PBS_O_WORKDIR',
+                          'tmp_dirname+="/tmp"',
+                          'echo $tmp_dirname',
+                          'mkdir -p $tmp_dirname',
+                          'export TEMP=$tmp_dirname',
+                          'export TMPDIR=$TEMP',
+                          'export TMP=$TEMP',
                           'source $PROJWORK/csc108/panitkin/setuptitan', 
                           'export LD_LIBRARY_PATH=/opt/cray/lib64:$LD_LIBRARY_PATH',
-                          'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH']
+                          'export LD_LIBRARY_PATH=/lustre/atlas/proj-shared/csc108/panitkin/AtlasReleases/19.2.1/ldpatch:$LD_LIBRARY_PATH',
+                          'source /lustre/atlas/proj-shared/csc108/panitkin/AtlasReleases/19.2.1/AtlasSetup/scripts/asetup.sh 19.2.1.5,64,slc6,opt,gcc47 --cmtextratags=ATLAS,useDBRelease', 
+                          'export ATHENA_PROC_NUMBER=16']
         
         #setup_commands = ['source $MODULESHOME/init/bash',
         #                  'export LD_LIBRARY_PATH=$PROJWORK/csc108/panitkin/AtlasReleases/18.9.0/ldpatch:$LD_LIBRARY_PATH',
@@ -325,11 +335,11 @@ if __name__ == "__main__":
     
     runJob.cpu_number_per_node = 16
     runJob.walltime = 120
-    runJob.max_nodes =  50 #2000 
-    runJob.number_of_threads = 8  # 1 - one thread per task
-    runJob.min_walltime = 60
+    runJob.max_nodes =  30 #2000 
+    runJob.number_of_threads = 16  # 1 - one thread per task
+    runJob.min_walltime S= 120
     runJob.waittime = 5
-    runJob.nodes = 1
+    runJob.nodes = 30
     runJob.partition_comp = 'titan'
     runJob.project_id = "CSC108"
     runJob.executed_queue = readpar('localqueue') 
