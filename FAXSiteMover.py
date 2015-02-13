@@ -1233,7 +1233,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         fax_redirectors_dictionary = {}
 
         # is the sourceSite set?
-        if sourceSite:
+        if sourceSite and sourcesite.lower() != 'null':
             # attempt to get fax redirectors from Ilija Vukotic's google server
             cmd = "curl --silent --connect-timeout 100 --max-time 120 -X POST --data \'computingsite=%s&sourcesite=%s\' %s" % (computingSite, sourceSite, url)
             tolog("Trying to get FAX redirectors: %s" % (cmd))
