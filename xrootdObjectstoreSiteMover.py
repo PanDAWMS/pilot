@@ -274,7 +274,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
 
         self.log("StageIn files started.")
         _cmd_str = '%s xrdcp %s %s' % (self._setup, source, destination)
-        self.log('Executing command: %s' % (_cmd_str))
+        self.log('Executing command: %s, timeout: %s' % (_cmd_str, self.timeout))
         s = -1
         o = '(not defined)'
         t0 = os.times()
@@ -559,7 +559,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         _cmd_str = '%s xrdcp %s %s %s' % (self._setup, checksum_option, source, destination)
 
 
-        tolog("Executing command: %s" % (_cmd_str))
+        tolog("Executing command: %s, timeout: %s" % (_cmd_str, self.timeout))
         ec = -1
         t0 = os.times()
         o = '(not defined)'
