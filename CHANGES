@@ -663,6 +663,7 @@ Added computingSite, sourceSite arguments to getGlobalFilePaths() call in conver
 Added computingSite, sourceSite arguments to convertSURLtoTURLUsingDataset() call in convertSURLtoTURL() (Mover)
 Now selecting fax redirector depending on file type (read: lib vs no lib file) using in getGlobalFilePaths() (FAXSiteMover)
 Added pwg*, pwhg*, *PROC* to removeRedundantFiles() (ATLASexperiment)
+Added switching between three access modes for davix/webdav input access. Code from Johannes Elmsheuser (Mover)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)

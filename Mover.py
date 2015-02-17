@@ -1155,7 +1155,12 @@ def convertSURLtoTURLUsingHTTP(surl, token, dataset='', site='', redirector="htt
 
         site_suffix = ""
         if site:
-            site_suffix = "?site=%s" %site
+            if site == "geoip":
+                site_suffix = "?select=geoip"
+            elif site == "none" or site == "None":
+                site_suffix = ""
+            else:
+                site_suffix = "?site=%s" %site
 
         turl = prefix + scope + "/" + filename + site_suffix
     except Exception, e:
