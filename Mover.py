@@ -2056,6 +2056,10 @@ def mover_get_data(lfns,
             # Loop over get function to allow for multiple get attempts for a file
             will_use_direct_io = False
             get_attempt = 0
+            if transferType == "fax":
+                get_RETRY = 1
+                tolog("Number of retries set to 1 for transferType=fax")
+
             #get_RETRY = 1 #2 #PN
             while get_attempt < get_RETRY:
                 if get_attempt > 0:
