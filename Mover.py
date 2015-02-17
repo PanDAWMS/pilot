@@ -1099,9 +1099,13 @@ def getPrefices(fileList):
         # create a prefix dictionary for all the files
         for surl in fileList:
             # first get the proper old/newPrefices
-            oldPrefix, newPrefix = matchCopyprefixReplica(surl, pfroms, ptos)
-            # then fill the dictionary
-            prefix_dictionary[surl] = [oldPrefix, newPrefix]
+            _oldPrefix, _newPrefix = matchCopyprefixReplica(surl, pfroms, ptos)
+            if _oldPrefix != "" and _oldPrefix != "dummy" and _newPrefix != "" and _newPrefix != "dummy":
+                # then fill the dictionary
+                prefix_dictionary[surl] = [oldPrefix, newPrefix]
+            else:
+                oldPrefix = _oldPrefix
+                newPrefix = _newPrefix
 
     if oldPrefix != "" and newPrefix != "":
         tolog("Will use oldPrefix=%s and newPrefix=%s for SURL to TURL conversion" % (oldPrefix, newPrefix))
