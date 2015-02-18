@@ -1103,7 +1103,12 @@ def getPrefices(fileList):
                 oldPrefix, newPrefix = matchCopyprefixReplica(surl, pfroms, ptos)
                 # then fill the dictionary
                 prefix_dictionary[surl] = [oldPrefix, newPrefix]
-
+        else:
+            if oldPrefix != "" and newPrefix != "":
+                # Use the same prefices for all surls
+                for surl in fileList:
+                    prefix_dictionary[surl] = [oldPrefix, newPrefix]
+            
     if oldPrefix != "" and newPrefix != "":
         tolog("Will use oldPrefix=%s and newPrefix=%s for SURL to TURL conversion" % (oldPrefix, newPrefix))
     else:
