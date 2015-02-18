@@ -87,6 +87,7 @@ class RunJobEvent(RunJob):
     __cache = ""                                 # Cache URL, e.g. used by LSST
     __metadata_filename = ""                     # Full path to the metadata file
     __yamplChannelName = None                    # Yampl channel name
+    __useEventIndex = True                       # Should Event Index be used? If not, a TAG file will be created
     __tokenextractor_input_list_filenane = ""    #
 
     # Getter and setter methods
@@ -536,6 +537,16 @@ class RunJobEvent(RunJob):
         """ Setter for __tokenextractor_input_list_filenane """
 
         self.__tokenextractor_input_list_filenane = tokenextractor_input_list_filenane
+
+    def useEventIndex(self):
+        """ Should the Event Index be used? """
+
+        return self.__useEventIndex
+
+    def setUseEventIndex(self, value):
+        """ Set the __useEventIndex variable to a boolean value """
+
+        self.__useEventIndex = value
 
     # Required methods
 
@@ -1423,27 +1434,29 @@ class RunJobEvent(RunJob):
 
         return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
 
-    def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None, useEventIndex=False):
+    def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None):
         """ Execute the TokenExtractor """
 
-        # First create a file with format: <guid>,PFN:<input_tag_file>
-        #filename = os.path.join(os.getcwd(), "tokenextractor_input_list.txt")
-        #self.setTokenExtractorInputListFilename(filename) # needed later when we add the files from the event ranges
-        #s = self.getTokenExtractorInputListEntry(input_tag_file_guid, input_tag_file)
-        #status = writeToFileWithStatus(filename, s)
+        options = ""
 
-        # Define the options
-        #options = ""
-        #if useEventIndex:
-        #    options += "--useEI "
-        ##if self.__yamplChannelName:
-        ##    options += "--yampl %s " % (self.__yamplChannelName)
-        #options += "-v --source %s" % (filename)
+        # Should the event index be used or should a tag file be used?
+        if not self.__useEventIndex:
+            # In this case, the input file is the tag file
+            # First create a file with format: <guid>,PFN:<input_tag_file>
+            filename = os.path.join(os.getcwd(), "tokenextractor_input_list.txt")
+            self.setTokenExtractorInputListFilename(filename) # needed later when we add the files from the event ranges
+            s = self.getTokenExtractorInputListEntry(input_file_guid, input_file)
+            status = writeToFileWithStatus(filename, s)
+
+            # Define the options
+            options += "-v --source %s" % (filename)
+
+        else:
+            # In this case the input file is an EVT file
+            # Define the options
+            options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=%s\"' % (input_file_guid)
 
         # Define the command
-        # old style: cmd = "%s TokenExtractor -src PFN:%s RootCollection" % (setup, input_tag_file)
-        # cmd = "%s TokenExtractor %s" % (setup, options)
-        options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=%s\"' % (input_file_guid)
         cmd = "%s TokenExtractor %s" % (setup, options)
 
         # Execute and return the TokenExtractor subprocess object
@@ -1839,6 +1852,9 @@ if __name__ == "__main__":
     # define a new parent group
     os.setpgrp()
 
+    # Should the Event Index be used?
+    runJob.setUseEventIndex(True)
+
     # protect the runEvent code with exception handling
     hP_ret = False
     try:
@@ -2049,10 +2065,28 @@ if __name__ == "__main__":
         # Create the file objects
         tokenextractor_stdout, tokenextractor_stderr = runJob.getStdoutStderrFileObjects(stdoutName="tokenextractor_stdout.txt", stderrName="tokenextractor_stderr.txt")
 
+        # In case the event index is not to be used, we need to create a TAG file
+        if not runJob.useEventIndex():
+            input_file, input_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
+
+            if input_file == "" or input_file_guid == "":
+                pilotErrorDiag = "Required TAG file/guid could not be identified"
+                tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
+
+                # stop threads
+                # ..
+
+                job.result[0] = "failed"
+                # job.result[2] = error. event service error code
+                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
+        else:
+            input_file = job.inFiles[0]
+            input_file_guid = job.inFilesGuids[0]
+
         # Get the Token Extractor command
-        input_files = job.inFiles
-        input_file_guids = job.inFilesGuids
-        tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_files[0], input_file_guids[0],\
+        tolog("Will use input file %s for the TokenExtractor" % (input_file))
+        tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
                                                                         stdout=tokenextractor_stdout, stderr=tokenextractor_stderr)
 
         # Create the file objects
@@ -2114,9 +2148,10 @@ if __name__ == "__main__":
                     runJob.sendMessage("No more events")
                     break
 
-                # Update the token extractor file list and keep track of added guids to the file list
-                #eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges, eventRangeFilesDictionary)
-                #eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary, input_tag_file)
+                # Update the token extractor file list and keep track of added guids to the file list (not needed for Event Index)
+                if not runJob.useEventIndex():
+                    eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges, eventRangeFilesDictionary)
+                    eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary, input_file)
 
                 # Get the current list of eventRangeIDs
                 currentEventRangeIDs = runJob.extractEventRangeIDs(event_ranges)

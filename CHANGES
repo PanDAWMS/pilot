@@ -666,6 +666,8 @@ Added pwg*, pwhg*, *PROC* to removeRedundantFiles() (ATLASexperiment)
 Added switching between three access modes for davix/webdav input access. Code from Johannes Elmsheuser (Mover)
 Avoiding fax fallback for transferType fax in mover_get_data() (Mover)
 Added option -np (no progress bar) to xrdcp command in stageInFile() and stageOutFile() (xrdcpSiteMover)
+Created useEventIndex(), setUseEventIndex() (RunJobEvent)
+Now supporting both event index and TAG file creation (RunJobEvent)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
