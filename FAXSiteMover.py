@@ -271,7 +271,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         outputRet["report"]["clientState"] = None
 
         self.log("StageIn files started.")
-        _cmd_str = '%s xrdcp %s %s' % (self._setup, source, destination)
+        _cmd_str = '%s xrdcp -np %s %s' % (self._setup, source, destination)
         self.log('Executing command: %s' % (_cmd_str))
         s = -1
         o = '(not defined)'
@@ -562,7 +562,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         #checksum_option = " -adler " # currently use this one. --cksum will fail on some sites
 
         # surl is the same as putfile
-        _cmd_str = '%s xrdcp %s %s %s' % (self._setup, checksum_option, source, destination)
+        _cmd_str = '%s xrdcp -np %s %s %s' % (self._setup, checksum_option, source, destination)
 
         tolog("Executing command: %s" % (_cmd_str))
         ec = -1
