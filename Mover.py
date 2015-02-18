@@ -1096,16 +1096,13 @@ def getPrefices(fileList):
         pfroms, ptos = getCopyprefixLists(copyprefix)
         tolog("Copyprefix lists: %s, %s" % (str(pfroms), str(ptos)))
 
-        # create a prefix dictionary for all the files
-        for surl in fileList:
-            # first get the proper old/newPrefices
-            _oldPrefix, _newPrefix = matchCopyprefixReplica(surl, pfroms, ptos)
-            if _oldPrefix != "" and _oldPrefix != "dummy" and _newPrefix != "" and _newPrefix != "dummy":
+        if not "" in pfroms and not "dummy" in pfroms and not "" in ptos and not "dummy" in ptos:
+            # create a prefix dictionary for all the files
+            for surl in fileList:
+                # first get the proper old/newPrefices
+                oldPrefix, newPrefix = matchCopyprefixReplica(surl, pfroms, ptos)
                 # then fill the dictionary
                 prefix_dictionary[surl] = [oldPrefix, newPrefix]
-            else:
-                oldPrefix = _oldPrefix
-                newPrefix = _newPrefix
 
     if oldPrefix != "" and newPrefix != "":
         tolog("Will use oldPrefix=%s and newPrefix=%s for SURL to TURL conversion" % (oldPrefix, newPrefix))
