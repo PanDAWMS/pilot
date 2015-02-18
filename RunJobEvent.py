@@ -1853,7 +1853,7 @@ if __name__ == "__main__":
     os.setpgrp()
 
     # Should the Event Index be used?
-    runJob.setUseEventIndex(True)
+    runJob.setUseEventIndex(False)
 
     # protect the runEvent code with exception handling
     hP_ret = False
