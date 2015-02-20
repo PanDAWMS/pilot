@@ -1454,7 +1454,7 @@ class RunJobEvent(RunJob):
         else:
             # In this case the input file is an EVT file
             # Define the options
-            options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=%s\"' % (input_file_guid)
+            options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=\"'
 
         # Define the command
         cmd = "%s TokenExtractor %s" % (setup, options)
@@ -1853,7 +1853,7 @@ if __name__ == "__main__":
     os.setpgrp()
 
     # Should the Event Index be used?
-    runJob.setUseEventIndex(False)
+    runJob.setUseEventIndex(True)
 
     # protect the runEvent code with exception handling
     hP_ret = False
