@@ -915,13 +915,8 @@ class RunJobEvent(RunJob):
                 tolog("...exitAcronym=%s" % (exitAcronym))
                 tolog("...exitMsg=%s" % (exitMsg))
 
-                #exitCode = 0
-                #exitAcronym = ""
-                #exitMsg = ""
-                #tolog("!!WARNING!!3333!! Reset TRF error codes..")
-
                 # Ignore special trf error for now
-                if (exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL") or (exitCode == 68 and exitAcronym == "TRF_EXEC_LOGERROR"):
+                if (exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL") or (exitCode == 68 and exitAcronym == "TRF_EXEC_LOGERROR") or (exitCode == 66 and exitAcronym == "TRF_EXEC_VALIDATION_FAIL"):
                     exitCode = 0
                     exitAcronym = ""
                     exitMsg = ""

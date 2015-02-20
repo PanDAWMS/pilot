@@ -668,6 +668,7 @@ Avoiding fax fallback for transferType and copyCommand fax in mover_get_data() (
 Added option -np (no progress bar) to xrdcp command in stageInFile() and stageOutFile() (xrdcpSiteMover, FAXSiteMover)
 Created useEventIndex(), setUseEventIndex() (RunJobEvent)
 Now supporting both event index and TAG file creation (RunJobEvent)
+Added exception for exit code 66 (TRF_EXEC_VALIDATION_FAIL) in getTrfExitInfo() (RunJobEvent)
 
 Code merge: Code from Wen Guan:
 Added Hpc identifier in getSubprocessName() (Experiment)
