@@ -696,6 +696,7 @@ Receiving mode,hpcStatus,refreshNow,coreCount in handle() (UpdateHandler)
 Added exception for S3 objectstore for merge jobs/log files, in mover_get_data() (Mover)
 Bug fix in TimerCommand, including correction of variable with wrong name - previously time-outs did not fully work (TimerCOmmand)
 Added log messages to stageInFile() and stageOutFile() (xrootdObjectstoreSiteMover)
+Updated updateESGUIDs() (pUtil)
 
 Code merge: Code from Danila Oleynik:
 Updated ATLASExperiment

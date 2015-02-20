@@ -2288,8 +2288,13 @@ def updateESGUIDs(guids):
     # guids = 'NULL,NULL,NULL,sasdasdasdasdd'
     # -> 'DUMMYGUID0,DUMMYGUID1,DUMMYGUID2,sasdasdasdasdd'
 
-    for i in range(guids.count('NULL')):
-        guids = guids.replace('NULL', 'DUMMYGUID%d' % (i), 1)
+    # for ES jobs, put all guids to DUMMYGUID
+    # guids = 'NULL,NULL,NULL,sasdasdasdasdd'
+    # -> 'DUMMYGUID0,DUMMYGUID1,DUMMYGUID2,DUMMYGUID3'                                                                                                                                                                  
+    guid_list = []
+    for i in range(len(guids.split(','))):
+        guid_list.append('DUMMYGUID%d' % (i))
+    guids = ','.join(guid_list)
 
     return guids
 
