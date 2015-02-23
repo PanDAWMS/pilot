@@ -1084,11 +1084,31 @@ def getPrefices(fileList):
                 if not "^" in copyprefix:
                     tolog("WARNING: Will default to using lcg-getturls")
             
-        # can not resolve complex cases like CERN here (old/newPrefix should be set however), and ignore 'dummy' strings
+        # in case of less complex copyprefix
         if "^" in copyprefix and not "," in copyprefix and not "dummy" in copyprefix:
             prefices = copyprefix.split("^")
             oldPrefix = prefices[0]
             newPrefix = prefices[1]
+
+        # in case of more complex copyprefix (the case of copyprefix lists)
+        if "^" in copyprefix and "," in copyprefix and not "dummy" in copyprefix:
+
+            # handle copyprefix lists
+            pfroms, ptos = getCopyprefixLists(copyprefix)
+            tolog("Copyprefix lists: %s, %s" % (str(pfroms), str(ptos)))
+
+            if not "" in pfroms and not "dummy" in pfroms and not "" in ptos and not "dummy" in ptos:
+                # create a prefix dictionary for all the files
+                for surl in fileList:
+                    # first get the proper old/newPrefices
+                    oldPrefix, newPrefix = matchCopyprefixReplica(surl, pfroms, ptos)
+                    # then fill the dictionary
+                    prefix_dictionary[surl] = [oldPrefix, newPrefix]
+            else:
+                if oldPrefix != "" and newPrefix != "":
+                    # Use the same prefices for all surls
+                    for surl in fileList:
+                        prefix_dictionary[surl] = [oldPrefix, newPrefix]
 
     else: # old/newPrefix are set
 
