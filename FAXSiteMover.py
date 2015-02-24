@@ -271,7 +271,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         outputRet["report"]["clientState"] = None
 
         self.log("StageIn files started.")
-        _cmd_str = '%s xrdcp %s %s' % (self._setup, source, destination)
+        _cmd_str = '%s xrdcp -np %s %s' % (self._setup, source, destination)
         self.log('Executing command: %s' % (_cmd_str))
         s = -1
         o = '(not defined)'
@@ -562,7 +562,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         #checksum_option = " -adler " # currently use this one. --cksum will fail on some sites
 
         # surl is the same as putfile
-        _cmd_str = '%s xrdcp %s %s %s' % (self._setup, checksum_option, source, destination)
+        _cmd_str = '%s xrdcp -np %s %s %s' % (self._setup, checksum_option, source, destination)
 
         tolog("Executing command: %s" % (_cmd_str))
         ec = -1
@@ -848,8 +848,10 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
         dsname = pdict.get('dsname', '')
+        sourceSite = pdict.get('sourceSite', '')
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
+        computingSite = pdict.get('sitename', '')
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)
@@ -868,7 +870,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         # get the global path (likely to update the gpfn/SURL)
         tolog("SURL=%s" % (gpfn))
-        gpfn = self.findGlobalFilePath(gpfn, dsname)
+        gpfn = self.findGlobalFilePath(gpfn, dsname, computingSite, sourceSite)
         if gpfn == "":
             ec = error.ERR_STAGEINFAILED
             pilotErrorDiag = "Failed to get global paths for FAX transfer"
@@ -1080,7 +1082,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return 'global_paths-%s.txt' % (fdsname)
 
-    def getGlobalFilePaths(self, surl, dsname):
+    def getGlobalFilePaths(self, surl, dsname, computingSite, sourceSite):
         """ Get the global file paths using to_native_lfn() [dsname needed] or Rucio naming convension [surl needed to extract the scope] """
 
         #tolog("Guessing the global path using to_native_lfn()..")
@@ -1088,9 +1090,17 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         # this method will in fact only ever return a single path, but keep 'paths' as a list for consistency with getGlobalFilePathsDQ2()
         paths = []
 
-        # get the global redirector
+        # get the global redirectors (several, since the lib file might not be at the same place for overflow jobs)
+        fax_redirectors_dictionary = self.getFAXRedirectors(computingSite, sourceSite)
+
+        # select the proper fax redirector
+        if ".lib." in surl:
+            redirector = fax_redirectors_dictionary['computingsite']
+        else:
+            redirector = fax_redirectors_dictionary['sourcesite']
+
         # correct the redirector in case the protocol and/or trailing slash are missing
-        redirector = self.updateRedirector(readpar('faxredirector'))
+        redirector = self.updateRedirector(redirector)
 
         # use the proper Rucio method to generate the path if possible (if scope is present in the SURL)
         scope = extractPattern(surl, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
@@ -1217,7 +1227,50 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return self.verifyGlobalPath(output, verbose=False)
 
-    def findGlobalFilePath(self, surl, dsname):
+    def getFAXRedirectors(self, computingSite, sourceSite, url='http://waniotest.appspot.com/UpdateFromAGIS'):
+        """ Get the FAX redirectors primarily from the google server, fall back to schedconfig.faxredirector value """
+
+        fax_redirectors_dictionary = {}
+
+        # is the sourceSite set?
+        if sourceSite and sourceSite.lower() != 'null':
+            # attempt to get fax redirectors from Ilija Vukotic's google server
+            cmd = "curl --silent --connect-timeout 100 --max-time 120 -X POST --data \'computingsite=%s&sourcesite=%s\' %s" % (computingSite, sourceSite, url)
+            tolog("Trying to get FAX redirectors: %s" % (cmd))
+            out = commands.getoutput(cmd)
+            tolog("Command returned: %s" % (out))
+
+            # try to convert to a python dictionary
+            if out != "":
+                try:
+                    from json import loads
+                    fax_redirectors_dictionary = loads(out)
+                except Exception, e:
+                    tolog("!!WARNING!!4444!! Failed to parse fax redirector json: %s" % (e))
+                else:
+                    # verify the dictionary
+                    if fax_redirectors_dictionary.has_key('computingsite'):
+                        if fax_redirectors_dictionary['computingsite'] == "" or fax_redirectors_dictionary['computingsite'].lower() == "null":
+                            fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
+                            tolog("!!WARNING!!5555!! FAX computingsite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
+                    else:
+                        fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
+                        tolog("!!WARNING!!5556!! FAX computingsite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
+                    if fax_redirectors_dictionary.has_key('sourcesite'):
+                        if fax_redirectors_dictionary['sourcesite'] == "" or fax_redirectors_dictionary['sourcesite'].lower() == "null":
+                            fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
+                            tolog("!!WARNING!!5555!! FAX sourcesite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
+                    else:
+                        fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
+                        tolog("!!WARNING!!5556!! FAX aourcesite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
+        else:
+            tolog("sourceSite is not set, use faxredirector value from AGIS")
+            fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
+            fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
+
+        return fax_redirectors_dictionary
+
+    def findGlobalFilePath(self, surl, dsname, computingSite, sourceSite):
         """ Find the global path for the given file"""
 
         global_path = ""
@@ -1243,7 +1296,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 tolog("!!WARNING!!3333!! Failed to get global file path")
         else:
             # get the global file paths from file/DQ2
-            paths = self.getGlobalFilePaths(surl, dsname)
+            paths = self.getGlobalFilePaths(surl, dsname, computingSite, sourceSite)
 
             if paths[0][-1] == ":": # this is necessary to prevent rucio paths having ":/" as will be the case if os.path.join is used
                 global_path = paths[0] + filename

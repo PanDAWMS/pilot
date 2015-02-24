@@ -39,6 +39,8 @@ def getFileList(path_dir=None):
         file_list = filter(lambda x: x.endswith('.py'), os.listdir(path_dir))
         file_list.append('PILOTVERSION')
         file_list.append('saga')
+        file_list.append('radical')
+        file_list.append('HPC')
         tolog("Copying: %s" % str(file_list))
         return file_list
     except KeyError:
@@ -546,7 +548,7 @@ def removePyModules(_dir):
         for k in getFileList(path_dir=_dir):
             if not "runargs" in k:
                 try:
-                    os.system("rm -rf %s/%s*"%(_dir, k))
+                    os.system("rm -rf %s/%s*" % (_dir, k))
                 except:
                     pass
 
@@ -1885,7 +1887,7 @@ class _Curl:
         # verification of the host certificate
         self._verifyHost = True
         # modified for Titan test
-        if 'HPC_Titan' in readpar("catchall"):
+        if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             self._verifyHost = False
 
         # request a compressed response
@@ -1902,6 +1904,8 @@ class _Curl:
     def get(self, url, data, path):
         # make command
         com = '%s --silent --get' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com += ' --tls'
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -1947,6 +1951,8 @@ class _Curl:
     def post(self, url, data, path):
         # make command
         com = '%s --silent --show-error' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com += ' --tls'
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -1991,6 +1997,8 @@ class _Curl:
     def put(self, url, data):
         # make command
         com = '%s --silent' % self.path
+        if "HPC_HPC" in readpar('catchall'):
+            com += ' --tls'
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
@@ -2264,10 +2272,9 @@ def writeToInputFile(path, esFileDictionary, orderedFnameList):
             for inputFile in esFileDictionary[fname].split(","):
                 pfn = os.path.join(path, inputFile)
                 f.write(pfn + "\n")
-            #f.write(esFileDictionary[fname])
+            #f.write(esFileDictionary[fname].replace(",","\n"))
             f.close()
             tolog("Wrote input file list to file %s: %s" % (_path, str(esFileDictionary[fname])))
-            #fnames[orderedFnameList[i]] = _path
             fnames[fname] = _path
         i += 1
 
@@ -2307,7 +2314,6 @@ def updateJobPars(jobPars, fnames):
         jobPars = jobPars.replace("@%s" % (identifier), "@%s" % (fnames[identifier]))
         tolog("%s: %s" % (identifier, fnames[identifier]))
     jobPars = jobPars.replace("--inputHitsFile=", "")
-
     return jobPars
 
 def updateDispatcherData4ES(data, experiment, path):

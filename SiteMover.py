@@ -433,6 +433,8 @@ class SiteMover(object):
         # In case a groupdisk space token is requested, make sure that the site's alternativeName is the same as the endpoints' alternativeName
         # They will have different alternativeNames if the job originates from a different cloud
         # Note: ATLAS specific
+        if not token:
+            return None
 
         if token.startswith("dst:"):
             # Found a groupdisk space token
@@ -926,40 +928,7 @@ class SiteMover(object):
         return report
 
     def sendTrace(self, report):
-        """ go straight to the tracing server and post the instrumentation dictionary """ 
-
-        if not self.useTracingService:
-            tolog("Experiment is not using Tracing service. skip sending tracing report")
-            return
-
-        url = 'https://atlas-ddmtracer.cern.ch:443/dq2/ws_tracer/rpc'
-        tolog("Tracing server: %s" % (url))
-        tolog("Sending tracing report: %s" % str(report))
-        try:
-            # take care of the encoding
-            data = urlencode({'API':'0_3_0', 'operation':'addReport', 'report':report})
-
-            from SiteInformation import SiteInformation
-            si = SiteInformation()
-            sslCertificate = si.getSSLCertificate()
-
-            # create the command
-            cmd = 'curl --connect-timeout 20 --max-time 120 --cacert %s -v -k -d "%s" %s' % (sslCertificate, data, url)
-            tolog("Executing command: %s" % (cmd))
-            s,o = commands.getstatusoutput(cmd)
-            if s != 0:
-                raise Exception(str(o))
-        except:
-            # if something fails, log it but ignore
-            from sys import exc_info
-            tolog('!!WARNING!!2999!! tracing failed: %s' % str(exc_info()))
-        else:
-            tolog("Tracing report sent")
-
-        self.sendTraceToRucio(report)
-
-    def sendTraceToRucio(self, report):
-        """ go straight to the tracing server and post the instrumentation dictionary """
+        """ Go straight to the tracing server and post the instrumentation dictionary """
 
         if not self.useTracingService:
             tolog("Experiment is not using Tracing service. skip sending tracing report")
@@ -3399,7 +3368,7 @@ class SiteMover(object):
 
         return full_path
 
-    def getGlobalFilePaths(self, surl, dataset):
+    def getGlobalFilePaths(self, surl, dataset, computingSite, sourceSite):
         """ Get the global file paths """
 
         # Note: this method depends on the site mover used, so should be defined there, and as virtual here

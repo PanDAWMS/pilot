@@ -591,6 +591,7 @@ Now making sure that exeErrorCode is properly set in getNodeStructure() (PandaSe
 59j:
 New version of aria2c site mover from Vincenzo Lavorini
 Updates for ES merge by Wen Guan (Job, pUtil, RunJob)
+<<<<<<< HEAD
 New error code ErR_BADALLOC, 1223, "TRF failed due to bad_alloc" (PilotErrors)
 Added new methods to ErrorDiagnosis; will be moved to separate module later
 Added exception for runargs in removePyModules() (pUtil)
@@ -602,7 +603,129 @@ Added exception for runargs in removePyModules() (pUtil)
 Ignoring failed stage-in of log files from objectstores in mover_get_data(). Update from Wen (Mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+=======
+New error code ERR_BADALLOC, 1223, "TRF failed due to bad_alloc" (PilotErrors)
+Added new methods to ErrorDiagnosis; will be moved to separate module later
+Added exception for runargs in removePyModules() (pUtil)
+>>>>>>> main-dev
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+59k:
+
+Ignoring failed stage-in of log files from objectstores in mover_get_data(). Update from Wen (Mover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+60a:
+
+Removed the old outdated sendTrace() and renamed sendTraceToRucio() to sendTrace() (SiteMover)
+Added new data member prodDBlocks to Job class, which will contain the correct container or dataset name for traces  (Job)
+Created getProperDatasetNames() (Mover)
+Sending rucio_dataset_dictionary to mover_get_data() (Mover)
+Now sending the proper container/dataset name to the tracing server (Mover)
+Added fileList argument to getPrefices and from its call in (Mover)
+Created matchCopyprefixReplica(), used by getPrefices() (Mover)
+Added prefix_dictionary argument to convertSURLtoTURL() and from its call in getTURLs() (Mover)
+Now overwriting old/newPrefix if prefix_dictionary has an entry for key value 'surl' in convertSURLtoTURL() (Mover)
+Created getSurlTokenDictionary() used from mover_get_data() (Mover)
+Sending tokens_dictionary to PFC4TURLs() from mover_get_data() (Mover)
+Added tokens_dictionary argument to PFC4TURLs() (Mover)
+Sending tokens_dictionary to createPFC4TURLs() from PFC4TURLs() (Mover)
+Added tokens_dictionary argument to createPFC4TURLs() (Mover)
+Sending tokens_dictionary to getTURLs() from createPFC4TURLs() (Mover)
+Added tokens_dictionary argument to getTURLs() (Mover)
+Sending the space token corresponding to the LFN to convertSURLtoTURL() from getTURLs(), requested by Johannes Elmsheuser (Mover)
+Added token argument to convertSURLtoTURL() (Mover)
+Sending token to convertSURLtoTURLUsingHTTP() from convertSURLtoTURL() (Mover)
+Added token argument to convertSURLtoTURLUsingHTTP() requested by Johannes Elmsheuser (Mover)
+Support for event index, removed usage and handling of tag files (RunJobEvent)
+Always setting MAKEFLAGS for analysis jobs in getJobExecutionCommand() (ATLASExperiment)
+Always setting ROOTCORE_NCPUS in addEnvVars2Cmd() (ATLASExperiment)
+Removed unnecessary import of Popen from RunJobEvent
+Created getPlainCopyPrefices() used by shouldPFC4TURLsBeCreated() (Mover)
+Added exception for dummy in shouldPFC4TURLsBeCreated() (Mover)
+getMaxMemoryUsageFromCGroups() now uses ATLAS_CGROUPS_BASE if available (to support older cgroups installations), otherwise defaults to /var/cgroups/memory (processes)
+Added trf name to extractSetup() to improve source extraction (bug fix for token extractor usage) (EventService)
+Now sending trf name to extractSetup() (bug fix for token extractor usage) (RunJobEvent)
+Added sourceSite to Job class, useful for overflow jobs to get to the proper FAX redirector (Job)
+Sending job.sourceSite to mover_get_data() from get_data() (Mover)
+Added sourceSite argument to mover_get_data(), sitemover_get_data() (Mover)
+Sending sourceSite to sitemover_get_data() from mover_get_data() (Mover)
+Sending sourceSite to get_data() from sitemover_get_data() (Mover)
+Sending sourceSite to sitemover.findGlobalFilePath() from mover_get_data() (Mover)
+Receiving sourceSite in get_data() (FAXSiteMover)
+Sending sourceSite to findGlobalFilePath() from get_data() (FAXSiteMover)
+Sending sitename (as computingSite) to findGlobalFilePath() from mover_get_data() (Mover)
+Getting computingSite (from sitename) in get_data() (FAXSiteMover)
+Sending sitename (as computingSite) to findGlobalFilePath() from mover_get_data() (Mover)
+Added computingSite argument to findGlobalFilePath() (FAXSiteMover)
+Sending computingSite to findGlobalFilePath() from get_data() (FAXSiteMover)
+Created getFAXRedirectors(), used by getGlobalFilePaths() (FAXSiteMover)
+Sending computingSite, sourceSite to getGlobalFilePaths() from findGlobalFilePath() (FAXSiteMover)
+Added computingSite, sourceSite arguments to getGlobalFilePaths() (FAXSiteMover, SiteMover)
+Added computingSite, sourceSite arguments to convertSURLtoTURLUsingDataset() (Mover)
+Added computingSite, sourceSite arguments to convertSURLtoTURL() (Mover)
+Added computingSite, sourceSite arguments to convertSURLtoTURL() call in getTURLs() (Mover)
+Added computingSite, sourceSite arguments to getTURLs() (Mover)
+Added computingSite, sourceSite arguments to getTURLs() call in createPFC4TURLs() (Mover)
+Added computingSite, sourceSite arguments to createPFC4TURLs() (Mover)
+Added computingSite, sourceSite arguments to createPFC4TURLs() call in PFC4TURLs() (Mover)
+Added computingSite, sourceSite arguments to PFC4TURLs() (Mover)
+Added sitename, sourceSite arguments to PFC4TURLs() call in mover_get_data() (Mover)
+Added computingSite, sourceSite arguments to getGlobalFilePaths() call in convertSURLtoTURLUsingDataset() (Mover)
+Added computingSite, sourceSite arguments to convertSURLtoTURLUsingDataset() call in convertSURLtoTURL() (Mover)
+Now selecting fax redirector depending on file type (read: lib vs no lib file) using in getGlobalFilePaths() (FAXSiteMover)
+Added pwg*, pwhg*, *PROC* to removeRedundantFiles() (ATLASexperiment)
+Added switching between three access modes for davix/webdav input access. Code from Johannes Elmsheuser (Mover)
+Avoiding fax fallback for transferType and copyCommand fax in mover_get_data() (Mover)
+Added option -np (no progress bar) to xrdcp command in stageInFile() and stageOutFile() (xrdcpSiteMover, FAXSiteMover)
+Created useEventIndex(), setUseEventIndex() (RunJobEvent)
+Now supporting both event index and TAG file creation (RunJobEvent)
+Added exception for exit code 66 (TRF_EXEC_VALIDATION_FAIL) in getTrfExitInfo() (RunJobEvent)
+Added support for copyprefix lists in getPrefices() (Mover)
+
+Code merge: Code from Wen Guan:
+Added Hpc identifier in getSubprocessName() (Experiment)
+Added new data members to Job class: eventServiceMerge, mode, hpcStatus, refreshNow (Job)
+Added new setter methods for the data members above; setMode(), getMode(), setHpcStatus(), getHpcStatus() (Job)
+Setting new variables mentioned above (Job)
+Added HPC directory to distribution
+Added HPC directory to file list in getFileList() (pUtil)
+Corrected for HPC environment in curl command in _Curl::get(),post(),put() (pUtil)
+Outcommented the pwd part in createESFileDictionary() (pUtil)
+Replacing .pool.root. with .txt. in writeToInputFile() (pUtil)
+Updated the inputHitsFile handling in writeToInputFile(), updateJobPars() (pUtil)
+Added exception for catchall = HPC_HPC in shouldPFC4TURLsBeCreated() (Mover)
+Getting the coreCount primarily from job.coreCount in getJobMetrics() (PandaServerClient)
+Forwarding HPC parameters mode and HPCStatus to jobMetrics in getJobMetrics() (PandaServerClient)
+Setting jobSubStatus to job.hpcStatus in getNodeStructure() (PandaServerClient)
+Making the makeHTTPUpdate() call in the job.workdir instead of __pilot_initdir in updatePandaServer()
+Adding --tls to curl command in post(),put(),get() (pUtil)
+Added new error codes; 1224 (ERR_ESRECOVERABLE), 1225 (ERR_ESMERGERECOVERABLE) (PilotErrors)
+Using ERR_ESRECOVERABLE in failJob() (RunJob)
+Now importing RunJobHpcEvent (RunJobFactory)
+New files added to distribution (ThreadPool.py, RunJobHpcEvent.py)
+Sending mode,hpcStatus,refreshNow,coreCount to pilot from updateJobInfo() (RunJobUtilities)
+Receiving mode,hpcStatus,refreshNow,coreCount in handle() (UpdateHandler)
+Added exception for S3 objectstore for merge jobs/log files, in mover_get_data() (Mover)
+Bug fix in TimerCommand, including correction of variable with wrong name - previously time-outs did not fully work (TimerCOmmand)
+Added log messages to stageInFile() and stageOutFile() (xrootdObjectstoreSiteMover)
+
+Code merge: Code from Danila Oleynik:
+Updated ATLASExperiment
+Returning None if token not set in verifyGroupSpaceToken() (SiteMover)
+Updated processes
+New versions of many of the HPC classes
+
+Code merge: Code from Luke Wayne (AMS):
+New version of AMSTaiwanExperiment
+New version of AMSTaiwanSiteInformation
+
+
+ADD NEW ERROR CODES
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
 

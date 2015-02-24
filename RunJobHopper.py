@@ -66,7 +66,7 @@ class RunJobHopper(RunJobHPC):
 
         return False
     
-    def get_hpc_resources(self, partition, max_nodes = None):
+    def get_backfill(self, partition, max_nodes = None):
     
         #  Function collect information about current available resources and  
         #  return number of nodes with possible maximum value for walltime according Titan policy
@@ -120,7 +120,28 @@ class RunJobHopper(RunJobHPC):
             tolog ("No availble resources. Default values will be used.")
         
         return res
-
+    
+    def get_hpc_resources(self, partition, max_nodes = None, min_nodes = 1, min_walltime = 30):
+    
+        #   
+        #  Function return number of nodes and walltime for submission  
+        #
+        nodes = min_nodes
+        walltime =  min_walltime       
+        
+        backfill = self.get_backfill(partition, max_nodes)
+        if backfill:
+            for n in sorted(backfill.keys(), reverse=True): 
+                if min_walltime <= backfill[n] and nodes <= n:
+                    nodes = n
+                    walltime = backfill[n] / 60 
+                    walltime = walltime - 2
+                    break
+                if walltime <= 0:
+                    walltime = min_walltime
+                    nodes = min_nodes
+        
+        return nodes, walltime
 
     def jobStateChangeNotification(self, src_obj, fire_on, value):
         tolog("Job state changed to '%s'" % value)
@@ -144,23 +165,9 @@ class RunJobHopper(RunJobHPC):
         getstatusoutput_was_interrupted = False
         number_of_jobs = len(runCommandList)
         for cmd in runCommandList:
-            res = self.get_hpc_resources(self.partition_comp, self.max_nodes)
-            self.walltime = self.min_walltime / 60
-            nodes = self.nodes
-            if res:
-                for n in sorted(res.keys(), reverse=True): 
-                    if self.min_walltime <= res[n] and nodes <= n:
-                        nodes = n
-                        self.walltime = res[n] / 60 
-                        self.walltime = self.walltime - 2
-                        break
-                if self.walltime <= 0:
-                    self.walltime = self.min_walltime / 60
-                    nodes = self.nodes
-
+            nodes, walltime = self.get_hpc_resources(self.partition_comp, self.max_nodes, self.nodes, self.min_walltime)
             cpu_number = self.cpu_number_per_node * nodes
-            
-            tolog("Backfill parameters \nWalltime limit         : %s (min)\nRequested nodes (cores): %s (%s)" % (self.walltime,nodes,cpu_number))
+            tolog("Launch parameters \nWalltime limit         : %s (min)\nRequested nodes (cores): %s (%s)" % (walltime,nodes,cpu_number))
                     
             current_job_number += 1
             try:
@@ -180,7 +187,9 @@ class RunJobHopper(RunJobHPC):
                     jd = saga.job.Description()
                     if self.project_id:
                         jd.project = self.project_id # should be taken from resourse description (pandaqueue)
-                    jd.wall_time_limit = self.walltime 
+
+                    jd.wall_time_limit = walltime 
+
                     jd.executable      = to_script
                     jd.total_cpu_count = cpu_number 
                     jd.output = job.stdout
@@ -194,14 +203,14 @@ class RunJobHopper(RunJobHPC):
                     #tolog("\n(PBS) Command: %s\n"  % to_script)
                     fork_job.run()
                     #tolog("\nCommand was started at %s.\nState is: %s" % ( str(datetime.now()), fork_job.state))
-                    
-                    for i in range(self.waittime):
+                    tolog("Local Job ID: %s" % fork_job.id)
+                    for i in range(self.waittime * 60):
                         time.sleep(1)
                         if fork_job.state != saga.job.PENDING:
                             break
                     if fork_job.state == saga.job.PENDING:
                         repeat_num = repeat_num + 1
-                        tolog("Wait time (%s s.) exceed, job will be rescheduled (%s)" % (self.waittime, repeat_num))
+                        tolog("Wait time (%s minutes) exceed, job will be rescheduled (%s)" % (self.waittime, repeat_num))
                         fork_job.cancel()
                         fork_job.wait()
                         if repeat_num < 10:
@@ -237,9 +246,9 @@ class RunJobHopper(RunJobHPC):
             except Exception, e:
                 tolog("!!FAILED!!3000!! Failed to run command %s" % str(e))
                 getstatusoutput_was_interrupted = True
-                if self.getFailureCode: 
-                    job.result[2] = self.getFailureCode
-                    tolog("!!FAILED!!3000!! Failure code: %d" % (self.getFailureCode))
+                if self.getFailureCode(): 
+                    job.result[2] = self.getFailureCode()
+                    tolog("!!FAILED!!3000!! Failure code: %d" % (self.getFailureCode()))
                     break
  
             if res_tuple[0] == 0:
@@ -302,8 +311,8 @@ if __name__ == "__main__":
     runJob.walltime = 120
     runJob.max_nodes = 10 
     runJob.number_of_threads = 1
-    runJob.min_walltime = 30 * 60
-    runJob.waittime = 5 * 60
+    runJob.min_walltime = 10  # minutes
+    runJob.waittime = 15      # minutes
     runJob.nodes = 2
     runJob.partition_comp = 'hopper'
     runJob.project_id = ""

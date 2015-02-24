@@ -22,15 +22,16 @@ class RunJobHPC(RunJob):
     
     # public data members
     cpu_number_per_node = 16                  # Number of CPU per core, used for proper requesting of resources
+    partition_comp = ''                       # Name of partition for checking of available resources
+    project_id = ''                           # Name of associated project on HPC, may needed for proper job declaration
+    executed_queue = 'batch'                  # Name of executed queue
+
     walltime = 60                             # Default walltime limit (min)
-    max_nodes = None                          # Upper limitation for requested resources, needed to throttle IO
+    max_nodes = 100 # None                    # Upper limitation for requested resources, needed to throttle IO
     number_of_threads = 1                     # Number of threads for MPI task
     min_walltime = 50 * 60                    # Minimum walltime (minimum time limit) 
     waittime = 7 * 60                         # Waittime limit. Cancel of reschedule job after this time (sec.)
     nodes = 1                                 # Minimum number of requested nodes
-    partition_comp = ''                       # Name of partition for checking of available resources
-    project_id = ""                           # Name of associated project on HPC, may needed for proper job declaration
-    executed_queue = 'batch'                  # Name of executed queue
      
 #    __error = PilotErrors()                     # PilotErrors object
 

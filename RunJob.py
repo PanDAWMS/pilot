@@ -454,6 +454,8 @@ class RunJob(object):
     def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
         """ set the fail code and exit """
 
+        if pilotExitCode and job.attemptNr < 4 and job.eventServiceMerge:
+            pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
         job.setState(["failed", transExitCode, pilotExitCode])
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
@@ -670,6 +672,7 @@ class RunJob(object):
 
         # run the payload process, which could take days to finish
         t0 = os.times()
+        tolog("t0 = %s" % str(t0))
         res_tuple = (0, 'Undefined')
 
         # loop over all run commands (only >1 for multi-trfs)
@@ -707,6 +710,7 @@ class RunJob(object):
                     break
 
         t1 = os.times()
+        tolog("t1 = %s" % str(t1))
         t = map(lambda x, y:x-y, t1, t0) # get the time consumed
         job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
         tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))

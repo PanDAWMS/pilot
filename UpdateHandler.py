@@ -128,6 +128,17 @@ class UpdateHandler(BaseRequestHandler):
                             self.__env['jobDic'][k][1].output_fields = pUtil.stringToFields(jobinfo["output_fields"])
                             pUtil.tolog("Got output_fields=%s" % str(self.__env['jobDic'][k][1].output_fields))
                             pUtil.tolog("Converted from output_fields=%s" % str(jobinfo["output_fields"]))
+
+                        # hpc status
+                        if jobinfo.has_key("mode"):
+                            self.__env['jobDic'][k][1].mode = jobinfo['mode']
+                        if jobinfo.has_key("hpcStatus"):
+                            self.__env['jobDic'][k][1].hpcStatus = jobinfo['hpcStatus']
+                        if jobinfo.has_key("refreshNow"):
+                            self.__env['jobDic'][k][1].refreshNow = jobinfo['refreshNow']
+                        if jobinfo.has_key("coreCount"):
+                            self.__env['jobDic'][k][1].coreCount = jobinfo['coreCount']
+
                     except Exception, e:
                         pUtil.tolog("!!WARNING!!1998!! Caught exception. Pilot server down? %s" % str(e))
                         try:

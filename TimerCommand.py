@@ -29,7 +29,7 @@ class TimerCommand(object):
         def target():
             # print 'Thread started'
             self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-            self.stdout, self.steerr = self.process.communicate()
+            self.stdout, self.stderr = self.process.communicate()
             # print 'Thread finished'
 
         thread = threading.Thread(target=target)
@@ -37,9 +37,20 @@ class TimerCommand(object):
 
         thread.join(timeout)
         if thread.is_alive():
-            # print 'TimeOut. Terminating process'
-            self.process.terminate()
-            thread.join()
+            try:
+                # print 'TimeOut. Terminating process'
+                self.process.terminate()
+                thread.join(2)
+                if thread.is_alive():
+                    os.kill(int(self.process.pid), signal.SIGKILL)
+                    thread.join(2)
+            except:
+                if thread.is_alive():
+                    try:
+                        os.kill(int(self.process.pid), signal.SIGKILL)
+                    except:
+                        pass
+                    thread.join()
         return self.process.returncode, self.stdout
 
     def runFunction(self, func, args, timeout=3600):

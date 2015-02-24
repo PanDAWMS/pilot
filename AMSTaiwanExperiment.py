@@ -1,6 +1,6 @@
 # Class definition:
-#   ATLASExperiment
-#   This class is the ATLAS experiment class inheriting from Experiment
+#   AMSTaiwanExperiment
+#   This class is the AMSTaiwan experiment class inheriting from Experiment
 #   Instances are generated with ExperimentFactory via pUtil::getExperiment()
 #   Implemented as a singleton class
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
@@ -2198,16 +2198,17 @@ class AMSTaiwanExperiment(Experiment):
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
         
-        if 'HPC_Titan' in readpar("catchall"):
-            status = True
-        else:
-            # Test the LFC module
-            status = self.testImportLFCModule()
+        #if 'HPC_Titan' in readpar("catchall"):
+        #    status = True
+        #else:
+        #    # Test the LFC module
+        #    status = self.testImportLFCModule()
 
-            # Test CVMFS
-            if status:
-                status = self.testCVMFS()
-        
+        #    # Test CVMFS
+        #    if status:
+        #        status = self.testCVMFS()
+        status = True
+        tolog("skip special check")
         return status
 
     def checkSpecialEnvVars(self, sitename):
@@ -2728,7 +2729,7 @@ class AMSTaiwanExperiment(Experiment):
         # If create=True, this step will only create the file with the script header (bash info)
 
         if create:
-            filename = os.path.basename(super(ATLASExperiment, self).getJobSetupScriptName(workdir))
+            filename = os.path.basename(super(AMSTaiwanExperiment, self).getJobSetupScriptName(workdir))
             tolog("Creating job setup script with stage-in and payload execution commands: %s" % (filename))
             to_script = "#!/bin/bash\n# %s %s\n\n" % (filename, time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time())))
 
@@ -2739,7 +2740,7 @@ class AMSTaiwanExperiment(Experiment):
 
         # Add the string to the setup script
         if to_script:
-            super(ATLASExperiment, self).addToJobSetupScript(to_script, workdir)
+            super(AMSTaiwanExperiment, self).addToJobSetupScript(to_script, workdir)
 
     def verifyProxy(self, envsetup="", limit=None):
         """ Check for a valid voms/grid proxy longer than N hours """
@@ -2984,7 +2985,7 @@ class AMSTaiwanExperiment(Experiment):
 
 if __name__ == "__main__":
 
-    a=ATLASExperiment()
+    a=AMSTaiwanExperiment()
     #a.specialChecks()
     print a.formatReleaseString("Atlas-19.0.X.Y-VAL")
 

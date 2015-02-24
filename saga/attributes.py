@@ -3,33 +3,28 @@ __author__    = "Andre Merzky, Ole Weidner"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
-# >>> class MyDict(dict):
-# >>>     def __missing__(self, key):
-#             self[key] = rv = []
-#             return rv
-#    
-# >>> m = MyDict()
-# >>> m["foo"].append(1)
-# >>> m["foo"].append(2)
-# >>> dict(m)
-# {'foo': [1, 2]}
 
 """ Attribute interface """
 
-import datetime
-import datetime
-import inspect
-from   pprint import pprint
-import re
-import string
-import traceback
+import radical.utils            as ru
+import radical.utils.signatures as rus
 
-import saga.exceptions       as se
-import saga.utils.signatures as sus
-
+import saga.exceptions as se
 
 # ------------------------------------------------------------------------------
+
+import datetime
+import datetime
+import traceback
+import inspect
+import string
+import copy
+import re
+from   pprint import pprint
+
 # FIXME: add a tagging 'Monitorable' interface, which enables callbacks.
+
+
 now   = datetime.datetime.now 
 never = datetime.datetime.min
 
@@ -163,15 +158,15 @@ class _AttributesBase (object) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('_AttributesBase')
-    @sus.returns (sus.nothing)
+    @rus.takes   ('_AttributesBase')
+    @rus.returns (rus.nothing)
     def __init__ (self) :
         pass
 
 
 # ------------------------------------------------------------------------------
 #
-class Attributes (_AttributesBase) :
+class Attributes (_AttributesBase, ru.DictMixin) :
     """
     Attribute Interface Class
 
@@ -315,10 +310,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
-                  sus.anything,
-                  sus.anything)
-    @sus.returns (sus.nothing)
+    @rus.takes   ('Attributes', 
+                  rus.anything,
+                  rus.anything)
+    @rus.returns (rus.nothing)
     def __init__ (self, *args, **kwargs) :
         """
         This method is not supposed to be directly called by the consumer of
@@ -327,8 +322,6 @@ class Attributes (_AttributesBase) :
         _attributes_t_init makes sure that the basic structures are in place on
         the attribute dictionary - this saves us ton of safety checks later on.
         """
-        # FIXME: add the ability to initalize the attributes via a dict
-
         # initialize state
         d = self._attributes_t_init ()
 
@@ -338,13 +331,20 @@ class Attributes (_AttributesBase) :
 
         for arg in args :
             if  isinstance (arg, dict) :
+                d['extensible']  = True   # it is just being extended ;)
+                d['camelcasing'] = True   # default for dict inits
                 for key in arg.keys () :
-                    self.set_attribute (key, arg[key])
+                    us_key = self._attributes_t_underscore (key)
+                    self._attributes_i_set (us_key, arg[key], force=True, flow=self._UP)
             else :
                 raise se.BadParameter ("initialization expects dictionary")
 
         for key in kwargs.keys () :
             self.set_attribute (key, kwargs[key])
+
+        # make iterable
+        self._iterpos = 0
+        self.list_attributes ()
 
 
 
@@ -357,9 +357,9 @@ class Attributes (_AttributesBase) :
     #
     # Naming: _attributes_t_*
     #
-    @sus.takes   ('Attributes', 
-                  sus.optional (basestring))
-    @sus.returns (dict)
+    @rus.takes   ('Attributes', 
+                  rus.optional (basestring))
+    @rus.returns (dict)
     def _attributes_t_init (self, key=None) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -397,7 +397,7 @@ class Attributes (_AttributesBase) :
 
 
         # check if we know about the given attribute
-        if key :
+        if  key :
             if not key in d['attributes'] :
                 raise se.DoesNotExist ("attribute key is invalid: %s"  %  (key))
 
@@ -407,9 +407,9 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring)
-    @sus.returns (basestring)
+    @rus.returns (basestring)
     def _attributes_t_keycheck (self, key) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -428,7 +428,7 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init ()
 
         # perform name validity checks if key is new
-        if not key in d['attributes'] :
+        if  not key in d['attributes'] :
             # FIXME: we actually don't have any tests, yet.  We should allow to
             # configure such via, say, _attributes_add_check (callable (key))
             pass
@@ -437,7 +437,7 @@ class Attributes (_AttributesBase) :
         # if key is known, check for aliasing
         else: 
             # check if we know about the given attribute
-            if d['attributes'][key]['mode'] == ALIAS :
+            if  d['attributes'][key]['mode'] == ALIAS :
                 alias = d['attributes'][key]['alias']
                 print "attribute key / property name '%s' is deprecated - use '%s'"  %  (key, alias)
                 key   = alias
@@ -447,10 +447,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.anything)
-    @sus.returns (sus.nothing)
+                  rus.anything)
+    @rus.returns (rus.nothing)
     def _attributes_t_call_cb (self, key, val) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -464,7 +464,7 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init (key)
 
         # avoid recursion
-        if d['attributes'][key]['recursion'] :
+        if  d['attributes'][key]['recursion'] :
             return
 
         callbacks = d['attributes'][key]['callbacks']
@@ -485,17 +485,17 @@ class Attributes (_AttributesBase) :
                 d['attributes'][key]['recursion'] = False
 
             # remove callbacks which return 'False', or raised and exception
-            if not ret :
+            if  not ret :
                 callbacks.remove (cb)
 
 
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.anything)
-    @sus.returns (sus.nothing)
+                  rus.anything)
+    @rus.returns (rus.nothing)
     def _attributes_t_call_setter (self, key, val) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -508,13 +508,12 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init (key)
 
         # avoid recursion
-        if d['attributes'][key]['recursion'] :
+        if  d['attributes'][key]['recursion'] :
             return
 
         # no callbacks for private keys
-        if key[0] == '_' and d['private'] :
+        if  key[0] == '_' and d['private'] :
             return
-
 
         # key_setter overwrites results from all_setter
         all_setter = d['setter']
@@ -530,9 +529,9 @@ class Attributes (_AttributesBase) :
         #
         # always raise and lower the recursion shield.
         can_ignore = 0
-        if all_setter and key_setter : can_ignore = 1
+        if  all_setter and key_setter : can_ignore = 1
 
-        if all_setter :
+        if  all_setter :
             try :
                 d['attributes'][key]['recursion'] = True
                 all_setter (key, val)
@@ -545,7 +544,7 @@ class Attributes (_AttributesBase) :
             finally :
                 d['attributes'][key]['recursion'] = False
 
-        if key_setter :
+        if  key_setter :
             try :
                 d['attributes'][key]['recursion'] = True
                 key_setter (val)
@@ -559,9 +558,9 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring)
-    @sus.returns (sus.nothing)
+    @rus.returns (rus.nothing)
     def _attributes_t_call_getter (self, key) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -574,11 +573,11 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init (key)
 
         # avoid recursion
-        if d['attributes'][key]['recursion'] :
+        if  d['attributes'][key]['recursion'] :
             return
 
         # no callbacks for private keys
-        if key[0] == '_' and d['private'] :
+        if  key[0] == '_' and d['private'] :
             return
 
         # key getter overwrites results from all_getter
@@ -586,9 +585,9 @@ class Attributes (_AttributesBase) :
         key_getter = d['attributes'][key]['getter']
 
 
-        # # Note that attributes have a time-to-live (ttl).  If a _attributes_i_set
+        # # Note that attributes have a time-to-live (ttl).  If a _attributes_i_get
         # # operation is attempted within 'time-of-last-update + ttl', the operation
-        # # is not triggering backend setter hooks, to avoid trashing (hooks are
+        # # is not triggering backend getter hooks, to avoid trashing (hooks are
         # # expected to be costly).  The force flag set to True will request to call 
         # # registered getter hooks even if ttl is not yet expired.
         # 
@@ -604,7 +603,7 @@ class Attributes (_AttributesBase) :
 
 
         # get the value from the native getter (from the backend), and
-        # set it via the attribute setter.  The setter will not call
+        # get it via the attribute getter.  The getter will not call
         # attrib setters or callbacks, due to the recursion guard.
         #
         # If both are present, we can ignore *one* exception.  If one 
@@ -612,10 +611,9 @@ class Attributes (_AttributesBase) :
         #
         # always raise and lower the recursion shield.
         retries = 1
-        if all_getter and key_getter : retries = 2
+        if  all_getter and key_getter : retries = 2
 
-        if all_getter :
-
+        if  all_getter :
             try :
                 d['attributes'][key]['recursion'] = True
                 val=all_getter (key)
@@ -626,7 +624,7 @@ class Attributes (_AttributesBase) :
             finally :
               d['attributes'][key]['recursion'] = False
 
-        if key_getter :
+        if  key_getter :
             try :
                 d['attributes'][key]['recursion'] = True
                 val=key_getter ()
@@ -641,9 +639,9 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring)
-    @sus.returns (sus.list_of (basestring))
+    @rus.returns (rus.list_of (basestring))
     def _attributes_t_call_lister (self) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -656,7 +654,7 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init ()
 
         # avoid recursion
-        if d['recursion'] :
+        if  d['recursion'] :
             return
 
         lister = d['lister']
@@ -677,11 +675,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
                   int,
                   callable)
-    @sus.returns (sus.anything)
+    @rus.returns (rus.anything)
     def _attributes_t_call_caller (self, key, id, cb) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -694,16 +692,16 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init (key)
 
         # avoid recursion
-        if d['recursion'] :
+        if  d['recursion'] :
             return
 
         # no callbacks for private keys
-        if key[0] == '_' and d['private'] :
+        if  key[0] == '_' and d['private'] :
             return
 
         caller = d['caller']
 
-        if caller :
+        if  caller :
 
             # the caller is simply called, and it is expected that it internally
             # adds/removes callbacks as needed
@@ -721,10 +719,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring)
-    @sus.returns (basestring)
-    def _attributes_t_underscore (self, key) :
+    @rus.returns (basestring)
+    def _attributes_t_underscore (self, key, force=False) :
         """ 
         This internal function is not to be used by the consumer of this API.
 
@@ -738,7 +736,7 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init ()
 
 
-        if d['camelcasing'] :
+        if  force or d['camelcasing'] :
             temp = Attributes._camel_case_regex_1.sub(r'\1_\2', key)
             return Attributes._camel_case_regex_2.sub(r'\1_\2', temp).lower()
         else :
@@ -748,9 +746,9 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring)
-    @sus.returns (sus.anything)
+    @rus.returns (rus.anything)
     def _attributes_t_conversion (self, key, val) :
         """
         This internal function is not to be used by the consumer of this API.
@@ -769,14 +767,14 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init ()
 
         # if the key is not known
-        if not key in d['attributes'] :
+        if  not key in d['attributes'] :
             # cannot handle unknown attributes.  Attributes which have been
             # registered earlier will be fine, as they have type information.
             return val
 
         # check if a value is given.  If not, revert to the default value
         # (if available)
-        if val == None :
+        if  val == None :
             if 'default' in d['attributes'][key] :
                 val = d['attributes'][key]['default']
 
@@ -787,7 +785,7 @@ class Attributes (_AttributesBase) :
         # apply all value checks on the conversion result
         for check in d['attributes'][key]['checks'] :
             ret = check (key, val)
-            if ret != True :
+            if  ret != True :
                 raise se.BadParameter ("attribute value %s is not valid: %s"  %  (key, ret))
 
         # aaaand done
@@ -796,10 +794,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.anything)
-    @sus.returns (sus.anything)
+                  rus.anything)
+    @rus.returns (rus.anything)
     def _attributes_t_conversion_flavor (self, key, val) :
         """ 
         This internal function is not to be used by the consumer of this API.
@@ -809,7 +807,7 @@ class Attributes (_AttributesBase) :
         #        convert the flavors...
 
         # easiest conversion of them all... ;-)
-        if val == None :
+        if  val == None :
             return None
 
         # make sure interface is ready to use.
@@ -818,9 +816,13 @@ class Attributes (_AttributesBase) :
         # check if we need to serialize a list into a scalar
         f = d['attributes'][key]['flavor']
         t = d['attributes'][key]['type']
-        if f == VECTOR :
+        if  f == ANY :
+            # leave it alone
+            return val
+
+        elif  f == VECTOR :
             # we want a vector
-            if isinstance (val, list) :
+            if  isinstance (val, list) :
                 # val is already vec - apply type conversion on all elems
                 ret = []
                 for elem in val :
@@ -828,7 +830,7 @@ class Attributes (_AttributesBase) :
                 return ret
             else :
                 # need to create vec from scalar
-                if isinstance (val, basestring) :
+                if  isinstance (val, basestring) :
                     # for string values, we split on white spaces and type-convert 
                     # all elements
                     vec = val.split ()
@@ -873,13 +875,16 @@ class Attributes (_AttributesBase) :
                 return out
 
 
-
-
             # can't handle any other types...
 
 
         elif f == SCALAR :
             # we want a scalar
+            
+            if  t == ANY :
+                # no need to do anything, really
+                return val
+
             if isinstance (val, list) :
                 # need to create scalar from vec
                 if len (val) > 1 :
@@ -909,10 +914,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.anything)
-    @sus.returns (sus.anything)
+                  rus.anything)
+    @rus.returns (rus.anything)
     def _attributes_t_conversion_type (self, key, val) :
         """ 
         This internal function is not to be used by the consumer of this API.
@@ -941,9 +946,9 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring)
-    @sus.returns (basestring)
+    @rus.returns (basestring)
     def _attributes_t_wildcard2regex (self, pattern) :
         """ 
         This internal function is not to be used by the consumer of this API.
@@ -1039,17 +1044,20 @@ class Attributes (_AttributesBase) :
 
         # if the key is not known
         if not key in d['attributes'] :
+
             if key[0] == '_' and d['private'] :
                 # if the set is private, we can register the new key.  It
                 # won't have any callbacks at this point.
-                self._attributes_register (key, None, ANY, SCALAR, WRITEABLE,
-                        EXTENDED, flow=flow)
+                self._attributes_register (key, None, ANY, ANY, WRITEABLE, EXTENDED, flow=flow)
 
             elif flow==self._UP or d['extensible'] :
                 # if the set is extensible, we can register the new key.  It
                 # won't have any callbacks at this point.
-                self._attributes_register (key, None, ANY, SCALAR, WRITEABLE,
-                        EXTENDED, flow=flow)
+                self._attributes_register (key, None, ANY, ANY, WRITEABLE, EXTENDED, flow=flow)
+
+            elif force :
+                # someone *really* wants this attrib to be set...
+                self._attributes_register (key, None, ANY, SCALAR, WRITEABLE, EXTENDED, flow=flow)
 
             else :
                 # we cannot add new keys on non-extensible / non-private sets
@@ -1163,7 +1171,7 @@ class Attributes (_AttributesBase) :
         # call list hooks to update state for listing
         self._attributes_t_call_lister ()
 
-        ret = []
+        ret    = []
         for key in sorted(d['attributes'].iterkeys()) :
             if d['attributes'][key]['mode'] != ALIAS :
                 if d['attributes'][key]['exists'] :
@@ -1187,6 +1195,7 @@ class Attributes (_AttributesBase) :
                             ret.append (k)
 
         return ret
+
 
 
     # --------------------------------------------------------------------------
@@ -1234,7 +1243,7 @@ class Attributes (_AttributesBase) :
         # now dig out matching keys. List hooks are triggered in
         # _attributes_i_list(flow).
         matches = []
-        for key in self._attributes_i_list (flow) :
+        for key in self._attributes_i_list (flow=flow) :
             val = str(self._attributes_i_get (key, flow=flow))
 
             if ( (pc_key == None) or pc_key.search (key) ) and \
@@ -1246,10 +1255,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (bool)
     def _attributes_i_exists (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1275,10 +1284,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (bool)
     def _attributes_i_is_extended (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1298,10 +1307,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (bool)
     def _attributes_i_is_private (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1321,10 +1330,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (bool)
     def _attributes_i_is_readonly (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1349,10 +1358,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (bool)
     def _attributes_i_is_writeable (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1368,10 +1377,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (bool)
     def _attributes_i_is_removable (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1390,10 +1399,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (bool)
     def _attributes_i_is_vector (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1414,10 +1423,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (bool)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (bool)
     def _attributes_i_is_final (self, key, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1441,11 +1450,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
                   callable,
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (int)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (int)
     def _attributes_i_add_cb (self, key, cb, flow) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1469,11 +1478,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.optional (int),
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (sus.nothing)
+                  rus.optional (int),
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (rus.nothing)
     def _attributes_i_del_cb (self, key, id=None, flow=_DOWN) :
         """
         This internal method should not be explicitly called by consumers of
@@ -1510,17 +1519,17 @@ class Attributes (_AttributesBase) :
     #
     # Naming: _attributes_*
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.optional (sus.optional (sus.anything)),
-                  sus.optional (sus.one_of (ANY, URL, INT, FLOAT, STRING, BOOL, ENUM, TIME)),
-                  sus.optional (sus.one_of (SCALAR, VECTOR, DICT)),
-                  sus.optional (sus.one_of (READONLY, WRITEABLE, ALIAS, FINAL)),
-                  sus.optional (sus.one_of (bool, EXTENDED)),
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-    def _attributes_register (self, key, default=None, typ=ANY, flavor=SCALAR,
-                              mode=WRITEABLE, ext=False, flow=_DOWN) :
+                  rus.optional (rus.optional (rus.anything)),
+                  rus.optional (rus.one_of (ANY, URL, INT, FLOAT, STRING, BOOL, ENUM, TIME)),
+                  rus.optional (rus.one_of (ANY, SCALAR, VECTOR, DICT)),
+                  rus.optional (rus.one_of (READONLY, WRITEABLE, ALIAS, FINAL)),
+                  rus.optional (rus.one_of (bool, EXTENDED)),
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
+    def _attributes_register (self, key,      default=None, typ=ANY, flavor=ANY,
+                              mode=WRITEABLE, ext=False,    flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
         safely be called from within derived classes.
@@ -1549,7 +1558,11 @@ class Attributes (_AttributesBase) :
         # retain old values
         val    = default
         exists = False
-        if us_key in  d['attributes'] :
+
+        if  default != None :
+            exists = True
+
+        if us_key in d['attributes'] :
             val    = d['attributes'][us_key]['value']
             exists = True
 
@@ -1606,12 +1619,12 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (sus.nothing)
-    def _attributes_register_deprecated (self, key, alias, flow) :
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (rus.nothing)
+    def _attributes_register_deprecated (self, key, alias, flow=_DOWN) :
         """
         Often enough, there is the need to use change attribute names.  It is
         good practice to not simply rename attributes, and thus effectively
@@ -1635,7 +1648,7 @@ class Attributes (_AttributesBase) :
 
             # new code
             self._attributes_register ('fruit', 'Appel', STRING, SCALAR, WRITEABLE)
-            self._attributes_register_deprecated ('apple', 'fruit)
+            self._attributes_register_deprecated ('apple', 'fruit')
 
         In some cases, you may want to deprecate a variable and not replace it
         with a new one.  In order to keep this interface simple, this can be
@@ -1643,7 +1656,7 @@ class Attributes (_AttributesBase) :
 
             # new code
             self._attributes_register ('deprecated_apple', 'Appel', STRING, SCALAR, WRITEABLE)
-            self._attributes_register_deprecated ('apple', 'deprecated_apple)
+            self._attributes_register_deprecated ('apple', 'deprecated_apple')
 
         This way, the user will either see a warning, or has to explicitly use
         'deprecated_apple' as attribute name -- which should be warning enough,
@@ -1674,10 +1687,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (sus.nothing)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (rus.nothing)
     def _attributes_unregister (self, key, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -1707,10 +1720,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.one_of (_UP, _DOWN))
-    @sus.returns (sus.nothing)
+                  rus.one_of (_UP, _DOWN))
+    @rus.returns (rus.nothing)
     def _attributes_remove (self, key, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -1732,11 +1745,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.optional (sus.list_of (sus.anything)),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.list_of (rus.anything)),
+                  rus.optional (rus.one_of  (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_set_enums (self, key, enums=None, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -1754,14 +1767,14 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
-                  sus.optional (bool),
-                  sus.optional (callable),
-                  sus.optional (callable),
-                  sus.optional (callable),
-                  sus.optional (callable),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+    @rus.takes   ('Attributes', 
+                  rus.optional (bool),
+                  rus.optional (callable),
+                  rus.optional (callable),
+                  rus.optional (callable),
+                  rus.optional (callable),
+                  rus.optional (rus.one_of  (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_extensible (self, e=True, 
                                 getter=None, setter=None, 
                                 lister=None, caller=None, 
@@ -1788,10 +1801,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
-                  sus.optional (bool),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+    @rus.takes   ('Attributes', 
+                  rus.optional (bool),
+                  rus.optional (rus.one_of  (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_allow_private (self, p=True, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -1810,10 +1823,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
-                  sus.optional (bool),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+    @rus.takes   ('Attributes', 
+                  rus.optional (bool),
+                  rus.optional (rus.one_of  (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_camelcasing (self, c=True, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -1832,10 +1845,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   'Attributes', 
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns ('Attributes')
+                  rus.optional (rus.one_of  (_UP, _DOWN)))
+    @rus.returns ('Attributes')
     def _attributes_deep_copy (self, other, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -1894,15 +1907,9 @@ class Attributes (_AttributesBase) :
             if d['attributes'][key]['private' ] and key in orig_d['attributes'] :
                 # don't copy private keys
                 other_d['attributes'][key] = orig_d['attributes'][key]
-                continue
 
-            if        d['attributes'][key]['value'] == None :
-                other_d['attributes'][key]['value'] = None
             else :
-                if        d['attributes'][key]['flavor'] == VECTOR :
-                    other_d['attributes'][key]['value']  = list (d['attributes'][key]['value'])
-                else :
-                    other_d['attributes'][key]['value']  =       d['attributes'][key]['value']
+                other_d['attributes'][key]['value']  = copy.deepcopy (d['attributes'][key]['value'])
 
         # set the new dictionary as state for copied class
         _AttributesBase.__setattr__ (other, '_d', other_d)
@@ -1912,10 +1919,20 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
-                  sus.optional (basestring),
-                  sus.optional (sus.one_of  (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+    @rus.takes   ('Attributes',
+                  ('Attributes', dict))
+    @rus.returns ('Attributes')
+    def __deepcopy__ (self, memo) :
+        other = Attributes ()
+        return self._attributes_deep_copy (other)
+    
+
+    # --------------------------------------------------------------------------
+    #
+    @rus.takes   ('Attributes', 
+                  rus.optional (basestring),
+                  rus.optional (rus.one_of  (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_dump (self, msg=None, flow=_DOWN) :
         """ 
         This interface method is not part of the public consumer API, but can
@@ -1928,7 +1945,7 @@ class Attributes (_AttributesBase) :
         d = self._attributes_t_init ()
 
 
-        keys_all   = sorted (d['attributes'].iterkeys ())
+        keys_all = sorted (d['attributes'].iterkeys ())
 
         print "---------------------------------------"
         print str (type (self))
@@ -1945,7 +1962,8 @@ class Attributes (_AttributesBase) :
 
         keys_exist = []
         for key in keys_all :
-            if  d['attributes'][key]['exists'] :
+            if  'exists' in d['attributes'][key] and \
+                d['attributes'][key]['exists']   :
                 keys_exist.append (key)
 
         print "'Registered' attributes"
@@ -1958,7 +1976,7 @@ class Attributes (_AttributesBase) :
                               d['attributes'][key]['type'],
                               d['attributes'][key]['flavor'],
                               d['attributes'][key]['mode'],
-                      len(d['attributes'][key]['callbacks']),
+                          len(d['attributes'][key]['callbacks']),
                               d['attributes'][key]['value']
                               )
 
@@ -1989,7 +2007,7 @@ class Attributes (_AttributesBase) :
                               d['attributes'][key]['type'],
                               d['attributes'][key]['flavor'],
                               d['attributes'][key]['mode'],
-                      len(d['attributes'][key]['callbacks']),
+                          len(d['attributes'][key]['callbacks']),
                               d['attributes'][key]['value']
                               )
 
@@ -2010,11 +2028,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.anything),
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.anything),
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_set_final (self, key, val=None, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2054,11 +2072,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (float),
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (float),
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_set_ttl (self, key, ttl=0.0, flow=_DOWN) :
         """ set attributes TTL in seconds (float) -- see L{_attributes_i_set} """
 
@@ -2072,11 +2090,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
                   callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_add_check (self, key, check, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2103,11 +2121,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
                   callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_set_getter (self, key, getter, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2165,11 +2183,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
                   callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_set_setter (self, key, setter, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2188,10 +2206,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_set_global_lister (self, lister, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2208,10 +2226,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_set_global_caller (self, caller, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2228,11 +2246,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
-    def _attributes_set_global_getter (self, getter, flow) :
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
+    def _attributes_set_global_getter (self, getter, flow=_DOWN) :
         """
         This interface method is not part of the public consumer API, but can
         safely be called from within derived classes.
@@ -2248,10 +2266,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   callable,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def _attributes_set_global_setter (self, setter, flow) :
         """
         This interface method is not part of the public consumer API, but can
@@ -2273,11 +2291,11 @@ class Attributes (_AttributesBase) :
     # The GFD.90 interface supports CamelCasing, and thus converts all keys to
     # underscore before using them.
     # 
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.anything,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.anything,
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def set_attribute (self, key, val, _flow=_DOWN) :
         """
         set_attribute(key, val)
@@ -2313,10 +2331,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.anything)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.anything)
     def get_attribute (self, key, _flow=_DOWN) :
         """
         get_attribute(key)
@@ -2334,11 +2352,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.list_of (sus.anything),
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.list_of (rus.anything),
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def set_vector_attribute (self, key, val, _flow=_DOWN) :
         """
         set_vector_attribute (key, val)
@@ -2357,10 +2375,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.list_of (sus.anything))
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.list_of (rus.anything))
     def get_vector_attribute (self, key, _flow=_DOWN) :
         """
         get_vector_attribute (key)
@@ -2379,10 +2397,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def remove_attribute (self, key, _flow=_DOWN) :
         """
         remove_attribute (key)
@@ -2400,9 +2418,9 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.list_of (basestring))
+    @rus.takes   ('Attributes', 
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.list_of (basestring))
     def list_attributes (self, _flow=_DOWN) :
         """
         list_attributes ()
@@ -2410,15 +2428,15 @@ class Attributes (_AttributesBase) :
         List all attributes which have been explicitly set. 
         """
 
-        return self._attributes_i_list (_flow)
+        return self._attributes_i_list (flow=_flow)
 
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.list_of (basestring))
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.list_of (basestring))
     def find_attributes (self, pattern, _flow=_DOWN) :
         """
         find_attributes (pattern)
@@ -2434,10 +2452,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (bool)
     def attribute_exists (self, key, _flow=_DOWN) :
         """
         attribute_exist (key)
@@ -2453,10 +2471,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (bool)
     def attribute_is_readonly (self, key, _flow=_DOWN) :
         """
         attribute_is_readonly (key)
@@ -2472,10 +2490,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (bool)
     def attribute_is_writeable (self, key, _flow=_DOWN) :
         """
         attribute_is_writeable (key)
@@ -2490,10 +2508,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (bool)
     def attribute_is_removable (self, key, _flow=_DOWN) :
         """
         attribute_is_writeable (key)
@@ -2508,10 +2526,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (bool)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (bool)
     def attribute_is_vector (self, key, _flow=_DOWN) :
         """
         attribute_is_vector (key)
@@ -2528,11 +2546,11 @@ class Attributes (_AttributesBase) :
     #
     # fold the GFD.90 monitoring API into the attributes API
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
                   callable, 
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (int)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (int)
     def add_callback (self, key, cb, _flow=_DOWN) :
         """
         add_callback (key, cb)
@@ -2570,11 +2588,11 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring,
                   int, 
-                  sus.optional (sus.one_of (_UP, _DOWN)))
-    @sus.returns (sus.nothing)
+                  rus.optional (rus.one_of (_UP, _DOWN)))
+    @rus.returns (rus.nothing)
     def remove_callback (self, key, id, _flow=_DOWN) :
         """
         remove_callback (key, id)
@@ -2599,9 +2617,9 @@ class Attributes (_AttributesBase) :
     #
     # we assume that properties are always used in under_score notation.
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring)
-    @sus.returns (sus.anything)
+    @rus.returns (rus.anything)
     def __getattr__ (self, key) :
         """ see L{get_attribute} (key) for details. """
         
@@ -2611,10 +2629,10 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring, 
-                  sus.anything)
-    @sus.returns (sus.nothing)
+                  rus.anything)
+    @rus.returns (rus.nothing)
     def __setattr__ (self, key, val) :
         """ see L{set_attribute} (key, val) for details. """
 
@@ -2624,9 +2642,9 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes', 
+    @rus.takes   ('Attributes', 
                   basestring)
-    @sus.returns (sus.nothing)
+    @rus.returns (rus.nothing)
     def __delattr__ (self, key) :
         """ see L{remove_attribute} (key) for details. """
         
@@ -2635,17 +2653,20 @@ class Attributes (_AttributesBase) :
 
     # --------------------------------------------------------------------------
     #
-    @sus.takes   ('Attributes')
-    @sus.returns (basestring)
+    @rus.takes   ('Attributes')
+    @rus.returns (basestring)
     def __str__  (self) :
         """ return a string representation of all set attributes """
 
-        s = "%s %s" % (type(self), str(self.as_dict))
+        s = "%s %s" % (type(self), str(self.as_dict()))
 
         return s
 
 
-    ####################################
+    # --------------------------------------------------------------------------
+    #
+    @rus.takes   ('Attributes')
+    @rus.returns (dict)
     def as_dict (self) :
         """ return a dict representation of all set attributes """
 
@@ -2657,6 +2678,57 @@ class Attributes (_AttributesBase) :
         return d
 
 
+    # --------------------------------------------------------------------------
+    #
+    # Python dictionary interface, via the DictMixin
+    #
+    # we assume that keys are always used in under_score notation.
+    #
+    # --------------------------------------------------------------------------
+    #
+    def __getitem__ (self, key) :
+        return self.get_attribute (key)
+
+    # --------------------------------------------------------------------------
+    #
+    def __setitem__ (self, key, value) :
+        return self.set_attribute (key, value)
+
+    # --------------------------------------------------------------------------
+    #
+    def __delitem__ (self, key) :
+        return self.remove_attribute (key)
+
+    # --------------------------------------------------------------------------
+    #
+    def keys (self) :
+        return self._attributes_i_list (CamelCase=False)
+
+    # --------------------------------------------------------------------------
+    #
+    def __iter__ (self) :
+        return self
+
+    # --------------------------------------------------------------------------
+    #
+    def next (self) :
+
+        iterlist = self._attributes_i_list (CamelCase=False)
+        
+        if  self._iterpos >= len(iterlist) :
+            self._iterpos  = 0
+            raise StopIteration
+
+        if  not len(iterlist) :
+            self._iterpos  = 0
+            raise StopIteration
+
+        self._iterpos += 1
+
+        return iterlist[self._iterpos-1]
+
+
+
 # ------------------------------------------------------------------------------
 
 # FIXME: add 
@@ -2666,9 +2738,9 @@ class Attributes (_AttributesBase) :
 #   - fire_metric()
 #   - list_metrics()
 #   - get_metric()
-#   - list_calbacks()
+#   - list_callbacks()
 
 # ------------------------------------------------------------------------------
 
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
 

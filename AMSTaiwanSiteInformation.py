@@ -1,5 +1,5 @@
 # Class definition:
-#   ATLASSiteInformation
+#   AMSTaiwanSiteInformation
 #   This class is the ATLAS site information class inheriting from SiteInformation
 #   Instances are generated with SiteInformationFactory via pUtil::getSiteInformation()
 #   Implemented as a singleton class
@@ -466,14 +466,14 @@ class AMSTaiwanSiteInformation(SiteInformation):
 
         return 0, thisSite, _jobrec
 
-    def getQueuedata(self, queuename, forceDownload=False, alt=False, url='http://pandaserver.cern.ch'):
+    def getQueuedata(self, queuename, forceDownload=False, alt=False, url='http://pandasrv-test.gird.sinica.edu.tw'):
         """ Download the queuedata if not already downloaded """
 
         ec = 0
         hasQueuedata = False
 
         if queuename != "":
-            ec, hasQueuedata = super(ATLASSiteInformation, self).getQueuedata(queuename, forceDownload=forceDownload, alt=alt, url=url)
+            ec, hasQueuedata = super(AMSTaiwanSiteInformation, self).getQueuedata(queuename, forceDownload=forceDownload, alt=alt, url=url)
             if ec != 0:
                 tolog("!!FAILED!!1999!! getQueuedata failed: %d" % (ec))
                 ec = self.__error.ERR_QUEUEDATA
@@ -660,7 +660,7 @@ if __name__ == "__main__":
 
     os.environ['PilotHomeDir'] = os.getcwd()
 
-    si = ATLASSiteInformation()
+    si = AMSTaiwanSiteInformation()
     tolog("Experiment: %s" % (si.getExperiment()))
 
     cloud = "CERN"

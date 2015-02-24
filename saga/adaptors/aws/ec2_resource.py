@@ -1,18 +1,21 @@
 
-""" libcloud based EC2 resource adaptor """
+__author__    = "Andre Merzky, Ashley Z, Ole Weidner"
+__copyright__ = "Copyright 2012-2013, The SAGA Project"
+__license__   = "MIT"
 
-import os
-import re
-import time
+
+""" libcloud based EC2 resource adaptor """
 
 import saga.adaptors.cpi.base
 import saga.adaptors.cpi.context
 import saga.adaptors.cpi.resource
+
 from   saga.resource.constants import *
-
-
 ANY = COMPUTE | STORAGE
 
+import re
+import os
+import time
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -119,6 +122,8 @@ class Adaptor (saga.adaptors.base.Base):
         # for id parsing
         self.id_re = re.compile ('^\[(.*)\]-\[(.*?)\]$')
 
+        self._default_contexts = list()
+
 
     # ----------------------------------------------------------------
     #
@@ -171,22 +176,28 @@ class Adaptor (saga.adaptors.base.Base):
     #
     def _get_default_contexts (self) :
 
-        # no default keypair in ec2 -- but lets see if we have default access
-        # information
-        if  not self._EC2_URL        and \
-            not self._EC2_ACCESS_KEY and \
-            not self._EC2_SECRET_KEY : 
-            # no default access info...
-            return []
+        if  None == self._default_contexts :
 
-        # ok, lets pick up a default context from the EC2 default env vars
-        ctx = saga.Context ('ec2')
+            self._default_contexts = list()
 
-        if self._EC2_URL        : ctx.server   = self._EC2_URL
-        if self._EC2_ACCESS_KEY : ctx.user_id  = self._EC2_ACCESS_KEY
-        if self._EC2_SECRET_KEY : ctx.user_key = self._EC2_SECRET_KEY
+            # no default keypair in ec2 -- but lets see if we have default access
+            # information
+            if  not self._EC2_URL        and \
+                not self._EC2_ACCESS_KEY and \
+                not self._EC2_SECRET_KEY : 
+                # no default access info...
+                return []
 
-        return [ctx]
+            # ok, lets pick up a default context from the EC2 default env vars
+            ctx = saga.Context ('ec2')
+
+            if self._EC2_URL        : ctx.server   = self._EC2_URL
+            if self._EC2_ACCESS_KEY : ctx.user_id  = self._EC2_ACCESS_KEY
+            if self._EC2_SECRET_KEY : ctx.user_key = self._EC2_SECRET_KEY
+
+            self._default_contexts.append (ctx)
+
+        return self._default_contexts
 
 
     # ----------------------------------------------------------------
@@ -1100,5 +1111,5 @@ class EC2ResourceCompute (saga.adaptors.cpi.resource.Compute) :
     
 
 
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
 

@@ -79,6 +79,16 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     msgdic["JEM"] = job.JEM
     msgdic["cmtconfig"] = getCmtconfig(job.cmtconfig)
 
+    # hpc job status
+    if job.mode:
+        msgdic["mode"] = job.mode
+    if job.hpcStatus:
+        msgdic['hpcStatus'] = job.hpcStatus
+    if job.refreshNow:
+        msgdic['refreshNow'] = job.refreshNow
+    if job.coreCount or job.coreCount == 0:
+        msgdic['coreCount'] = job.coreCount
+
     # report FAX usage if at least one successful FAX transfer
     if job.filesWithFAX > 0:
         msgdic["filesWithFAX"] = job.filesWithFAX

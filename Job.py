@@ -14,6 +14,7 @@ class Job:
         self.dispatchDblock = None         #
         self.prodDBlockToken = []          # used to send file info to the pilot (if input files should be directly accessed or not)
         self.prodDBlockTokenForOutput = [] # used for object store info
+        self.prodDBlocks = []              # contains the correct container or dataset name for the traces
         self.dispatchDBlockToken = []      # used to send space tokens to the pilot (for input files)
         self.dispatchDBlockTokenForOut = None # used for chirp file destination, including server name
         self.destinationDBlockToken = []   # used to send space tokens to the pilot (for output files)
@@ -90,6 +91,7 @@ class Job:
         self.experiment = "undefined"      # Which experiment this job belongs to
         self.coreCount = None              # Number of cores as requested by the task
         self.pgrp = 0                      # Process group (RunJob* subprocess)
+        self.sourceSite = ""               # Keep track of the original source site of the job (useful for overflow jobs to get to the proper FAX redirector)
 
         # event service objects
         self.eventService = False          # True for event service jobs
@@ -102,6 +104,11 @@ class Job:
 #        self.lfn = None                    # LFNs of input files to be read by the Event Server (NOT by the pilot)
 #        self.guid = None                   # GUIDs of input files to be read by the Event Server (NOT by the pilot)
         # self.attemptNr = ""              # (defined above)
+
+        # job mode, for example, HPC_normal, HPC_backfill
+        self.mode = None
+        self.hpcStatus = None
+        self.refreshNow = False
 
         # walltime counting for various steps
         self.timeSetup = 0
@@ -119,8 +126,8 @@ class Job:
             _spsetup = self.spsetup
         else:
             _spsetup = "(not defined)"
-        pUtil.tolog("\nPandaID=%s\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\scopeOut=%s\nscopeLog=%s" %\
-                    (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
+        pUtil.tolog("\nPandaID=%s\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlocks=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\scopeOut=%s\nscopeLog=%s" %\
+                    (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlocks, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -154,6 +161,18 @@ class Job:
     def getState(self):
         '''returns jobId, job status and time stamp'''
         return self.jobId, self.result, pUtil.timeStamp()
+
+    def setMode(self, mode):
+        self.mode = mode
+
+    def getMode(self, mode):
+        return self.mode
+
+    def setHpcStatus(self, hpcStatus):
+        self.hpcStatus = hpcStatus
+
+    def getHpcStatus(self):
+        return self.hpcStatus
 
     def setJobDef(self, data):
         """ set values for a job object from a dictionary data
@@ -192,6 +211,9 @@ class Job:
 
         dispatchDblock = data.get('dispatchDblock', '')
         self.dispatchDblock = dispatchDblock.split(",")
+
+        prodDBlocks = data.get('prodDBlocks', '')
+        self.prodDBlocks = prodDBlocks.split(",")
 
         prodDBlockToken = data.get('prodDBlockToken', '')
         self.prodDBlockToken = prodDBlockToken.split(",")
@@ -270,6 +292,11 @@ class Job:
                     if ec == 0:
                         data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
 
+        # HPC job staus
+        if data.has_key('mode'):
+            self.mode = data.get("mode", None)
+        if data.has_key('hpcStatus'):
+            self.hpcStatus = data.get('hpcStatus', None)
 
 #        self.eventRangeID = data.get('eventRangeID', None)
 #        self.startEvent = data.get('startEvent', None)
@@ -320,6 +347,12 @@ class Job:
 
         if data.has_key('coreCount'):
             self.coreCount = str(data['coreCount'])
+        else:
+            # use default
+            pass
+
+        if data.has_key('sourceSite'):
+            self.sourceSite = str(data['sourceSite'])
         else:
             # use default
             pass

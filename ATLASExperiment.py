@@ -203,6 +203,8 @@ class ATLASExperiment(Experiment):
                         return self.__error.ERR_SETUPFAILURE, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
                 else:
                     cmd2 = ""
+                if 'HPC_HPC' in readpar("catchall"):
+                    cmd2 = "export G4ATLAS_SKIPFILEPEEK=1"
 
                 # Set special_setup_cmd if necessary
                 special_setup_cmd = self.getSpecialSetupCommand()
@@ -314,6 +316,9 @@ class ATLASExperiment(Experiment):
                         if coreCount >= 1:
                             cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
                             tolog("Added multi-core support to cmd2: %s" % (cmd2))
+                # make sure that MAKEFLAGS is always set
+                if not "MAKEFLAGS=" in cmd2:
+                    cmd2 += 'export MAKEFLAGS="j1 QUICK=1 -l1";'
 
                 # Prepend cmd0 to cmd1 if set and if release < 16.1.0
                 if cmd0 != "" and job.release < "16.1.0":
@@ -430,15 +435,15 @@ class ATLASExperiment(Experiment):
                     tolog("asetup not needed (no special homePackage)")
 
             elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
-                
-                if 'HPC_Titan' in readpar("catchall"):
+
+                if 'HPC_' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": ("%s/%s" % (job.homePackage, job.trf)),
                            "parameters": job.jobPars }
                 else:
                     cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
             else:
-                if 'HPC_Titan' in readpar("catchall"):
+                if 'HPC_' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": job.trf,
                            "parameters": job.jobPars }
@@ -450,8 +455,7 @@ class ATLASExperiment(Experiment):
             special_setup_cmd = self.getSpecialSetupCommand()
 
         # add FRONTIER debugging and RUCIO env variables
-        
-        if 'HPC_Titan' in readpar("catchall"):
+        if 'HPC_' in readpar("catchall"):
             cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
         else: 
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
@@ -478,7 +482,7 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
         # Pipe stdout/err for payload to files
-        if 'HPC_Titan' not in readpar("catchall"):
+        if 'HPC_' not in readpar("catchall"):
             cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
@@ -588,7 +592,12 @@ class ATLASExperiment(Experiment):
                     "scratch",
                     "jobState-*-test.pickle",
                     "*.writing",
-                    "saga"]
+                    "pwg*",
+                    "pwhg*",
+                    "*PROC*",
+                    "HPC",
+                    "saga",
+                    "radical"]
 
         # remove core and pool.root files from AthenaMP sub directories
         try:
@@ -1723,7 +1732,7 @@ class ATLASExperiment(Experiment):
             try:
                 coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
             except:
-                pass
+                _coreCount = 'export ROOTCORE_NCPUS=1;'
             else:
                 _coreCount = 'export ROOTCORE_NCPUS=%d;' % (coreCount)
         if processingType == "":
@@ -2039,7 +2048,7 @@ class ATLASExperiment(Experiment):
         rel_N = None
         path = None
         skipVerification = False # verification not possible for more complicated setup (nightlies)
-        if 'HPC_Titan' in readpar("catchall"):
+        if 'HPC_' in readpar("catchall"):
             skipVerification = True # verification not possible for more complicated setup (nightlies)
 
         # First try with the cmtconfig in the path. If that fails, try without it
@@ -2196,6 +2205,16 @@ class ATLASExperiment(Experiment):
                     #cmd = "source"
                     #asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
                 asetup_path = "source $AtlasSetup/scripts/asetup.sh"
+
+        # for HPC
+        if 'HPC_HPC' in readpar("catchall"):
+            quick_setup = "%s/setup-quick.sh" % (path)
+            tolog("quick setup path: %s" % quick_setup)
+            if os.path.exists(quick_setup):
+                cmd = "source %s" % (quick_setup)
+                asetup_path = ""
+                cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
+
         return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
@@ -2270,7 +2289,7 @@ class ATLASExperiment(Experiment):
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
         
-        if 'HPC_Titan' in readpar("catchall"):
+        if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             status = True
         else:
             # Test the LFC module
@@ -2580,6 +2599,8 @@ class ATLASExperiment(Experiment):
         transferLogToObjectstore = False
 
         if "log_to_objectstore" in readpar('catchall') or eventService:
+            transferLogToObjectstore = True
+        if 'HPC_HPC' in readpar('catchall'):
             transferLogToObjectstore = True
 
         return transferLogToObjectstore

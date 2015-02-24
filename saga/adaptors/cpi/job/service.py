@@ -6,10 +6,9 @@ __license__   = "MIT"
 
 """ Provides the SAGA Job Service CPI """
 
-import saga.adaptors.cpi.async      as cpi_async
-import saga.adaptors.cpi.base       as cpi_base
 import saga.adaptors.cpi.decorators as cpi_dec
-
+import saga.adaptors.cpi.base       as cpi_base
+import saga.adaptors.cpi.async      as cpi_async
 
 SYNC  = cpi_dec.CPI_SYNC_CALL
 ASYNC = cpi_dec.CPI_ASYNC_CALL
@@ -91,5 +90,5 @@ class Service (cpi_base.CPIBase, cpi_async.Async) :
     def container_get_states_async (self, jobs)                : pass
 
 
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
 
