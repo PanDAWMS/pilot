@@ -1,8 +1,7 @@
 
-__author__    = "Andre Merzky, Ole Weidner"
-__copyright__ = "Copyright 2012-2013, The SAGA Project"
+__author__    = "Ole Weidner"
+__copyright__ = "Copyright 2013, The SAGA Project"
 __license__   = "MIT"
-
 
 """ file adaptor implementation on top tof the HTTP protocol
 """
@@ -12,10 +11,9 @@ import urllib
 
 import saga.adaptors.base
 import saga.adaptors.cpi.filesystem
+from saga.filesystem.constants import *
 import saga.utils.misc as sumisc
 
-
-from saga.filesystem.constants import *
 
 SYNC_CALL = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL

@@ -4,16 +4,15 @@ __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-import sys
-import string
 import inspect
+import string
+import sys
 
-import radical.utils              as ru
-import radical.utils.signatures   as rus
-import radical.utils.logger       as rul
-
+import saga.adaptors.base      as sab
 import saga.engine.engine
-import saga.adaptors.base         as sab
+import saga.utils.logger
+import saga.utils.signatures   as sus
+
 
 # ------------------------------------------------------------------------------
 #
@@ -26,23 +25,20 @@ class SimpleBase (object) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('SimpleBase')
-    @rus.returns (rus.nothing)
+    @sus.takes   ('SimpleBase')
+    @sus.returns (sus.nothing)
     def __init__  (self) :
 
-        if  not hasattr (self, '_apitype') :
-            self._apitype = self._get_apitype ()
-
-        self._logger = rul.getLogger  ('saga', self._apitype)
-        self._id     = ru.generate_id (self._get_apitype () + '.', mode=ru.ID_SIMPLE)
+        self._apitype   = self._get_apitype ()
+        self._logger    = saga.utils.logger.getLogger (self._apitype)
 
       # self._logger.debug ("[saga.Base] %s.__init__()" % self._apitype)
 
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('SimpleBase')
-    @rus.returns (basestring)
+    @sus.takes   ('SimpleBase')
+    @sus.returns (basestring)
     def _get_apitype (self) :
 
         # apitype for saga.job.service.Service should be saga.job.Service --
@@ -73,13 +69,13 @@ class Base (SimpleBase) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Base',
+    @sus.takes   ('Base',
                   basestring, 
-                  rus.optional (sab.Base), 
-                  rus.optional (dict), 
-                  rus.optional (rus.anything),
-                  rus.optional (rus.anything))
-    @rus.returns (rus.nothing)
+                  sus.optional (sab.Base), 
+                  sus.optional (dict), 
+                  sus.optional (sus.anything),
+                  sus.optional (sus.anything))
+    @sus.returns (sus.nothing)
     def __init__  (self, schema, adaptor, adaptor_state, *args, **kwargs) :
 
         SimpleBase.__init__ (self)
@@ -87,7 +83,7 @@ class Base (SimpleBase) :
         _engine       = saga.engine.engine.Engine ()
 
         self._adaptor = adaptor
-        self._adaptor = _engine.bind_adaptor (self, self._apitype, schema, adaptor)
+        self._adaptor = _engine.bind_adaptor   (self, self._apitype, schema, adaptor)
 
         # Sync creation (normal __init__) will simply call the adaptor's
         # init_instance at this point.  _init_task should *not* be evaluated,
@@ -112,8 +108,8 @@ class Base (SimpleBase) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Base')
-    @rus.returns ('saga.Session')
+    @sus.takes   ('Base')
+    @sus.returns ('saga.Session')
     def get_session (self) :
         """ 
         Returns the session which is managing the object instance.  For objects
@@ -130,5 +126,5 @@ class Base (SimpleBase) :
 # ------------------------------------------------------------------------------
 
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

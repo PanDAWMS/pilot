@@ -1,5 +1,5 @@
 
-__author__    = "Andre Merzky, Ole Weidner"
+__author__    = "Ole Weidner"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
@@ -9,6 +9,7 @@ __license__   = "MIT"
 '''
 
 import saga.exceptions as se
+
 
 # 4.1.3 File Transfer Specifications (GFD90 p 176-177)
 #
@@ -29,8 +30,6 @@ import saga.exceptions as se
 #      Overwrites the local file if it exists.
 # '<<' copies the remote file to the local file after the job finishes.
 #      Appends to the local file if it exists.
-
-
 class TransferDirectives(object):
 
     def __init__(self, directives_list):
@@ -58,7 +57,7 @@ class TransferDirectives(object):
                 (local, remote) = directive.split('>')
                 self._in_overwrite[local.strip()] = remote.strip()
             else:
-                msg = "'%s' is not a valid transfer directive string." % directive
+                msg = "'%s' is not a valid transfer directive string."
                 raise se.BadParameter(msg)
 
     def _dicts_to_string_list(self):

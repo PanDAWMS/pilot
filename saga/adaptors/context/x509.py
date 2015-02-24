@@ -6,9 +6,10 @@ __license__   = "MIT"
 
 import os
 
-import saga.context
 import saga.adaptors.base
 import saga.adaptors.cpi.context
+import saga.context
+
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -150,5 +151,5 @@ class ContextX509 (saga.adaptors.cpi.context.Context) :
         else :
             fh.close ()
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

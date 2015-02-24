@@ -1,18 +1,18 @@
 
-__author__    = "Andre Merzky, Ole Weidner"
+__author__    = "Andre Merzky"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-import radical.utils.signatures as rus
 
 import saga.adaptors.base    as sab
 import saga.attributes       as sa
 import saga.base             as sb
+from   saga.constants import LIFE_TIME, REMOTE_ID, REMOTE_HOST, REMOTE_PORT, TOKEN
+from   saga.constants import TYPE, SERVER, USER_CERT, CERT_REPOSITORY
+from   saga.constants import USER_PROXY, USER_KEY, USER_ID, USER_PASS, USER_VO
+import saga.utils.signatures as sus
 
-from   saga.constants import TYPE,       SERVER,    USER_CERT,   CERT_REPOSITORY
-from   saga.constants import USER_PROXY, USER_KEY,  USER_ID,     USER_PASS,   USER_VO
-from   saga.constants import LIFE_TIME,  REMOTE_ID, REMOTE_HOST, REMOTE_PORT, TOKEN
 
 # ------------------------------------------------------------------------------
 #
@@ -50,11 +50,11 @@ class Context (sb.Base, sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Context', 
+    @sus.takes   ('Context', 
                   basestring, 
-                  rus.optional (sab.Base),
-                  rus.optional (dict))
-    @rus.returns (rus.nothing)
+                  sus.optional (sab.Base),
+                  sus.optional (dict))
+    @sus.returns (sus.nothing)
     def __init__ (self, ctype, _adaptor=None, _adaptor_state={}) : 
         '''
         ctype: string
@@ -91,8 +91,8 @@ class Context (sb.Base, sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Context')
-    @rus.returns (basestring)
+    @sus.takes   ('Context')
+    @sus.returns (basestring)
     def __str__  (self) :
 
         d = self.as_dict ()
@@ -110,8 +110,8 @@ class Context (sb.Base, sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Context')
-    @rus.returns (basestring)
+    @sus.takes   ('Context')
+    @sus.returns (basestring)
     def __repr__ (self) :
 
         return str(self)
@@ -119,9 +119,9 @@ class Context (sb.Base, sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes      ('Context', 
+    @sus.takes      ('Context', 
                      ('Session', '_DefaultSession'))
-    @rus.returns    (rus.nothing)
+    @sus.returns    (sus.nothing)
     def _initialize (self, session) :
         '''
         ret:  None
@@ -129,5 +129,5 @@ class Context (sb.Base, sa.Attributes) :
         self._adaptor._initialize (session)
 
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

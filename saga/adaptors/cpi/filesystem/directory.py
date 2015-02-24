@@ -7,6 +7,7 @@ __license__   = "MIT"
 import saga.adaptors.cpi.decorators as cpi_dec
 import saga.adaptors.cpi.namespace  as cpi_ns
 
+
 SYNC  = cpi_dec.CPI_SYNC_CALL
 ASYNC = cpi_dec.CPI_ASYNC_CALL
 
@@ -54,5 +55,5 @@ class Directory (cpi_ns.directory.Directory) :
     def is_file_self_async    (self,              ttype)  : pass
 
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

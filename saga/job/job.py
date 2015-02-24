@@ -6,20 +6,18 @@ __license__   = "MIT"
 
 """ SAGA job interface """
 
-import radical.utils.signatures as rus
-
-from   saga.constants        import SYNC, ASYNC, TASK
-from   saga.job.constants    import *
-
-import saga.adaptors.base    as sab
-import saga.attributes       as sa
-import saga.exceptions       as se
-import saga.async            as sasync
-import saga.task             as st
-import saga.base             as sb
-import saga.url              as surl
-
 import description           as descr
+import saga.adaptors.base    as sab
+import saga.async            as sasync
+import saga.attributes       as sa
+import saga.base             as sb
+from   saga.constants        import SYNC, ASYNC, TASK
+import saga.exceptions       as se
+from   saga.job.constants    import *
+import saga.task             as st
+import saga.url              as surl
+import saga.utils.signatures as sus
+
 
 # ------------------------------------------------------------------------------
 #
@@ -53,12 +51,12 @@ class Job (sb.Base, st.Task, sasync.Async) :
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Job',
-                  rus.optional (basestring),
-                  rus.optional (sab.Base),
-                  rus.optional (dict),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns (rus.nothing)
+    @sus.takes   ('Job',
+                  sus.optional (basestring),
+                  sus.optional (sab.Base),
+                  sus.optional (dict),
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns (sus.nothing)
     def __init__ (self, _method_type='run', _adaptor=None, _adaptor_state={}, _ttype=None) : 
         '''
         _adaptor`` references the adaptor class instance which created this task
@@ -125,8 +123,8 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Job')
-    @rus.returns (basestring)
+    @sus.takes   ('Job')
+    @sus.returns (basestring)
     def __str__  (self) :
         """
         __str__()
@@ -142,9 +140,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Job',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, basestring, st.Task))
+    @sus.takes   ('Job',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, basestring, st.Task))
     def get_id   (self, ttype=None) :
         """
         get_id()
@@ -157,9 +155,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes          ('Job',
-                         rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns        ((basestring, st.Task))
+    @sus.takes          ('Job',
+                         sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns        ((basestring, st.Task))
     def get_description (self, ttype=None) :
         """
         get_description()
@@ -197,9 +195,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes    ('Job',
-                   rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns  ((file, st.Task))
+    @sus.takes    ('Job',
+                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns  ((file, st.Task))
     def get_stdin (self, ttype=None) :
         """
         get_stdin()
@@ -211,9 +209,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Job',
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((file, st.Task))
+    @sus.takes     ('Job',
+                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns   ((file, st.Task))
     def get_stdout (self, ttype=None) :
         """
         get_stdout()
@@ -225,23 +223,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Job',
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((str, st.Task))
-    def get_stdout_string (self, ttype=None) :
-        """
-        get_stdout_string()
-
-        Return the job's STDOUT.
-        """
-        return self._adaptor.get_stdout_string (ttype=ttype)
-
-
-    # --------------------------------------------------------------------------
-    #
-    @rus.takes     ('Job',
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((file, st.Task))
+    @sus.takes     ('Job',
+                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns   ((file, st.Task))
     def get_stderr (self, ttype=None) :
         """
         get_stderr()
@@ -256,26 +240,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Job',
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((str, st.Task))
-    def get_stderr_string (self, ttype=None) :
-        """
-        get_stderr_string()
-
-        Return the job's STDERR.
-
-        ttype:     saga.task.type enum
-        ret:       string.
-        """
-        return self._adaptor.get_stderr_string (ttype=ttype)
-
-
-    # --------------------------------------------------------------------------
-    #
-    @rus.takes   ('Job',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+    @sus.takes   ('Job',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def suspend  (self, ttype=None) :
         """
         suspend()
@@ -287,9 +254,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Job',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+    @sus.takes   ('Job',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def resume   (self, ttype=None) :
         """
         resume()
@@ -301,9 +268,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Job',
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((rus.nothing, st.Task))
+    @sus.takes     ('Job',
+                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns   ((sus.nothing, st.Task))
     def checkpoint (self, ttype=None) :
         """
         checkpoint()
@@ -315,10 +282,10 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Job',
+    @sus.takes   ('Job',
                   descr.Description,
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def migrate  (self, jd, ttype=None) :
         """
         jd:        saga.job.Description  
@@ -330,10 +297,10 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Job',
+    @sus.takes   ('Job',
                   int,
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def signal   (self, signum, ttype=None) :
         """
         signal(signum)
@@ -357,9 +324,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
     #
     # task methods flattened into job :-/
     #
-    @rus.takes   ('Job',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+    @sus.takes   ('Job',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def run      (self, ttype=None) :
         """
         run()
@@ -399,10 +366,10 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Job',
+    @sus.takes   ('Job',
                   float,
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def cancel   (self, timeout=None, ttype=None) :
         """
         cancel(timeout)
@@ -445,10 +412,10 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Job',
-                  rus.optional (float),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((bool, st.Task))
+    @sus.takes   ('Job',
+                  sus.optional (float),
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((bool, st.Task))
     def wait     (self, timeout=None, ttype=None) :
         """
         wait(timeout)
@@ -509,9 +476,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes    ('Job',
-                   rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns  ((rus.one_of (UNKNOWN, NEW, PENDING, RUNNING, SUSPENDED, DONE, FAILED, CANCELED), st.Task))
+    @sus.takes    ('Job',
+                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns  ((sus.one_of (UNKNOWN, NEW, PENDING, RUNNING, SUSPENDED, DONE, FAILED, CANCELED), st.Task))
     def get_state (self, ttype=None) :
         """
         get_state()
@@ -544,9 +511,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Job',
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((rus.anything, st.Task))
+    @sus.takes     ('Job',
+                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns   ((sus.anything, st.Task))
     def get_result (self, ttype=None) :
         """
         get_result()
@@ -556,9 +523,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Job',
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((sb.Base, st.Task))
+    @sus.takes     ('Job',
+                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns   ((sb.Base, st.Task))
     def get_object (self, ttype=None) :
         """ :todo: describe me
             :note: this will return the job_service which created the job.
@@ -568,9 +535,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Job',
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((se.SagaException, st.Task))
+    @sus.takes     ('Job',
+                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns   ((se.SagaException, st.Task))
     def get_exception (self, ttype=None) :
         """ :todo: describe me
 
@@ -583,8 +550,8 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Job')
-    @rus.returns   (rus.nothing)
+    @sus.takes     ('Job')
+    @sus.returns   (sus.nothing)
     def re_raise   (self) :
         """ :todo: describe me
 
@@ -598,9 +565,9 @@ class Job (sb.Base, st.Task, sasync.Async) :
     # 
     # attribute getters
     #
-    @rus.takes         ('Job',
-                        rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns       ((rus.nothing, int, st.Task))
+    @sus.takes         ('Job',
+                        sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns       ((sus.nothing, int, st.Task))
     def _get_exit_code (self, ttype=None) :
         ec = self._adaptor.get_exit_code(ttype=ttype)
         if ec in [None, ""]:
@@ -612,41 +579,41 @@ class Job (sb.Base, st.Task, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes       ('Job',
-                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns     ((rus.nothing, float, st.Task))
+    @sus.takes       ('Job',
+                      sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns     ((sus.nothing, float, st.Task))
     def _get_created (self, ttype=None) :
         return self._adaptor.get_created (ttype=ttype)
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes       ('Job',
-                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns     ((rus.nothing, float, st.Task))
+    @sus.takes       ('Job',
+                      sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns     ((sus.nothing, float, st.Task))
     def _get_started (self, ttype=None) :
         return self._adaptor.get_started (ttype=ttype)
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes       ('Job',
-                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns     ((rus.nothing, float, st.Task))
+    @sus.takes       ('Job',
+                      sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns     ((sus.nothing, float, st.Task))
     def _get_finished (self, ttype=None) :
         return self._adaptor.get_finished (ttype=ttype)
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes       ('Job',
-                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns     ((rus.nothing, rus.list_of (basestring), st.Task))
+    @sus.takes       ('Job',
+                      sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns     ((sus.nothing, sus.list_of (basestring), st.Task))
     def _get_execution_hosts (self, ttype=None) :
         return self._adaptor.get_execution_hosts (ttype=ttype)
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes       ('Job',
-                      rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns     ((rus.nothing, surl.Url, st.Task))
+    @sus.takes       ('Job',
+                      sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns     ((sus.nothing, surl.Url, st.Task))
     def _get_service_url (self, ttype=None) :
         return self._adaptor.get_service_url (ttype=ttype)
 
@@ -726,12 +693,12 @@ class Self (Job) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Self',
-                  rus.optional (basestring),
-                  rus.optional (sab.Base),
-                  rus.optional (dict),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns (rus.nothing)
+    @sus.takes   ('Self',
+                  sus.optional (basestring),
+                  sus.optional (sab.Base),
+                  sus.optional (dict),
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns (sus.nothing)
     def __init__ (self, _method_type='run', _adaptor=None, _adaptor_state={}, _ttype=None) : 
 
     
@@ -739,5 +706,5 @@ class Self (Job) :
         self._base.__init__ (_method_type, _adaptor, _adaptor_state, _ttype=_ttype)
 
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

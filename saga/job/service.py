@@ -7,20 +7,17 @@ __license__   = "MIT"
 """ SAGA job service interface """
 
 
-import radical.utils.signatures as rus
-
+import description           as descr
+import job                   as j
 import saga.adaptors.base    as sab
-import saga.url              as surl
-import saga.task             as st
-import saga.base             as sb
 import saga.async            as sasync
+import saga.base             as sb
+from   saga.constants        import SYNC, ASYNC, TASK
 import saga.exceptions       as se
 import saga.session          as ss
-
-import job                   as j
-import description           as descr
-
-from   saga.constants        import SYNC, ASYNC, TASK
+import saga.task             as st
+import saga.url              as surl
+import saga.utils.signatures as sus
 
 
 # ------------------------------------------------------------------------------
@@ -60,13 +57,13 @@ class Service (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Service', 
-                  rus.optional ((basestring, surl.Url)), 
-                  rus.optional (ss.Session), 
-                  rus.optional (sab.Base),
-                  rus.optional (dict),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns (rus.nothing)
+    @sus.takes   ('Service', 
+                  sus.optional ((basestring, surl.Url)), 
+                  sus.optional (ss.Session), 
+                  sus.optional (sab.Base),
+                  sus.optional (dict),
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns (sus.nothing)
     def __init__ (self, rm=None, session=None,
                   _adaptor=None, _adaptor_state={}, _ttype=None) : 
         """
@@ -98,17 +95,11 @@ class Service (sb.Base, sasync.Async) :
         # param checks
         self.valid  = False
         url         = surl.Url (rm)
+        scheme      = url.scheme.lower ()
 
-        if  not url.scheme :
-            url.scheme = 'fork'
-
-        if  not url.host :
-            url.host = 'localhost'
-
-        if  not session :
+        if not session :
             session = ss.Session (default=True)
 
-        scheme = url.scheme.lower ()
 
         self._super = super  (Service, self)
         self._super.__init__ (scheme, _adaptor, _adaptor_state, 
@@ -119,11 +110,11 @@ class Service (sb.Base, sasync.Async) :
     # --------------------------------------------------------------------------
     #
     @classmethod
-    @rus.takes   ('Service', 
-                  rus.optional ((surl.Url, basestring)), 
-                  rus.optional (ss.Session), 
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns (st.Task)
+    @sus.takes   ('Service', 
+                  sus.optional ((surl.Url, basestring)), 
+                  sus.optional (ss.Session), 
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns (st.Task)
     def create   (cls, rm=None, session=None, ttype=SYNC) :
         """ 
         create(rm=None, session=None)
@@ -148,8 +139,8 @@ class Service (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Service')
-    @rus.returns   (basestring)
+    @sus.takes     ('Service')
+    @sus.returns   (basestring)
     def __str__ (self):
         """
         __str__()
@@ -165,8 +156,8 @@ class Service (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Service')
-    @rus.returns   (rus.nothing)
+    @sus.takes     ('Service')
+    @sus.returns   (sus.nothing)
     def close (self) :
         """
         close()
@@ -203,10 +194,10 @@ class Service (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes     ('Service', 
+    @sus.takes     ('Service', 
                     descr.Description, 
-                    rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns   ((j.Job, st.Task))
+                    sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns   ((j.Job, st.Task))
     def create_job (self, job_desc, ttype=None) :
         """ 
         create_job(job_desc)
@@ -314,11 +305,11 @@ class Service (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Service', 
+    @sus.takes   ('Service', 
                   basestring,
-                  rus.optional (basestring),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((j.Job, st.Task))
+                  sus.optional (basestring),
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((j.Job, st.Task))
     def run_job  (self, cmd, host=None, ttype=None) :
         """ 
         run_job(cmd, host=None)
@@ -337,9 +328,9 @@ class Service (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Service',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.list_of (basestring), st.Task))
+    @sus.takes   ('Service',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.list_of (basestring), st.Task))
     def list     (self, ttype=None) :
         """ 
         list()
@@ -382,9 +373,9 @@ class Service (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Service',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((surl.Url, st.Task))
+    @sus.takes   ('Service',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((surl.Url, st.Task))
     def get_url  (self, ttype=None) :
         """ 
         get_url()
@@ -407,10 +398,10 @@ class Service (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Service',
+    @sus.takes   ('Service',
                   basestring,
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((j.Job, st.Task))
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((j.Job, st.Task))
     def get_job  (self, job_id, ttype=None) :
         """ 
         get_job(job_id)
@@ -444,5 +435,5 @@ class Service (sb.Base, sasync.Async) :
 
 # FIXME: add get_self()
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

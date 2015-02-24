@@ -1,28 +1,20 @@
 
-__author__    = "Andre Merzky, Ole Weidner"
+__author__    = "Andre Merzky"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-import re
-import os
-import sys
 import errno
+import os
+import re
+import sys
 
-import saga.utils.misc              as sumisc
-import radical.utils.logger         as rul
-
-import saga.utils.pty_shell_factory as supsf
-import saga.utils.pty_process       as supp
-import saga.url                     as surl
 import saga.exceptions              as se
 import saga.session                 as ss
+import saga.utils.logger            as sul
+import saga.utils.pty_shell_factory as supsf
 
-import pty_exceptions               as ptye
 
-
-# ------------------------------------------------------------------------------
-#
 _PTY_TIMEOUT = 2.0
 
 # ------------------------------------------------------------------------------
@@ -83,7 +75,7 @@ class PTYShell (object) :
 
         # run a simple shell command, merge stderr with stdout.  $$ is the pid
         # of the shell instance.
-        ret, out, _ = self.shell.run_sync (" mkdir -p /tmp/data.$$/" )
+        ret, out, _ = self.shell.run_sync ("mkdir -p /tmp/data.$$/" )
 
         # check if mkdir reported success
         if  ret != 0 :
@@ -95,7 +87,7 @@ class PTYShell (object) :
 
         # check size of staged script (this is actually done on PTYShell level
         # already, with no extra hop):
-        ret, out, _ = self.shell.run_sync (" stat -c '%s' /tmp/data.$$/job_1.pbs" )
+        ret, out, _ = self.shell.run_sync ("stat -c '%s' /tmp/data.$$/job_1.pbs" )
         if  ret != 0 :
             raise saga.NoSuccess ("failed to check size (%s)(%s)" % (ret, out))
 
@@ -176,48 +168,23 @@ class PTYShell (object) :
     #   - use ssh mechanisms for master timeout (and persist), as custom
     #     mechanisms will interfere with gc_timout.
 
-    # unique ID per connection, for debugging
-    _pty_id = 0
-
     # ----------------------------------------------------------------
     #
-    def __init__ (self, url, session=None, logger=None, init=None, opts={}, posix=True) :
+    def __init__ (self, url, session=None, logger=None, init=None, opts={}) :
 
-      # print 'new pty shell to %s' % url
-
-        if   logger  : self.logger  = logger
-        else         : self.logger  = rul.getLogger ('saga', 'PTYShell') 
-
-        if   session : self.session = session
-        else         : self.session = ss.Session (default=True)
+        if  None != logger  : self.logger  = logger
+        else                : self.logger  = sul.getLogger ('PTYShell') 
 
         self.logger.debug ("PTYShell init %s" % self)
 
         self.url         = url      # describes the shell to run
         self.init        = init     # call after reconnect
         self.opts        = opts     # options...
-        self.posix       = posix    # /bin/sh compatible?
         self.latency     = 0.0      # set by factory
-        self.cp_slave    = None     # file copy channel
 
-        self.prompt      = "[\$#%>\]]\s*$"
-        self.prompt_re   = re.compile ("^(.*?)%s\s*$" % self.prompt, re.DOTALL)
+        self.prompt      = None
+        self.prompt_re   = None
         self.initialized = False
-
-        self.pty_id       = PTYShell._pty_id
-        PTYShell._pty_id += 1
-
-        # get prompt pattern from config
-        self.cfg       = self.session.get_config('saga.utils.pty')
-
-        if  'prompt_pattern' in self.cfg :
-            self.prompt    = self.cfg['prompt_pattern'].get_value ()
-            self.prompt_re = re.compile ("^(.*?)%s" % self.prompt, re.DOTALL)
-        else :
-            self.prompt    = "[\$#%>\]]\s*$"
-            self.prompt_re = re.compile ("^(.*?)%s" % self.prompt, re.DOTALL)
-
-        self.logger.info ("PTY prompt pattern: %s" % self.prompt)
 
         # we need a local dir for file staging caches.  At this point we use
         # $HOME, but should make this configurable (FIXME)
@@ -234,22 +201,10 @@ class PTYShell (object) :
 
         
         self.factory    = supsf.PTYShellFactory   ()
-        self.pty_info   = self.factory.initialize (self.url,    self.session, 
-                                                   self.prompt, self.logger, 
-                                                   posix=self.posix)
+        self.pty_info   = self.factory.initialize (url, session, self.logger)
         self.pty_shell  = self.factory.run_shell  (self.pty_info)
 
-        self._trace ('init : %s' % self.pty_shell.command)
-
         self.initialize ()
-
-
-    # ----------------------------------------------------------------
-    #
-    def _trace (self, msg) :
-
-      # print " === %5d : %s : %s" % (self._pty_id, self.pty_shell, msg)
-        pass
 
 
     # ----------------------------------------------------------------
@@ -272,57 +227,39 @@ class PTYShell (object) :
                 return
 
 
-            if  self.posix :
-                # run a POSIX compatible shell, usually /bin/sh, in interactive mode
-                # also, turn off tty echo
-                command_shell = "exec /bin/sh -i"
+            # run a POSIX compatible shell, usually /bin/sh, in interactive mode
+            # also, turn off tty echo
+            command_shell = "exec /bin/sh -i"
 
-                # use custom shell if so requested
-                if  'shell' in self.opts and self.opts['shell'] :
-                    command_shell = "exec %s" % self.opts['shell']
-                    self.logger.info ("custom  command shell: %s" % command_shell)
-
-
-                self.logger.debug    ("running command shell:         %s"   % command_shell)
-                self.pty_shell.write (" stty -echo ; unset HISTFILE ; %s\n" % command_shell)
-
-                # make sure this worked, and that we find the prompt. We use
-                # a versatile prompt pattern to account for the custom shell case.
-                _, out = self.find ([self.prompt])
-
-                # make sure this worked, and that we find the prompt. We use
-                # a versatile prompt pattern to account for the custom shell case.
-                try :
-                    # set and register new prompt
-                    self.run_async  ( " unset PROMPT_COMMAND ; "
-                                    + " unset HISTFILE ; "
-                                    + "PS1='PROMPT-$?->'; "
-                                    + "PS2=''; "
-                                    + "export PS1 PS2 2>&1 >/dev/null\n")
-                    self.set_prompt (new_prompt="PROMPT-(\d+)->$")
-
-                    self.logger.debug ("got new shell prompt")
-
-                except Exception as e :
-                    raise se.NoSuccess ("Shell startup on target host failed: %s" % e)
+            # use custom shell if so requested
+            if  'shell' in self.opts and self.opts['shell'] :
+                command_shell = "exec %s" % self.opts['shell']
+                self.logger.info ("custom  command shell: %s" % command_shell)
 
 
-                try :
-                    # got a command shell, finally!
-                    # for local shells, we now change to the current working
-                    # directory.  Remote shells will remain in the default pwd
-                    # (usually $HOME).
-                    if  sumisc.host_is_local (surl.Url(self.url).host) :
-                        pwd = os.getcwd ()
-                        self.run_sync (' cd %s' % pwd)
-                except Exception as e :
-                    # We will ignore any errors.
-                    self.logger.warning ("local cd to %s failed" % pwd)
-                
-                
+            self.logger.debug    ("running command shell: %s" % command_shell)
+            self.pty_shell.write ("stty -echo ; %s\n"         % command_shell)
+
+            # make sure this worked, and that we find the prompt. We use
+            # a versatile prompt pattern to account for the custom shell case.
+            self.find (["^(.*[\$#%>])\s*$"])
+
+            # make sure this worked, and that we find the prompt. We use
+            # a versatile prompt pattern to account for the custom shell case.
+            try :
+                # set and register new prompt
+                self.run_async  ("unset PROMPT_COMMAND ; "
+                                     + "PS1='PROMPT-$?->'; "
+                                     + "PS2=''; "
+                                     + "export PS1 PS2 2>&1 >/dev/null\n")
+                self.set_prompt (new_prompt="PROMPT-(\d+)->$")
+
+                self.logger.debug ("got new shell prompt")
+
+            except Exception as e :
+                raise se.NoSuccess ("Shell startup on target host failed: %s" % e)
 
             self.initialized = True
-            self.finalized   = False
 
 
     # ----------------------------------------------------------------
@@ -332,9 +269,7 @@ class PTYShell (object) :
         try :
             if  kill_pty and self.pty_shell :
                 with self.pty_shell.rlock :
-                    if not self.finalized :
-                        self.pty_shell.finalize ()
-                        self.finalized = True
+                    self.pty_shell.finalize ()
 
         except Exception as e :
             pass
@@ -355,12 +290,12 @@ class PTYShell (object) :
                 return self.pty_shell.alive (recover)
 
             except Exception as e :
-                raise ptye.translate_exception (e)
+                raise self._translate_exception (e)
 
 
     # ----------------------------------------------------------------
     #
-    def find_prompt (self, timeout=_PTY_TIMEOUT) :
+    def find_prompt (self) :
         """
         If run_async was called, a command is running on the shell.  find_prompt
         can be used to collect its output up to the point where the shell prompt
@@ -379,7 +314,7 @@ class PTYShell (object) :
                 fret  = None
 
                 while fret == None :
-                    fret, match = self.pty_shell.find ([self.prompt], timeout)
+                    fret, match = self.pty_shell.find ([self.prompt], _PTY_TIMEOUT)
                 
               # self.logger.debug  ("find prompt '%s' in '%s'" % (self.prompt, match))
                 ret, txt = self._eval_prompt (match)
@@ -387,7 +322,7 @@ class PTYShell (object) :
                 return (ret, txt)
 
             except Exception as e :
-                raise ptye.translate_exception (e)
+                raise self._translate_exception (e)
 
 
     # ----------------------------------------------------------------
@@ -403,7 +338,7 @@ class PTYShell (object) :
                 return self.pty_shell.find (patterns, timeout=timeout)
 
             except Exception as e :
-                raise ptye.translate_exception (e)
+                raise self._translate_exception (e)
 
 
     # ----------------------------------------------------------------
@@ -450,11 +385,6 @@ class PTYShell (object) :
         the output contains multiple occurrences of the prompt, only the match
         up to the first occurence is returned.
         """
-
-        def escape (txt) :
-            pat = re.compile(r'\x1b[^m]*m')
-            return pat.sub ('', txt)
-
 
         with self.pty_shell.rlock :
 
@@ -504,17 +434,17 @@ class PTYShell (object) :
 
                 except Exception as e :
                     self.prompt = old_prompt
-                    raise ptye.translate_exception (e, "Could not set shell prompt")
+                    raise self._translate_exception (e, "Could not set shell prompt")
 
 
             # got a valid prompt -- but we have to sync the output again in
             # those cases where we had to use triggers to actually get the
             # prompt
             if triggers > 0 :
-                self.run_async (' printf "SYNCHRONIZE_PROMPT\n"')
+                self.run_async ('printf "SYNCHRONIZE_PROMPT\n"')
 
                 # FIXME: better timout value?
-                fret, match = self.pty_shell.find (["SYNCHRONIZE_PROMPT"], timeout=10.0)  
+                fret, match = self.pty_shell.find (["SYNCHRONIZE_PROMPT"], timeout=1.0)  
 
                 if  fret == None :
                     # not find prompt after blocking?  BAD!  Restart the shell
@@ -557,24 +487,12 @@ class PTYShell (object) :
                     self.logger.debug  ("could not parse prompt (%s) (%s)" % (prompt, data))
                     raise se.NoSuccess ("could not parse prompt (%s) (%s)" % (prompt, data))
 
-                txt = result.group (1)
-                ret = 0
-
                 if  len (result.groups ()) != 2 :
-                    if  new_prompt :
-                        self.logger.warn   ("prompt does not capture exit value (%s)" % prompt)
-                      # raise se.NoSuccess ("prompt does not capture exit value (%s)" % prompt)
+                    self.logger.debug  ("prompt does not capture exit value (%s)" % prompt)
+                    raise se.NoSuccess ("prompt does not capture exit value (%s)" % prompt)
 
-                else :
-                    try :
-                        ret = int(result.group (2))
-                    except ValueError :
-                        # apparently, this is not an integer. Print a warning, and
-                        # assume success -- the calling entity needs to evaluate the
-                        # remainder...
-                        ret = 0
-                        self.logger.warn  ("prompt not suitable for error checks (%s)" % prompt)
-                        txt += "\n%s" % result.group (2)
+                txt =     result.group (1)
+                ret = int(result.group (2)) 
 
                 # if that worked, we can permanently set new_prompt
                 if  new_prompt :
@@ -584,7 +502,7 @@ class PTYShell (object) :
 
             except Exception as e :
                 
-                raise ptye.translate_exception (e, "Could not eval prompt")
+                raise self._translate_exception (e, "Could not eval prompt")
 
 
 
@@ -639,8 +557,6 @@ class PTYShell (object) :
         """
 
         with self.pty_shell.rlock :
-         
-            self._trace ("run sync  : %s" % command)
 
             # we expect the shell to be in 'ground state' when running a syncronous
             # command -- thus we can check if the shell is alive before doing so,
@@ -700,23 +616,16 @@ class PTYShell (object) :
                 stdout = None
                 stderr = None
 
-                if  iomode == None :
-                    iomode =  STDOUT
-
                 if  iomode == IGNORE :
                     pass
 
                 if  iomode == MERGED :
                     stdout =  txt
 
-                if  iomode == STDOUT :
+                if  iomode == SEPARATE :
                     stdout =  txt
 
-                if  iomode == SEPARATE or \
-                    iomode == STDERR   :
-                    stdout =  txt
-
-                    self.pty_shell.write (" cat %s\n" % _err)
+                    self.pty_shell.write ("cat %s\n" % _err)
                     fret, match = self.pty_shell.find ([self.prompt], timeout=-1.0)  # blocks
 
                     if  fret == None :
@@ -726,21 +635,25 @@ class PTYShell (object) :
                                               % command)
 
                     _ret, _stderr = self._eval_prompt (match)
-
                     if  _ret :
                         raise se.IncorrectState ("run_sync failed, no stderr (%s: %s)" \
                                               % (_ret, _stderr))
-
                     stderr =  _stderr
 
+
+                if  iomode == STDOUT :
+                    stdout =  txt
+
                 if  iomode == STDERR :
-                    # got stderr in branch above
-                    stdout =  None
+                    stderr =  txt
+
+                if  iomode == None :
+                    stdout =  txt
 
                 return (ret, stdout, stderr)
 
             except Exception as e :
-                raise ptye.translate_exception (e)
+                raise self._translate_exception (e)
 
 
     # ----------------------------------------------------------------
@@ -760,8 +673,6 @@ class PTYShell (object) :
 
         with self.pty_shell.rlock :
 
-          # self._trace ("run async : %s" % command)
-
             # we expect the shell to be in 'ground state' when running an asyncronous
             # command -- thus we can check if the shell is alive before doing so,
             # and restart if needed
@@ -771,10 +682,10 @@ class PTYShell (object) :
 
             try :
                 command = command.strip ()
-                self.send (" %s\n" % command)
+                self.send ("%s\n" % command)
 
             except Exception as e :
-                raise ptye.translate_exception (e)
+                raise self._translate_exception (e)
 
 
     # ----------------------------------------------------------------
@@ -794,7 +705,7 @@ class PTYShell (object) :
                 self.pty_shell.write ("%s" % data)
 
             except Exception as e :
-                raise ptye.translate_exception (e)
+                raise self._translate_exception (e)
 
     # ----------------------------------------------------------------
     #
@@ -816,8 +727,6 @@ class PTYShell (object) :
 
         try :
 
-          # self._trace ("write     : %s -> %s" % (src, tgt))
-
             # FIXME: make this relative to the shell's pwd?  Needs pwd in
             # prompt, and updating pwd state on every find_prompt.
 
@@ -828,14 +737,12 @@ class PTYShell (object) :
             fhandle.flush  ()
             fhandle.close  ()
 
-            ret = self.stage_to_remote (fname, tgt)
+            self.factory.run_copy_to (self.pty_info, fname, tgt)
 
             os.remove (fname)
 
-            return ret
-
         except Exception as e :
-            raise ptye.translate_exception (e)
+            raise self._translate_exception (e)
 
 
     # ----------------------------------------------------------------
@@ -849,20 +756,16 @@ class PTYShell (object) :
         """
 
         try :
-
-          # self._trace ("read      : %s" % src)
-
             # FIXME: make this relative to the shell's pwd?  Needs pwd in
             # prompt, and updating pwd state on every find_prompt.
 
             # first, write data into a tmp file
-            fname = self.base + "/staging.%s" % id(self)
-            _     = self.stage_from_remote (src, fname)
+            fname   = self.base + "/staging.%s" % id(self)
 
-            os.system ('sync') # WTF?  Why do I need this?
+            self.factory.run_copy_from (self.pty_info, src, fname)
 
             fhandle = open (fname, 'r')
-            out     = fhandle.read  ()
+            out = fhandle.read  ()
             fhandle.close  ()
 
             os.remove (fname)
@@ -870,7 +773,7 @@ class PTYShell (object) :
             return out
 
         except Exception as e :
-            raise ptye.translate_exception (e)
+            raise self._translate_exception (e)
 
 
     # ----------------------------------------------------------------
@@ -888,16 +791,14 @@ class PTYShell (object) :
                     relative to the shell's URL.
         """
 
-        self._trace ("stage to  : %s -> %s" % (src, tgt))
-
         # FIXME: make this relative to the shell's pwd?  Needs pwd in
         # prompt, and updating pwd state on every find_prompt.
 
         try :
-            return self.run_copy_to (src, tgt, cp_flags)
+            self.factory.run_copy_to (self.pty_info, src, tgt, cp_flags)
 
         except Exception as e :
-            raise ptye.translate_exception (e)
+            raise self._translate_exception (e)
 
     # ----------------------------------------------------------------
     #
@@ -914,232 +815,64 @@ class PTYShell (object) :
                     relative to the current working directory.
         """
 
-        self._trace ("stage from: %s -> %s" % (src, tgt))
-
         # FIXME: make this relative to the shell's pwd?  Needs pwd in
         # prompt, and updating pwd state on every find_prompt.
 
         try :
-            return self.run_copy_from (src, tgt, cp_flags)
+            self.factory.run_copy_from (self.pty_info, src, tgt, cp_flags)
 
         except Exception as e :
-            raise ptye.translate_exception (e)
+            raise self._translate_exception (e)
 
-    # --------------------------------------------------------------------------
+
+    # ----------------------------------------------------------------
     #
-    def run_copy_to (self, src, tgt, cp_flags="") :
-        """ 
-        This initiates a slave copy connection.   Src is interpreted as local
-        path, tgt as path on the remote host.
-
-        Now, this is ugly when over sftp: sftp supports recursive copy, and
-        wildcards, all right -- but for recursive copies, it wants the target
-        dir to exist -- so, we have to check if the local src is a  dir, and if
-        so, we first create the target before the copy.  Worse, for wildcards we
-        have to do a local expansion, and the to do the same for each entry...
+    def _translate_exception (self, e, msg=None) :
+        """
+        In many cases, we should be able to roughly infer the exception cause
+        from the error message -- this is centrally done in this method.  If
+        possible, it will return a new exception with a more concise error
+        message and appropriate exception type.
         """
 
-        self._trace ("copy  to  : %s -> %s" % (src, tgt))
+        if  not issubclass (e.__class__, se.SagaException) :
+            # we do not touch non-saga exceptions
+            return e
 
-        with self.pty_shell.rlock :
+        if  not issubclass (e.__class__, se.NoSuccess) :
+            # this seems to have a specific cause already, leave it alone
+            return e
 
-            info = self.pty_info
-            repl = dict ({'src'      : src, 
-                          'tgt'      : tgt, 
-                          'cp_flags' : cp_flags}.items () + info.items ())
+        cmsg = e._plain_message
+        lmsg = cmsg.lower ()
 
-            # at this point, we do have a valid, living master
-            s_cmd = info['scripts'][info['copy_type']]['copy_to']    % repl
-            s_in  = info['scripts'][info['copy_type']]['copy_to_in'] % repl
+        if  msg :
+            cmsg = "%s (%s)" % (cmsg, msg)
 
-            if  not s_in :
-                # this code path does not use an interactive shell for copy --
-                # so the above s_cmd is all we want to run, really.  We get
-                # do not use the chached cp_slave in this case, but just run the
-                # command.  We do not have a list of transferred files though,
-                # yet -- that should be parsed from the proc output.
+        if 'auth' in lmsg :
+            e = se.AuthorizationFailed (cmsg)
 
-                cp_proc = supp.PTYProcess (s_cmd)
-                out = cp_proc.wait ()
-                if  cp_proc.exit_code :
-                    raise ptye.translate_exception (se.NoSuccess ("file copy failed: %s" % out))
+        elif 'pass' in lmsg :
+            e = se.AuthenticationFailed (cmsg)
 
-                return list()
+        elif 'ssh_exchange_identification' in lmsg :
+            e = se.AuthenticationFailed ("too frequent login attempts, or sshd misconfiguration: %s" % cmsg)
 
+        elif 'denied' in lmsg :
+            e = se.PermissionDenied (cmsg)
 
-            # this code path uses an interactive shell to transfer files, of
-            # some form, such as sftp.  Get the shell cp_slave from cache, and
-            # run the actual copy command.
-            if  not self.cp_slave :
-                self._trace ("get cp slave")
-                self.cp_slave = self.factory.get_cp_slave (s_cmd, info)
+        elif 'shared connection' in lmsg :
+            e = se.NoSuccess ("Insufficient system resources: %s" % cmsg)
 
-            prep = ""
-            if  'sftp' in s_cmd :
-                # prepare target dirs for recursive copy, if needed
-                import glob
-                src_list = glob.glob (src)
-                for s in src_list :
-                    if  os.path.isdir (s) :
-                        prep += "mkdir %s/%s\n" % (tgt, os.path.basename (s))
+        elif 'pty allocation' in lmsg :
+            e = se.NoSuccess ("Insufficient system resources: %s" % cmsg)
+
+        elif 'Connection to master closed' in lmsg :
+            e = se.NoSuccess ("Connection failed (insufficient system resources?): %s" % cmsg)
+
+        # print e.traceback
+        return e
 
 
-            _      = self.cp_slave.write    ("%s%s\n" % (prep, s_in))
-            _, out = self.cp_slave.find     (['[\$\>\]]\s*$'], -1)
-            _, out = self.cp_slave.find     (['[\$\>\]]\s*$'], 1.0)
-
-            # FIXME: we don't really get exit codes from copy
-            # if  self.cp_slave.exit_code != 0 :
-            #     raise se.NoSuccess._log (info['logger'], "file copy failed: %s" % str(out))
-
-            if 'Invalid flag' in out :
-                raise se.NoSuccess._log (info['logger'], "sftp version not supported (%s)" % str(out))
-
-            if 'No such file or directory' in out :
-                raise se.DoesNotExist._log (info['logger'], "file copy failed: %s" % str(out))
-
-            if 'is not a directory' in out :
-                raise se.BadParameter._log (info['logger'], "File copy failed: %s" % str(out))
-
-            if  'sftp' in s_cmd :
-                if 'not found' in out :
-                    raise se.BadParameter._log (info['logger'], "file copy failed: %s" % out)
-
-
-            # we interpret the first word on the line as name of src file -- we
-            # will return a list of those
-            lines = out.split ('\n')
-            files = []
-
-            for line in lines :
-
-                elems = line.split (' ', 2)
-
-                if  elems :
-
-                    f = elems[0]
-
-                    # remove quotes
-                    if  f :
-
-                        if  f[ 0] in ["'", '"', '`'] : f = f[1:  ]
-                        if  f[-1] in ["'", '"', '`'] : f = f[ :-1]
-
-                    # ignore empty lines
-                    if  f :
-
-                        files.append (f)
-
-            info['logger'].debug ("copy done: %s" % files)
-
-            return files
-
-
-    # --------------------------------------------------------------------------
-    #
-    def run_copy_from (self, src, tgt, cp_flags="") :
-        """ 
-        This initiates a slave copy connection.   Src is interpreted as path on
-        the remote host, tgt as local path.
-
-        We have to do the same mkdir trick as for the run_copy_to, but here we
-        need to expand wildcards on the *remote* side :/
-        """
-
-        self._trace ("copy  from: %s -> %s" % (src, tgt))
-
-        with self.pty_shell.rlock :
-
-            info = self.pty_info
-            repl = dict ({'src'      : src, 
-                          'tgt'      : tgt, 
-                          'cp_flags' : cp_flags}.items ()+ info.items ())
-
-            # at this point, we do have a valid, living master
-            s_cmd = info['scripts'][info['copy_type']]['copy_from']    % repl
-            s_in  = info['scripts'][info['copy_type']]['copy_from_in'] % repl
-
-            if  not s_in :
-                # this code path does not use an interactive shell for copy --
-                # so the above s_cmd is all we want to run, really.  We get
-                # do not use the chached cp_slave in this case, but just run the
-                # command.  We do not have a list of transferred files though,
-                # yet -- that should be parsed from the proc output.
-                cp_proc = supp.PTYProcess (s_cmd)
-                cp_proc.wait ()
-                if  cp_proc.exit_code :
-                    raise ptye.translate_exception (se.NoSuccess ("file copy failed: %s" % out))
-
-                return list()
-
-            if  not self.cp_slave :
-                self._trace ("get cp slave")
-                self.cp_slave = self.factory.get_cp_slave (s_cmd, info)
-
-            prep = ""
-
-            if  'sftp' in s_cmd :
-                # prepare target dirs for recursive copy, if needed
-                self.cp_slave.write (" ls %s\n" % src)
-                _, out = self.cp_slave.find (["^sftp> "], -1)
-
-                src_list = out[1].split ('/n')
-
-                for s in src_list :
-                    if  os.path.isdir (s) :
-                        prep += "lmkdir %s/%s\n" % (tgt, os.path.basename (s))
-
-
-            _      = self.cp_slave.write    ("%s%s\n" % (prep, s_in))
-            _, out = self.cp_slave.find     (['[\$\>\]] *$'], -1)
-
-            # FIXME: we don't really get exit codes from copy
-          # if  self.cp_slave.exit_code != 0 :
-          #     raise se.NoSuccess._log (info['logger'], "file copy failed: %s" % out)
-
-            if 'Invalid flag' in out :
-                raise se.NoSuccess._log (info['logger'], "sftp version not supported (%s)" % out)
-
-            if 'No such file or directory' in out :
-                raise se.DoesNotExist._log (info['logger'], "file copy failed: %s" % out)
-
-            if 'is not a directory' in out :
-                raise se.BadParameter._log (info['logger'], "file copy failed: %s" % out)
-
-            if  'sftp' in s_cmd :
-                if 'not found' in out :
-                    raise se.BadParameter._log (info['logger'], "file copy failed: %s" % out)
-
-
-            # we run copy with -v, so get a list of files which have been copied
-            # -- we parse that list and return it.  we interpret the *second*
-            # word on the line as name of src file.
-            lines = out.split ('\n')
-            files = []
-
-            for line in lines :
-
-                elems = line.split (' ', 3)
-                
-                if  elems and len(elems) > 1 and elems[0] == 'Fetching' :
-
-                    f = elems[1]
-
-                    # remove quotes
-                    if  f :
-
-                        if  f[ 0] in ["'", '"', '`']  :  f = f[1:  ]
-                        if  f[-1] in ["'", '"', '`']  :  f = f[ :-1]
-
-                    # ignore empty lines
-                    if  f :
-                        files.append (f)
-
-            info['logger'].debug ("copy done: %s" % files)
-
-            return files
-
-
-
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

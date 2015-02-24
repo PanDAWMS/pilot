@@ -4,9 +4,10 @@ __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-import saga.context
 import saga.adaptors.base
 import saga.adaptors.cpi.context
+import saga.context
+
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -104,5 +105,5 @@ class ContextUserPass (saga.adaptors.cpi.context.Context) :
 
 
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

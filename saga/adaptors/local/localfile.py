@@ -11,11 +11,11 @@ import pprint
 import shutil
 import traceback
 
-import saga.url
 import saga.adaptors.base
 import saga.adaptors.cpi.filesystem
-
+import saga.url
 import saga.utils.misc
+
 
 SYNC_CALL  = saga.adaptors.cpi.decorators.SYNC_CALL
 ASYNC_CALL = saga.adaptors.cpi.decorators.ASYNC_CALL
@@ -544,5 +544,5 @@ class LocalFile (saga.adaptors.cpi.filesystem.File) :
             raise saga.exceptions.NotImplemented ("Cannot handle %s tasks" %  call)
 
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

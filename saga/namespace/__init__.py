@@ -5,9 +5,8 @@ __license__   = "MIT"
 
 
 from saga.namespace.constants  import *
-from saga.namespace.entry      import Entry
 from saga.namespace.directory  import Directory
+from saga.namespace.entry      import Entry
 
 
-
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4

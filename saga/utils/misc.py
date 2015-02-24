@@ -4,17 +4,17 @@ __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-import re
+""" Provides an assortment of utilities """
+
 import os
+import re
+import socket
 import sys
 import time
-import socket
 import traceback
 
 import saga
 
-
-""" Provides an assortment of utilities """
 
 _latencies = {}
 
@@ -40,7 +40,7 @@ def get_trace () :
 def host_is_local (host) :
     """ Returns True if the given host is the localhost
     """
-
+    
     if  not host                   or \
         host == 'localhost'        or \
         host == socket.gethostname () :
@@ -131,40 +131,12 @@ def get_host_latency (host_url) :
 # --------------------------------------------------------------------
 #
 def url_is_local (arg) :
-    """ 
-    Returns True if the given url points to localhost.
-
-    We consider all URLs which explicitly define a port as non-local, because it
-    looks like someone wants to explicitly use some protocol --
-    `ssh://localost:2222/` is likely to point at an ssh tunnel.  
-    
-    If, however, the port matches the default port for the given protocol, we
-    consider it local again -- `ssh://localhost:22/` is most likely a real local
-    activity.
-
-    Note that the schema set operates on substring level, so that we will accept
-    port 22 for `ssh` and also for `sge+ssh` -- this may break in corner cases
-    (altough I can't think of any right now).
+    """ Returns True if the given url points to localhost
     """
     
     u = saga.Url (arg)
 
-    if  not host_is_local (u.host) :
-        return False
-
-    # host is local, but what does the port indicate?
-    if u.port and u.port > 0 :
-        
-        try :
-            if  socket.getservbyport (u.port) in u.schema :
-                # some non-default port is used -- consider remote
-                return False
-        except :
-            # unknown service port --assume this is non-standard...
-            return False
-
-    # port is not set or points to default port for service
-    return True
+    return host_is_local (u.host)
 
 
 
@@ -178,9 +150,7 @@ def url_is_relative (url_1) :
     u1 = saga.Url (url_1)
 
     if  str (u1) == str(u1.path) :
-        if  not u1.path :
-            return True 
-        elif u1.path[0] != '/' :
+        if  u1.path and u1.path[0] != '/' :
             return True
 
     return False
@@ -243,13 +213,7 @@ def url_make_absolute (url_1, url_2) :
     protocol/port/user etc.
     """
 
-    if  not isinstance(url_1, saga.Url):
-        url_1 = saga.Url(url_1)
-
-    if  not isinstance(url_2, saga.Url):
-        url_2 = saga.Url(url_2)
-
-    if  not url_is_compatible (url_1, url_2) :
+    if not url_is_compatible (url_1, url_2) :
         raise saga.BadParameter ("Cannot interpret url %s in the context of url %s" \
                               % (url_2, url_1))
 
@@ -281,9 +245,11 @@ def url_is_compatible (url_1, url_2) :
     u1 = saga.Url (url_1)
     u2 = saga.Url (url_2)
 
+
     # if either one url only contains a path, it is compatible to anything.
-    if os.path.normpath(u1.path) == os.path.normpath (str(u1)) : return True
-    if os.path.normpath(u2.path) == os.path.normpath (str(u2)) : return True
+
+    if u1.path == str(u1) : return True
+    if u2.path == str(u2) : return True
 
     # more than path in both URLs -- check compatibility for all elements
     if u1.scheme   and     u2.scheme   and u1.scheme   != u2.scheme   : return False 
@@ -326,5 +292,5 @@ def normalize_version (v) :
 
 # --------------------------------------------------------------------
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

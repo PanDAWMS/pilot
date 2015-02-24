@@ -1,14 +1,13 @@
 
-__author__    = "Andre Merzky, Ole Weidner"
+__author__    = "Andre Merzky"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
-
-import radical.utils.signatures as rus
-
+import constants             as const
 import saga.attributes       as sa
 import saga.exceptions       as se
-import constants             as const
+import saga.utils.signatures as sus
+
 
 #-------------------------------------------------------------------------------
 #
@@ -84,9 +83,9 @@ class Description (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Description', 
-                  rus.optional (dict))
-    @rus.returns (rus.nothing)
+    @sus.takes   ('Description', 
+                  sus.optional (dict))
+    @sus.returns (sus.nothing)
     def __init__ (self, d=None):
         """
         __init__()
@@ -128,9 +127,9 @@ class Description (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Description', 
+    @sus.takes   ('Description', 
                   'Description')
-    @rus.returns ('Description')
+    @sus.returns ('Description')
     def __deepcopy__ (self, other) :
         """
         An alias for `clone()`.
@@ -139,9 +138,9 @@ class Description (sa.Attributes) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Description', 
-                  rus.optional ('Description'))
-    @rus.returns ('Description')
+    @sus.takes   ('Description', 
+                  sus.optional ('Description'))
+    @sus.returns ('Description')
     def clone (self, other=None) :
         """ 
         clone()
@@ -172,9 +171,9 @@ class ComputeDescription (Description) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('ComputeDescription', 
-                  rus.optional (dict))
-    @rus.returns (rus.nothing)
+    @sus.takes   ('ComputeDescription', 
+                  sus.optional (dict))
+    @sus.returns (sus.nothing)
     def __init__ (self, d=None) :
         
         if  d :
@@ -199,9 +198,9 @@ class StorageDescription (Description) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('StorageDescription', 
-                  rus.optional (dict))
-    @rus.returns (rus.nothing)
+    @sus.takes   ('StorageDescription', 
+                  sus.optional (dict))
+    @sus.returns (sus.nothing)
     def __init__ (self, d=None) :
         
         if  d :
@@ -225,9 +224,9 @@ class NetworkDescription (Description) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('NetworkDescription', 
-                  rus.optional (dict))
-    @rus.returns (rus.nothing)
+    @sus.takes   ('NetworkDescription', 
+                  sus.optional (dict))
+    @sus.returns (sus.nothing)
     def __init__ (self, d=None) :
         
         if  d :
@@ -242,5 +241,5 @@ class NetworkDescription (Description) :
 
 
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 

@@ -4,18 +4,16 @@ __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
 
-import radical.utils.signatures as rus
-
 import saga.adaptors.base    as sab
+import saga.async            as sasync
+import saga.base             as sb
+from   saga.constants            import SYNC, ASYNC, TASK
 import saga.exceptions       as se
+from   saga.namespace.constants  import *
 import saga.session          as ss
 import saga.task             as st
 import saga.url              as surl
-import saga.base             as sb
-import saga.async            as sasync
-
-from   saga.namespace.constants  import *
-from   saga.constants            import SYNC, ASYNC, TASK
+import saga.utils.signatures as sus
 
 
 # ------------------------------------------------------------------------------
@@ -40,14 +38,14 @@ class Entry (sb.Base, sasync.Async) :
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry', 
-                  rus.optional ((surl.Url, basestring)), 
-                  rus.optional (int, rus.nothing), 
-                  rus.optional (ss.Session),
-                  rus.optional (sab.Base), 
-                  rus.optional (dict), 
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns (rus.nothing)
+    @sus.takes   ('Entry', 
+                  sus.optional ((surl.Url, basestring)), 
+                  sus.optional (int), 
+                  sus.optional (ss.Session),
+                  sus.optional (sab.Base), 
+                  sus.optional (dict), 
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns (sus.nothing)
     def __init__ (self, url=None, flags=None, session=None, 
                   _adaptor=None, _adaptor_state={}, _ttype=None) : 
         '''
@@ -80,7 +78,6 @@ class Entry (sb.Base, sasync.Async) :
         if not session :
             session = ss.Session (default=True)
 
-        if  not flags : flags = 0
         url     = surl.Url (url)
         scheme  = url.scheme.lower ()
 
@@ -92,12 +89,12 @@ class Entry (sb.Base, sasync.Async) :
     # --------------------------------------------------------------------------
     #
     @classmethod
-    @rus.takes   ('Entry', 
-                  rus.optional ((surl.Url, basestring)), 
-                  rus.optional (int, rus.nothing), 
-                  rus.optional (ss.Session),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns (st.Task)
+    @sus.takes   ('Entry', 
+                  sus.optional ((surl.Url, basestring)), 
+                  sus.optional (int), 
+                  sus.optional (ss.Session),
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns (st.Task)
     def create   (cls, url=None, flags=None, session=None, ttype=None) :
         '''
         url:       saga.Url
@@ -108,7 +105,6 @@ class Entry (sb.Base, sasync.Async) :
         '''
 
         # param checks
-        if  not flags : flags = 0
         if not session :
             session = ss.Session (default=True)
 
@@ -120,9 +116,9 @@ class Entry (sb.Base, sasync.Async) :
     #
     # namespace entry methods
     #
-    @rus.takes   ('Entry',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((surl.Url, st.Task))
+    @sus.takes   ('Entry',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((surl.Url, st.Task))
     def get_url  (self, ttype=None) :
         '''
         ttype:         saga.task.type enum
@@ -142,9 +138,9 @@ class Entry (sb.Base, sasync.Async) :
   
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((basestring, st.Task))
+    @sus.takes   ('Entry',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((basestring, st.Task))
     def get_cwd  (self, ttype=None) :
         '''
         ttype:         saga.task.type enum
@@ -155,9 +151,9 @@ class Entry (sb.Base, sasync.Async) :
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((basestring, st.Task))
+    @sus.takes   ('Entry',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((basestring, st.Task))
     def get_name (self, ttype=None) :
         '''
         ttype:         saga.task.type enum
@@ -170,9 +166,9 @@ class Entry (sb.Base, sasync.Async) :
     #
     # namespace entry / directory methods
     #
-    @rus.takes   ('Entry',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((bool, st.Task))
+    @sus.takes   ('Entry',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((bool, st.Task))
     def is_dir   (self, ttype=None) :
         '''
         ttype:         saga.task.type enum
@@ -192,9 +188,9 @@ class Entry (sb.Base, sasync.Async) :
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((bool, st.Task))
+    @sus.takes   ('Entry',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((bool, st.Task))
     def is_entry (self, ttype=None) :
         '''
         ttype:         saga.task.type enum
@@ -205,9 +201,9 @@ class Entry (sb.Base, sasync.Async) :
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((bool, st.Task))
+    @sus.takes   ('Entry',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((bool, st.Task))
     def is_link  (self, ttype=None) :
         '''
         tgt:           saga.Url / None
@@ -219,9 +215,9 @@ class Entry (sb.Base, sasync.Async) :
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes    ('Entry',
-                   rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns  ((surl.Url, st.Task))
+    @sus.takes    ('Entry',
+                   sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns  ((surl.Url, st.Task))
     def read_link (self, ttype=None) :
         '''
         tgt:           saga.Url / None
@@ -235,11 +231,10 @@ class Entry (sb.Base, sasync.Async) :
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
+    @sus.takes   ('Entry',
                   (surl.Url, basestring),
-                  rus.optional (int, rus.nothing),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def copy     (self, tgt, flags=0, ttype=None) :
         '''
         tgt:           saga.Url
@@ -262,7 +257,6 @@ class Entry (sb.Base, sasync.Async) :
         '''
         
         # parameter checks
-        if  not flags : flags = 0
         tgt_url = surl.Url (tgt)  # ensure valid and typed Url
     
     
@@ -349,11 +343,10 @@ class Entry (sb.Base, sasync.Async) :
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
+    @sus.takes   ('Entry',
                   (surl.Url, basestring),
-                  rus.optional (int, rus.nothing),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def link     (self, tgt, flags=0, ttype=None) :
         '''
         tgt:           saga.Url
@@ -362,17 +355,15 @@ class Entry (sb.Base, sasync.Async) :
         ret:           None / saga.Task
         '''
 
-        if  not flags : flags = 0
         return self._adaptor.link_self (tgt, flags, ttype=ttype) 
 
 
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
+    @sus.takes   ('Entry',
                   (surl.Url, basestring),
-                  rus.optional (int, rus.nothing),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def move     (self, tgt, flags=0, ttype=None) :
         '''
         :param target: Url of the move target.
@@ -391,17 +382,15 @@ class Entry (sb.Base, sasync.Async) :
             entry = saga.namespace.Directory("sftp://localhost/tmp/data/data.bin")
             entry.move ("sftp://localhost/tmp/data/data.bak")
         '''
-        if  not flags : flags = 0
         return self._adaptor.move_self (tgt, flags, ttype=ttype) 
   
     
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
-                  rus.optional (int, rus.nothing),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+    @sus.takes   ('Entry',
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def remove   (self, flags=0, ttype=None) :
         '''
         :param flags:  Flags to use for the operation.
@@ -418,17 +407,16 @@ class Entry (sb.Base, sasync.Async) :
             entry = saga.namespace.Directory("sftp://localhost/tmp/data/data.bin")
             entry.remove ()
         '''
-        if  not flags : flags = 0
         return self._adaptor.remove_self (flags, ttype=ttype) 
   
     
     
     # --------------------------------------------------------------------------
     #
-    @rus.takes   ('Entry',
-                  rus.optional (float),
-                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
-    @rus.returns ((rus.nothing, st.Task))
+    @sus.takes   ('Entry',
+                  sus.optional (float),
+                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
+    @sus.returns ((sus.nothing, st.Task))
     def close (self, timeout=None, ttype=None) :
         '''
         timeout:       float
@@ -445,5 +433,5 @@ class Entry (sb.Base, sasync.Async) :
     name = property (get_name)  # string
 
 
-
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 
