@@ -481,8 +481,8 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("timefloor", "0")
 #            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
-        if thisSite.sitename == "BNL_PROD":
-            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
+#        if thisSite.sitename == "BNL_PROD":
+#            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
         if  thisSite.sitename == "NERSC_Edison":
             ec = self.replaceQueuedataField("copytool", "gfal-copy")
             ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
