@@ -260,6 +260,12 @@ class GlexecInterface(object):
 	shutil.copytree(os.path.join(os.environ['PilotHomeDir'], 'saga'),
 		os.path.join(self.sandbox_path, 'saga'))
 
+	shutil.copytree(os.path.join(os.environ['PilotHomeDir'], 'radical'),
+		os.path.join(self.sandbox_path, 'radical'))
+
+	shutil.copytree(os.path.join(os.environ['PilotHomeDir'], 'HPC'),
+		os.path.join(self.sandbox_path, 'HPC'))
+
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PILOTVERSION'),
                      os.path.join(self.sandbox_path, 'PILOTVERSION'))
         os.chmod(os.path.join(self.sandbox_path, 'PILOTVERSION'), 0666)
