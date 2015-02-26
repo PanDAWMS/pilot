@@ -1311,7 +1311,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             fax_redirectors_dictionary = self._getFAXRedirectors(computingSite, sourceSite, jobId)
 
             # Verify the dictionary
-            if fax_redirectors_dictionary.has_key('computingsite') and fax_redirectors_dictionary['computingsite')] != None:
+            if fax_redirectors_dictionary.has_key('computingsite') and fax_redirectors_dictionary['computingsite'] != None:
                 if fax_redirectors_dictionary['computingsite'] == "" or fax_redirectors_dictionary['computingsite'].lower() == "null":
                     fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
                     tolog("!!WARNING!!5555!! FAX computingsite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
