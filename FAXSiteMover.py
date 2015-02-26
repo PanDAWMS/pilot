@@ -870,7 +870,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         # get the global path (likely to update the gpfn/SURL)
         tolog("SURL=%s" % (gpfn))
-        gpfn = self.findGlobalFilePath(gpfn, dsname, computingSite, sourceSite)
+        gpfn = self.findGlobalFilePath(gpfn, dsname, computingSite, sourceSite, jobId=jobId)
         if gpfn == "":
             ec = error.ERR_STAGEINFAILED
             pilotErrorDiag = "Failed to get global paths for FAX transfer"
@@ -1082,16 +1082,14 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return 'global_paths-%s.txt' % (fdsname)
 
-    def getGlobalFilePaths(self, surl, dsname, computingSite, sourceSite):
+    def getGlobalFilePaths(self, surl, dsname, computingSite, sourceSite, jobId=None):
         """ Get the global file paths using to_native_lfn() [dsname needed] or Rucio naming convension [surl needed to extract the scope] """
-
-        #tolog("Guessing the global path using to_native_lfn()..")
 
         # this method will in fact only ever return a single path, but keep 'paths' as a list for consistency with getGlobalFilePathsDQ2()
         paths = []
 
         # get the global redirectors (several, since the lib file might not be at the same place for overflow jobs)
-        fax_redirectors_dictionary = self.getFAXRedirectors(computingSite, sourceSite)
+        fax_redirectors_dictionary = self.getFAXRedirectors(computingSite, sourceSite, jobId)
 
         # select the proper fax redirector
         if ".lib." in surl:
@@ -1227,42 +1225,107 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return self.verifyGlobalPath(output, verbose=False)
 
-    def getFAXRedirectors(self, computingSite, sourceSite, url='http://waniotest.appspot.com/UpdateFromAGIS'):
+    # MOVE TO FileHandling
+    def writeJSON(self, file_name, dictionary):
+        """ Write the dictionary to a JSON file """
+
+        status = False
+
+        from json import dump
+        try:
+            fp = open(file_name, "w")
+        except Exception, e:
+            tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
+        else:
+            # Write the dictionary
+            try:
+                dump(dictionary, fp)
+            except Exception, e:
+                tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
+            else:
+                tolog("Wrote dictionary to file %s" % (file_name))
+                status = True
+            fp.close()
+
+        return status
+
+    # MOVE TO FileHandling
+    def readJSON(self, file_name):
+        """ Read a dictionary from a JSON file """
+
+        dictionary = {}
+        from json import load
+        try:
+            fp = open(file_name, 'r')
+        except Exception, e:
+            tolog("!!WARNING!!2334!! Failed to open file %s: %s" % (file_name, e))
+        else:
+            # Read the dictionary
+            try:
+                dictionary = load(fp)
+            except Exception, e:
+                tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
+            else:
+                tolog("Read dictionary from file %s" % (file_name))            
+            fp.close()
+
+        return dictionary
+
+    def _getFAXRedirectors(self, computingSite, sourceSite, pandaID, url='http://waniotest.appspot.com/SiteToFaxEndpointTranslator'):
+        """ Get the FAX redirectors via curl or JSON """
+
+        fax_redirectors_dictionary = {}
+        file_name = "fax_redirectors.json"    
+        if os.path.exists(file_name):
+            # Read back the FAX redirectors from file
+            fax_redirectors_dictionary = self.readJSON(file_name)
+
+        if fax_redirectors_dictionary == {}:
+            # Attempt to get fax redirectors from Ilija Vukotic's google server
+            cmd = "curl --silent --connect-timeout 100 --max-time 120 -X POST --data \'computingsite=%s&sourcesite=%s&pandaID=%s\' %s" % (computingSite, sourceSite, pandaID, url)
+            tolog("Trying to get FAX redirectors: %s" % (cmd))
+            dictionary_string = commands.getoutput(cmd)
+            if dictionary_string != "":
+                # try to convert to a python dictionary
+                from json import loads
+                try:
+                    fax_redirectors_dictionary = loads(dictionary_string)
+                except Exception, e:
+                    tolog("!!WARNING!!4444!! Failed to parse fax redirector json: %s" % (e))
+                else:
+                    tolog("Backing up dictionary")
+                    status = self.writeJSON("fax_redirectors.json", fax_redirectors_dictionary)
+                    if not status:
+                        tolog("Failed to backup the FAX redirectors")
+
+        return fax_redirectors_dictionary
+
+    def getFAXRedirectors(self, computingSite, sourceSite, jobId):
         """ Get the FAX redirectors primarily from the google server, fall back to schedconfig.faxredirector value """
 
         fax_redirectors_dictionary = {}
 
-        # is the sourceSite set?
+        # Is the sourceSite set?
         if sourceSite and sourceSite.lower() != 'null':
-            # attempt to get fax redirectors from Ilija Vukotic's google server
-            cmd = "curl --silent --connect-timeout 100 --max-time 120 -X POST --data \'computingsite=%s&sourcesite=%s\' %s" % (computingSite, sourceSite, url)
-            tolog("Trying to get FAX redirectors: %s" % (cmd))
-            out = commands.getoutput(cmd)
-            tolog("Command returned: %s" % (out))
+            # Get the FAX redirectors (if the method returns an empty dictionary, the keys and values will be set below)
+            fax_redirectors_dictionary = self._getFAXRedirectors(computingSite, sourceSite, jobId)
 
-            # try to convert to a python dictionary
-            if out != "":
-                try:
-                    from json import loads
-                    fax_redirectors_dictionary = loads(out)
-                except Exception, e:
-                    tolog("!!WARNING!!4444!! Failed to parse fax redirector json: %s" % (e))
-                else:
-                    # verify the dictionary
-                    if fax_redirectors_dictionary.has_key('computingsite') and fax_redirectors_dictionary['computingsite')] != None:
-                        if fax_redirectors_dictionary['computingsite'] == "" or fax_redirectors_dictionary['computingsite'].lower() == "null":
-                            fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
-                            tolog("!!WARNING!!5555!! FAX computingsite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
-                    else:
-                        fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
-                        tolog("!!WARNING!!5556!! FAX computingsite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
-                    if fax_redirectors_dictionary.has_key('sourcesite') and fax_redirectors_dictionary['sourcesite'] != None:
-                        if fax_redirectors_dictionary['sourcesite'] == "" or fax_redirectors_dictionary['sourcesite'].lower() == "null":
-                            fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
-                            tolog("!!WARNING!!5555!! FAX sourcesite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
-                    else:
-                        fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
-                        tolog("!!WARNING!!5556!! FAX aourcesite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
+            # Verify the dictionary
+            if fax_redirectors_dictionary.has_key('computingsite') and fax_redirectors_dictionary['computingsite')] != None:
+                if fax_redirectors_dictionary['computingsite'] == "" or fax_redirectors_dictionary['computingsite'].lower() == "null":
+                    fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
+                    tolog("!!WARNING!!5555!! FAX computingsite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
+            else:
+                fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
+                tolog("!!WARNING!!5556!! FAX computingsite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
+            if fax_redirectors_dictionary.has_key('sourcesite') and fax_redirectors_dictionary['sourcesite'] != None:
+                if fax_redirectors_dictionary['sourcesite'] == "" or fax_redirectors_dictionary['sourcesite'].lower() == "null":
+                    fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
+                    tolog("!!WARNING!!5555!! FAX sourcesite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
+            else:
+                fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
+                tolog("!!WARNING!!5556!! FAX aourcesite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
+
         else:
             tolog("sourceSite is not set, use faxredirector value from AGIS")
             fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
@@ -1270,7 +1333,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return fax_redirectors_dictionary
 
-    def findGlobalFilePath(self, surl, dsname, computingSite, sourceSite):
+    def findGlobalFilePath(self, surl, dsname, computingSite, sourceSite, jobId=None):
         """ Find the global path for the given file"""
 
         global_path = ""
@@ -1296,7 +1359,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 tolog("!!WARNING!!3333!! Failed to get global file path")
         else:
             # get the global file paths from file/DQ2
-            paths = self.getGlobalFilePaths(surl, dsname, computingSite, sourceSite)
+            paths = self.getGlobalFilePaths(surl, dsname, computingSite, sourceSite, jobId=jobId)
 
             if paths[0][-1] == ":": # this is necessary to prevent rucio paths having ":/" as will be the case if os.path.join is used
                 global_path = paths[0] + filename

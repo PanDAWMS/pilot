@@ -117,6 +117,11 @@ Taking a 5s nap before copying and opening the jobReport.json file to make sure 
 where the jobReport.json file was cut off, indicating that it was not finished writing to (RunJob)
 Added radical and HPC to directories to be copied to sandbox, in __ship_queue_data() (glexec_utils)
 Fixed curl handling in getFAXRedirectors(). Previously 'None' was not handled correctly (FAXSiteMover)
+Now sending jobId to findGlobalFilePath() from get_data() (FAXSiteMover)
+Added optional jobId argument to findGlobalFilePath(), getGlobalFilePaths() (FAXSiteMover)
+Sending jobId to getGlobalFilePaths() from findGlobalFilePath() (FAXSiteMover)
+Sending jobId to getFAXRedirectors() from getGlobalFilePaths() (FAXSiteMover)
+Added jobId argument to getFAXRedirectors() (FAXSiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
