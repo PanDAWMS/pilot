@@ -1249,20 +1249,20 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                     tolog("!!WARNING!!4444!! Failed to parse fax redirector json: %s" % (e))
                 else:
                     # verify the dictionary
-                    if fax_redirectors_dictionary.has_key('computingsite'):
+                    if fax_redirectors_dictionary.has_key('computingsite') and fax_redirectors_dictionary['computingsite')] != None:
                         if fax_redirectors_dictionary['computingsite'] == "" or fax_redirectors_dictionary['computingsite'].lower() == "null":
                             fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
-                            tolog("!!WARNING!!5555!! FAX computingsite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
+                            tolog("!!WARNING!!5555!! FAX computingsite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
                     else:
                         fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
-                        tolog("!!WARNING!!5556!! FAX computingsite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
-                    if fax_redirectors_dictionary.has_key('sourcesite'):
+                        tolog("!!WARNING!!5556!! FAX computingsite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
+                    if fax_redirectors_dictionary.has_key('sourcesite') and fax_redirectors_dictionary['sourcesite'] != None:
                         if fax_redirectors_dictionary['sourcesite'] == "" or fax_redirectors_dictionary['sourcesite'].lower() == "null":
                             fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
-                            tolog("!!WARNING!!5555!! FAX sourcesite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
+                            tolog("!!WARNING!!5555!! FAX sourcesite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
                     else:
                         fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
-                        tolog("!!WARNING!!5556!! FAX aourcesite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
+                        tolog("!!WARNING!!5556!! FAX aourcesite is unknown, using default AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
         else:
             tolog("sourceSite is not set, use faxredirector value from AGIS")
             fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
