@@ -123,6 +123,14 @@ Sending jobId to getGlobalFilePaths() from findGlobalFilePath() (FAXSiteMover)
 Sending jobId to getFAXRedirectors() from getGlobalFilePaths() (FAXSiteMover)
 Added jobId argument to getFAXRedirectors() (FAXSiteMover)
 
+Update info from Edward Karavakis:
+- Added a retry mechanism with a sleep and if glexec fails, don't break the pilot
+- Update panda server when glexec infrastructure fails
+- Added a new pilot error code for glexec related failures: 1226
+- List dirs and copy them instead of having them hardcoded (that's why glexec broke with HPC, radical)
+- Corrected glexec_utils 2>&1 instead of 2>1
+- Do not copy pilot proxy to /tmp when pinging glexec infrastructure, use X509_USER_PROXY instead
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 

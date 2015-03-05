@@ -122,6 +122,7 @@ class PilotErrors:
     ERR_BADALLOC = 1223
     ERR_ESRECOVERABLE = 1224
     ERR_ESMERGERECOVERABLE = 1225
+    ERR_GLEXEC = 1226
 
     # internal error codes
     ERR_DDMREG = 1
@@ -248,7 +249,8 @@ class PilotErrors:
         ERR_GETKEYPAIR : "Failed to get security key pair",
         ERR_BADALLOC : "TRF failed due to bad_alloc",
         ERR_ESMERGERECOVERABLE : "Recoverable Event Service Merge error",
-        ERR_ESRECOVERABLE: "Recoverable Event Service error"
+        ERR_ESRECOVERABLE: "Recoverable Event Service error",
+	ERR_GLEXEC: "gLExec related error"
         }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]

@@ -18,10 +18,14 @@ import glob
 # Eddie
 import re
 import stat
+import time
 
 from Monitor import Monitor
 import environment
 from SiteInformation import SiteInformation
+
+environment.set_environment()
+
 
 try:
     import simplejson as json
@@ -126,7 +130,10 @@ class GlexecInterface(object):
         """Prepare the environment and execute glexec."""
         self.__set_glexec_paths()
         self.__extend_pythonpath()
-        self.__mk_gl_temp_dir()
+        status = self.__mk_gl_temp_dir()
+	if status == 1:
+		pUtil.tolog('Creating a temporary gLExec dir failed. Exiting...')
+		return
         self.__set_glexec_env_vars()
         self.__ship_queue_data()
         self.__ship_job_definition()
@@ -145,22 +152,73 @@ class GlexecInterface(object):
 
         pUtil.tolog("folder is : %s" % self.__mkgltempdir_path)
 	cmd = '%s -t 777' % self.__mkgltempdir_path
-	
-        stdout, stderr, status = execute(cmd)
-	pUtil.tolog('cmd: %s' % cmd)
-        pUtil.tolog('output: %s' % stdout)
-        pUtil.tolog('error: %s' % stderr)
-        pUtil.tolog('status: %s' % status)
-        if not (status or stderr):
-            self.__target_path = stdout.rstrip('\n')
-            os.environ['GLEXEC_TARGET_DIR'] = self.__target_path
-            os.environ['GLEXEC_TARGET_PROXY'] = os.path.join(self.__target_path, 'user_proxy')
-            pUtil.tolog("gltmpdir created and added to env: %s" % self.__target_path)
-        else:
-	    pUtil.tolog('error! gltmpdir has failed')
-	    pUtil.tolog('sys path is %s' % sys.path)
-	    pUtil.tolog('os environ is %s' % os.environ)
-	    raise GlexecException("mkgltempdir failed: %s" % stderr)
+
+	attempts = 0
+	while attempts < 3:
+	        stdout, stderr, status = execute(cmd)
+		pUtil.tolog('cmd: %s' % cmd)
+	        pUtil.tolog('output: %s' % stdout)
+	        pUtil.tolog('error: %s' % stderr)
+        	pUtil.tolog('status: %s' % status)
+	        if not (status or stderr):
+			self.__target_path = stdout.rstrip('\n')
+		        os.environ['GLEXEC_TARGET_DIR'] = self.__target_path
+		        os.environ['GLEXEC_TARGET_PROXY'] = os.path.join(self.__target_path, 'user_proxy')
+		        pUtil.tolog("gltmpdir created and added to env: %s" % self.__target_path)
+			return 0
+	        else:
+			pUtil.tolog('error! gltmpdir has failed')
+		        attempts += 1
+			#raise GlexecException("mkgltempdir failed: %s" % stderr)
+			pUtil.tolog("mkgltempdir failed: %s" % stderr)
+			if attempts == 3:
+	                        pUtil.tolog('sys path is %s' % sys.path)
+        	                pUtil.tolog('os environ is %s' % os.environ)
+				ec = 1226
+				env = Configuration.Configuration()
+
+	                        pUtil.tolog("Updating PanDA server for the failed job (error code %d)" % (ec))
+	                        env['job'].result[0] = 'failed'
+				env['job'].currentState = env['job'].result[0]
+                	        env['job'].result[2] = ec
+	                        env['pilotErrorDiag'] = "gLExec related failure - %s" %stderr
+				env['job'].pilotErrorDiag = env['pilotErrorDiag']
+
+				from pilot import getProperNodeName
+
+				if 'https://' not in env['pshttpurl']:
+					env['pshttpurl'] = 'https://' + env['pshttpurl']
+
+				import Node#, Site
+			        env['workerNode'] = Node.Node()
+			        env['workerNode'].setNodeName(getProperNodeName(os.uname()[1]))
+				
+			        #env['thisSite'] = Site.Site()
+				#args = [env['sitename'], env['appdir'], env['workdir'], env['dq2url'], env['queuename']]
+			        #env['thisSite'].setSiteInfo(args)
+
+				env['job'].workdir = os.getcwd()
+				env['thisSite'].workdir = os.getcwd()
+
+				from PandaServerClient import PandaServerClient				
+
+				strXML = pUtil.getMetadata(env['thisSite'].workdir, env['job'].jobId)
+
+				client = PandaServerClient(pilot_version = env['version'], pilot_version_tag = env['pilot_version_tag'],
+	                               pilot_initdir = env['pilot_initdir'], jobSchedulerId = env['jobSchedulerId'],
+        	                       pilotId = env['pilotId'], updateServer = env['updateServerFlag'],
+                	               jobrec = env['jobrec'], pshttpurl = env['pshttpurl'])
+
+				client.updatePandaServer(env['job'], env['thisSite'], env['workerNode'], env['psport'],
+					log = env['pilotErrorDiag'], useCoPilot = env['useCoPilot'], xmlstr = strXML)
+				#raise GlexecException("mkgltempdir failed: %s" % stderr)
+
+	                        #pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
+        	                return 1
+
+			else:
+				pUtil.tolog('[Trial %s] Sleeping for 10 secs and retrying' % attempts)
+				time.sleep(10)
 
     def __set_glexec_paths(self):
         """Sets the path with the glexec executable
@@ -257,14 +315,10 @@ class GlexecInterface(object):
 		shutil.copy2(filename, self.sandbox_path)
 		os.chmod(os.path.join(self.sandbox_path, filename), 0666)
 
-	shutil.copytree(os.path.join(os.environ['PilotHomeDir'], 'saga'),
-		os.path.join(self.sandbox_path, 'saga'))
+	dirs = [d for d in os.listdir('.') if os.path.isdir(os.path.join('.', d))]
 
-	shutil.copytree(os.path.join(os.environ['PilotHomeDir'], 'radical'),
-		os.path.join(self.sandbox_path, 'radical'))
-
-	shutil.copytree(os.path.join(os.environ['PilotHomeDir'], 'HPC'),
-		os.path.join(self.sandbox_path, 'HPC'))
+	for i in dirs:
+		shutil.copytree(os.path.join(os.environ['PilotHomeDir'], i), os.path.join(self.sandbox_path, i))
 
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PILOTVERSION'),
                      os.path.join(self.sandbox_path, 'PILOTVERSION'))
@@ -307,7 +361,7 @@ class GlexecInterface(object):
 	pUtil.tolog("cding and running GLEXEC!")
         cmd = "export GLEXEC_ENV=`%s`; \
                %s %s -- 'cd %s; \
-               %s 2>1;'" % (self.__wrapper_path,
+               %s 2>&1;'" % (self.__wrapper_path,
                              self.__glexec_path,
                              self.__unwrapper_path,
                              self.__target_path,
