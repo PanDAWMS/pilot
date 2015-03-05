@@ -6,6 +6,7 @@
 import os
 import re
 import commands
+import urlparse
 from pUtil import tolog, getExtension, replace, readpar, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
 from PilotErrors import PilotErrors
@@ -890,7 +891,7 @@ class SiteInformation(object):
         return pfroms, ptos
 
     def getCopyPrefixPath(self, path, stageIn=False):
-        """convert path to copy prefix path """
+        """ Convert path to copy prefix path """
         # figure out which copyprefix to use (use the PFN to figure out where the file is and then use the appropriate copyprefix)
         # e.g. copyprefix=srm://srm-eosatlas.cern.ch,srm://srm-atlas.cern.ch^root://eosatlas.cern.ch/,root://castoratlas-xrdssl/
         # PFN=srm://srm-eosatlas.cern.ch/.. use copyprefix root://eosatlas.cern.ch/ to build the TURL src_loc_pfn
@@ -912,16 +913,25 @@ class SiteInformation(object):
             tolog("!!WARNING!!1777!! %s" % (errorLog))
             return path
 
-        if "SFN" in path:
-            local_path = path.split('SFN=')[1]
+        parsed = urlparse.urlparse(path)
+        if parsed.path.startswith('/srm/managerv2') or\
+           parsed.path.startswith('/srm/managerv1') or\
+           parsed.path.startswith('/srm/v2/server'):
+            scheme, hostname, port, service_path, path = re.findall(r"([^:]+)://([^:/]+):?(\d+)?([^:]+=)?([^:]+)", path)[0]
         else:
-            local_path = '/' + path.split('/', 3)[3] # 0:method, 2:host+port, 3:abs-path
+            scheme = parsed.scheme
+            hostname = parsed.netloc.partition(':')[0]
+            port = parsed.netloc.partition(':')[2]
+            path = parsed.path
+            service_path = ''
+
+        new_path = ''.join([scheme, '://', hostname, path])
 
         ret_path = path
         for (pfrom, pto) in map(None, pfroms, ptos):
             if (pfrom != "" and pfrom != None and pfrom != "dummy") and (pto != "" and pto != None and pto != "dummy"):
-                if path[:len(pfrom)] == pfrom or path[:len(pto)] == pto:
-                    ret_path = pto + local_path
+                if new_path[:len(pfrom)] == pfrom or new_path[:len(pto)] == pto:
+                    ret_path = new_path.replace(pfrom, pto)
                     ret_path = ret_path.replace('///','//')
                     break
 

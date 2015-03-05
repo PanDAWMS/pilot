@@ -131,6 +131,11 @@ Update info from Edward Karavakis:
 - Corrected glexec_utils 2>&1 instead of 2>1
 - Do not copy pilot proxy to /tmp when pinging glexec infrastructure, use X509_USER_PROXY instead
 
+Update info from Wen:
+- getCopyPrefixPath() updated for ..
+- Added new site mover for S3 and added it to the site mover farm (S3SiteMover, SiteMoverFarm)
+- Updates to S3ObjectstoreSiteMover (..)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
