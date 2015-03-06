@@ -3707,20 +3707,27 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
 def getStdoutFilename(workdir, preliminary_stdout_filename):
     """ Return the proper stdout filename """
     # In the case of runGen/runAthena, the preliminary filename should be updated since stdout is redirected at some point
+    # In the case there are *.log files present, they are of greater interest than the stdout file so the last updated
+    # one will be chosen instead of the stdout (prod jobs)
 
-    from glob import glob
-    filename = ""
+    # look for *.log files
+    from FileHandling import findLatestTRFLogFile
+    filename = findLatestTRFLogFile(workdir)
 
-    # look for redirected stdout
-    _path = os.path.join(os.path.join(workdir, "workDir"), "tmp.stdout.*")
-    tolog("path=%s"%(_path))
-    path_list = glob(_path)
-    if len(path_list) > 0:
-        # there should only be one path
-        tolog("Found redirected stdout: %s" % str(path_list))
-        filename = path_list[0]
-    else:
-        filename = preliminary_stdout_filename
+    # fall back to old method identifying the stdout file name
+    if filename == "":
+        from glob import glob
+
+        # look for redirected stdout
+        _path = os.path.join(os.path.join(workdir, "workDir"), "tmp.stdout.*")
+        tolog("path=%s"%(_path))
+        path_list = glob(_path)
+        if len(path_list) > 0:
+            # there should only be one path
+            tolog("Found redirected stdout: %s" % str(path_list))
+            filename = path_list[0]
+        else:
+            filename = preliminary_stdout_filename
 
     tolog("Using stdout filename: %s" % (filename))
     return filename

@@ -123,6 +123,7 @@ Sending jobId to getGlobalFilePaths() from findGlobalFilePath() (FAXSiteMover)
 Sending jobId to getFAXRedirectors() from getGlobalFilePaths() (FAXSiteMover)
 Added jobId argument to getFAXRedirectors() (FAXSiteMover)
 Added new module that will contain functions related to file handling (FileHandling)
+getStdoutFilename() now using function from FileHandling to find last updated log file to be used in debug mode (pUtil)
 
 Update info from Edward Karavakis:
 - Added a retry mechanism with a sleep and if glexec fails, don't break the pilot

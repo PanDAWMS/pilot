@@ -3,8 +3,7 @@
 import os
 import time
 
-#from pUtil import tolog
-def tolog(s): print s
+from pUtil import tolog
 
 def findLatestTRFLogFile(workdir):
     """ Find out which is the latest log.* file """
@@ -18,8 +17,8 @@ def findLatestTRFLogFile(workdir):
         tolog("Found payload log files: %s" % str(file_list))
         tolog("File %s was the last log file that was updated" % (last_log_file))
     else:
-        tolog("Did not find any log.* files, will return the trf stdout file instead")
-        last_log_file = "athena_stdout.txt" # WARNING!!! change to global file name for trf stdout
+        tolog("Did not find any log.* files")
+        last_log_file = ""
 
     return last_log_file
 
