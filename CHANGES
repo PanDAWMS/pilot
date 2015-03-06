@@ -122,6 +122,7 @@ Added optional jobId argument to findGlobalFilePath(), getGlobalFilePaths() (FAX
 Sending jobId to getGlobalFilePaths() from findGlobalFilePath() (FAXSiteMover)
 Sending jobId to getFAXRedirectors() from getGlobalFilePaths() (FAXSiteMover)
 Added jobId argument to getFAXRedirectors() (FAXSiteMover)
+Added new module that will contain functions related to file handling (FileHandling)
 
 Update info from Edward Karavakis:
 - Added a retry mechanism with a sleep and if glexec fails, don't break the pilot
@@ -134,7 +135,7 @@ Update info from Edward Karavakis:
 Update info from Wen:
 - getCopyPrefixPath() updated for ..
 - Added new site mover for S3 and added it to the site mover farm (S3SiteMover, SiteMoverFarm)
-- Updates to S3ObjectstoreSiteMover (..)
+- Updates to S3ObjectstoreSiteMover related to checksum handling
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
