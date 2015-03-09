@@ -137,6 +137,7 @@ Update info from Wen:
 - getCopyPrefixPath() updated for ..
 - Added new site mover for S3 and added it to the site mover farm (S3SiteMover, SiteMoverFarm)
 - Updates to S3ObjectstoreSiteMover related to checksum handling
+- Added missing setting of stdout in run() (TimerCommand)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
