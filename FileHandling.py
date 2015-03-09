@@ -13,12 +13,11 @@ def findLatestTRFLogFile(workdir):
     pattern = "log."
     file_list = sortedLs(workdir, pattern)
     if file_list != []:
-        last_log_file = file_list[-1]
+        last_log_file = os.path.join(workdir, file_list[-1])
         tolog("Found payload log files: %s" % str(file_list))
         tolog("File %s was the last log file that was updated" % (last_log_file))
     else:
         tolog("Did not find any log.* files")
-        last_log_file = ""
 
     return last_log_file
 
@@ -41,5 +40,5 @@ def sortedLs(path, pattern):
                 final_file_list.append(f)
     return final_file_list
 
-print findLatestTRFLogFile(os.getcwd())
+# print findLatestTRFLogFile(os.getcwd())
 

@@ -926,8 +926,7 @@ class SiteInformation(object):
             service_path = ''
 
         new_path = ''.join([scheme, '://', hostname, path])
-
-        ret_path = path
+        ret_path = new_path
         for (pfrom, pto) in map(None, pfroms, ptos):
             if (pfrom != "" and pfrom != None and pfrom != "dummy") and (pto != "" and pto != None and pto != "dummy"):
                 if new_path[:len(pfrom)] == pfrom or new_path[:len(pto)] == pto:
@@ -1062,3 +1061,11 @@ if __name__ == "__main__":
     os.environ['PilotHomeDir'] = os.getcwd()
     s1 = SiteInformation()
     print "copytool=",s1.readpar('copytool')
+    path = 'srm://srm-eosatlas.cern.ch/eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/f4/NTUP_SMWZ.00836697._000601.root.1'
+    print path
+    ret = s1.getCopyPrefixPath(path, stageIn=True)
+    print ret
+    path = 'root://atlas-xrd-eos-rucio.cern.ch:1094//atlas/rucio/mc12_8TeV:NTUP_SMWZ.00836697._000601.root.1'
+    print path
+    ret = s1.getCopyPrefixPath(path, stageIn=True)
+    print ret

@@ -3713,7 +3713,6 @@ def getStdoutFilename(workdir, preliminary_stdout_filename):
     # look for *.log files
     from FileHandling import findLatestTRFLogFile
     filename = findLatestTRFLogFile(workdir)
-
     # fall back to old method identifying the stdout file name
     if filename == "":
         from glob import glob
@@ -3799,7 +3798,7 @@ def getStdoutDictionary(jobDic):
                         nlines = pilotErrorDiag
                 stdout_dictionary[jobId] += "\n[%s]" % (nlines)
             else:
-                tolog("(Skipping tail of payload stdout file (%s) since it has not been created yet)" % (_stdout))
+                tolog("(Skipping tail of payload stdout file (%s) since it has not been created yet)" % (os.path.basename(filename)))
                 stdout_dictionary[jobId] = "(stdout not available yet)"
 
     tolog("Returning tail stdout dictionary with %d entries" % len(stdout_dictionary.keys()))
