@@ -6,6 +6,7 @@
 import os
 import re
 import commands
+import urlparse
 from pUtil import tolog, getExtension, replace, readpar, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
 from PilotErrors import PilotErrors
@@ -912,16 +913,25 @@ class SiteInformation(object):
             tolog("!!WARNING!!1777!! %s" % (errorLog))
             return path
 
-        if "SFN" in path:
-            local_path = path.split('SFN=')[1]
+        parsed = urlparse.urlparse(path)
+        if parsed.path.startswith('/srm/managerv2') or\
+           parsed.path.startswith('/srm/managerv1') or\
+           parsed.path.startswith('/srm/v2/server'):
+            scheme, hostname, port, service_path, path = re.findall(r"([^:]+)://([^:/]+):?(\d+)?([^:]+=)?([^:]+)", path)[0]
         else:
-            local_path = '/' + path.split('/', 3)[3] # 0:method, 2:host+port, 3:abs-path
+            scheme = parsed.scheme
+            hostname = parsed.netloc.partition(':')[0]
+            port = parsed.netloc.partition(':')[2]
+            path = parsed.path
+            service_path = ''
+
+        new_path = ''.join([scheme, '://', hostname, path])
 
         ret_path = path
         for (pfrom, pto) in map(None, pfroms, ptos):
             if (pfrom != "" and pfrom != None and pfrom != "dummy") and (pto != "" and pto != None and pto != "dummy"):
-                if path[:len(pfrom)] == pfrom or path[:len(pto)] == pto:
-                    ret_path = pto + local_path
+                if new_path[:len(pfrom)] == pfrom or new_path[:len(pto)] == pto:
+                    ret_path = new_path.replace(pfrom, pto)
                     ret_path = ret_path.replace('///','//')
                     break
 
@@ -1052,3 +1062,11 @@ if __name__ == "__main__":
     os.environ['PilotHomeDir'] = os.getcwd()
     s1 = SiteInformation()
     print "copytool=",s1.readpar('copytool')
+    path = 'srm://srm-eosatlas.cern.ch/eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/f4/NTUP_SMWZ.00836697._000601.root.1'
+    print path
+    ret = s1.getCopyPrefixPath(path, stageIn=True)
+    print ret
+    path = 'root://atlas-xrd-eos-rucio.cern.ch:1094//atlas/rucio/mc12_8TeV:NTUP_SMWZ.00836697._000601.root.1'
+    print path
+    ret = s1.getCopyPrefixPath(path, stageIn=True)
+    print ret

@@ -17,7 +17,7 @@ CMD_CHECKSUM = config_sm.COMMAND_MD5
 class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     """ SiteMover that uses boto S3 client for both get and put """
     # no registration is done
-    copyCommand = "S3"
+    copyCommand = "S3Objectstore"
     checksum_command = "adler32"
     timeout = 600
 
@@ -178,7 +178,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if remoteSize is None or localSize is None:
             errLog = "Cannot verify size(one of them is None)"
             self.log(errLog)
-        elif remoteSize == localSize:
+        elif str(remoteSize) == str(localSize):
             errLog = "Remote size and local size are the same. verified"
             self.log(errLog)
             return 0, errLog
@@ -211,13 +211,21 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if remoteChecksum == None:
             self.log("Failed to get remote file information")
 
-        status, output = self.stageInFile(source, destination, remoteSize, remoteChecksum)
+        checksumType = 'md5sum'
+        if remoteChecksum:
+            checksumType = self.getChecksumType(remoteChecksum)
+
+        if checksumType == 'adler32':
+            # S3 boto doesn't support adler32, remoteChecksum set to None
+            status, output = self.stageInFile(source, destination, remoteSize, None)
+        else:
+            status, output = self.stageInFile(source, destination, remoteSize, remoteChecksum)
         self.log("stageInFile status: %s, output: %s" % (status, output))
         if status:
              self.log("Failed to stagein this file: %s" % output)
              return  PilotErrors.ERR_STAGEINFAILED, output
 
-        status, output, localSize, localChecksum = self.getLocalFileInfo(destination)
+        status, output, localSize, localChecksum = self.getLocalFileInfo(destination, checksumType)
         if status:
             self.log("Failed to get local file(%s) info." % destination)
             return status, output
@@ -402,9 +410,10 @@ class S3ObjctStore:
                 return -1, "source file(%s) cannot be found" % source
 
             key.get_contents_to_filename(destination)
-            if key.md5 != key.etag.strip('"').strip("'"):
-                return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
-            if sourceSize and sourceSize != key.size:
+            # for big file with multiple parts, key.etag is not the md5
+            # if key.md5 and key.md5 != key.etag.strip('"').strip("'"):
+            #     return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
+            if sourceSize and str(sourceSize) != str(key.size):
                 return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
             if sourceChecksum and sourceChecksum != key.md5:
                 return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
@@ -420,9 +429,9 @@ class S3ObjctStore:
 
             key.set_metadata("md5", sourceChecksum)
             size = key.set_contents_from_filename(source)
-            if key.md5 != key.etag.strip('"').strip("'"):
-                return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
-            if sourceSize and sourceSize != key.size:
+            # if key.md5 != key.etag.strip('"').strip("'"):
+            #     return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
+            if sourceSize and str(sourceSize) != str(key.size):
                 return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
             if sourceChecksum and sourceChecksum != key.md5:
                 return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)

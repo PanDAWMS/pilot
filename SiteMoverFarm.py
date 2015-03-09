@@ -23,6 +23,7 @@ from objectstoreSiteMover import objectstoreSiteMover       #
 from aria2cSiteMover import aria2cSiteMover                 #
 from GFAL2SiteMover import GFAL2SiteMover                   # GFAL2
 from GSIftpSiteMover import GSIftpSiteMover                 # HPC sites
+from S3SiteMover import S3SiteMover                         # S3
 
 mover_selector = {
     SiteMover.copyCommand : SiteMover,
@@ -46,7 +47,8 @@ mover_selector = {
     aria2cSiteMover.copyCommand : aria2cSiteMover,
     objectstoreSiteMover.copyCommand : objectstoreSiteMover,
     GFAL2SiteMover.copyCommand : GFAL2SiteMover,
-    GSIftpSiteMover.copyCommand : GSIftpSiteMover
+    GSIftpSiteMover.copyCommand : GSIftpSiteMover,
+    S3SiteMover.copyCommand : S3SiteMover
     }
 
 def getSiteMover(sitemover, setup_file='', *args, **kwrds):
