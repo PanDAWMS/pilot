@@ -81,11 +81,15 @@ class aria2cSiteMover(SiteMover.SiteMover):
         self.commandInPATH()
 	rucio_account=self.rucio_account
 	tolog("Rucio account: %s" %(rucio_account))
+	if rucio_account == "":
+		tolog("!!FAILED!!2999!! Rucio account not set!")
+		raise Exception("!!FAILED!!2999!! Rucio account not set!")
 	cmd="curl -1 -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert %s --cert %s --key %s --capath %s -X GET https://rucio-auth-prod.cern.ch/auth/x509_proxy| grep 'X-Rucio-Auth-Token:'"%(self.sslKey,self.sslKey,self.sslKey,self.sslCertDir)
         tolog("Command to be launched: %s" %(cmd))
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
         token_rucio, stderr= token_rucio_cmd.communicate()
 	if token_rucio:
+			
 	   if '\r' in token_rucio:
 	        pos2print=token_rucio.find('\r')
                 token_rucio=token_rucio[:pos2print]
@@ -100,8 +104,9 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	   token_file=open('token_file', 'w')
 	   token_file.write(token_rucio)
 	else:
-	   tolog("In __init__: Std error from curl: %s" %(stderr))
-           tolog("!!WARNING!!2999!! Cannot get Rucio token!")
+		tolog("In __init__: Std error from curl: %s" %(stderr))
+		tolog("!!FAILED!!2999!! Cannot get Rucio token!")
+		raise Exception("!!FAILED!!2999!! Cannot get Rucio token!")
 
     def commandInPATH(self):
         _cmd_str = 'which %s'%self.copyCommand 
@@ -194,10 +199,11 @@ class aria2cSiteMover(SiteMover.SiteMover):
         tolog("curl command to be executed: %s" %(cmd2print))
         metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
 	metalink, stderr=metalink_cmd.communicate()
-        tolog("Metalink produced by rucio %s" %(metalink))
+        tolog("Metalink given by rucio %s" %(metalink))
 	if not "location" in metalink:
            tolog("In surls2metalink: command std error: %s" %(stderr))
            tolog("!!WARNING!!1099!! No metalink to download file, or error in metalink!")
+           raise Exception("!!FAILED!!1099!! No metalink to download file, or error in metalink!")
 	else:
            mlfile = open(metalinkFile,'w')
            mlfile.write(metalink)

@@ -139,6 +139,9 @@ Update info from Wen:
 - Updates to S3ObjectstoreSiteMover related to checksum handling
 - Added missing setting of stdout in run() (TimerCommand)
 
+Update info from Vincenzo Lavorini:
+- Some error handling added to aria2c site mover
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
