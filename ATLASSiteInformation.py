@@ -410,10 +410,10 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("catchall", "allow_alt_stageout")
 #            ec = self.replaceQueuedataField("catchall", "force_alt_stageout allow_alt_stageout")
 
-#        if thisSite.sitename == "ANALY_CERN_SLC6" or thisSite.sitename == "AGLT2_SL6":
+        if thisSite.sitename == "ANALY_CERN_SLC6" or thisSite.sitename == "AGLT2_SL6":
 #            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
 #        if thisSite.sitename == "ANALY_CERN_SLC6":
-#            ec = self.replaceQueuedataField("copysetupin", "/cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh^False^True")
+            ec = self.replaceQueuedataField("copysetupin", "/cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh^False^True")
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")

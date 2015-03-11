@@ -89,7 +89,6 @@ class aria2cSiteMover(SiteMover.SiteMover):
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
         token_rucio, stderr= token_rucio_cmd.communicate()
 	if token_rucio:
-			
 	   if '\r' in token_rucio:
 	        pos2print=token_rucio.find('\r')
                 token_rucio=token_rucio[:pos2print]
@@ -101,8 +100,13 @@ class aria2cSiteMover(SiteMover.SiteMover):
 
 	   if os.path.exists('token_file'):
     		os.remove('token_file')
-	   token_file=open('token_file', 'w')
-	   token_file.write(token_rucio)
+	   try:
+			token_file=open('token_file', 'w')
+	   except IOError, e:
+            tolog ("!!WARNING!! Failed to create file: %s"%(e))
+            raise Exception("!!FAILED!!1099!! Cannot create file for registering token!")
+	   else:
+			token_file.write(token_rucio)
 	else:
 		tolog("In __init__: Std error from curl: %s" %(stderr))
 		tolog("!!FAILED!!2999!! Cannot get Rucio token!")
@@ -177,11 +181,16 @@ class aria2cSiteMover(SiteMover.SiteMover):
           reps = replicas[guid]
           tolog("Got replicas=%s for guid=%s" % (str(reps), guid))
 	
-        token_file=open('token_file', 'r')
-        token_rucio=token_file.readline() 
-	pos2print=token_rucio.find("CN")
-        token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
-        tolog("Token I am using: %s" %(token_rucio2print))
+        try:
+			token_file=open('token_file', 'r')
+        except IOError, e:
+			tolog ("!!WARNING!! Failed to open file: %s"%(e))
+			raise Exception("!!FAILED!!1099!! Cannot open file with token!")
+        else:
+			token_rucio=token_file.readline() 
+			pos2print=token_rucio.find("CN")
+			token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
+			tolog("Token I am using: %s" %(token_rucio2print))
 	httpredirector = readpar('httpredirector')
 	if not httpredirector:
             cmd = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
@@ -651,7 +660,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	'''
         verified = False
 	#getting the remote checksum from Rucio:
-	token_file=open('token_file', 'r')
+	token_file=open('token_fle', 'r')
         token_rucio=token_file.readline()
 	pos2print=token_rucio.find("CN")
         token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
