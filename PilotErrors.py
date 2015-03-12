@@ -123,7 +123,7 @@ class PilotErrors:
     ERR_ESRECOVERABLE = 1224
     ERR_ESMERGERECOVERABLE = 1225
     ERR_GLEXEC = 1226
-
+    ERR_ESATHENAMPDIED = 1227
     # internal error codes
     ERR_DDMREG = 1
     ERR_FILEONTAPE = 2
@@ -250,7 +250,8 @@ class PilotErrors:
         ERR_BADALLOC : "TRF failed due to bad_alloc",
         ERR_ESMERGERECOVERABLE : "Recoverable Event Service Merge error",
         ERR_ESRECOVERABLE: "Recoverable Event Service error",
-	ERR_GLEXEC: "gLExec related error"
+	ERR_GLEXEC: "gLExec related error",
+        ERR_ESATHENAMPDIED: "AthenaMP ended Event Service job prematurely"
         }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]

@@ -126,6 +126,9 @@ Added new module that will contain functions related to file handling (FileHandl
 getStdoutFilename() now using function from FileHandling to find last updated log file to be used in debug mode (pUtil)
 Added debug info to createLogFile() (JobLog)
 Now setting pilotErrorDiag if there is no path to the object store in getDDMStorage() (Mover)
+Added new error code: ERR_ESATHENAMPDIED = 1227, "AthenaMP ended Event Service job prematurely" (RunJobEvent)
+Added error handling of event service failures in __main__() (RunJobEvent)
+Stopping threads after various failures in __main__() (RunJobEvent)
 
 Update info from Edward Karavakis:
 - Added a retry mechanism with a sleep and if glexec fails, don't break the pilot
