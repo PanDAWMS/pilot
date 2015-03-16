@@ -1696,8 +1696,8 @@ class RunJobEvent(RunJob):
         # message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]"
 
         message = ""
-        url = "https://aipanda007.cern.ch:25443/server/panda"
-    #    url = "https://pandaserver.cern.ch:25443/server/panda"
+        #url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
         node = {}
         node['pandaID'] = self.__job.jobId
         node['jobsetID'] = self.__job.jobsetID

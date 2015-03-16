@@ -129,6 +129,8 @@ Now setting pilotErrorDiag if there is no path to the object store in getDDMStor
 Added new error code: ERR_ESATHENAMPDIED = 1227, "AthenaMP ended Event Service job prematurely" (RunJobEvent)
 Added error handling of event service failures in __main__() (RunJobEvent)
 Stopping threads after various failures in __main__() (RunJobEvent)
+Using pandaserver instead of dev server aipanda007 in updateEventRange() and downloadEventRanges() (EventRanges)
+Using pandaserver instead of dev server aipanda007 in downloadEventRanges() (RunJobEvent)
 
 Update info from Edward Karavakis:
 - Added a retry mechanism with a sleep and if glexec fails, don't break the pilot
