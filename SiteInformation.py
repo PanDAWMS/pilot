@@ -6,7 +6,6 @@
 import os
 import re
 import commands
-import urlparse
 from pUtil import tolog, getExtension, replace, readpar, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
 from PilotErrors import PilotErrors
@@ -891,7 +890,7 @@ class SiteInformation(object):
         return pfroms, ptos
 
     def getCopyPrefixPath(self, path, stageIn=False):
-        """ Convert path to copy prefix path """
+        """convert path to copy prefix path """
         # figure out which copyprefix to use (use the PFN to figure out where the file is and then use the appropriate copyprefix)
         # e.g. copyprefix=srm://srm-eosatlas.cern.ch,srm://srm-atlas.cern.ch^root://eosatlas.cern.ch/,root://castoratlas-xrdssl/
         # PFN=srm://srm-eosatlas.cern.ch/.. use copyprefix root://eosatlas.cern.ch/ to build the TURL src_loc_pfn
@@ -913,26 +912,10 @@ class SiteInformation(object):
             tolog("!!WARNING!!1777!! %s" % (errorLog))
             return path
 
-        parsed = urlparse.urlparse(path)
-        if parsed.path.startswith('/srm/managerv2') or\
-           parsed.path.startswith('/srm/managerv1') or\
-           parsed.path.startswith('/srm/v2/server'):
-            scheme, hostname, port, service_path, path = re.findall(r"([^:]+)://([^:/]+):?(\d+)?([^:]+=)?([^:]+)", path)[0]
-        else:
-            scheme = parsed.scheme
-            hostname = parsed.netloc.partition(':')[0]
-            port = parsed.netloc.partition(':')[2]
-            path = parsed.path
-            service_path = ''
-
-        new_path = ''.join([scheme, '://', hostname, path])
-        ret_path = new_path
+        ret_path = path
         for (pfrom, pto) in map(None, pfroms, ptos):
-            if (pfrom != "" and pfrom != None and pfrom != "dummy") and (pto != "" and pto != None and pto != "dummy"):
-                if new_path[:len(pfrom)] == pfrom or new_path[:len(pto)] == pto:
-                    ret_path = new_path.replace(pfrom, pto)
-                    ret_path = ret_path.replace('///','//')
-                    break
+            ret_path = re.sub(pfrom, pto, ret_path)
+            ret_path = ret_path.replace('///','//')
 
         return ret_path
 
@@ -1064,8 +1047,32 @@ if __name__ == "__main__":
     path = 'srm://srm-eosatlas.cern.ch/eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/f4/NTUP_SMWZ.00836697._000601.root.1'
     print path
     ret = s1.getCopyPrefixPath(path, stageIn=True)
-    print ret
+    print "ret:" + ret
+    print
     path = 'root://atlas-xrd-eos-rucio.cern.ch:1094//atlas/rucio/mc12_8TeV:NTUP_SMWZ.00836697._000601.root.1'
     print path
     ret = s1.getCopyPrefixPath(path, stageIn=True)
-    print ret
+    print "ret:" + ret
+    print
+
+    #bnl
+    s1.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov.*/pnfs/^root://dcgftp.usatlas.bnl.gov:1096/pnfs")
+    path = 'srm://dcsrm.usatlas.bnl.gov/pnfs/usatlas.bnl.gov/atlasuserdisk/rucio/panda/a7/bf/panda.0317011154.376400.lib._5118143.1962296626.lib.tgz'
+    print path
+    ret = s1.getCopyPrefixPath(path, stageIn=True)
+    print "ret:" + ret
+    print
+    path = 'root://dcxrd.usatlas.bnl.gov:1096///atlas/rucio/panda:panda.0317011154.376400.lib._5118143.1962296626.lib.tgz'
+    print path
+    ret = s1.getCopyPrefixPath(path, stageIn=True)
+    print "ret:" + ret
+    print
+
+    #EC2
+    s1.replaceQueuedataField("copyprefixin", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
+    s1.replaceQueuedataField("copyprefix", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
+    path = 'srm://aws01.racf.bnl.gov:8443/srm/managerv2?SFN=/mnt/atlasproddisk/rucio/panda/7b/c4/86c7b8a5-d955-41a5-9f0f-36d067b9931b_0.job.log.tgz'
+    print path
+    ret = s1.getCopyPrefixPath(path, stageIn=True)
+    print "ret:" + ret
+    print
