@@ -1110,17 +1110,24 @@ class JobLog:
         # input and output files should already be removed from the workdir in child process
         tarballNM = "%s.tar" % (job.newDirNM)
         try:
-            os.system("mv %s %s" % (job.workdir, job.newDirNM))
+            cmd = "mv %s %s" % (job.workdir, job.newDirNM)
+            tolog("Executing command: %s" % (cmd))
+            os.system(cmd)
         except OSError:
             tolog("!!WARNING!!1400!! Could not move job workdir %s to %s" % (job.workdir, job.newDirNM))
         else:
             try:
-                os.system("pwd;tar cvf %s %s --dereference" % (tarballNM, job.newDirNM))
+                cmd = "pwd;tar cvf %s %s --dereference" % (tarballNM, job.newDirNM)
+                tolog("Executing command: %s" % (cmd))
+                os.system(cmd)
             except OSError:
                 tolog("!!WARNING!!1400!! Could not create tarball %s" % tarballNM)
             else:
+                tolog("Tarball created: %s" % (tarballNM))
                 try:
-                    os.system("gzip -f %s" % (tarballNM))
+                    cmd = "gzip -f %s" % (tarballNM)
+                    tolog("Executing command: %s" % (cmd))
+                    os.system(cmd)
                 except OSError:
                     tolog("!!WARNING!!1400!! Could not gzip tarball")
                 else:
@@ -1129,6 +1136,7 @@ class JobLog:
                     except OSError:
                         tolog("!!WARNING!!1400!! Could not rename gzipped tarball %s" % job.logFile)
                     else:
+                        tolog("Tarball renamed to %s" % (job.logFile))
                         status = True
 
         return status

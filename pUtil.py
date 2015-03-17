@@ -52,27 +52,31 @@ pilotstderrFilename = "pilot.stderr"
 
 def setPilotlogFilename(filename):
     """ set the pilot log file name"""
+
     global pilotlogFilename
     if len(filename) > 0:
         pilotlogFilename = filename
 
 def getPilotlogFilename():
     """ return the pilot log file name"""
+
     return pilotlogFilename
 
 def setPilotstderrFilename(filename):
     """ set the pilot stderr file name"""
+
     global pilotstderrFilename
     if len(filename) > 0:
         pilotstderrFilename = filename
 
 def getPilotstderrFilename():
     """ return the pilot stderr file name"""
+
     return pilotstderrFilename
 
 def tolog_file(msg):
     """ write date+msg to pilot log only """
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
+
     t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time()))
     appendToLog("%s| %s\n" % (t, msg))
 
@@ -104,8 +108,6 @@ def tolog(msg, tofile=True):
     module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
     msg = "%s| %s" % (module_name_cut, msg)
 
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time()))
     t = timeStampUTC()
     if tofile:
         appendToLog("%s|%s\n" % (t, msg))
@@ -3707,20 +3709,26 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
 def getStdoutFilename(workdir, preliminary_stdout_filename):
     """ Return the proper stdout filename """
     # In the case of runGen/runAthena, the preliminary filename should be updated since stdout is redirected at some point
+    # In the case there are *.log files present, they are of greater interest than the stdout file so the last updated
+    # one will be chosen instead of the stdout (prod jobs)
 
-    from glob import glob
-    filename = ""
+    # look for *.log files
+    from FileHandling import findLatestTRFLogFile
+    filename = findLatestTRFLogFile(workdir)
+    # fall back to old method identifying the stdout file name
+    if filename == "":
+        from glob import glob
 
-    # look for redirected stdout
-    _path = os.path.join(os.path.join(workdir, "workDir"), "tmp.stdout.*")
-    tolog("path=%s"%(_path))
-    path_list = glob(_path)
-    if len(path_list) > 0:
-        # there should only be one path
-        tolog("Found redirected stdout: %s" % str(path_list))
-        filename = path_list[0]
-    else:
-        filename = preliminary_stdout_filename
+        # look for redirected stdout
+        _path = os.path.join(os.path.join(workdir, "workDir"), "tmp.stdout.*")
+        tolog("path=%s"%(_path))
+        path_list = glob(_path)
+        if len(path_list) > 0:
+            # there should only be one path
+            tolog("Found redirected stdout: %s" % str(path_list))
+            filename = path_list[0]
+        else:
+            filename = preliminary_stdout_filename
 
     tolog("Using stdout filename: %s" % (filename))
     return filename
@@ -3792,7 +3800,7 @@ def getStdoutDictionary(jobDic):
                         nlines = pilotErrorDiag
                 stdout_dictionary[jobId] += "\n[%s]" % (nlines)
             else:
-                tolog("(Skipping tail of payload stdout file (%s) since it has not been created yet)" % (_stdout))
+                tolog("(Skipping tail of payload stdout file (%s) since it has not been created yet)" % (os.path.basename(filename)))
                 stdout_dictionary[jobId] = "(stdout not available yet)"
 
     tolog("Returning tail stdout dictionary with %d entries" % len(stdout_dictionary.keys()))

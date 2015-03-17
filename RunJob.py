@@ -594,6 +594,10 @@ class RunJob(object):
         if os.path.exists(filename):
             tolog("Found job report: %s" % (filename))
 
+            # wait a few seconds to make sure the job report is finished
+            tolog("Taking a 5s nap to make sure the job report is finished")
+            time.sleep(5)
+
             # first backup the jobReport to the job workdir since it will be needed later
             # (the current location will disappear since it will be tarred up in the jobs' log file)
             d = os.path.join(workdir, '..')

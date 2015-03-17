@@ -3103,7 +3103,10 @@ def getDDMStorage(ub, analysisJob, region, eventService, jobId):
 
     # special paths are used for event service
     if eventService:
-        return getFilePathForObjectStore(filetype="eventservice"), pilotErrorDiag
+        _path = getFilePathForObjectStore(filetype="eventservice")
+        if _path == "":
+            pilotErrorDiag = "No path to object store"
+        return _path, pilotErrorDiag
 
     # skip this function unless we are running in the US or on NG
     if not (region == 'US' or region == 'Nordugrid'):

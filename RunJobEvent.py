@@ -1696,8 +1696,8 @@ class RunJobEvent(RunJob):
         # message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]"
 
         message = ""
-        url = "https://aipanda007.cern.ch:25443/server/panda"
-    #    url = "https://pandaserver.cern.ch:25443/server/panda"
+        #url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
         node = {}
         node['pandaID'] = self.__job.jobId
         node['jobsetID'] = self.__job.jobsetID
@@ -2068,11 +2068,15 @@ if __name__ == "__main__":
                 pilotErrorDiag = "Required TAG file/guid could not be identified"
                 tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
 
-                # stop threads
-                # ..
+                # Stop threads
+                runJob.stopAsyncOutputStagerThread()
+                runJob.joinAsyncOutputStagerThread()
+                runJob.stopMessageThread()
+                runJob.joinMessageThread()
 
+                # Set error code
                 job.result[0] = "failed"
-                # job.result[2] = error. event service error code
+                job.result[2] = error.ERR_ESRECOVERABLE
                 runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
         else:
@@ -2098,11 +2102,21 @@ if __name__ == "__main__":
         if ec != 0:
             tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
-            # stop threads
-            # ..
+            # Stop threads
+            runJob.stopAsyncOutputStagerThread()
+            runJob.joinAsyncOutputStagerThread()
+            runJob.stopMessageThread()
+            runJob.joinMessageThread()
+            tokenExtractorProcess.kill()
+
+            # Close stdout/err streams
+            if tokenextractor_stdout:
+                tokenextractor_stdout.close()
+            if tokenextractor_stderr:
+                tokenextractor_stderr.close()
 
             job.result[0] = "failed"
-            # job.result[2] = error. event service error code
+            job.result[2] = error.ERR_ESRECOVERABLE
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
         # AthenaMP needs to know where exactly is the PFC
@@ -2206,7 +2220,10 @@ if __name__ == "__main__":
 
                 # Is AthenaMP still running?
                 if athenaMPProcess.poll() is not None:
-                    tolog("!!WARNING!!2222!! AthenaMP has finished prematurely (aborting monitoring loop)")
+                    job.pilotErrorDiag = "AthenaMP finished prematurely"
+                    job.result[0] = "failed"
+                    job.result[2] = error.ERR_ESATHENAMPDIED
+                    tolog("!!WARNING!!2222!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
                     break
 
         # Wait for AthenaMP to finish

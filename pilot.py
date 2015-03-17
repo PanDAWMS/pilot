@@ -26,7 +26,6 @@ from Configuration import Configuration
 from WatchDog import WatchDog
 from Monitor import Monitor
 import subprocess
-import hashlib
 
 
 # Initialize the configuration singleton
@@ -2576,11 +2575,6 @@ def runMain(runpars):
             else:
                 # Try to ping the glexec infrastructure to test if it is ok.
                 # If it is ok, go ahead with glexec, if not, use the normal pilot mode without glexec.
-                temp_proxy_path = os.path.join('/tmp', str(hashlib.sha1(env['userProxy']).hexdigest()))
-                text_file = open(temp_proxy_path, 'w')
-                text_file.write(env['userProxy'])
-                text_file.close()
-                os.chmod(temp_proxy_path, 0700)
 
                 if os.environ.has_key('OSG_GLEXEC_LOCATION'):
 			if os.environ['OSG_GLEXEC_LOCATION'] != '':
@@ -2604,11 +2598,10 @@ def runMain(runpars):
 			pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
                         glexec_path = '/usr/sbin/glexec'
 
-                cmd = 'export GLEXEC_CLIENT_CERT='+temp_proxy_path+';'+glexec_path + ' /bin/true'
+                cmd = 'export GLEXEC_CLIENT_CERT=$X509_USER_PROXY;'+glexec_path + ' /bin/true'
                 stdout, stderr, status = execute(cmd)
                 pUtil.tolog('cmd: %s' % cmd)
                 pUtil.tolog('status: %s' % status)
-                os.remove(temp_proxy_path)
                 if not (status or stderr):
                         pUtil.tolog('glexec infrastructure seems to be working fine. Running in glexec mode!')
                         payload = 'python -m glexec_aux'
