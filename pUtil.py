@@ -52,27 +52,31 @@ pilotstderrFilename = "pilot.stderr"
 
 def setPilotlogFilename(filename):
     """ set the pilot log file name"""
+
     global pilotlogFilename
     if len(filename) > 0:
         pilotlogFilename = filename
 
 def getPilotlogFilename():
     """ return the pilot log file name"""
+
     return pilotlogFilename
 
 def setPilotstderrFilename(filename):
     """ set the pilot stderr file name"""
+
     global pilotstderrFilename
     if len(filename) > 0:
         pilotstderrFilename = filename
 
 def getPilotstderrFilename():
     """ return the pilot stderr file name"""
+
     return pilotstderrFilename
 
 def tolog_file(msg):
     """ write date+msg to pilot log only """
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
+
     t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time()))
     appendToLog("%s| %s\n" % (t, msg))
 
@@ -104,8 +108,6 @@ def tolog(msg, tofile=True):
     module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
     msg = "%s| %s" % (module_name_cut, msg)
 
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time()))
     t = timeStampUTC()
     if tofile:
         appendToLog("%s|%s\n" % (t, msg))
