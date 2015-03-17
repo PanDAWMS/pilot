@@ -18,6 +18,7 @@ CMD_CHECKSUM = config_sm.COMMAND_MD5
 
 class S3SiteMover(S3ObjectstoreSiteMover):
     """ SiteMover that uses boto S3 client for both get and put """
+
     # no registration is done
     copyCommand = "S3"
     checksum_command = "adler32"
