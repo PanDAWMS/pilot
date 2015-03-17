@@ -10,6 +10,7 @@ def findLatestTRFLogFile(workdir):
 
     last_log_file = ""
 
+    # Assume the log files begin with 'log.'
     pattern = "log."
     file_list = sortedLs(workdir, pattern)
     if file_list != []:
