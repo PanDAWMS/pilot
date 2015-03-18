@@ -415,7 +415,7 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "ANALY_CERN_SLC6":
 #            ec = self.replaceQueuedataField("copysetupin", "/cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh^False^True")
 
-        ec = self.replaceQueuedataField("timefloor", "0")
+        #ec = self.replaceQueuedataField("timefloor", "0")
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
