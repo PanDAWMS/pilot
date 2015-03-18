@@ -316,7 +316,7 @@ class GlexecInterface(object):
 		os.chmod(os.path.join(self.sandbox_path, filename), 0666)
 
         #dirs = [d for d in os.listdir('.') if os.path.isdir(os.path.join('.', d))]
-        dirs = [d for d in os.listdir(os.environ['PilotHomeDir']) if os.path.isdir(os.path.join(os.environ['PilotHomeDir'], d))]]
+        dirs = [d for d in os.listdir(os.environ['PilotHomeDir']) if os.path.isdir(os.path.join(os.environ['PilotHomeDir'], d))]
 
 	for i in dirs:
 		shutil.copytree(os.path.join(os.environ['PilotHomeDir'], i), os.path.join(self.sandbox_path, i))
