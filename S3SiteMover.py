@@ -47,7 +47,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
 
         # get the site information object
         si = getSiteInformation(experiment)
-        ret_path = si.getCopyPrefixPath(gpfn, stageIn=True)
+        ret_path = si.getCopyPrefixPathNew(gpfn, stageIn=True)
         if not ret_path.startswith("s3:"):
             errorLog = "Failed to use copyprefix to convert the current path to S3 path."
             tolog("!!WARNING!!1777!! %s" % (errorLog))
@@ -122,7 +122,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
             self.__sendReport(state, report)
             return self.put_data_retfail(status, output, surl)
 
-        ret_path = si.getCopyPrefixPath(surl, stageIn=False)
+        ret_path = si.getCopyPrefixPathNew(surl, stageIn=False)
         tolog("Convert destination: %s to new path: %s" % (surl, ret_path))
         if not ret_path.startswith("s3:"):
             errorLog = "Failed to use copyprefix to convert the current path to S3 path."

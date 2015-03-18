@@ -6,6 +6,7 @@
 import os
 import re
 import commands
+import urlparse
 from pUtil import tolog, getExtension, replace, readpar, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
 from PilotErrors import PilotErrors
@@ -912,6 +913,44 @@ class SiteInformation(object):
             tolog("!!WARNING!!1777!! %s" % (errorLog))
             return path
 
+        if "SFN" in path:
+            local_path = path.split('SFN=')[1]
+        else:
+            local_path = '/' + path.split('/', 3)[3] # 0:method, 2:host+port, 3:abs-path
+
+        ret_path = path
+        for (pfrom, pto) in map(None, pfroms, ptos):
+            if (pfrom != "" and pfrom != None and pfrom != "dummy") and (pto != "" and pto != None and pto != "dummy"):
+                if path[:len(pfrom)] == pfrom or path[:len(pto)] == pto:
+                    ret_path = pto + local_path
+                    ret_path = ret_path.replace('///','//')
+                    break
+
+        return ret_path
+
+    def getCopyPrefixPathNew(self, path, stageIn=False):
+        """convert path to copy prefix path """
+        # figure out which copyprefix to use (use the PFN to figure out where the file is and then use the appropriate copyprefix)
+        # e.g. copyprefix=srm://srm-eosatlas.cern.ch,srm://srm-atlas.cern.ch^root://eosatlas.cern.ch/,root://castoratlas-xrdssl/
+        # PFN=srm://srm-eosatlas.cern.ch/.. use copyprefix root://eosatlas.cern.ch/ to build the TURL src_loc_pfn
+        # full example:
+        # Using copyprefixin = srm://srm-eosatlas.cern.ch,srm://srm-atlas.cern.ch^root://eosatlas.cern.ch/,root://castoratlas-xrdssl/
+        # PFN=srm://srm-eosatlas.cern.ch/eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/c0/EVNT.01212395._000004.pool.root.1
+        # TURL=root://eosatlas.cern.ch//eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/c0/EVNT.01212395._000004.pool.root.1
+
+        copyprefix = self.getCopyPrefix(stageIn=stageIn)
+        if copyprefix == "":
+            errorLog = "Empty copyprefix, cannot continue"
+            tolog("!!WARNING!!1777!! %s" % (errorLog))
+            return path
+
+        # handle copyprefix lists
+        pfroms, ptos = self.getCopyPrefixList(copyprefix)
+        if len(pfroms) != len(ptos):
+            errorLog = "Copyprefix lists not of equal length: %s, %s" % (str(pfroms), str(ptos))
+            tolog("!!WARNING!!1777!! %s" % (errorLog))
+            return path
+
         ret_path = path
         for (pfrom, pto) in map(None, pfroms, ptos):
             ret_path = re.sub(pfrom, pto, ret_path)
@@ -1073,6 +1112,6 @@ if __name__ == "__main__":
     s1.replaceQueuedataField("copyprefix", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
     path = 'srm://aws01.racf.bnl.gov:8443/srm/managerv2?SFN=/mnt/atlasproddisk/rucio/panda/7b/c4/86c7b8a5-d955-41a5-9f0f-36d067b9931b_0.job.log.tgz'
     print path
-    ret = s1.getCopyPrefixPath(path, stageIn=True)
+    ret = s1.getCopyPrefixPathNew(path, stageIn=True)
     print "ret:" + ret
     print
