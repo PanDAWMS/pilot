@@ -2999,7 +2999,11 @@ def getProperSpaceTokenList(spacetokenlist, listSEs, jobCloud, analysisJob, alt=
                     else:
                         if not analysisJob:
                             # __defaulttoken = "ATLASPRODDISK"
-                            tolog("Note: schedconfig.cloud != job.cloud: Space token set to %s" % (__defaulttoken))
+                            if "dst:" in properspacetokenlist[i]:
+                                tolog("Note: schedconfig.cloud != job.cloud, but skipping reset of space token since group disk is requested")
+                                __defaulttoken = properspacetokenlist[i]
+                            else:
+                                tolog("Note: schedconfig.cloud != job.cloud: Space token set to %s" % (__defaulttoken))
                         else:
                             tolog("schedconfig.cloud = %s" % str(cloud))
                             tolog("job.cloud = %s" % str(jobCloud))
