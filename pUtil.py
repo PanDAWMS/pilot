@@ -2668,7 +2668,7 @@ def tailPilotErrorDiag(pilotErrorDiag, size=256):
 def getMaxInputSize(MB=False):
     """ Return a proper maxinputsize value """
 
-    _maxinputsize = readpar('maxinputsize') # normally 14336 MB
+    _maxinputsize = readpar('maxwdir') # normally 14336+2000 MB
     MAX_INPUT_FILESIZES = 14*1024*1024*1024 # 14 GB, 14336 MB (pilot default)
     MAX_INPUT_FILESIZES_MB = 14*1024 # 14336 MB (pilot default)
     if _maxinputsize != "":
@@ -2683,6 +2683,9 @@ def getMaxInputSize(MB=False):
                 _maxinputsize = MAX_INPUT_FILESIZES_MB
             else:
                 _maxinputsize = MAX_INPUT_FILESIZES
+        else:
+            # 2 GB correction (ignoring that 2000 != 2048 MB..)
+            _maxinputsize -= 2000
     else:
         if MB:
             _maxinputsize = MAX_INPUT_FILESIZES_MB
