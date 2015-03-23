@@ -360,7 +360,6 @@ if __name__ == "__main__":
         #if runJob.getCache():
         #    thisExperiment.setCache(runJob.getCache())
 
-        region = readpar('region')
         #JR = JobRecovery()
         try:
             job = Job.Job()

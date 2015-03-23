@@ -991,7 +991,7 @@ class RunJobEvent(RunJob):
 
         # convert the preliminary metadata-<jobId>.xml file to OutputFiles-<jobId>.xml for NG and for CERNVM
         # note: for CERNVM this is only really needed when CoPilot is used
-        if region == 'Nordugrid' or sitename == 'CERNVM':
+        if readpar('cloud') == 'ND' or sitename == 'CERNVM':
             if RunJobUtilities.convertMetadata4NG(os.path.join(self.__job.workdir, self.__job.outputFilesXML), _fname, outsDict, dsname, datasetDict):
                 tolog("Metadata has been converted to NG/CERNVM format")
             else:
@@ -1911,7 +1911,6 @@ if __name__ == "__main__":
         # get the event service object using the experiment name (since it can be experiment specific)
         thisEventService = getEventService(runJob.getExperiment())
 
-        region = readpar('region')
         JR = JobRecovery()
         try:
             job = Job.Job()
