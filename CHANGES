@@ -175,9 +175,10 @@ Removed getLocalSpaceLimit() since it is not used any longer (Mover)
 Replaced maxinputsize with maxwdir - 2000 in getMaxInputSize(). Requested by Alastair Dewhurst (pUtil)
 Removed unused method testES() (RunJobEvent)
 Extracting error acronyms and diagnostics from AthenaMP yampl message in listener() (RunJobEvent)
+Now using getModernASetup() with AnalysisTransform setups in getJobExecutionCommand(); requested by Asoka de Silva (ATLASExperiment)
 
 Update info from Edward Karavakis:
-- Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir (glexec_utils)
+- Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
