@@ -315,7 +315,7 @@ class GlexecInterface(object):
 		shutil.copy2(filename, self.sandbox_path)
 		os.chmod(os.path.join(self.sandbox_path, filename), 0666)
 
-        dirs = [d for d in os.listdir(os.environ['PilotHomeDir']) if os.path.isdir(os.path.join(os.environ['PilotHomeDir'], d))]
+        dirs = [d for d in os.listdir(os.environ['PilotHomeDir']) if os.path.isdir(os.path.join(os.environ['PilotHomeDir'], d)) and 'gltmpdir' not in d]
 
 	for i in dirs:
                 if os.path.exists(os.path.join(self.sandbox_path, i)):
