@@ -2637,7 +2637,7 @@ class ATLASExperiment(Experiment):
         # Verify the validity of the release string in case it is not set (as can be the case for prun jobs)
         release = verifyReleaseString(release)
 
-        if cloud == 'ND':
+        if readpar('cloud') == 'ND':
             if os.environ.has_key('RUNTIME_CONFIG_DIR'):
                 _swbase = os.environ['RUNTIME_CONFIG_DIR']
                 if os.path.exists(_swbase):
