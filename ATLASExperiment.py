@@ -1870,10 +1870,9 @@ class ATLASExperiment(Experiment):
         if not cmtconfig_alternatives:
             cmtconfig_alternatives = [_cmtconfig]
 
-        if readpar('region') == 'CERN':
-            if swbase[-len('builds'):] == 'builds':
-                status = True
-                return ec, pilotErrorDiag, status, swbase, _cmtconfig
+        if swbase[-len('builds'):] == 'builds':
+            status = True
+            return ec, pilotErrorDiag, status, swbase, _cmtconfig
 
         # loop over all available cmtconfig's until a working one is found (the default cmtconfig value is the first to be tried)
         for cmtconfig in cmtconfig_alternatives:
@@ -1947,97 +1946,6 @@ class ATLASExperiment(Experiment):
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
                     ec = self.__error.ERR_SETUPFAILURE
                     continue
-
-        # reset errors if siteroot was found
-        if status:
-            ec = 0
-            pilotErrorDiag = ""
-        return ec, pilotErrorDiag, status, siteroot, cmtconfig
-
-    def getProperSiterootAndCmtconfigOld(self, swbase, release, homePackage, _cmtconfig, cmtconfig_alternatives=None):
-        """ return a proper $SITEROOT and cmtconfig """
-
-        status = False
-        siteroot = ""
-        ec = 0 # only non-zero for fatal errors (missing installation)
-        pilotErrorDiag = ""
-
-        # make sure the cmtconfig_alternatives is not empty/not set
-        if not cmtconfig_alternatives:
-            cmtconfig_alternatives = [_cmtconfig]
-
-        if readpar('region') == 'CERN':
-            if swbase[-len('builds'):] == 'builds':
-                status = True
-                return ec, pilotErrorDiag, status, swbase, _cmtconfig
-
-        # loop over all available cmtconfig's until a working one is found (the default cmtconfig value is the first to be tried)
-        for cmtconfig in cmtconfig_alternatives:
-            ec = 0
-            pilotErrorDiag = ""
-            tolog("Testing cmtconfig=%s" % (cmtconfig))
-
-            if self.useAtlasSetup(swbase, release, homePackage, cmtconfig):
-                cmd = self.getProperASetup(swbase, release, homePackage, cmtconfig, tailSemiColon=True)
-                cmd += " echo SITEROOT=$SITEROOT"
-            elif "slc5" in cmtconfig and "gcc43" in cmtconfig:
-                cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,%s,runtime; echo SITEROOT=$SITEROOT" % (swbase, release, release, cmtconfig)
-            else:
-                cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,runtime; echo SITEROOT=$SITEROOT" % (swbase, release, release)
-
-            # verify that the setup path actually exists before attempting the source command
-            ec, pilotErrorDiag = self.verifySetupCommand(cmd)
-            if ec != 0:
-                pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (pilotErrorDiag)
-                tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                ec = self.__error.ERR_MISSINGINSTALLATION
-                continue
-
-            (exitcode, output) = timedCommand(cmd, timeout=getProperTimeout(cmd))
-
-            if exitcode != 0 or "Error:" in output or "(ERROR):" in output:
-                # if time out error, don't bother with trying another cmtconfig
-
-                tolog("ATLAS setup for SITEROOT failed")
-                if "No such file or directory" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_MISSINGINSTALLATION
-                    continue
-                elif "Error:" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Caught CMT error: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_SETUPFAILURE
-                    continue
-                elif "AtlasSetup(ERROR):" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Caught AtlasSetup error: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_SETUPFAILURE
-                    continue
-
-            if output:
-                tolog("Command output: %s" % (output))
-                if 'SITEROOT' in output:
-                    re_sroot = re.compile('SITEROOT=(.+)')
-                    _sroot = re_sroot.search(output)
-                    if _sroot:
-                        siteroot = _sroot.group(1)
-                        status = True
-                        break
-                    else:
-                        # should this case be accepted?
-                        ec = self.__error.ERR_SETUPFAILURE
-                        pilotErrorDiag = "SITEROOT not found in command output: %s" % (output)
-                        tolog("WARNING: %s" % (pilotErrorDiag))
-                        continue
-                else:
-                    siteroot = os.path.join(swbase, release)
-                    siteroot = siteroot.replace('//','/')
-                    status = True
-                    break
-            else:
-                pilotErrorDiag = "getProperSiterootAndCmtconfig: Command produced no output"
-                tolog("WARNING: %s" % (pilotErrorDiag))
 
         # reset errors if siteroot was found
         if status:
@@ -2122,7 +2030,7 @@ class ATLASExperiment(Experiment):
 
         # need to tell asetup where the compiler is in the US (location of special config file)
         _path = "%s/AtlasSite/AtlasSiteSetup" % (path)
-        if readpar('region') == "US" and os.path.exists(_path):
+        if readpar('cloud') == "US" and os.path.exists(_path):
             _input = "--input %s" % (_path)
         else:
             _input = ""
@@ -2318,7 +2226,7 @@ class ATLASExperiment(Experiment):
         except Exception, e:
             tolog("WARNING: os.environ.has_key failed: %s" % str(e))
 
-        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and readpar('region') != "Nordugrid":
+        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and readpar('cloud') != "ND":
             vo_atlas_sw_dir = os.environ["VO_ATLAS_SW_DIR"]
             if vo_atlas_sw_dir != "":
                 # on cvmfs the following dirs are symbolic links, so all tests are needed
@@ -2729,8 +2637,7 @@ class ATLASExperiment(Experiment):
         # Verify the validity of the release string in case it is not set (as can be the case for prun jobs)
         release = verifyReleaseString(release)
 
-        region = readpar('region')
-        if region == 'Nordugrid':
+        if cloud == 'ND':
             if os.environ.has_key('RUNTIME_CONFIG_DIR'):
                 _swbase = os.environ['RUNTIME_CONFIG_DIR']
                 if os.path.exists(_swbase):
@@ -2978,7 +2885,7 @@ class ATLASExperiment(Experiment):
         # Used in the case of payload using multiple steps with different release versions
         # E.g. release = "19.0.0\n19.1.0" -> ['19.0.0', '19.1.0']
 
-        if readpar('region') == 'Nordugrid':
+        if readpar('cloud') == 'ND' and os.environ.has_key('ATLAS_RELEASE'):
             return os.environ['ATLAS_RELEASE'].split(",")
         else:
             return release.split("\n")
