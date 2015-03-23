@@ -1344,10 +1344,16 @@ class RunJobEvent(RunJob):
                         self.__stageout_queue.append(path)
                         tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(self.__stageout_queue)))
 
-                        #cmd = "ls -lF %s" % (path)
-                        #tolog("zxzxzx Executing command: %s" % (cmd))
-                        #out = commands.getoutput(cmd)
-                        #tolog("\n%s" % (out))
+                elif buf.startswith('ERR'):
+                    tolog("Received an error message: %s" % (buf))
+
+                    # Extract the error acronym and the error diagnostics
+                    error_acronym, diagnostics = self.extractErrorMessage(buf):
+                    tolog("Extracted error acronym %s and error diagnostics \'%s\'" % (error_acronym, diagnostics))
+                    if error_acronym == "EXTRACTION_FAILURE":
+                        tolog("!!WARNING!!2233!! Failed to interpret error message: %s" % (diagnostics))
+                    else:
+                        pass
                 else:
                     tolog("Pilot received message:%s" % buf)
             except Exception, e:
@@ -1355,6 +1361,32 @@ class RunJobEvent(RunJob):
             time.sleep(1)
 
         tolog("listener has finished")
+
+    def extractErrorMessage(self, msg):
+        """ Extract the error message from the AthenaMP message """
+
+        # msg = 'ERR_ATHENAMP This is the error diagnostics 1234$#'
+        # -> error_acronym = 'ERR_ATHENAMP', diagnostics = 'This is the error diagnostics 1234$#'
+
+        error_acronym = ""
+        diagnostics = ""
+
+        pattern = re.compile(r"(ERR\_[A-Z]+)\ (.+)ww")
+        found = re.findall(pattern, msg)
+        if len(found) > 0:
+            try:
+                error_acronym = found[0][0]
+                diagnostics = found[0][1]
+            except Exception, e:
+                tolog("!!WARNING!!2211!! Failed to extract AthenaMP message")
+                error_acronym = "EXTRACTION_FAILURE"
+                diagnostics = e
+        else:
+            tolog("!!WARNING!!2212!! Failed to extract AthenaMP message")
+            error_acronym = "EXTRACTION_FAILURE"
+            diagnostics = msg
+        
+        return error_acronym, diagnostics
 
     def correctFileName(self, path, event_range_id):
         """ Correct the output file name if necessary """
@@ -1728,14 +1760,6 @@ class RunJobEvent(RunJob):
             stderr = None
 
         return stdout, stderr
-
-    def testES(self):
-
-        tolog("Note: queuedata.json must be available")
-        os.environ['PilotHomeDir'] = os.getcwd()
-        thisExperiment = getExperiment("ATLAS")
-        message = self.downloadEventRanges()
-        #createPoolFileCatalogFromMessage(message, thisExperiment)
 
     def extractEventRanges(self, message):
         """ Extract all event ranges from the server message """
