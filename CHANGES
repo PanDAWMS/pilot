@@ -180,6 +180,7 @@ Removed usage of 'region' in getProperSiterootAndCmtconfig() (ATLASExperiment)
 Removed getProperSiterootAndCmtconfigOld() (ATLASExperiment)
 Changed usage of 'region' to 'cloud', and replaced 'Nordugrid' with 'ND' in checkSpecialEnvVars(), getSwbase(), getRelease() (ATLASExperiment)
 Changed 'region' to 'cloud' in getProperASetup() (ATLASExperiment)
+Removed unused region variable in getAnalysisRunCommand() (Experiment)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)

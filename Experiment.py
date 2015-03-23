@@ -329,7 +329,6 @@ class Experiment(object):
 
         # get the queuedata info
         # (directAccess info is stored in the copysetup variable)
-        region = readpar('region')
 
         # get relevant file transfer info
         dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl, lfcHost =\
