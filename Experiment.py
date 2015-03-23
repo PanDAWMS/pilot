@@ -159,6 +159,7 @@ class Experiment(object):
 
     def specialChecks(self, **kwargs):
         """ Implement special checks here """
+
         # Return False if fatal failure, otherwise return True
         # The pilot will abort if this method returns a False
 
