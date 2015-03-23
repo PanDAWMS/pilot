@@ -4178,17 +4178,6 @@ def getLocalSpace(path):
     thisWorkNode.collectWNInfo(path)
     return int(thisWorkNode.disk)*1024**2 # convert from MB to B
 
-def getLocalSpaceLimit(_maxinputsize):
-    """ Return the minimum local space needed to run a job """
-
-    from pilot import localspacelimit0, localsizelimit_stdout
-    # convert from kB to B
-    _localspacelimit0 = localspacelimit0*1024           # 5 GB, max output file size
-    _localsizelimit_stdout = localsizelimit_stdout*1024 # 2 GB, max job stdout/log size
-    # _maxinputsize = getMaxInputSize() # typically 14 GB, max total size of input files
-
-    return _maxinputsize + _localspacelimit0 + _localsizelimit_stdout
-
 def verifyInputFileSize(totalFileSize, _maxinputsize, error):
     """ Verify that the total input file size is within the allowed limit """
 
@@ -4214,7 +4203,7 @@ def verifyAvailableSpace(sitemover, totalFileSize, path, error):
     pilotErrorDiag = ""
 
     # skip for now: add the 5 GB + 2 GB limits for output and log files to the total input file size
-    _neededSpace = totalFileSize # getLocalSpaceLimit(totalFileSize)
+    _neededSpace = totalFileSize
     tolog("Needed space: %d B" % (_neededSpace))
     # get the locally available space
     _availableSpace = getLocalSpace(path)

@@ -171,7 +171,7 @@ Avoiding reset of space token to default for group disk tokens, in getProperSpac
 60e:
 
 Added --cmtconfig to asetup in getJobExecutionCommand() to bypass problems with some AthAnalysisBase releases. Requested by Asoka de Silva et al. (ATLASExperiment)
-. Removed getLocalSpaceLimit() since it is not used any longer (Mover)
+Removed getLocalSpaceLimit() since it is not used any longer (Mover)
 . Replaced maxinputsize with maxwdir - 2000 in getMaxInputSize(). Requested by Alastair Dewhurst (pUtil)
 . Removed unused method testES() (RunJobEvent)
 . Extracting error acronyms and diagnostics from AthenaMP yampl message in listener() (RunJobEvent)
