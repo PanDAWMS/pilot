@@ -424,7 +424,7 @@ class ATLASExperiment(Experiment):
                     tolog("cacheVer = %s" % (cacheVer))
                     if cacheDir != "" and cacheVer != "":
                         asetup = "export AtlasSetup=%s/%s/%s/%s/AtlasSetup; " % (swbase, cacheDir, cmtconfig, cacheVer)
-                        asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s;" % (cacheDir, cacheVer)
+                        asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
 
                         # now squeeze it in
                         cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
