@@ -1369,29 +1369,66 @@ class RunJobEvent(RunJob):
 
         # msg = 'ERR_ATHENAMP_PROCESS 130-2068634812-21368-1-4: Failed to process event range'
         # -> error_acronym = 'ERR_ATHENAMP_PROCESS'
-        #    event_range = '130-2068634812-21368-1-4'
+        #    event_range_id = '130-2068634812-21368-1-4'
         #    error_diagnostics = 'Failed to process event range')
+        #
+        # msg = ERR_ATHENAMP_PARSE "u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-4', u'startEvent': 5, u'GUID': u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'": Wrong format
+        # -> error_acronym = 'ERR_ATHENAMP_PARSE'
+        #    event_range = "u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-4', ..
+        #    error_diagnostics = 'Wrong format'
+        #    -> event_range_id = '130-2068634812-21368-1-4' (if possible to extract)
+
         error_acronym = ""
-        event_range = ""
+        event_range_id = ""
         error_diagnostics = ""
 
-        pattern = re.compile(r"(ERR\_[A-Z\_]+)\ ([0-9\-]+)\:\ (.+)")
-        found = re.findall(pattern, msg)
-        if len(found) > 0:
-            try:
-                error_acronym = found[0][0]
-                event_range = found[0][1]
-                error_diagnostics = found[0][2]
-            except Exception, e:
-                tolog("!!WARNING!!2211!! Failed to extract AthenaMP message: %s" % (e))
-                error_acronym = "EXTRACTION_FAILURE"
-                error_diagnostics = e
+        # Special error acronym
+        if "ERR_ATHENAMP_PARSE" in msg:
+            # Note: the event range will be in the msg and not the event range id only 
+            pattern = re.compile(r"(ERR\_[A-Z\_]+)\ (.+)\:\ ?(.+)")
+            found = re.findall(pattern, msg)
+            if len(found) > 0:
+                try:
+                    error_acronym = found[0][0]
+                    event_range = found[0][1] # Note: not the event range id only, but the full event range
+                    error_diagnostics = found[0][2]
+                except Exception, e:
+                    tolog("!!WARNING!!2211!! Failed to extract AthenaMP message: %s" % (e))
+                    error_acronym = "EXTRACTION_FAILURE"
+                    error_diagnostics = e
+                else:
+                    # Can the event range id be extracted?
+                    if "eventRangeID" in event_range:
+                        pattern = re.compile(r"eventRangeID\'\:\ ?.?\'([0-9\-]+)")
+                        found = re.findall(pattern, event_range)
+                        if len(found) > 0:
+                            try:
+                                event_range_id = found[0]
+                            except Exception, e:
+                                tolog("!!WARNING!!2212!! Failed to extract event_range_id: %s" % (e))
+                            else:
+                                tolog("Extracted event_range_id: %s" % (event_range_id))
+                    else:
+                        tolog("!!WARNING!!2213!1 event_range_id not found in event_range: %s" % (event_range))
         else:
-            tolog("!!WARNING!!2212!! Failed to extract AthenaMP message")
-            error_acronym = "EXTRACTION_FAILURE"
-            error_diagnostics = msg
+            # General error acronym
+            pattern = re.compile(r"(ERR\_[A-Z\_]+)\ ([0-9\-]+)\:\ ?(.+)")
+            found = re.findall(pattern, msg)
+            if len(found) > 0:
+                try:
+                    error_acronym = found[0][0]
+                    event_range_id = found[0][1]
+                    error_diagnostics = found[0][2]
+                except Exception, e:
+                    tolog("!!WARNING!!2211!! Failed to extract AthenaMP message: %s" % (e))
+                    error_acronym = "EXTRACTION_FAILURE"
+                    error_diagnostics = e
+                else:
+                    tolog("!!WARNING!!2212!! Failed to extract AthenaMP message")
+                    error_acronym = "EXTRACTION_FAILURE"
+                    error_diagnostics = msg
 
-        return error_acronym, event_range, error_diagnostics
+        return error_acronym, event_range_id, error_diagnostics
 
     def correctFileName(self, path, event_range_id):
         """ Correct the output file name if necessary """
