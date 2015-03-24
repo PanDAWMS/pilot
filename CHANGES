@@ -174,6 +174,7 @@ Added --cmtconfig to asetup in getJobExecutionCommand() to bypass problems with 
 Removed getLocalSpaceLimit() since it is not used any longer (Mover)
 Replaced maxinputsize with maxwdir - 2000 in getMaxInputSize(). Requested by Alastair Dewhurst (pUtil)
 Removed unused method testES() (RunJobEvent)
+Created extractErrorMessage() (RunJobEvent)
 Extracting error acronyms and diagnostics from AthenaMP yampl message in listener() (RunJobEvent)
 Now using getModernASetup() with AnalysisTransform setups in getJobExecutionCommand(); requested by Asoka de Silva (ATLASExperiment)
 Removed usage of 'region' in getProperSiterootAndCmtconfig() (ATLASExperiment)
