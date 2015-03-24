@@ -1348,12 +1348,12 @@ class RunJobEvent(RunJob):
                     tolog("Received an error message: %s" % (buf))
 
                     # Extract the error acronym and the error diagnostics
-                    error_acronym, diagnostics = self.extractErrorMessage(buf):
-                    tolog("Extracted error acronym %s and error diagnostics \'%s\'" % (error_acronym, diagnostics))
-                    if error_acronym == "EXTRACTION_FAILURE":
-                        tolog("!!WARNING!!2233!! Failed to interpret error message: %s" % (diagnostics))
+                    error_acronym, event_range, error_diagnostics = self.extractErrorMessage(buf)
+                    if event_range != "":
+                        tolog("!!WARNING!!2244!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range))
                     else:
-                        pass
+                        tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted)" % (error_acronym, error_diagnostics))
+
                 else:
                     tolog("Pilot received message:%s" % buf)
             except Exception, e:
@@ -1365,28 +1365,31 @@ class RunJobEvent(RunJob):
     def extractErrorMessage(self, msg):
         """ Extract the error message from the AthenaMP message """
 
-        # msg = 'ERR_ATHENAMP This is the error diagnostics 1234$#'
-        # -> error_acronym = 'ERR_ATHENAMP', diagnostics = 'This is the error diagnostics 1234$#'
-
+        # msg = 'ERR_ATHENAMP_PROCESS 130-2068634812-21368-1-4: Failed to process event range'
+        # -> error_acronym = 'ERR_ATHENAMP_PROCESS'
+        #    event_range = '130-2068634812-21368-1-4'
+        #    error_diagnostics = 'Failed to process event range')
         error_acronym = ""
-        diagnostics = ""
+        event_range = ""
+        error_diagnostics = ""
 
-        pattern = re.compile(r"(ERR\_[A-Z]+)\ (.+)ww")
+        pattern = re.compile(r"(ERR\_[A-Z\_]+)\ ([0-9\-]+)\:\ (.+)")
         found = re.findall(pattern, msg)
         if len(found) > 0:
             try:
                 error_acronym = found[0][0]
-                diagnostics = found[0][1]
+                event_range = found[0][1]
+                error_diagnostics = found[0][2]
             except Exception, e:
-                tolog("!!WARNING!!2211!! Failed to extract AthenaMP message")
+                tolog("!!WARNING!!2211!! Failed to extract AthenaMP message: %s" % (e))
                 error_acronym = "EXTRACTION_FAILURE"
-                diagnostics = e
+                error_diagnostics = e
         else:
             tolog("!!WARNING!!2212!! Failed to extract AthenaMP message")
             error_acronym = "EXTRACTION_FAILURE"
-            diagnostics = msg
-        
-        return error_acronym, diagnostics
+            error_diagnostics = msg
+
+        return error_acronym, event_range, error_diagnostics
 
     def correctFileName(self, path, event_range_id):
         """ Correct the output file name if necessary """
