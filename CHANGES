@@ -184,6 +184,7 @@ Changed 'region' to 'cloud' in getProperASetup() (ATLASExperiment)
 Removed unused region variable in getAnalysisRunCommand() (Experiment)
 Removed unused region variable in __main__() (RunJob, RunJobEvent, RunJobAnselm, RunJobEdison)
 Changed usage of 'region' to 'cloud', and replaced 'Nordugrid' with 'ND' in createFileMetadata() (RunJob, RunJobEvent)
+Removed unnecessary error handling around updateEventRange() call in asynchronousOutputStager() (RunJobEvent)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)

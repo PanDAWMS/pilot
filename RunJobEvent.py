@@ -1292,13 +1292,8 @@ class RunJobEvent(RunJob):
                                     # Note: the rec pilot must update the server appropriately
 
                                 # Time to update the server
-                                tolog("Transfer %s" % (status))
-                                try:
-                                    msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status)
-                                except Exception, e:
-                                    tolog("!!WARNING!!2233!! updateEventRange threw an exception: %s" % (e))
-                                else:
-                                    tolog("updateEventRange has returned")
+                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status)
+
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
             time.sleep(1)
