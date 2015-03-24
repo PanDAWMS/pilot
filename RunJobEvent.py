@@ -1343,11 +1343,18 @@ class RunJobEvent(RunJob):
                     tolog("Received an error message: %s" % (buf))
 
                     # Extract the error acronym and the error diagnostics
-                    error_acronym, event_range, error_diagnostics = self.extractErrorMessage(buf)
-                    if event_range != "":
-                        tolog("!!WARNING!!2244!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range))
+                    error_acronym, event_range_id, error_diagnostics = self.extractErrorMessage(buf)
+                    if event_range_id != "":
+                        tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range))
+
+                        # Time to update the server
+                        msg = updateEventRange(event_range_id, [], status='Failed')
+                        if msg != "":
+                            tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
+                        else:
+                            tolog("Updated server for failed event range")
                     else:
-                        tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted)" % (error_acronym, error_diagnostics))
+                        tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
 
                 else:
                     tolog("Pilot received message:%s" % buf)

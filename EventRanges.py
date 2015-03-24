@@ -44,8 +44,10 @@ def updateEventRange(event_range_id, eventRangeList, status='finished'):
     node = {}
     node['eventRangeID'] = event_range_id
 
-    # node['cpu'] =  eventRangeList[1]
-    # node['wall'] = eventRangeList[2]
+    if eventRangeList != []:
+        pass
+        # node['cpu'] =  eventRangeList[1]
+        # node['wall'] = eventRangeList[2]
     node['eventStatus'] = status
 
     # open connection
