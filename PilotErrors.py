@@ -127,7 +127,7 @@ class PilotErrors:
     ERR_ESFATAL = 1228
     ERR_TEHOSTNAME = 1229
     ERR_TEBADURL = 1230
-    ERR_TEINVALIDGUID= 1231
+    ERR_TEINVALIDGUID = 1231
     ERR_TEWRONGGUID = 1232
 
     # internal error codes
