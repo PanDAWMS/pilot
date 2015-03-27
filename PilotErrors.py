@@ -124,6 +124,12 @@ class PilotErrors:
     ERR_ESMERGERECOVERABLE = 1225
     ERR_GLEXEC = 1226
     ERR_ESATHENAMPDIED = 1227
+    ERR_ESFATAL = 1228
+    ERR_TEHOSTNAME = 1229
+    ERR_TEBADURL = 1230
+    ERR_TEINVALIDGUID= 1231
+    ERR_TEWRONGGUID = 1232
+
     # internal error codes
     ERR_DDMREG = 1
     ERR_FILEONTAPE = 2
@@ -251,7 +257,12 @@ class PilotErrors:
         ERR_ESMERGERECOVERABLE : "Recoverable Event Service Merge error",
         ERR_ESRECOVERABLE: "Recoverable Event Service error",
 	ERR_GLEXEC: "gLExec related error",
-        ERR_ESATHENAMPDIED: "AthenaMP ended Event Service job prematurely"
+        ERR_ESATHENAMPDIED: "AthenaMP ended Event Service job prematurely",
+        ERR_ESFATAL: "Fatal Event Service error",
+        ERR_TEHOSTNAME: "Token Extractor error: Host name could not be resolved",
+        ERR_TEBADURL: "Token Extractor error: Bad URL",
+        ERR_TEINVALIDGUID: "Token Extractor error: Invalid GUID length",
+        ERR_TEWRONGGUID: "Token Extractor error: No tokens for this GUID"
         }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]

@@ -186,6 +186,13 @@ Removed unused region variable in __main__() (RunJob, RunJobEvent, RunJobAnselm,
 Changed usage of 'region' to 'cloud', and replaced 'Nordugrid' with 'ND' in createFileMetadata() (RunJob, RunJobEvent)
 Removed unnecessary error handling around updateEventRange() call in asynchronousOutputStager() (RunJobEvent)
 Now forwarding failed error range to server, in listener() (RunJobEvent)
+Added event service and token extractor error codes:
+        ERR_ESFATAL: "Fatal Event Service error",
+        ERR_TEHOSTNAME: "Token Extractor error: Host name could not be resolved",
+	ERR_TEBADURL: "Token Extractor error: Bad URL",
+	ERR_TEINVALIDGUID: "Token Extractor error: Invalid GUID length",
+	ERR_TEWRONGGUID: "Token Extractor error: No tokens for this GUID"
+used by RunJobEvent::listener() (PilotErrors, RunJobEvent)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
