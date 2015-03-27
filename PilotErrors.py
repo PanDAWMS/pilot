@@ -260,6 +260,7 @@ class PilotErrors:
 	ERR_GLEXEC: "gLExec related error",
         ERR_ESATHENAMPDIED: "AthenaMP ended Event Service job prematurely",
         ERR_ESFATAL: "Fatal Event Service error",
+        ERR_TEFATAL: "Fatal Token Extractor error",
         ERR_TEHOSTNAME: "Token Extractor error: Host name could not be resolved",
         ERR_TEBADURL: "Token Extractor error: Bad URL",
         ERR_TEINVALIDGUID: "Token Extractor error: Invalid GUID length",
