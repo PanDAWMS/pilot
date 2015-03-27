@@ -1353,6 +1353,30 @@ class RunJobEvent(RunJob):
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
                             tolog("Updated server for failed event range")
+
+                        # Was the error fatal? If so, the pilot should abort
+                        if "FATAL" in error_acronym:
+                            tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
+
+                            # Fail the job
+                            if error_acronym == "ERR_TE_FATAL" and "URL Error" in error_diagnostics:
+                                error_code = self.__error.ERR_TEBADURL
+                            else if error_acronym == "ERR_TE_FATAL" and "resolve host name" in error_diagnostics:
+                                error_code = self.__error.ERR_TEHOSTNAME
+                            else if error_acronym == "ERR_TE_FATAL" and "Invalid GUID length" in error_diagnostics:
+                                error_code = self.__error.ERR_TEINVALIDGUID
+                            else if error_acronym == "ERR_TE_FATAL" and "No tokens for GUID" in error_diagnostics:
+                                error_code = self.__error.ERR_TEWRONGGUID
+                            else if error_acronym == "ERR_TE_FATAL":
+                                error_code = self.__error.ERR_TEFATAL
+                            else:
+                                error_code = self.__error.ERR_ESFATAL
+                            result = ["failed", 0, error_code]
+                            tolog("Setting error code: %d" % (error_code))
+                            self.setJobResult(result)
+
+                            # ..
+
                     else:
                         tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
 
