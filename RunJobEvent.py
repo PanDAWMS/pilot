@@ -1361,13 +1361,13 @@ class RunJobEvent(RunJob):
                             # Fail the job
                             if error_acronym == "ERR_TE_FATAL" and "URL Error" in error_diagnostics:
                                 error_code = self.__error.ERR_TEBADURL
-                            else if error_acronym == "ERR_TE_FATAL" and "resolve host name" in error_diagnostics:
+                            elif error_acronym == "ERR_TE_FATAL" and "resolve host name" in error_diagnostics:
                                 error_code = self.__error.ERR_TEHOSTNAME
-                            else if error_acronym == "ERR_TE_FATAL" and "Invalid GUID length" in error_diagnostics:
+                            elif error_acronym == "ERR_TE_FATAL" and "Invalid GUID length" in error_diagnostics:
                                 error_code = self.__error.ERR_TEINVALIDGUID
-                            else if error_acronym == "ERR_TE_FATAL" and "No tokens for GUID" in error_diagnostics:
+                            elif error_acronym == "ERR_TE_FATAL" and "No tokens for GUID" in error_diagnostics:
                                 error_code = self.__error.ERR_TEWRONGGUID
-                            else if error_acronym == "ERR_TE_FATAL":
+                            elif error_acronym == "ERR_TE_FATAL":
                                 error_code = self.__error.ERR_TEFATAL
                             else:
                                 error_code = self.__error.ERR_ESFATAL
