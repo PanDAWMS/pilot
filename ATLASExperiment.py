@@ -22,6 +22,7 @@ from pUtil import remove                        # Used to remove redundant file 
 from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
 from PilotErrors import PilotErrors             # Error codes
+from FileHandling import readFile, writeFile    # File handling methods
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
 from RunJobUtilities import findVmPeaks         #
@@ -2991,6 +2992,44 @@ class ATLASExperiment(Experiment):
         # This method is called from Monitor, before RunJob is launched, which allows to make changes to the job object after it was downloaded from the job dispatcher
         # (used within Monitor) and the job definition file (which is used from RunJob to recreate the same job object as is used in Monitor).
         # 'job' is the job object, defined in Job.py, while 'filename' is the name of the file containing the job definition information.
+
+        # Update the job definition in case ATHENA_PROC_NUMBER has been set
+        if os.environ.has_key('ATHENA_PROC_NUMBER'):
+            try:
+                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+            except Exception, e:
+                tolog("!!WARNING!!2332!! ATHENA_PROC_NUMBER not an integer (can not update job definition): %s" % (e))
+            else:
+                tolog("ATHENA_PROC_NUMBER set to %d - will update job object and job definition file" % (coreCount))
+                job.coreCount = coreCount
+
+                # Get the contents of the job definition
+                contents = readFile(filename)
+                if contents != "":
+                    # Parse the job definition and extract the coreCount string + value
+                    pattern = re.compile(r"coreCount\=([A-Za-z0-9]+)?")
+                    found = re.findall(pattern, contents)
+                    if len(found) > 0: # ie found a least 'coreCount='
+                        try:
+                            coreCount_string = "coreCount=%s" % found[0] # might or might not add an int, or even NULL
+                        except Exception, e:
+                            tolog("!!WARNING!!2333!! Failed to extract coreCount from job definition: %s" % (e))
+                        else:
+                            tolog("Extracted \'%s\' from job definition" % (coreCount_string))
+
+                            # Update the coreCount
+                            new_coreCount = "coreCount=%d" % (coreCount)
+                            updated_contents = contents.replace(coreCount_string, new_coreCount)
+                            if writeFile(filename, updated_contents):
+                                tolog("Updated job definition with: \'%s\'" % (new_coreCount))
+                            else:
+                                tolog("!!WARNING!!2336!! Failed to update coreCount in job definition")
+                    else:
+                        tolog("!!WARNING!!2334!! coreCount could not be extracted from job definition")
+                else:
+                    tolog("!!WARNING!!2335!! Empty job definition")
+        else:
+            tolog("ATHENA_PROC_NUMBER is not set, will not update coreCount in job definition")
 
         return job
 

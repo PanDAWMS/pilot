@@ -196,6 +196,7 @@ used by RunJobEvent::listener() (PilotErrors, RunJobEvent)
 Calling updateJobDefinition() from monitor_job() (Monitor)
 Created optional updateJobDefinition() used to manipulate the job object/file after download from dispatcher (Experiment, ATLASExperiment)
 Created readFile(), writeFile() (FileHandling)
+Now updating the job object and job definition file in updateJobDefinition() (ATLASExperiment)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
