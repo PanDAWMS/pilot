@@ -41,5 +41,25 @@ def sortedLs(path, pattern):
                 final_file_list.append(f)
     return final_file_list
 
+def readFile(filename):
+    """ Read the contents of a file """
+
+    contents = ""
+    if os.path.exists(filename):
+        try:
+            f = open(filename, 'r')
+        except IOError, e:
+            tolog("!!WARNING!!2121!! Failed to open file %s: %s" % (filename, e))
+        else:
+            try:
+                contents = f.read()
+            except Exception, e:
+                tolog("!!WARNING!!2122!! Failed to read file %s: %s" % (filename, e))
+            f.close()
+    else:
+        tolog("!!WARNING!!2121!! File does not exist: %s" % (filename))
+
+    return contents
+
 # print findLatestTRFLogFile(os.getcwd())
 
