@@ -466,6 +466,16 @@ class RunJob(object):
         if docleanup:
             self.sysExit(job)
 
+    def isMultiTrf(self, parameterList):
+        """ Will we execute multiple jobs? """
+
+        if len(parameterList) > 1:
+            multi_trf = True
+        else:
+            multi_trf = False
+
+        return multi_trf
+
     def setup(self, job, jobSite, thisExperiment):
         """ prepare the setup and get the run command list """
 
@@ -482,10 +492,7 @@ class RunJob(object):
         releaseList = thisExperiment.getRelease(job.release)
 
         tolog("Number of transformations to process: %s" % len(jobParameterList))
-        if len(jobParameterList) > 1:
-            multi_trf = True
-        else:
-            multi_trf = False
+        multi_trf = self.isMultiTrf(jobParameterList)
 
         # verify that the multi-trf job is setup properly
         ec, job.pilotErrorDiag, releaseList = RunJobUtilities.verifyMultiTrf(jobParameterList, jobHomePackageList, jobTrfList, releaseList)
@@ -679,12 +686,25 @@ class RunJob(object):
         tolog("t0 = %s" % str(t0))
         res_tuple = (0, 'Undefined')
 
+        multi_trf = self.isMultiTrf(runCommandList)
+
         # loop over all run commands (only >1 for multi-trfs)
         current_job_number = 0
         getstatusoutput_was_interrupted = False
         number_of_jobs = len(runCommandList)
         for cmd in runCommandList:
             current_job_number += 1
+
+            # create the stdout/err files
+            file_stdout, file_stderr = self.getStdoutStderrFileObjects(stdoutName=job.stdout, stderrName=job.stderr)
+            if file_stdout and file_stderr:
+                # tolog("Stdout/err file pointers are ready")
+                pass
+            else:
+                tolog("!!WARNING!!2222!! Could not open stdout/stderr files, piping not possible")
+                #ec = -1
+                break
+
             try:
                 # add the full job command to the job_setup.sh file
                 to_script = cmd.replace(";", ";\n")
