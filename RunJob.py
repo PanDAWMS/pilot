@@ -687,6 +687,8 @@ class RunJob(object):
         res_tuple = (0, 'Undefined')
 
         multi_trf = self.isMultiTrf(runCommandList)
+        _stdout = job.stdout
+        _stderr = job.stderr
 
         # loop over all run commands (only >1 for multi-trfs)
         current_job_number = 0
@@ -696,13 +698,13 @@ class RunJob(object):
             current_job_number += 1
 
             # create the stdout/err files
+            if multi_trf:
+                job.stdout = _stdout.replace(".txt", "_%d.txt" % (current_job_number))
+                job.stderr = _stderr.replace(".txt", "_%d.txt" % (current_job_number))
             file_stdout, file_stderr = self.getStdoutStderrFileObjects(stdoutName=job.stdout, stderrName=job.stderr)
             if file_stdout and file_stderr:
-                # tolog("Stdout/err file pointers are ready")
-                pass
-            else:
                 tolog("!!WARNING!!2222!! Could not open stdout/stderr files, piping not possible")
-                #ec = -1
+                res_tuple[0] = 1
                 break
 
             try:
