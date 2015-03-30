@@ -199,7 +199,8 @@ Created readFile(), writeFile() (FileHandling)
 Now updating the job object and job definition file in updateJobDefinition() (ATLASExperiment)
 Renamed getAthenaMPSubprocess() to getSubprocess(), used by __main__() and getTokenExtractorProcess() (RunJobEvent)
 Moved getSubprocess() from RunJobEvent to RunJob
- 
+Moved getStdoutStderrFileObjects() from RunJobEvent to RunJob
+
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
 

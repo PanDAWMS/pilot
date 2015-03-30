@@ -665,7 +665,7 @@ class RunJob(object):
         """ execute the payload """
 
         # do not hide the proxy for PandaMover since it needs it or for sites that has sc.proxy = donothide
-        #if 'DDM' not in jobSite.sitename and readpar('proxy') != 'donothide':
+        # if 'DDM' not in jobSite.sitename and readpar('proxy') != 'donothide':
         #    # create the proxy guard object (must be created here before the sig2exc())
         #    proxyguard = ProxyGuard()
         #
@@ -989,6 +989,19 @@ class RunJob(object):
         except IOError, e:
             pass
         tolog(out)
+
+    def getStdoutStderrFileObjects(self, stdoutName="stdout.txt", stderrName="stderr.txt"):
+        """ Create stdout/err file objects """
+
+        try:
+            stdout = open(os.path.join(os.getcwd(), stdoutName), "w")
+            stderr = open(os.path.join(os.getcwd(), stderrName), "w")
+        except Exception, e:
+            tolog("!!WARNING!!3330!! Failed to open stdout/err files: %s" % (e))
+            stdout = None
+            stderr = None
+
+        return stdout, stderr
 
     def getSubprocess(self, thisExperiment, runCommand, stdout=None, stderr=None):
         """ Execute a command as a subprocess """

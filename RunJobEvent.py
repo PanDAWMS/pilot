@@ -1807,19 +1807,6 @@ class RunJobEvent(RunJob):
 
         return message
 
-    def getStdoutStderrFileObjects(self, stdoutName="stdout.txt", stderrName="stderr.txt"):
-        """ Create stdout/err file objects """
-
-        try:
-            stdout = open(os.path.join(os.getcwd(), stdoutName), "w")
-            stderr = open(os.path.join(os.getcwd(), stderrName), "w")
-        except Exception, e:
-            tolog("!!WARNING!!3330!! Failed to open stdout/err files: %s" % (e))
-            stdout = None
-            stderr = None
-
-        return stdout, stderr
-
     def extractEventRanges(self, message):
         """ Extract all event ranges from the server message """
 
