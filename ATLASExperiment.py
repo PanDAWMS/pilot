@@ -485,9 +485,6 @@ class ATLASExperiment(Experiment):
         elif '--enable-jem' in cmd:
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
-        # Pipe stdout/err for payload to files
-        if 'HPC_' not in readpar("catchall"):
-            cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
         tolog("ATLAS_PYTHON_PILOT = %s" % (os.environ['ATLAS_PYTHON_PILOT']))
