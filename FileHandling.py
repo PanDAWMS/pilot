@@ -61,5 +61,24 @@ def readFile(filename):
 
     return contents
 
+def writeFile(filename, contents):
+    """ Write the contents to filename """
+
+    status = False
+    try:
+        f = open(filename, 'w')
+    except IOError, e:
+        tolog("!!WARNING!!2123!! Failed to open file %s: %s" % (filename, e))
+    else:
+        try:
+            f.write(contents)
+        except IOError, e:
+            tolog("!!WARNING!!2123!! Failed to write to file %s: %s" % (filename, e))
+        else:
+            status = True
+        f.close()
+
+    return status
+
 # print findLatestTRFLogFile(os.getcwd())
 
