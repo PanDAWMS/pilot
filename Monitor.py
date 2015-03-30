@@ -1159,7 +1159,7 @@ class Monitor:
                     pUtil.stageInPyModules(self.__env['thisSite'].workdir, self.__env['jobDic']["prod"][1].workdir)
 
                     # update the job definition file (and env object) before using it in RunJob (if necessary)
-                    self.__env['job'] = thisExperiment.updateJobDefinition(self.__env['job'])
+                    self.__env['job'] = thisExperiment.updateJobDefinition(self.__env['job'], self.__env['pandaJobDataFileName'])
 
                     # backup job definition
                     self.__backupJobDef()

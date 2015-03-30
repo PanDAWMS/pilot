@@ -194,6 +194,7 @@ Added event service and token extractor error codes:
 	ERR_TEWRONGGUID: "Token Extractor error: No tokens for this GUID"
 used by RunJobEvent::listener() (PilotErrors, RunJobEvent)
 Calling updateJobDefinition() from monitor_job() (Monitor)
+Created optional updateJobDefinition() used to manipulate the job object/file after download from dispatcher (Experiment, ATLASExperiment)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)

@@ -2984,6 +2984,16 @@ class ATLASExperiment(Experiment):
 
         return True
 
+    # Optional
+    def updateJobDefinition(self, job, filename):
+        """ Update the job definition file and object before using it in RunJob """
+
+        # This method is called from Monitor, before RunJob is launched, which allows to make changes to the job object after it was downloaded from the job dispatcher
+        # (used within Monitor) and the job definition file (which is used from RunJob to recreate the same job object as is used in Monitor).
+        # 'job' is the job object, defined in Job.py, while 'filename' is the name of the file containing the job definition information.
+
+        return job
+
 if __name__ == "__main__":
 
     a=ATLASExperiment()
