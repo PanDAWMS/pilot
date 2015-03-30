@@ -27,7 +27,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-
+from FileHandling import tail
 
 # remove logguid, dq2url, debuglevel - not needed
 # rename lfcRegistration to catalogRegistration
@@ -703,8 +703,9 @@ class RunJob(object):
                 job.stderr = _stderr.replace(".txt", "_%d.txt" % (current_job_number))
             file_stdout, file_stderr = self.getStdoutStderrFileObjects(stdoutName=job.stdout, stderrName=job.stderr)
             if file_stdout and file_stderr:
-                tolog("!!WARNING!!2222!! Could not open stdout/stderr files, piping not possible")
                 res_tuple[0] = 1
+                res_tuple[1] = "Could not open stdout/stderr files, piping not possible"
+                tolog("!!WARNING!!2222!! %s" % (res_tuple[1]))
                 break
 
             try:
@@ -719,7 +720,28 @@ class RunJob(object):
                 #    res_tuple = executePayloadGLExec(cmd, job)
                 #else:
                 #    # execute trf normally
-                res_tuple = commands.getstatusoutput(cmd)
+                #res_tuple = commands.getstatusoutput(cmd)
+
+                # Start the subprocess
+                process = self.getSubprocess(cmd, stdout=file_stdout, stderr=file_stderr)
+
+                if process:
+                    # Loop until the subprocess has finished
+                    while process.poll() is None:
+                        time.sleep(1)
+
+                    res_tuple[0] = process.returncode
+                    try:
+                        stdout = open(job.stdout, 'r')
+                        res_tuple[1] = tail(stdout)
+                    except Exception, e:
+                        tolog("!!WARNING!!3002!! Failed during tail operation: %s" % (e))
+                    else:
+                        stdout.close()
+                else:
+                    res_tuple[0] = 1
+                    res_tuple[1] = "Popen ended prematurely"
+                    tolog("!!WARNING!!3001!! %s" % (res_tuple[1]))
 
             except Exception, e:
                 tolog("!!FAILED!!3000!! Failed to run command %s" % str(e))
