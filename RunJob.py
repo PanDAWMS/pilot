@@ -990,6 +990,12 @@ class RunJob(object):
             pass
         tolog(out)
 
+    def getSubprocess(self, thisExperiment, runCommand, stdout=None, stderr=None):
+        """ Execute a command as a subprocess """
+
+        # Execute and return the subprocess object
+        return thisExperiment.getSubprocess(runCommand, stdout=stdout, stderr=stderr)
+
     # Methods used by event service RunJob* modules ..............................................................
 
     def stripSetupCommand(self, cmd, trfName):

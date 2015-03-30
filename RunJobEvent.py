@@ -1555,12 +1555,6 @@ class RunJobEvent(RunJob):
         # Execute and return the TokenExtractor subprocess object
         return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
 
-    def getSubprocess(self, thisExperiment, runCommand, stdout=None, stderr=None):
-        """ Execute a command as a subprocess """
-
-        # Execute and return the subprocess object
-        return thisExperiment.getSubprocess(runCommand, stdout=stdout, stderr=stderr)
-
     def createMessageServer(self):
         """ Create the message server socket object """
 
