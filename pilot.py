@@ -27,6 +27,10 @@ from WatchDog import WatchDog
 from Monitor import Monitor
 import subprocess
 
+try:
+    from rucio.client import Client
+except Exception, e:
+    print "!!WARNING!!0000!! Exception caught:", e
 
 # Initialize the configuration singleton
 import environment
