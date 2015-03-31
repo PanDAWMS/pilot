@@ -104,6 +104,13 @@ class PandaServerClient:
         #         hs06=<float> shutdownTime=<int> cpuFactor=<float> cpuLimit=<float> diskLimit=<float> jobStart=<int> memLimit=<int> runLimit=<float>
 
         if job.coreCount:
+            # Always use the ATHENA_PROC_NUMBER first, if set
+            if os.environ.has_key('ATHENA_PROC_NUMBER'):
+                try:
+                    job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+                except Exception, e:
+                    tolog("ATHENA_PROC_NUMBER is not properly set: %s (will use existing job.coreCount value)" % (e))
+                    
             coreCount = job.coreCount
         else:
             try:

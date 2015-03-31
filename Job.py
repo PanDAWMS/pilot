@@ -350,6 +350,12 @@ class Job:
         else:
             # use default
             pass
+        # Overwrite the coreCount value with ATHENA_PROC_NUMBER if it is set
+        if os.environ.has_key('ATHENA_PROC_NUMBER'):
+            try:
+                self.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+            except Exception, e:
+                pUtil.tolog("ATHENA_PROC_NUMBER is not properly set: %s (will use existing job.coreCount value)" % (e))
 
         if data.has_key('sourceSite'):
             self.sourceSite = str(data['sourceSite'])

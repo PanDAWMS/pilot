@@ -204,6 +204,8 @@ Created isMultiTrf(), used by setup(), executePayload() (RunJob)
 Removed piping to stdout/err from getJobExecutionCommand() (ATLASExperiment)
 Created tail() (FileHandling)
 Now using getSubprocess() in executePayload() instead of commands.getstatusoutput() to execute payload (RunJob)
+Overwriting job.coreCount if ATHENA_PROC_NUMBER is set in getJobMetrics() (PandaServerClient)
+Overwriting job.coreCount if ATHENA_PROC_NUMBER is set in setJobDef() (Job)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
