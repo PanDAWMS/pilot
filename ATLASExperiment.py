@@ -88,6 +88,29 @@ class ATLASExperiment(Experiment):
 
         return cmd1
 
+    def addMAKEFLAGS(self, jobCoreCount, cmd2):
+        """ Correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make) """
+
+        # ATHENA_PROC_NUMBER is set in Node.py using the schedconfig value
+        try:
+            coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+        except:
+            coreCount = -1
+        if coreCount == -1:
+            try:
+                coreCount = int(jobCoreCount)
+            except:
+                pass
+            else:
+                if coreCount >= 1:
+                    cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
+                    tolog("Added multi-core support to cmd2: %s" % (cmd2))
+        # make sure that MAKEFLAGS is always set
+        if not "MAKEFLAGS=" in cmd2:
+            cmd2 += 'export MAKEFLAGS="j1 QUICK=1 -l1";'
+
+        return cmd2
+
     def getJobExecutionCommand(self, job, jobSite, pilot_initdir):
         """ Define and test the command(s) that will be used to execute the payload """
 
@@ -304,22 +327,7 @@ class ATLASExperiment(Experiment):
                 special_setup_cmd = self.getSpecialSetupCommand()
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
-                try:
-                    coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-                except:
-                    coreCount = -1
-                if coreCount == -1:
-                    try:
-                        coreCount = int(job.coreCount)
-                    except:
-                        pass
-                    else:
-                        if coreCount >= 1:
-                            cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
-                            tolog("Added multi-core support to cmd2: %s" % (cmd2))
-                # make sure that MAKEFLAGS is always set
-                if not "MAKEFLAGS=" in cmd2:
-                    cmd2 += 'export MAKEFLAGS="j1 QUICK=1 -l1";'
+                cmd2 = self.addMAKEFLAGS(job.coreCount, cmd2)
 
                 # Prepend cmd0 to cmd1 if set and if release < 16.1.0
                 if cmd0 != "" and job.release < "16.1.0":
