@@ -702,9 +702,8 @@ class RunJob(object):
                 job.stdout = _stdout.replace(".txt", "_%d.txt" % (current_job_number))
                 job.stderr = _stderr.replace(".txt", "_%d.txt" % (current_job_number))
             file_stdout, file_stderr = self.getStdoutStderrFileObjects(stdoutName=job.stdout, stderrName=job.stderr)
-            if file_stdout and file_stderr:
-                res_tuple[0] = 1
-                res_tuple[1] = "Could not open stdout/stderr files, piping not possible"
+            if not (file_stdout and file_stderr):
+                res_tuple = (1, "Could not open stdout/stderr files, piping not possible")
                 tolog("!!WARNING!!2222!! %s" % (res_tuple[1]))
                 break
 
