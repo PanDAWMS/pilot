@@ -108,7 +108,8 @@ def tail(f, lines=20):
         bytes -= BUFSIZ
         block -= 1
 
-    return ''.join(data).splitlines()[-lines:]
+    tail_list = ''.join(data).splitlines()[-lines:]
+    return '\n'.join(tail_list)
 
 def tail2(f, lines=20):
     """ Get the n last lines from file f """
