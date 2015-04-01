@@ -358,7 +358,7 @@ class PandaServerClient:
                 from SiteMoverFarm import getSiteMover
                 sitemover = getSiteMover(readpar('copytool'), "")
 
-                if readpar('region') == 'Nordugrid':
+                if os.environ.has_key('Nordugrid_pilot'):
                     fname = os.path.join(self.__pilot_initdir, job.logFile)
                 else:
                     fname = os.path.join(workdir, job.logFile)
@@ -397,7 +397,7 @@ class PandaServerClient:
                             f.close()
 
                             # transfer logfile.xml to pilot init dir for Nordugrid
-                            if readpar('region') == 'Nordugrid':
+                            if os.environ.has_key('Nordugrid_pilot'):
                                 try:
                                     copy2(fnamelog, self.__pilot_initdir)
                                 except Exception, e:
@@ -408,7 +408,7 @@ class PandaServerClient:
                 else: # log file does not exist anymore
                     if isLogfileCopied(workdir):
                         tolog("Log file has already been copied and removed")
-                        if readpar('region') != 'Nordugrid':
+                        if not os.environ.has_key('Nordugrid_pilot'):
                             # only send xml with log info if the log has been transferred
                             if xmlstr:
                                 node_xml = xmlstr
@@ -432,7 +432,7 @@ class PandaServerClient:
                         ec = addSkippedToPFC(fname, _skippedfname)
 
                     # transfer metadata to pilot init dir for Nordugrid
-                    if readpar('region') == 'Nordugrid':
+                    if os.environ.has_key('Nordugrid_pilot'):
                         try:
                             copy2(fname, self.__pilot_initdir)
                         except Exception, e:
@@ -446,7 +446,7 @@ class PandaServerClient:
                 node_xml = xmlstr
 
             # we don't need the job's log file anymore, delete it (except for NG)
-            if (job.result[0] == 'failed' or job.result[0] == 'finished') and readpar('region') != 'Nordugrid':
+            if (job.result[0] == 'failed' or job.result[0] == 'finished') and not os.environ.has_key('Nordugrid_pilot'):
                 try:
                     os.system("rm -rf %s/%s" % (workdir, job.logFile))
                 except OSError:
@@ -755,7 +755,7 @@ class PandaServerClient:
             experiment = "unknown"
 
         # do not make the update if Nordugrid (leave for ARC to do)
-        if readpar('region') == 'Nordugrid':
+        if os.environ.has_key('Nordugrid_pilot'):
             if final:
                 # update xml with SURLs stored in special SURL dictionary file
                 if self.updateOutputFilesXMLWithSURLs4NG(experiment, site.workdir, job.jobId, job.outputFilesXML):

@@ -203,7 +203,7 @@ class NordugridATLASExperiment(ATLASExperiment):
         # Used in the case of payload using multiple steps with different release versions
         # E.g. release = "19.0.0\n19.1.0" -> ['19.0.0', '19.1.0']
 
-        if readpar('region') == 'Nordugrid':
+        if os.environ.has_key('Nordugrid_pilot') and os.environ.has_key('ATLAS_RELEASE'):
             return os.environ['ATLAS_RELEASE'].split(",")
         else:
             return release.split("\n")
