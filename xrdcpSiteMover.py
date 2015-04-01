@@ -633,7 +633,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         """ get checksum from xrdcp --chksum command output"""
         remote_checksum = None
         # get remote checksum from the command output
-        if "xrootd" in output or "XRootD" in output:
+        if "xrootd" in output or "XRootD" in output or "adler32" in output:
             status = False
             # define the search patterns
             if "md5:" in output:
