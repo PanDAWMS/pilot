@@ -209,6 +209,7 @@ Overwriting job.coreCount if ATHENA_PROC_NUMBER is set in setJobDef() (Job)
 Created addMAKEFLAGS(), used by getJobExecutionCommand() (ATLASExperiment)
 Test import of rucio.client (pilot)
 Always using default setup in setup(), i.e. CVMFS ROOT setup will always be used (xrdcpSiteMover)
+Created checkSpecialEnvVars(), used to set new env variable 'Nordugrid_pilot' which in turn is used to identidy Nordugrid in other pilot classes (NordugridATLASExperiment)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
