@@ -639,7 +639,7 @@ class JobLog:
                 # OutputFiles.xml now contains all the xml for all output files and log (and additional file info for CERNVM)
                 # copy it to the init dir (only necessary for NG not for CERNVM)
                 # (actually it can be transferred with the mv site mover just like it is done for CERNVM, skip for now)
-                if readpar('region') == 'Nordugrid':
+                if os.environ.has_key('Nordugrid_pilot'):
                     try:
                         copy2(fname, self.__env['pilot_initdir'])
                     except Exception, e:
@@ -853,9 +853,8 @@ class JobLog:
         logMsg = self.addTimingInfo(logMsg, job.timeGetJob, job.timeStageIn, job.timeExe, job.timeStageOut, job.timeCleanUp)
 
         # write and transfer log extracts to pilot init dir for Nordugrid
-        if readpar('region') == 'Nordugrid' and job.result[0] == 'failed':
+        if os.environ.has_key('Nordugrid_pilot') and job.result[0] == 'failed':
             self.transferLogExtracts(logMsg)
-
 
         # update the SURLs info
         if strXML and strXML != "":
@@ -891,7 +890,7 @@ class JobLog:
         if ret == 0:
             tolog("Successfully updated panda server at %s" % timeStamp())
 
-            if not (readpar('region') == 'Nordugrid' or site.sitename == 'CERNVM'):
+            if not (os.environ.has_key('Nordugrid_pilot') or site.sitename == 'CERNVM'):
                 # remove the job state file for finished and failed jobs (recovery will never be necessary for them)
                 error = PilotErrors()
                 recoverable = error.isRecoverableErrorCode(job.result[2])
