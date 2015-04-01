@@ -81,7 +81,37 @@ def writeFile(filename, contents):
     return status
 
 def tail(f, lines=20):
-    """ Get the n last lines from filename """
+    """ Get the n last lines from file f """
+
+    if lines == 0:
+        return ""
+
+    BUFSIZ = 1024
+    f.seek(0, 2)
+    bytes = f.tell()
+    size = lines + 1
+    block = -1
+    data = []
+    while size > 0 and bytes > 0:
+        if bytes - BUFSIZ > 0:
+            # Seek back one whole BUFSIZ
+            f.seek(block * BUFSIZ, 2)
+            # read BUFFER
+            data.insert(0, f.read(BUFSIZ))
+        else:
+            # file too small, start from begining
+            f.seek(0,0)
+            # only read what was not read
+            data.insert(0, f.read(bytes))
+        linesFound = data[0].count('\n')
+        size -= linesFound
+        bytes -= BUFSIZ
+        block -= 1
+
+    return ''.join(data).splitlines()[-lines:]
+
+def tail2(f, lines=20):
+    """ Get the n last lines from file f """
 
     total_lines_wanted = lines
 

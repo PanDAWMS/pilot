@@ -727,6 +727,9 @@ class RunJob(object):
                 if process:
                     # Loop until the subprocess has finished
                     while process.poll() is None:
+                        # ..
+
+                        # Take a short nap
                         time.sleep(1)
 
                     try:
@@ -735,6 +738,7 @@ class RunJob(object):
                     except Exception, e:
                         tolog("!!WARNING!!3002!! Failed during tail operation: %s" % (e))
                     else:
+                        tolog("Tail:\n%s" % (res_tuple[1]))
                         stdout.close()
                 else:
                     res_tuple = (1, "Popen ended prematurely")
