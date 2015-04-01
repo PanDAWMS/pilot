@@ -222,6 +222,9 @@ Setting new env variable 'Nordugrid_pilot' also in argParser() since it will be 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
 
+Change to AMSTaiwanExperiment:
+- Changed usage of 'region' to new env variable 'Nordugrid_pilot' in checkSpecialEnvVars(), getSwbase(), getRelease()
+ 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 

@@ -2225,7 +2225,7 @@ class AMSTaiwanExperiment(Experiment):
         except Exception, e:
             tolog("WARNING: os.environ.has_key failed: %s" % str(e))
 
-        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and readpar('region') != "Nordugrid":
+        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and not os.environ.has_key('Nordugrid_pilot'):
             vo_atlas_sw_dir = os.environ["VO_ATLAS_SW_DIR"]
             if vo_atlas_sw_dir != "":
                 # on cvmfs the following dirs are symbolic links, so all tests are needed
@@ -2636,7 +2636,7 @@ class AMSTaiwanExperiment(Experiment):
         release = verifyReleaseString(release)
 
         region = readpar('region')
-        if region == 'Nordugrid':
+        if os.environ.has_key('Nordugrid_pilot'):
             if os.environ.has_key('RUNTIME_CONFIG_DIR'):
                 _swbase = os.environ['RUNTIME_CONFIG_DIR']
                 if os.path.exists(_swbase):
@@ -2884,7 +2884,7 @@ class AMSTaiwanExperiment(Experiment):
         # Used in the case of payload using multiple steps with different release versions
         # E.g. release = "19.0.0\n19.1.0" -> ['19.0.0', '19.1.0']
 
-        if readpar('region') == 'Nordugrid':
+        if os.environ.has_key('Nordugrid_pilot'):
             return os.environ['ATLAS_RELEASE'].split(",")
         else:
             return release.split("\n")
