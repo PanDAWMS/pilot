@@ -852,7 +852,7 @@ class Monitor:
                     prodJobDone = True
     
                 # for NG write the error code, if any
-                if pUtil.readpar('region') == "Nordugrid" and (perr != 0 or terr != 0):
+                if os.environ.has_key('Nordugrid_pilot') and (perr != 0 or terr != 0):
                     if perr != 0:
                         ec = perr
                     else:

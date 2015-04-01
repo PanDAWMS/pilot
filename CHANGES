@@ -211,6 +211,7 @@ Created checkSpecialEnvVars(), used to set new env variable 'Nordugrid_pilot' wh
 Changed usage of 'region' to using env variable 'Nordugrid_pilot', and replaced 'Nordugrid' with 'ND' in checkSpecialEnvVars(), getSwbase(), getRelease() (ATLASExperiment)
 Changed usage of 'region' to 'cloud', and replaced 'Nordugrid' with new env variable 'Nordugrid_pilot' in createFileMetadata() (RunJob, RunJobEvent)
 Changed usage of 'region' to new env variable 'Nordugrid_pilot' in createMetadataForOutput(), postJobTask() (JobLog)
+Changed usage of 'region' to new env variable 'Nordugrid_pilot' in _cleanUpEndedJobs() (Monitor)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
