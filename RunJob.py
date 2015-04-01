@@ -722,7 +722,7 @@ class RunJob(object):
                 #res_tuple = commands.getstatusoutput(cmd)
 
                 # Start the subprocess
-                process = self.getSubprocess(cmd, stdout=file_stdout, stderr=file_stderr)
+                process = self.getSubprocess(thisExperiment, cmd, stdout=file_stdout, stderr=file_stderr)
 
                 if process:
                     # Loop until the subprocess has finished
@@ -743,7 +743,7 @@ class RunJob(object):
                     tolog("!!WARNING!!3001!! %s" % (res_tuple[1]))
 
             except Exception, e:
-                tolog("!!FAILED!!3000!! Failed to run command %s" % str(e))
+                tolog("!!FAILED!!3000!! Failed to run command: %s" % str(e))
                 getstatusoutput_was_interrupted = True
                 if self.__failureCode:
                     job.result[2] = self.__failureCode

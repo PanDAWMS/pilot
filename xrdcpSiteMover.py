@@ -164,7 +164,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         si = getSiteInformation(experiment)
         self._defaultSetup = self.getLocalROOTSetup(si)
 
-        _setupStr = self.getSetup()
+        _setupStr = self._defaultSetup #self.getSetup()
 
         # get the user proxy if available
         envsetupTest = _setupStr.strip()
