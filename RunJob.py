@@ -729,17 +729,15 @@ class RunJob(object):
                     while process.poll() is None:
                         time.sleep(1)
 
-                    res_tuple[0] = process.returncode
                     try:
                         stdout = open(job.stdout, 'r')
-                        res_tuple[1] = tail(stdout)
+                        res_tuple = (process.returncode, tail(stdout))
                     except Exception, e:
                         tolog("!!WARNING!!3002!! Failed during tail operation: %s" % (e))
                     else:
                         stdout.close()
                 else:
-                    res_tuple[0] = 1
-                    res_tuple[1] = "Popen ended prematurely"
+                    res_tuple = (1, "Popen ended prematurely")
                     tolog("!!WARNING!!3001!! %s" % (res_tuple[1]))
 
             except Exception, e:
