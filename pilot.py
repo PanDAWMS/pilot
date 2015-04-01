@@ -301,6 +301,11 @@ def argParser(argv):
         elif o == "-F": 
             env['experiment'] = a
 
+            # Special case for Nordugrid: define env variable already here
+            if "Nordugrid" in a:
+                os.environ['Nordugrid_pilot'] = ""
+                print "Created environment variable \'Nordugrid_pilot\'"
+
         elif o == "-G": 
             try:
                 _getjobmaxtime = int(a)*60 # convert to seconds

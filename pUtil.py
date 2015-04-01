@@ -3891,7 +3891,7 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
 
     # update experiment for Nordugrid
     global experiment
-    if readpar('region').lower() == "nordugrid":
+    if os.environ.has_key('Nordugrid_pilot'):
         experiment = "Nordugrid-ATLAS"
 
     # reset site.appdir
