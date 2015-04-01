@@ -211,11 +211,11 @@ class NordugridATLASExperiment(ATLASExperiment):
     def checkSpecialEnvVars(self, sitename):
         """ Check special environment variables """
 
-        # Call the method from the parent class
-        ec = super(NordugridATLASExperiment, self).checkSpecialEnvVars(sitename)
-
         # Set a special env variable that will be used to identify Nordugrid in other pilot classes
         os.environ['Nordugrid_pilot'] = ""
+
+        # Call the method from the parent class
+        ec = super(NordugridATLASExperiment, self).checkSpecialEnvVars(sitename)
 
         return ec
 

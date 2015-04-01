@@ -874,7 +874,7 @@ class RunJob(object):
 
         # convert the preliminary metadata-<jobId>.xml file to OutputFiles-<jobId>.xml for NG and for CERNVM
         # note: for CERNVM this is only really needed when CoPilot is used
-        if readpar('cloud') == 'ND' or sitename == 'CERNVM':
+        if os.environ.has_key('Nordugrid_pilot') or sitename == 'CERNVM':
             if RunJobUtilities.convertMetadata4NG(os.path.join(job.workdir, job.outputFilesXML), _fname, outsDict, dsname, datasetDict):
                 tolog("Metadata has been converted to NG/CERNVM format")
             else:
