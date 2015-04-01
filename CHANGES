@@ -214,6 +214,8 @@ Changed usage of 'region' to new env variable 'Nordugrid_pilot' in createMetadat
 Changed usage of 'region' to new env variable 'Nordugrid_pilot' in _cleanUpEndedJobs() (Monitor)
 Changed usage of 'region' to new env variable 'Nordugrid_pilot' in getRelease() (NordugridATLASExperiment)
 Changed usage of 'region' to new env variable 'Nordugrid_pilot' in getXML(), updatePandaServer() (PandaServerClient)
+Changed usage of 'region' to new env variable 'Nordugrid_pilot' in getDDMStorage(), getPoolFileCatalog(), getPoolFileCatalogDQ2(),
+getFileInfoFromMetadata() (Mover)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)

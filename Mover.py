@@ -3113,7 +3113,7 @@ def getDDMStorage(ub, analysisJob, region, eventService, jobId):
         return _path, pilotErrorDiag
 
     # skip this function unless we are running in the US or on NG
-    if not (region == 'US' or region == 'Nordugrid'):
+    if not (region == 'US' or os.environ.has_key('Nordugrid_pilot')):
         return ddm_storage, pilotErrorDiag
 
     # get the storage paths
@@ -3816,11 +3816,11 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         # create a pool file catalog
         xml_from_PFC = createPoolFileCatalog(file_dict, pfc_name=pfc_name)
 
-    if xml_from_PFC == '' and region != 'Nordugrid':
+    if xml_from_PFC == '' and not os.environ.has_key('Nordugrid_pilot'):
         # fetch the input file xml from the dq2 server
         xml_from_PFC, xml_source = getPoolFileCatalogDQ2(ub, guids)
 
-    if region == 'Nordugrid' or region == 'testregion':
+    if os.environ.has_key('Nordugrid_pilot') or region == 'testregion':
         # build a new PFC for NG
         ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogNG(guids, lfns, pinitdir)
 
@@ -3897,7 +3897,7 @@ def getPoolFileCatalogDQ2(baseURL, guids):
 
     # In LCG land use dq2_poolFCjobO
     region = readpar('region')
-    if region != 'US' and region != 'Nordugrid':
+    if region != 'US' and not os.environ.has_key('Nordugrid_pilot'):
         tolog("!!FAILED!!2999!! Can not get PFC with LRC method for region %s" % (region))
         return '', xml_source
 
@@ -4336,7 +4336,7 @@ def getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, err
     dic['adler32'] = ""
     dic['fsize'] = ""
     csumtype = "unknown"
-    if region != "Nordugrid":
+    if not os.environ.has_key('Nordugrid_pilot'):
         # extract the filesize and checksum
         try:
             # always use the first replica (they are all supposed to have the same file sizes and checksums)
