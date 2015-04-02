@@ -1110,12 +1110,17 @@ class SiteMover(object):
 
         return fileInDataset
 
-    def getFileInfoFromRucio(self, dataset, scope, guid):
+    def getFileInfoFromRucio(self, scope, dataset, guid):
         """ Get the file size and checksum from Rucio """
 
         filesize = ""
         checksum = ""
 
+        tolog("scope=%s"%scope)
+        tolog("dataset=%s"%dataset)
+        tolog("guid=%s"%guid)
+        # Convert the guid (guids in Rucio do not have dashes)
+        guid = guid.replace('-', '')
         try:
             from rucio.client import Client
             client = Client()
@@ -1125,17 +1130,17 @@ class SiteMover(object):
         else:
             # Extract the info for the correct guid
             tolog("Rucio returned a replica list with %d entries" % (len(replica_list)))
-            for replica in replica_list:
+            for i in range(0, len(replica_list)):
                 # replica = {u'adler32': u'9849e8ae', u'name': u'EVNT.01580095._002901.pool.root.1', u'bytes': 469906, u'scope': u'mc12_13TeV', u'guid': u'F88E0A836696344981358463A641A486', u'events': None}
                 # Is it the replica we are looking for?
-                if guid == replica['guid']:
-                    checksum = replica['adler32']
-                    filesize = str(replica['bytes'])
-                    events = replica['events']
+                if guid == replica_list[i]['guid']:
+                    checksum = replica_list[i]['adler32']
+                    filesize = str(replica_list[i]['bytes'])
+                    events = replica_list[i]['events']
                     if events != None:
-                        tolog("File %s has checksum %s, size %s and %d events" % (replica['name'], checksum, filesize, str(replica['events'])))
+                        tolog("File %s has checksum %s, size %s and %d events" % (replica_list[i]['name'], checksum, filesize, str(replica_list[i]['events'])))
                     else:
-                        tolog("File %s has checksum %s and size %s (no recorded events)" % (replica['name'], checksum, filesize))
+                        tolog("File %s has checksum %s and size %s (no recorded events)" % (replica_list[i]['name'], checksum, filesize))
                     break
 
         return filesize, checksum
