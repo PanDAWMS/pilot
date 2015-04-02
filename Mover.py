@@ -4433,6 +4433,7 @@ def getRucioReplicaDictionary(cat, dictionary):
     # surl1='srm://srm.grid.sara.nl/pnfs/grid.sara.nl/data/atlas/atlasdatadisk/rucio/mc12_8TeV/cf/8f/EVNT.01365724._000001.pool.root.1'
     # guid1='28FB7AE9-2234-F644-962A-17EA1D279AA7'
 
+    tolog("cat = %s" % (cat))
     dictionaryReplicas = {}
     try:
         from dq2.filecatalog import create_file_catalog
@@ -4446,6 +4447,7 @@ def getRucioReplicaDictionary(cat, dictionary):
             catalog.connect()
             dictionaryReplicas = catalog.bulkFindReplicas(dictionary)
             catalog.disconnect()
+            tolog("dictionaryReplicas = %s" % str(dictionaryReplicas))
         except:
             import traceback
             tolog("!!WARNING!!3334!! Exception caught in Mover: %s" % str(traceback.format_exc()))

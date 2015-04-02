@@ -220,6 +220,9 @@ Changed usage of 'region' to new env variable 'Nordugrid_pilot' in handleQueueda
 Setting new env variable 'Nordugrid_pilot' also in argParser() since it will be needed before the experiment object is created (pilot)
 Added "adler32" to if statement in getRemoteFileChecksumFromOutput() (xrdcpSiteMover)
 
+DQ2 API to Rucio API migration:
+- Replaced isTapeSite() function, now using the Rucio client to check whether the site is a tape site or not (SiteMover)
+
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
 

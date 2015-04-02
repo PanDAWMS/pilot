@@ -289,18 +289,18 @@ class SiteMover(object):
     isFileOnTape = staticmethod(isFileOnTape)
 
     def isTapeSite(sitename):
-        """ Check whether the DQ2 site is a tape site or not """
+        """ Check whether the Rucio site is a tape site or not """
 
         status = False
         try:
-            from dq2.info import TiersOfATLAS
-            if TiersOfATLAS.isTapeSite(sitename):
+            from rucio.client import Client
+            client = Client()
+            if client.get_rse(sitename)['rse_type']  == 'TAPE':
                 status = True
-            else:
-                status = False
         except:
             tolog("Exception caught (assuming no tape site)")
             status = False
+            
         return status
     isTapeSite = staticmethod(isTapeSite)
 
