@@ -1110,6 +1110,36 @@ class SiteMover(object):
 
         return fileInDataset
 
+    def getFileInfoFromRucio(self, dataset, scope, guid):
+        """ Get the file size and checksum from Rucio """
+
+        filesize = ""
+        checksum = ""
+
+        try:
+            from rucio.client import Client
+            client = Client()
+            replica_list = [i for i in client.list_files(scope, dataset)]
+        except:
+            tolog("Exception caught")
+        else:
+            # Extract the info for the correct guid
+            tolog("Rucio returned a replica list with %d entries" % (len(replica_list)))
+            for replica in replica_list:
+                # replica = {u'adler32': u'9849e8ae', u'name': u'EVNT.01580095._002901.pool.root.1', u'bytes': 469906, u'scope': u'mc12_13TeV', u'guid': u'F88E0A836696344981358463A641A486', u'events': None}
+                # Is it the replica we are looking for?
+                if guid == replica['guid']:
+                    checksum = replica['adler32']
+                    filesize = str(replica['bytes'])
+                    events = replica['events']
+                    if events != None:
+                        tolog("File %s has checksum %s, size %s and %d events" % (replica['name'], checksum, filesize, str(replica['events'])))
+                    else:
+                        tolog("File %s has checksum %s and size %s (no recorded events)" % (replica['name'], checksum, filesize))
+                    break
+
+        return filesize, checksum
+
     def getFileInfoFromDQ2(self, dataset, guid):
         """ Get the file size and checksum from DQ2 """
 

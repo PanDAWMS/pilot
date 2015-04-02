@@ -222,6 +222,7 @@ Added "adler32" to if statement in getRemoteFileChecksumFromOutput() (xrdcpSiteM
 
 DQ2 API to Rucio API migration:
 - Replaced isTapeSite() function, now using the Rucio client to check whether the site is a tape site or not (SiteMover)
+- Created getFileInfoFromRucio() (SiteMover)
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
