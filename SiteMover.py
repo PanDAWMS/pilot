@@ -1119,20 +1119,24 @@ class SiteMover(object):
         tolog("scope=%s"%scope)
         tolog("dataset=%s"%dataset)
         tolog("guid=%s"%guid)
-        # Convert the guid (guids in Rucio do not have dashes)
-        guid = guid.replace('-', '')
+        pre = scope + ":"
+        if dataset.startswith(pre):
+            dataset = dataset.replace(pre, "")
         try:
             from rucio.client import Client
             client = Client()
             replica_list = [i for i in client.list_files(scope, dataset)]
-        except:
-            tolog("Exception caught")
+        except Exception, e:
+            tolog("!!WARNING!!2233!! Exception caught: %s" % (e))
         else:
             # Extract the info for the correct guid
             tolog("Rucio returned a replica list with %d entries" % (len(replica_list)))
             for i in range(0, len(replica_list)):
                 # replica = {u'adler32': u'9849e8ae', u'name': u'EVNT.01580095._002901.pool.root.1', u'bytes': 469906, u'scope': u'mc12_13TeV', u'guid': u'F88E0A836696344981358463A641A486', u'events': None}
                 # Is it the replica we are looking for?
+                if not "-" in replica_list[i]['guid']:
+                    # Convert the guid (guids in Rucio might not have dashes)
+                    guid = guid.replace('-', '')
                 if guid == replica_list[i]['guid']:
                     checksum = replica_list[i]['adler32']
                     filesize = str(replica_list[i]['bytes'])
