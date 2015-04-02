@@ -697,16 +697,13 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             # remove any __DQ2 substring from the LFN if necessary
             if "__DQ2" in _lfn:
                 _lfn = stripDQ2FromLFN(_lfn)
-#PN            fsize, fchecksum = getFileInfoFromDispatcher(_lfn, fileInfoDictionaryFromDispatcher)
-#PN            tolog("lfn=%s, fsize=%s, fchecksum=%s" % (_lfn, fsize, fchecksum))
-            tolog("xxxxxxxxxxxxxxxxx")
-            fsize = None
-            fchecksum = None
+            fsize, fchecksum = getFileInfoFromDispatcher(_lfn, fileInfoDictionaryFromDispatcher)
+
             # get the file info from the metadata [from LFC]
             if not fsize or not fchecksum:
-#PN                ec, pilotErrorDiag, fsize, fchecksum = getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, error)
-#PN                if ec != 0:
-#PN                    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+                ec, pilotErrorDiag, fsize, fchecksum = getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, error)
+                if ec != 0:
+                    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
                 # even though checksum and file size is most likely already known from LFC, more reliable file
                 # info is stored in DQ2. Try to get it from there unless the dispatcher has already sent it to the pilot
