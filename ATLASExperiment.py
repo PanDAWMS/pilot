@@ -1719,7 +1719,7 @@ class ATLASExperiment(Experiment):
         _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
         _frontier1 = 'export FRONTIER_ID=\"[%s]\";' % (jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
-        _ttc = 'export ROOT_TTREECACHE_SIZE=1;'
+        _ttc = ''
 
         # Unset ATHENA_PROC_NUMBER if set for event service Merge jobs
         if "Merge_tf" in cmd and os.environ.has_key('ATHENA_PROC_NUMBER'):
@@ -1729,6 +1729,7 @@ class ATLASExperiment(Experiment):
 
         _coreCount = ""
         if analysisJob:
+            _ttc = 'export ROOT_TTREECACHE_SIZE=1;'
             try:
                 coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
             except:
