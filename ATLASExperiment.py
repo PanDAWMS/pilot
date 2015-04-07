@@ -432,6 +432,7 @@ class ATLASExperiment(Experiment):
                     tolog("cacheDir = %s" % (cacheDir))
                     tolog("cacheVer = %s" % (cacheVer))
                     if cacheDir != "" and cacheVer != "":
+
                         #asetup = "export AtlasSetup=%s/%s/%s/%s/AtlasSetup; " % (swbase, cacheDir, cmtconfig, cacheVer)
                         #asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
 
