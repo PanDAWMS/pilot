@@ -742,7 +742,7 @@ class RunJob(object):
                     # Start the memory utility
                     output = "memory_monitor_output.txt"
                     summary = "memory_monitor_summary.json"
-                    mem_cmd = self.getMemoryUtilityCommand(main_subprocess.returncode, output=output, summary=summary)
+                    mem_cmd = self.getMemoryUtilityCommand(main_subprocess.pid, output=output, summary=summary)
                     if mem_cmd != "":
                         mem_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
                     else:
