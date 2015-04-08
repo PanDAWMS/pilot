@@ -4,7 +4,7 @@ import os
 import time
 import json
 
-from pUtil import tolog
+from pUtil import tolog, convert
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """
@@ -33,6 +33,15 @@ def getJSONDictionary(filename):
             tolog("!!WARNING!!2222!! Failed to load json dictionary: %s" % (e))
         else:
             f.close()
+
+            # Try to convert the dictionary from unicode to utf-8
+            if d != {}:
+                try:
+                    d = convert(d)
+                except Exception, e:
+                    tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (d, e))
+            else:
+                tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
     return d
 
 def findLatestTRFLogFile(workdir):
