@@ -226,6 +226,8 @@ getFileInfoFromMetadata() (Mover)
 Changed usage of 'region' to new env variable 'Nordugrid_pilot' in handleQueuedata() (pUtil)
 Setting new env variable 'Nordugrid_pilot' also in argParser() since it will be needed before the experiment object is created (pilot)
 Added "adler32" to if statement in getRemoteFileChecksumFromOutput() (xrdcpSiteMover)
+Added convert() function, converting unicode strings and collections (lists, dictionaries, etc) to utf-8 (pUtil)
+Added openFile() and getJSONDictionary() (FileHandling)
 
 DQ2 API to Rucio API migration:
 - Replaced isTapeSite() function, now using the Rucio client to check whether the site is a tape site or not (SiteMover)

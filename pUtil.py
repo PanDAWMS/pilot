@@ -4440,3 +4440,29 @@ def getInitialDirs(path, n):
         tolog("!!WARNING!!2211!! Not a path: %s" % (path))
 
     return subpath
+
+def convert(data):
+    """ Convert unicode data to utf-8 """
+
+    # Dictionary:
+    #   data = {u'Max': {u'maxRSS': 3664, u'maxSwap': 0, u'maxVMEM': 142260, u'maxPSS': 1288}, u'Avg': {u'avgVMEM': 94840, u'avgPSS': 850, u'avgRSS': 2430, u'avgSwap': 0}}
+    # convert(data)
+    #   {'Max': {'maxRSS': 3664, 'maxSwap': 0, 'maxVMEM': 142260, 'maxPSS': 1288}, 'Avg': {'avgVMEM': 94840, 'avgPSS': 850, 'avgRSS': 2430, 'avgSwap': 0}}
+    # String:
+    #   data = u'hello'
+    # convert(data)
+    #   'hello'
+    # List:
+    #   data = [u'1',u'2','3']
+    # convert(data)
+    #   ['1', '2', '3']
+
+    import collections
+    if isinstance(data, basestring):
+        return str(data)
+    elif isinstance(data, collections.Mapping):
+        return dict(map(convert, data.iteritems()))
+    elif isinstance(data, collections.Iterable):
+        return type(data)(map(convert, data))
+    else:
+        return data

@@ -2,8 +2,38 @@
 
 import os
 import time
+import json
 
 from pUtil import tolog
+
+def openFile(filename, mode):
+    """ Open and return a file pointer for the given mode """
+    # Note: caller needs to close the file
+
+    f = None
+    if os.path.exists(filename):
+        try:
+            f = open(filename, mode)
+        except IOError, e:
+            tolog("!!WARNING!!2997!! Caught exception: %s" % (e))
+    else:
+        tolog("!!WARNING!!2998!! File does not exist: %s" % (filename))
+
+    return f
+
+def getJSONDictionary(filename):
+    """ Open json file and return its dictionary """
+
+    d = None
+    f = openFile(filename, 'r')
+    if f:
+        try:
+            d = json.load(f)
+        except Exception, e:
+            tolog("!!WARNING!!2222!! Failed to load json dictionary: %s" % (e))
+        else:
+            f.close()
+    return d
 
 def findLatestTRFLogFile(workdir):
     """ Find out which is the latest log.* file """
