@@ -22,6 +22,7 @@ import RunJobUtilities
 
 from ThreadPool import ThreadPool
 from RunJob import RunJob              # Parent RunJob class
+from JobState import JobState
 from JobRecovery import JobRecovery
 from PilotErrors import PilotErrors
 from ErrorDiagnosis import ErrorDiagnosis
@@ -49,7 +50,8 @@ class RunJobHpcEvent(RunJob):
         self.__output_es_files = []
         self.__eventRanges = {}
         self.__failedStageOuts = []
-        self._hpcManager = None
+        self.__hpcManager = None
+        self.__stageout_threads = 1
 
     def __new__(cls, *args, **kwargs):
         """ Override the __new__ method to make the class a singleton """
@@ -79,7 +81,6 @@ class RunJobHpcEvent(RunJob):
         # in environment.py (see e.g. loopingLimitDefaultProd)
 
         return False
-
         
     def setupHPCEvent(self):
         self.__jobSite = Site.Site()
@@ -122,6 +123,7 @@ class RunJobHpcEvent(RunJob):
             job = Job.Job()
             job.setJobDef(newJobDef.job)
             job.coreCount = 0
+            job.hpcEvent = True
             job.workdir = self.__jobSite.workdir
             job.experiment = self.getExperiment()
             # figure out and set payload file names
@@ -173,6 +175,28 @@ class RunJobHpcEvent(RunJob):
         tolog("RunCommandList: %s" % self.__runCommandList)
         tolog("Multi_trf: %s" % self.__multi_trf)
 
+    def recoveryJob(self):
+        tolog("Start to recovery job.")
+        job_state_file = self.getJobStateFile()
+        JS = JobState()
+        JS.get(job_state_file)
+        _job, _site, _node, _recoveryAttempt = JS.decode()
+        self.__job = _job
+        self.__jobSite = _site
+
+        # set node info
+        self.__node = Node.Node()
+        self.__node.setNodeName(os.uname()[1])
+        self.__node.collectWNInfo(self.__jobSite.workdir)
+
+        tolog("The job state is %s" % self.__job.jobState)
+        if self.__job.jobState in ['starting', 'transfering']:
+            tolog("The job hasn't started to run, will not recover it. Just finish it.")
+            return False
+ 
+        self.__JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=self.__job.workdir)
+
+        return True
 
     def stageInHPCEvent(self):
         tolog("Setting stage-in state until all input files have been copied")
@@ -475,10 +499,11 @@ class RunJobHpcEvent(RunJob):
         res['backfill_queue'] = values.get('backfill_queue', 'regular')
         res['stageout_threads'] = int(values.get('stageout_threads', 4))
         res['copy_input_files'] = values.get('copy_input_files', 'false').lower()
+        res['plugin'] =  values.get('plugin', 'pbs').lower()
         return res
 
-    def runHPCEvent(self):
-        tolog("runHPCEvent")
+    def startHPCEvent(self):
+        tolog("startHPCEvent")
         self.__job.jobState = "running"
         self.__job.setState([self.__job.jobState, 0, 0])
         self.__job.pilotErrorDiag = None
@@ -509,9 +534,14 @@ class RunJobHpcEvent(RunJob):
             logFileName = self.getPilotLogFilename()
         hpcManager = HPCManager(globalWorkingDir=self.__job.workdir, logFileName=logFileName, poolFileCatalog=self.__poolFileCatalogTemp, inputFiles=self.__inputFilesGlobal, copyInputFiles=self.__copyInputFiles)
 
+        jobStateFile = '%s/jobState-%s.pickle' % (self.__jobSite.workdir, self.__job.jobId)
+        hpcManager.setPandaJobStateFile(jobStateFile)
         self.__hpcManager = hpcManager
         self.HPCMode = "HPC_" + hpcManager.getMode(defRes)
         self.__job.setMode(self.HPCMode)
+        pluginName = defRes.get('plugin', 'pbs')
+        self.__hpcManager.setupPlugin(pluginName)
+
         self.__job.setHpcStatus('waitingResource')
         rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
         self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
@@ -543,7 +573,15 @@ class RunJobHpcEvent(RunJob):
         self.__job.coreCount = hpcManager.getCoreCount()
 
         hpcManager.submit()
-        threadpool = ThreadPool(defRes['stageout_threads'])
+        self.__stageout_threads = defRes['stageout_threads']
+        hpcManager.setStageoutThreads(self.__stageout_threads)
+        hpcManager.saveState()
+        self.__hpcManager = hpcManager
+
+    def runHPCEvent(self):
+        tolog("runHPCEvent")
+        threadpool = ThreadPool(self.__stageout_threads)
+        hpcManager = self.__hpcManager
 
         old_state = None
         time_start = time.time()
@@ -611,6 +649,17 @@ class RunJobHpcEvent(RunJob):
         self.__hpcStatus, self.__hpcLog = hpcManager.checkHPCJobLog()
         tolog("HPC job log status: %s, job log error: %s" % (self.__hpcStatus, self.__hpcLog))
         
+
+    def recoveryHPCManager(self):
+        logFileName = None
+        tolog("Recover Lost HPC Event job")
+        tolog("runJobHPCEvent.getPilotLogFilename=%s"% self.getPilotLogFilename())
+        if self.getPilotLogFilename() != "":
+            logFileName = self.getPilotLogFilename()
+        hpcManager = HPCManager(logFileName)
+        hpcManager.recoveryState()
+        self.__hpcManager = hpcManager
+        self.__stageout_threads = hpcManager.getStageoutThreads()
 
     def finishJob(self):
         try:
@@ -703,13 +752,21 @@ if __name__ == "__main__":
     os.setpgrp()
 
     runJob = RunJobHpcEvent()
-    try:
+    #try:
+    if True:
         runJob.setupHPCEvent()
-        runJob.getHPCEventJobFromEnv()
-        runJob.stageInHPCEvent()
-        runJob.runHPCEvent()
-    except:
-        tolog(sys.exc_info()[1])
-        tolog(sys.exc_info()[2])
-    finally:
-        runJob.finishJob()
+        if runJob.getRecovery():
+            # recovery job
+            runJob.recoveryJob()
+            runJob.recoveryHPCManager()
+            runJob.runHPCEvent()
+        else:
+            runJob.getHPCEventJobFromEnv()
+            runJob.stageInHPCEvent()
+            runJob.startHPCEvent()
+            runJob.runHPCEvent()
+    #except:
+    #    tolog(sys.exc_info()[1])
+    #    tolog(sys.exc_info()[2])
+    #finally:
+    runJob.finishJob()

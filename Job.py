@@ -109,6 +109,7 @@ class Job:
         self.mode = None
         self.hpcStatus = None
         self.refreshNow = False
+        self.hpcEvent = False
 
         # walltime counting for various steps
         self.timeSetup = 0

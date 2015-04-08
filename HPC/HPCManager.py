@@ -11,17 +11,22 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 class HPCManager:
-    def __init__(self, globalWorkingDir=None, localWorkingDir=None, logFileName=None, poolFileCatalog=None, inputFiles=None, copyInputFiles=False):
-        self.__globalWorkingDir = globalWorkingDir
-        self.__localWorkingDir = localWorkingDir
-        if self.__localWorkingDir is None:
-            self.__localWorkingDir = self.__globalWorkingDir
+    def __init__(self, logFileName=None):
+        self.__globalWorkingDir = None
+        self.__localWorkingDir = None
 
+        self.__jobStateFile = 'HPCManagerState.json'
+        self.__logFileName = logFileName
         self.__log= Logger(logFileName)
         self.__isFinished = False
 
         # HPC resource information
         self.__queue = None
+        self.__backfill_queue = None
+        self.__nodes = None
+        self.__cpuPerNode = None
+        self.__ATHENA_PROC_NUMBER = None
+        self.__repo = None
         self.__mppwidth = None
         self.__mppnppn = None
         self.__walltime = None
@@ -38,6 +43,60 @@ class HPCManager:
         self.__copyInputFiles = copyInputFiles
 
         self.__mode = None
+        self.__job = None
+        self.__jobFile = None
+        self.__eventRanges = None
+        self.__eventRangesFile = None
+        self.__jobid = None
+        self.__stageout_threads = 1
+        self.__pandaJobStateFile = None
+
+        self.__pluginName = 'pbs'
+        self.__plugin = None
+
+    def __init__(self, globalWorkingDir=None, localWorkingDir=None, logFileName=None, poolFileCatalog=None, inputFiles=None, copyInputFiles=False):
+        self.__globalWorkingDir = globalWorkingDir
+        self.__localWorkingDir = localWorkingDir
+        if self.__localWorkingDir is None:
+            self.__localWorkingDir = self.__globalWorkingDir
+
+        self.__jobStateFile = 'HPCManagerState.json'
+        self.__logFileName = logFileName
+        self.__log= Logger(logFileName)
+        self.__isFinished = False
+
+        # HPC resource information
+        self.__queue = None
+        self.__backfill_queue = None
+        self.__nodes = None
+        self.__cpuPerNode = None
+        self.__repo = None
+        self.__mppwidth = None
+        self.__mppnppn = None
+        self.__walltime = None
+        self.__walltime_m = 0
+        # Number of AthenaMP workers per rank
+        self.__ATHENA_PROC_NUMBER = 2
+        self.__eventsPerWorker = 3
+        self.__failedPollTimes = 0
+        self.__lastState = None
+        self.__lastTime = time.time()
+
+        self.__poolFileCatalog = poolFileCatalog
+        self.__inputFiles = inputFiles
+        self.__copyInputFiles = copyInputFiles
+
+        self.__mode = None
+        self.__job = None
+        self.__jobFile = None
+        self.__eventRanges = None
+        self.__eventRangesFile = None
+        self.__jobid = None
+        self.__stageout_threads = 1
+        self.__pandaJobStateFile = None
+
+        self.__pluginName = 'pbs'
+        self.__plugin = None
 
     def initJob(self, job):
         self.__log.info("initJob: %s" % job)
@@ -58,6 +117,18 @@ class HPCManager:
         with open(self.__eventRangesFile, 'w') as outputFile:
            json.dump(self.__eventRanges, outputFile)
 
+    def setPandaJobStateFile(self, file):
+        self.__pandaJobStateFile = file
+
+    def getPandaJobStateFile(self):
+        return self.__pandaJobStateFile
+
+    def setStageoutThreads(self, num):
+        self.__stageout_threads = num
+
+    def getStageoutThreads(self):
+        return self.__stageout_threads
+
     def prepare(self):
         if self.__globalWorkingDir != self.__localWorkingDir:
             self.__log.info("Global Working directory is different with local working directory.")
@@ -68,65 +139,7 @@ class HPCManager:
             self.__log.info("Executing command result: (status: %s, output: %s)" %(status, output))
 
     def getHPCResources(self, partition, max_nodes=None, min_nodes=2, min_walltime_m=30):
-        # copied from RunJobEdison
-        cmd = 'showbf -p %s' % partition
-        self.__log.info("Executing command: '%s'" % cmd)
-        res_tuple = commands.getstatusoutput(cmd)
-        self.__log.info("Executing command output: %s" % str(res_tuple))
-        showbf_str = ""
-        if res_tuple[0] == 0:
-            showbf_str = res_tuple[1]
-
-        res = {}
-        self.__log.info("Available resources in %s  partition" % partition)
-        self.__log.info(showbf_str)
-        if showbf_str:
-            shobf_out = showbf_str.splitlines()
-            self.__log.info("Fitted resources")
-            for l in shobf_out[2:]:
-                d = l.split()
-                nodes = int(d[2])
-
-                if nodes < int(min_nodes):
-                    continue
-
-                if not d[3] == 'INFINITY':
-                    wal_time_arr =  d[3].split(":")
-                    if len(wal_time_arr) < 4:
-                        wal_time_sec = int(wal_time_arr[0])*(60*60) + int(wal_time_arr[1])*60 + int(wal_time_arr[2])
-                        if wal_time_sec > 24 * 3600:
-                            wal_time_sec = 24 * 3600
-                    else:
-                        wal_time_sec = 24 * 3600
-                        #if nodes > 1:
-                        #    nodes = nodes - 1
-                else:
-                    wal_time_sec = 12 * 3600
-               
-                # Fitting Hopper policy
-                # https://www.nersc.gov/users/computational-systems/hopper/running-jobs/queues-and-policies/
-                nodes = max_nodes if nodes > max_nodes else nodes   
-                   
-
-                if nodes < 682 and wal_time_sec > 48 * 3600:
-                    wal_time_sec = 48 * 3600
-                elif nodes < 4096 and wal_time_sec > 36 * 3600:
-                    wal_time_sec = 36 * 3600
-                elif nodes < 5462 and wal_time_sec > 12 * 3600:
-                    wal_time_sec = 12 * 3600
-                elif wal_time_sec > 12 * 3600:
-                    wal_time_sec = 12 * 3600
-
-                if wal_time_sec < int(min_walltime_m) * 60:
-                    continue
-
-                self.__log.info("Nodes: %s, Walltime (str): %s, Walltime (min) %s" % (nodes, d[3], wal_time_sec/60 ))
-
-                res.update({nodes:wal_time_sec})
-        else:
-            self.__log.info("No availble resources. Default values will be used.")
-        self.__log.info("Get resources: %s" % res)
-        return res
+        return self.__plugin.getHPCResources(partition, max_nodes, min_nodes, min_walltime_m)
 
     def getMode(self, defaultResources):
         mode = defaultResources['mode']
@@ -139,6 +152,19 @@ class HPCManager:
             self.__mode = 'normal'
 
         return self.__mode
+
+    def setupPlugin(self, pluginName):
+        # pluginName = defaultResources.get('plugin', 'pbs')
+        self.__pluginName = pluginName
+        plugin = 'HPC.HPCManagerPlugins.%s.%s' % (pluginName, pluginName)
+        self.__log.info("HPCManager plugin: %s" % plugin)
+
+        components = plugin.split('.')
+        mod = __import__('.'.join(components[:-1]))
+        for comp in components[1:]:
+            mod = getattr(mod, comp)
+        self.__plugin = mod(self.__logFileName)
+        self.__log.info("HPCManager plugin is setup: %s" % self.__plugin)
 
     def getFreeResources(self, defaultResources):
         mode = self.getMode(defaultResources)
@@ -208,6 +234,8 @@ class HPCManager:
         if self.__eventRanges:
             numRanges = len(self.__eventRanges)
         eventsPerNode = int(self.__ATHENA_PROC_NUMBER) * (int(self.__eventsPerWorker) - 1)
+        if eventsPerNode == 0:
+            eventsPerNode = 1
         nodes = numRanges/eventsPerNode + (numRanges%eventsPerNode + eventsPerNode - 1)/eventsPerNode + 1
         if nodes < int(self.__nodes):
             self.__nodes = nodes
@@ -219,86 +247,40 @@ class HPCManager:
 
     def submit(self):
         for i in range(5):
-            status, jobid = self.submitJob()
+            status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes)
             if status != 0:
                 self.__log.info("Failed to submit this job to HPC. will sleep one minute and retry")
                 time.sleep(60)
             else:
+                self.__jobid = jobid
                 break
         if status != 0:
             self.__log.info("Failed to submit this job to HPC. All retries finished. will fail") 
-  
-    def submitJob(self):
-        submit_script = "#!/bin/bash -l" + "\n"
-        submit_script += "#PBS -q " + self.__queue + "\n"
-        if self.__repo:
-            submit_script += "#PBS -A " + self.__repo + "\n"
-        submit_script += "#PBS -l mppwidth=" + str(self.__mppwidth) + "\n"
-        #submit_script += "#PBS -l mppnppn=" + str(self.__mppnppn) + "\n"
-        submit_script += "#PBS -l walltime=" + self.__walltime + "\n"
-        submit_script += "#PBS -N ES_job" + "\n"
-        submit_script += "#PBS -j oe" + "\n"
-        submit_script += "#PBS -o athena_stdout.txt" + "\n"
-        submit_script += "#PBS -e athena_stderr.txt" + "\n"
-        submit_script += "cd $PBS_O_WORKDIR" + "\n"
-        submit_script += "module load mpi4py" + "\n"
-        submit_script += "source /project/projectdirs/atlas/sw/python-yampl/setup.sh" + "\n"
 
-        #submit_script += "aprun -n " + str(self.__nodes) + " -N " + str(self.__mppnppn) + " -d " + str(self.__ATHENA_PROC_NUMBER) + " -cc none python-mpi " + os.path.join(self.__globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+self.__globalWorkingDir+" --localWorkingDir="+self.__localWorkingDir+""
-        submit_script += "aprun -n " + str(self.__nodes) + " -N " + str(self.__mppnppn) + " -cc none python-mpi " + os.path.join(self.__globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+self.__globalWorkingDir+" --localWorkingDir="+self.__localWorkingDir+""
-        ###cmd = "mpiexec -n 2 python " + os.path.join(self.__globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+self.__globalWorkingDir+" --localWorkingDir="+self.__localWorkingDir+"&"
-        self.__submit_file = os.path.join(self.__globalWorkingDir, 'submit_script')
-        handle = open(self.__submit_file, 'w')
-        handle.write(submit_script)
-        handle.close()
+    def saveState(self):
+        hpcState = {'GlobalWorkingDir': self.__globalWorkingDir, 'Plugin':self.__pluginName, 'JobID': self.__jobid, 'JobCommand': sys.argv, 'JobStateFile': self.__pandaJobStateFile}
+        with open(self.__jobStateFile, 'w') as outputFile:
+           json.dump(hpcState, outputFile)
 
-        self.__log.info("submit script:\n%s" % submit_script)
-        cmd = "qsub " + self.__submit_file
-        self.__log.info("submitting HPC job: %s" % cmd)
-        status, output = commands.getstatusoutput(cmd)
-        self.__log.info("submitting HPC job: (status: %s, output: %s)" %(status, output))
-        self.__jobid = None
-        if status == 0:
-            self.__jobid = output.replace("\n", "")
-            return 0, self.__jobid
-        return -1, None
+    def recoveryState(self):
+        if os.path.exists(self.__jobStateFile):
+            tmpFile = open(self.__jobStateFile)
+            hpcState = json.load(tmpFile)
+            tmpFile.close()
+            self.__globalWorkingDir = hpcState['GlobalWorkingDir']
+            self.__jobid = hpcState['JobID']
+            self.__pluginName = hpcState['Plugin']
+            self.setupPlugin(self.__pluginName)
 
     def poll(self):
-        # poll the job in HPC. update it
-        cmd = "qstat " + self.__jobid
-        self.__log.info("polling HPC job: %s" % cmd)
-        status, output = commands.getstatusoutput(cmd)
-        #self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
-        if status == 0:
-            self.__failedPollTimes = 0
-            state = None
-            lines = output.split("\n")
-            for line in lines:
-                line = line.strip()
-                if line.startswith(self.__jobid):
-                    state = line.split(" ")[-2]
-
-            if self.__lastState is None or self.__lastState != state or time.time() > self.__lastTime + 60*5:
-                self.__log.info("HPC job state is: %s" %(state))
-                self.__lastState = state
-                self.__lastTime = time.time()
-
-            if state == "C":
-                self.__log.info("HPC job complete")
-                self.__isFinished = True
-                return "Complete"
-            if state == "R":
-                return "Running"
-            if state == "Q":
-                return "Queue"
-        else:
-            self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
-            self.__failedPollTimes += 1
-            if self.__failedPollTimes > 5:
-                self.__isFinished = True
-                return "Failed"
-            else:
-                return 'Unknown'
+        state = self.__plugin.poll(self.__jobid)
+        if self.__lastState is None or self.__lastState != state or time.time() > self.__lastTime + 60*5:
+            self.__log.info("HPC job state is: %s" %(state))
+            self.__lastState = state
+            self.__lastTime = time.time()
+        if state in ['Complete', 'Failed']:
+            self.__isFinished = True
+        return state
 
     def checkHPCJobLog(self):
         logFile = os.path.join(self.__globalWorkingDir, "athena_stdout.txt")

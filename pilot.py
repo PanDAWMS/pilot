@@ -2,6 +2,7 @@
 
 import commands
 import getopt
+import json
 import os
 import time
 import re
@@ -547,9 +548,17 @@ def runJobRecovery(thisSite, _psport, extradir):
             pUtil.tolog("Job recovery will also scan extradir (%s)" % (extradir))
 
     dircounter = 0
+    print dirs
     for _dir in dirs:
         dircounter += 1
         pUtil.tolog("Scanning for lost jobs [pass %d/%d]" % (dircounter, len(dirs)))
+        try:
+            lostPandaID = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
+        except Exception, e:
+            pUtil.tolog("!!WARNING!!1999!! Failed during search for lost HPCEvent jobs: %s" % str(e))
+        else:
+            pUtil.tolog("Recovered/Updated lost HPCEvent job(%s)" % (lostPandaID))
+
         try:
             found_lost_jobs = RecoverLostJobs(_dir, thisSite, _psport)
         except Exception, e:
@@ -1570,6 +1579,69 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
 
     pUtil.chdir(currentDir)
     return number_of_recoveries
+
+def RecoverLostHPCEventJobs(recoveryDir, thisSite, _psport):
+    """
+    Recover Lost HPC Event job
+    """
+    
+    if recoveryDir != "":
+        dir_path = recoveryDir
+    else:
+        dir_path = thisSite.wntmpdir
+
+    pUtil.tolog("HPC Recovery algorithm will search external dir for lost jobs: %s" % (dir_path))
+    if dir_path == "":
+        pUtil.tolog("Recovery dir is empty, will not do anything.")
+        return None
+
+    try:
+        os.path.isdir(dir_path)
+    except:
+        pUtil.tolog("!!WARNING!!1100!! No such dir path (%s)" % (dir_path))
+    else:
+        HPC_state_files = glob(dir_path + "/Panda_Pilot_*/PandaJob_*/HPCManagerState.json")
+        pUtil.tolog("Number of found HPC job state files: %d" % (len(HPC_state_files)))
+        if HPC_state_files:
+            for file_path in HPC_state_files:
+                #try:
+                if True:
+                    pUtil.tolog("Working on %s" % file_path)
+                    fd, lockfile_name = createAtomicLockFile(file_path)
+                    if not fd:
+                        continue
+
+                    with open(file_path) as data_file:
+                        HPC_state = json.load(data_file)
+                    job_state_file = HPC_state['JobStateFile']
+                    job_command = HPC_state['JobCommand']
+                    JS = JobState()
+                    JS.get(job_state_file)
+                    _job, _site, _node, _recoveryAttempt = JS.decode()
+                    jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(_job.jobId, env['pshttpurl'], _psport, env['pilot_initdir'])
+                    # recover this job?
+                    if jobStatusCode == 20:
+                        pUtil.tolog("Received general error code from dispatcher call (leave job for later pilot)")
+                        # release the atomic lockfile and go to the next directory
+                        releaseAtomicLockFile(fd, lockfile_name)
+                        continue
+                    elif jobStatus == "transferring" or jobStatus == "failed" or \
+                         jobStatus == "notfound" or jobStatus == "finished" or "tobekilled" in _job.action:
+                        pUtil.tolog("Job %s is currently in state \'%s\' with attemptNr = %d (according to server - will not be recovered)" %\
+                                    (_job.jobId, jobStatus, jobAttemptNr))
+                        releaseAtomicLockFile(fd, lockfile_name)
+                        continue
+
+                    # update job state file at this point to prevent a parallel pilot from doing a simultaneous recovery
+                    _retjs = pUtil.updateJobState(_job, _site, _node, _recoveryAttempt)
+                    releaseAtomicLockFile(fd, lockfile_name)
+
+                    monitor = Monitor(env)
+                    monitor.monitor_recovery_job(_job, _site, _node, job_command, job_state_file)
+                   
+                #except Exception, ex:
+                #    pUtil.tolog("Failed to recovery lost HPC job: %s" % str(ex))
+                #    releaseAtomicLockFile(fd, lockfile_name)
 
 def getProperNodeName(nodename):
     """ Get the proper node name (if possible, containing the _CONDOR_SLOT (SlotID)) """

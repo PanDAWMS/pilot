@@ -106,7 +106,7 @@ class ATLASExperiment(Experiment):
         #   cmtconfig              : cmtconfig symbol from the job def or schedconfig, e.g. "x86_64-slc5-gcc43-opt"
 
         pilotErrorDiag = ""
-        cmd = ""
+        cmd = None
         special_setup_cmd = ""
         pysiteroot = ""
         siteroot = ""
@@ -456,7 +456,8 @@ class ATLASExperiment(Experiment):
 
         # add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall"):
-            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            #cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            pass
         else: 
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
 

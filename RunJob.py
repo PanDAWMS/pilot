@@ -64,6 +64,8 @@ class RunJob(object):
 #    __testLevel = 0                      # test suite control variable (0: no test, 1: put error, 2: ...)  NOT USED
 #    __workdir = "/tmp" # NOT USED
     __cache = ""                         # Cache URL, e.g. used by LSST
+    __recovery = False
+    __jobStateFile = None
 
     # Getter and setter methods
 
@@ -172,6 +174,13 @@ class RunJob(object):
 
         return self.__cache
 
+    def getRecovery(self):
+        return self.__recovery
+
+    def getJobStateFile(self):
+        return self.__jobStateFile
+
+
     # Required methods
 
     def __init__(self):
@@ -232,6 +241,10 @@ class RunJob(object):
                           help="The number of stage-out retries", metavar="STAGEOUTRETRY")
         parser.add_option("-F", "--experiment", dest="experiment",
                           help="Current experiment (default: ATLAS)", metavar="EXPERIMENT")
+        parser.add_option("-R", "--recovery", dest="recovery",
+                          help="Run in recovery mode", metavar="RECOVERY")
+        parser.add_option("-S", "--jobStateFile", dest="jobStateFile",
+                          help="Job State File", metavar="JOBSTATEFILE")
         parser.add_option("-H", "--cache", dest="cache",
                           help="Cache URL", metavar="CACHE")
 
@@ -303,6 +316,9 @@ class RunJob(object):
                 workdir = options.workdir
             if options.cache:
                 self.__cache = options.cache
+
+            self.__recovery = options.recovery
+            self.__jobStateFile = options.jobStateFile
 
         return sitename, appdir, workdir, dq2url, queuename
 
