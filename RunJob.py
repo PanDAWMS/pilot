@@ -20,7 +20,7 @@ from optparse import OptionParser
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment, getGUID
+     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment, getGUID, dumpFile
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
@@ -727,24 +727,21 @@ class RunJob(object):
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
                 tolog("Executing job command %d/%d: %s" % (current_job_number, number_of_jobs, cmd))
-                # Eddie: Commented out the part where we execute ONLY the payload under GLExec as now everything is under a glexec'ed environment
-                #if readpar('glexec').lower() in ['true', 'uid']: 
-                #    # execute trf under glexec
-                #    res_tuple = executePayloadGLExec(cmd, job)
-                #else:
-                #    # execute trf normally
-                #res_tuple = commands.getstatusoutput(cmd)
 
                 # Start the subprocess
                 main_subprocess = self.getSubprocess(thisExperiment, cmd, stdout=file_stdout, stderr=file_stderr)
 
                 if main_subprocess:
+                    tolog("Process id of job command: %d" % (main_subprocess.pid))
+
                     # Start the memory utility
                     output = "memory_monitor_output.txt"
                     summary = "memory_monitor_summary.json"
                     mem_cmd = self.getMemoryUtilityCommand(main_subprocess.pid, output=output, summary=summary)
                     if mem_cmd != "":
                         mem_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
+                        if mem_subprocess:
+                            tolog("Process id of memory utility: %d" % (mem_subprocess.pid))
                     else:
                         tolog("Could not launch memory utility since the command path does not exist")
                         mem_subprocess = None
@@ -759,6 +756,7 @@ class RunJob(object):
                     # Stop the memory utility
                     if mem_subprocess:
                         mem_subprocess.send_signal(signal.SIGUSR1)
+                        tolog("Terminated the memory utility subprocess")
 
                     # Handle main subprocess errors
                     try:
@@ -771,7 +769,8 @@ class RunJob(object):
                         stdout.close()
 
                     # Handle memory utility command output
-                    # ..
+                    if os.path.exists(summary):
+                        tolog("Memory utility summary file: %s" % (summary))
 
                 else:
                     res_tuple = (1, "Popen ended prematurely (payload command failed to execute, see stdout/err)")
