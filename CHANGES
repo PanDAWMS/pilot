@@ -229,6 +229,8 @@ Added "adler32" to if statement in getRemoteFileChecksumFromOutput() (xrdcpSiteM
 Created convert() function, converting unicode strings and collections (lists, dictionaries, etc) to utf-8 (pUtil)
 Created openFile() and getJSONDictionary() (FileHandling)
 Created getMemoryUtilityCommand(), used by __main__() (RunJob)
+Now querying shouldExecuteMemoryMonitor() before running findVmPeaks() in interpretPayloadStdout() (ATLASExperiment)
+Created shouldExecuteMemoryMonitor(), getMemoryMonitorJSONFilename() (Experiment, ATLASExperiment)
 
 DQ2 API to Rucio API migration:
 - Replaced isTapeSite() function, now using the Rucio client to check whether the site is a tape site or not (SiteMover)

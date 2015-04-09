@@ -668,12 +668,18 @@ class RunJob(object):
 
         return _obj
 
-    def getMemoryUtilityCommand(self, pid, output="output.txt", summary="summary.json"):
+    def getMemoryUtilityCommand(self, pid, summary="summary.json"):
         """ Prepare the memory utility command string """
 
         interval = 60
         path = "/afs/cern.ch/work/n/nrauschm/public/MemoryMonitoringTool/MemoryMonitor"
         cmd = ""
+
+        # Construct the name of the output file using the summary variable
+        if summary.endswith('.json'):
+            output = summary.replace('.json', '.txt')
+        else:
+            output = summary + '.txt'
 
         if os.path.exists(path):
             cmd = "%s --pid %d --filename %s --json-summary %s --interval %d" % (path, pid, output, summary, interval)
@@ -734,17 +740,19 @@ class RunJob(object):
                 if main_subprocess:
                     tolog("Process id of job command: %d" % (main_subprocess.pid))
 
-                    # Start the memory utility
-                    output = "memory_monitor_output.txt"
-                    summary = "memory_monitor_summary.json"
-                    mem_cmd = self.getMemoryUtilityCommand(main_subprocess.pid, output=output, summary=summary)
-                    if mem_cmd != "":
-                        mem_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
-                        if mem_subprocess:
-                            tolog("Process id of memory utility: %d" % (mem_subprocess.pid))
+                    # Start the memory utility if required
+                    mem_subprocess = None
+                    if thisExperiment.shouldExecuteMemoryMonitor():
+                        summary = thisExperiment.getMemoryMonitorJSONFilename()
+                        mem_cmd = self.getMemoryUtilityCommand(main_subprocess.pid, summary=summary)
+                        if mem_cmd != "":
+                            mem_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
+                            if mem_subprocess:
+                                tolog("Process id of memory monitor: %d" % (mem_subprocess.pid))
+                        else:
+                            tolog("Could not launch memory monitor since the command path does not exist")
                     else:
-                        tolog("Could not launch memory utility since the command path does not exist")
-                        mem_subprocess = None
+                        tolog("Not required to run memory monitor")
 
                     # Loop until the main subprocess has finished
                     while main_subprocess.poll() is None:
@@ -753,10 +761,10 @@ class RunJob(object):
                         # Take a short nap
                         time.sleep(1)
 
-                    # Stop the memory utility
+                    # Stop the memory monitor
                     if mem_subprocess:
                         mem_subprocess.send_signal(signal.SIGUSR1)
-                        tolog("Terminated the memory utility subprocess")
+                        tolog("Terminated the memory monitor subprocess")
 
                     # Handle main subprocess errors
                     try:
@@ -767,10 +775,6 @@ class RunJob(object):
                     else:
                         tolog("Tail:\n%s" % (res_tuple[1]))
                         stdout.close()
-
-                    # Handle memory utility command output
-                    if os.path.exists(summary):
-                        tolog("Memory utility summary file: %s" % (summary))
 
                 else:
                     res_tuple = (1, "Popen ended prematurely (payload command failed to execute, see stdout/err)")

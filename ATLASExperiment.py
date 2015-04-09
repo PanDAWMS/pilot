@@ -2403,7 +2403,7 @@ class ATLASExperiment(Experiment):
         failed = out_of_memory # failed boolean used below
 
         # Always look for the max and average VmPeak?
-        if not self.__analysisJob:
+        if not self.__analysisJob and not self.shouldExecuteMemoryMonitor():
             setup = getSourceSetup(runCommandList[0])
             job.vmPeakMax, job.vmPeakMean, job.RSSMean = findVmPeaks(setup)
 
@@ -3039,6 +3039,25 @@ class ATLASExperiment(Experiment):
             tolog("ATHENA_PROC_NUMBER is not set, will not update coreCount in job definition")
 
         return job
+
+    # Optional
+    def shouldExecuteMemoryMonitor(self):
+        """ Determine where a memory utility monitor should be executed """ 
+
+        # The RunJob class has the possibility to execute a memory utility monitor that can track the memory usage
+        # of the payload. The monitor is executed if this method returns True. The monitor is expected to produce
+        # a summary JSON file whose name is defined by the getMemoryMonitorJSONFilename() method. The contents of
+        # this file (ie. the full JSON dictionary) will be added to the jobMetrics at the end of the job (see
+        # PandaServerClient class).
+
+        return True
+
+    # Optional
+    def getMemoryMonitorJSONFilename(self):
+        """ Return the filename of the memory monitor JSON file """
+
+        # For explanation, see shouldExecuteMemoryMonitor()
+        return "memory_monitor_summary.json"
 
 if __name__ == "__main__":
 
