@@ -343,6 +343,12 @@ class RunJob(object):
         if os.path.isdir(job.workdir):
             os.chdir(job.workdir)
 
+            # copy any JSON files from the workdir to the pilot init dir
+            try:
+                copy2("%s/*.json" % (job.workdir), "%s/." % (self.__pworkdir))
+            except Exception, e:
+                tolog("!!WARNING!!2222!! Caught exception while trying to copy JSON files: %s" % (e))
+
             # remove input files from the job workdir
             remFiles = job.inFiles
             for inf in remFiles:
@@ -675,6 +681,11 @@ class RunJob(object):
         path = "/afs/cern.ch/work/n/nrauschm/public/MemoryMonitoringTool/MemoryMonitor"
         cmd = ""
 
+        try:
+            tolog("2. Process id of job command: %d" % (pid))
+        except Exception, e:
+            tolog("Exception caught: %s" % (e))
+
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):
             output = summary.replace('.json', '.txt')
@@ -732,14 +743,17 @@ class RunJob(object):
                 to_script = cmd.replace(";", ";\n")
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
-                tolog("Executing job command %d/%d: %s" % (current_job_number, number_of_jobs, cmd))
+                tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
 
                 # Start the subprocess
                 main_subprocess = self.getSubprocess(thisExperiment, cmd, stdout=file_stdout, stderr=file_stderr)
 
                 if main_subprocess:
-                    tolog("Process id of job command: %d" % (main_subprocess.pid))
-
+                    time.sleep(2)
+                    try:
+                        tolog("Process id of job command: %d" % (main_subprocess.pid))
+                    except Exception, e:
+                        tolog("1. Exception caught: %s" % (e))
                     # Start the memory utility if required
                     mem_subprocess = None
                     if thisExperiment.shouldExecuteMemoryMonitor():
@@ -748,7 +762,10 @@ class RunJob(object):
                         if mem_cmd != "":
                             mem_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
                             if mem_subprocess:
-                                tolog("Process id of memory monitor: %d" % (mem_subprocess.pid))
+                                try:
+                                    tolog("Process id of memory monitor: %d" % (mem_subprocess.pid))
+                                except Exception, e:
+                                    tolog("3. Exception caught: %s" % (e))
                         else:
                             tolog("Could not launch memory monitor since the command path does not exist")
                     else:

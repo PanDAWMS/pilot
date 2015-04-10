@@ -231,6 +231,10 @@ Created openFile() and getJSONDictionary() (FileHandling)
 Created getMemoryUtilityCommand(), used by __main__() (RunJob)
 Now querying shouldExecuteMemoryMonitor() before running findVmPeaks() in interpretPayloadStdout() (ATLASExperiment)
 Created shouldExecuteMemoryMonitor(), getMemoryMonitorJSONFilename() (Experiment, ATLASExperiment)
+Importing and using getExperiment() in getJobMetrics() (PandaServerClient)
+Importing and using getJSONDictionary() in getJobMetrics() (PandaServerClient)
+getJobMetrics() is now adding memory monitor JSON dictionary to job metrics (PandaServerClient)
+Copying any JSON file from the jobs' workdir to the pilots' init dir in cleanup() (RunJob)
 
 DQ2 API to Rucio API migration:
 - Replaced isTapeSite() function, now using the Rucio client to check whether the site is a tape site or not (SiteMover)

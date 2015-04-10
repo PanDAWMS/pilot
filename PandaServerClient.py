@@ -4,9 +4,10 @@ from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation
+from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment
 from JobState import JobState
 from FileState import FileState
+from FileHandling import getJSONDictionary
 
 class PandaServerClient:
     """
@@ -103,6 +104,9 @@ class PandaServerClient:
         # format: nEvents=<int> nEventsW=<int> vmPeakMax=<int> vmPeakMean=<int> RSSMean=<int> JEM=<string>
         #         hs06=<float> shutdownTime=<int> cpuFactor=<float> cpuLimit=<float> diskLimit=<float> jobStart=<int> memLimit=<int> runLimit=<float>
 
+        # get the experiment object
+        thisExperiment = getExperiment(job.experiment)
+
         if job.coreCount:
             # Always use the ATHENA_PROC_NUMBER first, if set
             if os.environ.has_key('ATHENA_PROC_NUMBER'):
@@ -124,12 +128,25 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="nEvents", value=job.nEvents)
         if job.nEventsW > 0:
             jobMetrics += self.jobMetric(key="nEventsW", value=job.nEventsW)
-        if job.vmPeakMax > 0:
-            jobMetrics += self.jobMetric(key="vmPeakMax", value=job.vmPeakMax)
-        if job.vmPeakMean > 0:
-            jobMetrics += self.jobMetric(key="vmPeakMean", value=job.vmPeakMean)
-        if job.RSSMean > 0:
-            jobMetrics += self.jobMetric(key="RSSMean", value=job.RSSMean)
+
+        # Grab the memory monitor JSON dictionary if required
+        filename = os.path.join(self.__pilot_initdir, thisExperiment.getMemoryMonitorJSONFilename())
+        if os.path.exists(filename):
+            tolog("Found memory monitor JSON file, will add its dictionary to job metrics")
+
+            # Get the dictionary
+            d = getJSONDictionary(filename)
+            if d and d != {}:
+                jobMetrics += self.jobMetric(key="mem", value=str(d))
+        else:
+            tolog("Memory monitor JSON file does not exist: %s" % (filename))
+
+            if job.vmPeakMax > 0:
+                jobMetrics += self.jobMetric(key="vmPeakMax", value=job.vmPeakMax)
+            if job.vmPeakMean > 0:
+                jobMetrics += self.jobMetric(key="vmPeakMean", value=job.vmPeakMean)
+            if job.RSSMean > 0:
+                jobMetrics += self.jobMetric(key="RSSMean", value=job.RSSMean)
 
         # hpc status
         if job.mode:
