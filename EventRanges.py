@@ -55,7 +55,7 @@ def updateEventRange(event_range_id, eventRangeList, status='finished'):
     # response = ret[1]
 
     if ret[0]: # non-zero return code
-        message = "Failed to download event range - error code = %d" % (ret[0])
+        message = "Server responded with error code = %d" % (ret[0])
     else:
         message = ""
 

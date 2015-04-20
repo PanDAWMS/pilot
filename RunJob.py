@@ -343,12 +343,6 @@ class RunJob(object):
         if os.path.isdir(job.workdir):
             os.chdir(job.workdir)
 
-            # copy any JSON files from the workdir to the pilot init dir
-            try:
-                copy2("%s/*.json" % (job.workdir), "%s/." % (self.__pworkdir))
-            except Exception, e:
-                tolog("!!WARNING!!2222!! Caught exception while trying to copy JSON files: %s" % (e))
-
             # remove input files from the job workdir
             remFiles = job.inFiles
             for inf in remFiles:
@@ -782,6 +776,12 @@ class RunJob(object):
                     if mem_subprocess:
                         mem_subprocess.send_signal(signal.SIGUSR1)
                         tolog("Terminated the memory monitor subprocess")
+
+                        # Move the output JSON to the pilots init dir
+                        try:
+                            copy2("%s/*.json" % (job.workdir), "%s/." % (self.__pworkdir))
+                        except Exception, e:
+                            tolog("!!WARNING!!2222!! Caught exception while trying to copy JSON files: %s" % (e))
 
                     # Handle main subprocess errors
                     try:

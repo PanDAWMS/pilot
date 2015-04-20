@@ -10,6 +10,7 @@ from pUtil import tolog, writeToFileWithStatus   # Logging method that sends tex
 
 # Standard python modules
 import os
+import re
 import sys
 import time
 import stat
@@ -1317,6 +1318,18 @@ class RunJobEvent(RunJob):
                     size, buf = self.__message_server.receive()
                 tolog("Received new message: %s" % (buf))
 
+#                if not "Ready for" in buf:
+#                    if self.__eventRangeID_dictionary.keys():
+#                        try:
+#                            keys = self.__eventRangeID_dictionary.keys()
+#                            key = keys[0]
+#                            tolog("Faking error for range = %s" % (key))
+#                            buf = "ERR_TE_RANGE %s: Range contains wrong positional number 5001" % (key)
+#                        except Exception,e:
+#                            tolog("No event ranges yet:%s" % (e))
+#                    #buf = "ERR_TE_FATAL Range-2: CURL curl_easy_perform() failed! Couldn't resolve host name"
+#                    #buf = "ERR_TE_FATAL 5211313-2452346274-2058479689-3-8: URL No tokens for GUID 00224B03-8005-E849-BCD5-D8F8F764B630"
+
                 # Interpret the message and take the appropriate action
                 if "Ready for events" in buf:
                     buf = ""
@@ -1345,7 +1358,7 @@ class RunJobEvent(RunJob):
                     # Extract the error acronym and the error diagnostics
                     error_acronym, event_range_id, error_diagnostics = self.extractErrorMessage(buf)
                     if event_range_id != "":
-                        tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range))
+                        tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         # Time to update the server
                         msg = updateEventRange(event_range_id, [], status='Failed')
@@ -1447,10 +1460,10 @@ class RunJobEvent(RunJob):
                     tolog("!!WARNING!!2211!! Failed to extract AthenaMP message: %s" % (e))
                     error_acronym = "EXTRACTION_FAILURE"
                     error_diagnostics = e
-                else:
-                    tolog("!!WARNING!!2212!! Failed to extract AthenaMP message")
-                    error_acronym = "EXTRACTION_FAILURE"
-                    error_diagnostics = msg
+            else:
+                tolog("!!WARNING!!2212!! Failed to extract AthenaMP message")
+                error_acronym = "EXTRACTION_FAILURE"
+                error_diagnostics = msg
 
         return error_acronym, event_range_id, error_diagnostics
 

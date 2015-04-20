@@ -3050,7 +3050,7 @@ class ATLASExperiment(Experiment):
         # this file (ie. the full JSON dictionary) will be added to the jobMetrics at the end of the job (see
         # PandaServerClient class).
 
-        return True
+        return False
 
     # Optional
     def getMemoryMonitorJSONFilename(self):
