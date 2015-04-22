@@ -147,11 +147,10 @@ class GlexecInterface(object):
         See usage example in:
         http://wiki.nikhef.nl/grid/GLExec_TransientPilotJobs
         """
-        #pUtil.tolog('sys path is %s' % sys.path)
-        #pUtil.tolog('os environ is %s' % os.environ)
+        pUtil.tolog('sys path is %s' % sys.path)
 
         pUtil.tolog("folder is : %s" % self.__mkgltempdir_path)
-	cmd = '%s -t 777' % self.__mkgltempdir_path
+	cmd = '%s -t 777 `pwd`' % self.__mkgltempdir_path
 
 	attempts = 0
 	while attempts < 3:
@@ -165,6 +164,9 @@ class GlexecInterface(object):
 		        os.environ['GLEXEC_TARGET_DIR'] = self.__target_path
 		        os.environ['GLEXEC_TARGET_PROXY'] = os.path.join(self.__target_path, 'user_proxy')
 		        pUtil.tolog("gltmpdir created and added to env: %s" % self.__target_path)
+			pUtil.tolog("now adding sandbox to sys.path")
+			sys.path.append(self.__target_path)
+			pUtil.tolog("New sys.path is %s " %sys.path)
 			return 0
 	        else:
 			pUtil.tolog('error! gltmpdir has failed')
@@ -193,10 +195,6 @@ class GlexecInterface(object):
 			        env['workerNode'] = Node.Node()
 			        env['workerNode'].setNodeName(getProperNodeName(os.uname()[1]))
 				
-			        #env['thisSite'] = Site.Site()
-				#args = [env['sitename'], env['appdir'], env['workdir'], env['dq2url'], env['queuename']]
-			        #env['thisSite'].setSiteInfo(args)
-
 				env['job'].workdir = os.getcwd()
 				env['thisSite'].workdir = os.getcwd()
 
@@ -211,9 +209,7 @@ class GlexecInterface(object):
 
 				client.updatePandaServer(env['job'], env['thisSite'], env['workerNode'], env['psport'],
 					log = env['pilotErrorDiag'], useCoPilot = env['useCoPilot'], xmlstr = strXML)
-				#raise GlexecException("mkgltempdir failed: %s" % stderr)
 
-	                        #pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
         	                return 1
 
 			else:
@@ -306,14 +302,14 @@ class GlexecInterface(object):
 	queuedatafile = si.getQueuedataFileName()
 	if '.dat' in queuedatafile:
 		shutil.copy2(queuedatafile, os.path.join(self.sandbox_path, 'queuedata.dat'))
-        	os.chmod(os.path.join(self.sandbox_path, 'queuedata.dat'), 0666)
+        	os.chmod(os.path.join(self.sandbox_path, 'queuedata.dat'), 0777)
 	else:
 		shutil.copy2(queuedatafile, os.path.join(self.sandbox_path, 'queuedata.json'))
-                os.chmod(os.path.join(self.sandbox_path, 'queuedata.json'), 0666)
+                os.chmod(os.path.join(self.sandbox_path, 'queuedata.json'), 0777)
 
 	for filename in glob.glob(os.path.join(os.environ['PilotHomeDir'], '*.py')):
 		shutil.copy2(filename, self.sandbox_path)
-		os.chmod(os.path.join(self.sandbox_path, filename), 0666)
+		os.chmod(os.path.join(self.sandbox_path, filename), 0755)
 
         dirs = [d for d in os.listdir(os.environ['PilotHomeDir']) if os.path.isdir(os.path.join(os.environ['PilotHomeDir'], d)) and 'gltmpdir' not in d]
 
@@ -321,10 +317,17 @@ class GlexecInterface(object):
                 if os.path.exists(os.path.join(self.sandbox_path, i)):
                         shutil.rmtree(os.path.join(self.sandbox_path, i))
                 shutil.copytree(os.path.join(os.environ['PilotHomeDir'], i), os.path.join(self.sandbox_path, i))
+		os.chmod(os.path.join(self.sandbox_path,i), 0777)
+		for root, directories, files in os.walk(os.path.join(self.sandbox_path, i)):  
+  			for dir in directories:  
+			    os.chmod(os.path.join(root, dir), 0777)
+		  	for file in files:
+			    os.chmod(os.path.join(root, file), 0755)
+
 
         shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PILOTVERSION'),
                      os.path.join(self.sandbox_path, 'PILOTVERSION'))
-        os.chmod(os.path.join(self.sandbox_path, 'PILOTVERSION'), 0666)
+        os.chmod(os.path.join(self.sandbox_path, 'PILOTVERSION'), 0755)
 
 
 
@@ -359,7 +362,13 @@ class GlexecInterface(object):
         	os.makedirs(env['thisSite'].workdir)
 		os.chmod(env['thisSite'].workdir,0777)
 	self.__dump_current_configuration()
-        
+
+	pUtil.tolog('dumping debug info')
+	debug_cmd = "ls -ld `pwd`; ls -ld %s ; ls -la %s/glexec*; ls -ld %s" %(self.__target_path, self.__target_path, env['thisSite'].workdir)
+
+	self.output, self.error, self.status = execute(debug_cmd)
+	pUtil.tolog(self.output) 
+
 	pUtil.tolog("cding and running GLEXEC!")
         cmd = "export GLEXEC_ENV=`%s`; \
                %s %s -- 'cd %s; \
@@ -385,18 +394,25 @@ class GlexecInterface(object):
             pUtil.tolog('glexec target dir is %s ' % os.environ['GLEXEC_TARGET_DIR'])
             pUtil.tolog('glexec target proxy is %s ' % os.environ['GLEXEC_TARGET_PROXY'])
 
+            pUtil.tolog('Will now delete completely the glexec temporary dir')
+            cmd = '%s -r %s -f' % (self.__mkgltempdir_path, self.__target_path)
+            self.output, self.error, self.status = execute(cmd)
+            pUtil.tolog(self.error)
+            pUtil.tolog(self.output)
+
+
 	    pUtil.tolog('Removing GLEXEC env vars')
 	    del os.environ['GLEXEC_CLIENT_CERT']
             del os.environ['GLEXEC_SOURCE_PROXY']
             del os.environ['GLEXEC_TARGET_DIR']
             del os.environ['GLEXEC_TARGET_PROXY']
-            #pUtil.tolog('Removing user_proxy')
-            #os.remove(self.__new_proxy_path)
-            #pUtil.tolog('Proxy removed!')
+            pUtil.tolog('Removing user_proxy at %s' % self.__new_proxy_path)
+            os.remove(self.__new_proxy_path)
+            pUtil.tolog('Proxy removed!')
 	    pUtil.tolog('sys path is ... %s ' % sys.path)
 	    pUtil.tolog('Will now check current dir and remove it from sys.path %s ' % os.getcwd())
-	    sys.path.remove(os.getcwd())	
+	    sys.path.remove(os.getcwd())
+	    sys.path.remove(self.__target_path)	
             pUtil.tolog('sys path now is ... %s ' % sys.path)
-	    #pUtil.tolog('x509_user_proxy is %s' % os.environ['X509_USER_PROXY'])
 	except:
 	    pUtil.tolog('Failed to reload previous configuration.')

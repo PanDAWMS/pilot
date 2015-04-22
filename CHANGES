@@ -243,6 +243,9 @@ DQ2 API to Rucio API migration:
 
 Update info from Edward Karavakis:
 - Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
+- Loops through the files of the pilot dirs and chmods them so that they can be removed at the end of the glexec'ed payload
+- Created temporary glexec sandbox inside the working directory / usual scratch area instead of the location of the TMPDIR env variable
+- Properly removes the glexec sandbox directory at the end
 
 Change to AMSTaiwanExperiment:
 - Changed usage of 'region' to new env variable 'Nordugrid_pilot' in checkSpecialEnvVars(), getSwbase(), getRelease()
