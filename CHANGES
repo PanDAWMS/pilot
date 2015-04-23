@@ -235,6 +235,7 @@ Importing and using getExperiment() in getJobMetrics() (PandaServerClient)
 Importing and using getJSONDictionary() in getJobMetrics() (PandaServerClient)
 getJobMetrics() is now adding memory monitor JSON dictionary to job metrics (PandaServerClient)
 Copying any JSON file from the jobs' workdir to the pilots' init dir in executePayload() (RunJob)
+Verifying that token is not None in getPreDestination(), requested by Tadashi Maeno (SiteMover)
 
 DQ2 API to Rucio API migration:
 - Replaced isTapeSite() function, now using the Rucio client to check whether the site is a tape site or not (SiteMover)

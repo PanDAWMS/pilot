@@ -670,7 +670,7 @@ class SiteMover(object):
         # Special case for GROUPDISK
         # In this case, (e.g.) token = 'dst:AGLT2_PERF-MUONS'
         # Pilot should then consult TiersOfATLAS and get it from the corresponding srm entry 
-        if "dst:" in token:
+        if token != None and "dst:" in token:
             # if the job comes from a different cloud than the sites' cloud, destination will be set to "" and the
             # default space token will be used instead (the transfer to groupdisk will be handled by DDM not pilot) 
             destination = self.getGroupDiskPath(endpoint=token)
