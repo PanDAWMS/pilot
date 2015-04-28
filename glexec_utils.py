@@ -297,22 +297,18 @@ class GlexecInterface(object):
 
     def __ship_queue_data(self):
         """Ships the queue data to the sandbox environment."""
-	# Will now try to find if we have the json or dat extension and then copy it to the sandbox
-	si = SiteInformation()
-	queuedatafile = si.getQueuedataFileName()
-	if '.dat' in queuedatafile:
-		shutil.copy2(queuedatafile, os.path.join(self.sandbox_path, 'queuedata.dat'))
-        	os.chmod(os.path.join(self.sandbox_path, 'queuedata.dat'), 0777)
-	else:
-		shutil.copy2(queuedatafile, os.path.join(self.sandbox_path, 'queuedata.json'))
-                os.chmod(os.path.join(self.sandbox_path, 'queuedata.json'), 0777)
 
-	for filename in glob.glob(os.path.join(os.environ['PilotHomeDir'], '*.py')):
-		shutil.copy2(filename, self.sandbox_path)
-		os.chmod(os.path.join(self.sandbox_path, filename), 0755)
+	for file_name in os.listdir(os.environ['PilotHomeDir']):
+		full_file_name = os.path.join(os.environ['PilotHomeDir'], file_name)
+		if (os.path.isfile(full_file_name)) and '.pyc' not in file_name:
+			shutil.copy(full_file_name, self.sandbox_path)
+			if 'queuedata.' in file_name:
+                                os.chmod(os.path.join(self.sandbox_path, file_name), 0777)
+			else:
+				os.chmod(os.path.join(self.sandbox_path, file_name), 0755)
 
-        dirs = [d for d in os.listdir(os.environ['PilotHomeDir']) if os.path.isdir(os.path.join(os.environ['PilotHomeDir'], d)) and 'gltmpdir' not in d]
-
+        dirs = [d for d in os.listdir(os.environ['PilotHomeDir']) if os.path.isdir(os.path.join(os.environ['PilotHomeDir'], d)) and 'gltmpdir' not in d and 'Panda_Pilot' not in d]
+	
 	for i in dirs:
                 if os.path.exists(os.path.join(self.sandbox_path, i)):
                         shutil.rmtree(os.path.join(self.sandbox_path, i))
@@ -323,12 +319,6 @@ class GlexecInterface(object):
 			    os.chmod(os.path.join(root, dir), 0777)
 		  	for file in files:
 			    os.chmod(os.path.join(root, file), 0755)
-
-
-        shutil.copy2(os.path.join(os.environ['PilotHomeDir'], 'PILOTVERSION'),
-                     os.path.join(self.sandbox_path, 'PILOTVERSION'))
-        os.chmod(os.path.join(self.sandbox_path, 'PILOTVERSION'), 0755)
-
 
 
     def __ship_job_definition(self):
