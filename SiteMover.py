@@ -289,22 +289,6 @@ class SiteMover(object):
     isFileOnTape = staticmethod(isFileOnTape)
 
     def isTapeSite(sitename):
-        """ Check whether the DQ2 site is a tape site or not """
-
-        status = False
-        try:
-            from dq2.info import TiersOfATLAS
-            if TiersOfATLAS.isTapeSite(sitename):
-                status = True
-            else:
-                status = False
-        except:
-            tolog("Exception caught (assuming no tape site)")
-            status = False
-        return status
-    isTapeSite = staticmethod(isTapeSite)
-
-    def isTapeSiteRUCIO(sitename):
         """ Check whether the Rucio site is a tape site or not """
 
         status = False
@@ -975,6 +959,19 @@ class SiteMover(object):
             tolog('!!WARNING!!2999!! tracing failed: %s' % str(exc_info()))
         else:
             tolog("Tracing report sent")
+
+    def prepareReport(self, state, report):
+        """
+        Prepare the DQ2 tracing report. Set the client exit state and finish
+        """
+        if report.has_key('timeStart'):
+            # finish instrumentation
+            report['timeEnd'] = time.time()
+            report['clientState'] = state
+            # send report
+            tolog("Updated tracing report: %s" % str(report))
+
+        return report
 
     def __sendReport(self, state, report):
         """

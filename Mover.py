@@ -44,6 +44,8 @@ class replica:
     fs = None
     filesize = None
     csumvalue = None
+    rse = None
+    filetype = None
 
 def createZippedDictionary(list1, list2):
     """ Created a zipped dictionary from input lists """
@@ -303,6 +305,21 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
     
     return status, pilotErrorDiag
 
+def getFiletypeAndRSE(surl, surl_dictionary):
+    """ Get the filetype and RSE for a surl from the surl dictionary """
+
+    filetype = None
+    rse = None
+
+    try:
+        d = surl_dictionary[surl]
+        filetype = d['type']
+        rse = d['rse']
+    except Exception, e:
+        tolog("!!WARNING!!2238!! Failed to extract filetype and rse from rucio_surl_dictionary: %s" % (e))
+
+    return filetype, rse
+
 def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
     """ Create a dictionary of the guids and replica objects """
 
@@ -314,8 +331,9 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
     tolog("file_dictionary=%s" % (file_dictionary))
 
     # then get the replica dictionary from Rucio
-    rucio_replica_dictionary = getRucioReplicaDictionary(host, file_dictionary)
+    rucio_replica_dictionary, rucio_surl_dictionary = getRucioReplicaDictionary(host, file_dictionary)
     tolog("rucio_replica_dictionary=%s" % str(rucio_replica_dictionary))
+    tolog("rucio_surl_dictionary=%s" % str(rucio_surl_dictionary))
 
     # then sort the rucio dictionary into a replica dictionary exptected by the pilot
     # Rucio format: { guid1: {'surls': [surl1, ..], 'lfn':LFN, 'fsize':FSIZE, 'checksum':CHECKSUM}, ..}
@@ -338,7 +356,6 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
     # loop over guids
     for g in range(len(rucio_replica_dictionary.keys())):
         guid = rucio_replica_dictionary.keys()[g]
-        tolog('guid=%s'%guid)
 
         # Skip missing SURLs
         if len(surl_guid_dictionary[guid]) == 0:
@@ -351,7 +368,6 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
 
             # create a new replica object
             rep = replica()
-            tolog('surl=%s'%(surl))
             rep.sfn = surl
             rep.filesize = rucio_replica_dictionary[guid]['fsize']
             rep.csumvalue = rucio_replica_dictionary[guid]['checksum']
@@ -360,13 +376,14 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
             rep.setname = ""
             rep.fs = ""
 
+            # get the filetype and rse
+            rep.filetype, rep.rse = getFiletypeAndRSE(surl, rucio_surl_dictionary)
+
             # add the replica object to the dictionary for the corresponding guid
             if replicas_dic.has_key(guid):
                 replicas_dic[guid].append(rep)
             else:
                 replicas_dic[guid] = [rep]
-
-    tolog("replicas_dic=%s"%(replicas_dic))
 
     if replicas_dic == {}:
         pilotErrorDiag = "Empty replicas dictionary"
@@ -507,6 +524,8 @@ def getInitialTracingReport(userid, sitename, dsname, eventType, analysisJob, jo
               'ip': '',
               'suspicious': '0',
               'usrdn': dn,
+              'url': None,
+              'stateReason': None,
               }
 
     if jobDefId == "":
@@ -601,18 +620,11 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
     if "objectstore" in readpar('copytoolin'):
         tolog("Objectstore stage-in: cutting a few corners")
 
-        # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum)
+        # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype)
         #         replicas_dic[guid1] = [replica1, ..]
-
-        tolog("lfns=%s" % str(lfns))
-        tolog("guids=%s" % str(guids))
-        tolog("filesizeIn=%s" % str(filesizeIn))
-        tolog("checksumIn=%s" % str(checksumIn))
 
         espath = getFilePathForObjectStore(filetype="eventservice")
         logpath = getFilePathForObjectStore(filetype="logs")
-        tolog("espath=%s" % (espath))
-        tolog("logpath=%s" % (logpath))
 
         i = 0
         try:
@@ -621,7 +633,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                     fullpath = os.path.join(logpath, lfns[i])
                 else:
                     fullpath = os.path.join(espath, lfns[i])
-                fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i])
+                fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i], 'DISK') # filetype is always DISK on objectstores
                 replicas_dic[guids[i]] = [fullpath]
                 i += 1
         except Exception, e:
@@ -655,7 +667,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                 return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
             # file the file info dictionary
-            fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum)
+            fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum, 'DISK') # no tape on T3s, so filetype is always DISK
 
             # check total file sizes to avoid filling up the working dir, add current file size
             try:
@@ -714,9 +726,9 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                 _filesize, _checksum = sitemover.getFileInfoFromRucio(scope_dict[_lfn], _dataset, guid)
                 if _filesize != "" and _checksum != "":
                     if _filesize != fsize:
-                        tolog("!!WARNING!!1001!! LFC file size (%s) not the same as DQ2 file size (%s) (using DQ2 value)" % (fsize, _filesize))
+                        tolog("!!WARNING!!1001!! Catalog file size (%s) not the same as Rucio file size (%s) (using Rucio value)" % (fsize, _filesize))
                     if _checksum != fchecksum:
-                        tolog("!!WARNING!!1001!! LFC checksum (%s) not the same as DQ2 checksum (%s) (using DQ2 value)" % (fchecksum, _checksum))
+                        tolog("!!WARNING!!1001!! Catalog checksum (%s) not the same as Rucio checksum (%s) (using Rucio value)" % (fchecksum, _checksum))
                     fsize = _filesize
                     fchecksum = _checksum
 
@@ -1574,6 +1586,13 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
         s = error.ERR_STAGEINFAILED
         tolog("Mover get_data finished (failed)")
     else:
+        # add the remaining items to the tracing report
+        report['url'] = gpfn
+        report['stateReason'] = pErrorText
+
+        # send the tracing report
+        #sitemover.sendTrace(report)
+
         # special case (not a real error, so reset the return value s)
         if s == error.ERR_DIRECTIOFILE:
             # reset s to prevent loop from stopping
@@ -2136,7 +2155,7 @@ def mover_get_data(lfns,
             if s != 0:
                 # Normal stage-in failed, now try with FAX if possible
                 if error.isPilotFAXErrorCode(s):
-                    if isFAXAllowed() and transferType != "fax" and sitemover.copyCommand != "fax": # no point in trying to fallback to fax if the fax transfer above failed
+                    if isFAXAllowed(gpfn, sitemover) and transferType != "fax" and sitemover.copyCommand != "fax": # no point in trying to fallback to fax if the fax transfer above failed
                         tolog("Normal stage-in failed, will attempt to use FAX")
                         usedFAXMode = True
 
@@ -3323,7 +3342,7 @@ def getPrimaryRucioReplica(matched_replicas, replicas):
                 break
     return sfn
 
-def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, workdir, lfn_dict=None, fax_mode=False, scope_dict=None, replicas_dict=None):
+def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, workdir, lfn_dict=None, scope_dict=None, replicas_dict=None):
     """ Build the file list using either Rucio or lfc_getreplicas """
 
     from SiteMover import SiteMover
@@ -3405,7 +3424,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
         _j = 0
         for replica in replicas:
             _j += 1
-            tolog("%d. %s (fsize: %s fchecksum: %s)" % (_j, replica.sfn, replica.filesize, replica.csumvalue))
+            tolog("%d. %s (size: %s checksum: %s type=%s)" % (_j, replica.sfn, replica.filesize, replica.csumvalue, replica.filetype))
 
         # find the replica at the correct host, unless in FAX mode
         matched_replicas = []
@@ -3449,13 +3468,6 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
             # SRMv2 sites should still have defined copyprefix. replica.sfn's will never be on the form
             # srm://gridka-dcache.fzk.de:8443/srm/managerv2?SFN=/pnfs/gridka.de/atlas/disk-only/mc/simone_test/test.1
             # since they are already stripped of the port and version info
-
-#            if fax_mode:
-#                # add the first replica since it will be transferred by FAX
-#                tolog("FAX mode: Adding first replica: %s" % (sfn))
-#                matched_replicas.append(sfn)
-#                found = True
-#            else:
 
             if (readpar('copytool').lower() == "fax" and readpar('copytoolin') == "") or readpar('copytoolin').lower() == "fax":
                 fax = True
@@ -3700,7 +3712,7 @@ def getFileCatalogHosts(thisExperiment):
 
     return hosts_list
 
-def isFAXAllowed():
+def isFAXAllowed(surl, sitemover):
     """ return True if FAX is available """
 
     allowfax = readpar('allowfax').lower()
@@ -3708,6 +3720,15 @@ def isFAXAllowed():
         allowed = True
     else:
         allowed = False
+
+    # make sure that the replica is not on TAPE, in which case FAX should not be used
+    if allowed:
+        if sitemover.isFileOnTape(surl):
+            tolog("!!WARNING!!3434!! Replica is on TAPE, FAX cannot be used")
+            allowed = False
+        else:
+            tolog("Replica is not on TAPE, FAX can be used")
+
     return allowed
 
 def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
@@ -3753,14 +3774,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         for lfc_host in lfc_hosts_list:
             host_nr += 1
             tolog("Attempting replica lookup from host %s (#%d/%d)" % (lfc_host, host_nr, len(lfc_hosts_list)))
-#            if host_nr == 1:
-#                # false here means full replica verification against local SE/copyprefix etc
-#                fax_mode = False
-#            else:
-#                # do not bother with replica verification in getCatalogFileList(), accept any remote replica
-#                fax_mode = isFAXAllowed()
-            fax_mode = isFAXAllowed()
-            ec, pilotErrorDiag, new_file_dict, xml_source, new_replicas_dict = getCatalogFileList(thisExperiment, guid_token_dict, lfc_host, analysisJob, workdir, lfn_dict=lfn_dict, fax_mode=fax_mode, scope_dict=scope_dict, replicas_dict=replicas_dict)
+            ec, pilotErrorDiag, new_file_dict, xml_source, new_replicas_dict = getCatalogFileList(thisExperiment, guid_token_dict, lfc_host, analysisJob, workdir, lfn_dict=lfn_dict, scope_dict=scope_dict, replicas_dict=replicas_dict)
 
             # found a replica
             if ec == 0:
@@ -4424,7 +4438,126 @@ def getRucioFileDictionary(lfn_dict, scope_dict):
 
     return dictionary
 
-def getRucioReplicaDictionary(cat, dictionary):
+def extractScopeLFN(scope_lfn):
+    """ Extract the scope and LFN from the scope_lfn string """
+
+    # scope_lfn = scope:lfn -> scope, lfn
+
+    _dummy = scope_lfn.split(':')
+    return _dummy[0], _dummy[1]
+
+def getScopeLFNListFromDictionary(file_dictionary):
+    """ Create a scope+LFN list for list_replicas() """
+
+    # file_dictionary = {guid1: scope1:lfn1, ..}
+
+    scope_lfn_list = []
+
+    for guid in file_dictionary:
+        # Get the scope:lfn value
+        scope_lfn = file_dictionary[guid]
+        
+        if ":" in scope_lfn:
+            # Extract the scope and the lfn
+            scope, lfn = extractScopeLFN(scope_lfn)
+
+            # Construct the file list that list_replicas expect
+            scope_lfn_list.append({'scope': scope, 'name': lfn, 'type':'F'})
+        else:
+            tolog("!!WARNING!!2233!! File dictionary contains non-scope:lfn element: %s for guid=%s (skipping)" % (scope_lfn, guid))
+
+    return scope_lfn_list
+
+def getGUIDForLFN(file_dictionary, scope_lfn):
+    """ Get the guid that coresponds to the lfn """
+
+    found = False
+    guid = ""
+
+    # Locate the guid that corresponds to this lfn
+    for _guid, _scope_lfn in file_dictionary.items():
+        if scope_lfn == _scope_lfn:
+            guid = _guid
+            break
+
+    return guid
+
+def getRucioReplicaDictionary(cat, file_dictionary):
+    """ Get the Rucio replica dictionary """
+    
+    # return: replica_dictionary, surl_dictionary
+    # replica_dictionary:
+    # FORMAT: { guid1: {'surls': [surl1, ..], 'lfn':LFN, 'fsize':FSIZE, 'checksum':CHECKSUM}, .. }
+    # surl_dictionary:
+    # FORMAT: { surl1: {'type': type1, 'rse': rse1}, .. }
+    # where type = DISK/TAPE, rse corresponds to Rucio/DQ2 site name
+    # file_dictionary:
+    # FORMAT: { guid1: scope1:lfn1, .. }
+
+    replica_dictionary = {}
+    surl_dictionary = {}
+    replicas_list = []
+
+    # First build the replica list using the file_dictionary
+    scope_lfn_list = getScopeLFNListFromDictionary(file_dictionary)
+
+    if scope_lfn_list != []:
+        from rucio.client import Client
+        c = Client()
+        
+        # Get the replica list
+        try:
+            replicas_list = c.list_replicas(scope_lfn_list, schemes=['srm'])
+        except:
+            tolog("!!WARNING!!2235!! list_replicas() failed")
+        else:
+            if replicas_list != None and replicas_list != []:
+                # Loop over all replicas
+                for r in replicas_list:
+                    # Extract the relevant fields
+                    try:
+                        # File size and checksum, plus corrections
+                        size = r['bytes']
+                        checksum = r['adler32']
+                        if checksum == None:
+                            checksum = "md5:" + r['md5']
+                        else:
+                            checksum = "ad:" + checksum
+
+                        # Scope and LFN, plus corrections
+                        scope = r['scope']
+                        lfn = r['name']
+                        scope_lfn = scope + ":" + lfn
+                        if not lfn.startswith(scope_lfn):
+                            lfn = scope_lfn
+
+                        # PFNs, including SURLs, RSEs and file types (DISK/TAPE)
+                        pfns = r['pfns']
+                        # pfns = { surl1: {'rse': 'GRIF-IRFU_PRODDISK', u'type': u'DISK'}, ..}
+                        # u'srm://node12.datagrid.cea.fr:8446/srm/managerv2?SFN=/dpm/datagrid.cea.fr/home/atlas/atlasproddisk/rucio/mc15_13TeV/38/2f/HITS.05140877._000880.pool.root.1': {u'rse': u'GRIF-IRFU_PRODDISK', u'type': u'DISK'}
+
+                        # Add to the dictionaries
+                    
+                        # Which guid does this lfn correspond to?
+                        guid = getGUIDForLFN(file_dictionary, scope_lfn)
+                        if guid != "":
+                            replica_dictionary[guid] = {'surls': pfns.keys(), 'lfn': lfn, 'fsize': size, 'checksum': checksum}
+                        else:
+                            tolog("!!WARNING!!2236!! No corresponding guid to lfn=%s in file_dictionary" % (lfn))
+
+                        # Add the PFNs to the SURL dictionary
+                        key = pfns.keys()[0]
+                        surl_dictionary[key] = pfns[key]
+
+                    except Exception, e:
+                        tolog("!!WARNING!!2235!! Failed to extract info from replicas_list: %s" % (e))
+
+    else:
+        tolog("!!WARNING!!2234!! Empty replica list, can not continue with Rucio replica query")
+
+    return replica_dictionary, surl_dictionary
+
+def getRucioReplicaDictionaryOld(cat, dictionary):
     """ Get the Rucio replica dictionary """
 
     # FORMAT: { guid1: {'surls': [surl1, ..], 'lfn':LFN, 'fsize':FSIZE, 'checksum':CHECKSUM}, ..}

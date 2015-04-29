@@ -262,6 +262,26 @@ Update info from Edward Karavakis:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+61c:
+
+Sending gpfn (replica) and sitemover to isFAXAllowed() from mover_get_data() (Mover)
+Added surl and sitemover arguments to isFAXAllowed() (Mover)
+Removed fax_mode argument from getCatalogFileList(), and its call in getPoolFileCatalog() since it is not needed (Mover)
+Now verifying that a replica is not on TAPE before FAX can be used, in isFAXAllowed() (Mover)
+Added url and stateReason to getInitialTracingReport() (Mover)
+Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
+Setting tracing report stateReason and url in sitemover_get_data() (Mover)
+
+DQ2 API to Rucio API migration:
+- Created new support methods: extractScopeLFN(), getScopeLFNListFromDictionary(), getGUIDForLFN() used by the new getRucioReplicaDictionary() (Mover)
+- getRucioReplicaDictionary() now returns both a replica dictionary and a surl dictionary containing file type and RSE info (Mover)
+- Receiving the new surl dictionary in getReplicaDictionaryRucio() (Mover)
+- Added new data members to replica class: filetype and rse (Mover)
+- Added new data members (filetype, rse) to replica object in getReplicaDictionaryRucio() (Mover)
+- Created getFiletypeAndRSE() (Mover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 TODO:
 
