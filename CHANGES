@@ -258,7 +258,7 @@ Change to AMSTaiwanExperiment:
 Reverted to using the old ToA based isTapeSite() since the new Rucio based method caused too much load on the Rucio server (SiteMover)
 
 Update info from Edward Karavakis:
-- Patch for the permission problem/bug with ARC+HTCondor affecting RAL & RAPP
+- Patch for the permission problem/bug with ARC+HTCondor affecting RAL and RAPP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
