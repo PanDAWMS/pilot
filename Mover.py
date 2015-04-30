@@ -750,7 +750,8 @@ def getFiletype(gpfn, replicas_dic):
     """ Get the filetype for this surl """
 
     filetype = ""
-    for replica in replicas_dic:
+    for guid in replicas_dic.keys():
+        replica = replicas_dic[guid]
         if replica.sfn == gpfn:
             filetype = replica.filetype
             break
