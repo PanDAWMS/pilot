@@ -732,8 +732,11 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                     fsize = _filesize
                     fchecksum = _checksum
 
+            # get the filetype for this surl
+            filetype = getFiletype(gpfn, replicas_dic)
+
             # store in the file info dictionary
-            fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum)
+            fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype)
 
             # check total file sizes to avoid filling up the working dir, add current file size
             try:
@@ -742,6 +745,19 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                 pass
 
     return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+
+def getFiletype(gpfn, replicas_dic):
+    """ Get the filetype for this surl """
+
+    filetype = ""
+    for replica in replicas_dic:
+        if replica.sfn == gpfn:
+            filetype = replica.filetype
+            break
+
+    tolog("Will use filetype=\'%s\' for surl=%s" % (filetype, gpfn))
+
+    return filetype
 
 def backupPFC4Mover(pfc_name):
     """ Backup old PFC file used by mover """
@@ -4546,8 +4562,8 @@ def getRucioReplicaDictionary(cat, file_dictionary):
                             tolog("!!WARNING!!2236!! No corresponding guid to lfn=%s in file_dictionary" % (lfn))
 
                         # Add the PFNs to the SURL dictionary
-                        key = pfns.keys()[0]
-                        surl_dictionary[key] = pfns[key]
+                        for surl in pfns.keys():
+                            surl_dictionary[surl] = pfns[surl]
 
                     except Exception, e:
                         tolog("!!WARNING!!2235!! Failed to extract info from replicas_list: %s" % (e))
@@ -4556,34 +4572,3 @@ def getRucioReplicaDictionary(cat, file_dictionary):
         tolog("!!WARNING!!2234!! Empty replica list, can not continue with Rucio replica query")
 
     return replica_dictionary, surl_dictionary
-
-def getRucioReplicaDictionaryOld(cat, dictionary):
-    """ Get the Rucio replica dictionary """
-
-    # FORMAT: { guid1: {'surls': [surl1, ..], 'lfn':LFN, 'fsize':FSIZE, 'checksum':CHECKSUM}, ..}
-    # where e.g. LFN='mc10_7TeV:ESD.321628._005210.pool.root.1', FSIZE=110359950 (long integer), CHECKSUM='ad:7bfc5de9'
-    # surl1='srm://srm.grid.sara.nl/pnfs/grid.sara.nl/data/atlas/atlasdatadisk/rucio/mc12_8TeV/cf/8f/EVNT.01365724._000001.pool.root.1'
-    # guid1='28FB7AE9-2234-F644-962A-17EA1D279AA7'
-
-    tolog("cat = %s" % (cat))
-    dictionaryReplicas = {}
-    try:
-        from dq2.filecatalog import create_file_catalog
-        from dq2.filecatalog.FileCatalogException import FileCatalogException
-        from dq2.filecatalog.FileCatalogUnavailable import FileCatalogUnavailable
-    except:
-        tolog("!!WARNING!!3333!! Bad environment: Could not import dq2 modules needed for Rucio")
-    else:
-        try:
-            catalog = create_file_catalog(cat)
-            catalog.connect()
-            dictionaryReplicas = catalog.bulkFindReplicas(dictionary)
-            catalog.disconnect()
-            tolog("dictionaryReplicas = %s" % str(dictionaryReplicas))
-        except:
-            import traceback
-            tolog("!!WARNING!!3334!! Exception caught in Mover: %s" % str(traceback.format_exc()))
-            tolog("!!WARNING!!3334!! Failed to connect to catalog: %s" % (cat))
-
-    return dictionaryReplicas
-

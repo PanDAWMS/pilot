@@ -278,7 +278,11 @@ DQ2 API to Rucio API migration:
 - Receiving the new surl dictionary in getReplicaDictionaryRucio() (Mover)
 - Added new data members to replica class: filetype and rse (Mover)
 - Added new data members (filetype, rse) to replica object in getReplicaDictionaryRucio() (Mover)
-- Created getFiletypeAndRSE() (Mover)
+- Created getFiletypeAndRSE() used by getReplicaDictionaryRucio() (Mover)
+- Created getFiletype() used by getFileInfo() (Mover)
+
+Update info from Edward Karavakis:
+- Patch 2 for the permission problem/bug with ARC+HTCondor affecting RAL and RAPP
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
