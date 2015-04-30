@@ -3770,7 +3770,7 @@ def isFAXAllowed(filetype, surl, sitemover):
 
     # make sure that the replica is not on TAPE, in which case FAX should not be used
     if allowed:
-        if filetype == "TAPE"
+        if filetype == "TAPE":
             tolog("!!WARNING!!3434!! Replica is on TAPE, FAX cannot be used")
             allowed = False
         else:
