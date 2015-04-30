@@ -259,51 +259,6 @@ class SiteMover(object):
         self.__sendReport('DONE', report)
         return 0, pilotErrorDiag
 
-    def isFileOnTape(surl):
-        """ Check if the file is on tape """
-
-        status = False
-
-        # first get the corresponding DQ2 site name
-        try:
-            sitename = SiteMover.getDQ2SiteName(surl=surl)
-        except:
-            sitename = None
-        if sitename:
-            tolog("Attempting to use SiteMover.isTapeSite() for site %s" % (sitename))
-            try:
-                if SiteMover.isTapeSite(sitename):
-                    status = True
-            except Exception, e:
-                tolog("Failed to execute isTapeSite(): %s (assuming replica is on disk)" % str(e))
-                status = None
-            if status:
-                tolog("Replica is on tape: %s" % (surl))
-            else:
-                tolog("Replica is on disk: %s" % (surl))
-        else:
-            tolog("!!WARNING!!2999!! Site problem: Can not determine whether file is on tape since the DQ2 site name is unknown (setup file not sourced)")
-            tolog("Replica is assumed to be on disk: %s" % (surl))
-
-        return status
-    isFileOnTape = staticmethod(isFileOnTape)
-
-    def isTapeSite(sitename):
-        """ Check whether the Rucio site is a tape site or not """
-
-        status = False
-        try:
-            from rucio.client import Client
-            client = Client()
-            if client.get_rse(sitename)['rse_type']  == 'TAPE':
-                status = True
-        except:
-            tolog("Exception caught (assuming no tape site)")
-            status = False
-            
-        return status
-    isTapeSite = staticmethod(isTapeSite)
-
     def getDQ2SEType(dq2sitename):
         """ Return the corresponding setype for the site """
 

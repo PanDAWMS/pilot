@@ -266,7 +266,7 @@ def getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, replicas_d
             # the replicas_list is a condense list containing all guids and all sfns, one after the other.
             # there might be several identical guids followed by the corresponding sfns. we will not reformat
             # this list into a sorted dictionary
-            # replicas_dict[guid] = [rep1, rep2] where repN is an object of class replica (defined above)
+            # replicas_dict[guid] = [ rep1, .. ] where repN is an object of class replica (defined above)
             try:
                 ec, pilotErrorDiag, replicas_dict = getReplicaDictionaryLFC(replicas_list, lfn_dict)
             except Exception, e:
@@ -313,8 +313,8 @@ def getFiletypeAndRSE(surl, surl_dictionary):
 
     try:
         d = surl_dictionary[surl]
-        filetype = d['type']
-        rse = d['rse']
+        filetype = d['type'].upper() # the pilot will always assume upper case (either DISK or TAPE)
+        rse = d['rse'] # Coresponding DQ2 site name
     except Exception, e:
         tolog("!!WARNING!!2238!! Failed to extract filetype and rse from rucio_surl_dictionary: %s" % (e))
 
@@ -354,8 +354,9 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
         return ec, pilotErrorDiag, replicas_dic
 
     # loop over guids
-    for g in range(len(rucio_replica_dictionary.keys())):
-        guid = rucio_replica_dictionary.keys()[g]
+#    for g in range(len(rucio_replica_dictionary.keys())):
+#        guid = rucio_replica_dictionary.keys()[g]
+    for guid in rucio_replica_dictionary.keys():
 
         # Skip missing SURLs
         if len(surl_guid_dictionary[guid]) == 0:
@@ -398,7 +399,7 @@ def getReplicaDictionaryLFC(replicas_list, lfn_dict):
     error = PilotErrors()
     pilotErrorDiag = ""
     ec = 0
-    replicas_dic = {}
+    replicas_dic = {} # FORMAT: { guid1: [replica1, .. ], .. } where replica1 is of type replica
 
     # replicas_list is a linear list of all guids and sfns
     for _replica in replicas_list:
@@ -605,9 +606,10 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                 scope_dict, pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
     """ Build the file info dictionary """
 
-    fileInfoDic = {}
-    replicas_dic = {}
-    totalFileSize = 0L    
+    fileInfoDic = {} # FORMAT: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype)
+    replicas_dic = {} # FORMAT: { guid1: [replica1, .. ], .. } where replica1 is of type replica
+    surl_filetype_dictionary = {} # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
+    totalFileSize = 0L
     ec = 0
     pilotErrorDiag = ""
 
@@ -635,6 +637,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                     fullpath = os.path.join(espath, lfns[i])
                 fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i], 'DISK') # filetype is always DISK on objectstores
                 replicas_dic[guids[i]] = [fullpath]
+                surl_filetype_dictionary[fullpath] = 'DISK' # filetype is always DISK on objectstores
                 i += 1
         except Exception, e:
             tolog("!!WARNING!!2233!! Failed to create replica and file dictionaries: %s" % (e))
@@ -666,8 +669,9 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             if ec != 0:
                 return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
-            # file the file info dictionary
+            # fill the dictionaries
             fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum, 'DISK') # no tape on T3s, so filetype is always DISK
+            surl_filetype_dictionary[fullpath] = 'DISK' # filetype is always DISK on T3s
 
             # check total file sizes to avoid filling up the working dir, add current file size
             try:
@@ -676,7 +680,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                 pass
     else:
         # get the PFC from the proper source
-        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = \
+        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary = \
             getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
                                DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
@@ -733,7 +737,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                     fchecksum = _checksum
 
             # get the filetype for this surl
-            filetype = getFiletype(gpfn, replicas_dic)
+            filetype = getFiletypeFromDictionary(gpfn, surl_filetype_dictionary)
 
             # store in the file info dictionary
             fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype)
@@ -746,15 +750,27 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
 
     return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
-def getFiletype(gpfn, replicas_dic):
+def getFiletypeFromDictionary(gpfn, surl_filetype_dictionary):
+    """ Get the filetype for this surl """
+
+    filetype = 'UNKNOWN'
+    try:
+        filetype = surl_filetype_dictionary[gpfn]
+    except Exception, e:
+        tolog("!!WARNING!!2240!! Filetype not found for surl=%s: %s" % (gpfn, e))
+
+    return filetype
+
+def getFiletypeFromReplicas(gpfn, replicas_dic):
     """ Get the filetype for this surl """
 
     filetype = ""
     for guid in replicas_dic.keys():
-        replica = replicas_dic[guid]
-        if replica.sfn == gpfn:
-            filetype = replica.filetype
-            break
+        replicas = replicas_dic[guid]
+        for replica in replicas:
+            if replica.sfn == gpfn:
+                filetype = replica.filetype
+                break
 
     tolog("Will use filetype=\'%s\' for surl=%s" % (filetype, gpfn))
 
@@ -1847,19 +1863,20 @@ def extractInputFileInfo(fileInfoList_nr, lfns):
 
     guid = fileInfoList_nr[0]
     gpfn = fileInfoList_nr[1]
-    fsize = fileInfoList_nr[2]
-    fchecksum = fileInfoList_nr[3]
-    tolog("Extracted (guid, gpfn, fsize, fchecksum) = (%s, %s, %s, %s)" % (guid, gpfn, str(fsize), fchecksum))
+    size = fileInfoList_nr[2]
+    checksum = fileInfoList_nr[3]
+    filetype = fileInfoList_nr[4]
+    tolog("Extracted (guid, gpfn, size, checksum, filetype) = (%s, %s, %s, %s, %s)" % (guid, gpfn, str(size), checksum, filetype))
 
     # get the corresponding lfn
     lfn = getLFN(gpfn, lfns)
 
-    if fchecksum == "" or fchecksum == "None":
-        fchecksum = 0
-    if fsize == "":
-        fsize = 0
+    if checksum == "" or checksum == "None":
+        checksum = 0
+    if size == "":
+        size = 0
 
-    return guid, gpfn, lfn, fsize, fchecksum
+    return guid, gpfn, lfn, size, checksum, filetype
 
 def getAlternativeReplica(gpfn, guid, replica_number, createdPFCTURL, replica_dictionary):
     """ Grab the gpfn from the replicas dictionary in case alternative replica stage-in is allowed """
@@ -1993,8 +2010,8 @@ def mover_get_data(lfns,
     path = _path
 
     # Build the file info dictionary (use the filesize and checksum from the dispatcher if possible) and create the PFC
-    # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum)
-    #         replicas_dic[guid1] = [replica1, ..]
+    # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype)
+    #         replicas_dic[guid1] = [ replica1, .. ] where replicaN is an object of class replica
     ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic = \
         getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
                     scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment)
@@ -2054,7 +2071,7 @@ def mover_get_data(lfns,
         tolog("All files will be transferred at once")
 
         # Extract the file info for the first file in the dictionary
-        guid, gpfn, lfn, fsize, fchecksum = extractInputFileInfo(fileInfoDic[0], lfns)
+        guid, gpfn, lfn, fsize, fchecksum, filetype = extractInputFileInfo(fileInfoDic[0], lfns)
         file_access = getFileAccess(access_dict, lfn)
         dsname = getDataset(lfn, dsdict)
 
@@ -2082,7 +2099,7 @@ def mover_get_data(lfns,
         tolog("Will process %d file(s)" % (number_of_files))
         for nr in range(number_of_files):
             # Extract the file info from the dictionary
-            guid, gpfn, lfn, fsize, fchecksum = extractInputFileInfo(fileInfoDic[nr], lfns)
+            guid, gpfn, lfn, fsize, fchecksum, filetype = extractInputFileInfo(fileInfoDic[nr], lfns)
 
             # Update the dataset name
             dsname = getDataset(lfn, dsdict)
@@ -2172,7 +2189,7 @@ def mover_get_data(lfns,
             if s != 0:
                 # Normal stage-in failed, now try with FAX if possible
                 if error.isPilotFAXErrorCode(s):
-                    if isFAXAllowed(gpfn, sitemover) and transferType != "fax" and sitemover.copyCommand != "fax": # no point in trying to fallback to fax if the fax transfer above failed
+                    if isFAXAllowed(filetype, gpfn, sitemover) and transferType != "fax" and sitemover.copyCommand != "fax": # no point in trying to fallback to fax if the fax transfer above failed
                         tolog("Normal stage-in failed, will attempt to use FAX")
                         usedFAXMode = True
 
@@ -3369,7 +3386,9 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
     xml_source = "LFC"
     error = PilotErrors()
 
-    file_dict = {}
+    # File dictionary for the primary replicas
+    file_dict = {} # FORMAT: { guid1: surl1, .. }
+    surl_filetype_dictionary = {} # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
 
     copyprefix = readpar('copyprefixin')
     if copyprefix == "":
@@ -3450,6 +3469,11 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
         # now loop over the replicas list
         for replica in replicas:
             sfn = replica.sfn
+            filetype = replica.filetype
+
+            # store the filetype for later use
+            surl_filetype_dictionary[sfn] = filetype
+
             tolog("Checking replica %s for guid %s" % (sfn, guid))
             if "DBRelease" in sfn:
                 # either all replicas in the list are DBReleases or none of them
@@ -3490,6 +3514,12 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                 fax = True
             else:
                 fax = False
+
+            # FAX cannot be used if the replica is on TAPE
+            if fax and filetype == "TAPE":
+                tolog("!!WARNING!!2239!! Switching off FAX mode during replica tests since replica is on TAPE")
+                fax = False
+
             tolog("Checking list of SEs")
             found = False
             for se in _listSEs:
@@ -3521,7 +3551,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
 
             if DBRelease and not _token:
                 # randomize DBRelease replicas residing on disk
-                matched_replicas = randomizeReplicas(matched_replicas)
+                matched_replicas = randomizeReplicas(matched_replicas, surl_filetype_dictionary)
                 tolog("Randomized replica list:")
                 dumpOrderedItems(matched_replicas)
 
@@ -3573,7 +3603,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                 tolog("Mover getCatalogFileList finished (failed): replica not found")
                 return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict
 
-    return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict
+    return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict, surl_filetype_dictionary
 
 def verifyReplicasDictionary(replicas_dict, guids):
     """ Does the current replicas_dict contain replicas for all guids? """
@@ -3729,7 +3759,7 @@ def getFileCatalogHosts(thisExperiment):
 
     return hosts_list
 
-def isFAXAllowed(surl, sitemover):
+def isFAXAllowed(filetype, surl, sitemover):
     """ return True if FAX is available """
 
     allowfax = readpar('allowfax').lower()
@@ -3740,23 +3770,26 @@ def isFAXAllowed(surl, sitemover):
 
     # make sure that the replica is not on TAPE, in which case FAX should not be used
     if allowed:
-        if sitemover.isFileOnTape(surl):
+        if filetype == "TAPE"
             tolog("!!WARNING!!3434!! Replica is on TAPE, FAX cannot be used")
             allowed = False
         else:
             tolog("Replica is not on TAPE, FAX can be used")
+    else:
+        tolog("FAX is not allowed")
 
     return allowed
 
 def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
                        filesizeIn, checksumIn, sitemover, pfc_name="PoolFileCatalog.xml", thisExperiment=None):
-    """ get the PFC from the proper source """
-    # In LCG land use lfc_getreplica to get the pfn in order to create the PoolFileCatalog, unless scope is used to create predeterministic path
+    """ Create replica dictionaries and get the PFC from the proper source """
 
     xml_from_PFC = ""
     pilotErrorDiag = ""
     ec = 0
-    replicas_dict = None
+    replicas_dict = None # FORMAT: { guid1: [replica1, .. ], .. } where replica1 is of type replica
+    surl_filetype_dictionary = None  # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
+
     error = PilotErrors()
 
     xml_source = "[undefined]"
@@ -3786,12 +3819,13 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         lfc_hosts_list = getFileCatalogHosts(thisExperiment)
         host_nr = 0
         status = False
-        file_dict = {}
+        file_dict = {} # FORMAT: { guid1: surl1, .. }
         replicas_dict = {}
         for lfc_host in lfc_hosts_list:
             host_nr += 1
             tolog("Attempting replica lookup from host %s (#%d/%d)" % (lfc_host, host_nr, len(lfc_hosts_list)))
-            ec, pilotErrorDiag, new_file_dict, xml_source, new_replicas_dict = getCatalogFileList(thisExperiment, guid_token_dict, lfc_host, analysisJob, workdir, lfn_dict=lfn_dict, scope_dict=scope_dict, replicas_dict=replicas_dict)
+            ec, pilotErrorDiag, new_file_dict, xml_source, new_replicas_dict, surl_filetype_dictionary = \
+                getCatalogFileList(thisExperiment, guid_token_dict, lfc_host, analysisJob, workdir, lfn_dict=lfn_dict, scope_dict=scope_dict, replicas_dict=replicas_dict)
 
             # found a replica
             if ec == 0:
@@ -3824,7 +3858,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         # were no replicas found?
         if not status:
             tolog("Exhausted LFC host list, job will fail")
-            return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict
+            return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary
         else:
             # reset the last error code since the replica was found in the primary LFC
             ec = 0
@@ -3840,7 +3874,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         ec, pilotErrorDiag, file_dict, xml_source, replicas_dict = getRucioFileList(scope_dict, guid_token_dict,\
                                                                                     lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover)
         if ec != 0:
-            return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict
+            return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary
         tolog("file_dict = %s" % str(file_dict))
 
         # create a pool file catalog
@@ -3867,7 +3901,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
                         final_replicas_dict[guid].append(rep)
         except Exception, e:
             tolog("!!WARNING!!4444!! Caught exception: %s" % (e))
-    return ec, pilotErrorDiag, xml_from_PFC, xml_source, final_replicas_dict
+    return ec, pilotErrorDiag, xml_from_PFC, xml_source, final_replicas_dict, surl_filetype_dictionary
 
 def getPoolFileCatalogNG(guids, lfns, pinitdir):
     """ build a new PFC for NG """
@@ -4121,7 +4155,7 @@ def copytool(mode="put"):
             tolog("No copysetup found in queuedata")
         return (copytoolname, copysetup)
 
-def randomizeReplicas(replicaList):
+def randomizeReplicas(replicaList, surl_filetype_dictionary):
     """ create a randomized replica list that leaves tape areas at the end of the list """
 
     from SiteMover import SiteMover
@@ -4137,8 +4171,8 @@ def randomizeReplicas(replicaList):
             elif "tape" in _replica.lower() or "t1d0" in _replica.lower():
                 _replicas_tape.append(_replica)
             else:
-                # look up the DQ2 site using the surl in case of obscured tape site
-                if SiteMover.isFileOnTape(_replica):
+                # in case of obscured tape site use the filetype dictionary
+                if getFiletypeFromDictionary(_replica, surl_filetype_dictionary) == "TAPE":
                     _replicas_tape.append(_replica)
                 else:
                     _randomized_replicas.append(_replica)
@@ -4175,7 +4209,7 @@ def sortReplicas(replicas, token):
                 _replicas_tape.append(_replica)
             else:
                 # look up the DQ2 site using the surl in case of obscured tape site
-                if SiteMover.isFileOnTape(_replica.sfn):
+                if _replica.filetype == "TAPE":
                     _replicas_tape.append(_replica)
                 else:
                     _replicas_disk.append(_replica)
@@ -4192,7 +4226,7 @@ def sortReplicas(replicas, token):
             else:
                 # look up the DQ2 site using the surl in case of obscured tape site
                 tolog("Replica: %s" % (_replica.sfn))
-                if SiteMover.isFileOnTape(_replica.sfn):
+                if _replica.filetype == "TAPE":
                     _replicas_tape.append(_replica)
                 else:
                     _replicas_disk.append(_replica)
