@@ -300,7 +300,7 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
                 status = True
                 tolog("GUID=%s has a valid (set) SURL list" % (guid))
     else:
-        pilotErrorDiag = "Encountered an empty SURL-GUID dictionary"
+        pilotErrorDiag = "Rucio returned an empty replica dictionary"
         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
     
     return status, pilotErrorDiag

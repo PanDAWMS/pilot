@@ -1130,6 +1130,9 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             redirector = redirector + "/"
             tolog("Updated redirector for missing trailing /: %s" % (redirector))
 
+        # Protect against triple slashes
+        redirector = redirector.replace('///','//')
+
         return redirector
 
     def getGlobalFilePathsDQ2(self, dsname):
