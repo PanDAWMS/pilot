@@ -13,7 +13,7 @@ from pUtil import tolog, readpar, dumpOrderedItems, getDirectAccessDic, getSiteI
 from PilotErrors import PilotErrors
 from timed_command import timed_command
 from config import config_sm
-from FileHandling import getExtension
+from FileHandling import getExtension, getTracingReportFilename, writeJSON
 
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE
@@ -917,17 +917,38 @@ class SiteMover(object):
             tolog("Tracing report sent")
 
     def prepareReport(self, state, report):
-        """
-        Prepare the DQ2 tracing report. Set the client exit state and finish
-        """
+        """ Prepare the DQ2 tracing report. Set the client exit state and finish """
+
         if report.has_key('timeStart'):
+
             # finish instrumentation
             report['timeEnd'] = time.time()
-            report['clientState'] = state
+            if type(state) is str:
+                report['clientState'] = state
+            elif type(state) is list:
+                for key in state.keys():
+                    report[key] = state[key]
+            else:
+                tolog("!!WARNING!!3332!! Do not know how to handle this tracing state: %s" % str(state))
+
             # send report
             tolog("Updated tracing report: %s" % str(report))
 
-        return report
+            # Store the tracing report to file
+            filename = getTracingReportFilename()
+            status = writeJSON(filename, report)
+            if status:
+                tolog("Wrote tracing report to file %s" % (filename))
+            else:
+                tolog("!!WARNING!!3333!! Failed to write tracing report to file")
+
+            # Send the report
+            try:
+                self.sendTrace(report)
+            except Exception, e:
+                tolog("!!WARNING!!3334!! Failed to send tracing report: %s" % (e))
+        else:
+            tolog("!!WARNING!!3331!! No timeStart found in tracing report, cannot send")
 
     def __sendReport(self, state, report):
         """

@@ -103,12 +103,17 @@ Importing getExtension() from FileHandling instead of from pUtil (SiteInformatio
 Removed import of unused getExtension (NordugridSiteInformation)
 Moved dumpFile from pUtil to FileHandling
 Importing dumpFile (pUtil, Mover)
+Moved readJSON and writeJSON from FAXSiteMover to FileHandling
+Importing readJSON, writeJSON (FAXSiteMover)
 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
 - Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
 - Setting tracing report stateReason and url in sitemover_get_data() (Mover)
 - Created getTracingReportFilename() (FileHandling)
+- Removed __sendReport() (LocalSiteMover)
+- Now using prepareReport() instead of __sendReport() (LocalSiteMover)
+- Storing tracing report in JSON file in __sendReport (LocalSiteMover)
 
 DQ2 API to Rucio API migration:
 - Created new support methods: extractScopeLFN(), getScopeLFNListFromDictionary(), getGUIDForLFN() used by the new getRucioReplicaDictionary() (Mover)

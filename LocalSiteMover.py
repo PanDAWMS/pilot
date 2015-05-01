@@ -22,7 +22,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths, getExperiment
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
-from FileHandling import getTracingReportFilename
+from FileHandling import getTracingReportFilename, writeJSON
 
 class LocalSiteMover(SiteMover.SiteMover):
     """ SiteMover that uses lsm for both get and put """
@@ -743,7 +743,7 @@ class LocalSiteMover(SiteMover.SiteMover):
         if output["transfer_mode"]:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], type="input")
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return status, output["errorLog"]
 
         if path == '': path = './'
@@ -754,7 +754,7 @@ class LocalSiteMover(SiteMover.SiteMover):
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
 
-        self.__sendReport(output["report"], report)
+        self.prepareReport(output["report"], report)
         return status, output["errorLog"]
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -798,7 +798,7 @@ class LocalSiteMover(SiteMover.SiteMover):
         if ec != 0:
             reportState = {}
             reportState["clientState"] = tracer_error
-            self.__sendReport(reportState, report)
+            self.prepareReport(reportState, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         # get the DQ2 site name from ToA
@@ -815,12 +815,12 @@ class LocalSiteMover(SiteMover.SiteMover):
 
         status, output = self.stageOut(source, surl, token, guid, experiment)
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return self.put_data_retfail(status, output["errorLog"], surl)
 
         reportState = {}
         reportState["clientState"] = "DONE"
-        self.__sendReport(reportState, report)
+        self.prepareReport(reportState, report)
         return 0, pilotErrorDiag, surl, output["size"], output["checksum"], self.arch_type
 
     def errorToReport(self, errorOutput, timeUsed, fileName, stageMethod='stageIN'):
@@ -899,22 +899,3 @@ class LocalSiteMover(SiteMover.SiteMover):
                     return PilotErrors.ERR_STAGEINFAILED, outputRet
                 else:
                     return PilotErrors.ERR_STAGEOUTFAILED, outputRet
-
-
-    def __sendReport(self, reportState, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            for key in reportState.keys():
-                report[key] = reportState[key]
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-
-
-            # Store the tracing report to file
-            filename = getTracingReportFilename()
-
-            self.sendTrace(report)

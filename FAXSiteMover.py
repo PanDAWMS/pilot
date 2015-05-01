@@ -23,6 +23,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, getSiteInformation, extractFilePaths, getExperiment, extractPattern
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
+from FileHandling import readJSON, writeJSON
 
 # placing the import lfc here breaks compilation on non-lcg sites
 # import lfc
@@ -1228,52 +1229,6 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return self.verifyGlobalPath(output, verbose=False)
 
-    # MOVE TO FileHandling
-    def writeJSON(self, file_name, dictionary):
-        """ Write the dictionary to a JSON file """
-
-        status = False
-
-        from json import dump
-        try:
-            fp = open(file_name, "w")
-        except Exception, e:
-            tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
-        else:
-            # Write the dictionary
-            try:
-                dump(dictionary, fp)
-            except Exception, e:
-                tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
-            else:
-                tolog("Wrote dictionary to file %s" % (file_name))
-                status = True
-            fp.close()
-
-        return status
-
-    # MOVE TO FileHandling
-    def readJSON(self, file_name):
-        """ Read a dictionary from a JSON file """
-
-        dictionary = {}
-        from json import load
-        try:
-            fp = open(file_name, 'r')
-        except Exception, e:
-            tolog("!!WARNING!!2334!! Failed to open file %s: %s" % (file_name, e))
-        else:
-            # Read the dictionary
-            try:
-                dictionary = load(fp)
-            except Exception, e:
-                tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
-            else:
-                tolog("Read dictionary from file %s" % (file_name))            
-            fp.close()
-
-        return dictionary
-
     def _getFAXRedirectors(self, computingSite, sourceSite, pandaID, url='http://waniotest.appspot.com/SiteToFaxEndpointTranslator'):
         """ Get the FAX redirectors via curl or JSON """
 
@@ -1281,7 +1236,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         file_name = "fax_redirectors.json"    
         if os.path.exists(file_name):
             # Read back the FAX redirectors from file
-            fax_redirectors_dictionary = self.readJSON(file_name)
+            fax_redirectors_dictionary = readJSON(file_name)
 
         if fax_redirectors_dictionary == {}:
             # Attempt to get fax redirectors from Ilija Vukotic's google server
@@ -1297,7 +1252,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                     tolog("!!WARNING!!4444!! Failed to parse fax redirector json: %s" % (e))
                 else:
                     tolog("Backing up dictionary")
-                    status = self.writeJSON("fax_redirectors.json", fax_redirectors_dictionary)
+                    status = writeJSON("fax_redirectors.json", fax_redirectors_dictionary)
                     if not status:
                         tolog("Failed to backup the FAX redirectors")
 

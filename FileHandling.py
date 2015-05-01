@@ -22,7 +22,7 @@ def openFile(filename, mode):
     return f
 
 def getJSONDictionary(filename):
-    """ Open json file and return its dictionary """
+    """ Open json file and return its dictionary with unicode to utf-8 conversion """
 
     d = None
     f = openFile(filename, 'r')
@@ -43,6 +43,51 @@ def getJSONDictionary(filename):
             else:
                 tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
     return d
+
+    # MOVE TO FileHandling
+    def writeJSON(self, file_name, dictionary):
+        """ Write the dictionary to a JSON file """
+
+        status = False
+
+        from json import dump
+        try:
+            fp = open(file_name, "w")
+        except Exception, e:
+            tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
+        else:
+            # Write the dictionary
+            try:
+                dump(dictionary, fp)
+            except Exception, e:
+                tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
+            else:
+                tolog("Wrote dictionary to file %s" % (file_name))
+                status = True
+            fp.close()
+
+        return status
+
+    def readJSON(self, file_name):
+        """ Read a dictionary from a JSON file """
+
+        dictionary = {}
+        from json import load
+        try:
+            fp = open(file_name, 'r')
+        except Exception, e:
+            tolog("!!WARNING!!2334!! Failed to open file %s: %s" % (file_name, e))
+        else:
+            # Read the dictionary
+            try:
+                dictionary = load(fp)
+            except Exception, e:
+                tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
+            else:
+                tolog("Read dictionary from file %s" % (file_name))            
+            fp.close()
+
+        return dictionary
 
 def findLatestTRFLogFile(workdir):
     """ Find out which is the latest log.* file """
