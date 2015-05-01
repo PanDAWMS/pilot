@@ -4,7 +4,7 @@ import os
 import time
 import json
 
-from pUtil import tolog, convert
+import pUtil
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """
@@ -15,9 +15,9 @@ def openFile(filename, mode):
         try:
             f = open(filename, mode)
         except IOError, e:
-            tolog("!!WARNING!!2997!! Caught exception: %s" % (e))
+            pUtil.tolog("!!WARNING!!2997!! Caught exception: %s" % (e))
     else:
-        tolog("!!WARNING!!2998!! File does not exist: %s" % (filename))
+        pUtil.tolog("!!WARNING!!2998!! File does not exist: %s" % (filename))
 
     return f
 
@@ -30,18 +30,18 @@ def getJSONDictionary(filename):
         try:
             d = json.load(f)
         except Exception, e:
-            tolog("!!WARNING!!2222!! Failed to load json dictionary: %s" % (e))
+            pUtil.tolog("!!WARNING!!2222!! Failed to load json dictionary: %s" % (e))
         else:
             f.close()
 
             # Try to convert the dictionary from unicode to utf-8
             if d != {}:
                 try:
-                    d = convert(d)
+                    d = pUtil.convert(d)
                 except Exception, e:
-                    tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (d, e))
+                    pUtil.tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (d, e))
             else:
-                tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
+                pUtil.tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
     return d
 
     # MOVE TO FileHandling
@@ -54,15 +54,15 @@ def getJSONDictionary(filename):
         try:
             fp = open(file_name, "w")
         except Exception, e:
-            tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
+            pUtil.tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
         else:
             # Write the dictionary
             try:
                 dump(dictionary, fp)
             except Exception, e:
-                tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
+                pUtil.tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
             else:
-                tolog("Wrote dictionary to file %s" % (file_name))
+                pUtil.tolog("Wrote dictionary to file %s" % (file_name))
                 status = True
             fp.close()
 
@@ -76,15 +76,15 @@ def getJSONDictionary(filename):
         try:
             fp = open(file_name, 'r')
         except Exception, e:
-            tolog("!!WARNING!!2334!! Failed to open file %s: %s" % (file_name, e))
+            pUtil.tolog("!!WARNING!!2334!! Failed to open file %s: %s" % (file_name, e))
         else:
             # Read the dictionary
             try:
                 dictionary = load(fp)
             except Exception, e:
-                tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
+                pUtil.tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
             else:
-                tolog("Read dictionary from file %s" % (file_name))            
+                pUtil.tolog("Read dictionary from file %s" % (file_name))            
             fp.close()
 
         return dictionary
@@ -99,10 +99,10 @@ def findLatestTRFLogFile(workdir):
     file_list = sortedLs(workdir, pattern)
     if file_list != []:
         last_log_file = os.path.join(workdir, file_list[-1])
-        tolog("Found payload log files: %s" % str(file_list))
-        tolog("File %s was the last log file that was updated" % (last_log_file))
+        pUtil.tolog("Found payload log files: %s" % str(file_list))
+        pUtil.tolog("File %s was the last log file that was updated" % (last_log_file))
     else:
-        tolog("Did not find any log.* files")
+        pUtil.tolog("Did not find any log.* files")
 
     return last_log_file
 
@@ -116,7 +116,7 @@ def sortedLs(path, pattern):
     try:
         file_list = list(sorted(os.listdir(path), key=mtime))
     except Exception, e:
-        tolog("!!WARNING!!3232!! Failed to obtain sorted file list: %s" % (e))
+        pUtil.tolog("!!WARNING!!3232!! Failed to obtain sorted file list: %s" % (e))
 
     final_file_list = []
     if file_list != []:
@@ -133,15 +133,15 @@ def readFile(filename):
         try:
             f = open(filename, 'r')
         except IOError, e:
-            tolog("!!WARNING!!2121!! Failed to open file %s: %s" % (filename, e))
+            pUtil.tolog("!!WARNING!!2121!! Failed to open file %s: %s" % (filename, e))
         else:
             try:
                 contents = f.read()
             except Exception, e:
-                tolog("!!WARNING!!2122!! Failed to read file %s: %s" % (filename, e))
+                pUtil.tolog("!!WARNING!!2122!! Failed to read file %s: %s" % (filename, e))
             f.close()
     else:
-        tolog("!!WARNING!!2121!! File does not exist: %s" % (filename))
+        pUtil.tolog("!!WARNING!!2121!! File does not exist: %s" % (filename))
 
     return contents
 
@@ -152,12 +152,12 @@ def writeFile(filename, contents):
     try:
         f = open(filename, 'w')
     except IOError, e:
-        tolog("!!WARNING!!2123!! Failed to open file %s: %s" % (filename, e))
+        pUtil.tolog("!!WARNING!!2123!! Failed to open file %s: %s" % (filename, e))
     else:
         try:
             f.write(contents)
         except IOError, e:
-            tolog("!!WARNING!!2123!! Failed to write to file %s: %s" % (filename, e))
+            pUtil.tolog("!!WARNING!!2123!! Failed to write to file %s: %s" % (filename, e))
         else:
             status = True
         f.close()
@@ -216,24 +216,24 @@ def dumpFile(filename, topilotlog=False):
     """ dump a given file to stdout or to pilotlog """
 
     if os.path.exists(filename):
-        tolog("Dumping file: %s (size: %d)" % (filename, os.path.getsize(filename)))
+        pUtil.tolog("Dumping file: %s (size: %d)" % (filename, os.path.getsize(filename)))
         try:
             f = open(filename, "r")
         except IOError, e:
-            tolog("!!WARNING!!4000!! Exception caught: %s" % (e))
+            pUtil.tolog("!!WARNING!!4000!! Exception caught: %s" % (e))
         else:
             i = 0
             for line in f.readlines():
                 i += 1
                 line = line.rstrip()
                 if topilotlog:
-                    tolog("%s" % (line))
+                    pUtil.tolog("%s" % (line))
                 else:
                     print "%s" % (line)
             f.close()
-            tolog("Dumped %d lines from file %s" % (i, filename))
+            pUtil.tolog("Dumped %d lines from file %s" % (i, filename))
     else:
-        tolog("!!WARNING!!4000!! %s does not exist" % (filename))
+        pUtil.tolog("!!WARNING!!4000!! %s does not exist" % (filename))
 
 # print findLatestTRFLogFile(os.getcwd())
 
