@@ -855,7 +855,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         if output["transfer_mode"]:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], type="input")
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return status, output["errorLog"]
 
         if path == '': path = './'
@@ -866,7 +866,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
 
-        self.__sendReport(output["report"], report)
+        self.prepareReport(output["report"], report)
         return status, output["errorLog"]
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -926,12 +926,12 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
 
         status, output = self.stageOut(source, surl, token, experiment)
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return self.put_data_retfail(status, output["errorLog"], surl)
 
         reportState = {}
         reportState["clientState"] = "DONE"
-        self.__sendReport(reportState, report)
+        self.prepareReport(reportState, report)
         return 0, pilotErrorDiag, surl, output["size"], output["checksum"], self.arch_type
 
     def errorToReport(self, errorOutput, timeUsed, fileName, stageMethod='stageIN'):
@@ -1010,17 +1010,3 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
                     return PilotErrors.ERR_STAGEINFAILED, outputRet
                 else:
                     return PilotErrors.ERR_STAGEOUTFAILED, outputRet
-
-
-    def __sendReport(self, reportState, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            for key in reportState.keys():
-                report[key] = reportState[key]
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

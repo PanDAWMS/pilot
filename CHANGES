@@ -111,9 +111,9 @@ Tracing report update
 - Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
 - Setting tracing report stateReason and url in sitemover_get_data() (Mover)
 - Created getTracingReportFilename() (FileHandling)
-- Removed __sendReport() (LocalSiteMover)
-- Now using prepareReport() instead of __sendReport() (LocalSiteMover)
-- Storing tracing report in JSON file in __sendReport (LocalSiteMover)
+- Removed __sendReport() (LocalSiteMover, xrdcp*, xrootd*, xrootdObject*, S3*)
+- Now using prepareReport() instead of __sendReport() (LocalSiteMover, xrdcp*, xrootd*, xrootdObject*, S3*)
+- Storing tracing report in JSON file in prepareReport (SiteMover)
 
 DQ2 API to Rucio API migration:
 - Created new support methods: extractScopeLFN(), getScopeLFNListFromDictionary(), getGUIDForLFN() used by the new getRucioReplicaDictionary() (Mover)

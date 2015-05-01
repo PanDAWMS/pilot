@@ -14,7 +14,7 @@ from timed_command import timed_command
 from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems, getFileAccessInfo,\
      hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, tailPilotErrorDiag, getCopysetup,\
      getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern
-from FileHandling import getExtension, dumpFile
+from FileHandling import getExtension, dumpFile, getTracingReportFilename, readJSON
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
 from SysLog import sysLog, dumpSysLogTail
@@ -1595,6 +1595,22 @@ def abortStageIn(dbh, lfns, DBReleaseIsAvailable):
 
     return status
 
+def finishTracingReport(sitemover):
+    """ Finish and send the tracing report """
+
+    # Read back the tracing report from file
+    _filename = getTracingReportFilename()
+    report = readJSON(_filename)
+    if report != {}:
+        # Add the remaining items to the tracing report
+        report['url'] = gpfn
+        report['stateReason'] = pErrorText
+
+        # Send the tracing report
+        sitemover.sendTrace(report)
+    else:
+        tolog("!!WARNING!!2990!! Failed to read back tracing report from file %s" % (_filename))
+
 def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_attempt, replica_number, N_files_on_tape, N_root_files, N_non_root_files,\
                        gpfn, lfn, path, fsize=None, spsetup=None, fchecksum=None, guid=None, analysisJob=None, usect=None, pinitdir=None, proxycheck=None,\
                        sitename=None, token=None, timeout=None, dsname=None, userid=None, report=None, access=None, inputDir=None, jobId=None,\
@@ -1620,16 +1636,12 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
         s = error.ERR_STAGEINFAILED
         tolog("Mover get_data finished (failed)")
     else:
-        # add the remaining items to the tracing report
-        report['url'] = gpfn
-        report['stateReason'] = pErrorText
+        # Finish and send the tracing report
+        finishTracingReport(sitemover)
 
-        # send the tracing report
-        #sitemover.sendTrace(report)
-
-        # special case (not a real error, so reset the return value s)
+        # Special case (not a real error, so reset the return value s)
         if s == error.ERR_DIRECTIOFILE:
-            # reset s to prevent loop from stopping
+            # Reset s to prevent loop from stopping
             s = 0
             tolog("Site mover skipped stage-in in favor of direct i/o")
             will_use_direct_io = True

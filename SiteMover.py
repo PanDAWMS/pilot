@@ -921,8 +921,7 @@ class SiteMover(object):
 
         if report.has_key('timeStart'):
 
-            # finish instrumentation
-            report['timeEnd'] = time.time()
+            # Handle the client state which might be a string or a dictionary
             if type(state) is str:
                 report['clientState'] = state
             elif type(state) is dict:
@@ -930,9 +929,6 @@ class SiteMover(object):
                     report[key] = state[key]
             else:
                 tolog("!!WARNING!!3332!! Do not know how to handle this tracing state: %s" % str(state))
-
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
 
             # Store the tracing report to file
             filename = getTracingReportFilename()
@@ -943,12 +939,22 @@ class SiteMover(object):
                 tolog("!!WARNING!!3333!! Failed to write tracing report to file")
 
             # Send the report
-            try:
-                self.sendTrace(report)
-            except Exception, e:
-                tolog("!!WARNING!!3334!! Failed to send tracing report: %s" % (e))
+            #try:
+            #    self.sendTrace(report)
+            #except Exception, e:
+            #    tolog("!!WARNING!!3334!! Failed to send tracing report: %s" % (e))
         else:
             tolog("!!WARNING!!3331!! No timeStart found in tracing report, cannot send")
+
+    def sendReport(self, report):
+        """ Send DQ2 tracing report. Set the client exit state and finish """
+
+        # finish instrumentation
+        report['timeEnd'] = time.time()
+
+        # send report
+        tolog("Sending tracing report: %s" % str(report))
+        self.sendTrace(report)
 
     def __sendReport(self, state, report):
         """

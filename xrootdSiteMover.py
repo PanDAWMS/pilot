@@ -104,7 +104,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, _setup_str)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         tolog("xrootdSiteMover get_data using setup: %s" % (_setup_str))
@@ -142,7 +142,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
                     tolog("Found root file: %s (will not be transferred in direct reading mode)" % (src_loc_pfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('IS_ROOT', report)
+                    self.prepareReport('IS_ROOT', report)
                     if useFileStager:
                         updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                     else:
@@ -157,7 +157,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(src_loc_pfn, csumtype=csumtype)
         if ec != 0:
-            self.__sendReport('GET_LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('GET_LOCAL_FILE_INFO_FAIL', report)
             return ec, pilotErrorDiag
 
         dest_file = os.path.join(path, src_loc_filename)
@@ -205,10 +205,10 @@ class xrootdSiteMover(SiteMover.SiteMover):
             if is_timeout(rc):
                 pilotErrorDiag = "xcp get was timed out after %d seconds" % (telapsed)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('GET_TIMEOUT', report)
+                self.prepareReport('GET_TIMEOUT', report)
                 return error.ERR_GETTIMEOUT, pilotErrorDiag
 
-            self.__sendReport('CMD_FAIL', report)
+            self.prepareReport('CMD_FAIL', report)
             return error.ERR_STAGEINFAILED, pilotErrorDiag
 
         report['validateStart'] = time()
@@ -216,7 +216,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
         tolog("File info: %d, %s, %s" % (ec, dstfsize, dstfchecksum))
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(dest_file)
@@ -237,10 +237,10 @@ class xrootdSiteMover(SiteMover.SiteMover):
                 tolog("!!WARNING!!1112!! Failed to remove local file, get retry will fail")
 
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return error.ERR_GETADMISMATCH, pilotErrorDiag
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
         # compare remote and local file size
@@ -248,7 +248,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(gpfn), str(dstfsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(dest_file)
@@ -258,7 +258,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
             return error.ERR_GETWRONGSIZE, pilotErrorDiag
 
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -302,7 +302,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, _setup_str)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return self.put_data_retfail(ec, pilotErrorDiag) 
 
         report['relativeStart'] = time()
@@ -318,7 +318,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
                 csumtype = "adler32"
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(source, csumtype=csumtype)
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -356,7 +356,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope)
         if ec != 0:
-            self.__sendReport(tracer_error, report)
+            self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         # are we transfering to a space token?
@@ -374,7 +374,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
             #if destination == '':
             #    pilotErrorDiag = "put_data destination path in SE not defined"
             #    tolog('!!WARNING!!2990!! %s' % (pilotErrorDiag))
-            #    self.__sendReport('SE_DEST_PATH_UNDEF', report)
+            #    self.prepareReport('SE_DEST_PATH_UNDEF', report)
             #    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
             #tolog("Going to store job output at destination: %s" % (destination))
@@ -445,10 +445,10 @@ class xrootdSiteMover(SiteMover.SiteMover):
             if is_timeout(rc):
                 pilotErrorDiag = "xcp get was timed out after %d seconds" % (telapsed)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('PUT_TIMEOUT', report)
+                self.prepareReport('PUT_TIMEOUT', report)
                 return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
 
-            self.__sendReport('COPY_ERROR', report)
+            self.prepareReport('COPY_ERROR', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
         report['validateStart'] = time()
@@ -467,7 +467,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dst_loc_pfn, csumtype=csumtype)
         tolog("File info: %d, %s, %s" % (ec, dstfsize, dstfchecksum))
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         # compare remote and local file checksum
@@ -476,10 +476,10 @@ class xrootdSiteMover(SiteMover.SiteMover):
                              (csumtype, os.path.basename(dst_gpfn), dstfchecksum, fchecksum)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=dst_gpfn)
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=dst_gpfn)
 
         # compare remote and local file size
@@ -487,10 +487,10 @@ class xrootdSiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(dst_gpfn), str(dstfsize), str(fsize))
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
             return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=dst_gpfn)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, fsize, fchecksum, ARCH_DEFAULT
 
     def check_space(self, ub):
@@ -765,17 +765,3 @@ class xrootdSiteMover(SiteMover.SiteMover):
         else:
             return cls(*args, **kwrds)
     getMover = classmethod(getMover)
-        
-
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

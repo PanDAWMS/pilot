@@ -22,6 +22,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, getSiteInformation, extractFilePaths, getExperiment
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
+from FileHandling import getTracingReportFilename, writeJSON
 
 # placing the import lfc here breaks compilation on non-lcg sites
 # import lfc
@@ -873,7 +874,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
 
-        self.__sendReport(output["report"], report)
+        self.prepareReport(output["report"], report)
         return status, output["errorLog"]
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -917,7 +918,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         if ec != 0:
             reportState = {}
             reportState["clientState"] = tracer_error
-            self.__sendReport(reportState, report)
+            self.prepareReport(reportState, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         # get the DQ2 site name from ToA
@@ -934,12 +935,12 @@ class xrdcpSiteMover(SiteMover.SiteMover):
 
         status, output = self.stageOut(source, surl, token, experiment)
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return self.put_data_retfail(status, output["errorLog"], surl)
 
         reportState = {}
         reportState["clientState"] = "DONE"
-        self.__sendReport(reportState, report)
+        self.prepareReport(reportState, report)
         return 0, pilotErrorDiag, surl, output["size"], output["checksum"], self.arch_type
 
     def errorToReport(self, errorOutput, timeUsed, fileName, stageMethod='stageIN'):
@@ -1019,16 +1020,3 @@ class xrdcpSiteMover(SiteMover.SiteMover):
                 else:
                     return PilotErrors.ERR_STAGEOUTFAILED, outputRet
 
-
-    def __sendReport(self, reportState, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            for key in reportState.keys():
-                report[key] = reportState[key]
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

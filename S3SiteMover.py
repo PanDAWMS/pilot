@@ -68,7 +68,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
             if state == None:
                 state = "PSTAGE_FAIL"
 
-        self.__sendReport(state, report)
+        self.prepareReport(state, report)
         return status, output
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -109,7 +109,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
         # get all the proper paths
         ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
         if ec != 0:
-            self.__sendReport(tracer_error, report)
+            self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         # get local adler32 checksum
@@ -120,7 +120,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
             status = PilotErrors.ERR_STAGEINFAILED
             state = "PSTAGE_FAIL"
             output = errorLog
-            self.__sendReport(state, report)
+            self.prepareReport(state, report)
             return self.put_data_retfail(status, output, surl)
 
         ret_path = si.getCopyPrefixPathNew(surl, stageIn=False)
@@ -141,7 +141,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
             state = errors.getErrorName(status)
             if state == None:
                 state = "PSTAGE_FAIL"
-            self.__sendReport(state, report)
+            self.prepareReport(state, report)
             return self.put_data_retfail(status, output, surl)
         else:
             if size == adler_size:
@@ -153,7 +153,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
                     status = PilotErrors.ERR_STAGEINFAILED
                     state = "PSTAGE_FAIL"
                     output = errorLog
-                    self.__sendReport(state, report)
+                    self.prepareReport(state, report)
                     return self.put_data_retfail(status, output, surl)
                 else:
                     if adler_checksum == new_adler_checksum:
@@ -165,22 +165,10 @@ class S3SiteMover(S3ObjectstoreSiteMover):
                         status = PilotErrors.ERR_STAGEINFAILED
                         state = "PSTAGE_FAIL"
                         output = errorLog
-                        self.__sendReport(state, report)
+                        self.prepareReport(state, report)
                         return self.put_data_retfail(status, output, surl)
 
         state = "DONE"
-        self.__sendReport(state, report)
+        self.prepareReport(state, report)
         return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
 
