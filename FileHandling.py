@@ -44,50 +44,49 @@ def getJSONDictionary(filename):
                 pUtil.tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
     return d
 
-    # MOVE TO FileHandling
-    def writeJSON(self, file_name, dictionary):
-        """ Write the dictionary to a JSON file """
+def writeJSON(self, file_name, dictionary):
+    """ Write the dictionary to a JSON file """
 
-        status = False
+    status = False
 
-        from json import dump
+    from json import dump
+    try:
+        fp = open(file_name, "w")
+    except Exception, e:
+        pUtil.tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
+    else:
+        # Write the dictionary
         try:
-            fp = open(file_name, "w")
+            dump(dictionary, fp)
         except Exception, e:
-            pUtil.tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
+            pUtil.tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
         else:
-            # Write the dictionary
-            try:
-                dump(dictionary, fp)
-            except Exception, e:
-                pUtil.tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
-            else:
-                pUtil.tolog("Wrote dictionary to file %s" % (file_name))
-                status = True
-            fp.close()
+            pUtil.tolog("Wrote dictionary to file %s" % (file_name))
+            status = True
+        fp.close()
 
-        return status
+    return status
 
-    def readJSON(self, file_name):
-        """ Read a dictionary from a JSON file """
+def readJSON(self, file_name):
+    """ Read a dictionary from a JSON file """
 
-        dictionary = {}
-        from json import load
+    dictionary = {}
+    from json import load
+    try:
+        fp = open(file_name, 'r')
+    except Exception, e:
+        pUtil.tolog("!!WARNING!!2334!! Failed to open file %s: %s" % (file_name, e))
+    else:
+        # Read the dictionary
         try:
-            fp = open(file_name, 'r')
+            dictionary = load(fp)
         except Exception, e:
-            pUtil.tolog("!!WARNING!!2334!! Failed to open file %s: %s" % (file_name, e))
+            pUtil.tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
         else:
-            # Read the dictionary
-            try:
-                dictionary = load(fp)
-            except Exception, e:
-                pUtil.tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
-            else:
-                pUtil.tolog("Read dictionary from file %s" % (file_name))            
-            fp.close()
+            pUtil.tolog("Read dictionary from file %s" % (file_name))            
+        fp.close()
 
-        return dictionary
+    return dictionary
 
 def findLatestTRFLogFile(workdir):
     """ Find out which is the latest log.* file """
