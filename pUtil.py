@@ -12,6 +12,7 @@ env = environment.set_environment()
 #env = Configuration()
 
 from processes import killProcesses
+from FileHandling import dumpFile
 
 # exit code
 EC_Failed = 255
@@ -1186,30 +1187,7 @@ def replace(filename, stext, rtext):
                 status = False
             output.close()
 
-    return status                
-
-def dumpFile(filename, topilotlog=False):
-    """ dump a given file to stdout or to pilotlog """
-
-    if os.path.exists(filename):
-        tolog("Dumping file: %s (size: %d)" % (filename, os.path.getsize(filename)))
-        try:
-            f = open(filename, "r")
-        except Exception, e:
-            tolog("!!WARNING!!4000!! Exception caught: %s" % str(e))
-        else:
-            i = 0
-            for line in f.readlines():
-                i += 1
-                line = line.rstrip()
-                if topilotlog:
-                    tolog("%s" % (line))
-                else:
-                    print "%s" % (line)
-            f.close()
-            tolog("Dumped %d lines from file %s" % (i, filename))
-    else:
-        tolog("!!WARNING!!4000!! %s does not exist" % (filename))
+    return status
 
 def getDirectAccessDic(qdata):
     """ return the directAccess dictionary in case the site supports direct access / file stager """
