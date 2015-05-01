@@ -925,7 +925,7 @@ class SiteMover(object):
             report['timeEnd'] = time.time()
             if type(state) is str:
                 report['clientState'] = state
-            elif type(state) is list:
+            elif type(state) is dict:
                 for key in state.keys():
                     report[key] = state[key]
             else:
