@@ -44,7 +44,7 @@ def getJSONDictionary(filename):
                 pUtil.tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
     return d
 
-def writeJSON(self, file_name, dictionary):
+def writeJSON(file_name, dictionary):
     """ Write the dictionary to a JSON file """
 
     status = False
@@ -67,7 +67,7 @@ def writeJSON(self, file_name, dictionary):
 
     return status
 
-def readJSON(self, file_name):
+def readJSON(file_name):
     """ Read a dictionary from a JSON file """
 
     dictionary = {}
