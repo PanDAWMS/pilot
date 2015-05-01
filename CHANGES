@@ -95,11 +95,15 @@ Sending gpfn (replica) and sitemover to isFAXAllowed() from mover_get_data() (Mo
 Added surl and sitemover arguments to isFAXAllowed() (Mover)
 Removed fax_mode argument from getCatalogFileList(), and its call in getPoolFileCatalog() since it is not needed (Mover)
 Now verifying that a replica is not on TAPE before FAX can be used, in isFAXAllowed() (Mover)
-Added url and stateReason to getInitialTracingReport() (Mover)
-Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
-Setting tracing report stateReason and url in sitemover_get_data() (Mover)
 Updated error message "Encountered an empty SURL-GUID dictionary" to "Rucio returned an empty replica dictionary" in verifySURLGUIDDictionary() (Mover)
 Protection against triple slashes in updateRedirector() (FAXSiteMover)
+Moved getExtension() from pUtil to FileHandling
+
+Tracing report update
+- Added url and stateReason to getInitialTracingReport() (Mover)
+- Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
+- Setting tracing report stateReason and url in sitemover_get_data() (Mover)
+- Created getTracingReportFilename() (FileHandling)
 
 DQ2 API to Rucio API migration:
 - Created new support methods: extractScopeLFN(), getScopeLFNListFromDictionary(), getGUIDForLFN() used by the new getRucioReplicaDictionary() (Mover)

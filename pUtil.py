@@ -2819,18 +2819,6 @@ def getFileAccessInfo():
 
     return useCT, oldPrefix, newPrefix, useFileStager, directIn
 
-def getExtension(alternative='pickle'):
-    """ get the file extension (json or whatever 'alternative' is set to, pickle by default) """
-
-    try:
-        from json import load
-    except:
-        extension = alternative
-    else:
-        extension = "json"
-
-    return extension
-
 def isLogfileCopied(workdir):
     """ check whether the log file has been copied or not """
 

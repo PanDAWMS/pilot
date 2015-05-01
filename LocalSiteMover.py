@@ -22,7 +22,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths, getExperiment
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
-
+from FileHandling import getTracingReportFilename
 
 class LocalSiteMover(SiteMover.SiteMover):
     """ SiteMover that uses lsm for both get and put """
@@ -912,4 +912,9 @@ class LocalSiteMover(SiteMover.SiteMover):
                 report[key] = reportState[key]
             # send report
             tolog("Updated tracing report: %s" % str(report))
+
+
+            # Store the tracing report to file
+            filename = getTracingReportFilename()
+
             self.sendTrace(report)

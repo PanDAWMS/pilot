@@ -150,5 +150,22 @@ def tail(f, lines=10):
     tail_list = ''.join(data).splitlines()[-lines:]
     return '\n'.join(tail_list)
 
+def getTracingReportFilename():
+    """ Return the name of the tracing report JSON file """
+
+    return "tracing_report.json"
+
+def getExtension(alternative='pickle'):
+    """ get the file extension (json or whatever 'alternative' is set to, pickle by default) """
+
+    try:
+        from json import load
+    except:
+        extension = alternative
+    else:
+        extension = "json"
+
+    return extension
+
 # print findLatestTRFLogFile(os.getcwd())
 
