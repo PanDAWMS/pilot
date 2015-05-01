@@ -98,6 +98,9 @@ Now verifying that a replica is not on TAPE before FAX can be used, in isFAXAllo
 Updated error message "Encountered an empty SURL-GUID dictionary" to "Rucio returned an empty replica dictionary" in verifySURLGUIDDictionary() (Mover)
 Protection against triple slashes in updateRedirector() (FAXSiteMover)
 Moved getExtension() from pUtil to FileHandling
+Importing getExtension() from FileHandling, in moveToExternal() (pUtil)
+Importing getExtension() from FileHandling instead of from pUtil (SiteInformation, ATLASSiteInformation, JobState, Mover, RunJob, RunJobEvent, SiteMover)
+Removed import of unused getExtension (NordugridSiteInformation)
 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
@@ -129,6 +132,9 @@ DQ2 API to Rucio API migration:
 
 Update info from Edward Karavakis:
 - Patch 2 for the permission problem/bug with ARC+HTCondor affecting RAL and RAPP
+
+Changed in AMSTaiwanSiteInformation:
+- Importing getExtension() from FileHandling instead of from pUtil
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

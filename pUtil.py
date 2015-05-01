@@ -4013,7 +4013,10 @@ def moveToExternal(workdir, recoveryDir):
             logfile_registered = os.path.join(_site.workdir, "LOGFILEREGISTERED")
             metadatafile1 = "metadata-%s.xml" % (_job.jobId)
             metadatafile2 = "metadata-%s.xml.PAYLOAD" % (_job.jobId)
+
+            from FileHandling import getExtension
             surlDictionary = os.path.join(_site.workdir, "surlDictionary-%s.%s" % (_job.jobId, getExtension()))
+
             moveDic = {"workdir" : _job.workdir, "datadir" : _job.datadir, "logfile" : logfile, "logfile_copied" : logfile_copied,
                        "logfile_registered" : logfile_registered, "metadata1" : metadatafile1,
                        "metadata2" : metadatafile2, "surlDictionary" : surlDictionary }

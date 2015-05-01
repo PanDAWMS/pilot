@@ -9,10 +9,11 @@ from urllib import urlopen, urlencode
 from urllib2 import Request, urlopen
 
 from futil import *
-from pUtil import tolog, readpar, dumpOrderedItems, getDirectAccessDic, getExtension, getSiteInformation
+from pUtil import tolog, readpar, dumpOrderedItems, getDirectAccessDic, getSiteInformation
 from PilotErrors import PilotErrors
 from timed_command import timed_command
 from config import config_sm
+from FileHandling import getExtension
 
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE

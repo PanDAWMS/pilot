@@ -1,6 +1,7 @@
 import os
 import commands
-from pUtil import tolog, getExtension
+from pUtil import tolog
+from FileHandling import getExtension
 
 class JobState:
     """

@@ -13,7 +13,7 @@ import SiteMover
 from SiteInformation import SiteInformation  # Main site information class
 from pUtil import tolog                      # Logging method that sends text to the pilot log
 from pUtil import readpar                    # Used to read values from the schedconfig DB (queuedata)
-from pUtil import getExtension               # Used to determine file type of Tier-1 info file
+from FileHandling import getExtension        # Used to determine file type of Tier-1 info file
 from PilotErrors import PilotErrors          # Error codes
 
 class ATLASSiteInformation(SiteInformation):

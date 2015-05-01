@@ -7,8 +7,9 @@ import os
 import re
 import commands
 import urlparse
-from pUtil import tolog, getExtension, replace, readpar, getDirectAccessDic
+from pUtil import tolog, replace, readpar, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
+from FileHandling import getExtension
 from PilotErrors import PilotErrors
 
 class SiteInformation(object):
