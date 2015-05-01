@@ -1595,7 +1595,7 @@ def abortStageIn(dbh, lfns, DBReleaseIsAvailable):
 
     return status
 
-def finishTracingReport(sitemover):
+def finishTracingReport(sitemover, surl, errordiagnostics):
     """ Finish and send the tracing report """
 
     # Read back the tracing report from file
@@ -1603,8 +1603,8 @@ def finishTracingReport(sitemover):
     report = readJSON(_filename)
     if report != {}:
         # Add the remaining items to the tracing report
-        report['url'] = gpfn
-        report['stateReason'] = pErrorText
+        report['url'] = surl
+        report['stateReason'] = errordiagnostics
 
         # Send the tracing report
         sitemover.sendTrace(report)
@@ -1636,8 +1636,8 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
         s = error.ERR_STAGEINFAILED
         tolog("Mover get_data finished (failed)")
     else:
-        # Finish and send the tracing report
-        finishTracingReport(sitemover)
+        # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
+        finishTracingReport(sitemover, gpfn, pErrorText)
 
         # Special case (not a real error, so reset the return value s)
         if s == error.ERR_DIRECTIOFILE:

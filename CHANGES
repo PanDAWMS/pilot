@@ -104,7 +104,6 @@ Removed import of unused getExtension (NordugridSiteInformation)
 Moved dumpFile from pUtil to FileHandling
 Importing dumpFile (pUtil, Mover)
 Moved readJSON and writeJSON from FAXSiteMover to FileHandling
-Importing readJSON, writeJSON (FAXSiteMover)
 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
@@ -114,6 +113,11 @@ Tracing report update
 - Removed __sendReport() (LocalSiteMover, xrdcp*, xrootd*, xrootdObject*, S3*)
 - Now using prepareReport() instead of __sendReport() (LocalSiteMover, xrdcp*, xrootd*, xrootdObject*, S3*)
 - Storing tracing report in JSON file in prepareReport (SiteMover)
+- Now reading tracing report from file and finishing it in mover_get_data() (Mover)
+
+FIX PUT_DATA AS WELL
+
+
 
 DQ2 API to Rucio API migration:
 - Created new support methods: extractScopeLFN(), getScopeLFNListFromDictionary(), getGUIDForLFN() used by the new getRucioReplicaDictionary() (Mover)
