@@ -3399,7 +3399,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
         pilotErrorDiag = "Get data failed: copyprefix not set"
         tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
         tolog("Site mover get_data finished (failed)")
-        return error.ERR_STAGEINFAILED, pilotErrorDiag, file_dict, xml_source, replicas_dict
+        return error.ERR_STAGEINFAILED, pilotErrorDiag, file_dict, xml_source, replicas_dict, surl_filetype_dictionary
     else:
         tolog("Read copyprefix: %s" % (copyprefix))
 
@@ -3425,7 +3425,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
     # get the replicas list for all guids
     ec, pilotErrorDiag, replicas_dict = getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, replicas_dict, lfchost)
     if ec != 0:
-        return error.ERR_FAILEDLFCGETREP, pilotErrorDiag, file_dict, xml_source, replicas_dict
+        return error.ERR_FAILEDLFCGETREP, pilotErrorDiag, file_dict, xml_source, replicas_dict, surl_filetype_dictionary
 
     # handle copyprefix lists
     pfroms, ptos = getCopyprefixLists(copyprefix)
@@ -3601,7 +3601,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             if not usedFAX:
                 tolog("Mover getCatalogFileList finished (failed): replica not found")
-                return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict
+                return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict, surl_filetype_dictionary
 
     return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict, surl_filetype_dictionary
 
