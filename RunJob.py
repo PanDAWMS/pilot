@@ -875,7 +875,7 @@ class RunJob(object):
             else:
                 tolog("Metadata was transferred to site work dir: %s/%s" % (self.__pworkdir, _filename))
 
-    def discoverAdditionalOutputFiles(self, output_file_list, workdir, datasets_list):
+    def discoverAdditionalOutputFiles(self, output_file_list, workdir, datasets_list, scope_list):
         """ Have any additional output files been produced by the trf? If so, add them to the output file list """
 
         # In case an output file has reached the max output size, the payload can spill over the remaining events to
@@ -886,10 +886,12 @@ class RunJob(object):
         from re import compile, findall
         new_output_file_list = []
         new_datasets_list = []
+        new_scope_list = []
         found_new_files = False
 
-        # Create a lookup dataset dictionary
+        # Create a lookup dictionaries
         dataset_dict = dict(zip(output_file_list, datasets_list))
+        scope_dict = dict(zip(output_file_list, scope_list))
 
         # Loop over all output files
         for output_file in output_file_list:
@@ -897,6 +899,7 @@ class RunJob(object):
             # Add the original file and dataset
             new_output_file_list.append(output_file)
             new_datasets_list.append(dataset_dict[output_file])
+            new_scope_list.append(scope_dict[output_file])
 
             # Get a list of all files whose names begin with <output_file> 
             files = glob(os.path.join(workdir, "%s*" % (output_file)))
@@ -917,12 +920,14 @@ class RunJob(object):
                         new_output_file_list.append(new_file)
                         dataset = dataset_dict[output_file]
                         new_datasets_list.append(dataset)
-                        tolog("Discovered additional output file: %s (dataset = %s)" % (new_file, dataset))
+                        scope = scope_dict[output_file]
+                        new_scope_list.append(scope)
+                        tolog("Discovered additional output file: %s (dataset = %s, scope = %s)" % (new_file, dataset, scope))
 
         if not found_new_files:
             tolog("Did not discover any additional output files")
 
-        return new_output_file_list, new_datasets_list
+        return new_output_file_list, new_datasets_list, new_scope_list
 
     def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analysisJob=False):
         """ create the metadata for the output + log files """
@@ -1477,7 +1482,7 @@ if __name__ == "__main__":
         copy2("%s/%s" % (job.workdir, filename), "%s/%s_1" % (job.workdir, filename))
 
         # are there any additional output files created by the trf/payload?
-        job.outFiles, job.destinationDblock = runJob.discoverAdditionalOutputFiles(job.outFiles, job.workdir, job.destinationDblock)
+        job.outFiles, job.destinationDblock, job.scopeOut = runJob.discoverAdditionalOutputFiles(job.outFiles, job.workdir, job.destinationDblock, job.scopeOut)
         tolog("outFiles = %s" % str(job.outFiles))
 
         # verify and prepare and the output files for transfer
