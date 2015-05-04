@@ -135,7 +135,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, _setup_str)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         loc_pfn = ''
@@ -170,7 +170,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('FOUND_ROOT', report)
+                    self.prepareReport('FOUND_ROOT', report)
                     if useFileStager:
                         updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                     else:
@@ -263,11 +263,11 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "No such file or directory: %s" % (loc_pfn)
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                     ec = error.ERR_NOSUCHFILE
-                self.__sendReport('RFCP_FAIL', report)
+                self.prepareReport('RFCP_FAIL', report)
             elif is_timeout(s):
                 pilotErrorDiag = "rfcp get was timed out after %d seconds" % (telapsed)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('GET_TIMEOUT', report)
+                self.prepareReport('GET_TIMEOUT', report)
                 ec = error.ERR_GETTIMEOUT
             return ec, pilotErrorDiag
         else:
@@ -278,7 +278,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
             except OSError, e:
                 pilotErrorDiag = "Could not get file size: %s" % str(e)
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                self.__sendReport('FS_FAIL', report)
+                self.prepareReport('FS_FAIL', report)
 
                 # remove the local file before any get retry is attempted
                 _status = self.removeLocal(dest_path)
@@ -298,7 +298,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
         # get remote file size and checksum 
         ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(dest_path)
@@ -312,7 +312,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(gpfn), str(dstfsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(dest_path)
@@ -333,14 +333,14 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
                 tolog("!!WARNING!!1112!! Failed to remove local file, get retry will fail")
 
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return error.ERR_GETADMISMATCH, pilotErrorDiag
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, source, ddm_storage, fsize=0, fchecksum=0, dsname='', **pdict):
@@ -360,19 +360,5 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
 
         pilotErrorDiag = "put_data does not work for this mover"
         tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-        self.__sendReport('NOT_IMPL', report)
+        self.prepareReport('NOT_IMPL', report)
         return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
-
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
-

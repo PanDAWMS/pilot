@@ -110,13 +110,16 @@ Tracing report update
 - Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
 - Setting tracing report stateReason and url in sitemover_get_data() (Mover)
 - Created getTracingReportFilename() (FileHandling)
-- Removed __sendReport() (LocalSiteMover, xrdcp*, xrootd*, xrootdObject*, S3*)
-- Now using prepareReport() instead of __sendReport() (LocalSiteMover, xrdcp*, xrootd*, xrootdObject*, S3*)
+- Removed __sendReport() (SiteMover, LocalSiteMover, xrdcp*, xrootd*, xrootdObject*, S3*, lcgcp*, dCache*, BNL*, Castor*, Chirp*, GFAL2*, GSIftp*, HU*, aria2c*, castorSvcClass*, curl*, rfcpLFC*)
+- Now using prepareReport() instead of __sendReport() (SiteMover, LocalSiteMover, xrdcp*, xrootd*, xrootdObject*, S3*, lcgcp*, dCache*, BNL*, Castor*, Chirp*, GFAL2*, GSIftp*, HU*, aria2c*,
+  castorSvcClass*, curl*, rfcpLFC*)
 - Storing tracing report in JSON file in prepareReport (SiteMover)
 - Now reading tracing report from file and finishing it in mover_get_data() (Mover)
 
 FIX PUT_DATA AS WELL
 
+REMOVE OTHERSITEMOVER FROM DIST
+HUSITEMOVER?
 
 
 DQ2 API to Rucio API migration:

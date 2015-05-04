@@ -64,7 +64,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, _setup_str)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         # remove any host and SFN info from PFN path
@@ -98,7 +98,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                     isStaged = self.isFileStaged(_setup_str, loc_pfn, url="ddmv02.usatlas.bnl.gov:8000", com=_com)
                 if not isStaged:
                     pilotErrorDiag = "File %s is not staged and will be skipped for analysis job" % (loc_pfn)
-                    self.__sendReport('FILE_ON_TAPE', report)
+                    self.prepareReport('FILE_ON_TAPE', report)
                     return error.ERR_FILEONTAPE, pilotErrorDiag
             else:
                 tolog("Skipping file stage check for lib file")
@@ -122,7 +122,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('FOUND_ROOT', report)
+                    self.prepareReport('FOUND_ROOT', report)
                     if useFileStager:
                         updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                     else:
@@ -166,7 +166,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             if is_timeout(s):
                 pilotErrorDiag = "dccp get was timed out after %d seconds" % (telapsed)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('GET_TIMEOUT', report)
+                self.prepareReport('GET_TIMEOUT', report)
                 return error.ERR_GETTIMEOUT, pilotErrorDiag
 
             ec = error.ERR_STAGEINFAILED
@@ -187,7 +187,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                     pilotErrorDiag = "dccp failed with output: ec = %d, output = %s" % (s, o)
 
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('DCCP_FAIL', report)
+            self.prepareReport('DCCP_FAIL', report)
             return ec, pilotErrorDiag
         else:
             tolog("Output: %s" % (o))
@@ -201,7 +201,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             if "Failed open file in the dCache" in o or "System error: No route to host" in o:
                 pilotErrorDiag = "dccp failed without setting a non-zero exit code"
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('DCACHE_SIN_FAIL', report)
+                self.prepareReport('DCACHE_SIN_FAIL', report)
 
                 # remove the local file before any get retry is attempted
                 _status = self.removeLocal(dest_path)
@@ -223,7 +223,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                 except Exception, e:
                     pilotErrorDiag = "Could not get file size: %s" % str(e)
                     tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                    self.__sendReport('NO_FILESIZE', report)
+                    self.prepareReport('NO_FILESIZE', report)
 
                     # remove the local file before any get retry is attempted
                     _status = self.removeLocal(dest_path)
@@ -240,7 +240,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
         # get remote file size and checksum
         ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_path, csumtype=csumtype)
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(dest_path)
@@ -254,7 +254,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(dest_path), str(fsize), str(dstfsize))
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(dest_path)
@@ -275,14 +275,14 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                 tolog("!!WARNING!!1112!! Failed to remove local file, get retry will fail")
 
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return error.ERR_GETADMISMATCH, pilotErrorDiag
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return error.ERR_GETMD5MISMATCH, pilotErrorDiag
             
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -307,7 +307,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, self._setup)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return self.put_data_retfail(ec, pilotErrorDiag) 
 
         filename = os.path.basename(source)
@@ -332,7 +332,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                     check_syserr(s, o)
                     pilotErrorDiag = "Error in mkdir: %s" % (o)
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('MKDIR_FAIL', report)
+                    self.prepareReport('MKDIR_FAIL', report)
                     return self.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag)
 
         cmd = 'mkdir -p %s' % (sedir)
@@ -342,7 +342,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             check_syserr(s, o)
             pilotErrorDiag = "Error in mkdir: %s" % (o)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('MKDIR_FAIL', report)
+            self.prepareReport('MKDIR_FAIL', report)
             return self.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag)
 
         report['validateStart'] = time.time()
@@ -352,7 +352,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
         except OSError, e:
             pilotErrorDiag = "Could not get file size: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('NO_FILESIZE', report)
+            self.prepareReport('NO_FILESIZE', report)
             return self.put_data_retfail(error.ERR_FAILEDSIZELOCAL, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -363,7 +363,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
         if fchecksum == '00000001': # "%08x" % 1L
             pilotErrorDiag = "Adler32 failed (returned 1)"
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('AD_FAIL', report)
+            self.prepareReport('AD_FAIL', report)
             return self.put_data_retfail(error.ERR_FAILEDADLOCAL, pilotErrorDiag)
         csumtype = "adler32"
 
@@ -443,7 +443,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                 else:
                     fail = error.ERR_STAGEOUTFAILED
         if fail:
-            self.__sendReport('DCCP_FAIL', report)
+            self.prepareReport('DCCP_FAIL', report)
             return self.put_data_retfail(fail, pilotErrorDiag)
         else:
             tolog("Output: %s" % (o))
@@ -459,7 +459,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
         except Exception, e:
             pilotErrorDiag = "Could not get file size from dCache: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('NO_GET_FILESIZE', report)
+            self.prepareReport('NO_GET_FILESIZE', report)
             return self.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag)
 
         tolog("Remote file size: %s" % str(nufsize))
@@ -467,7 +467,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (filename, str(nufsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
             return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag)
         else:
             tolog("Remote and local file sizes verified")
@@ -479,16 +479,16 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "Could not get checksum from dCache: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
         else:
             if remote_checksum == "NOSUCHFILE":
                 pilotErrorDiag = "The pilot will fail the job since the remote file does not exist"
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                self.__sendReport('NOSUCHFILE', report)
+                self.prepareReport('NOSUCHFILE', report)
                 return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
             elif remote_checksum:
                 tolog("Remote checksum: %s" % (remote_checksum))
@@ -499,31 +499,18 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" %\
                              (csumtype, filename, remote_checksum, fchecksum)
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
         else:
             tolog("Remote and local checksums verified")
 
         r_gpfn = ftpserv + destpfn
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return (0, pilotErrorDiag, r_gpfn, fsize, fchecksum, 'P')
-
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time.time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
 
     def getPnfsid(self, pnfs, guid):
         """ get PNFSID from BNL LFC """

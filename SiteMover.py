@@ -183,7 +183,7 @@ class SiteMover(object):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = SiteMover.getLocalFileInfo(src_loc_pfn, csumtype=csumtype)
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return ec, pilotErrorDiag
         dest_file = os.path.join(path, src_loc_filename)
 
@@ -228,13 +228,13 @@ class SiteMover(object):
                     ec = error.ERR_STAGEINFAILED
 
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('COPY_FAIL', report)
+            self.prepareReport('COPY_FAIL', report)
             return ec, pilotErrorDiag
 
         # get remote file size and checksum
         ec, pilotErrorDiag, dstfsize, dstfchecksum = SiteMover.getLocalFileInfo(dest_file, csumtype=csumtype)
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
             return ec, pilotErrorDiag
 
         # compare remote and local file size
@@ -242,7 +242,7 @@ class SiteMover(object):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(gpfn), str(dstfsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
             return error.ERR_GETWRONGSIZE, pilotErrorDiag
 
         # compare remote and local file checksum
@@ -251,13 +251,13 @@ class SiteMover(object):
                              (csumtype, os.path.basename(gpfn), dstfchecksum, fchecksum)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return error.ERR_GETADMISMATCH, pilotErrorDiag
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def getDQ2SEType(dq2sitename):
@@ -467,7 +467,7 @@ class SiteMover(object):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = SiteMover.getLocalFileInfo(source, csumtype="adler32")
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return SiteMover.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -495,7 +495,7 @@ class SiteMover(object):
                 except Exception, e:
                     pilotErrorDiag = "Could not figure out destination path from dst_se (%s): %s" % (dst_se, str(e))
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('DEST_PATH_UNDEF', report)
+                    self.prepareReport('DEST_PATH_UNDEF', report)
                     return SiteMover.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
         # VCH added check for Tier3 sites because the ds name is added to the path in SiteMove.getTier3Path()
@@ -508,7 +508,7 @@ class SiteMover(object):
 
         ec, pilotErrorDiag, tracer_error, dst_loc_pfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope)
         if ec != 0:
-            self.__sendReport(tracer_error, report)
+            self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         #dst_loc_pfn = os.path.join(dst_loc_sedir, filename)
@@ -548,7 +548,7 @@ class SiteMover(object):
                 o = o.replace('\n', ' ')
                 pilotErrorDiag = "cp failed with output: ec = %d, output = %s" % (s, o)
                 ec = error.ERR_STAGEOUTFAILED
-            self.__sendReport('COPY_FAIL', report)
+            self.prepareReport('COPY_FAIL', report)
             return SiteMover.put_data_retfail(ec, pilotErrorDiag)
 
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
@@ -556,7 +556,7 @@ class SiteMover(object):
         # get remote file size and checksum
         ec, pilotErrorDiag, dstfsize, dstfchecksum = SiteMover.getLocalFileInfo(dst_loc_pfn, csumtype="adler32")
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
             return SiteMover.put_data_retfail(ec, pilotErrorDiag)
 
         # compare remote and local file size
@@ -564,7 +564,7 @@ class SiteMover(object):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(dst_gpfn), str(dstfsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
             return SiteMover.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag)
 
         # compare remote and local checksums
@@ -573,13 +573,13 @@ class SiteMover(object):
                              (csumtype, os.path.basename(dst_gpfn), dstfchecksum, fchecksum)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return SiteMover.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return SiteMover.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, str(dst_gpfn), fsize, fchecksum, ARCH_DEFAULT # Eddie added str, unicode protection
 
     def getLCGPaths(self, destination, dsname, filename, lfcpath):
@@ -949,24 +949,15 @@ class SiteMover(object):
     def sendReport(self, report):
         """ Send DQ2 tracing report. Set the client exit state and finish """
 
-        # finish instrumentation
-        report['timeEnd'] = time.time()
-
-        # send report
-        tolog("Sending tracing report: %s" % str(report))
-        self.sendTrace(report)
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
         if report.has_key('timeStart'):
             # finish instrumentation
             report['timeEnd'] = time.time()
-            report['clientState'] = state
+
             # send report
-            tolog("Updated tracing report: %s" % str(report))
+            tolog("Sending tracing report: %s" % str(report))
             self.sendTrace(report)
+        else:
+            tolog("!!WARNING!!21211! Tracing report does not have a timeStart entry: %s" % str(report))
 
     def getSURLDictionaryFilename(self, directory, jobId):
         """ return the name of the SURL dictionary file """

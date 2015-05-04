@@ -295,7 +295,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             if state == None:
                 state = "PSTAGE_FAIL"
 
-        self.__sendReport(state, report)
+        self.prepareReport(state, report)
         return status, output
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -340,24 +340,12 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             state = errors.getErrorName(status)
             if state == None:
                 state = "PSTAGE_FAIL"
-            self.__sendReport(state, report)
+            self.prepareReport(state, report)
             return self.put_data_retfail(status, output, surl)
 
         state = "DONE"
-        self.__sendReport(state, report)
+        self.prepareReport(state, report)
         return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
 
 class S3ObjctStore:
     def __init__(self, privateKey, publicKey):

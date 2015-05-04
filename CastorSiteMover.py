@@ -53,7 +53,7 @@ class CastorSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         # get the experiment object
@@ -62,7 +62,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         # do we have a valid proxy?
         s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
         if s != 0:
-            self.__sendReport('PROXYFAIL', report)
+            self.prepareReport('PROXYFAIL', report)
             return s, pilotErrorDiag
 
         # Strip off prefix in order to use rfcp directly
@@ -74,7 +74,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         else:
             pilotErrorDiag = "Get file not in castor: %s" % (gpfn)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('NO_FILE', report)
+            self.prepareReport('NO_FILE', report)
             return error.ERR_STAGEINFAILED, pilotErrorDiag
 
         # when the file has been copied we will rename it to the lfn (to remove the __DQ2-string on some files)
@@ -99,7 +99,7 @@ class CastorSiteMover(SiteMover.SiteMover):
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('FOUND_ROOT', report)
+                    self.prepareReport('FOUND_ROOT', report)
                     if useFileStager:
                         updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                     else:
@@ -136,7 +136,7 @@ class CastorSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "rfcp failed: %d, %s" % (s, o)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
                 ec = error.ERR_STAGEINFAILED
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         # check file size and checksum
@@ -151,7 +151,7 @@ class CastorSiteMover(SiteMover.SiteMover):
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_path, csumtype=csumtype)
             tolog("File info: %d, %s, %s" % (ec, dstfsize, dstfchecksum))
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
 
                 # remove the local file before any get retry is attempted
                 _status = self.removeLocal(dest_path)
@@ -165,7 +165,7 @@ class CastorSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                                  (os.path.basename(gpfn), str(dstfsize), str(fsize))
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                self.__sendReport('FS_MISMATCH', report)
+                self.prepareReport('FS_MISMATCH', report)
 
                 # remove the local file before any get retry is attempted
                 _status = self.removeLocal(dest_path)
@@ -186,14 +186,14 @@ class CastorSiteMover(SiteMover.SiteMover):
                     tolog("!!WARNING!!1112!! Failed to remove local file, get retry will fail")
 
                 if csumtype == "adler32":
-                    self.__sendReport('AD_MISMATCH', report)
+                    self.prepareReport('AD_MISMATCH', report)
                     return error.ERR_GETADMISMATCH, pilotErrorDiag
                 else:
-                    self.__sendReport('MD5_MISMATCH', report)
+                    self.prepareReport('MD5_MISMATCH', report)
                     return error.ERR_GETMD5MISMATCH, pilotErrorDiag
                 
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, pfn, ddm_storage, fsize=0, fchecksum=0, dsname='', extradirs='', **pdict):
@@ -218,7 +218,7 @@ class CastorSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return self.put_data_retfail(ec, pilotErrorDiag) 
 
         # get the experiment object
@@ -227,7 +227,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         # do we have a valid proxy?
         s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
         if s != 0:
-            self.__sendReport('PROXYFAIL', report)
+            self.prepareReport('PROXYFAIL', report)
             return self.put_data_retfail(s, pilotErrorDiag)
         filename = pfn.split('/')[-1]
 
@@ -255,7 +255,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         if destination == '':
             pilotErrorDiag = "put_data destination path in SE not defined"
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('DEST_PATH_UNDEF', report)
+            self.prepareReport('DEST_PATH_UNDEF', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
         else:
             tolog("destination: %s" % (destination))
@@ -263,7 +263,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         if dsname == '':
             pilotErrorDiag = "Dataset name not specified to put_data"
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('NO_DSN', report)
+            self.prepareReport('NO_DSN', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 #        else:
 #            dsname = self.remove_sub(dsname)
@@ -271,7 +271,7 @@ class CastorSiteMover(SiteMover.SiteMover):
 
         lfcpath, pilotErrorDiag = self.getLFCPath(analJob)
         if lfcpath == "":
-            self.__sendReport('LFC_PATH_FAIL', report)
+            self.prepareReport('LFC_PATH_FAIL', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
         tolog("LFC path: %s" % (lfcpath))
 
@@ -283,7 +283,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         else:
             pilotErrorDiag = "Unexpected dataset name format: %s" % (dsname)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('DSN_FORMAT_FAIL', report)
+            self.prepareReport('DSN_FORMAT_FAIL', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
         tolog("SE destination: %s" % (castor_destination))
 
@@ -344,7 +344,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         except OSError, e:
             pilotErrorDiag = "Could not get file size: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('NO_FILESIZE', report)
+            self.prepareReport('NO_FILESIZE', report)
             return self.put_data_retfail(error.ERR_FAILEDSIZELOCAL, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -358,7 +358,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         else:
             pilotErrorDiag = "Put file not in castor: %s" % (dst_gpfn)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('FILE_NOT_IN', report)
+            self.prepareReport('FILE_NOT_IN', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
         _cmd_str = '%srfmkdir -p %s; rfcp %s %s' % (envsetup, dirname, fppfn, putfile)
@@ -394,7 +394,7 @@ class CastorSiteMover(SiteMover.SiteMover):
                 check_syserr(s, o)
                 pilotErrorDiag = "Error creating the dir: %d, %s" % (s, o)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('MKDIR_FAIL', report)
+                self.prepareReport('MKDIR_FAIL', report)
                 return self.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag)
 
             cmd = "%swhich lcg-rf" % (envsetup)
@@ -413,28 +413,15 @@ class CastorSiteMover(SiteMover.SiteMover):
                 check_syserr(s, o)
                 pilotErrorDiag = "Error registering the file: %d, %s" % (s, o)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('REGISTER_FAIL', report)
+                self.prepareReport('REGISTER_FAIL', report)
                 return self.put_data_retfail(error.ERR_FAILEDLCGREG, pilotErrorDiag)
         else:
             o = o.replace('\n', ' ')
             check_syserr(s, o)
             pilotErrorDiag = "Error copying the file: %d, %s" % (s, o)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('COPY_FAIL', report)
+            self.prepareReport('COPY_FAIL', report)
             return self.put_data_retfail(s, pilotErrorDiag)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, 0, 0, self.arch_type
-
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

@@ -130,7 +130,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
     def verifySetup(self, _setupStr, experiment, proxycheck=False):
         statusRet, outputRet = self.verifySetupCommand(_setupStr)
         if statusRet != 0:
-            #self.__sendReport('RFCP_FAIL', self._variables['report'])
+            #self.prepareReport('RFCP_FAIL', self._variables['report'])
             outputRet["report"]["clientState"] = "RFCP_FAIL"
             return statusRet, outputRet
 
@@ -143,7 +143,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         self.log("Status: %s, Output: %s" % (status, output))
         if status != 0:
             self.log(self.copyCommand +" is not found in envsetup: " + _setupStr)
-            #self.__sendReport('RFCP_FAIL', self._variables['report'])
+            #self.prepareReport('RFCP_FAIL', self._variables['report'])
             outputRet["report"]["clientState"] = "RFCP_FAIL"
             outputRet["errorLog"] = output
             return status, outputRet
@@ -876,7 +876,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             ec = error.ERR_STAGEINFAILED
             pilotErrorDiag = "Failed to get global paths for FAX transfer"
             tolog("!!WARNING!!3330!! %s" % (pilotErrorDiag))
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         tolog("GPFN=%s" % (gpfn))
@@ -892,7 +892,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         if output["transfer_mode"]:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], type="input")
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return status, output["errorLog"]
 
         if path == '': path = './'
@@ -903,7 +903,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
 
-        self.__sendReport(output["report"], report)
+        self.prepareReport(output["report"], report)
         return status, output["errorLog"]
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -949,7 +949,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         if ec != 0:
             reportState = {}
             reportState["clientState"] = tracer_error
-            self.__sendReport(reportState, report)
+            self.prepareReport(reportState, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
         """
         if logPath != "":
@@ -972,12 +972,12 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         status, output = self.stageOut(source, surl, token, experiment)
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return self.put_data_retfail(status, output["errorLog"], surl)
 
         reportState = {}
         reportState["clientState"] = "DONE"
-        self.__sendReport(reportState, report)
+        self.prepareReport(reportState, report)
         return 0, pilotErrorDiag, surl, output["size"], output["checksum"], self.arch_type
 
     def errorToReport(self, errorOutput, timeUsed, fileName, stageMethod='stageIN'):
@@ -990,28 +990,28 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         if "File exists" in errorOutput or "SRM_FILE_BUSY" in errorOutput or "file already exists" in errorOutput:
             pilotErrorDiag = "File already exist in the destination."
             tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-            #self.__sendReport('FILE_EXIST', report)
+            #self.prepareReport('FILE_EXIST', report)
             outputRet["report"]["clientState"] = 'FILE_EXIST'
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_FILEEXIST, outputRet
         elif "Could not establish context" in errorOutput:
             pilotErrorDiag = "Could not establish context: Proxy / VO extension of proxy has probably expired"
             tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-            #self.__sendReport('CONTEXT_FAIL', report)
+            #self.prepareReport('CONTEXT_FAIL', report)
             outputRet["report"]["clientState"] = 'CONTEXT_FAIL'
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_NOPROXY, outputRet
         elif "globus_xio:" in errorOutput:
             pilotErrorDiag = "Globus system error: %s" % (errorOuput)
             self.log("Globus system error encountered")
-            #self.__sendReport('GLOBUS_FAIL', report)
+            #self.prepareReport('GLOBUS_FAIL', report)
             outputRet["report"]["clientState"] = 'GLOBUS_FAIL'
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_GETGLOBUSSYSERR, outputRet
         elif "No space left on device" in errorOutput:
             pilotErrorDiag = "No available space left on local disk: %s" % (errorOutput)
             tolog("No available space left on local disk")
-            #self.__sendReport('NO_SPACE', report)
+            #self.prepareReport('NO_SPACE', report)
             outputRet["report"]["clientState"] = 'NO_SPACE'
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_NOLOCALSPACE, outputRet
@@ -1019,14 +1019,14 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             if "DBRelease" in fileName:
                 pilotErrorDiag = "Missing DBRelease file: %s" % (fileName)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                #self.__sendReport('NO_DBREL', report)
+                #self.prepareReport('NO_DBREL', report)
                 outputRet["report"]["clientState"] = 'NO_DBREL'
                 outputRet["errorLog"] = pilotErrorDiag
                 return PilotErrors.ERR_MISSDBREL, outputRet
             else:
                 pilotErrorDiag = "No such file or directory: %s" % (fileName)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                #self.__sendReport('NO_FILE_DIR', report)
+                #self.prepareReport('NO_FILE_DIR', report)
                 outputRet["report"]["clientState"] = 'NO_FILE'
                 outputRet["errorLog"] = pilotErrorDiag
                 return PilotErrors.ERR_NOSUCHFILE, outputRet
@@ -1035,12 +1035,12 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 pilotErrorDiag = "Copy command self timed out after %d s" % (timeUsed)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 if stageMethod == "stageIN":
-                    #self.__sendReport('GET_TIMEOUT', report)
+                    #self.prepareReport('GET_TIMEOUT', report)
                     outputRet["report"]["clientState"] = 'GET_TIMEOUT'
                     outputRet["errorLog"] = pilotErrorDiag
                     return PilotErrors.ERR_GETTIMEOUT, pilotErrorDiag
                 else:
-                    #self.__sendReport('CP_TIMEOUT', report)
+                    #self.prepareReport('CP_TIMEOUT', report)
                     outputRet["report"]["clientState"] = 'CP_TIMEOUT'
                     outputRet["errorLog"] = pilotErrorDiag
                     return PilotErrors.ERR_PUTTIMEOUT, outputRet
@@ -1049,29 +1049,13 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                     pilotErrorDiag = "Copy command returned error code %d but no output" % (s)
                 else:
                     pilotErrorDiag = errorOutput
-                #self.__sendReport('COPY_ERROR', report)
+                #self.prepareReport('COPY_ERROR', report)
                 outputRet["report"]["clientState"] = 'COPY_ERROR'
                 outputRet["errorLog"] = pilotErrorDiag
                 if stageMethod == "stageIN":
                     return PilotErrors.ERR_STAGEINFAILED, outputRet
                 else:
                     return PilotErrors.ERR_STAGEOUTFAILED, outputRet
-
-
-    def __sendReport(self, reportState, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            for key in reportState.keys():
-                report[key] = reportState[key]
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
-
-
 
     def getGlobalPathsFileName(self, dsname):
 
