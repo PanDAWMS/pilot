@@ -1607,7 +1607,7 @@ def finishTracingReport(sitemover, surl, errordiagnostics):
         report['stateReason'] = errordiagnostics
 
         # Send the tracing report
-        sitemover.sendTrace(report)
+        sitemover.sendReport(report)
     else:
         tolog("!!WARNING!!2990!! Failed to read back tracing report from file %s" % (_filename))
 
@@ -1699,6 +1699,9 @@ def sitemover_get_all_data(sitemover, error, gpfn, lfn, path, fsize=None, spsetu
         s = error.ERR_STAGEINFAILED
         tolog("Mover get_data finished (failed)")
     else:
+        # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
+        finishTracingReport(sitemover, gpfn, pilotErrorDiag)
+
         if s != 0:
             # did the get command return error text?
             tolog('!!WARNING!!2999!! Error in copying: %s - %s' % (s, pilotErrorDiag))
@@ -2396,6 +2399,9 @@ def chirp_put_data(pfn, ddm_storage, dsname="", sitename="", analysisJob=True, t
         pilotErrorDiag = "Unexpected exception: %s" % (get_exc_plus())
         tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
     else:
+        # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
+        finishTracingReport(sitemover, pfn, pilotErrorDiag)
+
         if ec != 0:
             tolog('!!WARNING!!2999!! Error in copying: %s - %s' % (ec, pilotErrorDiag))
         else:
@@ -2583,6 +2589,9 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
         exc, msg, tb = sys.exc_info()
         traceback.print_tb(tb)
     else:
+        # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
+        finishTracingReport(sitemover, r_gpfn, pilotErrorDiag)
+
         # add the guid and surl to the surl dictionary if possible
         if guid != "" and r_gpfn != "":
             if not sitemover.updateSURLDictionary(guid, r_gpfn, workDir, jobId):
