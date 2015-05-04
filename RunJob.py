@@ -883,12 +883,13 @@ class RunJob(object):
         # Any additional output file will have the same dataset as the original file
 
         from glob import glob
+        from re import compile, findall
         new_output_file_list = []
         new_datasets_list = []
         found_new_files = False
 
         # Create a lookup dataset dictionary
-        dataset_dict = dict(zip(output_file_list, datasets))
+        dataset_dict = dict(zip(output_file_list, datasets_list))
 
         # Loop over all output files
         for output_file in output_file_list:
@@ -906,8 +907,8 @@ class RunJob(object):
                 if _file != output_file_full_path:
 
                     # Create the search pattern
-                    pattern = re.compile(r'(%s\_\d+)' % (output_file_full_path))
-                    found = re.findall(pattern, _file)
+                    pattern = compile(r'(%s\_\d+)' % (output_file_full_path))
+                    found = findall(pattern, _file)
 
                     # Add the file name (not full path) of the found file, if found
                     if found:
