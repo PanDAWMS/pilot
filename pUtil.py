@@ -2957,8 +2957,6 @@ def putMetadata(workdir, jobId, strXML):
 
     status = False
 
-    tolog("x1 jobId=%s, type=%s" % (jobId, type(jobId)))
-
     filename = os.path.join(workdir, "metadata-%s.xml" % (jobId))
     try:
         f = open(filename, "w")
