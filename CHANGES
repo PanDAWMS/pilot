@@ -146,7 +146,7 @@ DQ2 API to Rucio API migration:
 - Now finishing tracing report in sitemover_get_data(), sitemover_get_all_data(), chirp_put_data(), sitemover_put_data() (Mover)
 
 Update info from Edward Karavakis:
-- Patch 2 for the permission problem/bug with ARC+HTCondor affecting RAL and RAPP
+- Patch 2+3 for the permission problem/bug with ARC+HTCondor affecting RAL and RAPP
 
 Changed in AMSTaiwanSiteInformation:
 - Importing getExtension() from FileHandling instead of from pUtil

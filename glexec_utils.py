@@ -320,7 +320,7 @@ class GlexecInterface(object):
 
     def __ship_job_definition(self):
         """Ships the job definition to the sandbox."""
-        execute('cp ./Job_*.py %s' % self.sandbox_path)
+        execute('cp ./Job_*.py %s; chmod 777 %s/Job_*.py' % (self.sandbox_path, self.sandbox_path))
 
     def __run_glexec(self):
         """Start the sandboxed process for the job.
