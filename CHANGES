@@ -105,6 +105,8 @@ Moved dumpFile from pUtil to FileHandling
 Importing dumpFile (pUtil, Mover)
 Moved readJSON and writeJSON from FAXSiteMover to FileHandling
 Created discoverAdditionalOutputFiles() (RunJob)
+Now using discoverAdditionalOutputFiles() in __main__() (RunJob)
+
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
 - Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
