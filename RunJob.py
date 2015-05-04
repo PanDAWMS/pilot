@@ -875,6 +875,44 @@ class RunJob(object):
             else:
                 tolog("Metadata was transferred to site work dir: %s/%s" % (self.__pworkdir, _filename))
 
+    def discoverAdditionalOutputFiles(self, output_file_list, workdir):
+        """ Have any additional output files been produced by the trf? If so, add them to the output file list """
+
+        from glob import glob
+        new_output_file_list = []
+        found_new_files = False
+
+        # Loop over all output files. In case an output file has reached the max output size, the payload can spill over
+        # the remaining events in a new file following the naming scheme: original_output_filename.extension_N, where N >= 1
+        for output_file in output_file_list:
+
+            # Add the original file
+            new_output_file_list.append(output_file)
+
+            # Get a list of all files whose names begin with <output_file> 
+            files = glob(os.path.join(workdir, "%s*" % (output_file)))
+            for _file in files:
+
+                # Exclude the original file
+                output_file_full_path = os.path.join(workdir, output_file)
+                if _file != output_file_full_path:
+
+                    # Create the search pattern
+                    pattern = re.compile(r'(%s\_\d+)' % (output_file_full_path))
+                    found = re.findall(pattern, _file)
+
+                    # Add the file name (not full path) of the found file, if found
+                    if found:
+                        found_new_files = True
+                        new_file = os.path.basename(found[0])
+                        new_output_file_list.append(new_file)
+                        tolog("Discovered additional output file: %s" % (new_file))
+
+        if not found_new_files:
+            tolog("Did not discover any additional output files")
+
+        return new_output_file_list
+
     def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analysisJob=False):
         """ create the metadata for the output + log files """
 
