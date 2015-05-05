@@ -172,7 +172,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "put_data could not create dir: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('MKDIR_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag)
+            return SiteMover.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag, surl=dst_gpfn)
 
         cmd = '%sdccp -A %s %s' % (_setup_str, source, dst_loc_sedir)
         tolog("Executing command: %s" % cmd)
@@ -186,14 +186,14 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "Error in copying: %s" % (o)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('DCCP_FAIL', report)
-            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=dst_gpfn)
         try:
             os.chmod(dst_loc_pfn, self.permissions_FILE)
         except IOError, e:
             pilotErrorDiag = "put_data could not change permission of the file: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('PERMISSION_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+            return SiteMover.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=dst_gpfn)
 
         # Comparing only file size since MD5sum is problematic
         try:
@@ -202,7 +202,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "put_data could not get file size: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('NO_FS', report)
-            return SiteMover.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag)
+            return SiteMover.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag, surl=dst_gpfn)
         if fsize != nufsize:
             pilotErrorDiag = "File sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(source), str(fsize), str(nufsize))
@@ -216,7 +216,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
             self.prepareReport('RFCP_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag) 
+            return self.put_data_retfail(ec, pilotErrorDiag, surl=dst_gpfn)
 
         # register the file in LFC
         report['catStart'] = time()
@@ -232,14 +232,14 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             check_syserr(s, o)
             self.prepareReport('LFC_REG_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag)
+            return SiteMover.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag, surl=dst_gpfn)
         else:
             # add checksum and file size to LFC
             csumtype = self.getChecksumType(fchecksum, format="short")
             exitcode, pilotErrorDiag = self.addFileInfo(lfclfn, fchecksum, csumtype=csumtype)
             if exitcode != 0:
                 self.prepareReport('LFC_ADD_SUM_FAIL', report)
-                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag, surl=dst_gpfn)
             else:
                 tolog('Successfully set filesize and checksum for %s' % pfn)
 

@@ -444,7 +444,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                     fail = error.ERR_STAGEOUTFAILED
         if fail:
             self.prepareReport('DCCP_FAIL', report)
-            return self.put_data_retfail(fail, pilotErrorDiag)
+            return self.put_data_retfail(fail, pilotErrorDiag, surl=destpfn)
         else:
             tolog("Output: %s" % (o))
 
@@ -460,7 +460,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "Could not get file size from dCache: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('NO_GET_FILESIZE', report)
-            return self.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag, surl=destpfn)
 
         tolog("Remote file size: %s" % str(nufsize))
         if fsize != nufsize:
@@ -468,7 +468,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                              (filename, str(nufsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('FS_MISMATCH', report)
-            return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=destpfn)
         else:
             tolog("Remote and local file sizes verified")
 
@@ -480,16 +480,16 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             if csumtype == "adler32":
                 self.prepareReport('AD_MISMATCH', report)
-                return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=destpfn)
             else:
                 self.prepareReport('MD5_MISMATCH', report)
-                return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=destpfn)
         else:
             if remote_checksum == "NOSUCHFILE":
                 pilotErrorDiag = "The pilot will fail the job since the remote file does not exist"
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                 self.prepareReport('NOSUCHFILE', report)
-                return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag, surl=destpfn)
             elif remote_checksum:
                 tolog("Remote checksum: %s" % (remote_checksum))
             else:
@@ -500,10 +500,10 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                              (csumtype, filename, remote_checksum, fchecksum)
             if csumtype == "adler32":
                 self.prepareReport('AD_MISMATCH', report)
-                return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=destpfn)
             else:
                 self.prepareReport('MD5_MISMATCH', report)
-                return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=destpfn)
         else:
             tolog("Remote and local checksums verified")
 

@@ -1478,8 +1478,8 @@ if __name__ == "__main__":
         job.jobState = "stageout"
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
-        filename = job.outFiles[0]
-        copy2("%s/%s" % (job.workdir, filename), "%s/%s_1" % (job.workdir, filename))
+        #filename = job.outFiles[0]
+        #copy2("%s/%s" % (job.workdir, filename), "%s/%s_1" % (job.workdir, filename))
 
         # are there any additional output files created by the trf/payload?
         job.outFiles, job.destinationDblock, job.scopeOut = runJob.discoverAdditionalOutputFiles(job.outFiles, job.workdir, job.destinationDblock, job.scopeOut)

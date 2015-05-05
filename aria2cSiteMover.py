@@ -749,7 +749,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "The pilot will fail the job since the remote file does not exist"
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                     self.prepareReport('NOSUCHFILE', report)
-                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag, surl=full_surl)
                 elif remote_checksum:
                     tolog("Remote checksum: %s" % (remote_checksum))
                 else:
@@ -794,7 +794,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "Neither checksum nor file size could be verified (failing job)"
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('NOFILEVERIFICATION', report)
-            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag, surl=full_surl)
 
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, full_surl, fsize, fchecksum, self.arch_type

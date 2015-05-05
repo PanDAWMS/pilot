@@ -390,7 +390,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope)
         if ec != 0:
             self.prepareReport(tracer_error, report)
-            return self.put_data_retfail(ec, pilotErrorDiag)
+            return self.put_data_retfail(ec, pilotErrorDiag, surl=dst_gpfn)
 
         lfclfn = os.path.join(lfcdir, lfn)
         # LFC LFN = /grid/atlas/dq2/testpanda/testpanda.destDB.dfb45803-1251-43bb-8e7a-6ad2b6f205be_sub01000492/
@@ -438,11 +438,11 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 self.dumpExtendedProxy(envsetup)
                 self.prepareReport('CONTEXT_FAIL', report)
-                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag, surl=full_surl)
             else:
                 pilotErrorDiag = "LFC setup and mkdir failed: %s" % (o)
                 self.prepareReport('LFC_SETUP_FAIL', report)
-                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
 
         # determine which timeout option to use
         if self.isNewLCGVersion("%s lcg-cr" % (envsetup)):
@@ -506,10 +506,10 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
             if exitcode == -1:
                 self.prepareReport('LFC_IMPORT_FAIL', report)
-                return self.put_data_retfail(error.ERR_PUTLFCIMPORT, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_PUTLFCIMPORT, pilotErrorDiag, surl=full_surl)
             elif exitcode != 0:
                 self.prepareReport('LFC_ADDCSUM_FAIL', report)
-                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag, surl=full_surl)
             else:
                 tolog('Successfully set filesize and checksum for %s' % (pfn))
         else:
@@ -528,30 +528,30 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag += "Could not establish context: Proxy / VO extension of proxy has probably expired"
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 self.prepareReport('CONTEXT_FAIL', report)
-                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag, surl=full_surl)
             elif o.find("No such file or directory") >= 0:
                 pilotErrorDiag += "No such file or directory: %s" % (o)
                 self.prepareReport('NO_FILE_DIR', report)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
             elif o.find("globus_xio: System error") >= 0:
                 pilotErrorDiag += "Globus system error: %s" % (o)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 self.prepareReport('GLOBUS_FAIL', report)
-                return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag, surl=full_surl)
             else:
                 if t >= self.timeout:
                     pilotErrorDiag += "Copy command self timed out after %d s" % (t)
                     tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                     self.prepareReport('CP_TIMEOUT', report)
-                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag, surl=full_surl)
                 else:
                     if len(o) == 0:
                         pilotErrorDiag += "Copy command returned error code %d but no output" % (s)
                     else:
                         pilotErrorDiag += o
                     self.prepareReport('CP_ERROR', report)
-                    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
 
         verified = False
 
@@ -585,10 +585,10 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                 tolog("!!WARNING!!1800!! %s" % (pilotErrorDiag))
                 if csumtype == "adler32" or csumtype == "AD":
                     self.prepareReport('AD_MISMATCH', report)
-                    return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=full_surl)
                 else:
                     self.prepareReport('MD5_MISMATCH', report)
-                    return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=full_surl)
             else:
                 tolog("Remote and local checksums verified")
                 verified = True
@@ -625,7 +625,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                     self.prepareReport('NOSUCHFILE', report)
-                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag, surl=full_surl)
                 elif remote_checksum:
                     tolog("Remote checksum: %s" % (remote_checksum))
                 else:
@@ -646,10 +646,10 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
                     if csumtype == "adler32":
                         self.prepareReport('AD_MISMATCH', report)
-                        return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
+                        return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=full_surl)
                     else:
                         self.prepareReport('MD5_MISMATCH', report)
-                        return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
+                        return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=full_surl)
                 else:
                     tolog("Remote and local checksums verified")
                     verified = True
@@ -676,7 +676,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                     self.prepareReport('FS_MISMATCH', report)
-                    return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=full_surl)
                 else:
                     tolog("Remote and local file sizes verified")
                     verified = True
@@ -700,7 +700,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('NOFILEVERIFICATION', report)
-            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag, surl=full_surl)
 
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, 0, 0, self.arch_type

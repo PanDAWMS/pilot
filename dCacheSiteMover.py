@@ -526,7 +526,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "put_data mkdirWperm failed: %s" % str(e)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             self.prepareReport('MKDIRWPERM_FAIL', report)
-            return self.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag, surl=dst_gpfn)
 
         report['transferStart'] = time()
         # execute dccp
@@ -628,14 +628,14 @@ class dCacheSiteMover(SiteMover.SiteMover):
                 else:
                     fail = error.ERR_STAGEOUTFAILED
             self.prepareReport('DCCP_FAIL', report)
-            return self.put_data_retfail(fail, pilotErrorDiag)
+            return self.put_data_retfail(fail, pilotErrorDiag, surl=dst_gpfn)
         try:
             os.chmod(dst_loc_pfn, self.permissions_FILE)
         except IOError, e:
             pilotErrorDiag = "Error changing permission of the file: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('PERM_CHANGE_FAIL', report)
-            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=dst_gpfn)
 
         tolog("dst_loc_sedir: %s" % (dst_loc_sedir))
         tolog("filename: %s" % (filename))
@@ -652,7 +652,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "The pilot will fail the job since the remote file does not exist"
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                 self.prepareReport('NOSUCHFILE', report)
-                return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag, surl=dst_gpfn)
             elif remote_checksum:
                 tolog("Remote checksum: %s" % (remote_checksum))
             else:
@@ -678,7 +678,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Could not get file size: %s" % str(e)
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                 self.prepareReport('NO_FILESIZE', report)
-                return self.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag, surl=dst_gpfn)
 
             if fsize != nufsize:
                 pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\

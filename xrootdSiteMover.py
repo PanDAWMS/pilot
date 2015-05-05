@@ -446,10 +446,10 @@ class xrootdSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "xcp get was timed out after %d seconds" % (telapsed)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
                 self.prepareReport('PUT_TIMEOUT', report)
-                return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag, surl=dst_gpfn)
 
             self.prepareReport('COPY_ERROR', report)
-            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=dst_gpfn)
 
         report['validateStart'] = time()
         # get the checksum type (md5sum or adler32)
@@ -468,7 +468,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
         tolog("File info: %d, %s, %s" % (ec, dstfsize, dstfchecksum))
         if ec != 0:
             self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag)
+            return self.put_data_retfail(ec, pilotErrorDiag, surl=dst_gpfn)
 
         # compare remote and local file checksum
         if dstfchecksum != fchecksum:

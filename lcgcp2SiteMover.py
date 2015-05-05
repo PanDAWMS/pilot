@@ -356,7 +356,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
         if ec != 0:
             self.prepareReport(tracer_error, report)
-            return self.put_data_retfail(ec, pilotErrorDiag)
+            return self.put_data_retfail(ec, pilotErrorDiag, surl=dst_gpfn)
 
         putfile = surl
         full_surl = putfile
@@ -457,30 +457,30 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
                 pilotErrorDiag += "Could not establish context: Proxy / VO extension of proxy has probably expired"
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 self.prepareReport('CONTEXT_FAIL', report)
-                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag, surl=full_surl)
             elif "No such file or directory" in o:
                 pilotErrorDiag += "No such file or directory: %s" % (o)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 self.prepareReport('NO_FILE_DIR', report)
-                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
             elif "globus_xio: System error" in o:
                 pilotErrorDiag += "Globus system error: %s" % (o)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 self.prepareReport('GLOBUS_FAIL', report)
-                return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag, surl=full_surl)
             else:
                 if len(o) == 0 and t >= self.timeout:
                     pilotErrorDiag += "Copy command self timed out after %d s" % (t)
                     tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                     self.prepareReport('CP_TIMEOUT', report)
-                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag, surl=full_surl)
                 else:
                     if len(o) == 0:
                         pilotErrorDiag += "Copy command returned error code %d but no output" % (ec)
                     else:
                         pilotErrorDiag += o
                     self.prepareReport('CP_ERROR', report)
-                    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
 
         verified = False
 
@@ -538,7 +538,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "The pilot will fail the job since the remote file does not exist"
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                     self.prepareReport('NOSUCHFILE', report)
-                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag, surl=full_surl)
                 elif remote_checksum:
                     tolog("Remote checksum: %s" % (remote_checksum))
                 else:
@@ -583,7 +583,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "Neither checksum nor file size could be verified (failing job)"
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('NOFILEVERIFICATION', report)
-            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag)
+            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag, surl=full_surl)
 
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, full_surl, fsize, fchecksum, self.arch_type

@@ -549,7 +549,7 @@ class SiteMover(object):
                 pilotErrorDiag = "cp failed with output: ec = %d, output = %s" % (s, o)
                 ec = error.ERR_STAGEOUTFAILED
             self.prepareReport('COPY_FAIL', report)
-            return SiteMover.put_data_retfail(ec, pilotErrorDiag)
+            return SiteMover.put_data_retfail(ec, pilotErrorDiag, surl=dst_loc_pfn)
 
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
 
@@ -557,7 +557,7 @@ class SiteMover(object):
         ec, pilotErrorDiag, dstfsize, dstfchecksum = SiteMover.getLocalFileInfo(dst_loc_pfn, csumtype="adler32")
         if ec != 0:
             self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
-            return SiteMover.put_data_retfail(ec, pilotErrorDiag)
+            return SiteMover.put_data_retfail(ec, pilotErrorDiag, surl=dst_loc_pfn)
 
         # compare remote and local file size
         if dstfsize != fsize:
@@ -565,7 +565,7 @@ class SiteMover(object):
                              (os.path.basename(dst_gpfn), str(dstfsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             self.prepareReport('FS_MISMATCH', report)
-            return SiteMover.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag)
+            return SiteMover.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=dst_loc_pfn)
 
         # compare remote and local checksums
         if dstfchecksum != fchecksum:
@@ -574,10 +574,10 @@ class SiteMover(object):
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             if csumtype == "adler32":
                 self.prepareReport('AD_MISMATCH', report)
-                return SiteMover.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
+                return SiteMover.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=dst_loc_pfn)
             else:
                 self.prepareReport('MD5_MISMATCH', report)
-                return SiteMover.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
+                return SiteMover.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=dst_loc_pfn)
 
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, str(dst_gpfn), fsize, fchecksum, ARCH_DEFAULT # Eddie added str, unicode protection

@@ -117,6 +117,8 @@ Tracing report update
   castorSvcClass*, curl*, rfcpLFC*)
 - Storing tracing report in JSON file in prepareReport (SiteMover)
 - Now reading tracing report from file and finishing it in mover_get_data() (Mover)
+- Now returning the surl for more cases with put_data_retfail() from put_data() to make sure the url in the tracing report is set (SiteMover, lcgcp*, BNLdCache*, Castor*, Chirp*, GSIftp*,
+  HU*, aria2c*, curl*, dCache*, rfcpLFC*, xrootd*)
 
 
 REMOVE OTHERSITEMOVER FROM DIST

@@ -253,13 +253,13 @@ class ChirpSiteMover(SiteMover.SiteMover):
                 self.__pilotErrorDiag = "chirp_put failed: time out after %d seconds" % (telapsed)
                 tolog(self.__warningStr % self.__pilotErrorDiag)            
                 self.prepareReport('PUT_TIMEOUT', report)
-                return self.put_data_retfail(self.__error.ERR_PUTTIMEOUT, self.__pilotErrorDiag)
+                return self.put_data_retfail(self.__error.ERR_PUTTIMEOUT, self.__pilotErrorDiag, surl=chirp_path)
 
             status = os.WEXITSTATUS(status)
             self.__pilotErrorDiag = 'chirp_put failed (%s): %s' % (status, output)
             tolog(self.__warningStr % self.__pilotErrorDiag)
             self.prepareReport('COPY_FAIL', report)
-            return self.put_data_retfail(self.__error.ERR_STAGEOUTFAILED, self.__pilotErrorDiag)
+            return self.put_data_retfail(self.__error.ERR_STAGEOUTFAILED, self.__pilotErrorDiag, surl=chirp_path)
 
         self.prepareReport('DONE', report)
         return 0, self.__pilotErrorDiag, chirp_path, fsize, fchecksum, self.arch_type

@@ -295,9 +295,9 @@ class HUSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "necp put was timed out after %d seconds" % (telapsed)
                     tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
                     self.prepareReport('COPY_TIMEOUT', report)
-                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
+                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag, surl=dst_gpfn)
                 self.prepareReport('COPY_FAIL', report)
-                return self.put_data_retfail(fail, pilotErrorDiag)
+                return self.put_data_retfail(fail, pilotErrorDiag, surl=dst_gpfn)
 
         # Directory permission not set: it should be set correctly by necp 
 

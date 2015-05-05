@@ -275,7 +275,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Error copying the file: %d, %s " % (s, o)
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                 self.prepareReport('COPY_FAIL', report)
-                return self.put_data_retfail(s, pilotErrorDiag)
+                return self.put_data_retfail(s, pilotErrorDiag, surl=_ftp_destination)
 
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, fsize, fchecksum, self.arch_type

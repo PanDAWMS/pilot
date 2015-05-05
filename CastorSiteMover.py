@@ -395,7 +395,7 @@ class CastorSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Error creating the dir: %d, %s" % (s, o)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
                 self.prepareReport('MKDIR_FAIL', report)
-                return self.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag, surl=putfile)
 
             cmd = "%swhich lcg-rf" % (envsetup)
             tolog("Executing command: %s" % (cmd))
@@ -414,14 +414,14 @@ class CastorSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Error registering the file: %d, %s" % (s, o)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
                 self.prepareReport('REGISTER_FAIL', report)
-                return self.put_data_retfail(error.ERR_FAILEDLCGREG, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_FAILEDLCGREG, pilotErrorDiag, surl=putfile)
         else:
             o = o.replace('\n', ' ')
             check_syserr(s, o)
             pilotErrorDiag = "Error copying the file: %d, %s" % (s, o)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             self.prepareReport('COPY_FAIL', report)
-            return self.put_data_retfail(s, pilotErrorDiag)
+            return self.put_data_retfail(s, pilotErrorDiag, surl=putfile)
 
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, 0, 0, self.arch_type
