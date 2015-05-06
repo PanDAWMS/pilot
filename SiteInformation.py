@@ -1110,7 +1110,6 @@ if __name__ == "__main__":
     #EC2
     s1.replaceQueuedataField("copyprefixin", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
     s1.replaceQueuedataField("copyprefix", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
-    s1.replaceQueuedataField("copyprefixin", "srm://aws01.*/mnt/atlasdatadisk,srm://aws01.*/mnt/atlasuserdisk,srm://aws01.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
     path = 'srm://aws01.racf.bnl.gov:8443/srm/managerv2?SFN=/mnt/atlasproddisk/rucio/panda/7b/c4/86c7b8a5-d955-41a5-9f0f-36d067b9931b_0.job.log.tgz'
     print path
     ret = s1.getCopyPrefixPathNew(path, stageIn=True)
