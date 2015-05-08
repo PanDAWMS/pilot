@@ -1189,9 +1189,9 @@ class SiteMover(object):
         surl = re.sub('/srm/managerv2\?SFN=', '', surl)
         tolog("Cleaned up SURL: %s" % (surl))
         try:
-            from dq2.clientapi.DQ2 import DQ2
-            dq2 = DQ2()
-            dq2.declareSuspiciousFiles(surls=[surl], reason='File corrupted', reportedby='p')
+            from rucio.client import Client
+            client = Client()
+            c.declare_suspicious_file_replicas(pfns=[surl], reason='Corrupted File')
         except:
             tolog("!!WARNING!!2111!! Failed to report corrupted file to consistency server")
         else:

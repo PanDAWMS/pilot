@@ -3764,8 +3764,6 @@ def getFileCatalogHosts(thisExperiment):
     # Since FAX can download files from many sources, all hosts need to be queried for the replicas
     # In the case of ATLAS, TiersOfATLAS is used as a source of the hosts
 
-    # warning: might not be possible with Rucio, or necessary..
-
     hosts_list = [thisExperiment.getFileCatalog()]
 
     tolog("Will extend file catalog host list")

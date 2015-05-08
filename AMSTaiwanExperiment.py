@@ -2286,53 +2286,15 @@ class AMSTaiwanExperiment(Experiment):
     def getFileCatalog(self):
         """ Return the default file catalog to use (e.g. for replica lookups) """
         # See usage in Mover.py
+        # Note: no longer needed since list_replicas() doesn't need to know the catalog
+        # Return a dummy default to allow the existing host loop to remain in Mover
 
-        fileCatalog = ""
-        try:
-            ddm = readpar('ddm')
-            # note that ddm can contain a comma separated list; if it does, get the first value
-            if "," in ddm:
-                ddm = ddm.split(',')[0]
-            # Try to get the default file catalog from Rucio
-            from dq2.info import TiersOfATLAS
-            fileCatalog = TiersOfATLAS.getLocalCatalog(ddm)
-        except:
-            tolog("!!WARNING!!3333!! Failed to import TiersOfATLAS from dq2.info")
-
-        # This should not be necessary post-LFC
-        if fileCatalog == "":
-            tolog("Did not get a file catalog from dq2.info. Trying to construct one from lfchost")
-            lfchost = readpar('lfchost')
-            if not "lfc://" in lfchost:
-                lfchost = "lfc://" + lfchost
-            fileCatalog = lfchost + ":/grid/atlas"
-
-            # e.g. 'lfc://prod-lfc-atlas.cern.ch:/grid/atlas'
-            tolog("Using file catalog: %s" % (fileCatalog))
-
-        return fileCatalog
+        return "<rucio default>"
 
     def getFileCatalogHosts(self):
         """ Return a list of file catalog hosts """
 
-        file_catalog_hosts = []
-
-        # Get the catalogTopology dictionary
-        try:
-            from dq2.info import TiersOfATLAS
-            catalogsTopology_dict = TiersOfATLAS.ToACache.catalogsTopology
-
-            # Extract all the LFC hosts from the catalogTopology dictionary
-            file_catalog_hosts = catalogsTopology_dict.keys()
-            tolog("catalogsTopology=%s" % str(file_catalog_hosts))
-        except:
-            import traceback
-            tolog("!!WARNING!!3334!! Exception caught in Mover: %s" % str(traceback.format_exc()))
-            tolog("!!WARNING!!1212!! catalogsTopology lookup failed")
-        else:
-            tolog("Extracted file catalog hosts: %s" % (file_catalog_hosts))
-
-        return file_catalog_hosts
+        return []
 
     def verifySwbase(self, appdir):
         """ Confirm existence of appdir/swbase """
