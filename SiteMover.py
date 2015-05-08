@@ -2323,6 +2323,41 @@ class SiteMover(object):
         return ec, pilotErrorDiag
     lcg_rf = staticmethod(lcg_rf)
 
+    def bulkRegisterFilesNew(rse, guid, scope, dsname, lfn, surl, checksum, fsize):
+        """ Use Rucio method to register a file in the catalog """
+        # NOTE: not actually a bulk method, files are currently registered one by one
+
+        ec = 0
+        pilotErrorDiag = ""
+        error = PilotErrors()
+
+        # Create the files list
+        #files = { guid: { 'dsn': dsname, 'lfn':"%s:%s" % (scope, lfn), 'surl':surl, 'fsize':long(fsize), 'checksum':checksum } }
+        files = [{'scope': scope, 'name':lfn, 'bytes': long(fsize), 'adler32': checksum, 'pfn': surl}]
+
+        tolog("About to register replica: %s" % str(files))
+        try:
+            from rucio.client import Client
+            c = Client()
+        except:
+            pilotErrorDiag = "Bad environment: Could not import Rucio module"
+            tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
+            ec = error.ERR_FAILEDLFCREG # use LFC error code for now
+        else:
+            tolog("Using RSE=%s for file registration" % (rse))
+
+            try:
+                c.add_replicas(rse=rse, files, ignore_availability=True)
+            except:
+                pilotErrorDiag = "Bad environment: Failed to register replica in Rucio"
+                tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
+                ec = error.ERR_FAILEDLFCREG # use LFC error code for now
+            else:
+                tolog("Registered replica in Rucio")
+
+        return ec, pilotErrorDiag
+    bulkRegisterFilesNew = staticmethod(bulkRegisterFilesNew)
+
     def bulkRegisterFiles(host, guid, scope, dsname, lfn, surl, checksum, fsize):
         """ Use Rucio method to register a file in the catalog """
         # NOTE: not actually a bulk method, files are currently registered one by one

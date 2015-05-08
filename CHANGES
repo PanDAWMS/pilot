@@ -150,6 +150,7 @@ DQ2 API to Rucio API migration:
 - Replaced getFileCatalog() with trivial function returning <rucio default> string, since it is no longer needed (ATLASExperiment, AMSTaiwanExperiment)
 - Returning empty list in getFileCatalogHosts() since it is no longer needed (ATLASExperiment, AMSTaiwanExperiment)
 - Now using c.declare_suspicious_file_replicas instead of dq2.declareSuspiciousFiles in reportFileCorruption() to declare corrupt file (SiteMover)
+- Created test method bulkRegisterFilesNew() (SiteMover)
 
 Update info from Edward Karavakis:
 - Patch 2+3 for the permission problem/bug with ARC+HTCondor affecting RAL and RAPP
