@@ -953,6 +953,8 @@ class SiteInformation(object):
 
         ret_path = path
         for (pfrom, pto) in map(None, pfroms, ptos):
+            pfrom = pfrom.strip()
+            pto = pto.strip()
             ret_path = re.sub(pfrom, pto, ret_path)
             ret_path = ret_path.replace('///','//')
 
