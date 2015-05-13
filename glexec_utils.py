@@ -370,36 +370,42 @@ class GlexecInterface(object):
 
     def __clean(self):
         """Remove the previously created proxy and reload configuration."""
+
+        pUtil.tolog('Actual workdir is %s ' % self.__actual_workdir)
+        pUtil.tolog('Will now check current dir and remove it from sys.path %s ' % os.getcwd())
+        sys.path.remove(os.getcwd())
+        os.chdir(self.__actual_workdir)
+        env = Configuration.Configuration()
+        env['workdir'] = self.__actual_workdir
+
 	if json is None:
 	    raise RuntimeError('json is not available')
         try:
             # Reloads configuration from the subprocess.
             configuration_path = os.path.join(self.sandbox_path, 'data-orig.json')
             CustomEncoder.ConfigurationSerializer.deserialize_file(configuration_path)
-	    pUtil.tolog('glexec client cert is %s ' % os.environ['GLEXEC_CLIENT_CERT'])
-            pUtil.tolog('glexec source proxy is %s ' % os.environ['GLEXEC_SOURCE_PROXY'])
-            pUtil.tolog('glexec target dir is %s ' % os.environ['GLEXEC_TARGET_DIR'])
-            pUtil.tolog('glexec target proxy is %s ' % os.environ['GLEXEC_TARGET_PROXY'])
 
-            pUtil.tolog('Will now delete completely the glexec temporary dir')
-            cmd = '%s -r %s -f' % (self.__mkgltempdir_path, self.__target_path)
-            self.output, self.error, self.status = execute(cmd)
-            pUtil.tolog(self.error)
-            pUtil.tolog(self.output)
-
-
-	    pUtil.tolog('Removing GLEXEC env vars')
-	    del os.environ['GLEXEC_CLIENT_CERT']
-            del os.environ['GLEXEC_SOURCE_PROXY']
-            del os.environ['GLEXEC_TARGET_DIR']
-            del os.environ['GLEXEC_TARGET_PROXY']
-            pUtil.tolog('Removing user_proxy at %s' % self.__new_proxy_path)
-            os.remove(self.__new_proxy_path)
-            pUtil.tolog('Proxy removed!')
-	    pUtil.tolog('sys path is ... %s ' % sys.path)
-	    pUtil.tolog('Will now check current dir and remove it from sys.path %s ' % os.getcwd())
-	    sys.path.remove(os.getcwd())
-	    sys.path.remove(self.__target_path)	
-            pUtil.tolog('sys path now is ... %s ' % sys.path)
 	except:
-	    pUtil.tolog('Failed to reload previous configuration.')
+            pUtil.tolog('Failed to reload previous configuration.')
+
+	pUtil.tolog('glexec client cert is %s ' % os.environ['GLEXEC_CLIENT_CERT'])
+        pUtil.tolog('glexec source proxy is %s ' % os.environ['GLEXEC_SOURCE_PROXY'])
+        pUtil.tolog('glexec target dir is %s ' % os.environ['GLEXEC_TARGET_DIR'])
+        pUtil.tolog('glexec target proxy is %s ' % os.environ['GLEXEC_TARGET_PROXY'])
+
+        pUtil.tolog('Will now delete completely the glexec temporary dir')
+        cmd = '%s -r %s -f' % (self.__mkgltempdir_path, self.__target_path)
+        self.output, self.error, self.status = execute(cmd)
+        pUtil.tolog(self.error)
+        pUtil.tolog(self.output)
+
+	pUtil.tolog('Removing GLEXEC env vars')
+	del os.environ['GLEXEC_CLIENT_CERT']
+        del os.environ['GLEXEC_SOURCE_PROXY']
+        del os.environ['GLEXEC_TARGET_DIR']
+        del os.environ['GLEXEC_TARGET_PROXY']
+        pUtil.tolog('Removing user_proxy at %s' % self.__new_proxy_path)
+        os.remove(self.__new_proxy_path)
+        pUtil.tolog('Proxy removed!')
+	sys.path.remove(self.__target_path)	
+        pUtil.tolog('sys path now is ... %s ' % sys.path)
