@@ -3372,7 +3372,8 @@ def matchCopyprefixReplica(surl, pfroms, ptos):
 
     for (pfrom, pto) in map(None, pfroms, ptos):
         if pfrom:
-            if surl[:len(pfrom)] == pfrom:
+            if re.match(pfrom, surl):
+            #if surl[:len(pfrom)] == pfrom:
                 tolog("Copyprefix matched replica %s (SURL) using pfrom" % (surl))
                 oldPrefix = pfrom
                 newPrefix = pto

@@ -155,6 +155,9 @@ DQ2 API to Rucio API migration:
 Update info from Edward Karavakis:
 - Patch 2+3 for the permission problem/bug with ARC+HTCondor affecting RAL and RAPP
 
+Update info from Wen Guan:
+- Now using a reg exp instead of string comparison in matchCopyprefixReplica() to fix a problem with copyprefix pattern matching seen at BNL_EC2E1_MCORE (Mover)
+
 Changed in AMSTaiwanSiteInformation:
 - Importing getExtension() from FileHandling instead of from pUtil
 
