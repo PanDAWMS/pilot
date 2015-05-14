@@ -738,7 +738,6 @@ class Experiment(object):
                        "-s", env['thisSite'].sitename,
                        "-t", str(env['proxycheckFlag']),
                        "-x", str(env['stageinretry']),
-                       "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
                        "-F", env['experiment'],
                        "-H", env['cache']]
@@ -758,7 +757,6 @@ class Experiment(object):
                        "-s", env['thisSite'].sitename,
                        "-t", str(env['proxycheckFlag']),
                        "-x", str(env['stageinretry']),
-                       "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
                        "-F", env['experiment'],
                        "-H", env['cache']]

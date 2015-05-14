@@ -50,7 +50,6 @@ class JobRecovery:
     __initDir = ""                         # Job recovery init dir
     __jobId = ""                           # Current job id
     __jobSchedulerId = ""                  # Job scheduler id
-    __lfcRegistration = True               # Should the pilot perform LFC registration?
     __logFileDir = ""                      # Location of the log file
     __maxJobRec = 20                       # Default maximum number of job recoveries
     __maxNumberOfRecoveryAttempts = 15     # Max recovery attempts
@@ -82,7 +81,6 @@ class JobRecovery:
                  errorLabel="WARNING",
                  heartbeat=30*60,
                  jobSchedulerId="",
-                 lfcreg=True,
                  logFileDir="",
                  maxjobrec=20,
                  maxNumberOfRecoveryAttempts=15,
@@ -106,7 +104,6 @@ class JobRecovery:
         self.__heartbeatPeriod = heartbeat
         self.__initDir = os.getcwd()
         self.__jobSchedulerId = jobSchedulerId
-        self.__lfcRegistration = lfcreg
         self.__logFileDir = logFileDir
         self.__maxJobRec = maxjobrec
         self.__maxNumberOfRecoveryAttempts = maxNumberOfRecoveryAttempts

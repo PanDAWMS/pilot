@@ -69,7 +69,6 @@ class RunJobEvent(RunJob):
     __globalErrorCode = 0                        # Global error code used with signal handler (only)
     __inputDir = ""                              # Location of input files (source for mv site mover)
     __outputDir = ""                             # Location of output files (destination for mv site mover)
-    __fileCatalogRegistration = True             # Should the pilot perform file catalog registration?
     __event_loop_running = False                 # Is the event loop running?
     __output_files = []                          # A list of all files that have been successfully staged-out, used by createFileMetadata()
     __guid_list = []                             # Keep track of downloaded GUIDs
@@ -625,8 +624,8 @@ class RunJobEvent(RunJob):
                           help="True (default): perform proxy validity checks, False: no check", metavar="PROXYCHECKFLAG")
         parser.add_option("-x", "--stageinretries", dest="stageinretry",
                           help="The number of stage-in retries", metavar="STAGEINRETRY")
-        parser.add_option("-B", "--filecatalogregistration", dest="fileCatalogRegistration",
-                          help="True (default): perform file catalog registration, False: no catalog registration", metavar="FILECATALOGREGISTRATION")
+        #parser.add_option("-B", "--filecatalogregistration", dest="fileCatalogRegistration",
+        #                  help="True (default): perform file catalog registration, False: no catalog registration", metavar="FILECATALOGREGISTRATION")
         parser.add_option("-E", "--stageoutretries", dest="stageoutretry",
                           help="The number of stage-out retries", metavar="STAGEOUTRETRY")
         parser.add_option("-F", "--experiment", dest="experiment",
@@ -651,13 +650,6 @@ class RunJobEvent(RunJob):
                 self.__logguid = options.logguid
             if options.inputDir:
                 self.__inputDir = options.inputDir
-            if options.fileCatalogRegistration:
-                if options.fileCatalogRegistration.lower() == "false":            
-                    self.__fileCatalogRegistration = False
-                else:
-                    self.__fileCatalogRegistration = True
-            else:
-                self.__fileCatalogRegistration = True
             if options.pilot_initdir:
                 self.__pilot_initdir = options.pilot_initdir
             if options.pilotlogfilename:
@@ -1126,7 +1118,7 @@ class RunJobEvent(RunJob):
                                          userid=self.__job.prodUserID, datasetDict=datasetDict, prodSourceLabel=self.__job.prodSourceLabel,\
                                          outputDir=self.__outputDir, jobId=self.__job.jobId, jobWorkDir=self.__job.workdir, DN=self.__job.prodUserID,\
                                          dispatchDBlockTokenForOut=self.__job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                         lfcreg=self.__fileCatalogRegistration, jobDefId=self.__job.jobDefinitionID, jobCloud=self.__job.cloud,\
+                                         jobDefId=self.__job.jobDefinitionID, jobCloud=self.__job.cloud,\
                                          logFile=self.__job.logFile, stageoutTries=self.__stageoutretry, experiment=self.__experiment,\
                                          fileDestinationSE=self.__job.fileDestinationSE, eventService=True)
             tin_1 = os.times()

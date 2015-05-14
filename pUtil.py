@@ -3824,7 +3824,6 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
 
         # should the server or the pilot do the LFC registration?
         if readpar("lfcregister") == "server":
-            env['lfcRegistration'] = False
             tolog("File registration will be done by server")
 
             # special check for storm sites
@@ -3842,7 +3841,8 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
                 tolog("!!FAILED!!1111!! Found schedconfig misconfiguration: Site cannot use copytool=lcgcp2 without lfcregister=server")
                 return error.ERR_GENERALERROR, thisSite, _jobrec, hasQueuedata
 
-            tolog("LFC registration will be done by pilot")
+            tolog("File catalog registration no longer supported by pilot")
+            return error.ERR_GENERALERROR, thisSite, _jobrec, hasQueuedata
 
         # should the number of stage-in/out retries be updated?
         env['stageinretry'] = getStagingRetry("stage-in")

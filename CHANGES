@@ -66,8 +66,11 @@ DQ2 API to Rucio API migration:
 - Removed functions no longer needed: bulkRegisterFiles, registerFileInCatalog (SiteMover)
 - Removed call to file registration from mover_put_data() (Mover)
 - Removed unnecessary argument lfcreg from mover_put_data() (Mover)
-- Removed unnecessary argument lfcreg in calls to mover_put_data() (JobLog, pilot)
+- Removed unnecessary argument lfcreg in calls to mover_put_data() (JobLog, pilot, RunJob, RunJobEvent)
 - Pilot option -B lfcRegistration now unused (kept support for -B but it is ignored if set), in argParser() (pilot)
+- Removed -B option in getSubprocessArguments() (Experiment)
+- Out-commented -B option in argumentParser() (RunJob)
+- Removed __fileCatalogRegistration and getter function, no longer needed (RunJob, RunJobEvent)
 
 Update info from Edward Karavakis:
 - Patch 2+3 for the permission problem/bug with ARC+HTCondor affecting RAL and RALPP

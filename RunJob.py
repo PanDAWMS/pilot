@@ -30,7 +30,6 @@ from shutil import copy2
 from FileHandling import tail, getExtension, dumpFile
 
 # remove logguid, dq2url, debuglevel - not needed
-# rename lfcRegistration to catalogRegistration
 # relabelled -h, queuename to -b (debuglevel not used)
 
 
@@ -48,7 +47,6 @@ class RunJob(object):
     __globalPilotErrorDiag = ""          # global pilotErrorDiag used with signal handler (only)
     __globalErrorCode = 0                # global error code used with signal handler (only)
     __inputDir = ""                      # location of input files (source for mv site mover)
-    __fileCatalogRegistration = True     # should the pilot perform file catalog registration?
     __logguid = None                     # guid for the log file
     __outputDir = ""                     # location of output files (destination for mv site mover)
     __pilot_initdir = ""                 # location of where the pilot is untarred and started
@@ -111,11 +109,6 @@ class RunJob(object):
         """ Getter for __inputDir """
 
         return self.__inputDir
-
-    def getFileCatalogRegistration(self):
-        """ Getter for __fileCatalogRegistration """
-
-        return self.__fileCatalogRegistration
 
     def getLogGUID(self):
         """ Getter for __logguid """
@@ -226,8 +219,8 @@ class RunJob(object):
                           help="DQ2 URL TO BE RETIRED", metavar="DQ2URL")
         parser.add_option("-x", "--stageinretries", dest="stageinretry",
                           help="The number of stage-in retries", metavar="STAGEINRETRY")
-        parser.add_option("-B", "--filecatalogregistration", dest="fileCatalogRegistration",
-                          help="True (default): perform file catalog registration, False: no catalog registration", metavar="FILECATALOGREGISTRATION")
+        #parser.add_option("-B", "--filecatalogregistration", dest="fileCatalogRegistration",
+        #                  help="True (default): perform file catalog registration, False: no catalog registration", metavar="FILECATALOGREGISTRATION")
         parser.add_option("-E", "--stageoutretries", dest="stageoutretry",
                           help="The number of stage-out retries", metavar="STAGEOUTRETRY")
         parser.add_option("-F", "--experiment", dest="experiment",
@@ -255,13 +248,6 @@ class RunJob(object):
                 self.__logguid = options.logguid
             if options.inputDir:
                 self.__inputDir = options.inputDir
-            if options.fileCatalogRegistration:
-                if options.fileCatalogRegistration.lower() == "false":            
-                    self.__fileCatalogRegistration = False
-                else:
-                    self.__fileCatalogRegistration = True
-            else:
-                self.__fileCatalogRegistration = True
             if options.pilot_initdir:
                 self.__pilot_initdir = options.pilot_initdir
             if options.pilotlogfilename:
@@ -1065,7 +1051,7 @@ class RunJob(object):
                                              userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
                                              outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
                                              dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                             lfcreg=self.__fileCatalogRegistration, jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
+                                             jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
                                              stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE)
             tin_1 = os.times()
             job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
@@ -1115,7 +1101,7 @@ class RunJob(object):
 
                 tolog("!!%s!!1212!! %s" % (_msg, error.getErrorStr(rc)))
             else:
-                # set preliminary finished (may be overwritten below in the LRC registration)
+                # set preliminary finished (may be overwritten below)
                 job.setState(["finished", 0, 0])
 
                 # create a weak lockfile meaning that file transfer worked
