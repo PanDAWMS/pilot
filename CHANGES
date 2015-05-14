@@ -2,94 +2,7 @@ Complete change log for PanDA Pilot version PICARD
 --------------------------------------------------
 
 
-61a:
-
-Added --cmtconfig to asetup in getJobExecutionCommand() to bypass problems with some AthAnalysisBase releases. Requested by Asoka de Silva et al. (ATLASExperiment)
-Removed getLocalSpaceLimit() since it is not used any longer (Mover)
-Replaced maxinputsize with maxwdir - 2000 in getMaxInputSize(). Requested by Alastair Dewhurst (pUtil)
-Removed unused method testES() (RunJobEvent)
-Created extractErrorMessage() (RunJobEvent)
-Extracting error acronyms and diagnostics from AthenaMP yampl message in listener() (RunJobEvent)
-Now using getModernASetup() with AnalysisTransform setups in getJobExecutionCommand(); requested by Asoka de Silva (ATLASExperiment)
-Removed usage of 'region' in getProperSiterootAndCmtconfig() (ATLASExperiment)
-Removed getProperSiterootAndCmtconfigOld() (ATLASExperiment)
-Changed 'region' to 'cloud' in getProperASetup() (ATLASExperiment)
-Removed unused region variable in getAnalysisRunCommand() (Experiment)
-Removed unused region variable in __main__() (RunJob, RunJobEvent, RunJobAnselm, RunJobEdison)
-Removed unnecessary error handling around updateEventRange() call in asynchronousOutputStager() (RunJobEvent)
-Now forwarding failed error range to server, in listener() (RunJobEvent)
-Added event service and token extractor error codes:
-        ERR_ESFATAL: "Fatal Event Service error",
-        ERR_TEHOSTNAME: "Token Extractor error: Host name could not be resolved",
-	ERR_TEBADURL: "Token Extractor error: Bad URL",
-	ERR_TEINVALIDGUID: "Token Extractor error: Invalid GUID length",
-	ERR_TEWRONGGUID: "Token Extractor error: No tokens for this GUID"
-used by RunJobEvent::listener() (PilotErrors, RunJobEvent)
-Calling updateJobDefinition() from monitor_job() (Monitor)
-Created optional updateJobDefinition() used to manipulate the job object/file after download from dispatcher (Experiment, ATLASExperiment)
-Created readFile(), writeFile() (FileHandling)
-Now updating the job object and job definition file in updateJobDefinition() (ATLASExperiment)
-Renamed getAthenaMPSubprocess() to getSubprocess(), used by __main__() and getTokenExtractorProcess() (RunJobEvent)
-Moved getSubprocess() from RunJobEvent to RunJob
-Moved getStdoutStderrFileObjects() from RunJobEvent to RunJob
-Created isMultiTrf(), used by setup(), executePayload() (RunJob)
-Removed piping to stdout/err from getJobExecutionCommand() (ATLASExperiment)
-Created tail() (FileHandling)
-Now using getSubprocess() in executePayload() instead of commands.getstatusoutput() to execute payload (RunJob)
-Overwriting job.coreCount if ATHENA_PROC_NUMBER is set in getJobMetrics() (PandaServerClient)
-Overwriting job.coreCount if ATHENA_PROC_NUMBER is set in setJobDef() (Job)
-Created addMAKEFLAGS(), used by getJobExecutionCommand() (ATLASExperiment)
-Test import of rucio.client (pilot)
-Always using default setup in setup(), i.e. CVMFS ROOT setup will always be used (xrdcpSiteMover)
-Created checkSpecialEnvVars(), used to set new env variable 'Nordugrid_pilot' which in turn is used to identidy Nordugrid in other pilot classes (NordugridATLASExperiment)
-Changed usage of 'region' to using env variable 'Nordugrid_pilot', and replaced 'Nordugrid' with 'ND' in checkSpecialEnvVars(), getSwbase(), getRelease() (ATLASExperiment)
-Changed usage of 'region' to 'cloud', and replaced 'Nordugrid' with new env variable 'Nordugrid_pilot' in createFileMetadata() (RunJob, RunJobEvent)
-Changed usage of 'region' to new env variable 'Nordugrid_pilot' in createMetadataForOutput(), postJobTask() (JobLog)
-Changed usage of 'region' to new env variable 'Nordugrid_pilot' in _cleanUpEndedJobs() (Monitor)
-Changed usage of 'region' to new env variable 'Nordugrid_pilot' in getRelease() (NordugridATLASExperiment)
-Changed usage of 'region' to new env variable 'Nordugrid_pilot' in getXML(), updatePandaServer() (PandaServerClient)
-Changed usage of 'region' to new env variable 'Nordugrid_pilot' in getDDMStorage(), getPoolFileCatalog(), getPoolFileCatalogDQ2(),
-getFileInfoFromMetadata() (Mover)
-Changed usage of 'region' to new env variable 'Nordugrid_pilot' in handleQueuedata() (pUtil)
-Setting new env variable 'Nordugrid_pilot' also in argParser() since it will be needed before the experiment object is created (pilot)
-Added "adler32" to if statement in getRemoteFileChecksumFromOutput() (xrdcpSiteMover)
-Created convert() function, converting unicode strings and collections (lists, dictionaries, etc) to utf-8 (pUtil)
-Created openFile() and getJSONDictionary() (FileHandling)
-Created getMemoryUtilityCommand(), used by __main__() (RunJob)
-Now querying shouldExecuteMemoryMonitor() before running findVmPeaks() in interpretPayloadStdout() (ATLASExperiment)
-Created shouldExecuteMemoryMonitor(), getMemoryMonitorJSONFilename() (Experiment, ATLASExperiment)
-Importing and using getExperiment() in getJobMetrics() (PandaServerClient)
-Importing and using getJSONDictionary() in getJobMetrics() (PandaServerClient)
-getJobMetrics() is now adding memory monitor JSON dictionary to job metrics (PandaServerClient)
-Copying any JSON file from the jobs' workdir to the pilots' init dir in executePayload() (RunJob)
-Verifying that token is not None in getPreDestination(), requested by Tadashi Maeno (SiteMover)
-
-DQ2 API to Rucio API migration:
-- Replaced isTapeSite() function, now using the Rucio client to check whether the site is a tape site or not (SiteMover)
-- Created getFileInfoFromRucio() (SiteMover)
-- Fall back mechanism in getFileInfo() is now using getFileInfoFromRucio(), in case file size and checksum was not sent sent with the job description (Mover)
-
-Update info from Edward Karavakis:
-- Now avoiding copying the glexec sandbox dir itself in the __ship_queue_data() from the PilotHomeDir, affecting jobs at ANALY_BNL_GLEXEC (glexec_utils)
-- Loops through the files of the pilot dirs and chmods them so that they can be removed at the end of the glexec'ed payload
-- Created temporary glexec sandbox inside the working directory / usual scratch area instead of the location of the TMPDIR env variable
-- Properly removes the glexec sandbox directory at the end
-
-Change to AMSTaiwanExperiment:
-- Changed usage of 'region' to new env variable 'Nordugrid_pilot' in checkSpecialEnvVars(), getSwbase(), getRelease()
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-61b:
-
-Reverted to using the old ToA based isTapeSite() since the new Rucio based method caused too much load on the Rucio server (SiteMover)
-
-Update info from Edward Karavakis:
-- Patch for the permission problem/bug with ARC+HTCondor affecting RAL and RAPP
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-61c:
+62a:
 
 Sending gpfn (replica) and sitemover to isFAXAllowed() from mover_get_data() (Mover)
 Added surl and sitemover arguments to isFAXAllowed() (Mover)
@@ -151,6 +64,10 @@ DQ2 API to Rucio API migration:
 - Returning empty list in getFileCatalogHosts() since it is no longer needed (ATLASExperiment, AMSTaiwanExperiment)
 - Now using c.declare_suspicious_file_replicas instead of dq2.declareSuspiciousFiles in reportFileCorruption() to declare corrupt file (SiteMover)
 - Removed functions no longer needed: bulkRegisterFiles, registerFileInCatalog (SiteMover)
+- Removed call to file registration from mover_put_data() (Mover)
+- Removed unnecessary argument lfcreg from mover_put_data() (Mover)
+- Removed unnecessary argument lfcreg in calls to mover_put_data() (JobLog, pilot)
+- Pilot option -B lfcRegistration now unused (kept support for -B but it is ignored if set), in argParser() (pilot)
 
 Update info from Edward Karavakis:
 - Patch 2+3 for the permission problem/bug with ARC+HTCondor affecting RAL and RALPP

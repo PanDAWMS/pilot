@@ -2645,7 +2645,6 @@ def mover_put_data(outputpoolfcstring,
                    DN=None,
                    outputFileInfo=None,
                    dispatchDBlockTokenForOut=None,
-                   lfcreg=True,
                    jobCloud="",
                    logFile="",
                    cmtconfig="",
@@ -2938,21 +2937,13 @@ def mover_put_data(outputpoolfcstring,
             # should the file be registered in a file catalog?
             _copytool = readpar("copytool")
             _lfcregister = readpar('lfcregister')
-            if (region == "US" or (region == "CERN" and _copytool == "xrdcp")) \
-                   and _lfcregister == "" and _copytool != 'lcg-cp' and _copytool != 'lcgcp' and _copytool != "mv" and lfcreg:
+            if _lfcregister == "":
                 # update the current file state since the transfer was ok
                 updateFileState(filename, workDir, jobId, mode="file_state", state="transferred")
                 dumpFileStates(workDir, jobId)
 
-                # perform file registration for the current file
-                ec, pilotErrorDiag = sitemover.registerFileInCatalog(thisExperiment.getFileCatalog(), analysisJob, ddm_storage, scope, dsname, lfn, r_gpfn, guid, r_fchecksum, r_fsize)
-                if ec != 0:
-                    return ec, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
-                else:
-                    # update the current file state
-                    updateFileState(filename, workDir, jobId, mode="reg_state", state="registered")
-                    dumpFileStates(workDir, jobId)
-                    tolog("File catalog registration finished")
+                # Removed capability of pilot file registration (May 13, 2015, v 62a)
+                tolog("!!WARNING!!2323!! File catalog registration not possible by pilot - should be done by server")
             else:
                 # update the current file states
                 updateFileState(filename, workDir, jobId, mode="file_state", state="transferred")

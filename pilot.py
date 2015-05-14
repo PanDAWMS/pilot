@@ -40,7 +40,7 @@ globalSite = None
 
 def usage():
     """
-    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -q <dq2url> -u <user> -m <outputdir> -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel> -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag> -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry> -B <lfcRegistration> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime> -H <cache> -I <schedconfigURL>
+    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -q <dq2url> -u <user> -m <outputdir> -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel> -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag> -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry> -B <unused> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime> -H <cache> -I <schedconfigURL>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -71,7 +71,7 @@ def usage():
                <countrygroup> Country group selector for getJob request
                <workinggroup> Working group selector for getJob request
                <allowOtherCountry> True/False
-               <lfcRegistration> True[False]: pilot will [not] perform LFC registration (default: True)
+               <unused> (used to be 'lfcRegistration')
                <timefloor> Time limit for multi-jobs in minutes
                <useCoPilot> Expect CERNVM pilot to be executed by Co-Pilot (True: on, False: pilot will finish job (default))
                <experiment> Current experiment (default: ATLAS)
@@ -275,10 +275,7 @@ def argParser(argv):
                 env['allowOtherCountry'] = False
         
         elif o == "-B":
-            if a.upper() == "FALSE":
-                env['lfcRegistration'] = False
-            else:
-                env['lfcRegistration'] = True
+            pass
         
         elif o == "-C":
             try:
@@ -445,7 +442,7 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
                                                           datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,
                                                           jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,
                                                           dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, 
-                                                          lfcreg=env['lfcRegistration'], jobCloud=job.cloud, logFile=job.logFile, 
+                                                          jobCloud=job.cloud, logFile=job.logFile, 
                                                           stageoutTries=env['stageoutretry'], experiment=experiment, 
                                                           cmtconfig=cmtconfig, recoveryWorkDir=thisSite.workdir, 
                                                           fileDestinationSE=job.fileDestinationSE)
