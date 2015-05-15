@@ -377,6 +377,7 @@ class GlexecInterface(object):
         os.chdir(self.__actual_workdir)
         env = Configuration.Configuration()
         env['workdir'] = self.__actual_workdir
+	env['thisSite'].workdir = self.__actual_workdir
 
 	if json is None:
 	    raise RuntimeError('json is not available')
