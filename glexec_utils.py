@@ -292,7 +292,7 @@ class GlexecInterface(object):
         Configuration.Configuration()['SandBoxPath'] = self.sandbox_path
         configuration_path = os.path.join(self.sandbox_path, file_name)
         CustomEncoder.ConfigurationSerializer.serialize_file(Configuration.Configuration(), configuration_path)
-        os.chmod(configuration_path, 0644)
+        os.chmod(configuration_path, 0777)
 	pUtil.tolog('dumped config file at %s' %configuration_path)
 
     def __ship_queue_data(self):
