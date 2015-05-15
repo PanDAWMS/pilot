@@ -79,6 +79,8 @@ Update info from Edward Karavakis:
 
 Update info from Wen Guan:
 - Now using a reg exp instead of string comparison in matchCopyprefixReplica() to fix a problem with copyprefix pattern matching seen at BNL_EC2E1_MCORE (Mover)
+- Mode set to 33188 for secret key metadata (S3ObjectstoreSiteMover)
+- Sending 's3objectstore' instead of 'gfal-copy' to tracing report (S3ObjectstoreSiteMover)
 
 Changed in AMSTaiwanSiteInformation:
 - Importing getExtension() from FileHandling instead of from pUtil
