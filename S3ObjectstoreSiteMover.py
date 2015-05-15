@@ -279,7 +279,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         prodDBlockToken = pdict.get('access', '')
 
         # get the DQ2 tracing report
-        report = self.getStubTracingReport(pdict['report'], 'gfal-copy', lfn, guid)
+        report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
 
         if path == '': path = './'
         fullname = os.path.join(path, lfn)
@@ -329,7 +329,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             analysisJob = False
 
         # get the DQ2 tracing report
-        report = self.getStubTracingReport(pdict['report'], 'gfal-copy', lfn, guid)
+        report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
 
 
         filename = os.path.basename(source)
@@ -392,6 +392,7 @@ class S3ObjctStore:
         if create:
             bucket = self.__conn.create_bucket(bucket_name)
             key = Key(bucket, key_name)
+            key.set_metadata('mode',33188)
         else:
             bucket = self.__conn.get_bucket(bucket_name)
             key = bucket.get_key(key_name)
