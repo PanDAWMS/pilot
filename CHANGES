@@ -74,8 +74,7 @@ DQ2 API to Rucio API migration:
 - Removed usages of lfcRegistration and lfcreg (Experiment, pilot, JobRecovery, RunJob, pUtil, environment)
 
 Update info from Edward Karavakis:
-- Patch 2+3 for the permission problem/bug with ARC+HTCondor affecting RAL and RALPP
-- Patch 4+5+6 for the permission problem/bug with ARC+HTCondor affecting RAL and RALPP
+- Patches 2-7 for the permission problem/bug with ARC+HTCondor affecting RAL and RALPP
 
 Update info from Wen Guan:
 - Now using a reg exp instead of string comparison in matchCopyprefixReplica() to fix a problem with copyprefix pattern matching seen at BNL_EC2E1_MCORE (Mover)

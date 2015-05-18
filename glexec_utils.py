@@ -378,6 +378,7 @@ class GlexecInterface(object):
         env = Configuration.Configuration()
         env['workdir'] = self.__actual_workdir
 	env['thisSite'].workdir = self.__actual_workdir
+	env['PilotHomeDir'] = self.__actual_workdir
 
 	if json is None:
 	    raise RuntimeError('json is not available')
@@ -387,7 +388,12 @@ class GlexecInterface(object):
             CustomEncoder.ConfigurationSerializer.deserialize_file(configuration_path)
 
 	except:
-            pUtil.tolog('Failed to reload previous configuration.')
+            pUtil.tolog('Failed to reload previous configuration. Will manually correct the variables')
+            Configuration.Configuration()['inputDir'] = self.__actual_workdir
+            Configuration.Configuration()['outputDir'] = self.__actual_workdir
+            Configuration.Configuration()['pilot_initdir'] = self.__actual_workdir
+	    Configuration.Configuration()['thisSite'].wntmpdir = self.__actual_workdir
+            Configuration.Configuration()['workdir'] = self.__actual_workdir
 
 	pUtil.tolog('glexec client cert is %s ' % os.environ['GLEXEC_CLIENT_CERT'])
         pUtil.tolog('glexec source proxy is %s ' % os.environ['GLEXEC_SOURCE_PROXY'])
