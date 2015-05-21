@@ -134,7 +134,7 @@ class EventService(object):
         tolog("Creating %s" % (pfc_name))
 
         # get the PFC from the proper source
-        ec, pilotErrorDiag, _xml_from_PFC, _xml_source, replicas_dic = \
+        ec, pilotErrorDiag, _xml_from_PFC, _xml_source, replicas_dic, surl_filetype_dictionary = \
             getPoolFileCatalog(lfchost, ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
                                    DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                    sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)

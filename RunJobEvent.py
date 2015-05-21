@@ -1553,7 +1553,7 @@ class RunJobEvent(RunJob):
         else:
             # In this case the input file is an EVT file
             # Define the options
-            options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=\"'
+            options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=XXXXXXXXXXXX\"'
 
         # Define the command
         cmd = "%s TokenExtractor %s" % (setup, options)
@@ -1650,7 +1650,7 @@ class RunJobEvent(RunJob):
             lfnList = self.__lfn_list
 
         # Create the PFC
-        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic = mover.getPoolFileCatalog("", inFilesGuids, lfnList, self.__pilot_initdir,\
+        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary = mover.getPoolFileCatalog("", inFilesGuids, lfnList, self.__pilot_initdir,\
                                                                                                   self.__analysisJob, tokens, workdir, dbh,\
                                                                                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                                                                                   sitemover, thisExperiment=thisExperiment,\

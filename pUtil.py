@@ -89,10 +89,10 @@ def appendToLog(txt):
         f.write(txt)
         f.close()
     except Exception, e:
-        if "No such file" in str(e):
+        if "No such file" in e:
             pass
         else:
-            print "WARNING: Exception caught: %s" % str(e)
+            print "WARNING: Exception caught: %s" % e
 
 def tolog(msg, tofile=True):
     """ write date+msg to pilot log and to stdout """
@@ -271,7 +271,7 @@ def preprocessMetadata(filename):
     try:
         f = open(filename, "r")
     except Exception, e:
-        tolog("!!WARNING!!2999!! Could not open file: %s (%s)" % (filename, str(e)))
+        tolog("!!WARNING!!2999!! Could not open file: %s (%s)" % (filename, e))
         status = False
     else:
         lines = f.readlines()
@@ -287,13 +287,13 @@ def preprocessMetadata(filename):
         try:
             os.remove(filename)
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not remove file: %s (%s)" % (filename, str(e)))
+            tolog("!!WARNING!!2999!! Could not remove file: %s (%s)" % (filename, e))
             status = False
         else:
             try:
                 f = open(filename, "w")
             except Exception, e:
-                tolog("!!WARNING!!2999!! Could not recreate file: %s (%s)" % (filename, str(e)))
+                tolog("!!WARNING!!2999!! Could not recreate file: %s (%s)" % (filename, e))
                 status = False
             else:
                 f.writelines(new_lines)
@@ -313,7 +313,7 @@ def prepareMetadata(metadata_filename):
         try:
             shutil.copy2(metadata_filename, metadata_filename_BAK)
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not copy metadata: %s" % str(e))
+            tolog("!!WARNING!!2999!! Could not copy metadata: %s" % (e))
         else:
             metadata_filename = metadata_filename_BAK
             tolog("Created file: %s" % (metadata_filename))
@@ -322,7 +322,7 @@ def prepareMetadata(metadata_filename):
         try:
             status = preprocessMetadata(metadata_filename)
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not preprocess metadata: %s" % str(e))
+            tolog("!!WARNING!!2999!! Could not preprocess metadata: %s" % (e))
             metadata_filename = metadata_filename_ORG
         else:
             if status:
@@ -522,14 +522,14 @@ def stageInPyModules(initdir, workdir):
                 try:
                     shutil.copy2("%s/%s" % (initdir, k), workdir)
                 except Exception, e:
-                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy file %s/%s to %s: %s" % (initdir, k, workdir, str(e)))
+                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy file %s/%s to %s: %s" % (initdir, k, workdir, e))
                     status = False
                     break
             elif os.path.isdir("%s/%s" % (initdir, k)):
                 try:
                     shutil.copytree("%s/%s" % (initdir, k), "%s/%s" % (workdir,k))
                 except Exception, e:
-                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy directory %s/%s to %s: %s" % (initdir, k, workdir, str(e)))
+                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy directory %s/%s to %s: %s" % (initdir, k, workdir, e))
                     status = False
                     break
             else:
@@ -629,7 +629,7 @@ def getJobStatus(jobId, pshttpurl, psport, path):
                     attemptNr = int(response['attemptNr'])   # e.g. '0'
                     StatusCode = int(response['StatusCode']) # e.g. '0'
                 except Exception, e:
-                    tolog("!!WARNING!!2997!! Exception: Dispatcher did not return allowed values: %s, %s" % (str(ret), str(e)))
+                    tolog("!!WARNING!!2997!! Exception: Dispatcher did not return allowed values: %s, %s" % (str(ret), e))
                     status = "unknown"
                     attemptNr = -1
                     StatusCode = 20
@@ -639,7 +639,7 @@ def getJobStatus(jobId, pshttpurl, psport, path):
                 attemptNr = -1
                 StatusCode = 20
         except Exception,e:
-            tolog("Could not interpret job status from dispatcher: %s, %s" % (response, str(e)))
+            tolog("Could not interpret job status from dispatcher: %s, %s" % (response, e))
             status = 'unknown'
             attemptNr = -1
             StatusCode = -1
@@ -671,7 +671,7 @@ def getExitCode(path, filename):
     try:
         os.system("tail %s/%s >%s/%s" % (path, filename, path, tmp_file_name))
     except Exception, e:
-        tolog("Job Recovery could not create tmp file %s: %s" % (tmp_file_name, str(e)))
+        tolog("Job Recovery could not create tmp file %s: %s" % (tmp_file_name, e))
     else:
         # open the tmp file and look for the pilot exit info
         try:
@@ -682,7 +682,7 @@ def getExitCode(path, filename):
             try:
                 all_lines = tmp_file.readlines()
             except Exception, e:
-                tolog("Job Recovery could not read tmp file %s: %s" % (tmp_file_name, str(e)))
+                tolog("Job Recovery could not read tmp file %s: %s" % (tmp_file_name, e))
 
             tmp_file.close()
 
@@ -753,7 +753,7 @@ def getCPUmodel():
     try:
         f = open('/proc/cpuinfo', 'r')
     except Exception, e:
-        tolog("Could not open /proc/cpuinfo: %s" % str(e))
+        tolog("Could not open /proc/cpuinfo: %s" % e)
     else:
         re_model = re.compile('^model name\s+:\s+(\w.+)')
         re_cache = re.compile('^cache size\s+:\s+(\d+ KB)')
@@ -958,7 +958,7 @@ def updateMetadata(fname, fsize, checksum, format=None, fsizeXML=None, checksumX
     try:
         f = open(fname, 'r')
     except Exception, e:
-        tolog("Failed to open metadata file: %s" % str(e))
+        tolog("Failed to open metadata file: %s" % e)
         ec = -1
     else:
         if format == 'NG':
@@ -1050,7 +1050,7 @@ def updateMetadata(fname, fsize, checksum, format=None, fsizeXML=None, checksumX
             f.write(lines)
             f.close()
         except Exception, e:
-            tolog("Failed to write new metadata for log: %s" % str(e))
+            tolog("Failed to write new metadata for log: %s" % e)
             ec = -1
 
     return ec, lines
@@ -1166,13 +1166,13 @@ def replace(filename, stext, rtext):
     try:
         _input = open(filename, "r")
     except Exception, e:
-        tolog("!!WARNING!!4000!! Open failed with %s" % str(e))
+        tolog("!!WARNING!!4000!! Open failed with %s" % e)
         status = False
     else:
         try:
             output = open(filename + "_tmp", "w")
         except Exception, e:
-            tolog("!!WARNING!!4000!! Open failed with %s" % str(e))
+            tolog("!!WARNING!!4000!! Open failed with %s" % e)
             status = False
             _input.close()
         else:
@@ -1183,7 +1183,7 @@ def replace(filename, stext, rtext):
             try:
                 os.rename(filename + "_tmp", filename)
             except Exception, e:
-                tolog("!!WARNING!!4000!! Rename failed with %s" % str(e))
+                tolog("!!WARNING!!4000!! Rename failed with %s" % e)
                 status = False
             output.close()
 
@@ -1301,7 +1301,7 @@ def getErrors(filename):
         lines = f.readlines()
         f.close()
     except Exception, e:
-        tolog("!!WARNING!!4000!! could not open/read file: %s" % str(e))
+        tolog("!!WARNING!!4000!! could not open/read file: %s" % e)
     else:
         p = r"!!(\S+)!!\d+!!"
         pattern = re.compile(p)
@@ -1440,7 +1440,7 @@ def lateRegistration(ub, job, type="unknown"):
             tolog("!!WARNING!!4000!! Skipping late registration step")
             pass
     except Exception, e:
-        tolog("!!WARNING!!4000!! Late registration has come upon an old jobState file - can not perform this step: %s" % str(e))
+        tolog("!!WARNING!!4000!! Late registration has come upon an old jobState file - can not perform this step: %s" % e)
         pass
     else:
         tolog("latereg: %s" % str(latereg))
@@ -1478,10 +1478,10 @@ def timedCommand(cmd, timeout=300):
     try:
         exitcode, telapsed, cout, cerr = timed_command(cmd, timeout)
     except Exception, e:
-        pilotErrorDiag = 'timed_command() threw an exception: %s' % str(e)
+        pilotErrorDiag = 'timed_command() threw an exception: %s' % e
         tolog("!!WARNING!!2220!! %s" % pilotErrorDiag)            
         exitcode = 1
-        output = str(e)
+        output = e
         t1 = os.times()
         telapsed = int(round(t1[4] - t0[4]))
     else:
@@ -1561,7 +1561,7 @@ def touch(filename):
         try:
             os.system("touch %s" % (filename))
         except Exception, e:
-            tolog("!!WARNING!!1000!! Failed to touch file: %s" % str(e))
+            tolog("!!WARNING!!1000!! Failed to touch file: %s" % e)
         else:
             tolog("Lock file created: %s" % (filename))
 
@@ -1678,7 +1678,7 @@ def readCodeFromFile(filename):
         try:
             f = open(filename, "r")
         except Exception, e:
-            tolog("Failed to open %s: %s" % (filename, str(e)))
+            tolog("Failed to open %s: %s" % (filename, e))
         else:
             ec = int(f.read())
             tolog("Found code %d in file %s" % (ec, filename))
@@ -1695,7 +1695,7 @@ def readStringFromFile(filename):
         try:
             f = open(filename, "r")
         except Exception, e:
-            tolog("Failed to open %s: %s" % (filename, str(e)))
+            tolog("Failed to open %s: %s" % (filename, e))
         else:
             s = f.read()
             tolog("Found string %s in file %s" % (s, filename))
@@ -1711,7 +1711,7 @@ def verifyQueuedata(queuename, filename, _i, _N, url):
     try:
         f = open(filename, "r")
     except Exception, e:
-        tolog("!!WARNING!!1999!! Open failed with %s" % str(e))
+        tolog("!!WARNING!!1999!! Open failed with %s" % e)
     else:
         output = f.read()
         f.close()
@@ -1727,7 +1727,7 @@ def verifyQueuedata(queuename, filename, _i, _N, url):
             try:
                 os.remove(filename)
             except Exception, e:
-                tolog("!!WARNING!!1999!! Failed to remove file %s: %s" % (filename, str(e)))
+                tolog("!!WARNING!!1999!! Failed to remove file %s: %s" % (filename, e))
         else:
             # found valid queuedata info, break the for-loop
             tolog("schedconfigDB returned: %s" % (output))
@@ -1790,7 +1790,7 @@ def addToSkipped(lfn, guid):
         # append to skipped.xml file
         fd = open("skipped.xml", "a")
     except Exception, e:
-        tolog("!!WARNING!!2999!! Exception caught: %s" % str(e))
+        tolog("!!WARNING!!2999!! Exception caught: %s" % e)
         ec = -1
     else:
         fd.write('  <File ID="%s">\n' % (guid))
@@ -1808,7 +1808,7 @@ def addSkippedToPFC(fname, skippedfname):
     try:
         fd = open(skippedfname, "r")
     except Exception, e:
-        tolog("!!WARNING!!2999!! %s" % str(e))
+        tolog("!!WARNING!!2999!! %s" % e)
         ec = -1
     else:
         skippedXML = fd.read()
@@ -1816,7 +1816,7 @@ def addSkippedToPFC(fname, skippedfname):
         try:
             fdPFC = open(fname, "r")
         except Exception, e:
-            tolog("!!WARNING!!2999!! %s" % str(e))
+            tolog("!!WARNING!!2999!! %s" % e)
             ec = -1
         else:
             PFCXML = fdPFC.read()
@@ -1831,13 +1831,13 @@ def addSkippedToPFC(fname, skippedfname):
         try:
             os.system("mv %s %s.BAK2" % (fname, fname))
         except Exception, e:
-            tolog("!!WARNING!!2999!! %s" % str(e))
+            tolog("!!WARNING!!2999!! %s" % e)
             ec = -1
         else:
             try:
                 fdNEW = open(fname, "w")
             except Exception, e:
-                tolog("!!WARNING!!2999!! %s" % str(e))
+                tolog("!!WARNING!!2999!! %s" % e)
                 ec = -1
             else:
                 fdNEW.write(PFCXML)
@@ -1910,7 +1910,7 @@ class _Curl:
             tmpFile.write(strData)
             tmpFile.close()
         except IOError, e:
-            tolog("!!WARNING!!2999!! %s" % str(e))
+            tolog("!!WARNING!!2999!! %s" % e)
         if os.path.exists(tmpName):
             com += ' --config %s' % tmpName
         else:
@@ -1956,7 +1956,7 @@ class _Curl:
             tmpFile.write(strData)
             tmpFile.close()
         except IOError, e:
-            tolog("!!WARNING!!2999!! %s" % str(e))
+            tolog("!!WARNING!!2999!! %s" % e)
         if os.path.exists(tmpName):
             com += ' --config %s' % tmpName
         else:
@@ -2160,19 +2160,19 @@ def getPilotToken(tofile=False):
         try:
             f = open(filename, "r")
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not open pilot token file: %s" % str(e), tofile=tofile)
+            tolog("!!WARNING!!2999!! Could not open pilot token file: %s" % e, tofile=tofile)
         else:
             try:
                 pilottoken = f.read()
             except Exception, e:
-                tolog("!!WARNING!!2999!! Could not read pilot token: %s" % str(e), tofile=tofile)
+                tolog("!!WARNING!!2999!! Could not read pilot token: %s" % e, tofile=tofile)
             else:
                 f.close()
                 tolog("Successfully read pilot token", tofile=tofile)
                 try:
                     os.remove(filename)
                 except Exception, e:
-                    tolog("!!WARNING!!2999!! Could not remove pilot token file: %s" % str(e), tofile=tofile)
+                    tolog("!!WARNING!!2999!! Could not remove pilot token file: %s" % e, tofile=tofile)
                 else:
                     tolog("Pilot token file has been removed", tofile=tofile)
 
@@ -2404,7 +2404,7 @@ def grep(patterns, file_name):
     try:
         f = open(file_name, "r")
     except IOError, e:
-        tolog("!!WARNING!!2999!! %s" % str(e))
+        tolog("!!WARNING!!2999!! %s" % e)
     else:
         while True:
             # get the next line in the file
@@ -2428,7 +2428,7 @@ def getJobReport(filename):
         try:
             f = open(filename, "r")
         except IOError, e:
-            tolog("!!WARNING!!1299!! %s" % str(e))
+            tolog("!!WARNING!!1299!! %s" % e)
         else:
             matched_lines = []
             status = True
@@ -2477,7 +2477,7 @@ def tail(filename, number_of_lines):
             # U is to open it with Universal newline support
             f = open(filename, "rU")
         except IOError, e:
-            tolog("!!WARNING!!1299!! %s" % str(e))
+            tolog("!!WARNING!!1299!! %s" % e)
         else:
             read_size = 1024
             offset = read_size
@@ -2507,7 +2507,7 @@ def tail(filename, number_of_lines):
                             break
                     except Exception, e:
                         # the following message will be visible in the log extracts
-                        report = "!!WARNING!!1299!! tail command caught an exception when reading payload stdout: %s" % str(e)
+                        report = "!!WARNING!!1299!! tail command caught an exception when reading payload stdout: %s" % e
                         tolog(report)
                         break
 
@@ -2596,7 +2596,7 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
             try:
                 datasetDict = dict(zip(outputFiles, destinationDblock))
             except Exception, e:
-                tolog("!!WARNING!!2999!! Exception caught in getDatasetDict(): %s" % str(e))
+                tolog("!!WARNING!!2999!! Exception caught in getDatasetDict(): %s" % e)
                 datasetDict = None
             else:
                 # add the log file info
@@ -2640,7 +2640,7 @@ def tailPilotErrorDiag(pilotErrorDiag, size=256):
     try:
         return pilotErrorDiag[-size:]
     except Exception, e:
-        tolog("Warning: tailPilotErrorDiag caught exception: %s" % str(e))
+        tolog("Warning: tailPilotErrorDiag caught exception: %s" % e)
         return pilotErrorDiag
 
 def getMaxInputSize(MB=False):
@@ -2656,7 +2656,7 @@ def getMaxInputSize(MB=False):
             else: # convert to B int
                 _maxinputsize = int(_maxinputsize)*1024*1024 # MB -> B
         except Exception, e:
-            tolog("!!WARNING!!2999!! schedconfig.maxinputsize: %s" % str(e))
+            tolog("!!WARNING!!2999!! schedconfig.maxinputsize: %s" % e)
             if MB:
                 _maxinputsize = MAX_INPUT_FILESIZES_MB
             else:
@@ -2994,7 +2994,7 @@ def getMetadata(workdir, jobId, athena=False, altpath=""):
         try:
             f = open(fname)
         except Exception, e:
-            tolog("!!WARNING!!1000!! Can not open the file %s, %s" % (fname, str(e)))
+            tolog("!!WARNING!!1000!! Can not open the file %s, %s" % (fname, e))
         else:
             strXML = ""
             for line in f:
@@ -3616,7 +3616,7 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
             try:
                 rc, rs = commands.getstatusoutput("rm -rf %s" % (workdir))
             except Exception, e:
-                print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, str(e))
+                print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, e)
             else:
                 if rc == 0:
                     print "Removed site workdir: %s" % (workdir)
@@ -3631,7 +3631,7 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
                         try:
                             rc, rs = commands.getstatusoutput("rm -rf %s" % (workdir))
                         except Exception, e:
-                            print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, str(e))
+                            print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, e)
                         else:
                             if rc == 0:
                                 print "Removed site workdir: %s" % (workdir)
@@ -4098,7 +4098,7 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                 try:
                     os.system("chmod -R g+w %s" % (initdir))
                 except Exception, e:
-                    tolog("Failed to chmod pilot init dir: %s" % str(e))
+                    tolog("Failed to chmod pilot init dir: %s" % e)
                     pass
                 else:
                     tolog("Successfully changed permission on pilot init dir (for later pilots that may be run by different users)")
@@ -4112,7 +4112,7 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                     chdir(initdir)
                     os.system("rm -rf %s" % (wkdir))
                 except Exception, e:
-                    tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+                    tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % e)
             else:
                 if lockfile:
                     # check if the workdir+job state file should be moved to an external directory
@@ -4134,11 +4134,11 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                                         chdir("/")
                                         os.system("rm -rf %s" % (wkdir))
                                     except Exception, e:
-                                        tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+                                        tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % e)
                                 try:
                                     os.system("chmod -R g+w %s" % (recoveryDir))
                                 except Exception, e:
-                                    tolog("Failed to chmod recovery dir: %s" % str(e))
+                                    tolog("Failed to chmod recovery dir: %s" % e)
                                     pass
                                 else:
                                     tolog("Successfully changed permission on external recovery dir (for later pilots that may be run by different users)")
@@ -4157,7 +4157,7 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                 chdir("/")
                 os.system("rm -rf %s" % (wkdir))
             except Exception,e:
-                tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+                tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % e)
         else:
             tolog("Work dir already deleted by multi-job loop: %s" % (wkdir))
 

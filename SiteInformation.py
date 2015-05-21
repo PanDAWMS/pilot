@@ -489,7 +489,7 @@ class SiteInformation(object):
             jobParameters = jobParameters.replace(" --disableFAX", "")
 
             # update queuedata if necessary
-            if readpar("allowfax").lower() == "true":
+            if self.readpar("allowfax").lower() == "true":
                 field = "allowfax"
                 ec = self.replaceQueuedataField(field, "False")
                 tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
@@ -788,10 +788,10 @@ class SiteInformation(object):
         """Get the setup string from queuedata"""
         copysetup = ""
         if stageIn:
-            copysetup = readpar('copysetupin')
+            copysetup = self.readpar('copysetupin')
 
         if copysetup == "":
-            copysetup = readpar('copysetup')
+            copysetup = self.readpar('copysetup')
             tolog("Using copysetup = %s" % (copysetup))
         else:
             tolog("Using copysetupin = %s" % (copysetup))
@@ -826,11 +826,11 @@ class SiteInformation(object):
 
         copytoolname = ''
         if stageIn:
-            copytoolname = readpar('copytoolin')
+            copytoolname = self.readpar('copytoolin')
 
         if copytoolname == "":
             # not set, use same copytool for stage-in as for stage-out
-            copytoolname = readpar('copytool')
+            copytoolname = self.readpar('copytool')
 
         if copytoolname.find('^') > -1:
             copytoolname, pstage = copytoolname.split('^')
@@ -847,10 +847,10 @@ class SiteInformation(object):
         """Get Copy Prefix"""
         copyprefix = ""
         if stageIn:
-            copyprefix = readpar('copyprefixin')
+            copyprefix = self.readpar('copyprefixin')
 
         if copyprefix == "":
-            copyprefix = readpar('copyprefix')
+            copyprefix = self.readpar('copyprefix')
             tolog("Using copyprefix = %s" % (copyprefix))
         else:
             tolog("Using copyprefixin = %s" % (copyprefix))
@@ -976,10 +976,10 @@ class SiteInformation(object):
             # remove all input root files for analysis job for xrootd sites
             # (they will be read by pAthena directly from xrootd)
             # create the direct access dictionary
-            dInfo = getDirectAccessDic(readpar('copysetupin'))
+            dInfo = getDirectAccessDic(self.readpar('copysetupin'))
         # if copysetupin did not contain direct access info, try the copysetup instead
         if not dInfo:
-            dInfo = getDirectAccessDic(readpar('copysetup'))
+            dInfo = getDirectAccessDic(self.readpar('copysetup'))
 
         # check if we should use the copytool
         if dInfo:
@@ -1077,6 +1077,84 @@ class SiteInformation(object):
         self.__securityKeys[keyName] = {"publicKey": publicKey, "privateKey": privateKey}
 
         return {"publicKey": publicKey, "privateKey": privateKey}
+
+    def getObjectstoresList(self, queuename):
+        """ Get the objectstores list from the proper queuedata for the relevant queue """
+        # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
+
+        objectstores = []
+
+        # First try to get the objectstores field from the normal queuedata
+        try:
+            _objectstores = self.readpar('objectstores')
+        except:
+            tolog("Field \'objectstores\' not yet available in queuedata")
+            _objectstores = None
+        else:
+            objectstores = _objectstores
+
+        # 
+        if _objectstores:
+            pass
+        else:
+            filename = "q.json"
+            gotFile = False
+            # Has the file been downloaded already?
+            if os.path.exists(filename):
+                tolog("File exists: %s" % (filename))
+                gotFile = True
+            else:
+                from shutil import copy2
+                try:
+                    copy2('/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json', filename)
+                except Exception, e:
+                    tolog("!!WARNING!!2999!! Could not copy JSON file: %s" % (e))
+                else:
+                    gotFile = True
+            if gotFile:
+                # Load the dictionary
+                dictionary = readJSON(filename)
+                if dictionary != {}:
+                    # Get the entry for queuename
+                    try:
+                        _d = dictionary[queuename]
+                    except Exception, e:
+                        tolog("No entry for queue %s in JSON: %s" % (queuename, e))
+                    else:
+                        # Read the objectstores field
+                        try:
+                            _objectstores = _d['objectstores']
+                        except Exception, e:
+                            tolog("!!WARNING!!2112!! %s" % (e))
+                        else:
+                            objectstores = _objectstores
+                else:
+                    tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
+            else:
+                tolog("!!WARNING!!2121!! Failed to download schedconfig JSON")
+
+        return objectstores
+
+    def getObjectstoresField(self, field, mode, queuename):
+        """ Return the objectorestores field from the objectstores list for the relevant mode """
+        # mode: eventservice, logs, http
+
+        value = None
+
+        # Get the objectstores list
+        objectstores_list = self.getObjectstoresList(queuename)
+
+        if objectstores_list:
+            for d in objectstores_list:
+                try:
+                    os_bucket_name = d['os_bucket_name']
+                    if os_bucket_name == mode:
+                        value = d[field]
+                except Exception, e:
+                    tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
+                else:
+                    break
+        return value
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation
