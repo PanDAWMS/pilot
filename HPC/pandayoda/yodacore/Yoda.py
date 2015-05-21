@@ -110,6 +110,22 @@ class Yoda:
             return False,errMsg
         
 
+    # inject more events
+    def injectEvents(self):
+        try:
+            # scan new event ranges json files
+            all_files = os.listdir(self.globalWorkingDir)
+            for file in all_files:
+                if file != 'EventRanges.json' and file.endswith("EventRanges.json"):
+                    tmpFile = open(os.path.join(self.globalWorkingDir, file))
+                    eventRangeList = json.load(tmpFile)
+                    tmpFile.close()
+                    self.insertEventRanges(eventRangeList)
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errMsg = 'failed to inject more event range to table with {0}:{1}'.format(errtype.__name__,errvalue)
+            return False,errMsg
+
 
     # get job
     def getJob(self,params):
@@ -219,6 +235,7 @@ class Yoda:
             sys.exit(1)
         # main loop
         while self.comm.activeRanks():
+            self.injectEvents()
             # get request
             tmpStat,method,params = self.comm.receiveRequest()
             self.tmpLog.debug("received request: (rank: %s, status: %s, method: %s, params: %s)" %(self.comm.getRequesterRank(),tmpStat,method,params))

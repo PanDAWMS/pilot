@@ -341,6 +341,7 @@ class RunJobHpcEvent(RunJob):
         # 4. getSetupCommand
         setupCommand = self.stripSetupCommand(self.__runCommandList[0], self.__job.trf)
         _cmd = re.search('(source.+\;)', setupCommand)
+        source_setup = None
         if _cmd:
             setup = _cmd.group(1)
             source_setup = setup.split(";")[0]
@@ -350,7 +351,38 @@ class RunJobHpcEvent(RunJob):
             #setupCommand = setupCommand.replace(source_setup, new_source_setup)
         tolog("setup command: " + setupCommand)
 
-        # 5. AthenaMP command
+        # 5. check if release-compact.tgz exists. If it exists, use it.
+        new_source_setup = None
+        if source_setup and '--cmtconfig' in source_setup:
+            try:
+                cmtconfig = source_setup.split('--cmtconfig')[1].strip().split(" ")[0].strip()
+                tolog("cmtconfig: %s" % cmtconfig)
+                source_setup_path = source_setup.replace('source ', '').strip().split(' ')[0]
+                source_setup_option = source_setup.split(source_setup_path)[1]
+                tolog("source_setup_path: %s" % source_setup_path)
+                release_path = os.path.join(source_setup_path.split(cmtconfig)[0], cmtconfig)
+                tolog("release_path: %s" % release_path)
+                release_version = source_setup_path.split(cmtconfig)[1].split('/')[1]
+                tolog("release_version: %s" % release_version)
+                compact_path = os.path.join(release_path, release_version + '-compact.tgz')
+                tolog("compact_path: %s" % compact_path)
+                if os.path.exists(compact_path):
+                    tolog("compact_path exists: %s" % compact_path)
+                    new_source_setup = 'mkdir /tmp/EventService; cd /tmp/EventService; cp ' + compact_path + ' ./; tar xzf ' + release_version + '-compact.tgz'
+                    new_source_setup += '; mkdir poolcond; cp ' + release_path + '/' + release_version + '/DBRelease/current/poolcond/*.xml poolcond/'
+                    new_source_setup += '; cd -'
+                    new_source_setup += '; source /tmp/EventService/' + release_version + '/setup-quick.sh ' + source_setup_option
+                    new_source_setup += '; export  DATAPATH=/tmp/EventService/poolcond:$DATAPATH'
+                    setupCommand = setupCommand.replace(source_setup, new_source_setup)
+                    tolog("new setup command: %s" % setupCommand)
+                else:
+                    tolog("compact_path does not exist: %s" % compact_path)
+            except Exception ,e:
+                tolog("Failed to convert setup to use compact version, exception: %s " % (str(e)))
+
+        # 6. AthenaMP command
+        if new_source_setup:
+            self.__runCommandList[0] = self.__runCommandList[0].replace(source_setup, new_source_setup)
         if not self.__copyInputFiles:
             jobInputFileList = None
             jobInputFileList = ','.join(inputFilesGlobal)
@@ -390,7 +422,7 @@ class RunJobHpcEvent(RunJob):
         self.__runCommandList[0] += " 1>athenaMP_stdout.txt 2>athenaMP_stderr.txt"
         self.__runCommandList[0] = self.__runCommandList[0].replace(";;", ";")
   
-        # 6. Token Extractor file list
+        # 7. Token Extractor file list
         # in the token extractor file list, the guid is the Event guid, not the tag guid.
         self.__tagFile = os.path.join(self.__job.workdir, "TokenExtractor_filelist")
         handle = open(self.__tagFile, 'w')
@@ -400,7 +432,7 @@ class RunJobHpcEvent(RunJob):
             handle.write(line)
         handle.close()
 
-        # 7. Token Extractor command
+        # 8. Token Extractor command
         setup = setupCommand
         self.__tokenExtractorCmd = setup + ";" + " TokenExtractor -v  --source " + self.__tagFile + " 1>tokenExtract_stdout.txt 2>tokenExtract_stderr.txt"
         self.__tokenExtractorCmd = self.__tokenExtractorCmd.replace(";;", ";")
