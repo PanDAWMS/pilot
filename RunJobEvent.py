@@ -1553,7 +1553,7 @@ class RunJobEvent(RunJob):
         else:
             # In this case the input file is an EVT file
             # Define the options
-            options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=XXXXXXXXXXXX\"'
+            options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=\"'
 
         # Define the command
         cmd = "%s TokenExtractor %s" % (setup, options)

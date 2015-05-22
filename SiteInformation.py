@@ -1093,10 +1093,9 @@ class SiteInformation(object):
         else:
             objectstores = _objectstores
 
-        # 
-        if _objectstores:
-            pass
-        else:
+        # Get the full info from AGIS
+        if not _objectstores:
+
             filename = "q.json"
             gotFile = False
             # Has the file been downloaded already?
@@ -1150,11 +1149,34 @@ class SiteInformation(object):
                     os_bucket_name = d['os_bucket_name']
                     if os_bucket_name == mode:
                         value = d[field]
+                        break
                 except Exception, e:
                     tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
-                else:
-                    break
+
         return value
+
+    def getObjectstorePath(self, mode, queuename):
+        """ Return the path to the objectstore """
+        # mode: https, eventservice, logs
+
+        # Read the endpoint info from the queuedata
+        os_endpoint = self.getObjectstoresField('os_endpoint', mode, queuename)
+        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, queuename)
+
+        if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
+            if not os_endpoint.endswith('/'):
+                os_endpoint += '/'
+            path = os_endpoint + os_bucket_endpoint
+        else:
+            path = ""
+
+        return path
+
+    def getObjectstoreName(self, mode, queuename):
+        """ Return the objectstore name identifier """
+        # E.g. CERN_OS_0
+
+        return self.getObjectstoresField('os_name', mode, queuename)
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

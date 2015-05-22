@@ -20,7 +20,7 @@ Moved readJSON and writeJSON from FAXSiteMover to FileHandling
 Created discoverAdditionalOutputFiles() (RunJob)
 Now using discoverAdditionalOutputFiles() in __main__() (RunJob)
 Corrected several readpar -> self.readpar (SiteInformation)
-Created getObjectstoresList() and getObjectstoresField() (SiteInformation)
+Created getObjectstoresList(), getObjectstoresField(), getObjectstorePath(), getObjectstoreName() (SiteInformation)
 Replaced all occurances of str(e) with e (pUtil)
 Now using local root setup in setup() (xrootdObjectstoreSiteMover)
 
