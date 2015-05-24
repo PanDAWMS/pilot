@@ -375,7 +375,7 @@ class RunJobHpcEvent(RunJob):
                     preSetup += '; cd -'
                     postRun = 'rm -fr /tmp/tsulaia'
                     new_source_setup = '; source /tmp/tsulaia/' + release_version + '/setup-quick.sh ' + source_setup_option
-                    new_source_setup += '; export  DATAPATH=/tmp/tsulaia/poolcond:$DATAPATH'
+                    new_source_setup += '; export  DATAPATH=/tmp/tsulaia:$DATAPATH'
                     new_source_setup += '; export  LD_LIBRARY_PATH=/scratch1/scratchdirs/tsulaia/sw/software/x86_64-slc6-gcc47-opt/19.2.1/patch/ldpatch/:$LD_LIBRARY_PATH'
                     newSetupCommand = setupCommand.replace(source_setup, new_source_setup)
                     tolog("new setup command: %s" % newSetupCommand)
