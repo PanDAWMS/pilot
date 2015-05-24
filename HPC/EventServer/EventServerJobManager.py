@@ -66,6 +66,21 @@ class EventServerJobManager():
         #signal.signal(signal.SIGSEGV, self.handler)
         signal.signal(signal.SIGINT, self.handler)
 
+    def preSetup(self, preSetup):
+        if preSetup:
+            self.__log.debug("Rank %s: PreSetup: %s" % (self.__rank, preSetup))
+            status, output = commands.getstatusoutput(preSetup)
+            self.__log.debug("Rank %s: PreSetup status: %s, output: %s" % (self.__rank, status, output))
+            return status, output
+        else:
+            return 0, None
+
+    def postRun(self, postRun):
+        if postRun:
+            self.__log.debug("Rank %s: postRun: %s" % (self.__rank, postRun))
+            status, output = commands.getstatusoutput(postRun)
+            self.__log.debug("Rank %s: postRun status: %s, output: %s" % (self.__rank, status, output))
+
     def initMessageThread(self, socketname='EventService_EventRanges', context='local'):
         self.__log.debug("Rank %s: initMessageThread: socketname: %s, context: %s" %(self.__rank, socketname, context))
         try:

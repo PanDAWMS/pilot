@@ -352,6 +352,8 @@ class RunJobHpcEvent(RunJob):
         tolog("setup command: " + setupCommand)
 
         # 5. check if release-compact.tgz exists. If it exists, use it.
+        preSetup = None
+        postRun = None
         new_source_setup = None
         if source_setup and '--cmtconfig' in source_setup:
             try:
@@ -368,13 +370,15 @@ class RunJobHpcEvent(RunJob):
                 tolog("compact_path: %s" % compact_path)
                 if os.path.exists(compact_path):
                     tolog("compact_path exists: %s" % compact_path)
-                    new_source_setup = 'mkdir /tmp/EventService; cd /tmp/EventService; cp ' + compact_path + ' ./; tar xzf ' + release_version + '-compact.tgz'
-                    new_source_setup += '; mkdir poolcond; cp ' + release_path + '/' + release_version + '/DBRelease/current/poolcond/*.xml poolcond/'
-                    new_source_setup += '; cd -'
-                    new_source_setup += '; source /tmp/EventService/' + release_version + '/setup-quick.sh ' + source_setup_option
-                    new_source_setup += '; export  DATAPATH=/tmp/EventService/poolcond:$DATAPATH'
-                    setupCommand = setupCommand.replace(source_setup, new_source_setup)
-                    tolog("new setup command: %s" % setupCommand)
+                    preSetup = 'rm -fr /tmp/tsulaia; mkdir /tmp/tsulaia; cd /tmp/tsulaia; cp ' + compact_path + ' ./; tar xzf ' + release_version + '-compact.tgz'
+                    preSetup += '; mkdir poolcond; cp ' + release_path + '/' + release_version + '/DBRelease/current/poolcond/*.xml poolcond/'
+                    preSetup += '; cd -'
+                    postRun = 'rm -fr /tmp/tsulaia'
+                    new_source_setup = '; source /tmp/tsulaia/' + release_version + '/setup-quick.sh ' + source_setup_option
+                    new_source_setup += '; export  DATAPATH=/tmp/tsulaia/poolcond:$DATAPATH'
+                    new_source_setup += '; export  LD_LIBRARY_PATH=/scratch1/scratchdirs/tsulaia/sw/software/x86_64-slc6-gcc47-opt/19.2.1/patch/ldpatch/:$LD_LIBRARY_PATH'
+                    newSetupCommand = setupCommand.replace(source_setup, new_source_setup)
+                    tolog("new setup command: %s" % newSetupCommand)
                 else:
                     tolog("compact_path does not exist: %s" % compact_path)
             except Exception ,e:
@@ -439,7 +443,7 @@ class RunJobHpcEvent(RunJob):
         # special case
         #self.__tokenExtractorCmd = "export LD_LIBRARY_PATH="+source_setup.split("cmtsite/asetup.sh")[0].strip().split(" ")[1]+"/patch/ldpatch/:$LD_LIBRARY_PATH; " + self.__tokenExtractorCmd
 
-        return 0, None, {"TokenExtractCmd": self.__tokenExtractorCmd, "AthenaMPCmd": self.__runCommandList[0]}
+        return 0, None, {"TokenExtractCmd": self.__tokenExtractorCmd, "AthenaMPCmd": self.__runCommandList[0], "PreSetup": preSetup, "PostRun": postRun}
 
     def getDatasets(self):
         """ Get the datasets for the output files """

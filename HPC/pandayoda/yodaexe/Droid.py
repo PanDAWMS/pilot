@@ -27,6 +27,8 @@ class Droid:
         self.__poolFileCatalog = None
         self.__inputFiles = None
         self.__copyInputFiles = None
+        self.__preSetup = None
+        self.__postRun = None
         signal.signal(signal.SIGTERM, self.stop)
 
     def initWorkingDir(self):
@@ -40,6 +42,9 @@ class Droid:
         self.__currentDir = wkdir
 
     def postExecJob(self):
+        if self.__postRun and self.__esJobManager:
+            self.__esJobManager.postRun(self.__postRun)
+
         if self.__copyInputFiles and self.__inputFiles is not None and self.__poolFileCatalog is not None:
             for inputFile in self.__inputFiles:
                 localInputFile = os.path.join(os.getcwd(), os.path.basename(inputFile))
@@ -58,6 +63,9 @@ class Droid:
             self.__poolFileCatalog = job.get('PoolFileCatalog', None)
             self.__inputFiles = job.get('InputFiles', None)
             self.__copyInputFiles = job.get('CopyInputFiles', False)
+            self.__preSetup = job.get('PreSetup', None)
+            self.__postRun = job.get('PostRun', None)
+
             if self.__copyInputFiles and self.__inputFiles is not None and self.__poolFileCatalog is not None:
                 for inputFile in self.__inputFiles:
                     shutil.copy(inputFile, './')
@@ -74,6 +82,9 @@ class Droid:
                 job["AthenaMPCmd"] = job["AthenaMPCmd"].replace('HPCWORKINGDIR', os.getcwd())
             
             self.__esJobManager = EventServerJobManager(self.__rank)
+            status, output = self.__esJobManager.preSetup(self.__preSetup)
+            if status != 0:
+                return False, output
             self.__esJobManager.initMessageThread(socketname='EventService_EventRanges', context='local')
             self.__esJobManager.initTokenExtractorProcess(job["TokenExtractCmd"])
             self.__esJobManager.initAthenaMPProcess(job["AthenaMPCmd"])
