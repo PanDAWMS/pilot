@@ -269,7 +269,7 @@ class EventServerJobManager():
         self.__log.info("Rank %s: ESJobManager is finishing" % self.__rank)
         self.__log.info("Rank %s: wait AthenaMP to finish" % self.__rank)
         i = 0
-        while self.__athenaMPProcess.poll() is None and i < 60:
+        while self.__athenaMPProcess.poll() is None and i < 360:
             i += 1
             self.handleMessage()
             time.sleep(10)
