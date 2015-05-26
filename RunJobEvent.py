@@ -38,7 +38,7 @@ from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getFileAccessInfo, getCmtconfig, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID
-from FileHandling import getExtension
+from FileHandling import getExtension, getOSTransferDictionaryFilename
 from EventRanges import downloadEventRanges, updateEventRange
 
 try:
@@ -69,6 +69,7 @@ class RunJobEvent(RunJob):
     __globalErrorCode = 0                        # Global error code used with signal handler (only)
     __inputDir = ""                              # Location of input files (source for mv site mover)
     __outputDir = ""                             # Location of output files (destination for mv site mover)
+    __taskID = ""                                # TaskID (needed for OS transfer file and eventually for job metrics)
     __event_loop_running = False                 # Is the event loop running?
     __output_files = []                          # A list of all files that have been successfully staged-out, used by createFileMetadata()
     __guid_list = []                             # Keep track of downloaded GUIDs
@@ -518,6 +519,16 @@ class RunJobEvent(RunJob):
 
         self.__job.result = states
         self.__job.currentState = states[0]
+
+    def getTaskID(self):
+        """ Getter for TaskID """
+
+        return self.__taskID
+
+    def setTaskID(self, taskID):
+        """ Setter for taskID """
+
+        self.__taskID = taskID
 
     def getJobOutFiles(self):
         """ Getter for outFiles """
@@ -1206,15 +1217,37 @@ class RunJobEvent(RunJob):
 
             # Transfer the file
             ec, pilotErrorDiag = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
+            if ec == 0:
+                # Add the transferred file to the OS transfer file
+                self.addToOSTransferDictionary(path, "eventservice", si)
 
             # Finally restore the modified schedconfig fields                                                                                           
             tolog("Restoring queuedata fields")
             _ec = si.replaceQueuedataField("copytool", copytool_org)
 
-        tolog("ec=%d" % (ec))
-        tolog("pilotErrorDiag=%s"%(pilotErrorDiag))
-
         return ec, pilotErrorDiag
+
+    def addToOSTransferDictionary(self, path, mode, si):
+        """ Add the transferred file to the OS transfer file """
+
+        # Get the queuename - which is only needed if objectstores field is not present in queuedata
+        jobSite = self.getJobSite()
+        queuename = jobSite.computingElement
+
+        # Get the OS name identifier
+        os_name = si.getObjectstoreName(mode, queuename)
+
+        # Get the name and path of the objectstore transfer dictionary file
+        file_name = getOSTransferDictionaryFilename()
+        path = os.path.join(self.getJobWorkDir(), file_name)
+
+        # Does the transfer file exist already? If not, create it
+        if not os.path.exists(path):
+            # Read back the existing dictionary
+            pass
+        else:
+            #
+            pass
 
     def startMessageThread(self):
         """ Start the message thread """
@@ -1914,19 +1947,19 @@ if __name__ == "__main__":
     if not os.environ.has_key('PilotHomeDir'):
         os.environ['PilotHomeDir'] = os.getcwd()
 
-    # get error handler
+    # Get error handler
     error = PilotErrors()
 
     # Get runJob object
     runJob = RunJobEvent()
 
-    # define a new parent group
+    # Define a new parent group
     os.setpgrp()
 
     # Should the Event Index be used?
     runJob.setUseEventIndex(True)
 
-    # protect the runEvent code with exception handling
+    # Protect the runEvent code with exception handling
     hP_ret = False
     try:
         # always use this filename as the new jobDef module name
@@ -1935,32 +1968,32 @@ if __name__ == "__main__":
         jobSite = Site.Site()
         jobSite.setSiteInfo(runJob.argumentParser())
 
-        # reassign workdir for this job
+        # Reassign workdir for this job
         jobSite.workdir = jobSite.wntmpdir
     
-        # done with setting jobSite data members, not save the object so that the runJob methods have access to it
+        # Done with setting jobSite data members, not save the object so that the runJob methods have access to it
         runJob.setJobSite(jobSite)
 
         tolog("runJob.getPilotLogFilename=%s"%runJob.getPilotLogFilename())
         if runJob.getPilotLogFilename() != "":
             pUtil.setPilotlogFilename(runJob.getPilotLogFilename())
     
-        # set node info
+        # Set node info
         node = Node.Node()
         node.setNodeName(os.uname()[1])
         node.collectWNInfo(jobSite.workdir)
 
-        # redirect stderr
+        # Redirect stderr
         sys.stderr = open("%s/runevent.stderr" % (jobSite.workdir), "w")
 
         tolog("Current job workdir is: %s" % os.getcwd())
         tolog("Site workdir is: %s" % jobSite.workdir)
 
-        # get the experiment object
+        # Get the experiment object
         thisExperiment = getExperiment(runJob.getExperiment())
         tolog("runEvent will serve experiment: %s" % (thisExperiment.getExperiment()))
 
-        # get the event service object using the experiment name (since it can be experiment specific)
+        # Get the event service object using the experiment name (since it can be experiment specific)
         thisEventService = getEventService(runJob.getExperiment())
 
         JR = JobRecovery()
@@ -1980,14 +2013,18 @@ if __name__ == "__main__":
             job.failJob(0, error.ERR_UNKNOWN, job, pilotErrorDiag=pilotErrorDiag)
         runJob.setJob(job)
 
-        # prepare for the output file data directory
+        # Set the taskID
+        runJob.setTaskID(job.taskID)
+        tolog("taskID = %s" % (runJob.getTaskID()))
+
+        # Prepare for the output file data directory
         # (will only created for jobs that end up in a 'holding' state)
         runJob.setJobDataDir(runJob.getParentWorkDir() + "/PandaJob_%s_data" % (job.jobId))
 
-        # register cleanup function
+        # Register cleanup function
         atexit.register(runJob.cleanup, job)
     
-        # to trigger an exception so that the SIGTERM signal can trigger cleanup function to run
+        # To trigger an exception so that the SIGTERM signal can trigger cleanup function to run
         # because by default signal terminates process without cleanup.
         def sig2exc(sig, frm):
             """ signal handler """

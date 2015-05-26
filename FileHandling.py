@@ -199,6 +199,11 @@ def getTracingReportFilename():
 
     return "tracing_report.json"
 
+def getOSTransferDictionaryFilename():
+    """ Return the name of the objectstore transfer dictionary file """
+
+    return "os_transfer_dictionary.json"
+
 def getExtension(alternative='pickle'):
     """ get the file extension (json or whatever 'alternative' is set to, pickle by default) """
 

@@ -332,8 +332,11 @@ class Monitor:
                         % (time_passed_since_pilot_startup, self.__env['maxtime']))
             if (self.__env['maxtime'] - time_passed_since_pilot_startup) < 10*60 and not self.__env['stageout']:
                 # reached maximum batch system time limit
-                self.__failMaxTimeJob()
-                self.__skip = True
+                if not "NO_PILOT_TIME_LIMIT_KILL" in readpar('catchall'):
+                    self.__failMaxTimeJob()
+                    self.__skip = True
+                else:
+                    pUtil.tolog("Max allowed batch system time passed (%d s) - but pilot will not kill job since NO_PILOT_TIME_LIMIT_KILL is present in catchall field" % (time_passed_since_pilot_startup))
 
             # update the time for checking processes
             self.__env['curtime_proc'] = int(time.time())
