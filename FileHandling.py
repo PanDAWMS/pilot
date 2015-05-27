@@ -237,5 +237,43 @@ def dumpFile(filename, topilotlog=False):
     else:
         pUtil.tolog("!!WARNING!!4000!! %s does not exist" % (filename))
 
+def addToOSTransferDictionary(path, workdir, queuename, mode, si):
+    """ Add the transferred file to the OS transfer file """
+
+    # Get the OS name identifier
+    os_name = si.getObjectstoreName(mode, queuename)
+    tolog("xx. os_name=%s"%(os_name))
+
+    # Get the name and path of the objectstore transfer dictionary file 
+    file_name = getOSTransferDictionaryFilename()
+    os_tr_path = os.path.join(workdir, file_name)
+    tolog("xx. os_tr_path=%s"%os_tr_path)
+
+    # Does the transfer file exist already? If not, create it
+    if not os.path.exists(os_tr_path):
+        # Read back the existing dictionary
+        dictionary = readJSON(os_tr_path)
+        if not dictionary:
+            tolog("Failed to open OS transfer dictionary - will recreate it")
+            dictionary = {}
+    else:
+        # Create a new dictionary
+        dictionary = {}
+
+    # Populate the dictionary
+    if dictionary.has_key(os_name):
+        l = dictionary[os_name]
+        l.append(path)
+    else:
+        dictionary[os_name] = path
+
+    tolog("xx. dictionary=%s"%str(dictionary))
+
+    # Store the dictionary
+    if writeJSON(os_tr_path, dictionary):
+        tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
+    else:
+        tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
+
 # print findLatestTRFLogFile(os.getcwd())
 

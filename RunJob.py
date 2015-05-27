@@ -27,7 +27,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-from FileHandling import tail, getExtension, dumpFile
+from FileHandling import tail, getExtension, dumpFile, addToOSTransferDictionary
 
 # remove logguid, dq2url, debuglevel - not needed
 # relabelled -h, queuename to -b (debuglevel not used)

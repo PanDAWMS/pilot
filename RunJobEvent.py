@@ -38,7 +38,7 @@ from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getFileAccessInfo, getCmtconfig, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID
-from FileHandling import getExtension, getOSTransferDictionaryFilename, readJSON, writeJSON
+from FileHandling import getExtension
 from EventRanges import downloadEventRanges, updateEventRange
 
 try:
@@ -1218,56 +1218,19 @@ class RunJobEvent(RunJob):
             # Transfer the file
             ec, pilotErrorDiag = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
             if ec == 0:
+                # Get the queuename - which is only needed if objectstores field is not present in queuedata
+                jobSite = self.getJobSite()
+                queuename = jobSite.computingElement
+                tolog("yy. queuename=%s"%queuename)
+
                 # Add the transferred file to the OS transfer file
-                self.addToOSTransferDictionary(path, "eventservice", si)
+                addToOSTransferDictionary(path, self.getJobWorkDir(), queuename, "eventservice", si)
 
             # Finally restore the modified schedconfig fields                                                                                           
             tolog("Restoring queuedata fields")
             _ec = si.replaceQueuedataField("copytool", copytool_org)
 
         return ec, pilotErrorDiag
-
-    def addToOSTransferDictionary(self, path, mode, si):
-        """ Add the transferred file to the OS transfer file """
-
-        # Get the queuename - which is only needed if objectstores field is not present in queuedata
-        jobSite = self.getJobSite()
-        queuename = jobSite.computingElement
-        tolog("xx. queuename=%s"%queuename)
-
-        # Get the OS name identifier
-        os_name = si.getObjectstoreName(mode, queuename)
-        tolog("xx. os_name=%s"%(os_name))
-
-        # Get the name and path of the objectstore transfer dictionary file file_name = getOSTransferDictionaryFilename()
-        os_tr_path = os.path.join(self.getJobWorkDir(), file_name)
-        tolog("xx. os_tr_path=%s"%os_tr_path)
-
-        # Does the transfer file exist already? If not, create it
-        if not os.path.exists(os_tr_path):
-            # Read back the existing dictionary
-            dictionary = readJSON(os_tr_path)
-            if not dictionary:
-                tolog("Failed to open OS transfer dictionary - will recreate it")
-                dictionary = {}
-        else:
-            # Create a new dictionary
-            dictionary = {}
-
-        # Populate the dictionary
-        if dictionary.has_key(os_name):
-            l = dictionary[os_name]
-            l.append(path)
-        else:
-            dictionary[os_name] = path
-
-        tolog("xx. dictionary=%s"%str(dictionary))
-
-        # Store the dictionary
-        if writeJSON(os_tr_path, dictionary):
-            tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
-        else:
-            tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
 
     def startMessageThread(self):
         """ Start the message thread """

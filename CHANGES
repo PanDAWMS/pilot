@@ -25,10 +25,10 @@ Replaced all occurances of str(e) with e (pUtil)
 Now using local root setup in setup() (xrootdObjectstoreSiteMover)
 Out-commented HLT related code in extractAppdir() (ATLASSiteInformation)
 Created getOSTransferDictionaryFilename() (FileHandling)
-Created addToOSTransferDictionary() (RunJobEvent)
+Created FileHandling::addToOSTransferDictionary() used by RunJobEvent::transferToObjectStore() (FileHandling, RunJobEvent)
 Now skipping pilot job kill when maximum batch system time limit has been reached and NO_PILOT_TIME_LIMIT_KILL is present in catchall, in __monitor_processes() (Monitor)
 Added getter and setter functions for taskID (RunJobEvent)
-readJSON() is now using openFile() and more similar to getJSONDictionary() (FileHandling)
+readJSON() is now using openFile() and is more similar to getJSONDictionary() (FileHandling)
 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
