@@ -38,7 +38,7 @@ from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getFileAccessInfo, getCmtconfig, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID
-from FileHandling import getExtension, getOSTransferDictionaryFilename
+from FileHandling import getExtension, getOSTransferDictionaryFilename, readJSON, writeJSON
 from EventRanges import downloadEventRanges, updateEventRange
 
 try:
@@ -1233,21 +1233,41 @@ class RunJobEvent(RunJob):
         # Get the queuename - which is only needed if objectstores field is not present in queuedata
         jobSite = self.getJobSite()
         queuename = jobSite.computingElement
+        tolog("xx. queuename=%s"%queuename)
 
         # Get the OS name identifier
         os_name = si.getObjectstoreName(mode, queuename)
+        tolog("xx. os_name=%s"%(os_name))
 
-        # Get the name and path of the objectstore transfer dictionary file
-        file_name = getOSTransferDictionaryFilename()
-        path = os.path.join(self.getJobWorkDir(), file_name)
+        # Get the name and path of the objectstore transfer dictionary file file_name = getOSTransferDictionaryFilename()
+        os_tr_path = os.path.join(self.getJobWorkDir(), file_name)
+        tolog("xx. os_tr_path=%s"%os_tr_path)
 
         # Does the transfer file exist already? If not, create it
-        if not os.path.exists(path):
+        if not os.path.exists(os_tr_path):
             # Read back the existing dictionary
-            pass
+            dictionary = readJSON(os_tr_path)
+            if not dictionary:
+                tolog("Failed to open OS transfer dictionary - will recreate it")
+                dictionary = {}
         else:
-            #
-            pass
+            # Create a new dictionary
+            dictionary = {}
+
+        # Populate the dictionary
+        if dictionary.has_key(os_name):
+            l = dictionary[os_name]
+            l.append(path)
+        else:
+            dictionary[os_name] = path
+
+        tolog("xx. dictionary=%s"%str(dictionary))
+
+        # Store the dictionary
+        if writeJSON(os_tr_path, dictionary):
+            tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
+        else:
+            tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
 
     def startMessageThread(self):
         """ Start the message thread """

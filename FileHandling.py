@@ -2,7 +2,6 @@
 
 import os
 import time
-import json
 
 import pUtil
 
@@ -22,27 +21,29 @@ def openFile(filename, mode):
     return f
 
 def getJSONDictionary(filename):
-    """ Open json file and return its dictionary with unicode to utf-8 conversion """
+    """ Read a dictionary with unicode to utf-8 conversion """
 
-    d = None
+    dictionary = None
+    from json import load
     f = openFile(filename, 'r')
     if f:
         try:
-            d = json.load(f)
+            dictionary = load(f)
         except Exception, e:
             pUtil.tolog("!!WARNING!!2222!! Failed to load json dictionary: %s" % (e))
         else:
             f.close()
 
             # Try to convert the dictionary from unicode to utf-8
-            if d != {}:
+            if dictionary != {}:
                 try:
-                    d = pUtil.convert(d)
+                    dictionary = pUtil.convert(dictionary)
                 except Exception, e:
-                    pUtil.tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (d, e))
+                    pUtil.tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (dictionary, e))
             else:
                 pUtil.tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
-    return d
+ 
+   return dictionary
 
 def writeJSON(file_name, dictionary):
     """ Write the dictionary to a JSON file """
@@ -72,19 +73,16 @@ def readJSON(file_name):
 
     dictionary = {}
     from json import load
-    try:
-        fp = open(file_name, 'r')
-    except Exception, e:
-        pUtil.tolog("!!WARNING!!2334!! Failed to open file %s: %s" % (file_name, e))
-    else:
+    f = openFile(filename, 'r')
+    if f:
         # Read the dictionary
         try:
             dictionary = load(fp)
         except Exception, e:
             pUtil.tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
         else:
+            fp.close()
             pUtil.tolog("Read dictionary from file %s" % (file_name))            
-        fp.close()
 
     return dictionary
 
