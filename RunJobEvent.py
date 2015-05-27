@@ -38,7 +38,7 @@ from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getFileAccessInfo, getCmtconfig, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID
-from FileHandling import getExtension
+from FileHandling import getExtension, addToOSTransferDictionary
 from EventRanges import downloadEventRanges, updateEventRange
 
 try:
@@ -1221,7 +1221,7 @@ class RunJobEvent(RunJob):
                 # Get the queuename - which is only needed if objectstores field is not present in queuedata
                 jobSite = self.getJobSite()
                 queuename = jobSite.computingElement
-                tolog("yy. queuename=%s"%queuename)
+                tolog("yy. queuename=%s"%str(queuename))
 
                 # Add the transferred file to the OS transfer file
                 addToOSTransferDictionary(path, self.getJobWorkDir(), queuename, "eventservice", si)

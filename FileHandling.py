@@ -242,19 +242,19 @@ def addToOSTransferDictionary(path, workdir, queuename, mode, si):
 
     # Get the OS name identifier
     os_name = si.getObjectstoreName(mode, queuename)
-    tolog("xx. os_name=%s"%(os_name))
+    pUtil.tolog("xx. os_name=%s"%str(os_name))
 
     # Get the name and path of the objectstore transfer dictionary file 
     file_name = getOSTransferDictionaryFilename()
     os_tr_path = os.path.join(workdir, file_name)
-    tolog("xx. os_tr_path=%s"%os_tr_path)
+    pUtil.tolog("xx. os_tr_path=%s"%os_tr_path)
 
     # Does the transfer file exist already? If not, create it
     if not os.path.exists(os_tr_path):
         # Read back the existing dictionary
         dictionary = readJSON(os_tr_path)
         if not dictionary:
-            tolog("Failed to open OS transfer dictionary - will recreate it")
+            pUtil.tolog("Failed to open OS transfer dictionary - will recreate it")
             dictionary = {}
     else:
         # Create a new dictionary
@@ -267,13 +267,151 @@ def addToOSTransferDictionary(path, workdir, queuename, mode, si):
     else:
         dictionary[os_name] = path
 
-    tolog("xx. dictionary=%s"%str(dictionary))
+    pUtil.tolog("xx. dictionary=%s"%str(dictionary))
 
     # Store the dictionary
     if writeJSON(os_tr_path, dictionary):
-        tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
+        pUtil.tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
     else:
-        tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
+        pUtil.tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
+
+def getObjectstoresList(queuename):
+    """ Get the objectstores list from the proper queuedata for the relevant queue """
+    # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
+
+    objectstores = []
+
+    # First try to get the objectstores field from the normal queuedata
+    try:
+        from pUtil import readpar
+        _objectstores = readpar('objectstores')
+    except:
+        pUtil.tolog("Field \'objectstores\' not yet available in queuedata")
+        _objectstores = None
+
+    # Get the full info from AGIS
+    if not _objectstores:
+
+        filename = "q.json"
+        # Has the file been downloaded already?
+        if os.path.exists(filename):
+            pUtil.tolog("File exists: %s" % (filename))
+            ret = 0
+            output = ""
+        else:
+            cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all\" >%s" % (filename)
+            pUtil.tolog("Executing command: %s" % (cmd))
+            import commands
+            ret, output = commands.getstatusoutput(cmd)
+
+        if ret == 0:
+            # Make sure the JSON file exists
+            if os.path.exists(filename):
+                # Load the dictionary
+                dictionary = readJSON(filename)
+                if dictionary != {}:
+                    # Get the entry for queuename
+                    try:
+                        _d = dictionary[queuename]
+                    except Exception, e:
+                        pUtil.tolog("No entry for queue %s in JSON: %s" % (queuename, e))
+                    else:
+                        # Read the objectstores field
+                        try:
+                            _objectstores = _d['objectstores']
+                        except Exception, e:
+                            pUtil.tolog("!!WARNING!!2112!! %s" % (e))
+                        else:
+                            objectstores = _objectstores
+                else:
+                    pUtil.tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
+            else:
+                pUtil.tolog("!!WARNING!!2122!! File does not exist: %s" % (filename))
+        else:
+            pUtil.tolog("!!WARNING!!2121!! Failed to download schedconfig JSON: %d, %s" % (ret, output))
+
+    return objectstores
+
+def getObjectstoresField(field, mode, queuename):
+    """ Return the objectorestores field from the objectstores list for the relevant mode """
+    # mode: eventservice, logs, http
+
+    value = None
+
+    # Get the objectstores list
+    objectstores_list = getObjectstoresList(queuename)
+
+    if objectstores_list:
+        for d in objectstores_list:
+            try:
+                os_bucket_name = d['os_bucket_name']
+                if os_bucket_name == mode:
+                    value = d[field]
+                    break
+            except Exception, e:
+                pUtil.tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
+    return value
+
+def getObjectstorePath(mode, queuename):
+    """ Return the path to the objectstore """
+    # mode: https, eventservice, logs
+
+    # Read the endpoint info from the queuedata
+    os_endpoint = getObjectstoresField('os_endpoint', mode, queuename)
+    os_bucket_endpoint = getObjectstoresField('os_bucket_endpoint', mode, queuename)
+    if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
+        path = os_endpoint + os_bucket_endpoint
+    else:
+        path = ""
+
+    return path
+
+def getObjectstoreName(mode, queuename):
+    """ Return the objectstore name identifier """
+    # E.g. CERN_OS_0
+
+    return getObjectstoresField('os_name', mode, queuename)
+
+def getOSNames(filename):
+    """ Get the dictionary of objectstore os_names with populated buckets from the OS transfer dictionary """
+    # Note: will return a dictionary of os_names identifiers to which files were actually transferred, along
+    # with the names of the buckets where the files were transferred to
+    # This function is used to generate the jobMetrics OS message (only the OS and bucket names are of interest)
+
+    # os_names_dictionary
+    # FORMAT: { 'os_name_id': ['os_bucket_name', ''], .. }
+    # OS transfer dictionary
+    # FORMAT: { 'os_name_id': { 'os_bucket_name': ['path', .. ], .. }, .. }
+    # os_bucket_name: 'eventservice', 'logs' or 'http'
+
+    os_names_dictionary = {}
+
+    if os.path.exists(filename):
+        # Get the OS transfer dictionary
+        dictionary = readJSON(filename)
+        if dictionary != {}:
+            tmp_os_names_list = dictionary.keys()
+
+            # Only report the os_name if there were files transferred to it
+            for os_name in tmp_os_names_list:
+
+                # Get the os_bucket_name list and populate the final dictionary
+                os_bucket_name_list = dictionary[os_name].keys()
+                for os_bucket_name in os_bucket_name_list:
+                    n = len(dictionary[os_name][os_bucket_name])
+
+                    pUtil.tolog("%s: %d file(s) transferred to bucket %s" % (os_name, n, os_bucket_name))
+                    if n > 0:
+                        if os_names_dictionary.has_key(os_name):
+                            os_names_dictionary[os_name].append(os_bucket_name)
+                        else:
+                            os_names_dictionary[os_name] = [os_bucket_name]
+        else:
+            pUtil.tolog("!!WARNING!!3334!! OS transfer dictionary is empty")
+    else:
+        pUtil.tolog("!!WARNING!!3333!! OS transfer dictionary does not exist at: %s" % (filename))
+
+    return os_names_dictionary
 
 # print findLatestTRFLogFile(os.getcwd())
 

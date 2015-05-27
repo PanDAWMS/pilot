@@ -29,6 +29,8 @@ Created FileHandling::addToOSTransferDictionary() used by RunJobEvent::transferT
 Now skipping pilot job kill when maximum batch system time limit has been reached and NO_PILOT_TIME_LIMIT_KILL is present in catchall, in __monitor_processes() (Monitor)
 Added getter and setter functions for taskID (RunJobEvent)
 readJSON() is now using openFile() and is more similar to getJSONDictionary() (FileHandling)
+Created addToOSTransferDictionary(), getObjectstoresList(), getObjectstoresField(), getObjectstorePath(), getObjectstoreName(), getOSNames() (FileHandling)
+Created getOSJobMetrics() (PandaServerClient)
 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)

@@ -7,7 +7,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment
 from JobState import JobState
 from FileState import FileState
-from FileHandling import getJSONDictionary
+from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames
 
 class PandaServerClient:
     """
@@ -183,6 +183,12 @@ class PandaServerClient:
         if _jobMetrics != "":
             tolog("Could have added: %s to job metrics" % (workerNode.addToJobMetrics()))
 
+        # report any OS transfers
+        message = self.getOSJobMetrics(job.workdir)
+        if message != "":
+            _jobMetrics = self.jobMetric(key="OS", value=message)
+            tolog("Could have added: %s to job metrics" % (_jobMetrics))
+            
         # correct for potential initial and trailing space
         jobMetrics = jobMetrics.lstrip().rstrip()
 
@@ -202,6 +208,50 @@ class PandaServerClient:
             tolog("jobMetrics has been reduced to: %s" % (jobMetrics))
 
         return jobMetrics
+
+    def getOSJobMetrics(self, workdir):
+        """ Generate the objectstore jobMetrics message """
+        # Message format:
+        # OS=<os_name_0>;<os_bucket_name_0>:<os_bucket_name_1>: ..
+        # Example:
+        # os_name = BNL_OS_0, os_bucket_name = eventservice or logs ('http' is also a valid os_bucket_name but will not be reported in jobMetrics)
+        # -> OS=BNL_OS_0;eventservice:logs
+        # (note: at least one os_bucket_name will be included in a message, but not necessarily both of them and order is random)
+
+        message = ""
+
+        # Locate the OS transfer dictionary
+        filename = getOSTransferDictionaryFilename()
+        path = os.path.join(workdir, filename)
+        if os.path.exists(path):
+            # Which OS's were used?
+            os_names_dictionary = getOSNames(path)
+            if os_names_dictionary != {}:
+                message = ""
+
+                os_names = os_names_dictionary.keys()
+                # Note: the should only be one os_name
+                if len(os_names) > 1:
+                    tolog("!!WARNING!!2345!! Can only report one os_name (will use first only): %s" % (os_names_dictionary))
+
+                # Which buckets were written to?
+                for os_name in os_names_dictionary.keys():
+                    message += os_name + ";"
+                    bucket_list = os_names_dictionary[os_name]
+                    for os_bucket_name in bucket_list:
+                        message += os_bucket_name + ":"
+                        # Remove the last ':'
+                        message = message[:-1]
+
+                    # Ignore any other os_names - there should one be one and we can only report one
+                    break
+            else:
+                tolog("!!WARNING!!3335!! No OS transfers were found in: %s" % (filename))
+
+        else:
+            tolog("OS transfer dictionary does not exist, will not report OS transfers in jobMetrics")
+
+        return message
 
     def getNodeStructure(self, job, site, workerNode, spaceReport=False, log=None):
         """ define the node structure expected by the server """
