@@ -14,8 +14,6 @@ Moved getExtension() from pUtil to FileHandling
 Importing getExtension() from FileHandling, in moveToExternal() (pUtil)
 Importing getExtension() from FileHandling instead of from pUtil (SiteInformation, ATLASSiteInformation, JobState, Mover, RunJob, RunJobEvent, SiteMover)
 Removed import of unused getExtension (NordugridSiteInformation)
-Moved dumpFile from pUtil to FileHandling
-Importing dumpFile (pUtil, Mover)
 Moved readJSON and writeJSON from FAXSiteMover to FileHandling
 Created discoverAdditionalOutputFiles() (RunJob)
 Now using discoverAdditionalOutputFiles() in __main__() (RunJob)

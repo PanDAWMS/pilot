@@ -3,7 +3,7 @@
 import os
 import time
 
-import pUtil
+from pUtil import tolog, convert
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """
@@ -14,9 +14,9 @@ def openFile(filename, mode):
         try:
             f = open(filename, mode)
         except IOError, e:
-            pUtil.tolog("!!WARNING!!2997!! Caught exception: %s" % (e))
+            tolog("!!WARNING!!2997!! Caught exception: %s" % (e))
     else:
-        pUtil.tolog("!!WARNING!!2998!! File does not exist: %s" % (filename))
+        tolog("!!WARNING!!2998!! File does not exist: %s" % (filename))
 
     return f
 
@@ -30,20 +30,20 @@ def getJSONDictionary(filename):
         try:
             dictionary = load(f)
         except Exception, e:
-            pUtil.tolog("!!WARNING!!2222!! Failed to load json dictionary: %s" % (e))
+            tolog("!!WARNING!!2222!! Failed to load json dictionary: %s" % (e))
         else:
             f.close()
 
             # Try to convert the dictionary from unicode to utf-8
             if dictionary != {}:
                 try:
-                    dictionary = pUtil.convert(dictionary)
+                    dictionary = convert(dictionary)
                 except Exception, e:
-                    pUtil.tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (dictionary, e))
+                    tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (dictionary, e))
             else:
-                pUtil.tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
+                tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
  
-   return dictionary
+    return dictionary
 
 def writeJSON(file_name, dictionary):
     """ Write the dictionary to a JSON file """
@@ -54,15 +54,15 @@ def writeJSON(file_name, dictionary):
     try:
         fp = open(file_name, "w")
     except Exception, e:
-        pUtil.tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
+        tolog("!!WARNING!!2323!! Failed to open file %s: %s" % (file_name, e))
     else:
         # Write the dictionary
         try:
             dump(dictionary, fp)
         except Exception, e:
-            pUtil.tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
+            tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
         else:
-            pUtil.tolog("Wrote dictionary to file %s" % (file_name))
+            tolog("Wrote dictionary to file %s" % (file_name))
             status = True
         fp.close()
 
@@ -73,16 +73,16 @@ def readJSON(file_name):
 
     dictionary = {}
     from json import load
-    f = openFile(filename, 'r')
+    f = openFile(file_name, 'r')
     if f:
         # Read the dictionary
         try:
-            dictionary = load(fp)
+            dictionary = load(f)
         except Exception, e:
-            pUtil.tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
+            tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
         else:
-            fp.close()
-            pUtil.tolog("Read dictionary from file %s" % (file_name))            
+            f.close()
+            tolog("Read dictionary from file %s" % (file_name))
 
     return dictionary
 
@@ -96,10 +96,10 @@ def findLatestTRFLogFile(workdir):
     file_list = sortedLs(workdir, pattern)
     if file_list != []:
         last_log_file = os.path.join(workdir, file_list[-1])
-        pUtil.tolog("Found payload log files: %s" % str(file_list))
-        pUtil.tolog("File %s was the last log file that was updated" % (last_log_file))
+        tolog("Found payload log files: %s" % str(file_list))
+        tolog("File %s was the last log file that was updated" % (last_log_file))
     else:
-        pUtil.tolog("Did not find any log.* files")
+        tolog("Did not find any log.* files")
 
     return last_log_file
 
@@ -113,7 +113,7 @@ def sortedLs(path, pattern):
     try:
         file_list = list(sorted(os.listdir(path), key=mtime))
     except Exception, e:
-        pUtil.tolog("!!WARNING!!3232!! Failed to obtain sorted file list: %s" % (e))
+        tolog("!!WARNING!!3232!! Failed to obtain sorted file list: %s" % (e))
 
     final_file_list = []
     if file_list != []:
@@ -130,15 +130,15 @@ def readFile(filename):
         try:
             f = open(filename, 'r')
         except IOError, e:
-            pUtil.tolog("!!WARNING!!2121!! Failed to open file %s: %s" % (filename, e))
+            tolog("!!WARNING!!2121!! Failed to open file %s: %s" % (filename, e))
         else:
             try:
                 contents = f.read()
             except Exception, e:
-                pUtil.tolog("!!WARNING!!2122!! Failed to read file %s: %s" % (filename, e))
+                tolog("!!WARNING!!2122!! Failed to read file %s: %s" % (filename, e))
             f.close()
     else:
-        pUtil.tolog("!!WARNING!!2121!! File does not exist: %s" % (filename))
+        tolog("!!WARNING!!2121!! File does not exist: %s" % (filename))
 
     return contents
 
@@ -149,12 +149,12 @@ def writeFile(filename, contents):
     try:
         f = open(filename, 'w')
     except IOError, e:
-        pUtil.tolog("!!WARNING!!2123!! Failed to open file %s: %s" % (filename, e))
+        tolog("!!WARNING!!2123!! Failed to open file %s: %s" % (filename, e))
     else:
         try:
             f.write(contents)
         except IOError, e:
-            pUtil.tolog("!!WARNING!!2123!! Failed to write to file %s: %s" % (filename, e))
+            tolog("!!WARNING!!2123!! Failed to write to file %s: %s" % (filename, e))
         else:
             status = True
         f.close()
@@ -214,47 +214,24 @@ def getExtension(alternative='pickle'):
 
     return extension
 
-def dumpFile(filename, topilotlog=False):
-    """ dump a given file to stdout or to pilotlog """
-
-    if os.path.exists(filename):
-        pUtil.tolog("Dumping file: %s (size: %d)" % (filename, os.path.getsize(filename)))
-        try:
-            f = open(filename, "r")
-        except IOError, e:
-            pUtil.tolog("!!WARNING!!4000!! Exception caught: %s" % (e))
-        else:
-            i = 0
-            for line in f.readlines():
-                i += 1
-                line = line.rstrip()
-                if topilotlog:
-                    pUtil.tolog("%s" % (line))
-                else:
-                    print "%s" % (line)
-            f.close()
-            pUtil.tolog("Dumped %d lines from file %s" % (i, filename))
-    else:
-        pUtil.tolog("!!WARNING!!4000!! %s does not exist" % (filename))
-
 def addToOSTransferDictionary(path, workdir, queuename, mode, si):
     """ Add the transferred file to the OS transfer file """
 
     # Get the OS name identifier
     os_name = si.getObjectstoreName(mode, queuename)
-    pUtil.tolog("xx. os_name=%s"%str(os_name))
+    tolog("xx. os_name=%s"%str(os_name))
 
     # Get the name and path of the objectstore transfer dictionary file 
     file_name = getOSTransferDictionaryFilename()
     os_tr_path = os.path.join(workdir, file_name)
-    pUtil.tolog("xx. os_tr_path=%s"%os_tr_path)
+    tolog("xx. os_tr_path=%s"%os_tr_path)
 
     # Does the transfer file exist already? If not, create it
     if not os.path.exists(os_tr_path):
         # Read back the existing dictionary
         dictionary = readJSON(os_tr_path)
         if not dictionary:
-            pUtil.tolog("Failed to open OS transfer dictionary - will recreate it")
+            tolog("Failed to open OS transfer dictionary - will recreate it")
             dictionary = {}
     else:
         # Create a new dictionary
@@ -267,13 +244,13 @@ def addToOSTransferDictionary(path, workdir, queuename, mode, si):
     else:
         dictionary[os_name] = path
 
-    pUtil.tolog("xx. dictionary=%s"%str(dictionary))
+    tolog("xx. dictionary=%s"%str(dictionary))
 
     # Store the dictionary
     if writeJSON(os_tr_path, dictionary):
-        pUtil.tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
+        tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
     else:
-        pUtil.tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
+        tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
 
 def getObjectstoresList(queuename):
     """ Get the objectstores list from the proper queuedata for the relevant queue """
@@ -286,7 +263,7 @@ def getObjectstoresList(queuename):
         from pUtil import readpar
         _objectstores = readpar('objectstores')
     except:
-        pUtil.tolog("Field \'objectstores\' not yet available in queuedata")
+        tolog("Field \'objectstores\' not yet available in queuedata")
         _objectstores = None
 
     # Get the full info from AGIS
@@ -295,12 +272,12 @@ def getObjectstoresList(queuename):
         filename = "q.json"
         # Has the file been downloaded already?
         if os.path.exists(filename):
-            pUtil.tolog("File exists: %s" % (filename))
+            tolog("File exists: %s" % (filename))
             ret = 0
             output = ""
         else:
             cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all\" >%s" % (filename)
-            pUtil.tolog("Executing command: %s" % (cmd))
+            tolog("Executing command: %s" % (cmd))
             import commands
             ret, output = commands.getstatusoutput(cmd)
 
@@ -314,21 +291,21 @@ def getObjectstoresList(queuename):
                     try:
                         _d = dictionary[queuename]
                     except Exception, e:
-                        pUtil.tolog("No entry for queue %s in JSON: %s" % (queuename, e))
+                        tolog("No entry for queue %s in JSON: %s" % (queuename, e))
                     else:
                         # Read the objectstores field
                         try:
                             _objectstores = _d['objectstores']
                         except Exception, e:
-                            pUtil.tolog("!!WARNING!!2112!! %s" % (e))
+                            tolog("!!WARNING!!2112!! %s" % (e))
                         else:
                             objectstores = _objectstores
                 else:
-                    pUtil.tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
+                    tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
             else:
-                pUtil.tolog("!!WARNING!!2122!! File does not exist: %s" % (filename))
+                tolog("!!WARNING!!2122!! File does not exist: %s" % (filename))
         else:
-            pUtil.tolog("!!WARNING!!2121!! Failed to download schedconfig JSON: %d, %s" % (ret, output))
+            tolog("!!WARNING!!2121!! Failed to download schedconfig JSON: %d, %s" % (ret, output))
 
     return objectstores
 
@@ -349,7 +326,7 @@ def getObjectstoresField(field, mode, queuename):
                     value = d[field]
                     break
             except Exception, e:
-                pUtil.tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
+                tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
     return value
 
 def getObjectstorePath(mode, queuename):
@@ -400,16 +377,16 @@ def getOSNames(filename):
                 for os_bucket_name in os_bucket_name_list:
                     n = len(dictionary[os_name][os_bucket_name])
 
-                    pUtil.tolog("%s: %d file(s) transferred to bucket %s" % (os_name, n, os_bucket_name))
+                    tolog("%s: %d file(s) transferred to bucket %s" % (os_name, n, os_bucket_name))
                     if n > 0:
                         if os_names_dictionary.has_key(os_name):
                             os_names_dictionary[os_name].append(os_bucket_name)
                         else:
                             os_names_dictionary[os_name] = [os_bucket_name]
         else:
-            pUtil.tolog("!!WARNING!!3334!! OS transfer dictionary is empty")
+            tolog("!!WARNING!!3334!! OS transfer dictionary is empty")
     else:
-        pUtil.tolog("!!WARNING!!3333!! OS transfer dictionary does not exist at: %s" % (filename))
+        tolog("!!WARNING!!3333!! OS transfer dictionary does not exist at: %s" % (filename))
 
     return os_names_dictionary
 

@@ -1218,14 +1218,16 @@ class RunJobEvent(RunJob):
             # Transfer the file
             ec, pilotErrorDiag = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
             if ec == 0:
-                # Get the queuename - which is only needed if objectstores field is not present in queuedata
-                jobSite = self.getJobSite()
-                queuename = jobSite.computingElement
-                tolog("yy. queuename=%s"%str(queuename))
+                try:
+                    # Get the queuename - which is only needed if objectstores field is not present in queuedata
+                    jobSite = self.getJobSite()
+                    queuename = jobSite.computingElement
+                    tolog("yy. queuename=%s"%str(queuename))
 
-                # Add the transferred file to the OS transfer file
-                addToOSTransferDictionary(path, self.getJobWorkDir(), queuename, "eventservice", si)
-
+                    # Add the transferred file to the OS transfer file
+                    addToOSTransferDictionary(path, self.getJobWorkDir(), queuename, "eventservice", si)
+                except Exception, e:
+                    tolog("!!WARNING!!2121!! Caught exception: %s" % (e))
             # Finally restore the modified schedconfig fields                                                                                           
             tolog("Restoring queuedata fields")
             _ec = si.replaceQueuedataField("copytool", copytool_org)
