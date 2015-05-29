@@ -3657,9 +3657,10 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
                                                 break
                                         if pid:
                                             print "Attempting to kill pid=%s" % (pid)
-                                            cmd = "kill -9 %s" % (pid)
-                                            out = commands.getoutput(cmd)
-                                            print out
+                                            print "skipped.."
+#                                            cmd = "kill -9 %s" % (pid)
+#                                            out = commands.getoutput(cmd)
+#                                            print out
                                 cmd = 'ps -fwu %s' % (commands.getoutput("whoami"))
                                 print "%s: %s" % (cmd + '\n', commands.getoutput(cmd))
                         attempt += 1

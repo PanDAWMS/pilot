@@ -29,6 +29,11 @@ Added getter and setter functions for taskID (RunJobEvent)
 readJSON() is now using openFile() and is more similar to getJSONDictionary() (FileHandling)
 Created addToOSTransferDictionary(), getObjectstoresList(), getObjectstoresField(), getObjectstorePath(), getObjectstoreName(), getOSNames() (FileHandling)
 Created getOSJobMetrics() (PandaServerClient)
+Skipping killing bash process in killOrphans(), fixing a problem at e.g. RAL where batch logs went missing (processes)
+
+# out commented all kill commands in processes and pUtil
+
+
 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
