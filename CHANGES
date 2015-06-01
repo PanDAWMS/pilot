@@ -31,10 +31,6 @@ Created addToOSTransferDictionary(), getObjectstoresList(), getObjectstoresField
 Created getOSJobMetrics() (PandaServerClient)
 Skipping killing bash process in killOrphans(), fixing a problem at e.g. RAL where batch logs went missing (processes)
 
-# out commented all kill commands in processes and pUtil
-
-
-
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
 - Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
