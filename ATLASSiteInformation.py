@@ -400,8 +400,8 @@ class ATLASSiteInformation(SiteInformation):
         if 'pandadev' in pshttpurl or force_devpilot or thisSite.sitename == "CERNVM":
             ec = self.replaceQueuedataField("status", "online")
 
-#        if thisSite.sitename == "RAL-LCG2_MCORE":
-#            ec = self.replaceQueuedataField("copytool", "gfal-copy")
+#        if thisSite.sitename == "RAL-LCG2_SL6":
+#            ec = self.replaceQueuedataField("copytoolin", "fax")
 
 #            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
@@ -417,9 +417,9 @@ class ATLASSiteInformation(SiteInformation):
 
 #        ec = self.replaceQueuedataField("timefloor", "0")
 
-        if thisSite.sitename == "CERN-PROD_MCORE":
-            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
-            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
+#        if thisSite.sitename == "CERN-PROD_MCORE":
+#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")

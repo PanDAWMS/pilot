@@ -603,6 +603,24 @@ def getFileInfoDictionaryFromXML(xml_file):
 
     return file_info_dictionary
 
+def getCorrespondingLFNFromPFN(lfns, pfn):
+    """ Identify the LFN from the list of LFNs corresponding to a PFN """
+    # Note: important since the basename of the PFN can contain additional characters,
+    # e.g. PFN = /../data15_cos.00259101.physics_IDCosmic.merge.RAW._lb0116._SFO-ALL._0001.1_1427497374
+    # but LFN = data15_cos.00259101.physics_IDCosmic.merge.RAW._lb0116._SFO-ALL._0001.1
+
+    lfn = ""
+    for _lfn in lfns:
+        _basename = os.path.basename(pfn)
+        if _basename.startswith(_lfn):
+            lfn = _lfn
+
+    if lfn == "":
+        tolog("!!WARNING!!2323!! Correct LFN could not be identified: pfn=%s, lfns=%s" % (pfn, str(lfns)))
+        lfn = pfn
+
+    return lfn
+
 def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
                 scope_dict, pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
     """ Build the file info dictionary """
@@ -710,7 +728,8 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             guid = guids_filelist[file_nr]
 
             # get the filesize and checksum from the primary location (the dispatcher)
-            _lfn = os.path.basename(gpfn)
+            _lfn = getCorrespondingLFNFromPFN(lfns, gpfn) #os.path.basename(gpfn)
+
             # remove any __DQ2 substring from the LFN if necessary
             if "__DQ2" in _lfn:
                 _lfn = stripDQ2FromLFN(_lfn)
@@ -3556,6 +3575,10 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                 else:
                     tolog("Found no matched replicas using copyprefix")
 
+
+        #PN
+        matched_replicas = []
+
         if len(matched_replicas) > 0:
             # remove any duplicates
             matched_replicas = removeDuplicates(matched_replicas)
@@ -3584,7 +3607,21 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                     pilotErrorCode = "%s has not been transferred yet (guid=%s)" % (lfn_dict[guid], guid)
                     ec = error.ERR_DBRELNOTYETTRANSFERRED
                 else:
-                    if (readpar('copytool').lower() == "fax" and readpar('copytoolin') == "") or readpar('copytoolin').lower() == "fax" or readpar('copytoolin').lower()=='aria2c':
+                    allowFAX = readpar('allowfax').lower()
+                    if ((readpar('copytool').lower() == "fax" and readpar('copytoolin') == "") or readpar('copytoolin').lower() == "fax" or readpar('copytoolin').lower()=='aria2c'):
+                        # special use case for FAX; the file might not be available locally, so do not fail here because no local copy can be found
+                        # use a 'fake' replica for now, ie use the last known SURL, irrelevant anyway since the SURL will eventually come from FAX
+                        # note: cannot use replica with non-rucio path (fax will fail)
+                        tolog("Found no replica on this site but will use FAX in normal mode (copytool already set to fax)")
+                        useFAX = True
+                    else:
+                        if allowFAX:
+                            useFAX = True
+                            tolog("!!WARNING!!1221!! Found no replica on this site - will attempt to switch over to FAX")
+                        else:
+                            useFAX = False
+
+                    if useFAX:
                         # special use case for FAX; the file might not be available locally, so do not fail here because no local copy can be found
                         # use a 'fake' replica for now, ie use the last known SURL, irrelevant anyway since the SURL will eventually come from FAX
                         # note: cannot use replica with non-rucio path (fax will fail)

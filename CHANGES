@@ -30,6 +30,8 @@ readJSON() is now using openFile() and is more similar to getJSONDictionary() (F
 Created addToOSTransferDictionary(), getObjectstoresList(), getObjectstoresField(), getObjectstorePath(), getObjectstoreName(), getOSNames() (FileHandling)
 Created getOSJobMetrics() (PandaServerClient)
 Skipping killing bash process in killOrphans(), fixing a problem at e.g. RAL where batch logs went missing (processes)
+Created getCorrespondingLFNFromPFN() (Mover)
+Now using getCorrespondingLFNFromPFN() instead of basename of PFN in getFileInfo(). Requested by Rodney Walker after a problem seen at CERN-PROD with unexpected chars in PFN (Mover)
 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
