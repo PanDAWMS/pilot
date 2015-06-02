@@ -744,7 +744,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             filetype = getFiletypeFromDictionary(gpfn, surl_filetype_dictionary)
 
             # Extract the copytool for this PFN
-            _copytool = extractCopytoolForPFN(pfn, copytool_dictionary)
+            _copytool = extractCopytoolForPFN(gpfn, copytool_dictionary)
 
             # Store in the file info dictionary
             fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, _copytool)
@@ -3607,10 +3607,6 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                 else:
                     tolog("Found no matched replicas using copyprefix")
 
-
-        #PN
-        matched_replicas = []
-
         if len(matched_replicas) > 0:
             # Remove any duplicates
             matched_replicas = removeDuplicates(matched_replicas)
@@ -3879,7 +3875,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     ec = 0
     replicas_dict = None # FORMAT: { guid1: [replica1, .. ], .. } where replica1 is of type replica
     surl_filetype_dictionary = None  # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
-    copytool_dictionary = None # FORMAT: { sfn1: copytool, ..} (sfn = surl)
+    copytool_dictionary = {} # FORMAT: { sfn1: copytool, ..} (sfn = surl)
     error = PilotErrors()
 
     xml_source = "[undefined]"
@@ -3887,10 +3883,10 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     tolog("Guids:")
     dumpOrderedItems(guids)
 
-    # get proper file dictionaries (do not include the DBRelease if not needed)
+    # Get proper file dictionaries (do not include the DBRelease if not needed)
     lfn_dict, guid_token_dict, filesize_dict, checksum_dict = createFileDictionaries(guids, lfns, tokens, filesizeIn, checksumIn, DBReleaseIsAvailable, dbh)
 
-    # update booleans if Rucio is used and scope dictionary is set
+    # Update booleans if Rucio is used and scope dictionary is set
     copytool = getCopytoolIn()
 #    if scope_dict and ("/rucio" in readpar('seprodpath') or "/rucio" in readpar('sepath')) and copytool != "aria2c":
 #        tolog("Resetting file lookup boolean (LFC will not be queried)")
@@ -3903,9 +3899,9 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     thisExperiment.doFileLookups(True)
 
     if thisExperiment.willDoFileLookups():
-        # get the replica dictionary from the LFC
+        # Get the replica dictionary
 
-        # in case FAX is allowed, loop over all available LFC hosts
+        # In case FAX is allowed, loop over all available LFC hosts
         lfc_hosts_list = getFileCatalogHosts(thisExperiment)
         host_nr = 0
         status = False
@@ -3917,9 +3913,9 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             ec, pilotErrorDiag, new_file_dict, xml_source, new_replicas_dict, surl_filetype_dictionary, new_copytool_dictionary = \
                 getCatalogFileList(thisExperiment, guid_token_dict, lfc_host, analysisJob, workdir, lfn_dict=lfn_dict, scope_dict=scope_dict, replicas_dict=replicas_dict)
 
-            # found a replica
+            # Found a replica
             if ec == 0:
-                # merge the file, replica and copytool dictionaries (copy replicas found in new LFC to previously found replicas in previous LFC)
+                # Merge the file, replica and copytool dictionaries (copy replicas found in new LFC to previously found replicas in previous LFC)
                 for guid in new_file_dict.keys():
                     if not guid in file_dict.keys():
                         file_dict[guid] = new_file_dict[guid]
@@ -3927,16 +3923,18 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
                     if not guid in replicas_dict.keys():
                         replicas_dict[guid] = new_replicas_dict[guid]
                     elif guid in replicas_dict.keys():
-                        # if we found more replicas from another LFC, add those to the dictionary for the given guid
+                        # If we found more replicas from another LFC, add those to the dictionary for the given guid
                         # (i.e. merge two lists)
                         replicas_dict[guid] += new_replicas_dict[guid]
                 for surl in new_copytool_dictionary.keys():
-                    if not surl in copytool_dictionary.keys():
+                    if copytool_dictionary == {}:
+                        copytool_dictionary = new_copytool_dictionary
+                    elif not surl in copytool_dictionary.keys():
                         copytool_dictionary[surl] = new_copytool_dictionary[surl]
                     else:
                         copytool_dictionary[surl] += new_copytool_dictionary[surl]
 
-                # does the current replicas_dict contain replicas for all guids? If so, no need to continue 
+                # Does the current replicas_dict contain replicas for all guids? If so, no need to continue 
                 status, pilotErrorDiag = verifyReplicasDictionary(replicas_dict, guid_token_dict.keys())
                 if status:
                     tolog("Found all replicas, aborting loop over catalog hosts")
@@ -3950,37 +3948,37 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
                 if host_nr < len(lfc_hosts_list):
                     tolog("Replica lookup failed for host %s, will attempt to use another host" % (lfc_host))
 
-        # were no replicas found?
+        # Were no replicas found?
         if not status:
             tolog("Exhausted LFC host list, job will fail")
             return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary, copytool_dictionary
         else:
-            # reset the last error code since the replica was found in the primary LFC
+            # Reset the last error code since the replica was found in the primary LFC
             ec = 0
             pilotErrorDiag = ""
         tolog("file_dict = %s" % str(file_dict))
 
-        # create a pool file catalog
+        # Create a pool file catalog
         xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)
     elif use_rucio:
         tolog("Replica dictionaries will be prepared for Rucio")
 
-        # get the replica dictionary etc using predeterministic paths method
+        # Get the replica dictionary etc using predeterministic paths method
         ec, pilotErrorDiag, file_dict, xml_source, replicas_dict = getRucioFileList(scope_dict, guid_token_dict,\
                                                                                     lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover)
         if ec != 0:
             return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary, copytool_dictionary
         tolog("file_dict = %s" % str(file_dict))
 
-        # create a pool file catalog
+        # Create a pool file catalog
         xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)
 
     if xml_from_PFC == '' and not os.environ.has_key('Nordugrid_pilot'):
-        # fetch the input file xml from the dq2 server
+        # Fetch the input file xml from the dq2 server
         xml_from_PFC, xml_source = getPoolFileCatalogDQ2(ub, guids)
 
     if os.environ.has_key('Nordugrid_pilot') or region == 'testregion':
-        # build a new PFC for NG
+        # Build a new PFC for NG
         ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogNG(guids, lfns, pinitdir)
 
     # As a last step, remove any multiple identical copies of the replicas (SURLs)
