@@ -2029,7 +2029,7 @@ def mover_get_data(lfns,
     # Select the correct mover
     copycmd, setup = getCopytool(mode="get")
 
-    # Get the sitemover object corresponding to the copy command
+    # Get the sitemover object corresponding to the default copy command
     sitemover = getSiteMover(copycmd, setup)
 
     # Get the experiment object
@@ -2135,6 +2135,13 @@ def mover_get_data(lfns,
         for nr in range(number_of_files):
             # Extract the file info from the dictionary
             guid, gpfn, lfn, fsize, fchecksum, filetype, copytool = extractInputFileInfo(fileInfoDic[nr], lfns)
+
+            # Has the copycmd/copytool changed? (E.g. due to FAX) If so, update the sitemover object
+            if copytool != copycmd:
+                copycmd = copytool
+                # Get the sitemover object corresponding to the new copy command
+                sitemover = getSiteMover(copycmd, setup)
+                tolog("Site mover object updated since copytool has changed")
 
             # Update the dataset name
             dsname = getDataset(lfn, dsdict)
