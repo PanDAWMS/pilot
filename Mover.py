@@ -647,7 +647,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             ec = -1
         tolog("fileInfoDic=%s" % str(fileInfoDic))
         tolog("replicas_dic=%s" % str(replicas_dic))
-        return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, copytool_dictionary
+        return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
     # If the pilot is running on a Tier 3 site, then neither LFC nor PFC should be used
     if si.isTier3():
@@ -670,7 +670,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             # Get the file info
             ec, pilotErrorDiag, fsize, fchecksum = sitemover.getLocalFileInfo(se_path, csumtype="default")
             if ec != 0:
-                return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, copytool_dictionary
+                return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
             # Fill the dictionaries
             fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum, 'DISK', copytool) # no tape on T3s, so filetype is always DISK
@@ -689,14 +689,14 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
                                sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
 
         if ec != 0:
-            return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, copytool_dictionary
+            return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
         tolog("Using XML source %s" % (xml_source))
         if xml_from_PFC == '':
             pilotErrorDiag = "Failed to get PoolFileCatalog"
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
             tolog("Mover get_data finished (failed)")
-            return error.ERR_NOPFC, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, copytool_dictionary
+            return error.ERR_NOPFC, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
         xmldoc = minidom.parseString(xml_from_PFC)        
         fileList = xmldoc.getElementsByTagName("File")
@@ -723,7 +723,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             if not fsize or not fchecksum:
                 ec, pilotErrorDiag, fsize, fchecksum = getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, error)
                 if ec != 0:
-                    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, copytool_dictionary
+                    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
                 # Even though checksum and file size is most likely already known from LFC, more reliable file
                 # info is stored in Rucio. Try to get it from there unless the dispatcher has already sent it to the pilot
@@ -743,8 +743,11 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             # Get the filetype for this surl
             filetype = getFiletypeFromDictionary(gpfn, surl_filetype_dictionary)
 
+            # Extract the copytool for this PFN
+            _copytool = extractCopytoolForPFN(pfn, copytool_dictionary)
+
             # Store in the file info dictionary
-            fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, copytool)
+            fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, _copytool)
 
             # Check total file sizes to avoid filling up the working dir, add current file size
             try:
@@ -752,7 +755,19 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
             except:
                 pass
 
-    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, copytool_dictionary
+    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+
+def extractCopytoolForPFN(pfn, copytool_dictionary):
+    """ Extract the copytool for this PFN """
+
+    try:
+        copytool = copytool_dictionary[pfn]
+    except:
+        tolog("!!WARNING!!1212!! Caught exception: %s" % (e))
+        tolog("!!WARNING!!2312!! Copytool could not be extracted from dictionary for surl=%s: %s" % (pfn, str(copytool_dictionary)))
+        copytool = getCopytoolIn()
+
+    return copytool
 
 def getFiletypeFromDictionary(gpfn, surl_filetype_dictionary):
     """ Get the filetype for this surl """
@@ -1198,7 +1213,7 @@ def convertSURLtoTURLUsingDataset(surl, dataset, computingSite, sourceSite):
     turl = ""
 
     # Select the correct mover
-    copycmd, setup = copytool(mode="get")
+    copycmd, setup = getCopytool(mode="get")
 
     # Get the sitemover object corresponding to the copy command
     sitemover = getSiteMover(copycmd, setup)
@@ -1885,7 +1900,8 @@ def extractInputFileInfo(fileInfoList_nr, lfns):
     size = fileInfoList_nr[2]
     checksum = fileInfoList_nr[3]
     filetype = fileInfoList_nr[4]
-    tolog("Extracted (guid, gpfn, size, checksum, filetype) = (%s, %s, %s, %s, %s)" % (guid, gpfn, str(size), checksum, filetype))
+    copytool = fileInfoList_nr[5]
+    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool) = (%s, %s, %s, %s, %s, %s)" % (guid, gpfn, str(size), checksum, filetype, copytool))
 
     # get the corresponding lfn
     lfn = getLFN(gpfn, lfns)
@@ -1895,7 +1911,7 @@ def extractInputFileInfo(fileInfoList_nr, lfns):
     if size == "":
         size = 0
 
-    return guid, gpfn, lfn, size, checksum, filetype
+    return guid, gpfn, lfn, size, checksum, filetype, copytool
 
 def getAlternativeReplica(gpfn, guid, replica_number, createdPFCTURL, replica_dictionary):
     """ Grab the gpfn from the replicas dictionary in case alternative replica stage-in is allowed """
@@ -2011,7 +2027,7 @@ def mover_get_data(lfns,
     #    _token = getProperSpaceTokenList(token, listSEs, len(lfns))
 
     # Select the correct mover
-    copycmd, setup = copytool(mode="get")
+    copycmd, setup = getCopytool(mode="get")
 
     # Get the sitemover object corresponding to the copy command
     sitemover = getSiteMover(copycmd, setup)
@@ -2029,10 +2045,9 @@ def mover_get_data(lfns,
     path = _path
 
     # Build the file info dictionary (use the filesize and checksum from the dispatcher if possible) and create the PFC
-    # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype)
+    # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, copytool)
     #         replicas_dic[guid1] = [ replica1, .. ] where replicaN is an object of class replica
-    #         copytool_dictionary = { surl1: copytool1, .. }
-    ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, copytool_dictionary() = \
+    ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic = \
         getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
                     scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment)
     if ec != 0:
@@ -2091,7 +2106,7 @@ def mover_get_data(lfns,
         tolog("All files will be transferred at once")
 
         # Extract the file info for the first file in the dictionary
-        guid, gpfn, lfn, fsize, fchecksum, filetype = extractInputFileInfo(fileInfoDic[0], lfns)
+        guid, gpfn, lfn, fsize, fchecksum, filetype, copytool = extractInputFileInfo(fileInfoDic[0], lfns)
         file_access = getFileAccess(access_dict, lfn)
         dsname = getDataset(lfn, dsdict)
 
@@ -2119,7 +2134,7 @@ def mover_get_data(lfns,
         tolog("Will process %d file(s)" % (number_of_files))
         for nr in range(number_of_files):
             # Extract the file info from the dictionary
-            guid, gpfn, lfn, fsize, fchecksum, filetype = extractInputFileInfo(fileInfoDic[nr], lfns)
+            guid, gpfn, lfn, fsize, fchecksum, filetype, copytool = extractInputFileInfo(fileInfoDic[nr], lfns)
 
             # Update the dataset name
             dsname = getDataset(lfn, dsdict)
@@ -2700,7 +2715,7 @@ def mover_put_data(outputpoolfcstring,
         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
 
     # get the copy tool
-    copycmd, setup = copytool()
+    copycmd, setup = getCopytool()
 
     tolog("Copy command: %s" % (copycmd))
     tolog("Setup: %s" % (setup))
@@ -4091,7 +4106,7 @@ def checkLocalSE(analyJob):
     status = False
 
     # Select the correct mover
-    (copycmd, setup) = copytool()
+    (copycmd, setup) = getCopytool()
 
     tolog("Copy command: %s" % (copycmd))
     tolog("Setup: %s" % (setup))
@@ -4140,7 +4155,7 @@ def check_localSE_space(sitename, ub):
     """ Returns the amount of available space on the SE """
 
     # Select the correct mover
-    (copycmd, setup) = copytool()
+    (copycmd, setup) = getCopytool()
 
     tolog("Calling getSiteMover from check_localSE_space")
     tolog("Copy command: %s" % (copycmd))
@@ -4163,7 +4178,7 @@ def check_localSE_space(sitename, ub):
 def getSiteMover(sitemover, setup, *args, **kwrds):
     return SiteMoverFarm.getSiteMover(sitemover, setup, *args, **kwrds)
 
-def copytool(mode="put"):
+def getCopytool(mode="put"):
     """
     Selects the correct copy tool (SiteMover id) given a site name
     'mode' is used to distinguish between different copy commands

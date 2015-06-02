@@ -47,8 +47,10 @@ Now returning copytool_dictionary from getCatalogFileList(), received in getPool
 Created getCopytoolDictionary() used by getCatalogFileList() (Mover)
 Now setting copytool_dictionary on a replica by replica basis in getCatalogFileList() (Mover)
 Now returning copytool_dictionary from getPoolFileCatalog(), received in getFileInfo() (Mover)
-Now returning copytool_dictionary from getFileInfo(), received in mover_get_data() (Mover)
-
+Created extractCopytoolForPFN() used in getFileInfo() (Mover)
+Renamed copytool() to getCopytool() (Mover)
+Extracting and returning copytool in extractInputFileInfo(), received in mover_get_data() (Mover)
+ 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
 - Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)
