@@ -308,11 +308,11 @@ class RunJobHpcEvent(RunJob):
         # 3. create Pool File Catalog
         inputFileDict = dict(zip(self.__job.inFilesGuids, inputFilesGlobal))
         self.__poolFileCatalog = os.path.join(self.__job.workdir, "PoolFileCatalog_HPC.xml")
-        createPoolFileCatalog(inputFileDict, self.__poolFileCatalog)
+        createPoolFileCatalog(inputFileDict, self.__job.inFiles, self.__poolFileCatalog)
         inputFileDictTemp = dict(zip(self.__job.inFilesGuids, inputFiles))
         self.__poolFileCatalogTemp = os.path.join(self.__job.workdir, "PoolFileCatalog_Temp.xml")
         self.__poolFileCatalogTempName = "HPCWORKINGDIR/PoolFileCatalog_Temp.xml"
-        createPoolFileCatalog(inputFileDictTemp, self.__poolFileCatalogTemp)
+        createPoolFileCatalog(inputFileDictTemp, self.__job.inFiles, self.__poolFileCatalogTemp)
 
         # 4. getSetupCommand
         setupCommand = self.stripSetupCommand(self.__runCommandList[0], self.__job.trf)

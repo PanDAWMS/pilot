@@ -251,8 +251,7 @@ class Monitor:
             self.__skip = self.__checkLocalSpace(self.__env['workerNode'].disk)
 
             # check the size of the workdir for user jobs
-            if self.__env['uflag']:
-                self.__skip = self.__checkWorkDir()
+            self.__skip = self.__checkWorkDir()
 
             # update the time for checking disk space
             self.__env['curtime_sp'] = int(time.time())

@@ -1076,7 +1076,7 @@ def removeFiles(dir, _fileList):
 
     return ec
 
-def createPoolFileCatalog(file_list, pfc_name="PoolFileCatalog.xml", forceLogical=False):
+def createPoolFileCatalog(file_list, lfns, pfc_name="PoolFileCatalog.xml", forceLogical=False):
     """
     Create the PoolFileCatalog.xml
     file_list = { guid1 : sfn1, ... }
@@ -1124,7 +1124,7 @@ def createPoolFileCatalog(file_list, pfc_name="PoolFileCatalog.xml", forceLogica
                 _file.appendChild(logical)
 
                 # remove any __DQ2 substring from the LFN if necessary
-                _lfn = os.path.basename(sfn)
+                _lfn = getLFN(sfn, lfns) #os.path.basename(sfn)
                 if "__DQ2" in _lfn:
                     _lfn = stripDQ2FromLFN(_lfn)
 
@@ -1310,17 +1310,22 @@ def getErrors(filename):
 
     return ret            
 
-def getLFN(pfn, lfnlist):
-    """
-    get the local file name from the xml, and ignore any trailing __DQ2-parts
-    e.g. HITS.017771._00188.pool.root__DQ2-1200097946 -> HITS.017771._00188.pool.root
-    """
+def getLFN(pfn, lfns):
+    """ Identify the LFN from the list of LFNs corresponding to a PFN """
+    # Note: important since the basename of the PFN can contain additional characters,
+    # e.g. PFN = /../data15_cos.00259101.physics_IDCosmic.merge.RAW._lb0116._SFO-ALL._0001.1_1427497374
+    # but LFN = data15_cos.00259101.physics_IDCosmic.merge.RAW._lb0116._SFO-ALL._0001.1
 
     lfn = ""
-    for lfn in lfnlist:
-        bpfn = os.path.basename(pfn)
-        if bpfn[:len(lfn)] == lfn:
-            break
+    for _lfn in lfns:
+        _basename = os.path.basename(pfn)
+        if _basename.startswith(_lfn):
+            lfn = _lfn
+
+    if lfn == "":
+        tolog("!!WARNING!!2323!! Correct LFN could not be identified: pfn=%s, lfns=%s" % (pfn, str(lfns)))
+        lfn = pfn
+
     return lfn
 
 def makeTransRegReport(all_transferred, some_transferred, latereg, nr_transferred, nr_files, fail, ec, ret, fields):
