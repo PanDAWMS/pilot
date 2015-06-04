@@ -621,7 +621,7 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
     si = getSiteInformation(thisExperiment.getExperiment())
 
     # In case we are staging in files from an object store, we can do a short cut and skip the catalog lookups below
-    copytool = getCopytoolIn()
+    copytool, dummy = getCopytool(mode="get")
     if "objectstore" in copytool:
         tolog("Objectstore stage-in: cutting a few corners")
 
@@ -762,10 +762,10 @@ def extractCopytoolForPFN(pfn, copytool_dictionary):
 
     try:
         copytool = copytool_dictionary[pfn]
-    except:
+    except Exception, e:
         tolog("!!WARNING!!1212!! Caught exception: %s" % (e))
         tolog("!!WARNING!!2312!! Copytool could not be extracted from dictionary for surl=%s: %s" % (pfn, str(copytool_dictionary)))
-        copytool = getCopytoolIn()
+        copytool, dummy = getCopytool(mode="get")
 
     return copytool
 
@@ -1775,20 +1775,11 @@ def getNumberOfReplicaRetries(createdPFCTURL, replica_dictionary, guid):
 
     return get_RETRY_replicas
 
-def getCopytoolIn():
-    """ return the copytool used for stage-in """
-
-    copytoolin = readpar("copytoolin")
-    if copytoolin == "":
-        copytoolin = readpar("copytool")
-
-    return copytoolin
-
 def reportFileCorruption(gpfn, sitemover):
     """ report corrupt file to consistency server """
 
     # except for lcgcp site mover (since it does not return a proper SURL, the consistency report is done in the site mover)
-    _copytool = getCopytoolIn()
+    _copytool, dummy = getCopytool(mode="get")
     if _copytool != "lcgcp" and _copytool != "lcg-cp" and _copytool != "storm":
         if gpfn != "":
             try:
@@ -3422,7 +3413,7 @@ def getCopytoolDictionary(matched_replicas):
     # copytool_dictionary: { surl1: copytool, .. } - specifies what copytool to use for the guid
 
     copytool_dictionary = {}
-    copytool = getCopytoolIn()
+    copytool, dummy = getCopytool(mode="get")
 
     for surl in matched_replicas:
         copytool_dictionary[surl] = copytool
@@ -3493,7 +3484,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
     tolog("Copyprefix lists: %s, %s" % (str(pfroms), str(ptos)))
 
     # Get the default copytool
-    copytool = getCopytoolIn()
+    copytool, dummy = getCopytool(mode="get")
 
     # Loop over all guids and correct empty values
     for guid in replicas_dict.keys():
@@ -3887,7 +3878,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     lfn_dict, guid_token_dict, filesize_dict, checksum_dict = createFileDictionaries(guids, lfns, tokens, filesizeIn, checksumIn, DBReleaseIsAvailable, dbh)
 
     # Update booleans if Rucio is used and scope dictionary is set
-    copytool = getCopytoolIn()
+    copytool, dummy = getCopytool(mode="get")
 #    if scope_dict and ("/rucio" in readpar('seprodpath') or "/rucio" in readpar('sepath')) and copytool != "aria2c":
 #        tolog("Resetting file lookup boolean (LFC will not be queried)")
 #        use_rucio = True
@@ -3932,7 +3923,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
                     elif not surl in copytool_dictionary.keys():
                         copytool_dictionary[surl] = new_copytool_dictionary[surl]
                     else:
-                        copytool_dictionary[surl] += new_copytool_dictionary[surl]
+                        tolog("Copytool dictionary already contains an entry for SURL=%s, copytool=%s" % (surl, copytool_dictionary[surl]))
 
                 # Does the current replicas_dict contain replicas for all guids? If so, no need to continue 
                 status, pilotErrorDiag = verifyReplicasDictionary(replicas_dict, guid_token_dict.keys())

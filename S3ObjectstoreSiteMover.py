@@ -58,6 +58,8 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         keyPair = None
         if re.search("^s3://.*\.usatlas\.bnl\.gov:8443", surl) != None:
             keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
+        if re.search("^s3://.*\.cern\.ch:443", surl) != None:
+            keyPair = si.getSecurityKey('CERN_ObjectStoreKey', 'CERN_ObjectStoreKey.pub')
         if surl.startswith("s3://s3.amazonaws.com:80"):
             keyPair = si.getSecurityKey('Amazon_ObjectStoreKey', 'Amazon_ObjectStoreKey.pub')
         if keyPair == None or keyPair["publicKey"] == None or keyPair["privateKey"] == None:

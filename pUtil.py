@@ -1319,12 +1319,17 @@ def getLFN(pfn, lfns):
     lfn = ""
     for _lfn in lfns:
         _basename = os.path.basename(pfn)
-        if _basename.startswith(_lfn):
-            lfn = _lfn
+        if _basename.endsswith(_lfn):
+            # Handle scopes in case they are present
+            if ":" in _basename:
+                l = _basename.split(":")
+                lfn = l[1]
+            else:
+                lfn = _lfn
 
     if lfn == "":
-        tolog("!!WARNING!!2323!! Correct LFN could not be identified: pfn=%s, lfns=%s" % (pfn, str(lfns)))
-        lfn = pfn
+        tolog("!!WARNING!!2323!! Correct LFN could not be identified: pfn=%s, lfns=%s (assume basename of PFN)" % (pfn, str(lfns)))
+        lfn = os.path.basename(pfn)
 
     return lfn
 
