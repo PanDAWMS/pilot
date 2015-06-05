@@ -276,7 +276,7 @@ def getObjectstoresList(queuename):
             ret = 0
             output = ""
         else:
-            cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all\" >%s" % (filename)
+            cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&vo_name=atlas&panda_queue=%s\" >%s" % (filename, queuename)
             tolog("Executing command: %s" % (cmd))
             import commands
             ret, output = commands.getstatusoutput(cmd)

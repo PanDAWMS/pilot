@@ -2222,7 +2222,7 @@ def mover_get_data(lfns,
             if s != 0:
                 # Normal stage-in failed, now try with FAX if possible
                 if error.isPilotFAXErrorCode(s):
-                    if isFAXAllowed(filetype, gpfn, sitemover) and transferType != "fax" and sitemover.copyCommand != "fax": # no point in trying to fallback to fax if the fax transfer above failed
+                    if isFAXAllowed(filetype, gpfn) and transferType != "fax" and sitemover.copyCommand != "fax": # no point in trying to fallback to fax if the fax transfer above failed
                         tolog("Normal stage-in failed, will attempt to use FAX")
                         usedFAXMode = True
 
@@ -3629,7 +3629,6 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                     pilotErrorCode = "%s has not been transferred yet (guid=%s)" % (lfn_dict[guid], guid)
                     ec = error.ERR_DBRELNOTYETTRANSFERRED
                 else:
-                    allowFAX = readpar('allowfax').lower()
                     if copytool == "fax" or copytool == "aria2c":
                         # Special use case for FAX; the file might not be available locally, so do not fail here because no local copy can be found
                         # use a 'fake' replica for now, ie use the last known SURL, irrelevant anyway since the SURL will eventually come from FAX
@@ -3637,7 +3636,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
                         tolog("Found no replica on this site but will use FAX in normal mode (copytool already set to fax)")
                         useFAX = True
                     else:
-                        if allowFAX:
+                        if isFAXAllowed(filetype, sfn):
                             useFAX = True
                             tolog("!!WARNING!!1221!! Found no replica on this site - will use FAX for file transfer")
                         else:
@@ -3836,7 +3835,7 @@ def getFileCatalogHosts(thisExperiment):
 
     return hosts_list
 
-def isFAXAllowed(filetype, surl, sitemover):
+def isFAXAllowed(filetype, surl):
     """ return True if FAX is available """
 
     allowfax = readpar('allowfax').lower()

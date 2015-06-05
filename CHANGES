@@ -50,6 +50,7 @@ Created extractCopytoolForPFN() used in getFileInfo() (Mover)
 Renamed copytool() to getCopytool() (Mover)
 Extracting and returning copytool in extractInputFileInfo(), received in mover_get_data() (Mover)
 Updating sitemover object dynamically depending on which copytool to use in mover_get_data() (Mover)
+Removed sitemover argument from isFAXAllowed() (Mover)
  
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)

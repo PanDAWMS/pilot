@@ -20,7 +20,7 @@ from optparse import OptionParser
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile
+     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
@@ -654,17 +654,12 @@ class RunJob(object):
 
         return _obj
 
-    def getMemoryUtilityCommand(self, pid, summary="summary.json"):
+    def getMemoryUtilityCommand(self, pid, homePackage, summary="summary.json"):
         """ Prepare the memory utility command string """
 
         interval = 60
-        path = "/afs/cern.ch/work/n/nrauschm/public/MemoryMonitoringTool/MemoryMonitor"
-        cmd = ""
-
-        try:
-            tolog("2. Process id of job command: %d" % (pid))
-        except Exception, e:
-            tolog("Exception caught: %s" % (e))
+        default_patch_release = "20.1.4.1"
+        default_path = "/cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc48-opt/20.1.5/AtlasProduction/20.1.5.2/InstallArea/x86_64-slc6-gcc48-opt/bin/MemoryMonitor"
 
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):
@@ -672,10 +667,20 @@ class RunJob(object):
         else:
             output = summary + '.txt'
 
-        if os.path.exists(path):
-            cmd = "%s --pid %d --filename %s --json-summary %s --interval %d" % (path, pid, output, summary, interval)
+        # Build the command
+        cmd = "asetup %s;" % (homePackage.split('/')[-1])
+        _cmd = cmd + "which MemoryMonitor"
+        # Can the MemoryMonitor be found?
+        try:
+            ec, output = timedCommand(_cmd, timeout=120)
+        except Exception, e:
+            tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
+            cmd = "asetup %s;" % (default_patch_release)
         else:
-            tolog("Path does not exist: %s" % (path))
+            if "which: no MemoryMonitor in" in output:
+                tolog("!!WARNING!!3435!! Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                cmd = "asetup %s;" % (default_patch_release)
+        cmd += "MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, output, summary, interval)
 
         return cmd
 
@@ -730,22 +735,19 @@ class RunJob(object):
 
                 if main_subprocess:
                     time.sleep(2)
-                    try:
-                        tolog("Process id of job command: %d" % (main_subprocess.pid))
-                    except Exception, e:
-                        tolog("1. Exception caught: %s" % (e))
+
                     # Start the memory utility if required
                     mem_subprocess = None
                     if thisExperiment.shouldExecuteMemoryMonitor():
                         summary = thisExperiment.getMemoryMonitorJSONFilename()
-                        mem_cmd = self.getMemoryUtilityCommand(main_subprocess.pid, summary=summary)
+                        mem_cmd = self.getMemoryUtilityCommand(main_subprocess.pid, job.homePackage, summary=summary)
                         if mem_cmd != "":
                             mem_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
                             if mem_subprocess:
                                 try:
                                     tolog("Process id of memory monitor: %d" % (mem_subprocess.pid))
                                 except Exception, e:
-                                    tolog("3. Exception caught: %s" % (e))
+                                    tolog("!!WARNING!!3436!! Exception caught: %s" % (e))
                         else:
                             tolog("Could not launch memory monitor since the command path does not exist")
                     else:
