@@ -6,7 +6,7 @@ cd PandaPilot/
 
 2) add upstream
 #git remote add upstream  https://github.com/PanDAWMS/pilot.git
-git remote add upstream ssh://git@github.com:PanDAWMS/pilot.git
+git remote add upstream ssh://git@github.com/PanDAWMS/pilot.git
 
 3) verify 
 git status
