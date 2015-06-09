@@ -12,6 +12,7 @@ import json
 
 import Logger
 
+
 class EventServerJobManager():
     class MessageThread(threading.Thread):
         def __init__(self, messageQ, socketname, context, **kwds):
