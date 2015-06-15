@@ -436,7 +436,7 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
     try:
         # Note: alt stage-out numbers are not saved in recovery mode (job object not returned from this function)
         rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (file_path), dsname, 
-                                                          thisSite.sitename, ub=thisSite.dq2url, analysisJob=analJob,
+                                                          thisSite.sitename, thisSite.computingElement, ub=thisSite.dq2url, analysisJob=analJob,
                                                           proxycheck=env['proxycheckFlag'], spsetup=job.spsetup,scopeOut=job.scopeOut, scopeLog=job.scopeLog,
                                                           token=job.destinationDBlockToken, pinitdir=env['pilot_initdir'],
                                                           datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,

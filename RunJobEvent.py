@@ -1123,7 +1123,7 @@ class RunJobEvent(RunJob):
         tin_0 = os.times()
         try:
             ec, pilotErrorDiag, rf, rs, self.__job.filesNormalStageOut, self.__job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" %\
-                                         (metadata_fname), dsname, self.__jobSite.sitename,\
+                                         (metadata_fname), dsname, self.__jobSite.sitename, self.__jobSite.computingElement,\
                                          analysisJob=self.__analysisJob, pinitdir=self.__pilot_initdir, scopeOut=self.__job.scopeOut,\
                                          proxycheck=self.__proxycheckFlag, spsetup=self.__job.spsetup, token=self.__job.destinationDBlockToken,\
                                          userid=self.__job.prodUserID, datasetDict=datasetDict, prodSourceLabel=self.__job.prodSourceLabel,\
@@ -1222,7 +1222,6 @@ class RunJobEvent(RunJob):
                     # Get the queuename - which is only needed if objectstores field is not present in queuedata
                     jobSite = self.getJobSite()
                     queuename = jobSite.computingElement
-                    tolog("yy. queuename=%s"%str(queuename))
 
                     # Add the transferred file to the OS transfer file
                     addToOSTransferDictionary(path, self.getJobWorkDir(), queuename, "eventservice", si)
@@ -1700,7 +1699,7 @@ class RunJobEvent(RunJob):
             # Create a TURL based PFC
             tokens_dictionary = {} # not needed here, so set it to an empty dictionary
             ec, pilotErrorDiag, createdPFCTURL, usect = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
-                                                                            sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "")
+                                                                            sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList)
             if ec != 0:
                 tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 

@@ -128,7 +128,7 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
 
         tolog("Calling get function with dsname=%s, dsdict=%s" % (dsname, str(dsdict)))
         rc, pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
-            mover_get_data(ins, job.workdir, jobSite.sitename, stageinTries, ub=jobSite.dq2url, dsname=dsname, sourceSite=job.sourceSite,\
+            mover_get_data(ins, job.workdir, jobSite.sitename, jobSite.computingElement, stageinTries, ub=jobSite.dq2url, dsname=dsname, sourceSite=job.sourceSite,\
                            dsdict=dsdict, guids=job.inFilesGuids, analysisJob=analysisJob, usect=usect, pinitdir=pinitdir,\
                            proxycheck=proxycheck, spsetup=job.spsetup, tokens=job.dispatchDBlockToken, userid=job.prodUserID,\
                            access_dict=access_dict, inputDir=inputDir, jobId=job.jobId, DN=job.prodUserID, workDir=workDir,\
@@ -603,7 +603,7 @@ def getFileInfoDictionaryFromXML(xml_file):
 
     return file_info_dictionary
 
-def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
+def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
                 scope_dict, pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
     """ Build the file info dictionary """
 
@@ -628,8 +628,8 @@ def getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, 
         # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype, copytool)
         #         replicas_dic[guid1] = [replica1, ..]
 
-        espath = getFilePathForObjectStore(filetype="eventservice")
-        logpath = getFilePathForObjectStore(filetype="logs")
+        espath = getFilePathForObjectStore(si, filetype="eventservice")
+        logpath = getFilePathForObjectStore(si, filetype="logs")
 
         i = 0
         try:
@@ -1932,6 +1932,7 @@ def getSurlTokenDictionary(lfns, tokens):
 def mover_get_data(lfns,
                    path,
                    sitename,
+                   queuename,
                    stageinTries,
                    inputpoolfcstring="xmlcatalog_file:PoolFileCatalog.xml",
                    ub="outdated", # to be removed
@@ -2039,7 +2040,7 @@ def mover_get_data(lfns,
     # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, copytool)
     #         replicas_dic[guid1] = [ replica1, .. ] where replicaN is an object of class replica
     ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic = \
-        getFileInfo(region, ub, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
+        getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
                     scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment)
     if ec != 0:
         return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
@@ -2645,6 +2646,7 @@ def getScope(lfn, logFile, file_nr, scopeOut, scopeLog):
 def mover_put_data(outputpoolfcstring,
                    pdsname,
                    sitename,
+                   queuename,
                    ub="outdated", # to be removed
                    analysisJob=False,
                    testLevel="0",
@@ -2704,21 +2706,25 @@ def mover_put_data(outputpoolfcstring,
 
     region = readpar('region')
 
-    # get the storage path, e.g.
+    # Get the site information object and set the queuename
+    si = getSiteInformation(experiment)
+    si.setQueueName(queuename)
+
+    # Get the storage path, e.g.
     # ddm_storage = srm://uct2-dc1.uchicago.edu:8443/srm/managerv2?SFN=/pnfs/uchicago.edu/atlasuserdisk
     # Note: this ends up in the 'destination' variable inside the site mover's put_data() - which is mostly not used
     # It can be used for special purposes, like for the object store path which can be predetermined
-    ddm_storage, pilotErrorDiag = getDDMStorage(ub, analysisJob, region, eventService, jobId)
+    ddm_storage, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, eventService, jobId)
     if pilotErrorDiag != "":
         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
 
-    # get the copy tool
+    # Get the copy tool
     copycmd, setup = getCopytool()
 
     tolog("Copy command: %s" % (copycmd))
     tolog("Setup: %s" % (setup))
 
-    # get the site mover
+    # Get the site mover
     sitemover = getSiteMover(copycmd, setup)
     tolog("Got site mover: %s" % str(sitemover))
 
@@ -2730,9 +2736,6 @@ def mover_put_data(outputpoolfcstring,
 
     # create the scope dictionary
     # scope_dict = createZippedDictionary(file_list, job.scopeOut)
-
-    # get the site information object
-    si = getSiteInformation(experiment)
 
     # Get the experiment object
     thisExperiment = getExperiment(experiment)
@@ -2750,24 +2753,18 @@ def mover_put_data(outputpoolfcstring,
         # get the file names and guid
         # note: pfn is the source
         filename, lfn, pfn, guid = getFilenamesAndGuid(thisfile)
-        tolog("filename=%s" % (filename))
-        tolog("lfn=%s" % (lfn))
-        tolog("guid=%s" % (guid))
 
         # note: pfn is the full path to the local file
         tolog("Preparing copy for %s to %s using %s" % (pfn, ddm_storage, copycmd))
 
         # get the corresponding scope
         scope = getScope(lfn, logFile, file_nr, scopeOut, scopeLog)
-        tolog("scope=%s" % (scope))
 
         # update the current file state
         updateFileState(filename, workDir, jobId, mode="file_state", state="not_transferred")
         dumpFileStates(workDir, jobId)
 
         # get the dataset name (dsname_report is the same as dsname but might contain _subNNN parts)
-        tolog("datasetDict=%s"%str(datasetDict))
-        tolog("pdsname=%s"%pdsname)
         dsname, dsname_report = getDatasetName(sitemover, datasetDict, lfn, pdsname)
 
         # update tracing report
@@ -3140,7 +3137,7 @@ def verifySpaceToken(spacetoken, setokens):
 
     return status
 
-def getFilePathForObjectStore(filetype="logs"):
+def getFilePathForObjectStore(si, filetype="logs"):
     """ Return a proper file path in the object store """
 
     # For single object stores
@@ -3150,6 +3147,15 @@ def getFilePathForObjectStore(filetype="logs"):
     # For https
     # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs
     basepath = ""
+
+    # Get the queuename
+    queuename = si.getQueueName()
+    path = si.getObjectstorePath("eventservice")
+    if path != "":
+        tolog("basepath=%s" % (path))
+        return path
+    else:
+        tolog("Base path not found in AGIS queuedata")
 
     # Which form of the schedconfig.objectstore field do we currently have?
     objectstore = readpar('objectstore')
@@ -3180,7 +3186,7 @@ def getFilePathForObjectStore(filetype="logs"):
 
     return basepath
 
-def getDDMStorage(ub, analysisJob, region, eventService, jobId):
+def getDDMStorage(ub, si, analysisJob, region, eventService, jobId):
     """ return the DDM storage (http version) """
 
     pilotErrorDiag = ""
@@ -3189,7 +3195,7 @@ def getDDMStorage(ub, analysisJob, region, eventService, jobId):
 
     # special paths are used for event service
     if eventService:
-        _path = getFilePathForObjectStore(filetype="eventservice")
+        _path = getFilePathForObjectStore(si, filetype="eventservice")
         if _path == "":
             pilotErrorDiag = "No path to object store"
         return _path, pilotErrorDiag

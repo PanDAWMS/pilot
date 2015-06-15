@@ -1521,13 +1521,13 @@ def stringToFields(jobFields):
 
     return fields
 
-def readpar(parameter, alt=False):
+def readpar(parameter, alt=False, version=0):
     """ Read 'parameter' from queuedata via SiteInformation class """
 
     from SiteInformation import SiteInformation
     si = SiteInformation()
 
-    return si.readpar(parameter, alt=alt)
+    return si.readpar(parameter, alt=alt, version=version)
 
 def getBatchSystemJobID():
     """ return the batch system job id (will be reported to the server) """
@@ -3417,7 +3417,7 @@ def getProperTimeout(paths):
 def getPilotVersion(initdir):
     """ Load the pilot version string from file VERSION """
  
-    version = "SULU"
+    version = "PICARD"
     try:
         f = open(os.path.join(initdir, "PILOTVERSION"), "r")
     except Exception, e:
@@ -3823,6 +3823,12 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
     if ec != 0:
         return ec, thisSite, _jobrec, hasQueuedata
 
+    # Get the new queuedata file from AGIS (unless it already exists)
+    try:
+        s = si.getNewQueuedata(_queuename, overwrite=False)
+    except Exception, e:
+        tolog("!!WARNING!!1212!! Exception caught: %s" % (e))
+
     if hasQueuedata:
         # update queuedata and thisSite if necessary
         ec, _thisSite, _jobrec = si.postProcessQueuedata(_queuename, _pshttpurl, thisSite, _jobrec, forceDevpilot)
@@ -4122,6 +4128,8 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                     os.system("rm -rf %s" % (wkdir))
                 except Exception, e:
                     tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % e)
+                else:
+                    setPilotlogFilename("%s/pilotlog-last.txt" % (initdir))
             else:
                 if lockfile:
                     # check if the workdir+job state file should be moved to an external directory

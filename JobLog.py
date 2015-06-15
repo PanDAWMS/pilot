@@ -211,6 +211,7 @@ class JobLog:
             rc, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (WDTxml),
                                                                   dsname,
                                                                   site.sitename,
+                                                                  site.computingElement,
                                                                   ub = dq2url,
                                                                   analysisJob = analyJob,
                                                                   scopeLog = job.scopeLog,
@@ -1025,7 +1026,7 @@ class JobLog:
             _msg = ""
             try:
                 ec, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (filename_xml),
-                                                                  dsname, site.sitename, analysisJob = analyJob,
+                                                                  dsname, site.sitename, site.computingElement, analysisJob = analyJob,
                                                                   testLevel = self.__env['testLevel'],
                                                                   proxycheck = self.__env['proxycheckFlag'],
                                                                   spsetup = job.spsetup,

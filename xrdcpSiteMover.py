@@ -136,8 +136,8 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         if command != "" and not command.endswith(';'):
             command = command + ";"
         command += " which " + self.copyCommand
-        status, output = commands.getstatusoutput(command)
         self.log("Execute command:  %s" % command)
+        status, output = commands.getstatusoutput(command)
         self.log("Status: %s, Output: %s" % (status, output))
         if status != 0:
             self.log(self.copyCommand +" is not found in envsetup: " + _setupStr)
@@ -548,8 +548,8 @@ class xrdcpSiteMover(SiteMover.SiteMover):
 
 
         command = "%s xrdcp -h" % (self._setup)
-        status_local, output_local = commands.getstatusoutput(command)
         tolog("Execute command(%s) to decide whether -adler or --cksum adler32 to be used." % command)
+        status_local, output_local = commands.getstatusoutput(command)
         tolog("status: %s, output: %s" % (status_local, output_local))
         checksum_option = ""
         if "-adler" in output_local:

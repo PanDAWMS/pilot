@@ -7,9 +7,9 @@ import os
 import re
 import commands
 import urlparse
-from pUtil import tolog, replace, readpar, getDirectAccessDic
+from pUtil import tolog, replace, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
-from FileHandling import getExtension
+from FileHandling import getExtension, readJSON
 from PilotErrors import PilotErrors
 
 class SiteInformation(object):
@@ -24,7 +24,8 @@ class SiteInformation(object):
     __experiment = "generic"
     __instance = None                      # Boolean used by subclasses to become a Singleton
     __error = PilotErrors()                # PilotErrors object
-    __securityKeys = {}
+    __securityKeys = {}                    # S3 secret keys (for object store)
+    __queuename = ""                       # Name of the queue
 
     def __init__(self):
         """ Default initialization """
@@ -32,21 +33,38 @@ class SiteInformation(object):
         # e.g. self.__errorLabel = errorLabel
         pass
 
-    def readpar(self, par, alt=False):
+    def getQueueName(self):
+        """ Getter for __queuename """
+
+        return self.__queuename
+
+    def setQueueName(self, queuename):
+        """ Setter for __queuename """
+
+        self.__queuename = queuename
+
+    def readpar(self, par, alt=False, version=0):
         """ Read parameter variable from queuedata """
 
         value = ""
+
+        # Should we should use the new queuedata JSON version?
+        if version == 1:
+            return self.getField(par)
+
+        # Use olf queuedata version
         fileName = self.getQueuedataFileName(alt=alt)
         try:
             fh = open(fileName)
         except:
             try:
-                # try without the path
+                # Try without the path
                 fh = open(os.path.basename(fileName))
             except Exception, e:
                 tolog("!!WARNING!!2999!! Could not read queuedata file: %s" % str(e))
                 fh = None
         if fh:
+            # 
             queuedata = fh.read()
             fh.close()
             if queuedata != "":
@@ -92,8 +110,10 @@ class SiteInformation(object):
 
         return parameter_value
 
-    def getQueuedataFileName(self, useExtension=None, check=True, alt=False):
+    def getQueuedataFileName(self, useExtension=None, check=True, alt=False, version=0):
         """ Define the queuedata filename """
+        # alt: alternative extension
+        # version: 0 (default, old queuedata version), 1 (new AGIS JSON format)
 
         # use a forced extension if necessary
         if useExtension:
@@ -105,7 +125,11 @@ class SiteInformation(object):
         if alt:
             extension = "alt." + extension
 
-        path = "%s/queuedata.%s" % (os.environ['PilotHomeDir'], extension)
+        if version == 1:
+            filename = "new_queuedata.%s" % (extension)
+        else:
+            filename = "queuedata.%s" % (extension)
+        path = os.path.join(os.environ['PilotHomeDir'], filename)
 
         # remove the json extension if the file cannot be found (complication due to wrapper)
         if not os.path.exists(path) and check:
@@ -1078,70 +1102,102 @@ class SiteInformation(object):
 
         return {"publicKey": publicKey, "privateKey": privateKey}
 
-    def getObjectstoresList(self, queuename):
+    def getObjectstoresList(self):
         """ Get the objectstores list from the proper queuedata for the relevant queue """
         # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
 
-        objectstores = []
+        objectstores = None
 
         # First try to get the objectstores field from the normal queuedata
         try:
-            _objectstores = self.readpar('objectstores')
+            _objectstores = self.readpar('objectstores', version=0)
         except:
-            tolog("Field \'objectstores\' not yet available in queuedata")
+            #tolog("Field \'objectstores\' not yet available in queuedata")
             _objectstores = None
-        else:
-            objectstores = _objectstores
 
-        # Get the full info from AGIS
+        # Get the field from AGIS
         if not _objectstores:
+            s = True
+            # Download the new queuedata in case it has not been downloaded already
+            if not os.path.exists(self.getQueuedataFileName(version=1, check=False)):
+                s = self.getNewQueuedata(self.__queuename)
+            if s:
+                _objectstores = self.getField('objectstores')
 
-            filename = "q.json"
-            gotFile = False
-            # Has the file been downloaded already?
-            if os.path.exists(filename):
-                tolog("File exists: %s" % (filename))
-                gotFile = True
-            else:
-                from shutil import copy2
-                try:
-                    copy2('/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json', filename)
-                except Exception, e:
-                    tolog("!!WARNING!!2999!! Could not copy JSON file: %s" % (e))
-                else:
-                    gotFile = True
-            if gotFile:
-                # Load the dictionary
-                dictionary = readJSON(filename)
-                if dictionary != {}:
-                    # Get the entry for queuename
-                    try:
-                        _d = dictionary[queuename]
-                    except Exception, e:
-                        tolog("No entry for queue %s in JSON: %s" % (queuename, e))
-                    else:
-                        # Read the objectstores field
-                        try:
-                            _objectstores = _d['objectstores']
-                        except Exception, e:
-                            tolog("!!WARNING!!2112!! %s" % (e))
-                        else:
-                            objectstores = _objectstores
-                else:
-                    tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
-            else:
-                tolog("!!WARNING!!2121!! Failed to download schedconfig JSON")
+        if _objectstores:
+            objectstores = _objectstores
 
         return objectstores
 
-    def getObjectstoresField(self, field, mode, queuename):
+    def getNewQueuedata(self, queuename, overwrite=True, version=1):
+        """ Download the queuedata primarily from the AGIS server and secondarily from CVMFS """
+
+        filename = self.getQueuedataFileName(version=version, check=False)
+        status = False
+
+        # If overwrite is not required, return True if the queuedata already exists
+        if not overwrite:
+            if os.path.exists(filename):
+                tolog("AGIS queuedata already exist")
+                status = True
+                return status
+
+        # Get the queuedata from AGIS
+        tries = 2
+        for trial in range(tries):
+            tolog("Downloading queuedata (attempt #%d)" % (trial+1))
+            cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&vo_name=atlas&panda_queue=%s\" >%s" % (queuename, filename)
+            tolog("Executing command: %s" % (cmd))
+            ret, output = commands.getstatusoutput(cmd)
+
+            # Verify queuedata
+            value = self.getField('copysetup')
+            if value:
+                status = True
+                break
+
+        # AGIS download failed, default to CVMFS (full version which needs to be trimmed)
+        # ..
+
+        return status
+
+    def getField(self, field, version=1):
+        """ Get the value for entry 'field' in the queuedata """
+
+        value = None
+        filename = self.getQueuedataFileName(version=version, check=False)
+        if os.path.exists(filename):
+
+            # Load the dictionary
+            dictionary = readJSON(filename)
+            if dictionary != {}:
+                # Get the entry for queuename
+                try:
+                    _queuename = dictionary.keys()[0]
+                    _d = dictionary[_queuename]
+                except Exception, e:
+                    tolog("!!WARNING!!2323!! Caught exception: %s" % (e))
+                else:
+                    # Get the field value
+                    try:
+                        value = _d[field]
+                    except Exception, e:
+                        tolog("!!WARNING!!2112!! Queuedata problem: %s" % (e))
+            else:
+                tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
+        else:
+            tolog("!!WARNING!!3434!! File does not exist: %s" % (filename))
+
+        return value
+
+    def getObjectstoresField(self, field, mode):
         """ Return the objectorestores field from the objectstores list for the relevant mode """
         # mode: eventservice, logs, http
 
         value = None
 
         # Get the objectstores list
-        objectstores_list = self.getObjectstoresList(queuename)
+        objectstores_list = self.getObjectstoresList()
 
         if objectstores_list:
             for d in objectstores_list:
@@ -1155,13 +1211,13 @@ class SiteInformation(object):
 
         return value
 
-    def getObjectstorePath(self, mode, queuename):
+    def getObjectstorePath(self, mode):
         """ Return the path to the objectstore """
         # mode: https, eventservice, logs
 
         # Read the endpoint info from the queuedata
-        os_endpoint = self.getObjectstoresField('os_endpoint', mode, queuename)
-        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, queuename)
+        os_endpoint = self.getObjectstoresField('os_endpoint', mode)
+        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode)
 
         if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
             if not os_endpoint.endswith('/'):
@@ -1172,11 +1228,11 @@ class SiteInformation(object):
 
         return path
 
-    def getObjectstoreName(self, mode, queuename):
+    def getObjectstoreName(self, mode):
         """ Return the objectstore name identifier """
         # E.g. CERN_OS_0
 
-        return self.getObjectstoresField('os_name', mode, queuename)
+        return self.getObjectstoresField('os_name', mode)
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

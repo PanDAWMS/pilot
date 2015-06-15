@@ -244,72 +244,69 @@ def addToOSTransferDictionary(path, workdir, queuename, mode, si):
     else:
         dictionary[os_name] = path
 
-    tolog("xx. dictionary=%s"%str(dictionary))
-
     # Store the dictionary
     if writeJSON(os_tr_path, dictionary):
         tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
     else:
         tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
 
-def getObjectstoresList(queuename):
-    """ Get the objectstores list from the proper queuedata for the relevant queue """
-    # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
+def getNewQueuedataFilename():
+    """ Return the name of the queuedata file """
 
-    objectstores = []
+    return "new_queuedata.json"
 
-    # First try to get the objectstores field from the normal queuedata
-    try:
-        from pUtil import readpar
-        _objectstores = readpar('objectstores')
-    except:
-        tolog("Field \'objectstores\' not yet available in queuedata")
-        _objectstores = None
+def getNewQueuedata(queuename):
+    """ Download the queuedata primarily from the AGIS server and secondarily from CVMFS """
 
-    # Get the full info from AGIS
-    if not _objectstores:
+    filename = getNewQueuedataFilename()
 
-        filename = "q.json"
-        # Has the file been downloaded already?
-        if os.path.exists(filename):
-            tolog("File exists: %s" % (filename))
-            ret = 0
-            output = ""
-        else:
-            cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&vo_name=atlas&panda_queue=%s\" >%s" % (filename, queuename)
-            tolog("Executing command: %s" % (cmd))
-            import commands
-            ret, output = commands.getstatusoutput(cmd)
+    status = False
+    tries = 2
+    for trial in range(tries):
+        tolog("Downloading queuedata (attempt #%d)" % (trial+1))
+        cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&vo_name=atlas&panda_queue=%s\" >%s" % (queuename, filename)
+        tolog("Executing command: %s" % (cmd))
+        import commands
+        ret, output = commands.getstatusoutput(cmd)
 
-        if ret == 0:
-            # Make sure the JSON file exists
-            if os.path.exists(filename):
-                # Load the dictionary
-                dictionary = readJSON(filename)
-                if dictionary != {}:
-                    # Get the entry for queuename
-                    try:
-                        _d = dictionary[queuename]
-                    except Exception, e:
-                        tolog("No entry for queue %s in JSON: %s" % (queuename, e))
-                    else:
-                        # Read the objectstores field
-                        try:
-                            _objectstores = _d['objectstores']
-                        except Exception, e:
-                            tolog("!!WARNING!!2112!! %s" % (e))
-                        else:
-                            objectstores = _objectstores
-                else:
-                    tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
+        # Verify queuedata
+        value = getField('copysetup')
+        if value:
+            status = True
+            break
+
+    return status
+
+def getField(field):
+    """ Get the value for entry 'field' in the queuedata """
+
+    value = None
+    filename = getNewQueuedataFilename()    
+    if os.path.exists(filename):
+
+        # Load the dictionary
+        dictionary = readJSON(filename)
+        if dictionary != {}:
+            # Get the entry for queuename
+            try:
+                _queuename = dictionary.keys()[0]
+                _d = dictionary[_queuename]
+            except Exception, e:
+                tolog("!!WARNING!!2323!! Caught exception: %s" % (e))
             else:
-                tolog("!!WARNING!!2122!! File does not exist: %s" % (filename))
+                # Get the field value
+                try:
+                    value = _d[field]
+                except Exception, e:
+                    tolog("!!WARNING!!2112!! Queuedata problem: %s" % (e))
         else:
-            tolog("!!WARNING!!2121!! Failed to download schedconfig JSON: %d, %s" % (ret, output))
+            tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
+    else:
+        tolog("!!WARNING!!3434!! File does not exist: %s" % (filename))
 
-    return objectstores
+    return value
 
-def getObjectstoresField(field, mode, queuename):
+def getObjectstoresFieldXXX(field, mode, queuename):
     """ Return the objectorestores field from the objectstores list for the relevant mode """
     # mode: eventservice, logs, http
 
@@ -329,25 +326,65 @@ def getObjectstoresField(field, mode, queuename):
                 tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
     return value
 
-def getObjectstorePath(mode, queuename):
-    """ Return the path to the objectstore """
-    # mode: https, eventservice, logs
+def getObjectstorePathXXX(filename, mode, queuename):
+    """ Get the proper path to a file in the OS """
 
-    # Read the endpoint info from the queuedata
-    os_endpoint = getObjectstoresField('os_endpoint', mode, queuename)
-    os_bucket_endpoint = getObjectstoresField('os_bucket_endpoint', mode, queuename)
-    if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
-        path = os_endpoint + os_bucket_endpoint
-    else:
-        path = ""
+    path = ""
+
+    # Get the objectstores list
+    objectstores_list = getObjectstoresList(queuename)
+
+    if objectstores_list:
+        # Get the relevant fields
+        for d in objectstores_list:
+            try:
+                os_bucket_name = d['os_bucket_name']
+                if os_bucket_name == mode:
+                    os_endpoint = d['os_endpoint']
+                    os_bucket_endpoint = d['os_bucket_endpoint']
+
+                    if os_endpoint.endswith('/'):
+                        os_endpoint = os_endpoint[:-1]
+                    if not os_bucket_endpoint.startswith('//'):
+                        if os_bucket_endpoint.startswith('/'):
+                            os_bucket_endpoint = "/" + os_bucket_endpoint
+                        else:
+                            os_bucket_endpoint = "//" + os_bucket_endpoint
+
+                    path = os.path.join(os_endpoint + os_bucket_endpoint, filename)
+                    break
+            except Exception, e:
+                tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
 
     return path
 
-def getObjectstoreName(mode, queuename):
-    """ Return the objectstore name identifier """
-    # E.g. CERN_OS_0
+def getObjectstoresListXXX(queuename):
+    """ Get the objectstores list from the proper queuedata for the relevant queue """
+    # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
 
-    return getObjectstoresField('os_name', mode, queuename)
+    objectstores = None
+
+    # First try to get the objectstores field from the normal queuedata
+    try:
+        from pUtil import readpar
+        _objectstores = readpar('objectstores')
+    except:
+        #tolog("Field \'objectstores\' not yet available in queuedata")
+        _objectstores = None
+
+    # Get the field from AGIS
+    if not _objectstores:
+        s = True
+        # Download the new queuedata in case it has not been downloaded already
+        if not os.path.exists(getNewQueuedataFilename()):
+            s = getNewQueuedata(queuename)
+        if s:
+            _objectstores = getField('objectstores')
+
+    if _objectstores:
+        objectstores = _objectstores
+
+    return objectstores
 
 def getOSNames(filename):
     """ Get the dictionary of objectstore os_names with populated buckets from the OS transfer dictionary """
