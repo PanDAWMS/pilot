@@ -16,6 +16,7 @@ from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
+from FileHandling import updatePilotErrorReport
 
 import inspect
 
@@ -131,7 +132,10 @@ class Monitor:
                             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_STDOUTTOOBIG
                             self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                             self.__skip = True
-    
+
+                            # store the error info
+                            updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
                             # remove the payload stdout file after the log extracts have been created
     
                             # remove any lingering input files from the work dir
@@ -200,6 +204,9 @@ class Monitor:
                             self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                             self.__skip = True
 
+                            # store the error info
+                            updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
                             # remove any lingering input files from the work dir
                             if self.__env['jobDic'][k][1].inFiles:
                                 if len(self.__env['jobDic'][k][1].inFiles) > 0:
@@ -215,7 +222,7 @@ class Monitor:
     
         spaceleft = int(disk)*1024**2 # B (node.disk is in MB)
         _localspacelimit = self.__env['localspacelimit'] * 1024 # B
-    
+
         # do we have enough local disk space to continue running the job?
         if spaceleft < _localspacelimit:
             pilotErrorDiag = "Too little space left on local disk to run job: %d B (need > %d B)" % (spaceleft, _localspacelimit)
@@ -230,6 +237,9 @@ class Monitor:
                 self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                 self.__skip = True
 
+                # store the error info
+                updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
                 # remove any lingering input files from the work dir
                 if self.__env['jobDic'][k][1].inFiles:
                     if len(self.__env['jobDic'][k][1].inFiles) > 0:
@@ -239,7 +249,7 @@ class Monitor:
     
     def __check_remaining_space(self):
         """
-        every ten minutes, check the remaining disk space and size of user workDir (for analysis jobs)
+        every ten minutes, check the remaining disk space and size of user workDir
         and the size of the payload stdout file
         """
         if (int(time.time()) - self.__env['curtime_sp']) > self.__env['update_freq_space']:
@@ -306,7 +316,7 @@ class Monitor:
         pUtil.tolog("!!WARNING!!1999!! The pilot has decided to kill the job since there is less than 10 minutes of the allowed batch system running time")
         pilotErrorDiag = "Reached maximum batch system time limit"
         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
-    
+
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
             # kill the job
@@ -316,6 +326,9 @@ class Monitor:
             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_REACHEDMAXTIME
             self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+
+            # store the error info
+            updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
     
     def __monitor_processes(self):
         # monitor the number of running processes and the pilot running time
@@ -389,6 +402,9 @@ class Monitor:
             self.__env['jobDic'][job_index][1].result[2] = rc
             self.__env['jobDic'][job_index][1].pilotErrorDiag = pilotErrorDiag
             self.__skip = True
+
+            # store the error info
+            updatePilotErrorReport(self.__env['jobDic'][job_index][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
             
     def __verify_output_sizes(self):
         # verify output file sizes every ten minutes
@@ -443,14 +459,17 @@ class Monitor:
             job.result[0] = "failed"
             job.currentState = job.result[0]
             job.pilotErrorDiag = pilotErrorDiag
-    
+
+        # store the error info
+        updatePilotErrorReport(job.result[2], pilotErrorDiag, "1",  job.jobId, self.__env['pilot_initdir'])
+
         # remove any lingering input files from the work dir
         if job.inFiles:
             if len(job.inFiles) > 0:
                 ec = pUtil.removeFiles(job.workdir, job.inFiles)
-    
+
         return job
-        
+
     def __updateJobs(self):
         """ Make final server update for all ended jobs"""
     
@@ -496,7 +515,10 @@ class Monitor:
                     self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
                     self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PANDAKILL
                     self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
-    
+
+                    # store the error info
+                    updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
                 # did we receive a command to turn on debug mode?
                 if "debug" in self.__env['jobDic'][k][1].action.lower():
                     pUtil.tolog("Pilot received a command to turn on debug mode from the server")
@@ -695,6 +717,7 @@ class Monitor:
     
         # convert local space to B and compare with the space limit
         spaceleft = int(disk)*1024**2 # B (node.disk is in MB)
+
         _localspacelimit = self.__env['localspacelimit0'] * 1024 # B
         pUtil.tolog("Local space limit: %d B" % (_localspacelimit))
         if spaceleft < _localspacelimit:
@@ -959,6 +982,10 @@ class Monitor:
                 pUtil.tolog("Pilot was executed on host: %s" % (self.__env['workerNode'].nodename))
                 pUtil.fastCleanup(self.__env['thisSite'].workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
                 self.__env['return'] = ec
+
+                # store the error info
+                updatePilotErrorReport(ec, "Too little space left on local disk to run job", "1",  self.__env['job'].jobId, self.__env['pilot_initdir'])
+
                 return
 
             # make sure the pilot TCP server is still running
@@ -1096,6 +1123,10 @@ class Monitor:
                 self.__env['job'].result[0] = 'failed'
                 self.__env['job'].currentState = self.__env['job'].result[0]
                 self.__env['job'].result[2] = ec
+
+                # store the error info
+                updatePilotErrorReport(self.__env['job'].result[2], self.__env['job'].pilotErrorDiag, "1",  self.__env['job'].jobId, self.__env['pilot_initdir'])
+
                 pUtil.postJobTask(self.__env['job'], self.__env['thisSite'], 
                                   self.__env['workerNode'], self.__env['experiment'], 
                                   jr=False)

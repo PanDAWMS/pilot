@@ -8,6 +8,7 @@ from shutil import copy2, rmtree
 import Mover as mover
 from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, getGUID
+from FileHandling import addToOSTransferDictionary
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
@@ -104,15 +105,23 @@ class JobLog:
             copytool_org = readpar('copytool')
 
             # temporarily modify the schedconfig fields with values for the secondary SE
-            tolog("Temporarily modifying queuedata for log file transfer to secondary SE")
+            tolog("Temporarily modifying queuedata for log file transfer to special SE")
             ec = si.replaceQueuedataField("copytool", "objectstore")
 
             # do log transfer
             tolog("Attempting log file transfer to special SE")
-            ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr, specialTransfer=True)
+            ret, job = self.transferActualLogFile(job, site, dest=dest, jr=jr, specialTransfer=True)
             if not ret:
-                tolog("!!%s!!1600!! Could not transfer log file to primary SE" % (self.__env['errorLabel']))
-                status = False
+                tolog("!!%s!!1600!! Could not transfer log file to special SE" % (self.__env['errorLabel']))
+                #status = False
+            else:
+                # Update the OS transfer dictionary
+                # Get the OS name identifier and bucket endpoint                                                                                                                                                                      
+                os_name = si.getObjectstoreName("eventservice")
+                os_bucket_endpoint = si.getObjectstoreBucketEndpoint("logs")
+
+                # Add the transferred file to the OS transfer file                                                                                                                                                                
+                addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_name, os_bucket_endpoint)
 
             # finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
@@ -123,14 +132,14 @@ class JobLog:
 
         # register/copy log file
         tolog("Attempting log file transfer to primary SE")
-        ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr)
+        ret, job = self.transferActualLogFile(job, site, dest=dest, jr=jr)
         if not ret:
             tolog("!!%s!!1600!! Could not transfer log file to primary SE" % (self.__env['errorLabel']))
             status = False
 
         return status, job
 
-    def transferActualLogFile(self, job, site, experiment, dq2url=None, dest=None, jr=False, specialTransfer=False):
+    def transferActualLogFile(self, job, site, dq2url=None, dest=None, jr=False, specialTransfer=False):
         """
         Save log tarball in DDM and register it to catalog, or copy it to 'dest'.
         the job recovery will use the current site info known by the current
@@ -202,7 +211,7 @@ class JobLog:
 
         # determine the file path for special log transfers
         if specialTransfer:
-            logPath = self.getLogPath(job.jobId, job.logFile)
+            logPath = self.getLogPath(job.jobId, job.logFile, job.experiment)
             tolog("Special log transfer: %s" % (logPath))
         else:
             logPath = ""
@@ -1184,7 +1193,7 @@ class JobLog:
 
         return path
 
-    def getLogPath(self, jobId, logFile, primary=True):
+    def getLogPath(self, jobId, logFile, experiment, primary=True):
         """ Get the standard path for PanDA job logs """
 
         # This path determines where the log will be transferred to.
@@ -1197,8 +1206,10 @@ class JobLog:
         # logPaths = "root://eos.cern.ch/atlas/logs,dav://bnldav.cern.ch/atlas/logs"
         # logPaths = "root://eosatlas.cern.ch/atlas/logs"
 
+        # Get the site information object
+        si = getSiteInformation(experiment)
         #logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
-        logPaths = mover.getFilePathForObjectStore(filetype="logs")
+        logPaths = si.getObjectstorePath("logs") #mover.getFilePathForObjectStore(filetype="logs")
 
         # Handle multiple paths (primary and secondary log paths)
         if "," in logPaths:

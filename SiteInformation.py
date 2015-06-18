@@ -1214,7 +1214,8 @@ class SiteInformation(object):
     def getObjectstorePath(self, mode):
         """ Return the path to the objectstore """
         # mode: https, eventservice, logs
-
+        # Note: a hash based on the file name should be added to the os_bucket_endpoint (ie the end of the path returned from this function - when it is known)
+        # since the number of buckets is rather limited ~O(1k)
         # Read the endpoint info from the queuedata
         os_endpoint = self.getObjectstoresField('os_endpoint', mode)
         os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode)
@@ -1233,6 +1234,12 @@ class SiteInformation(object):
         # E.g. CERN_OS_0
 
         return self.getObjectstoresField('os_name', mode)
+
+    def getObjectstoreBucketEndpoint(self, mode):
+        """ Return the objectstore bucket endpoint for the relevant mode """
+        # E.g. atlas_logs (for mode='logs')
+
+        return self.getObjectstoresField('os_bucket_endpoint', mode)
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

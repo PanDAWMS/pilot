@@ -75,7 +75,21 @@ Sending site.computingElement (queuename) to mover_put_data() from stageOut() (R
 Added queuename argument to mover_put_data() (Mover)
 Now using si.getObjectstorePath() in getFilePathForObjectStore() (Mover)
 Changed log order message in verifySetup() and stageOutFile(). Requested by Rodney Walker (xrdcpSiteMover)
-
+Removed unused argument 'experiment' from transferActualLogFile(), and its calls in transferLogFile() (JobLog)
+Added argument 'experiment' to getLogPath() and its call in transferLogFile() (JobLog)
+Now using si.getObjectstorePath() instead of mover.getFilePathForObjectStore() in getLogPath() (JobLog)
+Created getObjectstoreBucketEndpoint() (SiteInformation)
+Created getHash(), getHashedBucketEndpoint() (FileHandling)
+Added log_transfer argument to getDDMStorage(), sent from mover_put_data() (Mover)
+Created isLogTransfer(), used by mover_put_data() (Mover)
+Created shouldCleanupOS() used by __main__() (RunJob)
+Created test method cleanupOS() (RunJob)
+Removed downloadEventRanges() since it is an imported function from EventRanges module (RunJobEvent)
+Returning cerr instead of cout if set in timedCommand() (pUtil)
+Will not set status=False when special SE log transfer fails, in transferLogFile() (JobLog)
+Created getPilotErrorReportFilename(), updatePilotErrorReport(), getHighestPriorityError() (FileHandling)
+Using updatePilotErrorReport() for nine failure scenarios, high priority errors (Monitor)
+Now using getHighestPriorityError() in getNodeStructure() to look for reported high priority errors (PandaServerClient)
 
 REMOVED IS_SECURE IN S3OBJECTSTORESITEMOVER
 

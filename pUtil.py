@@ -1496,7 +1496,10 @@ def timedCommand(cmd, timeout=300):
     else:
         if cerr != "":
             tolog("!!WARNING!!2220!! Timed command stderr: %s" % (cerr))
-        output = cout
+            output = cerr
+        else:
+            output = cout
+
     tolog("Elapsed time: %d" % (telapsed))
 
     if telapsed >= timeout:

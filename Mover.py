@@ -14,7 +14,7 @@ from timed_command import timed_command
 from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems, getFileAccessInfo,\
      hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, tailPilotErrorDiag, getCopysetup,\
      getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile
-from FileHandling import getExtension, getTracingReportFilename, readJSON
+from FileHandling import getExtension, getTracingReportFilename, readJSON, getHashedBucketEndpoint
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
 from SysLog import sysLog, dumpSysLogTail
@@ -628,8 +628,8 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype, copytool)
         #         replicas_dic[guid1] = [replica1, ..]
 
-        espath = getFilePathForObjectStore(si, filetype="eventservice")
-        logpath = getFilePathForObjectStore(si, filetype="logs")
+        espath = si.getObjectstorePath("eventservice") #getFilePathForObjectStore(filetype="eventservice")
+        logpath = si.getObjectstorePath("logs") #getFilePathForObjectStore(filetype="logs")
 
         i = 0
         try:
@@ -2643,6 +2643,15 @@ def getScope(lfn, logFile, file_nr, scopeOut, scopeLog):
 
     return scope
 
+def isLogTransfer(logPath):
+    """ Are we transferring a log file? """
+
+    if logPath != "":
+        status = True
+    else:
+        status = False
+    return status
+
 def mover_put_data(outputpoolfcstring,
                    pdsname,
                    sitename,
@@ -2710,19 +2719,25 @@ def mover_put_data(outputpoolfcstring,
     si = getSiteInformation(experiment)
     si.setQueueName(queuename)
 
-    # Get the storage path, e.g.
-    # ddm_storage = srm://uct2-dc1.uchicago.edu:8443/srm/managerv2?SFN=/pnfs/uchicago.edu/atlasuserdisk
-    # Note: this ends up in the 'destination' variable inside the site mover's put_data() - which is mostly not used
-    # It can be used for special purposes, like for the object store path which can be predetermined
-    ddm_storage, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, eventService, jobId)
-    if pilotErrorDiag != "":
-        return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
-
     # Get the copy tool
     copycmd, setup = getCopytool()
 
     tolog("Copy command: %s" % (copycmd))
     tolog("Setup: %s" % (setup))
+
+    # Is this a transfer to an object store?
+    if "objectstore" in copycmd:
+        objectstore = True
+    else:
+        objectstore = False
+
+    # Get the storage path, e.g.
+    # ddm_storage_path = srm://uct2-dc1.uchicago.edu:8443/srm/managerv2?SFN=/pnfs/uchicago.edu/atlasuserdisk
+    # Note: this ends up in the 'destination' variable inside the site mover's put_data() - which is mostly not used
+    # It can be used for special purposes, like for the object store path which can be predetermined
+    ddm_storage_path, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath))
+    if pilotErrorDiag != "":
+        return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
 
     # Get the site mover
     sitemover = getSiteMover(copycmd, setup)
@@ -2754,8 +2769,12 @@ def mover_put_data(outputpoolfcstring,
         # note: pfn is the source
         filename, lfn, pfn, guid = getFilenamesAndGuid(thisfile)
 
+        # The file name is now known, let's add it to the storge path if the endpoint is on an objectstore
+        if objectstore:
+            ddm_storage_path = getHashedBucketEndpoint(ddm_storage_path, lfn)
+
         # note: pfn is the full path to the local file
-        tolog("Preparing copy for %s to %s using %s" % (pfn, ddm_storage, copycmd))
+        tolog("Preparing copy for %s to %s using %s" % (pfn, ddm_storage_path, copycmd))
 
         # get the corresponding scope
         scope = getScope(lfn, logFile, file_nr, scopeOut, scopeLog)
@@ -2800,7 +2819,7 @@ def mover_put_data(outputpoolfcstring,
 
             # perform the normal stage-out, unless we want to force alternative stage-out
             if not si.forceAlternativeStageOut(flag=analysisJob):
-                s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname,\
+                s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage_path, dsname,\
                                                                                                   sitename, analysisJob, testLevel, pinitdir, proxycheck,\
                                                                                                   _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                   prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
@@ -2869,7 +2888,7 @@ def mover_put_data(outputpoolfcstring,
 
                         # perform the stage-out
                         tolog("Attempting stage-out to alternative SE")
-                        _s, _pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(alternativeSitemover, error, workDir, jobId, pfn, ddm_storage, dsname,\
+                        _s, _pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(alternativeSitemover, error, workDir, jobId, pfn, ddm_storage_path, dsname,\
                                                                                                         sitename, analysisJob, testLevel, pinitdir, proxycheck,\
                                                                                                         _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                         prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
@@ -2908,7 +2927,7 @@ def mover_put_data(outputpoolfcstring,
                         else:
                             dDBlockTokenForOut = dispatchDBlockTokenForOut[file_nr]
                         if dDBlockTokenForOut.startswith('chirp'):
-                            s2, pilotErrorDiag2 = chirp_put_data(pfn, ddm_storage, dsname=dsname, sitename=sitename,\
+                            s2, pilotErrorDiag2 = chirp_put_data(pfn, ddm_storage_path, dsname=dsname, sitename=sitename,\
                                                          analysisJob=analysisJob, testLevel=testLevel, pinitdir=pinitdir,\
                                                          proxycheck=proxycheck, token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn,\
                                                          guid=guid, spsetup=spsetup, userid=userid, report=report,\
@@ -3137,7 +3156,7 @@ def verifySpaceToken(spacetoken, setokens):
 
     return status
 
-def getFilePathForObjectStore(si, filetype="logs"):
+def getFilePathForObjectStore(filetype="logs"):
     """ Return a proper file path in the object store """
 
     # For single object stores
@@ -3147,15 +3166,6 @@ def getFilePathForObjectStore(si, filetype="logs"):
     # For https
     # eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs
     basepath = ""
-
-    # Get the queuename
-    queuename = si.getQueueName()
-    path = si.getObjectstorePath("eventservice")
-    if path != "":
-        tolog("basepath=%s" % (path))
-        return path
-    else:
-        tolog("Base path not found in AGIS queuedata")
 
     # Which form of the schedconfig.objectstore field do we currently have?
     objectstore = readpar('objectstore')
@@ -3186,37 +3196,41 @@ def getFilePathForObjectStore(si, filetype="logs"):
 
     return basepath
 
-def getDDMStorage(ub, si, analysisJob, region, eventService, jobId):
+def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer):
     """ return the DDM storage (http version) """
 
     pilotErrorDiag = ""
     useHTTP = True
-    ddm_storage = ""
+    ddm_storage_path = ""
 
-    # special paths are used for event service
-    if eventService:
-        _path = getFilePathForObjectStore(si, filetype="eventservice")
+    # special paths are used for objectstore transfers
+    if objectstore:
+        if log_transfer:
+            mode = "logs"
+        else:
+            mode = "eventservice"
+        _path = si.getObjectstorePath(mode) #getFilePathForObjectStore(filetype=mode)
         if _path == "":
             pilotErrorDiag = "No path to object store"
         return _path, pilotErrorDiag
 
     # skip this function unless we are running in the US or on NG
     if not (region == 'US' or os.environ.has_key('Nordugrid_pilot')):
-        return ddm_storage, pilotErrorDiag
+        return ddm_storage_path, pilotErrorDiag
 
     # get the storage paths
     try:
-        ddm_storage = getDestinationDDMStorage(analysisJob)
+        ddm_storage_path = getDestinationDDMStorage(analysisJob)
     except Exception, e:
         pilotErrorDiag = "Exception thrown in put function: %s" % str(e)
         tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
         return "", pilotErrorDiag
     else:
-        tolog("Got ddm_storage from queuedata file: %s" % (ddm_storage))
+        tolog("Got ddm_storage_path from queuedata file: %s" % (ddm_storage_path))
 
     # use HTTP I/F to retrieve storage path
     # check if storage path has a proper protocol
-    if not ddm_storage.startswith('http://'):
+    if not ddm_storage_path.startswith('http://'):
         useHTTP = False
 
     if useHTTP and ub == "":
@@ -3247,11 +3261,11 @@ def getDDMStorage(ub, si, analysisJob, region, eventService, jobId):
                 tolog('Fetched default storage (%d bytes) from url: %s' % (len(ret), url))
 
         # Entry returned by DDM is supposed to be an URL (of the form method://host:port/full_path_to_se/ )
-        ddm_storage = ret.strip()
+        ddm_storage_path = ret.strip()
 
-    tolog("Put function using storage: %s" % (ddm_storage))
+    tolog("Put function using storage: %s" % (ddm_storage_path))
 
-    return ddm_storage, pilotErrorDiag
+    return ddm_storage_path, pilotErrorDiag
 
 def getDestinationDDMStorage(analysisJob):
     """ return the DDM storage, i.e. the storage destination path """
@@ -3306,7 +3320,7 @@ def getDestinationDDMStorage(analysisJob):
             path = seName + sePath
     else:
         path = seName + sePath
-    tolog("getDDMStorage() will return: %s" % (path))
+    tolog("getDestinationDDMStorage() will return: %s" % (path))
     return path
 
 def getMatchedReplicasFileName(workdir):
@@ -3413,12 +3427,11 @@ def getPrimaryRucioReplica(matched_replicas, replicas):
                 break
     return sfn
 
-def getCopytoolDictionary(matched_replicas):
+def getCopytoolDictionary(matched_replicas, copytool_dictionary):
     """ Return the copytool dictionary """
     # (in principle this will depend on the protocol)
     # copytool_dictionary: { surl1: copytool, .. } - specifies what copytool to use for the guid
 
-    copytool_dictionary = {}
     copytool, dummy = getCopytool(mode="get")
 
     for surl in matched_replicas:
@@ -3612,7 +3625,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
             dumpOrderedItems(matched_replicas)
 
             # Store the desired copytool for the replicas
-            copytool_dictionary = getCopytoolDictionary(matched_replicas)
+            copytool_dictionary = getCopytoolDictionary(matched_replicas, copytool_dictionary)
 
             if DBRelease and not _token:
                 # randomize DBRelease replicas residing on disk

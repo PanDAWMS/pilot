@@ -1195,6 +1195,11 @@ class RunJobEvent(RunJob):
         # Get the site information object                                                                                                           
         si = getSiteInformation(self.__experiment)
 
+        # Get the queuename - which is only needed if objectstores field is not present in queuedata
+        jobSite = self.getJobSite()
+        queuename = jobSite.computingElement
+        si.setQueueName(queuename)
+
         # Extract all information from the dictionary
         for path in outputFileInfo.keys():
 
@@ -1219,12 +1224,12 @@ class RunJobEvent(RunJob):
             ec, pilotErrorDiag = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
             if ec == 0:
                 try:
-                    # Get the queuename - which is only needed if objectstores field is not present in queuedata
-                    jobSite = self.getJobSite()
-                    queuename = jobSite.computingElement
+                    # Get the OS name identifier and bucket endpoint
+                    os_name = si.getObjectstoreName("eventservice")
+                    os_bucket_endpoint = si.getObjectstoreBucketEndpoint("eventservice")
 
                     # Add the transferred file to the OS transfer file
-                    addToOSTransferDictionary(path, self.getJobWorkDir(), queuename, "eventservice", si)
+                    addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_name, os_bucket_endpoint)
                 except Exception, e:
                     tolog("!!WARNING!!2121!! Caught exception: %s" % (e))
             # Finally restore the modified schedconfig fields                                                                                           
@@ -1798,37 +1803,6 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
         return ec, pilotErrorDiag, file_info_dictionary
-
-    def downloadEventRanges(self):
-        """ Download event ranges from the Event Server """
-
-        # Return the server response (instruction to AthenaMP)
-        # Note: the returned message is a string (of a list of dictionaries). If it needs to be converted back to a list, use json.loads(message)
-
-        tolog("Server: Downloading new event ranges..")
-
-        # message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]"
-
-        message = ""
-        #url = "https://aipanda007.cern.ch:25443/server/panda"
-        url = "https://pandaserver.cern.ch:25443/server/panda"
-        node = {}
-        node['pandaID'] = self.__job.jobId
-        node['jobsetID'] = self.__job.jobsetID
-
-        # open connection
-        ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")
-        response = ret[1]
-
-        if ret[0]: # non-zero return code
-            message = "Failed to download event range - error code = %d" % (ret[0])
-        else:
-            message = response['eventRanges']
-
-        if message == "" or message == "[]":
-            message = "No more events"
-
-        return message
 
     def extractEventRanges(self, message):
         """ Extract all event ranges from the server message """

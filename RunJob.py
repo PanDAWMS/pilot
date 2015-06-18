@@ -27,7 +27,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-from FileHandling import tail, getExtension, addToOSTransferDictionary
+from FileHandling import tail, getExtension
 
 # remove logguid, dq2url, debuglevel - not needed
 # relabelled -h, queuename to -b (debuglevel not used)
@@ -654,12 +654,17 @@ class RunJob(object):
 
         return _obj
 
-    def getMemoryUtilityCommand(self, pid, homePackage, summary="summary.json"):
+    def getMemoryUtilityCommand(self, thisExperiment, pid, release, homePackage, cmtconfig, summary="summary.json"):
         """ Prepare the memory utility command string """
 
         interval = 60
-        default_patch_release = "20.1.4.1"
-        default_path = "/cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc48-opt/20.1.5/AtlasProduction/20.1.5.2/InstallArea/x86_64-slc6-gcc48-opt/bin/MemoryMonitor"
+        
+        default_release = "20.1.5"
+        default_patch_release = "20.1.5.2" #"20.1.4.1"
+        default_cmtconfig = "x86_64-slc6-gcc48-opt"
+        default_swbase = "/cvmfs/atlas.cern.ch/repo/sw/software"
+        #default_path = "%s/%s/%s/AtlasProduction/%s/InstallArea/%s/bin/MemoryMonitor" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
+        default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest --cmtconfig %s" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
 
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):
@@ -667,20 +672,26 @@ class RunJob(object):
         else:
             output = summary + '.txt'
 
-        # Build the command
-        cmd = "asetup %s;" % (homePackage.split('/')[-1])
-        _cmd = cmd + "which MemoryMonitor"
+        # Get the standard setup
+        cacheVer = homePackage.split('/')[-1]
+        standard_setup = thisExperiment.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
+        _cmd = standard_setup + "; which MemoryMonitor"
         # Can the MemoryMonitor be found?
         try:
-            ec, output = timedCommand(_cmd, timeout=120)
+            ec, output = timedCommand(_cmd, timeout=60)
         except Exception, e:
             tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
-            cmd = "asetup %s;" % (default_patch_release)
+            cmd = default_setup
         else:
             if "which: no MemoryMonitor in" in output:
                 tolog("!!WARNING!!3435!! Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
-                cmd = "asetup %s;" % (default_patch_release)
-        cmd += "MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, output, summary, interval)
+                cmd = default_setup
+            else:
+                # Standard setup passed the test
+                cmd = standard_setup
+
+        # Now add the MemoryMonitor command
+        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
 
         return cmd
 
@@ -738,9 +749,9 @@ class RunJob(object):
 
                     # Start the memory utility if required
                     mem_subprocess = None
+                    summary = thisExperiment.getMemoryMonitorJSONFilename()
                     if thisExperiment.shouldExecuteMemoryMonitor():
-                        summary = thisExperiment.getMemoryMonitorJSONFilename()
-                        mem_cmd = self.getMemoryUtilityCommand(main_subprocess.pid, job.homePackage, summary=summary)
+                        mem_cmd = self.getMemoryUtilityCommand(thisExperiment, main_subprocess.pid, job.release, job.homePackage, job.cmtconfig, summary=summary)
                         if mem_cmd != "":
                             mem_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
                             if mem_subprocess:
@@ -765,11 +776,21 @@ class RunJob(object):
                         mem_subprocess.send_signal(signal.SIGUSR1)
                         tolog("Terminated the memory monitor subprocess")
 
-                        # Move the output JSON to the pilots init dir
-                        try:
-                            copy2("%s/*.json" % (job.workdir), "%s/." % (self.__pworkdir))
-                        except Exception, e:
-                            tolog("!!WARNING!!2222!! Caught exception while trying to copy JSON files: %s" % (e))
+                        _nap = 10
+                        tolog("Taking a short nap (%d s) to allow the memory monitor to finish writing to the summary file" % (_nap))
+                        time.sleep(_nap)
+
+                        # Copy the output JSON to the pilots init dir
+                        _path = "%s/%s" % (job.workdir, summary)
+                        if os.path.exists(_path):
+                            try:
+                                copy2(_path, self.__pilot_initdir)
+                            except Exception, e:
+                                tolog("!!WARNING!!2222!! Caught exception while trying to copy JSON files: %s" % (e))
+                            else:
+                                tolog("Copied %s to pilot init dir" % (_path))
+                        else:
+                            tolog("File %s was not created" % (_path))
 
                     # Handle main subprocess errors
                     try:
@@ -1260,6 +1281,36 @@ class RunJob(object):
 
     # (end event service methods) ................................................................................
 
+    def shouldCleanupOS(self, job):
+        """ Should the OS be cleaned up? """
+
+        status = False
+
+        # Only clean up the OS if the merge job finished correctly and if it an event service merge job
+        if job.eventServiceMerge and job.result[1] == 0 and job.result[2] == 0:
+            status = True
+
+        return status
+
+    def cleanupOS(self, inFiles, si):
+        """ Removed merged files from the object store """
+
+        status = False
+
+        # Generate a proper file list
+        for filename in inFiles:
+            # Is this a log file or a pre-merged event service file? Determine the bucket accordingly
+            if ".log." in filename:
+                mode = "logs"
+            else:
+                mode = "eventservice"
+
+            # Generate a proper bucket endpoint
+            path = si.getObjectstorePath(mode)
+            from FileHandling import getHashedBucketEndpoint
+            hashed_endpoint = getHashedBucketEndpoint(path, file_name)
+
+        return status
 
 # main process starts here
 if __name__ == "__main__":
@@ -1524,7 +1575,18 @@ if __name__ == "__main__":
             finalUpdateDone = True
             if ec != 0:
                 runJob.sysExit(job, rf)
-            # (stage-out ends here) .......................................................................
+        # (stage-out ends here) .......................................................................
+
+        # Object store cleanups .......................................................................
+
+        # Only execute this step for merge jobs and if the order is given
+        if runJob.shouldCleanupOS(job):
+
+            # Go ahead and clean up the OS
+            # status = runJob.cleanupOS(job.inFiles, si)
+            pass
+
+        # (Object store cleanups end here) ............................................................
 
         job.setState(["finished", 0, 0])
         if not finalUpdateDone:

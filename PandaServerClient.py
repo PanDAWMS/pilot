@@ -7,7 +7,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment
 from JobState import JobState
 from FileState import FileState
-from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames
+from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames, getHighestPriorityError
 
 class PandaServerClient:
     """
@@ -138,6 +138,14 @@ class PandaServerClient:
             d = getJSONDictionary(filename)
             if d and d != {}:
                 jobMetrics += self.jobMetric(key="mem", value=str(d))
+
+            # Done with the memory monitor for this job, remove the file in case there are other jobs to be run
+            try:
+                os.system("rm -rf %s" % (filename))
+            except Exception, e:
+                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (filename), e)
+            else:
+                tolog("Removed %s" % (filename))
         else:
             tolog("Memory monitor JSON file does not exist: %s" % (filename))
 
@@ -184,7 +192,7 @@ class PandaServerClient:
             tolog("Could have added: %s to job metrics" % (workerNode.addToJobMetrics()))
 
         # report any OS transfers
-        message = self.getOSJobMetrics(job.workdir)
+        message = self.getOSJobMetrics()
         if message != "":
             _jobMetrics = self.jobMetric(key="OS", value=message)
             tolog("Could have added: %s to job metrics" % (_jobMetrics))
@@ -209,20 +217,20 @@ class PandaServerClient:
 
         return jobMetrics
 
-    def getOSJobMetrics(self, workdir):
+    def getOSJobMetrics(self):
         """ Generate the objectstore jobMetrics message """
         # Message format:
-        # OS=<os_name_0>;<os_bucket_name_0>:<os_bucket_name_1>: ..
+        # OS=<os_name_0>:<os_bucket_endpoint_0>:<os_bucket_endpoint_1>: ..
         # Example:
-        # os_name = BNL_OS_0, os_bucket_name = eventservice or logs ('http' is also a valid os_bucket_name but will not be reported in jobMetrics)
-        # -> OS=BNL_OS_0;eventservice:logs
-        # (note: at least one os_bucket_name will be included in a message, but not necessarily both of them and order is random)
+        # os_name = BNL_OS_0, os_bucket_name = atlas_eventservice_F0 or atlas_logs_3D (where F0 and 3D are examples of file name hashes)
+        # -> OS=BNL_OS_0;atlas_eventservice_F0:atlas_logs_3D
+        # (note: at least one os_bucket_endpoint will be included in a message, but not necessarily both of them and order is random)
 
         message = ""
 
         # Locate the OS transfer dictionary
         filename = getOSTransferDictionaryFilename()
-        path = os.path.join(workdir, filename)
+        path = os.path.join(self.__pilot_initdir, filename)
         if os.path.exists(path):
             # Which OS's were used?
             os_names_dictionary = getOSNames(path)
@@ -238,8 +246,8 @@ class PandaServerClient:
                 for os_name in os_names_dictionary.keys():
                     message += os_name + ";"
                     bucket_list = os_names_dictionary[os_name]
-                    for os_bucket_name in bucket_list:
-                        message += os_bucket_name + ":"
+                    for os_bucket_endpoint in bucket_list:
+                        message += os_bucket_endpoint + ":"
                         # Remove the last ':'
                         message = message[:-1]
 
@@ -249,7 +257,7 @@ class PandaServerClient:
                 tolog("!!WARNING!!3335!! No OS transfers were found in: %s" % (filename))
 
         else:
-            tolog("OS transfer dictionary does not exist, will not report OS transfers in jobMetrics")
+            tolog("OS transfer dictionary does not exist, will not report OS transfers in jobMetrics (%s)" % (path))
 
         return message
 
@@ -294,9 +302,28 @@ class PandaServerClient:
         else:
             node['jobSubStatus'] = ''
 
+        # check to see if there were any high priority errors reported
+        errorInfo = getHighestPriorityError(job.jobId, self.__pilot_initdir)
+        if errorInfo != {}:
+            try:
+                pilotErrorCode = errorInfo['pilotErrorCode']
+                pilotErrorDiag = errorInfo['pilotErrorDiag']
+            except Exception, e:
+                tolog("!!WARNING!!2323!! Exception caught: %s" % (e))
+            else:
+                # Overwrite any existing errors
+                if job.result[2] != 0:
+                    tolog("Encountered high priority error code %d (will overwrite error code %d)" % (pilotErrorCode, job.result[2]))
+                else:
+                    tolog("Encountered high priority error code %d" % (pilotErrorCode))
+                job.result[2] = pilotErrorCode
+                job.pilotErrorDiag = pilotErrorDiag
+        else:
+            tolog("Did not find any reported high priority errors")
+
         # send pilotErrorDiag for finished, failed and holding jobs
         if job.result[0] == 'finished' or job.result[0] == 'failed' or job.result[0] == 'holding':
-            # get the pilot error diag
+            # get the pilot error diag from the right source
             if job.pilotErrorDiag:
                 if job.pilotErrorDiag == "":
                     node['pilotErrorDiag'] = tailPilotErrorDiag(self.__error.getPilotErrorDiag(job.result[2]))

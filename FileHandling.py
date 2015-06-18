@@ -214,42 +214,6 @@ def getExtension(alternative='pickle'):
 
     return extension
 
-def addToOSTransferDictionary(path, workdir, queuename, mode, si):
-    """ Add the transferred file to the OS transfer file """
-
-    # Get the OS name identifier
-    os_name = si.getObjectstoreName(mode, queuename)
-    tolog("xx. os_name=%s"%str(os_name))
-
-    # Get the name and path of the objectstore transfer dictionary file 
-    file_name = getOSTransferDictionaryFilename()
-    os_tr_path = os.path.join(workdir, file_name)
-    tolog("xx. os_tr_path=%s"%os_tr_path)
-
-    # Does the transfer file exist already? If not, create it
-    if not os.path.exists(os_tr_path):
-        # Read back the existing dictionary
-        dictionary = readJSON(os_tr_path)
-        if not dictionary:
-            tolog("Failed to open OS transfer dictionary - will recreate it")
-            dictionary = {}
-    else:
-        # Create a new dictionary
-        dictionary = {}
-
-    # Populate the dictionary
-    if dictionary.has_key(os_name):
-        l = dictionary[os_name]
-        l.append(path)
-    else:
-        dictionary[os_name] = path
-
-    # Store the dictionary
-    if writeJSON(os_tr_path, dictionary):
-        tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
-    else:
-        tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
-
 def getNewQueuedataFilename():
     """ Return the name of the queuedata file """
 
@@ -386,17 +350,81 @@ def getObjectstoresListXXX(queuename):
 
     return objectstores
 
+def getHash(s, length):
+    """ Return a hash from string s """
+
+    import hashlib
+    _hash = hashlib.md5()
+    _hash.update(s)
+    return  _hash.hexdigest()[:length]
+
+def getHashedBucketEndpoint(endpoint, file_name):
+    """ Return a hashed bucket endpoint """
+    # Example:
+    # endpoint = "atlas_logs", file_name = "log.tgz"
+    # -> hash = "07" and hashed_endpoint = "atlas_logs_07"
+
+    return endpoint + "_" + getHash(file_name, 2)
+
+def addToOSTransferDictionary(file_name, workdir, os_name, os_bucket_endpoint):
+    """ Add the transferred file to the OS transfer file """
+    # Note: we don't want to store the file name since potentially there can be a large number of files
+    # We only store a file number count
+    # We still need to know the file name in order to figure out which bucket it belongs to (using a hash of the file name)
+    # The has will be added to the os_bucket_endpoint (e.g. 'atlas_logs' -> 'atlas_logs_E2')
+
+    # Only proceed if os_name and os_bucket_endpoint have values
+    if os_name and os_name != "" and os_bucket_endpoint and os_bucket_endpoint != "":
+
+        # Get the name and path of the objectstore transfer dictionary file 
+        os_tr_path = os.path.join(workdir, getOSTransferDictionaryFilename())
+
+        # Create a hash of the file name, two char long, and then the final bucket endpoint
+        _endpoint = getHashedBucketEndpoint(os_bucket_endpoint, file_name)
+
+        # Does the transfer file exist already? If not, create it
+        if os.path.exists(os_tr_path):
+            # Read back the existing dictionary
+            dictionary = readJSON(os_tr_path)
+            if not dictionary:
+                tolog("Failed to open OS transfer dictionary - will recreate it")
+                dictionary = {}
+        else:
+            # Create a new dictionary
+            dictionary = {}
+            tolog("New OS transfer dictionary created: %s" % (os_tr_path))
+
+        # Populate the dictionary
+        if dictionary.has_key(os_name):
+            if dictionary[os_name].has_key(_endpoint):
+                # Increase the file count
+                dictionary[os_name][_endpoint] += 1
+            else:
+                # One file has been stored in this endpoint
+                dictionary[os_name][_endpoint] = 1
+        else:
+            # One file has been stored in this endpoint
+            dictionary[os_name] = {_endpoint: 1}
+
+        # Store the dictionary
+        if writeJSON(os_tr_path, dictionary):
+            tolog("Stored updated OS transfer dictionary: %s" % (os_tr_path))
+        else:
+            tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
+
+    else:
+        tolog("Cannot add to OS transfer dictionary due to unset values (os_name/os_bucket_endpoint)")
+
 def getOSNames(filename):
     """ Get the dictionary of objectstore os_names with populated buckets from the OS transfer dictionary """
     # Note: will return a dictionary of os_names identifiers to which files were actually transferred, along
     # with the names of the buckets where the files were transferred to
-    # This function is used to generate the jobMetrics OS message (only the OS and bucket names are of interest)
+    # This function is used to generate the jobMetrics OS message (only the OS and bucket endpoints are of interest)
 
     # os_names_dictionary
-    # FORMAT: { 'os_name_id': ['os_bucket_name', ''], .. }
+    # FORMAT: { 'os_name': ['os_bucket_endpoint', ''], .. }
     # OS transfer dictionary
-    # FORMAT: { 'os_name_id': { 'os_bucket_name': ['path', .. ], .. }, .. }
-    # os_bucket_name: 'eventservice', 'logs' or 'http'
+    # FORMAT: { 'os_name': { 'os_bucket_endpoint': <number of transferred files>, .. }, .. }
 
     os_names_dictionary = {}
 
@@ -409,23 +437,117 @@ def getOSNames(filename):
             # Only report the os_name if there were files transferred to it
             for os_name in tmp_os_names_list:
 
-                # Get the os_bucket_name list and populate the final dictionary
-                os_bucket_name_list = dictionary[os_name].keys()
-                for os_bucket_name in os_bucket_name_list:
-                    n = len(dictionary[os_name][os_bucket_name])
+                # Get the os_bucket_endpoint list and populate the final dictionary
+                os_bucket_endpoint_list = dictionary[os_name].keys()
+                for os_bucket_endpoint in os_bucket_endpoint_list:
+                    n = dictionary[os_name][os_bucket_endpoint]
 
-                    tolog("%s: %d file(s) transferred to bucket %s" % (os_name, n, os_bucket_name))
+                    tolog("%s: %d file(s) transferred to bucket %s" % (os_name, n, os_bucket_endpoint))
                     if n > 0:
                         if os_names_dictionary.has_key(os_name):
-                            os_names_dictionary[os_name].append(os_bucket_name)
+                            os_names_dictionary[os_name].append(os_bucket_endpoint)
                         else:
-                            os_names_dictionary[os_name] = [os_bucket_name]
+                            os_names_dictionary[os_name] = [os_bucket_endpoint]
         else:
             tolog("!!WARNING!!3334!! OS transfer dictionary is empty")
     else:
         tolog("!!WARNING!!3333!! OS transfer dictionary does not exist at: %s" % (filename))
 
     return os_names_dictionary
+
+def getPilotErrorReportFilename(workdir):
+    """ Return the filename for the pilot error report """
+    # This file should be placed in the pilot init dir
+
+    return os.path.join(workdir, "pilot_error_report.json")
+
+def updatePilotErrorReport(pilotErrorCode, pilotErrorDiag, priority, jobID, workdir):
+    """ Temporary wrapper during testing """
+
+    try:
+        updatePilotErrorReportTMP(pilotErrorCode, pilotErrorDiag, priority, jobID, workdir)
+    except Exception, e:
+        tolog("!!WARNING!!4545!! Exception caught: %s" % (e))
+
+def updatePilotErrorReportTMP(pilotErrorCode, pilotErrorDiag, priority, jobID, workdir):
+    """ Write pilot error info to file """
+    # Report format:
+    # { jobID1: { priority1: [{ pilotErrorCode1:<nr>, pilotErrorDiag1:<str> }, .. ], .. }, .. }
+    # The pilot will report only the first of the highest priority error when it reports the error at the end of the job
+    # Use the following priority convention:
+    # "0": errors that originate from the main pilot module (unless otherwise necessary)
+    # "1": errors that originate from the Monitor module (-||-)
+    # "2": errors that originate from other modules (-||-)
+
+    # Convert to string if integer is sent for priority
+    if type(priority) != str:
+        priority = str(priority)
+
+    filename = getPilotErrorReportFilename(workdir)
+    if os.path.exists(filename):
+        # The file already exists, read it back
+        dictionary = getJSONDictionary(filename)
+    else:
+        dictionary = {}
+
+    # Sort the new error
+    if dictionary.has_key(jobID):
+        jobID_dictionary = dictionary[jobID]
+
+        # Update with the latest error info
+        if not jobID_dictionary.has_key(priority):
+            dictionary[jobID][priority] = []
+
+        new_dictionary = { 'pilotErrorCode':pilotErrorCode, 'pilotErrorDiag':pilotErrorDiag }
+
+        # Update the dictionary with the new info
+        dictionary[jobID][priority].append(new_dictionary)
+        print dictionary
+
+    else:
+        # Create a first entry into the error report
+        dictionary[jobID] = {}
+        dictionary[jobID][priority] = []
+        dictionary[jobID][priority].append({})
+        dictionary[jobID][priority][0] = { 'pilotErrorCode':pilotErrorCode, 'pilotErrorDiag':pilotErrorDiag }
+
+    # Finally update the file
+    status = writeJSON(filename, dictionary)
+
+def getHighestPriorityError(jobId, workdir):
+    """ Return the highest priority error for jobId from the pilot error report file """
+    # Return: {'pilotErrorCode': <nr>, 'pilotErrorDiag': '..'}
+    # Note: only the first of the highest priority errors will be returned
+    errorInfo = {}
+
+    filename = getPilotErrorReportFilename(workdir)
+    if os.path.exists(filename):
+        # The file already exists, read it back
+        dictionary = getJSONDictionary(filename)
+        if dictionary.has_key(jobId):
+
+            # Find the highest priority error for this job
+            highestPriority = 999
+            for priority in dictionary[jobId].keys():
+                try:
+                    p = int(priority)
+                except Exception, e:
+                    tolog("!!WARNING!!2321!! Unexpected key in pilot error report: %s" % (e))
+                else:
+                    if p < highestPriority:
+                        highestPriority = p
+
+                if highestPriority < 999:
+                    # Get the first reported error
+                    errorInfo = dictionary[jobId][str(highestPriority)][0]
+                else:
+                    tolog("!!WARNING!!2322!! Could not locate the highest priority error")
+        else:
+            tolog("Pilot error report does not contain any error info for job %s" % (jobId))
+    else:
+        tolog("Pilot error report does not exist: %s (should only exist if there actually was an error)" % (filename))
+
+    return errorInfo
 
 # print findLatestTRFLogFile(os.getcwd())
 
