@@ -219,7 +219,7 @@ def getNewQueuedataFilename():
 
     return "new_queuedata.json"
 
-def getNewQueuedata(queuename):
+def getNewQueuedataXXX(queuename):
     """ Download the queuedata primarily from the AGIS server and secondarily from CVMFS """
 
     filename = getNewQueuedataFilename()

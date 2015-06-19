@@ -212,6 +212,9 @@ class JobLog:
         # determine the file path for special log transfers
         if specialTransfer:
             logPath = self.getLogPath(job.jobId, job.logFile, job.experiment)
+            if logPath == "":
+                tolog("!!WARNING!!4444!! Can not continue with special transfer since logPath is not set")
+                return False, job
             tolog("Special log transfer: %s" % (logPath))
         else:
             logPath = ""

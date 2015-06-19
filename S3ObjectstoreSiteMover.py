@@ -55,18 +55,29 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
-        keyPair = None
-        if re.search("^s3://.*\.usatlas\.bnl\.gov:8443", surl) != None:
-            keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
-        if re.search("^s3://.*\.cern\.ch:443", surl) != None:
-            keyPair = si.getSecurityKey('CERN_ObjectStoreKey', 'CERN_ObjectStoreKey.pub')
-        if surl.startswith("s3://s3.amazonaws.com:80"):
-            keyPair = si.getSecurityKey('Amazon_ObjectStoreKey', 'Amazon_ObjectStoreKey.pub')
-        if keyPair == None or keyPair["publicKey"] == None or keyPair["privateKey"] == None:
-            tolog("Failed to get the keyPair for S3 objectstore %s " % (surl))
+        os_access_key = si.getObjectstoresField("os_access_key", "eventservice")
+        os_secret_key = si.getObjectstoresField("os_secret_key", "eventservice")
+        if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":
+            keyPair = si.getSecurityKey(ObjectStoreKey, objectStoreKeyPub)
+        else:
+            tolog("Failed to get the keyPair for S3 objectstore")
             return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
 
-        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"])
+        os_is_secure = si.getObjectstoresField("os_is_secure", "eventservice")
+        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure)
+
+#        keyPair = None
+#        if re.search("^s3://.*\.usatlas\.bnl\.gov:8443", surl) != None:
+#            keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
+#        if re.search("^s3://.*\.cern\.ch:443", surl) != None:
+#            keyPair = si.getSecurityKey('CERN_ObjectStoreKey', 'CERN_ObjectStoreKey.pub')
+#        if surl.startswith("s3://s3.amazonaws.com:80"):
+#            keyPair = si.getSecurityKey('Amazon_ObjectStoreKey', 'Amazon_ObjectStoreKey.pub')
+#        if keyPair == None or keyPair["publicKey"] == None or keyPair["privateKey"] == None:
+#            tolog("Failed to get the keyPair for S3 objectstore %s " % (surl))
+#            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
+#
+#        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"])
         return 0, ""
 
     def fixStageInPath(self, path):
@@ -350,9 +361,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
 
 class S3ObjctStore:
-    def __init__(self, privateKey, publicKey):
+    def __init__(self, privateKey, publicKey, is_secure):
         self.access_key = publicKey
         self.secret_key = privateKey
+        self.is_secure = is_secure
         self.hostname = None
         self.port = None
 
@@ -372,7 +384,7 @@ class S3ObjctStore:
             aws_secret_access_key = self.secret_key,
             host = self.hostname,
             port = self.port,
-            is_secure=False,               # uncommmnt if you are not using ssl
+            is_secure = self.is_secure #False,               # uncommmnt if you are not using ssl
             calling_format = boto.s3.connection.OrdinaryCallingFormat(),
             )
 

@@ -9,7 +9,7 @@ import commands
 import urlparse
 from pUtil import tolog, replace, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
-from FileHandling import getExtension, readJSON
+from FileHandling import getExtension, readJSON, writeJSON
 from PilotErrors import PilotErrors
 
 class SiteInformation(object):
@@ -1130,6 +1130,68 @@ class SiteInformation(object):
         return objectstores
 
     def getNewQueuedata(self, queuename, overwrite=True, version=1):
+        """ Download the queuedata primarily from CVMFS and secondarily from the AGIS server """
+
+        filename = self.getQueuedataFileName(version=version, check=False)
+        status = False
+
+        # If overwrite is not required, return True if the queuedata already exists
+        if not overwrite:
+            if os.path.exists(filename):
+                tolog("AGIS queuedata already exist")
+                status = True
+                return status
+
+        # Download queuenadata from CVMFS, full version which needs to be trimmed
+        tolog("Copying queuedata from primary location (CVMFS)")
+        from shutil import copy2
+        try:
+            _filename = filename + "-ALL"
+            copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json", _filename)
+        except Exception, e:
+            tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
+        else:
+            # Trim the JSON since it contains too much info
+            # Load the dictionary
+            dictionary = readJSON(_filename)
+            if dictionary != {}:
+                # Get the entry for queuename
+                try:
+                    _d = dictionary[queuename]
+                except Exception, e:
+                    tolog("No entry for queue %s in JSON: %s" % (queuename, e))
+                else:
+                    # Create a new queuedata dictionary
+                    trimmed_dictionary = { queuename: _d }
+
+                    # Store it
+                    if writeJSON(filename, trimmed_dictionary):
+                        tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename))
+                        status = True
+                    else:
+                        tolog("!!WARNING!!4545!! Failed to write trimmed AGIS dictionary to file: %s" % (filename))
+            else:
+                tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
+
+        # CVMFS download failed, default to AGIS
+        if not status:
+            # Get the queuedata from AGIS
+            tries = 2
+            for trial in range(tries):
+                tolog("Downloading queuedata (attempt #%d)" % (trial+1))
+                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s\" >%s" % (queuename, filename)
+                tolog("Executing command: %s" % (cmd))
+                ret, output = commands.getstatusoutput(cmd)
+
+                # Verify queuedata
+                value = self.getField('objectstores')
+                if value:
+                    status = True
+                    break
+
+        return status
+
+    def getNewQueuedataXXX(self, queuename, overwrite=True, version=1):
         """ Download the queuedata primarily from the AGIS server and secondarily from CVMFS """
 
         filename = self.getQueuedataFileName(version=version, check=False)
@@ -1193,7 +1255,6 @@ class SiteInformation(object):
     def getObjectstoresField(self, field, mode):
         """ Return the objectorestores field from the objectstores list for the relevant mode """
         # mode: eventservice, logs, http
-
         value = None
 
         # Get the objectstores list
@@ -1246,36 +1307,42 @@ if __name__ == "__main__":
     import os
     os.environ['PilotHomeDir'] = os.getcwd()
     s1 = SiteInformation()
-    print "copytool=",s1.readpar('copytool')
-    path = 'srm://srm-eosatlas.cern.ch/eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/f4/NTUP_SMWZ.00836697._000601.root.1'
-    print path
-    ret = s1.getCopyPrefixPath(path, stageIn=True)
-    print "ret:" + ret
-    print
-    path = 'root://atlas-xrd-eos-rucio.cern.ch:1094//atlas/rucio/mc12_8TeV:NTUP_SMWZ.00836697._000601.root.1'
-    print path
-    ret = s1.getCopyPrefixPath(path, stageIn=True)
-    print "ret:" + ret
-    print
+    #print "copytool=",s1.readpar('copytool')
+    #path = 'srm://srm-eosatlas.cern.ch/eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/f4/NTUP_SMWZ.00836697._000601.root.1'
+    #print path
+    #ret = s1.getCopyPrefixPath(path, stageIn=True)
+    #print "ret:" + ret
+    #print
+    #path = 'root://atlas-xrd-eos-rucio.cern.ch:1094//atlas/rucio/mc12_8TeV:NTUP_SMWZ.00836697._000601.root.1'
+    #print path
+    #ret = s1.getCopyPrefixPath(path, stageIn=True)
+    #print "ret:" + ret
+    #print
 
-    #bnl
-    s1.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov.*/pnfs/^root://dcgftp.usatlas.bnl.gov:1096/pnfs")
-    path = 'srm://dcsrm.usatlas.bnl.gov/pnfs/usatlas.bnl.gov/atlasuserdisk/rucio/panda/a7/bf/panda.0317011154.376400.lib._5118143.1962296626.lib.tgz'
-    print path
-    ret = s1.getCopyPrefixPath(path, stageIn=True)
-    print "ret:" + ret
-    print
-    path = 'root://dcxrd.usatlas.bnl.gov:1096///atlas/rucio/panda:panda.0317011154.376400.lib._5118143.1962296626.lib.tgz'
-    print path
-    ret = s1.getCopyPrefixPath(path, stageIn=True)
-    print "ret:" + ret
-    print
+    ##bnl
+    #s1.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov.*/pnfs/^root://dcgftp.usatlas.bnl.gov:1096/pnfs")
+    #path = 'srm://dcsrm.usatlas.bnl.gov/pnfs/usatlas.bnl.gov/atlasuserdisk/rucio/panda/a7/bf/panda.0317011154.376400.lib._5118143.1962296626.lib.tgz'
+    #print path
+    #ret = s1.getCopyPrefixPath(path, stageIn=True)
+    #print "ret:" + ret
+    #print
+    #path = 'root://dcxrd.usatlas.bnl.gov:1096///atlas/rucio/panda:panda.0317011154.376400.lib._5118143.1962296626.lib.tgz'
+    #print path
+    #ret = s1.getCopyPrefixPath(path, stageIn=True)
+    #print "ret:" + ret
+    #print
 
-    #EC2
-    s1.replaceQueuedataField("copyprefixin", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
-    s1.replaceQueuedataField("copyprefix", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
-    path = 'srm://aws01.racf.bnl.gov:8443/srm/managerv2?SFN=/mnt/atlasproddisk/rucio/panda/7b/c4/86c7b8a5-d955-41a5-9f0f-36d067b9931b_0.job.log.tgz'
-    print path
-    ret = s1.getCopyPrefixPathNew(path, stageIn=True)
-    print "ret:" + ret
-    print
+    ##EC2
+    #s1.replaceQueuedataField("copyprefixin", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
+    #s1.replaceQueuedataField("copyprefix", "srm://aws01.racf.bnl.gov.*/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov.*/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov.*/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
+    #path = 'srm://aws01.racf.bnl.gov:8443/srm/managerv2?SFN=/mnt/atlasproddisk/rucio/panda/7b/c4/86c7b8a5-d955-41a5-9f0f-36d067b9931b_0.job.log.tgz'
+    #print path
+    #ret = s1.getCopyPrefixPathNew(path, stageIn=True)
+    #print "ret:" + ret
+    #print
+
+    print s1.getObjectstoresField("os_access_key", "eventservice")
+    print s1.getObjectstoresField("os_secret_key", "eventservice")
+    print s1.getObjectstoresField("os_is_secure", "eventservice")
+    #s1.getNewQueuedata("BNL_PROD_MCORE-condor")
+#    print s1.getObjectstoresField("os_name", mode="eventservice")

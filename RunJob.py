@@ -684,7 +684,7 @@ class RunJob(object):
             cmd = default_setup
         else:
             if "which: no MemoryMonitor in" in output:
-                tolog("!!WARNING!!3435!! Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
                 cmd = default_setup
             else:
                 # Standard setup passed the test

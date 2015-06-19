@@ -90,6 +90,9 @@ Will not set status=False when special SE log transfer fails, in transferLogFile
 Created getPilotErrorReportFilename(), updatePilotErrorReport(), getHighestPriorityError() (FileHandling)
 Using updatePilotErrorReport() for nine failure scenarios, high priority errors (Monitor)
 Now using getHighestPriorityError() in getNodeStructure() to look for reported high priority errors (PandaServerClient)
+Removed vmPeakMax, vmPeakMean, RSSMean from jobMetrics since they are no longer needed (PandaServerClient)
+Updated __init__() and setup() to support new objectstores fields os_access_key, os_secret_key, os_is_secure (S3ObjectstoreSiteMover)
+
 
 REMOVED IS_SECURE IN S3OBJECTSTORESITEMOVER
 

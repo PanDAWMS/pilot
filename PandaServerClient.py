@@ -129,33 +129,6 @@ class PandaServerClient:
         if job.nEventsW > 0:
             jobMetrics += self.jobMetric(key="nEventsW", value=job.nEventsW)
 
-        # Grab the memory monitor JSON dictionary if required
-        filename = os.path.join(self.__pilot_initdir, thisExperiment.getMemoryMonitorJSONFilename())
-        if os.path.exists(filename):
-            tolog("Found memory monitor JSON file, will add its dictionary to job metrics")
-
-            # Get the dictionary
-            d = getJSONDictionary(filename)
-            if d and d != {}:
-                jobMetrics += self.jobMetric(key="mem", value=str(d))
-
-            # Done with the memory monitor for this job, remove the file in case there are other jobs to be run
-            try:
-                os.system("rm -rf %s" % (filename))
-            except Exception, e:
-                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (filename), e)
-            else:
-                tolog("Removed %s" % (filename))
-        else:
-            tolog("Memory monitor JSON file does not exist: %s" % (filename))
-
-            if job.vmPeakMax > 0:
-                jobMetrics += self.jobMetric(key="vmPeakMax", value=job.vmPeakMax)
-            if job.vmPeakMean > 0:
-                jobMetrics += self.jobMetric(key="vmPeakMean", value=job.vmPeakMean)
-            if job.RSSMean > 0:
-                jobMetrics += self.jobMetric(key="RSSMean", value=job.RSSMean)
-
         # hpc status
         if job.mode:
             jobMetrics += self.jobMetric(key="mode", value=job.mode)
@@ -260,6 +233,55 @@ class PandaServerClient:
             tolog("OS transfer dictionary does not exist, will not report OS transfers in jobMetrics (%s)" % (path))
 
         return message
+
+    def getMemoryMonitoringInfo(self, node, experiment, workdir):
+        """ Add the memory monitoring info to the node structure if available """
+
+        # Get the experiment object and check if the memory monitor was used
+        thisExperiment = getExperiment(experiment)
+        if thisExperiment.shouldExecuteMemoryMonitor():
+
+            # Try to get the memory monitor info from the workdir first
+            path = os.path.join(workdir, thisExperiment.getMemoryMonitorJSONFilename())
+            init_path = os.path.join(self.__pilot_initdir, thisExperiment.getMemoryMonitorJSONFilename())
+            if not os.path.exists(path):
+                tolog("File does not exist: %s" % (path))
+                if os.path.exists(init_path):
+                    path = init_path
+                else:
+                    tolog("File does not exist either: %s" % (path))
+                    path = ""
+
+            if path != "":
+                tolog("Reading memory monitoring info from: %s" % (path))
+
+                # Get the dictionary
+                d = getJSONDictionary(path)
+                if d and d != {}:
+                    try:
+                        node['maxRSS'] = d['Max']['maxRSS']
+                        node['maxVMEM'] = d['Max']['maxVMEM']
+                        node['maxSWAP'] = d['Max']['maxSwap']
+                        node['maxPSS'] = d['Max']['maxPSS']
+                        node['avgRSS'] = d['Avg']['avgRSS']
+                        node['avgVMEM'] = d['Avg']['avgVMEM']
+                        node['avgSWAP'] = d['Avg']['avgSwap']
+                        node['avgPSS'] = d['Avg']['avgPSS']
+                    except Exception, e:
+                        tolog("!!WARNING!!54541! Exception caught while parsing memory monitor JSON: %s" % (e))
+                    else:
+                        tolog("Extracted info from memory monitor JSON")
+
+            # Done with the memory monitor for this job (if the file is read from the pilots' init dir), remove the file in case there are other jobs to be run
+            if os.path.exists(init_path):
+                try:
+                    os.system("rm -rf %s" % (init_path))
+                except Exception, e:
+                    tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (init_path), e)
+                else:
+                    tolog("Removed %s" % (init_path))
+
+        return node
 
     def getNodeStructure(self, job, site, workerNode, spaceReport=False, log=None):
         """ define the node structure expected by the server """
@@ -414,6 +436,9 @@ class PandaServerClient:
         if spaceReport and site.dq2space != -1: # non-empty string and the space check function runs well
             node['remainingSpace'] = site.dq2space
             node['messageLevel'] = site.dq2spmsg
+
+        # Add the memory monitoring info is available
+        node = self.getMemoryMonitoringInfo(node, job.experiment, job.workdir)
 
         return node
 
