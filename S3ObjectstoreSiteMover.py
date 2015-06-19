@@ -384,7 +384,7 @@ class S3ObjctStore:
             aws_secret_access_key = self.secret_key,
             host = self.hostname,
             port = self.port,
-            is_secure = self.is_secure #False,               # uncommmnt if you are not using ssl
+            is_secure = self.is_secure, #False,               # uncommmnt if you are not using ssl
             calling_format = boto.s3.connection.OrdinaryCallingFormat(),
             )
 
