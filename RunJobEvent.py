@@ -2203,6 +2203,9 @@ if __name__ == "__main__":
         # Create and start the AthenaMP process
         athenaMPProcess = runJob.getSubprocess(thisExperiment, runCommandList[0], stdout=athenamp_stdout, stderr=athenamp_stderr)
 
+        # Start the utility if required
+        utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+
         # Main loop ........................................................................................
 
         # nonsense counter used to get different "event server" message using the downloadEventRanges() function
@@ -2314,6 +2317,27 @@ if __name__ == "__main__":
 
         if not kill:
             tolog("AthenaMP has finished")
+
+        # Stop the utility
+        if utility_subprocess:
+            utility_subprocess.send_signal(signal.SIGUSR1)
+            tolog("Terminated the utility subprocess")
+
+            _nap = 10
+            tolog("Taking a short nap (%d s) to allow the utility to finish writing to the summary file" % (_nap))
+            time.sleep(_nap)
+
+            # Copy the output JSON to the pilots init dir
+            _path = os.path.join(job.workdir, thisExperiment.getUtilityJSONFilename())
+            if os.path.exists(_path):
+                try:
+                    copy2(_path, runJob.getPilotInitDir())
+                except Exception, e:
+                    tolog("!!WARNING!!2222!! Caught exception while trying to copy JSON files: %s" % (e))
+                else:
+                    tolog("Copied %s to pilot init dir" % (_path))
+            else:
+                tolog("File %s was not created" % (_path))
 
         # Do not stop the stageout thread until all output files have been transferred
         starttime = time.time()

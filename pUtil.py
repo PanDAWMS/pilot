@@ -1494,7 +1494,7 @@ def timedCommand(cmd, timeout=300):
         t1 = os.times()
         telapsed = int(round(t1[4] - t0[4]))
     else:
-        if cerr != "":
+        if cerr != "" and exitcode != 0:
             tolog("!!WARNING!!2220!! Timed command stderr: %s" % (cerr))
             output = cerr
         else:

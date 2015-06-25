@@ -234,16 +234,16 @@ class PandaServerClient:
 
         return message
 
-    def getMemoryMonitoringInfo(self, node, experiment, workdir):
-        """ Add the memory monitoring info to the node structure if available """
+    def getUtilityInfo(self, node, experiment, workdir):
+        """ Add the utility info to the node structure if available """
 
-        # Get the experiment object and check if the memory monitor was used
+        # Get the experiment object and check if the special utility (e.g. a memory monitor) was used
         thisExperiment = getExperiment(experiment)
-        if thisExperiment.shouldExecuteMemoryMonitor():
+        if thisExperiment.shouldExecuteUtility():
 
             # Try to get the memory monitor info from the workdir first
-            path = os.path.join(workdir, thisExperiment.getMemoryMonitorJSONFilename())
-            init_path = os.path.join(self.__pilot_initdir, thisExperiment.getMemoryMonitorJSONFilename())
+            path = os.path.join(workdir, thisExperiment.getUtilityJSONFilename())
+            init_path = os.path.join(self.__pilot_initdir, thisExperiment.getUtilityJSONFilename())
             if not os.path.exists(path):
                 tolog("File does not exist: %s" % (path))
                 if os.path.exists(init_path):
@@ -437,8 +437,8 @@ class PandaServerClient:
             node['remainingSpace'] = site.dq2space
             node['messageLevel'] = site.dq2spmsg
 
-        # Add the memory monitoring info is available
-        node = self.getMemoryMonitoringInfo(node, job.experiment, job.workdir)
+        # Add the utility info if it is available
+        node = self.getUtilityInfo(node, job.experiment, job.workdir)
 
         return node
 

@@ -219,6 +219,111 @@ class NordugridATLASExperiment(ATLASExperiment):
 
         return ec
 
+    # Optional
+    def getUtilityJSONFilename(self):
+        """ Return the filename of the memory monitor JSON file """
+
+        # For explanation, see shouldExecuteUtility()
+        return "memory_monitor_summary.json"
+
+    def getSetupPath(self, job_command, trf):
+        """ Get the setup path from the job execution command """
+
+        setup = ""
+
+        # Strip the setup command at the location of the trf name
+        l = job_command.find(trf)
+        if l > 0:
+            setup = job_command[:l]
+
+        return setup
+
+    def updateSetupPathWithReleaseAndCmtconfig(self, setup_path, release, alt_release, patched_release, alt_patched_release, cmtconfig, alt_cmtconfig):
+        """ Update the setup path with an alternative release, pathched release and cmtconfig """
+
+        # This method can be used to modify a setup path with an alternative release, patched release and cmtconfig
+        # E.g. this can be used by a tool that might want to fall back to a preferred setup
+
+        # Update the patched release with a tmp string
+        if patched_release in setup_path:
+            setup_path = setup_path.replace(patched_release, '__PATCHED_RELEASE__')
+
+        # Update the release
+        if release in setup_path:
+            setup_path = setup_path.replace(release, alt_release)
+
+        # Update the patched release
+        if '__PATCHED_RELEASE__' in setup_path:
+            setup_path = setup_path.replace('__PATCHED_RELEASE__', alt_patched_release)
+
+        # Update the cmtconfig
+        if cmtconfig in setup_path:
+            setup_path = setup_path.replace(cmtconfig, alt_cmtconfig)
+        if cmtconfig.upper() in setup_path:
+            setup_path = setup_path.replace(cmtconfig.upper(), alt_cmtconfig.upper())
+
+        return setup_path
+
+    # Optional
+    def getUtilityCommand(self, **argdict):
+        """ Prepare a utility command string """
+
+        # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
+        # that will be executed by the pilot in parallel with the payload.
+        # The pilot will look for an output JSON file (summary.json) and will extract pre-determined fields
+        # from it and report them with the job updates. Currently the pilot expects to find fields related
+        # to memory information.
+
+        pid = argdict.get('pid', 0)
+        release = argdict.get('release', '')
+        homePackage = argdict.get('homePackage', '')
+        cmtconfig = argdict.get('cmtconfig', '')
+        summary = self.getUtilityJSONFilename()
+        job_command = argdict.get('job_command', '')
+        trf = argdict.get('trf', 0)
+        interval = 60
+
+        # Get the setup path for the job command (everything up until the trf name)
+        setup_path = self.getSetupPath(job_command, trf)
+
+        default_release = "20.1.5"
+        default_patch_release = "20.1.5.2" #"20.1.4.1"
+        default_cmtconfig = "x86_64-slc6-gcc48-opt"
+        default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
+        #default_path = "%s/%s/%s/AtlasProduction/%s/InstallArea/%s/bin/MemoryMonitor" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
+        #default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest --cmtconfig %s" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
+
+        cacheVer = homePackage.split('/')[-1]
+        default_setup = self.updateSetupPathWithReleaseAndCmtconfig(setup_path, release, default_release, cacheVer, default_patched_release, cmtconfig, default_cmtconfig)
+
+        # Construct the name of the output file using the summary variable
+        if summary.endswith('.json'):
+            output = summary.replace('.json', '.txt')
+        else:
+            output = summary + '.txt'
+
+        # Get the standard setup
+        standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
+        _cmd = standard_setup + "; which MemoryMonitor"
+        # Can the MemoryMonitor be found?
+        try:
+            ec, output = timedCommand(_cmd, timeout=60)
+        except Exception, e:
+            tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
+            cmd = default_setup
+        else:
+            if "which: no MemoryMonitor in" in output:
+                tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                cmd = default_setup
+            else:
+                # Standard setup passed the test
+                cmd = standard_setup
+
+        # Now add the MemoryMonitor command
+        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
+
+        return cmd
+
 if __name__ == "__main__":
 
     print "Implement test cases here"

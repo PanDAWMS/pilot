@@ -92,11 +92,12 @@ Using updatePilotErrorReport() for nine failure scenarios, high priority errors 
 Now using getHighestPriorityError() in getNodeStructure() to look for reported high priority errors (PandaServerClient)
 Removed vmPeakMax, vmPeakMean, RSSMean from jobMetrics since they are no longer needed (PandaServerClient)
 Updated __init__() and setup() to support new objectstores fields os_access_key, os_secret_key, os_is_secure (S3ObjectstoreSiteMover)
+Created getUtilityCommand() (Experiment, ATLASExperiment, AMSTaiwanExperiment, NordugridATLASExperiment)
+Created getUtilityInfo() used by getNodeStructure() (PandaServerClient)
+Created getUtilitySubprocess() used by executePayload() (RunJob)
+Created getUtilityJSONFilename() used by getUtilityCommand() (NordugridATLASExperiment, ATLASExperiment, Experiment)
+Added support for memory monitor in __main__() (RunJobEvent)
 
-
-REMOVED IS_SECURE IN S3OBJECTSTORESITEMOVER
-
- 
 Tracing report update
 - Added url and stateReason to getInitialTracingReport() (Mover)
 - Created prepareReport() that will replace the __sendReport() in the site movers (SiteMover)

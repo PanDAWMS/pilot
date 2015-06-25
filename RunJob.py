@@ -654,46 +654,25 @@ class RunJob(object):
 
         return _obj
 
-    def getMemoryUtilityCommand(self, thisExperiment, pid, release, homePackage, cmtconfig, summary="summary.json"):
-        """ Prepare the memory utility command string """
+    def getUtilitySubprocess(self, thisExperiment, cmd, pid, job):
+        """ Return the utility subprocess if required """
 
-        interval = 60
-        
-        default_release = "20.1.5"
-        default_patch_release = "20.1.5.2" #"20.1.4.1"
-        default_cmtconfig = "x86_64-slc6-gcc48-opt"
-        default_swbase = "/cvmfs/atlas.cern.ch/repo/sw/software"
-        #default_path = "%s/%s/%s/AtlasProduction/%s/InstallArea/%s/bin/MemoryMonitor" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
-        default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest --cmtconfig %s" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
-
-        # Construct the name of the output file using the summary variable
-        if summary.endswith('.json'):
-            output = summary.replace('.json', '.txt')
-        else:
-            output = summary + '.txt'
-
-        # Get the standard setup
-        cacheVer = homePackage.split('/')[-1]
-        standard_setup = thisExperiment.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
-        _cmd = standard_setup + "; which MemoryMonitor"
-        # Can the MemoryMonitor be found?
-        try:
-            ec, output = timedCommand(_cmd, timeout=60)
-        except Exception, e:
-            tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
-            cmd = default_setup
-        else:
-            if "which: no MemoryMonitor in" in output:
-                tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
-                cmd = default_setup
+        utility_subprocess = None
+        if thisExperiment.shouldExecuteUtility():
+            mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf)
+            if mem_cmd != "":
+                utility_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
+                if utility_subprocess:
+                    try:
+                        tolog("Process id of utility: %d" % (utility_subprocess.pid))
+                    except Exception, e:
+                        tolog("!!WARNING!!3436!! Exception caught: %s" % (e))
             else:
-                # Standard setup passed the test
-                cmd = standard_setup
+                tolog("Could not launch utility since the command path does not exist")
+        else:
+            tolog("Not required to run utility")
 
-        # Now add the MemoryMonitor command
-        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
-
-        return cmd
+        return utility_subprocess
 
     def executePayload(self, thisExperiment, runCommandList, job):
         """ execute the payload """
@@ -747,22 +726,12 @@ class RunJob(object):
                 if main_subprocess:
                     time.sleep(2)
 
-                    # Start the memory utility if required
-                    mem_subprocess = None
-                    summary = thisExperiment.getMemoryMonitorJSONFilename()
-                    if thisExperiment.shouldExecuteMemoryMonitor():
-                        mem_cmd = self.getMemoryUtilityCommand(thisExperiment, main_subprocess.pid, job.release, job.homePackage, job.cmtconfig, summary=summary)
-                        if mem_cmd != "":
-                            mem_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
-                            if mem_subprocess:
-                                try:
-                                    tolog("Process id of memory monitor: %d" % (mem_subprocess.pid))
-                                except Exception, e:
-                                    tolog("!!WARNING!!3436!! Exception caught: %s" % (e))
-                        else:
-                            tolog("Could not launch memory monitor since the command path does not exist")
-                    else:
-                        tolog("Not required to run memory monitor")
+                    # Start the utility if required
+                    try:
+                        utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                    except Exception, e:
+                        tolog("!!WARNING!!5454!! Exception caught: %s" % (e))
+                        utility_subprocess = None
 
                     # Loop until the main subprocess has finished
                     while main_subprocess.poll() is None:
@@ -771,17 +740,17 @@ class RunJob(object):
                         # Take a short nap
                         time.sleep(1)
 
-                    # Stop the memory monitor
-                    if mem_subprocess:
-                        mem_subprocess.send_signal(signal.SIGUSR1)
-                        tolog("Terminated the memory monitor subprocess")
+                    # Stop the utility
+                    if utility_subprocess:
+                        utility_subprocess.send_signal(signal.SIGUSR1)
+                        tolog("Terminated the utility subprocess")
 
                         _nap = 10
-                        tolog("Taking a short nap (%d s) to allow the memory monitor to finish writing to the summary file" % (_nap))
+                        tolog("Taking a short nap (%d s) to allow the utility to finish writing to the summary file" % (_nap))
                         time.sleep(_nap)
 
                         # Copy the output JSON to the pilots init dir
-                        _path = "%s/%s" % (job.workdir, summary)
+                        _path = "%s/%s" % (job.workdir, thisExperiment.getUtilityJSONFilename())
                         if os.path.exists(_path):
                             try:
                                 copy2(_path, self.__pilot_initdir)

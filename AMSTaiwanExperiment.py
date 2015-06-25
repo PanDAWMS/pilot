@@ -2945,6 +2945,20 @@ class AMSTaiwanExperiment(Experiment):
 
         return True
 
+    # Optional
+    def getUtilityCommand(self, **argdict):
+        """ Prepare a utility command string """
+
+        # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
+        # that will be executed by the pilot in parallel with the payload.
+        # The pilot will look for an output JSON file (summary.json) and will extract pre-determined fields
+        # from it and report them with the job updates. Currently the pilot expects to find fields related
+        # to memory information.
+
+        # pid = argdict.get('pid', 0)
+
+        return ""
+
 if __name__ == "__main__":
 
     a=AMSTaiwanExperiment()

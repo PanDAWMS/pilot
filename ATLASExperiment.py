@@ -2407,7 +2407,7 @@ class ATLASExperiment(Experiment):
         failed = out_of_memory # failed boolean used below
 
         # Always look for the max and average VmPeak?
-        if not self.__analysisJob and not self.shouldExecuteMemoryMonitor():
+        if not self.__analysisJob and not self.shouldExecuteUtility():
             setup = getSourceSetup(runCommandList[0])
             job.vmPeakMax, job.vmPeakMean, job.RSSMean = findVmPeaks(setup)
 
@@ -3045,7 +3045,7 @@ class ATLASExperiment(Experiment):
         return job
 
     # Optional
-    def shouldExecuteMemoryMonitor(self):
+    def shouldExecuteUtility(self):
         """ Determine where a memory utility monitor should be executed """ 
 
         # The RunJob class has the possibility to execute a memory utility monitor that can track the memory usage
@@ -3057,11 +3057,65 @@ class ATLASExperiment(Experiment):
         return True
 
     # Optional
-    def getMemoryMonitorJSONFilename(self):
+    def getUtilityJSONFilename(self):
         """ Return the filename of the memory monitor JSON file """
 
-        # For explanation, see shouldExecuteMemoryMonitor()
+        # For explanation, see shouldExecuteUtility()
         return "memory_monitor_summary.json"
+
+    # Optional
+    def getUtilityCommand(self, **argdict):
+        """ Prepare a utility command string """
+
+        # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
+        # that will be executed by the pilot in parallel with the payload.
+        # The pilot will look for an output JSON file (summary.json) and will extract pre-determined fields
+        # from it and report them with the job updates. Currently the pilot expects to find fields related
+        # to memory information.
+
+        pid = argdict.get('pid', 0)
+        release = argdict.get('release', '')
+        homePackage = argdict.get('homePackage', '')
+        cmtconfig = argdict.get('cmtconfig', '')
+        summary = self.getUtilityJSONFilename()
+
+        interval = 60
+        
+        default_release = "20.1.5"
+        default_patch_release = "20.1.5.2" #"20.1.4.1"
+        default_cmtconfig = "x86_64-slc6-gcc48-opt"
+        default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
+        #default_path = "%s/%s/%s/AtlasProduction/%s/InstallArea/%s/bin/MemoryMonitor" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
+        default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest --cmtconfig %s" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
+
+        # Construct the name of the output file using the summary variable
+        if summary.endswith('.json'):
+            output = summary.replace('.json', '.txt')
+        else:
+            output = summary + '.txt'
+
+        # Get the standard setup
+        cacheVer = homePackage.split('/')[-1]
+        standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
+        _cmd = standard_setup + "; which MemoryMonitor"
+        # Can the MemoryMonitor be found?
+        try:
+            ec, output = timedCommand(_cmd, timeout=60)
+        except Exception, e:
+            tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
+            cmd = default_setup
+        else:
+            if "which: no MemoryMonitor in" in output:
+                tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                cmd = default_setup
+            else:
+                # Standard setup passed the test
+                cmd = standard_setup
+
+        # Now add the MemoryMonitor command
+        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
+
+        return cmd
 
 if __name__ == "__main__":
 

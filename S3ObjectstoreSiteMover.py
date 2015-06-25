@@ -58,7 +58,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         os_access_key = si.getObjectstoresField("os_access_key", "eventservice")
         os_secret_key = si.getObjectstoresField("os_secret_key", "eventservice")
         if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":
-            keyPair = si.getSecurityKey(ObjectStoreKey, objectStoreKeyPub)
+            keyPair = si.getSecurityKey(os_secret_key, os_access_key)
         else:
             tolog("Failed to get the keyPair for S3 objectstore")
             return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"

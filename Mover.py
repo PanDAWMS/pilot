@@ -2770,8 +2770,8 @@ def mover_put_data(outputpoolfcstring,
         filename, lfn, pfn, guid = getFilenamesAndGuid(thisfile)
 
         # The file name is now known, let's add it to the storge path if the endpoint is on an objectstore
-        if objectstore:
-            ddm_storage_path = getHashedBucketEndpoint(ddm_storage_path, lfn)
+        #if objectstore:
+        #    ddm_storage_path = getHashedBucketEndpoint(ddm_storage_path, lfn)
 
         # note: pfn is the full path to the local file
         tolog("Preparing copy for %s to %s using %s" % (pfn, ddm_storage_path, copycmd))
