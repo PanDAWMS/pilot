@@ -1555,12 +1555,16 @@ class RunJobEvent(RunJob):
 
         return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
 
-    def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None):
+    def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None, url=""):
         """ Execute the TokenExtractor """
 
         options = ""
 
         # Should the event index be used or should a tag file be used?
+        if url == "" and self.__useEventIndex:
+            tolog("!!WARNING!!5656!! Event index URL not specified (switching off event index mode)")
+            self.__useEventIndex = False
+
         if not self.__useEventIndex:
             # In this case, the input file is the tag file
             # First create a file with format: <guid>,PFN:<input_tag_file>
@@ -1575,7 +1579,7 @@ class RunJobEvent(RunJob):
         else:
             # In this case the input file is an EVT file
             # Define the options
-            options = '-e -s \"http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid=\"'
+            options = '-e -s \"%s\"' % (url)
 
         # Define the command
         cmd = "%s TokenExtractor %s" % (setup, options)
@@ -2156,7 +2160,8 @@ if __name__ == "__main__":
         # Get the Token Extractor command
         tolog("Will use input file %s for the TokenExtractor" % (input_file))
         tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
-                                                                        stdout=tokenextractor_stdout, stderr=tokenextractor_stderr)
+                                                                    stdout=tokenextractor_stdout, stderr=tokenextractor_stderr,\
+                                                                    url=thisEventService.getEventIndexURL())
 
         # Create the file objects
         athenamp_stdout, athenamp_stderr = runJob.getStdoutStderrFileObjects(stdoutName="athenamp_stdout.txt", stderrName="athenamp_stderr.txt")
@@ -2341,7 +2346,7 @@ if __name__ == "__main__":
 
         # Do not stop the stageout thread until all output files have been transferred
         starttime = time.time()
-        maxtime = 10*60*60
+        maxtime = 30*60
 #        while len (runJob.getStageOutQueue()) > 0 and (time.time() - starttime < maxtime):
 #            tolog("stage-out queue: %s" % (runJob.getStageOutQueue()))
 #            tolog("(Will wait for a maximum of %d seconds, so far waited %d seconds)" % (maxtime, time.time() - starttime))

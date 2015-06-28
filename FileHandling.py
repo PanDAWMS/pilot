@@ -364,7 +364,8 @@ def getHashedBucketEndpoint(endpoint, file_name):
     # endpoint = "atlas_logs", file_name = "log.tgz"
     # -> hash = "07" and hashed_endpoint = "atlas_logs_07"
 
-    return endpoint + "_" + getHash(file_name, 2)
+#    return endpoint + "_" + getHash(file_name, 2)
+    return endpoint
 
 def addToOSTransferDictionary(file_name, workdir, os_name, os_bucket_endpoint):
     """ Add the transferred file to the OS transfer file """

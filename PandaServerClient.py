@@ -4,7 +4,7 @@ from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment
+from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile
 from JobState import JobState
 from FileState import FileState
 from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames, getHighestPriorityError
@@ -315,6 +315,13 @@ class PandaServerClient:
         if log and (job.result[0] == 'failed' or job.result[0] == 'holding' or "outbound connections" in log):
             node['pilotLog'] = log
 
+        # add the startTime if the file exists
+        _filename = 'START_TIME_%s' % (job.jobId)
+        _path = os.path.join(self.__pilot_initdir, _filename)
+        if os.path.exists(_path):
+            startTime = readStringFromFile(_path)
+            node['startTime'] = startTime
+
         # build the jobMetrics
         node['jobMetrics'] = self.getJobMetrics(job, workerNode)
 
@@ -386,7 +393,7 @@ class PandaServerClient:
 
                 # verify that exeErrorCode is set, if not, use the info in result[1]
                 if job.exeErrorCode == 0:
-                    tolog("!!WARNING!!3333!! job.exeErrorDiag is set but not job.exeErrorCode: setting it to: %d" % (job.result[1]))
+                    tolog("WARNING: job.exeErrorDiag is set but not job.exeErrorCode: setting it to: %d" % (job.result[1]))
                     job.exeErrorCode = job.result[1]
                     node['exeErrorCode'] = job.exeErrorCode
             else:

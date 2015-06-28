@@ -9,6 +9,7 @@ from pUtil import tolog                # Logging method that sends text to the p
 from pUtil import readpar              # Used to read values from the schedconfig DB (queuedata)
 from pUtil import isAnalysisJob        # Is the current job a user analysis job or a production job?
 from pUtil import verifyReleaseString  # To verify the release string (move to Experiment later)
+from pUtil import timedCommand         # Standard time-out function
 from PilotErrors import PilotErrors    # Error codes
 from ATLASExperiment import ATLASExperiment
 
@@ -220,6 +221,18 @@ class NordugridATLASExperiment(ATLASExperiment):
         return ec
 
     # Optional
+    def shouldExecuteUtility(self):
+        """ Determine where a memory utility monitor should be executed """ 
+
+        # The RunJob class has the possibility to execute a memory utility monitor that can track the memory usage
+        # of the payload. The monitor is executed if this method returns True. The monitor is expected to produce
+        # a summary JSON file whose name is defined by the getMemoryMonitorJSONFilename() method. The contents of
+        # this file (ie. the full JSON dictionary) will be added to the jobMetrics at the end of the job (see
+        # PandaServerClient class).
+
+        return True
+
+    # Optional
     def getUtilityJSONFilename(self):
         """ Return the filename of the memory monitor JSON file """
 
@@ -231,12 +244,29 @@ class NordugridATLASExperiment(ATLASExperiment):
 
         setup = ""
 
+        # Trim the trf if necessary (i.e. remove any paths which are present in buildJob jobs)
+        trf = self.trimTrfName(trf)
+
+        # Take care of special cases, e.g. trf="buildJob-.." but job_command="..; ./buildJob-.."
+        special_case = "./%s" % (trf)
+        if special_case in job_command:
+            trf = special_case
+
         # Strip the setup command at the location of the trf name
         l = job_command.find(trf)
         if l > 0:
             setup = job_command[:l]
 
-        return setup
+        # Make sure to remove any unwanted white spaces as well
+        return setup.strip()
+
+    def trimTrfName(self, trfName):
+        """ Remove any unwanted strings from the trfName """
+
+        if "/" in trfName:
+            trfName = os.path.basename(trfName)
+
+        return trfName
 
     def updateSetupPathWithReleaseAndCmtconfig(self, setup_path, release, alt_release, patched_release, alt_patched_release, cmtconfig, alt_cmtconfig):
         """ Update the setup path with an alternative release, pathched release and cmtconfig """
@@ -244,8 +274,13 @@ class NordugridATLASExperiment(ATLASExperiment):
         # This method can be used to modify a setup path with an alternative release, patched release and cmtconfig
         # E.g. this can be used by a tool that might want to fall back to a preferred setup
 
+        # Correct the release info
+        if "-" in release: # the cmtconfig is appended, e.g. release='17.2.7-X86_64-SLC5-GCC43-OPT'
+            cmtconfig = release[release.find('-')+1:]
+            release = release[:release.find('-')]
+
         # Update the patched release with a tmp string
-        if patched_release in setup_path:
+        if patched_release != "" and patched_release in setup_path:
             setup_path = setup_path.replace(patched_release, '__PATCHED_RELEASE__')
 
         # Update the release
@@ -257,15 +292,13 @@ class NordugridATLASExperiment(ATLASExperiment):
             setup_path = setup_path.replace('__PATCHED_RELEASE__', alt_patched_release)
 
         # Update the cmtconfig
-        if cmtconfig in setup_path:
-            setup_path = setup_path.replace(cmtconfig, alt_cmtconfig)
-        if cmtconfig.upper() in setup_path:
-            setup_path = setup_path.replace(cmtconfig.upper(), alt_cmtconfig.upper())
+        if cmtconfig != "" and cmtconfig in setup_path:
+            setup_path = setup_path.replace(cmtconfig, alt_cmtconfig.upper())
 
         return setup_path
 
     # Optional
-    def getUtilityCommand(self, **argdict):
+    def NOTUSEDgetUtilityCommand(self, **argdict):
         """ Prepare a utility command string """
 
         # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
@@ -290,37 +323,56 @@ class NordugridATLASExperiment(ATLASExperiment):
         default_patch_release = "20.1.5.2" #"20.1.4.1"
         default_cmtconfig = "x86_64-slc6-gcc48-opt"
         default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
-        #default_path = "%s/%s/%s/AtlasProduction/%s/InstallArea/%s/bin/MemoryMonitor" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
-        #default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest --cmtconfig %s" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
 
         cacheVer = homePackage.split('/')[-1]
-        default_setup = self.updateSetupPathWithReleaseAndCmtconfig(setup_path, release, default_release, cacheVer, default_patched_release, cmtconfig, default_cmtconfig)
 
+        # could anything be extracted?
+        if homePackage == cacheVer or cmtconfig == "": # (no)
+            # This means there is no patched release available, ie. we need to use the fallback
+            useDefault = True
+            cacheVer = ""
+        else:
+            useDefault = False
+
+        tolog("setup_path=%s"%setup_path)
+        tolog("release=%s"%release)
+        tolog("default_release=%s"%default_release)
+        tolog("cacheVer=%s"%cacheVer)
+        tolog("default_patch_release=%s"%default_patch_release)
+        tolog("cmtconfig=%s"%cmtconfig)
+        tolog("default_cmtconfig=%s"%default_cmtconfig)
+        default_setup = self.updateSetupPathWithReleaseAndCmtconfig(setup_path, release, default_release, cacheVer, default_patch_release, cmtconfig, default_cmtconfig)
+        tolog("default_setup=%s"%default_setup)
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):
             output = summary.replace('.json', '.txt')
         else:
             output = summary + '.txt'
 
-        # Get the standard setup
-        standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
-        _cmd = standard_setup + "; which MemoryMonitor"
-        # Can the MemoryMonitor be found?
-        try:
-            ec, output = timedCommand(_cmd, timeout=60)
-        except Exception, e:
-            tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
+        if useDefault:
+            tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
             cmd = default_setup
         else:
-            if "which: no MemoryMonitor in" in output:
-                tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+            # Get the standard setup
+            standard_setup = setup_path
+            _cmd = standard_setup + " which MemoryMonitor"
+
+            # Can the MemoryMonitor be found?
+            try:
+                ec, output = timedCommand(_cmd, timeout=60)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
                 cmd = default_setup
             else:
-                # Standard setup passed the test
-                cmd = standard_setup
+                if "which: no MemoryMonitor in" in output:
+                    tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                    cmd = default_setup
+                else:
+                    # Standard setup passed the test
+                    cmd = standard_setup
 
         # Now add the MemoryMonitor command
-        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
+        cmd += "MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
 
         return cmd
 

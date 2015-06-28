@@ -3096,21 +3096,34 @@ class ATLASExperiment(Experiment):
 
         # Get the standard setup
         cacheVer = homePackage.split('/')[-1]
-        standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
-        _cmd = standard_setup + "; which MemoryMonitor"
-        # Can the MemoryMonitor be found?
-        try:
-            ec, output = timedCommand(_cmd, timeout=60)
-        except Exception, e:
-            tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
+
+        # Could anything be extracted?
+        if homePackage == cacheVer: # (no)
+            # This means there is no patched release available, ie. we need to use the fallback
+            useDefault = True
+        else:
+            useDefault = False
+
+        if useDefault:
+            tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
             cmd = default_setup
         else:
-            if "which: no MemoryMonitor in" in output:
-                tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+            # get the standard setup
+            standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
+            _cmd = standard_setup + "; which MemoryMonitor"
+            # Can the MemoryMonitor be found?
+            try:
+                ec, output = timedCommand(_cmd, timeout=60)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
                 cmd = default_setup
             else:
-                # Standard setup passed the test
-                cmd = standard_setup
+                if "which: no MemoryMonitor in" in output:
+                    tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                    cmd = default_setup
+                else:
+                    # Standard setup passed the test
+                    cmd = standard_setup
 
         # Now add the MemoryMonitor command
         cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)

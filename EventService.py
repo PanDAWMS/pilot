@@ -157,6 +157,17 @@ class EventService(object):
 
         return cmd
 
+    # Optional
+    def getEventIndexURL(self):
+        """ Return the proper URL for the Event Index """
+
+        if os.environ.has_key('EVENT_INDEX_URL'):
+            url = os.environ['EVENT_INDEX_URL']
+        else:
+            url = "http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid="
+
+        return url
+
 if __name__ == "__main__":
 
     es = EventService(eventCounterStepLength=3)

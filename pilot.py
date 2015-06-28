@@ -2035,6 +2035,7 @@ def getNewJob(tofile=True):
         return None, pilotErrorDiag
 
     # should we ask the server for a job or should we read it from a file (as in the case of the test pilot)
+    shouldCreateTimeStampFile = False
     if not env['jobRequestFlag']:
         # read job from file
         pUtil.tolog("Looking for a primary job (reading from file)", tofile=tofile)
@@ -2074,6 +2075,10 @@ def getNewJob(tofile=True):
 
                 # get and write the dispatcher status code to file
                 StatusCode = getStatusCode(data)
+
+                # create a start time file in the pilot init dir (time stamp will be read and sent to the server with the job update
+                shouldCreateTimeStampFile = True
+
         else:
             pilotErrorDiag = "[pilot] Job definition file (%s) does not exist! (will now exit)" % (_pandaJobDataFileName)
             errorText = "!!FAILED!!1200!! %s" % (pilotErrorDiag)
@@ -2225,6 +2230,10 @@ def getNewJob(tofile=True):
         pUtil.tolog('no user proxy in data')
         # Eddie: what do we do when there is no user proxy? Do we use the proxy that started the pilot?                                                                         
         env['userProxy'] = ''
+
+    # create a start time file in the pilot init dir (time stamp will be read and sent to the server with the job update
+    if shouldCreateTimeStampFile:
+        pUtil.writeTimeStampToFile(path=env['pilot_initdir'], filename='START_TIME_%s' % (newJob.jobId), overwrite=False)
  
     return newJob, ""
 

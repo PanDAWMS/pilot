@@ -772,7 +772,7 @@ class Monitor:
 
     def __createJobWorkdir(self, job, stderr):
         """ Attempt to create the job workdir """
-    
+
         ec, errorText = job.mkJobWorkdir(self.__env['thisSite'].workdir)
         if ec != 0:
             job.setState(["failed", 0, self.__error.ERR_MKDIRWORKDIR])
@@ -789,8 +789,13 @@ class Monitor:
         else:
             pUtil.tolog("Created job workdir at %s" % (job.workdir))
             # copy the job def file into job workdir
-            pUtil.tolog(os.getcwd())
             copy("%s/Job_%s.py" % (os.getcwd(), job.jobId), "%s/newJobDef.py" % job.workdir)
+
+            # also copy the time stamp file if it exists
+            _path = os.path.join(self.__env['pilot_initdir'], 'START_TIME_%s' % (job.jobId))
+            if os.path.exists(_path):
+                copy(_path, job.workdir)
+                pUtil.tolog("File %s copied to workdir" % (_path))
 
             self.__storePilotInitdir(self.__env['job'].workdir, self.__env['pilot_initdir'])
     

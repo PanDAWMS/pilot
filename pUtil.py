@@ -579,12 +579,12 @@ def timeStamp():
 
     return str("%s%s%02d%02d" % (time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()), signstr, tmptz_hours, int(tmptz/60-tmptz_hours*60)))
 
-def timeStampUTC(t=None):
+def timeStampUTC(t=None, format="%d %b %H:%M:%S"):
     """ return UTC time stamp """
 
     if not t:
         t = time.time()
-    return time.strftime("%d %b %H:%M:%S", time.gmtime(t))
+    return time.strftime(format, time.gmtime(t))
 
 def getJobStatus(jobId, pshttpurl, psport, path):
     """
@@ -1658,6 +1658,28 @@ def removeLEDuplicates(logMsg):
 
     # return the stripped logMsg
     return "\n".join(log_extracts_tmp)
+
+def writeTimeStampToFile(path="", filename="", overwrite=True):
+    """ Write the current time stamp to file """
+
+    if filename == "":
+        filename = "START_TIME"
+    if path == "":
+        path = os.getcwd()
+
+    _filename = os.path.join(path, filename)
+
+    # Are we allowed to overwrite?
+    proceed = False
+    if overwrite:
+        proceed = True
+    else:
+        # Only proceed if the file does not exist already
+        if not os.path.exists(_filename):
+            proceed = True
+
+    if proceed:
+        writeToFile(_filename, timeStampUTC(format='%Y-%m-%d %H:%M:%S'))
 
 def writeToFile(filename, s):
     """ Write string s to file """
