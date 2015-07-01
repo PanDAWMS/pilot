@@ -170,8 +170,8 @@ Changed in AMSTaiwanSiteInformation:
 
 62.1:
 
-Corrected getLFN() for LFN vs basename comparison (pUtil)
-Added missing module name to readpar() call in __monitor_processes(), affecting job that exceeded maxtime (Monitor)
+Corrected getLFN() for LFN vs basename comparison, affecting a few user jobs ("Get function can not be called for staging input files") (pUtil)
+Added missing module name to readpar() call in __monitor_processes(), affecting job that exceeded maxtime ("Exception caught: global name 'readpar' is not defined") (Monitor)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
