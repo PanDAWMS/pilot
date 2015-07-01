@@ -112,7 +112,7 @@ class JobLog:
             tolog("Attempting log file transfer to special SE")
             ret, job = self.transferActualLogFile(job, site, dest=dest, jr=jr, specialTransfer=True)
             if not ret:
-                tolog("!!%s!!1600!! Could not transfer log file to special SE" % (self.__env['errorLabel']))
+                tolog("!!WARNING!!1600!! Could not transfer log file to special SE")
                 #status = False
             else:
                 # Update the OS transfer dictionary

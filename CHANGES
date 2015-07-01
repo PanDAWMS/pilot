@@ -120,11 +120,6 @@ Tracing report update
 - Now returning the surl for more cases with put_data_retfail() from put_data() to make sure the url in the tracing report is set (SiteMover, lcgcp*, BNLdCache*, Castor*, Chirp*, GSIftp*,
   HU*, aria2c*, curl*, dCache*, rfcpLFC*, xrootd*)
 
-
-REMOVE OTHERSITEMOVER FROM DIST
-HUSITEMOVER?
-
-
 DQ2 API to Rucio API migration:
 - Created new support methods: extractScopeLFN(), getScopeLFNListFromDictionary(), getGUIDForLFN() used by the new getRucioReplicaDictionary() (Mover)
 - getRucioReplicaDictionary() now returns both a replica dictionary and a surl dictionary containing file type and RSE info (Mover)
@@ -175,6 +170,12 @@ Changed in AMSTaiwanSiteInformation:
 
 
 TODO:
+
+62.1?
+Avoiding setting exit code 1008/65 when no jobs were downloaded in getJob(), requested by John Hover (pilot)
+
+REMOVE OTHERSITEMOVER FROM DIST
+HUSITEMOVER?
 
 Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file 
 registrations using DQ2 functions test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
