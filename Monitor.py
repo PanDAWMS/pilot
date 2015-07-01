@@ -344,7 +344,7 @@ class Monitor:
                         % (time_passed_since_pilot_startup, self.__env['maxtime']))
             if (self.__env['maxtime'] - time_passed_since_pilot_startup) < 10*60 and not self.__env['stageout']:
                 # reached maximum batch system time limit
-                if not "NO_PILOT_TIME_LIMIT_KILL" in readpar('catchall'):
+                if not "NO_PILOT_TIME_LIMIT_KILL" in pUtil.readpar('catchall'):
                     self.__failMaxTimeJob()
                     self.__skip = True
                 else:

@@ -2,7 +2,7 @@ Complete change log for PanDA Pilot version PICARD
 --------------------------------------------------
 
 
-62a:
+62.0:
 
 Sending gpfn (replica) and sitemover to isFAXAllowed() from mover_get_data() (Mover)
 Added surl and sitemover arguments to isFAXAllowed() (Mover)
@@ -165,6 +165,13 @@ Update info from Wen Guan:
 
 Changed in AMSTaiwanSiteInformation:
 - Importing getExtension() from FileHandling instead of from pUtil
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+62.1:
+
+Corrected getLFN() for LFN vs basename comparison (pUtil)
+Added missing module name to readpar() call in __monitor_processes(), affecting job that exceeded maxtime (Monitor)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

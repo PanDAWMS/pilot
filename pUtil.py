@@ -1319,7 +1319,8 @@ def getLFN(pfn, lfns):
     lfn = ""
     for _lfn in lfns:
         _basename = os.path.basename(pfn)
-        if _basename.endswith(_lfn):
+        if _lfn in _basename:
+#        if _basename.endswith(_lfn):
             # Handle scopes in case they are present
             if ":" in _basename:
                 l = _basename.split(":")
