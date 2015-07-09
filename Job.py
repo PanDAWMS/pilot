@@ -93,7 +93,8 @@ class Job:
         self.pgrp = 0                      # Process group (RunJob* subprocess)
         self.sourceSite = ""               # Keep track of the original source site of the job (useful for overflow jobs to get to the proper FAX redirector)
         self.ddmEndPointIn = []            #
-        self.ddmEndPointOut = []            #
+        self.ddmEndPointOut = []           #
+        self.ddmEndPointLog = []           #
 
         # event service objects
         self.eventService = False          # True for event service jobs
@@ -391,17 +392,20 @@ class Job:
         pUtil.tolog("outfdbList = %s" % (outfdbList))
         outs = []
         outdb = []
-        logFileDblock = ''
+        outddm = []
+        logddm = ""
+        logFileDblock = ""
         # keep track of log file index in the original file output list
         i_log = -1
         for i in range(len(outfList)):
             if outfList[i] == logFile:
                 logFileDblock = outfdbList[i]
+                logddm = self.ddmEndPointOut[i]
                 i_log = i
             else:
-#                if not skip: #PN tmp
                 outs.append(outfList[i])
                 outdb.append(outfdbList[i])
+                outddm.append(self.ddmEndPointOut[i])
 
         # put the space token for the log file at the end of the list
         if i_log != -1:
@@ -429,6 +433,11 @@ class Job:
         self.outFiles = outs
         self.destinationDblock = outdb
         self.logDblock = logFileDblock
+        self.ddmEndPointOut = outddm
+        self.ddmEndPointLog = logddm
+
+        pUtil.tolog("Updated ddmEndPointOut=%s" % (self.ddmEndPointOut))
+        pUtil.tolog("Updated ddmEndPointLog=%s" % (self.ddmEndPointLog))
 
         self.jobPars = data.get('jobPars', '')
         # for accessmode testing: self.jobPars += " --accessmode=direct"
