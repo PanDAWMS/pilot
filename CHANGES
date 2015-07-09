@@ -178,6 +178,9 @@ Added missing module name to readpar() call in __monitor_processes(), affecting 
 62.2:
 
 Added ddmEndPointIn, ddmEndPointOut to Job class, and handling in displayJob() and setJobDef() (Job)
+Moved exception handling for utility subprocess from executePayload() to getUtilitySubprocess() (RunJob)
+Making sure that the subprocess is still running in executePayload() (RunJob)
+Setting memory info = -1 in case of file reading trouble or if memory summary file was not updated in less than 120 s in getUtilityInfo(). Reuqested by Rodney Walker (PandaServerClient) 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

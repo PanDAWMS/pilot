@@ -659,16 +659,20 @@ class RunJob(object):
 
         utility_subprocess = None
         if thisExperiment.shouldExecuteUtility():
-            mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf)
-            if mem_cmd != "":
-                utility_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
-                if utility_subprocess:
-                    try:
-                        tolog("Process id of utility: %d" % (utility_subprocess.pid))
-                    except Exception, e:
-                        tolog("!!WARNING!!3436!! Exception caught: %s" % (e))
-            else:
-                tolog("Could not launch utility since the command path does not exist")
+            try:
+                mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf)
+                if mem_cmd != "":
+                    utility_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
+                    if utility_subprocess:
+                        try:
+                            tolog("Process id of utility: %d" % (utility_subprocess.pid))
+                        except Exception, e:
+                            tolog("!!WARNING!!3436!! Exception caught: %s" % (e))
+                else:
+                    tolog("Could not launch utility since the command path does not exist")
+            except Exception, e:
+                tolog("!!WARNING!!5454!! Exception caught: %s" % (e))
+                utility_subprocess = None
         else:
             tolog("Not required to run utility")
 
@@ -727,18 +731,21 @@ class RunJob(object):
                     time.sleep(2)
 
                     # Start the utility if required
-                    try:
-                        utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
-                    except Exception, e:
-                        tolog("!!WARNING!!5454!! Exception caught: %s" % (e))
-                        utility_subprocess = None
+                    utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
 
                     # Loop until the main subprocess has finished
                     while main_subprocess.poll() is None:
-                        # ..
-
                         # Take a short nap
-                        time.sleep(1)
+                        time.sleep(5)
+
+                        # Make sure that the utility subprocess is still running
+                        if utility_subprocess:
+                            # Take another short nap
+                            time.sleep(5)
+                            if not utility_subprocess.poll() is None:
+                                # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
+                                tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                                utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
 
                     # Stop the utility
                     if utility_subprocess:
