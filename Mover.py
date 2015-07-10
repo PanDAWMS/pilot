@@ -1,4 +1,4 @@
-# Mover.py 
+# Mover.py
 # Used by runJob and pilot to transfer input and output files from and to the local SE
 
 import os
@@ -18,7 +18,7 @@ from FileHandling import getExtension, getTracingReportFilename, readJSON, getHa
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
 from SysLog import sysLog, dumpSysLogTail
-           
+
 # Note: DEFAULT_TIMEOUT and MAX_RETRY are reset in get_data()
 MAX_RETRY = 1
 MAX_NUMBER_OF_RETRIES = 3
@@ -134,7 +134,7 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
                            access_dict=access_dict, inputDir=inputDir, jobId=job.jobId, DN=job.prodUserID, workDir=workDir,\
                            scope_dict=scope_dict, jobDefId=job.jobDefinitionID, dbh=dbh, jobPars=job.jobPars, cmtconfig=job.cmtconfig,\
                            filesizeIn=job.filesizeIn, checksumIn=job.checksumIn, transferType=job.transferType, experiment=job.experiment,\
-                           eventService=job.eventService, inputpoolfcstring=inputpoolfcstring, rucio_dataset_dictionary=rucio_dataset_dictionary)
+                           eventService=job.eventService, inputpoolfcstring=inputpoolfcstring, rucio_dataset_dictionary=rucio_dataset_dictionary, job=job)
 
         tolog("Get function finished with exit code %d" % (rc))
 
@@ -295,7 +295,7 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
 
             if surl_guid_dictionary[guid] == []:
                 pilotErrorDiag = "Encountered an empty SURL list for GUID=%s (replica is missing in catalog)" % (guid)
-                tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag)) 
+                tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
             else:
                 # Found a valid SURL
                 status = True
@@ -303,7 +303,7 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
     else:
         pilotErrorDiag = "Rucio returned an empty replica dictionary"
         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
-    
+
     return status, pilotErrorDiag
 
 def getFiletypeAndRSE(surl, surl_dictionary):
@@ -512,7 +512,7 @@ def getInitialTracingReport(userid, sitename, dsname, eventType, analysisJob, jo
               'catStart': None,
               'relativeStart': None,
               'transferStart': None,
-              'validateStart': None,    
+              'validateStart': None,
               'timeEnd': None,
               'dataset': dsname,
               'version': None,
@@ -698,12 +698,12 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             tolog("Mover get_data finished (failed)")
             return error.ERR_NOPFC, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
 
-        xmldoc = minidom.parseString(xml_from_PFC)        
+        xmldoc = minidom.parseString(xml_from_PFC)
         fileList = xmldoc.getElementsByTagName("File")
 
         # Extracts the guids from the file list
         guids_filelist = getGuids(fileList)
-        fileInfoDictionaryFromDispatcher = getFileInfoDictionaryFromDispatcher(lfns, filesizeIn, checksumIn) 
+        fileInfoDictionaryFromDispatcher = getFileInfoDictionaryFromDispatcher(lfns, filesizeIn, checksumIn)
         file_nr = -1
         for thisfile in fileList:
             file_nr += 1
@@ -830,11 +830,11 @@ def createPFC4TRF(pfc_name, guidfname):
             pfc2.write('      <pfn filetype="ROOT_All" name=\"' + fname + '\"/>\n')
             pfc2.write('    </physical>\n')
             pfc2.write('    <logical/>\n')
-            pfc2.write('  </File>\n') 
+            pfc2.write('  </File>\n')
             pfc2.write('\n')
-        pfc2.write('</POOLFILECATALOG>')    
+        pfc2.write('</POOLFILECATALOG>')
     except Exception, e:
-        tolog("!!WARNING!!2999!! Could not create/write to PFC: %s, %s" % (pfc_name, str(e)))    
+        tolog("!!WARNING!!2999!! Could not create/write to PFC: %s, %s" % (pfc_name, str(e)))
     else:
         pfc2.close()
         tolog("Created PFC for trf/runAthena: %s" % (pfc_name))
@@ -984,7 +984,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, co
         else:
             tolog("No need to convert SURLs with lcg-getturls, got a populated TURL dictionary already (%d item(s))" % len(convertedTurlDic))
         return ec, pilotErrorDiag, convertedTurlDic
- 
+
     # proceed with lcg-getturls
     fileList = _fileList
     guidList = _guidList
@@ -1108,7 +1108,7 @@ def getPlainCopyPrefices():
         tolog("!!WARNING!!4444!! Unexpected copyprefix[in] format: %s" % (copyprefix))
 
     return oldPrefix, newPrefix
-    
+
 def getPrefices(fileList):
     """ Get the old/newPrefices as a dictionary needed for the SURL to TURL conversions """
     # Format:
@@ -1146,7 +1146,7 @@ def getPrefices(fileList):
             else:
                 if not "^" in copyprefix:
                     tolog("WARNING: Will default to using lcg-getturls")
-            
+
         # in case of less complex copyprefix
         if "^" in copyprefix and not "," in copyprefix and not "dummy" in copyprefix:
             prefices = copyprefix.split("^")
@@ -1191,7 +1191,7 @@ def getPrefices(fileList):
                 # Use the same prefices for all surls
                 for surl in fileList:
                     prefix_dictionary[surl] = [oldPrefix, newPrefix]
-            
+
     if oldPrefix != "" and newPrefix != "":
         tolog("Will use oldPrefix=%s and newPrefix=%s for SURL to TURL conversion" % (oldPrefix, newPrefix))
     else:
@@ -1394,7 +1394,7 @@ def updatePFN(pfn):
             pfn = re.sub('/atlas/dq2/','//pnfs/sfu.ca/data/atlas/dq2/',pfn)
             pfn = re.sub('/atlas/users/','//pnfs/sfu.ca/data/atlas/users/',pfn)
             pfn = re.sub('22125/atlas/','22125//pnfs/sfu.ca/data/atlas/',pfn)
-                
+
     elif usedProtocol in ["root", "Xrootd"]:
         # correct the protocol
         pfn = re.sub('srm://','root://',pfn)
@@ -1962,10 +1962,11 @@ def mover_get_data(lfns,
                    transferType=None,
                    experiment="",
                    eventService=False,
-                   sourceSite=""):
+                   sourceSite="",
+                   job={}):
     """
     This method is called by a job to get the required input data.
-    The parameters passed are a list of LFNs, working directory path, site name, 
+    The parameters passed are a list of LFNs, working directory path, site name,
     and a connection string to the poolfile catalog to fill with
     input data (if none given the default is xmlcatalog_file:PoolFileCatalog.xml).
     The local destination directory (working directory path) should already exist,
@@ -2022,7 +2023,8 @@ def mover_get_data(lfns,
     copycmd, setup = getCopytool(mode="get")
 
     # Get the sitemover object corresponding to the default copy command
-    sitemover = getSiteMover(copycmd, setup)
+    sitemover = getSiteMover(copycmd, setup) # to be patched: job args should be passed here
+    sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
 
     # Get the experiment object
     thisExperiment = getExperiment(experiment)
@@ -2062,7 +2064,7 @@ def mover_get_data(lfns,
 
     # Only bother with the size checks if the copy tool is to be used (non-direct access mode)
     if usect:
-        # Get a proper maxinputsize from schedconfig/default 
+        # Get a proper maxinputsize from schedconfig/default
         _maxinputsize = getMaxInputSize()
 
         # Check the total input file size
@@ -2115,7 +2117,7 @@ def mover_get_data(lfns,
 
     # Normal stage-in (one by one file transfers)
     if sitemover.isOneByOneFileTransfer() or fail != 0:
-    
+
         tolog("Files will be transferred one by one")
 
         # Reset any previous failure
@@ -2132,7 +2134,9 @@ def mover_get_data(lfns,
             if copytool != copycmd:
                 copycmd = copytool
                 # Get the sitemover object corresponding to the new copy command
-                sitemover = getSiteMover(copycmd, setup)
+                sitemover = getSiteMover(copycmd, setup) # to be patched: job args should be passed here
+                sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
+
                 tolog("Site mover object updated since copytool has changed")
 
             # Update the dataset name
@@ -2229,7 +2233,8 @@ def mover_get_data(lfns,
 
                         # Get the FAX site mover
                         old_sitemover = sitemover
-                        sitemover = getSiteMover("fax", "")
+                        sitemover = getSiteMover("fax", "") # to be patched: job args should be passed here
+                        sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
 
                         # Perform stage-in using the sitemover wrapper method
                         s, pErrorText, N_files_on_tape, N_root_files, N_non_root_files, replica_transferred, will_use_direct_io = sitemover_get_data(sitemover, error,\
@@ -2280,7 +2285,8 @@ def mover_get_data(lfns,
             if usedFAXMode and will_use_direct_io:
                 # The site mover needed here is the FAX site mover since the global file path methods are defined there only
                 old_sitemover = sitemover
-                sitemover = getSiteMover("fax", "")
+                sitemover = getSiteMover("fax", "") # to be patched: job args should be passed here
+                sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
                 guidfname[guid] = sitemover.findGlobalFilePath(lfn, dsname, sitename, sourceSite)
 
                 # Restore the old sitemover
@@ -2330,7 +2336,7 @@ def mover_get_data(lfns,
             tolog("Mover get_data finished")
         else:
             tolog("Mover get_data finished (failed)")
-    tolog("Will return exit code = %d, pilotErrorDiag = %s" % (fail, pilotErrorDiag))    
+    tolog("Will return exit code = %d, pilotErrorDiag = %s" % (fail, pilotErrorDiag))
 
     # Now populate the FAX dictionary before finishing
     FAX_dictionary = getFAXDictionary(N_filesWithoutFAX, N_filesWithFAX, bytesWithoutFAX, bytesWithFAX, usedFAXandDirectIO)
@@ -2477,8 +2483,8 @@ def prepareAlternativeStageOut(sitemover, si, sitename, jobCloud):
 def getFileList(outputpoolfcstring):
     """ Get the file listfrom the PFC """
 
-    pfc_name = outputpoolfcstring.split(':', 1)[1]        
-    xmldoc = minidom.parse(pfc_name)        
+    pfc_name = outputpoolfcstring.split(':', 1)[1]
+    xmldoc = minidom.parse(pfc_name)
 
     return xmldoc.getElementsByTagName("File")
 
@@ -2498,7 +2504,7 @@ def getFilenamesAndGuid(thisfile):
     if (thisfile.getElementsByTagName("lfn") != []):
         lfn = str(thisfile.getElementsByTagName("lfn")[0].getAttribute("name"))
     else:
-        lfn = str(filename) # Eddie: eliminate the possibility of finding a unicode string in the filename                                              
+        lfn = str(filename) # Eddie: eliminate the possibility of finding a unicode string in the filename
     guid = str(thisfile.getAttribute("ID"))
 
     return filename, lfn, pfn, guid
@@ -2683,7 +2689,8 @@ def mover_put_data(outputpoolfcstring,
                    scopeLog=None,
                    fileDestinationSE=None,
                    logPath="",
-                   eventService=False):
+                   eventService=False,
+                   job={}):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
     No DS registration in the central catalog is made. pdsname is used only to define the relative path
@@ -2740,7 +2747,8 @@ def mover_put_data(outputpoolfcstring,
         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
 
     # Get the site mover
-    sitemover = getSiteMover(copycmd, setup)
+    sitemover = getSiteMover(copycmd, setup) # to be patched: job args should be passed here
+    sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
     tolog("Got site mover: %s" % str(sitemover))
 
     # get the file list from the PFC (DOM object list)
@@ -2871,6 +2879,10 @@ def mover_put_data(outputpoolfcstring,
                     alternativeSitemover = prepareAlternativeStageOut(sitemover, si, sitename, jobCloud)
 
                     if alternativeSitemover:
+
+                        # init ddmEndPointOut???
+                        # alternativeSitemover.init_data(job)
+
                         # update the space token?
                         if not alternativeTokenList:
                             # note: alt=True means that the queuedata file for the alternative SE will be used
@@ -2953,12 +2965,12 @@ def mover_put_data(outputpoolfcstring,
 
         if s != 0:
             tolog('!!WARNING!!2999!! Failed to transfer %s: %s (%s)' % (os.path.basename(pfn), s, error.getErrorStr(s)))
-            fail = s 
+            fail = s
             break
 
         # gpfn = ftpserv + destpfn
         # keep track of which files have been copied
-        fields[0] += '%s+' % r_gpfn    
+        fields[0] += '%s+' % r_gpfn
         fields[1] += '%s+' % str(lfn) # Eddie added str, unicode protection
         fields[2] += '%s+' % guid
         fields[3] += '%s+' % r_fsize
@@ -3068,7 +3080,7 @@ def getProperSpaceTokenList(spacetokenlist, listSEs, jobCloud, analysisJob, alt=
     else:
         # no token list from destinationDBlockToken, create one from schedconfig.se if possible
         if _defaulttoken:
-            # token = [output space tokens] + [log space token] (currently the same) 
+            # token = [output space tokens] + [log space token] (currently the same)
             properspacetokenlist = [_defaulttoken]*(length-1) + [_defaulttoken]
         else:
             # default to the original NULL list (will be skipped later)
@@ -3082,7 +3094,7 @@ def getProperSpaceTokenList(spacetokenlist, listSEs, jobCloud, analysisJob, alt=
         tolog("!!WARNING!!2991!! No cloud field in queuedata: %s" % str(e))
         cloud = jobCloud
 
-    if setokens != "" and setokens != None: 
+    if setokens != "" and setokens != None:
         for i in range(len(properspacetokenlist)):
             if not verifySpaceToken(properspacetokenlist[i], setokens) or cloud != jobCloud:
                 __defaulttoken = _defaulttoken
@@ -3312,7 +3324,7 @@ def getDestinationDDMStorage(analysisJob):
     # use the first seprodpath for now (should be set properly in the site mover)
     sePath = seList[0]
 
-    if seName != "" and sePath != "":        
+    if seName != "" and sePath != "":
         if seName[-1] == "/" and sePath[0] == "/":
             # prevent paths from containing double slashes
             path = seName[:-1] + sePath
@@ -3390,7 +3402,7 @@ def foundMatchedCopyprefixReplica(sfn, pfroms, ptos):
 
 def matchCopyprefixReplica(surl, pfroms, ptos):
     """ Match and return prefix matching copyprefix """
-    # e.g. surl = srm://srm-atlas.cern.ch/castor/cern.ch/grid/atlas/... and 
+    # e.g. surl = srm://srm-atlas.cern.ch/castor/cern.ch/grid/atlas/... and
     # copyprefix = srm://srm-eosatlas.cern.ch,srm://srm-atlas.cern.ch^root://eosatlas.cern.ch/,root://castoratlas-xrdssl/
     # -> oldPrefix = srm://srm-atlas.cern.ch, newPrefix = root://castoratlas-xrdssl/
     # These values will then be used for the SURL to TURL conversion
@@ -3418,7 +3430,7 @@ def getPrimaryRucioReplica(matched_replicas, replicas):
         if "/rucio/" in replica: # here 'replica' is a string
             sfn = replica
             break
-    
+
     # search the replicas list in case sfn is empty
     if sfn == "":
         for replica in replicas: # here 'replica' is an object
@@ -3465,7 +3477,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
     if copyprefix == "":
         tolog("copyprefixin is not set, trying to use copyprefix instead")
         copyprefix = readpar('copyprefix')
-    
+
     if copyprefix == "":
         pilotErrorDiag = "Get data failed: copyprefix not set"
         tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
@@ -3943,7 +3955,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
                     else:
                         tolog("Copytool dictionary already contains an entry for SURL=%s, copytool=%s" % (surl, copytool_dictionary[surl]))
 
-                # Does the current replicas_dict contain replicas for all guids? If so, no need to continue 
+                # Does the current replicas_dict contain replicas for all guids? If so, no need to continue
                 status, pilotErrorDiag = verifyReplicasDictionary(replicas_dict, guid_token_dict.keys())
                 if status:
                     tolog("Found all replicas, aborting loop over catalog hosts")
@@ -4059,7 +4071,7 @@ def getPoolFileCatalogDQ2(baseURL, guids):
 
     # get PoolFileCatalog
     iGUID = 0
-    xml_from_PFC =''    
+    xml_from_PFC =''
 
     # In LCG land use dq2_poolFCjobO
     region = readpar('region')
@@ -4377,7 +4389,7 @@ def verifyAvailableSpace(sitemover, totalFileSize, path, error):
 
     # should the file size verification be done? (not if "mv" is used)
     doVerification = sitemover.doFileVerifications()
-    
+
     # are we wihin the limit?
     if (_neededSpace > _availableSpace) and doVerification:
         pilotErrorDiag = "Not enough local space for staging input files and run the job (need %d B, but only have %d B)" %\
@@ -4487,7 +4499,7 @@ def getFileInfoFromDispatcher(lfn, fileInfoDictionary):
         if checksum == '' or checksum == 'NULL' or not checksum.isalnum() or len(checksum) != 8:
             tolog("WARNING: Bad checksum for lfn=%s from dispatcher: %s (reset to empty string)" % (lfn, checksum))
             checksum = ''
-            
+
     return filesize, checksum
 
 def getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, error):
@@ -4527,7 +4539,7 @@ def getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, err
             else:
                 dic['adler32'] = 0
                 dic['md5sum'] = _fchecksum
-                
+
         dic['fsize'] = str(_fsize)
     else:
         for i in range(len(thisfile.getElementsByTagName("metadata"))):
@@ -4536,7 +4548,7 @@ def getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, err
             # eg. dic = {'lastmodified': '1178904328', 'md5sum': 'fa035fc0a92066a5373ff9580e3d9862',
             #            'fsize': '33200853', 'archival': 'P'}
             # Note: md5sum/adler32 can assume values <32/8strings>, "NULL", "", 0
-        tolog("dic = %s" % str(dic))    
+        tolog("dic = %s" % str(dic))
         if dic['adler32'] != 0 and dic['adler32'] != "" and dic['adler32'] != "NULL":
             csumtype = "adler32"
         elif dic['md5sum'] != 0 and dic['md5sum'] != "" and dic['md5sum'] != "NULL":
@@ -4609,7 +4621,7 @@ def getScopeLFNListFromDictionary(file_dictionary):
     for guid in file_dictionary:
         # Get the scope:lfn value
         scope_lfn = file_dictionary[guid]
-        
+
         if ":" in scope_lfn:
             # Extract the scope and the lfn
             scope, lfn = extractScopeLFN(scope_lfn)
@@ -4637,7 +4649,7 @@ def getGUIDForLFN(file_dictionary, scope_lfn):
 
 def getRucioReplicaDictionary(cat, file_dictionary):
     """ Get the Rucio replica dictionary """
-    
+
     # return: replica_dictionary, surl_dictionary
     # replica_dictionary:
     # FORMAT: { guid1: {'surls': [surl1, ..], 'lfn':LFN, 'fsize':FSIZE, 'checksum':CHECKSUM}, .. }
@@ -4657,7 +4669,7 @@ def getRucioReplicaDictionary(cat, file_dictionary):
     if scope_lfn_list != []:
         from rucio.client import Client
         c = Client()
-        
+
         # Get the replica list
         try:
             replicas_list = c.list_replicas(scope_lfn_list, schemes=['srm'])
@@ -4690,7 +4702,7 @@ def getRucioReplicaDictionary(cat, file_dictionary):
                         # u'srm://node12.datagrid.cea.fr:8446/srm/managerv2?SFN=/dpm/datagrid.cea.fr/home/atlas/atlasproddisk/rucio/mc15_13TeV/38/2f/HITS.05140877._000880.pool.root.1': {u'rse': u'GRIF-IRFU_PRODDISK', u'type': u'DISK'}
 
                         # Add to the dictionaries
-                    
+
                         # Which guid does this lfn correspond to?
                         guid = getGUIDForLFN(file_dictionary, scope_lfn)
                         if guid != "":

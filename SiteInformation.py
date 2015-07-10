@@ -1417,6 +1417,9 @@ class SiteInformation(object):
             :return: dict('ddmendpoint_name':[(SE_1, path2), (SE_2, path2)])
         """
 
+        if not ddmendpoints:
+            return {}
+
         self.ddmconf = self.loadDDMConfData(ddmendpoints, cache_time=600) or {} # quick stub: fix me later: ddmconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
 
         ret = {}

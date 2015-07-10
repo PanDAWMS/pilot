@@ -50,7 +50,7 @@ class RunJob(object):
     __logguid = None                     # guid for the log file
     __outputDir = ""                     # location of output files (destination for mv site mover)
     __pilot_initdir = ""                 # location of where the pilot is untarred and started
-    __pilotlogfilename = "pilotlog.txt"  # default pilotlog filename 
+    __pilotlogfilename = "pilotlog.txt"  # default pilotlog filename
     __pilotserver = "localhost"          # default server
     __pilotport = 88888                  # default port
     __proxycheckFlag = True              # True (default): perform proxy validity checks, False: no check
@@ -367,7 +367,7 @@ class RunJob(object):
                     try:
                         if rf != None:
                             moved_files_list = RunJobUtilities.getFileNamesFromString(rf[1])
-                            remaining_files = RunJobUtilities.getRemainingFiles(moved_files_list, job.outFiles) 
+                            remaining_files = RunJobUtilities.getRemainingFiles(moved_files_list, job.outFiles)
                     except Exception, e:
                         tolog("!!WARNING!!3000!! Illegal return value from Mover: %s, %s" % (str(rf), str(e)))
                         remaining_files = job.outFiles
@@ -886,7 +886,7 @@ class RunJob(object):
             new_datasets_list.append(dataset_dict[output_file])
             new_scope_list.append(scope_dict[output_file])
 
-            # Get a list of all files whose names begin with <output_file> 
+            # Get a list of all files whose names begin with <output_file>
             files = glob(os.path.join(workdir, "%s*" % (output_file)))
             for _file in files:
 
@@ -950,7 +950,7 @@ class RunJob(object):
                                    fsize=fsize, checksum=checksum, analJob=analysisJob)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
-            tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag)) 
+            tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag))
             self.failJob(job.result[1], error.ERR_MISSINGGUID, job, pilotErrorDiag=pilotErrorDiag)
         else:
             if not _status:
@@ -1028,7 +1028,7 @@ class RunJob(object):
             _status = pUtil.PFCxml(job.experiment, pfnFile, outs, fguids=job.outFilesGuids, fntag="pfn")
         except Exception, e:
             job.pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
-            tolog("!!WARNING!!1113!! %s" % (job.pilotErrorDiag)) 
+            tolog("!!WARNING!!1113!! %s" % (job.pilotErrorDiag))
             return error.ERR_MISSINGGUID, job, rf, latereg
         else:
             if not _status:
@@ -1051,7 +1051,7 @@ class RunJob(object):
                                              outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
                                              dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
                                              jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
-                                             stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE)
+                                             stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE, job=job)
             tin_1 = os.times()
             job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
@@ -1225,7 +1225,7 @@ class RunJob(object):
         # We cannot have ATHENA_PROC_NUMBER set to a value larger than 1, since that will
         # activate AthenaMP. Reset it for now, and swap it back at the end of this method
         athena_proc_number = self.swapAthenaProcNumber(0)
-        
+
         # Remove everything after the trf command from the job execution command
         cmd = self.stripSetupCommand(jobExecutionCommand, trfName)
         tolog("Stripped command: %s" % (cmd))
@@ -1579,7 +1579,7 @@ if __name__ == "__main__":
             pilotErrorDiag = "Exception caught in runJob: %s" % str(errorMsg)
 
         if 'format_exc' in traceback.__all__:
-            pilotErrorDiag += ", " + traceback.format_exc()    
+            pilotErrorDiag += ", " + traceback.format_exc()
 
         try:
             tolog("!!FAILED!!3001!! %s" % (pilotErrorDiag))
@@ -1619,6 +1619,3 @@ if __name__ == "__main__":
         runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag, docleanup=False)
 
     # end of runJob
-
-    
-    
