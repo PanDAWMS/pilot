@@ -268,7 +268,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             else:
                 csumtype = "default"
 
-            # get remote file size and checksum 
+            # get remote file size and checksum
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
             if ec != 0:
                 self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
@@ -361,7 +361,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(pfn, csumtype="adler32")
             if ec != 0:
                 self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
-                return self.put_data_retfail(ec, pilotErrorDiag) 
+                return self.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
         report['filesize'] = fsize
@@ -372,7 +372,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
             self.prepareReport('RFCP_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag) 
+            return self.put_data_retfail(ec, pilotErrorDiag)
 
         # get the experiment object
         thisExperiment = getExperiment(experiment)
@@ -387,7 +387,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             tolog("Proxy verification turned off")
 
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
             self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag, surl=dst_gpfn)
@@ -475,7 +475,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         else:
             surl = putfile
             _cmd_str = '%s which lcg-cr; lcg-cr --version; lcg-cr --verbose --vo atlas %s -l %s -g %s -d %s file:%s' % (envsetup, timeout_option, lfclfn, guid, surl, fppfn)
-        
+
         # GoeGrid testing: _cmd_str = '%s which lcg-cr; lcg-cr --version; lcg-crXXX --verbose --vo atlas %s -l %s -g %s -d %s file:%s' % (envsetup, timeout_option, lfclfn, guid, surl, fppfn)
 
         tolog("Executing command: %s" % (_cmd_str))

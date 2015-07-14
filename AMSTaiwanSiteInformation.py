@@ -92,7 +92,7 @@ class AMSTaiwanSiteInformation(SiteInformation):
                  "ND": ["ARC", ""],
                  "NL": ["SARA-MATRIX", ""],
                  "OSG": ["BNL_CVMFS_1", ""],
-                 "RU": ["RRC-KI-T1", ""], 
+                 "RU": ["RRC-KI-T1", ""],
                  "TW": ["Taiwan-LCG2", ""],
                  "UK": ["RAL-LCG2", ""],
                  "US": ["BNL_PROD", "BNL_PROD-condor"]
@@ -253,7 +253,7 @@ class AMSTaiwanSiteInformation(SiteInformation):
                 # Load the dictionary
                 all_queuedata_dict = load(f)
 
-                # Done with the file  
+                # Done with the file
                 f.close()
 
         return all_queuedata_dict
@@ -302,7 +302,7 @@ class AMSTaiwanSiteInformation(SiteInformation):
 
         return status
 
-    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
+    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict): # in current implementation this function completely depends on site mover so that it needs to be either reimplmented or completely moved outside SiteInformation
         """ Get proper paths (SURL and LFC paths) """
 
         ec = 0
@@ -316,7 +316,9 @@ class AMSTaiwanSiteInformation(SiteInformation):
         scope = pdict.get('scope', None)
 
         # Get the proper endpoint
-        sitemover = SiteMover.SiteMover()
+        #sitemover = SiteMover.SiteMover()
+        sitemover = pdict.get('sitemover', SiteMover.SiteMover()) # quick workaround HACK: to be properly implemented later
+
         se = sitemover.getProperSE(token, alt=alt)
 
         # For production jobs, the SE path is stored in seprodpath
@@ -653,7 +655,7 @@ class AMSTaiwanSiteInformation(SiteInformation):
                 _type, value, traceBack = sys.exc_info()
                 tolog("Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
                 tolog("ERROR: %s %s" % (_type, value))
-                
+
         return {"publicKey": None, "privateKey": None}
 
 if __name__ == "__main__":
@@ -669,6 +671,6 @@ if __name__ == "__main__":
         tolog("Cloud %s has Tier-1 queue %s" % (cloud, queuename))
     else:
         tolog("Failed to find a Tier-1 queue name for cloud %s" % (cloud))
-    
+
     keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
     print keyPair

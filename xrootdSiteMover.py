@@ -33,7 +33,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
     E.g. NFS exported file system
     """
     __childDict = {}
-    
+
     copyCommand = "xcp"
     checksum_command = "adler32"
     permissions_DIR = PERMISSIONS_DIR
@@ -52,11 +52,11 @@ class xrootdSiteMover(SiteMover.SiteMover):
     def getID(self):
         """ returnd SM ID, the copy command used for it """
         return self.copyCommand
-    
+
     def getSetup(self):
         """ returns the setup string (pacman setup os setup script) for the copy command """
         return self._setup
-    
+
     def getCopytool(self, setup):
         """ determine which copy command to use """
         cmd = "which xcp"
@@ -77,7 +77,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
         """
         Moves a DS file the local SE (where was put from DDM) to the working directory.
         Performs the copy and, for systems supporting it, checks size and md5sum correctness
-        gpfn: full source URL (e.g. method://[host[:port]/full-dir-path/filename - a SRM URL is OK) 
+        gpfn: full source URL (e.g. method://[host[:port]/full-dir-path/filename - a SRM URL is OK)
         path: destination absolute path (in a local file system)
         returns the status of the transfer. In case of failure it should remove the partially copied destination
         """
@@ -161,7 +161,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
             return ec, pilotErrorDiag
 
         dest_file = os.path.join(path, src_loc_filename)
-        
+
         report['relativeStart'] = time()
         # determine which copy command to use
         cpt = self.getCopytool(_setup_str)
@@ -212,7 +212,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
             return error.ERR_STAGEINFAILED, pilotErrorDiag
 
         report['validateStart'] = time()
-        # get remote file size and checksum 
+        # get remote file size and checksum
         ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
         tolog("File info: %d, %s, %s" % (ec, dstfsize, dstfchecksum))
         if ec != 0:
@@ -303,7 +303,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag = verifySetupCommand(error, _setup_str)
         if ec != 0:
             self.prepareReport('RFCP_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag) 
+            return self.put_data_retfail(ec, pilotErrorDiag)
 
         report['relativeStart'] = time()
 
@@ -354,7 +354,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
 
         filename = os.path.basename(source)
 
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
             self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
@@ -463,7 +463,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
             tolog("Command not found: adler32.sh (will switch to md5sum for remote file checksum)")
             csumtype = "default"
 
-        # get remote file size and checksum 
+        # get remote file size and checksum
         ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dst_loc_pfn, csumtype=csumtype)
         tolog("File info: %d, %s, %s" % (ec, dstfsize, dstfchecksum))
         if ec != 0:
@@ -631,7 +631,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
                 _fchecksum_prel, pilotErrorDiag = self.parseAdler32(o, fname)
                 if _fchecksum_prel == "":
                     return error.ERR_FAILEDADLOCAL, pilotErrorDiag, fsize, 0
-                
+
                 fchecksum = _fchecksum_prel.split()[0]
 
             if fchecksum == '00000001': # "%08x" % 1L
@@ -752,7 +752,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
                 size = 0
 
         return size
-    
+
     def getMover(cls, *args, **kwrds):
         """
         Creates and provides exactly one instance for each required subclass of SiteMover.

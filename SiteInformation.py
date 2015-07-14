@@ -1410,6 +1410,15 @@ class SiteInformation(object):
 
         return None
 
+    def resolveDDMConf(self, ddmendpoints):
+
+        if not ddmendpoints:
+            return {}
+
+        self.ddmconf = self.loadDDMConfData(ddmendpoints, cache_time=6000) or {} # quick stub: fix me later: ddmconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+
+        return self.ddmconf
+    
     def resolveDDMProtocols(self, ddmendpoints, activity):
         """
             Resolve (SE endpoint, path) protocol entry for requested ddmendpoint by given pilot activity ("pr" means pilot_read, "pw" for pilot_write)
@@ -1420,7 +1429,7 @@ class SiteInformation(object):
         if not ddmendpoints:
             return {}
 
-        self.ddmconf = self.loadDDMConfData(ddmendpoints, cache_time=600) or {} # quick stub: fix me later: ddmconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+        self.ddmconf = self.loadDDMConfData(ddmendpoints, cache_time=6000) or {} # quick stub: fix me later: ddmconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
 
         ret = {}
         for ddm in set(ddmendpoints):

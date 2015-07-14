@@ -487,7 +487,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         # determine which timeout option to use
         timeout_option = "-t %d" % (self.timeout)
 
-        #mkdir 
+        #mkdir
         _cmd_str = '%s gfal-mkdir --verbose %s -p %s' % (self._setup, timeout_option, os.path.dirname(destination))
         self.log("Executing command: %s" % (_cmd_str))
         status, output = commands.getstatusoutput(_cmd_str)
@@ -542,7 +542,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             _ec, removeOutput = self.removeRemoteFile(destination)
             if not _ec :
                 self.log("Failed to remove file ") # i.e. do not retry stage-out
-           
+
             return status, output
         return statusRet, outputRet
 
@@ -821,7 +821,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         filename = os.path.basename(source)
 
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt, sitemover=self) # quick workaround
         if ec != 0:
             reportState = {}
             reportState["clientState"] = tracer_error
@@ -831,7 +831,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         # get the DQ2 site name from ToA
         try:
             _dq2SiteName = self.getDQ2SiteName(surl=surl)
-        except Exception, e: 
+        except Exception, e:
             tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
         else:
             report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)

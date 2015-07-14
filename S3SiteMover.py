@@ -107,7 +107,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
         filename = os.path.basename(source)
 
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt, sitemover=self) # quick workaround
         if ec != 0:
             self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
@@ -171,4 +171,3 @@ class S3SiteMover(S3ObjectstoreSiteMover):
         state = "DONE"
         self.prepareReport(state, report)
         return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
-

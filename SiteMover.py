@@ -62,9 +62,9 @@ class SiteMover(object):
 
     def init_data(self, job):
 
-        self.ddmEndPointIn = job.get('ddmEndPointIn', [])
-        self.ddmEndPointOut = job.get('ddmEndPointIn', [])
-        self.ddmEndPointLog = job.get('ddmEndPointIn', [])
+        self.ddmEndPointIn  = job.ddmEndPointIn
+        self.ddmEndPointOut = job.ddmEndPointIn
+        self.ddmEndPointLog = job.ddmEndPointIn
 
     def _dump_ddmprotocols(self): # quick debug function to display DDM protocols data
 
@@ -526,7 +526,7 @@ class SiteMover(object):
 
         filename = os.path.basename(source)
 
-        ec, pilotErrorDiag, tracer_error, dst_loc_pfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_loc_pfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
             self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)

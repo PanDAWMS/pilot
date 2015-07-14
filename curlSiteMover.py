@@ -30,7 +30,7 @@ class curlSiteMover(SiteMover.SiteMover):
     sslCert = si.getSSLCertificate()
     sslKey = sslCert
     sslCertDir = si.getSSLCertificatesDirectory()
-               
+
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path
 
@@ -39,7 +39,7 @@ class curlSiteMover(SiteMover.SiteMover):
 
     def check_space(self, ub):
         """ For when space availability is not verifiable """
-        return 999999        
+        return 999999
 
     def core_get_data(self, envsetup, token, source_surl, dest_path, experiment):
         """ stage-in core function, can be overridden (see stormSiteMover) """
@@ -52,7 +52,7 @@ class curlSiteMover(SiteMover.SiteMover):
         sslCert = self.sslCert
         sslKey = self.sslKey
         sslCertDir = self.sslCertDir
-        
+
         # used curl options:
         # --cert: <cert[:passwd]> Client certificate file and password (SSL)
         # --capath: <directory> CA directory (made using c_rehash) to verify
@@ -61,10 +61,10 @@ class curlSiteMover(SiteMover.SiteMover):
         # --cilent: Makes Curl mute
         # --show-error: When used with -s it makes curl show error message if it fails
         # Removed for SL6: --ciphers <list of ciphers> (SSL)  Specifies  which  ciphers  to use in the connection.
-        
+
         """ define curl command string """
         _cmd_str = 'lcg-gt %s https' % (source_surl)
-        try: 
+        try:
             s, o = commands.getstatusoutput(_cmd_str)
             tolog("Executing command: %s" % (_cmd_str))
         except Exception, e:
@@ -285,7 +285,7 @@ class curlSiteMover(SiteMover.SiteMover):
             else:
                 csumtype = "default"
 
-            # get remote file size and checksum 
+            # get remote file size and checksum
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
             if ec != 0:
                 self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
@@ -393,9 +393,9 @@ class curlSiteMover(SiteMover.SiteMover):
             tolog("Proxy verification turned off")
 
         filename = os.path.basename(source)
-        
+
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
             self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
@@ -414,7 +414,7 @@ class curlSiteMover(SiteMover.SiteMover):
 
         # get https surl
         full_http_surl = full_surl.replace("srm://", "https://")
-        
+
         # get the DQ2 site name from ToA
         try:
             _dq2SiteName = self.getDQ2SiteName(surl=putfile)
@@ -441,7 +441,7 @@ class curlSiteMover(SiteMover.SiteMover):
         except Exception, e:
             tolog("!!WARNING!!2990!! Exception caught: %s (%d, %s)" % (str(e), s, o))
             o = str(e)
-        
+
         if s != 0:
             tolog("!!WARNING!!2990!! Command failed: %s" % (_cmd_str))
             o = o.replace('\n', ' ')
