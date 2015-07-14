@@ -23,7 +23,7 @@ class Job:
         self.inFilesGuids = []             # list of input file guids
         self.outFilesGuids = []            # these guids are usually unknown till the job is done
         self.logFile = None                #
-        self.tarFileGuid = pUtil.getGUID() # guid for the tarball of the job workdir 
+        self.tarFileGuid = pUtil.getGUID() # guid for the tarball of the job workdir
         self.logDblock = None              #
         self.jobPars = None                # Job parameters defining the execution of the job
         self.exeErrorCode = 0              # payload error code
@@ -151,7 +151,7 @@ class Job:
                 pUtil.tolog(errorText)
                 ec = -1
         return ec, errorText
-        
+
     def setPayloadName(self, payload):
         """ set the payload name and its stdout/err file names """
         self.payload = payload
@@ -227,19 +227,16 @@ class Job:
         self.prodDBlockTokenForOutput = prodDBlockTokenForOutput.split(",")
 
         dispatchDBlockToken = data.get('dispatchDBlockToken', '')
-        self.dispatchDBlockToken = dispatchDBlockToken.split(",") 
+        self.dispatchDBlockToken = dispatchDBlockToken.split(",")
 
         dispatchDBlockTokenForOut = data.get('dispatchDBlockTokenForOut', '')
-        self.dispatchDBlockTokenForOut = dispatchDBlockTokenForOut.split(",") 
+        self.dispatchDBlockTokenForOut = dispatchDBlockTokenForOut.split(",")
 
         destinationDBlockToken = data.get('destinationDBlockToken', '')
-        self.destinationDBlockToken = destinationDBlockToken.split(",") 
-
-        ddmEndPointIn = data.get('ddmEndPointIn', '')
-        self.ddmEndPointIn = ddmEndPointIn.split(",")
-
-        ddmEndPointOut = data.get('ddmEndPointOut', '')
-        self.ddmEndPointOut = ddmEndPointOut.split(",")
+        self.destinationDBlockToken = destinationDBlockToken.split(",")
+        
+        self.ddmEndPointIn = data.get('ddmEndPointIn', '').split(',') if data.get('ddmEndPointIn') else []
+        self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
 
         logFile = data.get('logFile', '')
         self.logFile = logFile

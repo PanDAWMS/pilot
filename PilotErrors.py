@@ -152,8 +152,8 @@ class PilotErrors:
         ERR_FAILEDLCGREG : "Put error: LCG registration failed",
         ERR_CMTCONFIG : "Required CMTCONFIG incompatible with WN",
         ERR_SETUPFAILURE : "Failed during setup",
-        ERR_RUNJOBEXC : "Exception caught by RunJob*", 
-        ERR_PILOTEXC : "Exception caught by pilot", 
+        ERR_RUNJOBEXC : "Exception caught by RunJob*",
+        ERR_PILOTEXC : "Exception caught by pilot",
         ERR_GETLFCIMPORT : "Get error: Failed to import LFC python module",
         ERR_PUTLFCIMPORT : "Put error: Failed to import LFC python module",
         ERR_NFSSQLITE : "NFS SQLite locking problems",
@@ -184,7 +184,7 @@ class PilotErrors:
         ERR_GETMD5MISMATCH : "Get error: md5sum mismatch on input file",
         ERR_DYNTRFINST : "Trf installation dir does not exist and could not be installed",
         # 1147 : "Put error: dccp returned readOnly",  # not used
-        ERR_FAILEDRM : "Put error: Failed to remove readOnly file in dCache", 
+        ERR_FAILEDRM : "Put error: Failed to remove readOnly file in dCache",
         ERR_TRFDOWNLOAD : "wget command failed to download trf",
         ERR_LOOPINGJOB : "Looping job killed by pilot",
         ERR_GETTIMEOUT : "Get error: Input file staging timed out",
@@ -225,7 +225,7 @@ class PilotErrors:
         ERR_NOSOFTWAREDIR : "Software directory does not exist",
         ERR_NOPAYLOADMETADATA : "Payload metadata is not available",
         ERR_LCGGETTURLS : "lcg-getturls failed",
-        ERR_LCGGETTURLSTIMEOUT : "lcg-getturls was timed-out", 
+        ERR_LCGGETTURLSTIMEOUT : "lcg-getturls was timed-out",
         ERR_LFNTOOLONG : "LFN too long (exceeding limit of 150 characters)",
         ERR_ZEROFILESIZE : "Illegal zero file size",
         ERR_DBRELNOTYETTRANSFERRED : "DBRelease file has not been transferred yet",
@@ -250,7 +250,7 @@ class PilotErrors:
         ERR_NOTCPCONNECTION : "Failed to open TCP connection to localhost (worker node network problem)",
         ERR_NOPILOTTCPSERVER : "Pilot TCP server has died",
         ERR_CORECOUNTMISMATCH : "Mismatch between core count in job and queue definition",
-        ERR_RUNEVENTEXC : "Exception caught by runEvent", 
+        ERR_RUNEVENTEXC : "Exception caught by runEvent",
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)",
         ERR_FILEEXIST : "File already exist",
         ERR_GETKEYPAIR : "Failed to get security key pair",
@@ -279,7 +279,7 @@ class PilotErrors:
 
     def getPilotErrorDiag(self, code=0):
         """ Return text corresponding to error code """
-        
+
         pilotErrorDiag = ""
         if code in self.pilotError.keys():
             pilotErrorDiag = self.pilotError[code]
@@ -305,15 +305,12 @@ class PilotErrors:
 
         return state
 
+    @classmethod
     def isRecoverableErrorCode(self, code=0):
         """ Determine whether code is a recoverable error code or not """
 
-        state = False
-        if code in self.recoverableErrorCodes:
-            state = True
+        return code in self.recoverableErrorCodes
 
-        return state
-    
     def isPilotResubmissionErrorCode(self, code=0):
         """ Determine whether code issues a Pilot-controlled resubmission """
 
@@ -332,16 +329,13 @@ class PilotErrors:
 
         return state
 
-    def getErrorStr(self, s):
+    @classmethod
+    def getErrorStr(self, code):
         """
         Avoids exception if an error is not in the dictionary.
         An empty string is returned if the error is not in the dictionary.
         """
-        try:
-            rets = self.pilotError[s]
-        except:
-            rets = ''
-        return rets
+        return self.pilotError.get(code, '')
 
     def getErrorName(self, code):
         """ From the error code to get the error name"""
