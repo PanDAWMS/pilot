@@ -1343,9 +1343,15 @@ class SiteInformation(object):
                 if content:
                     break
                 try:
-                    tolog('[%s] Loading data from url=%s' % (trial, url))
-                    #content = urllib2.urlopen(url, timeout=20).read() # python2.6
-                    content = urllib2.urlopen(url).read() # python 2.5
+                    if os.path.isfile(url):
+                        tolog('[attempt=%s] Loading data from file=%s' % (trial, url))
+                        f = open(url, "r") # python 2.5 .. replace by 'with' statement (min python2.6??)
+                        content = f.read()
+                        f.close()
+                    else:
+                        tolog('[attempt%s] Loading data from url=%s' % (trial, url))
+                        #content = urllib2.urlopen(url, timeout=20).read() # python2.6
+                        content = urllib2.urlopen(url).read() # python 2.5
 
                     if fname: # save to cache
                         f = open(fname, "w+")
@@ -1418,7 +1424,7 @@ class SiteInformation(object):
         self.ddmconf = self.loadDDMConfData(ddmendpoints, cache_time=6000) or {} # quick stub: fix me later: ddmconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
 
         return self.ddmconf
-    
+
     def resolveDDMProtocols(self, ddmendpoints, activity):
         """
             Resolve (SE endpoint, path) protocol entry for requested ddmendpoint by given pilot activity ("pr" means pilot_read, "pw" for pilot_write)

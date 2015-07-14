@@ -57,14 +57,19 @@ class SiteMover(object):
     CONDPROJ = ['oflcond', 'comcond', 'cmccond', 'tbcond', 'tbmccond', 'testcond']
     PRODFTYPE = ['AOD', 'CBNT', 'ESD', 'EVNT', 'HIST', 'HITS', 'RDO', 'TAG', 'log', 'NTUP']
 
+    ddmEndPointIn  = []
+    ddmEndPointOut = []
+    ddmEndPointLog = []
+
     def __init__(self, setup_path='', *args, **kwrds):
         self._setup = setup_path
 
     def init_data(self, job):
 
-        self.ddmEndPointIn  = job.ddmEndPointIn
-        self.ddmEndPointOut = job.ddmEndPointIn
-        self.ddmEndPointLog = job.ddmEndPointIn
+        if job:
+            self.ddmEndPointIn  = job.ddmEndPointIn
+            self.ddmEndPointOut = job.ddmEndPointOut
+            self.ddmEndPointLog = job.ddmEndPointLog
 
     def _dump_ddmprotocols(self): # quick debug function to display DDM protocols data
 
@@ -76,7 +81,7 @@ class SiteMover(object):
         protocols = si.resolveDDMProtocols(self.ddmEndPointIn, 'pr')
         tolog("INFO: ddmEndPointIn = %s, protocols=%s" % (self.ddmEndPointIn, protocols))
 
-        protocols = si.resolveDDMProtocols(self.ddmEndPointIn, 'pw')
+        protocols = si.resolveDDMProtocols(self.ddmEndPointOut, 'pw')
         tolog("INFO: ddmEndPointOut = %s, protocols=%s" % (self.ddmEndPointOut, protocols))
 
 
