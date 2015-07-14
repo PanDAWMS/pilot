@@ -74,10 +74,10 @@ class SiteMover(object):
         tolog("INFO: _dump_ddmprotocols data: following protocols defined for stagein (ddmEndPointIn):")
 
         protocols = si.resolveDDMProtocols(self.ddmEndPointIn, 'pr')
-        tolog("INFO: ddmEndPointIn = %s, protocols=%s" % self.ddmEndPointIn, protocols)
+        tolog("INFO: ddmEndPointIn = %s, protocols=%s" % (self.ddmEndPointIn, protocols))
 
         protocols = si.resolveDDMProtocols(self.ddmEndPointIn, 'pw')
-        tolog("INFO: ddmEndPointOut = %s, protocols=%s" % self.ddmEndPointOut, protocols)
+        tolog("INFO: ddmEndPointOut = %s, protocols=%s" % (self.ddmEndPointOut, protocols))
 
 
     def get_timeout(self):
