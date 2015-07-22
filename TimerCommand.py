@@ -24,6 +24,7 @@ class TimerCommand(object):
         self.process = None
         self.stdout = None
         self.stderr = None
+        self.is_timeout = False
 
     def run(self, timeout=3600):
         def target():
@@ -37,10 +38,7 @@ class TimerCommand(object):
 
         thread.join(timeout)
         if thread.is_alive():
-            if self.stdout:
-                self.stdout += "Command Timeout(%s seconds)." % timeout
-            else:
-                self.stdout = "Command Timeout(%s seconds)." % timeout
+            self.is_timeout = True
             try:
                 # print 'TimeOut. Terminating process'
                 self.process.terminate()
@@ -55,13 +53,18 @@ class TimerCommand(object):
                     except:
                         pass
                     thread.join()
+
+            if not self.stdout:
+                self.stdout = ''
+            self.stdout += "Command Timeout(%s seconds)." % timeoutout
+
         return self.process.returncode, self.stdout
 
     def runFunction(self, func, args, timeout=3600):
         def target(func, args, retQ):
             ret= func(*args)
             retQ.put(ret)
-            
+
         retQ = Queue()
         process = Process(target=target, args=(func, args, retQ))
         process.start()

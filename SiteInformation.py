@@ -1357,7 +1357,7 @@ class SiteInformation(object):
                         f = open(fname, "w+")
                         f.write(content)
                         f.close()
-                        tolog('Saved data from "%s" resource into file=%s, length=%.1fKb' % (url, fname, len(content)))
+                        tolog('Saved data from "%s" resource into file=%s, length=%.1fKb' % (url, fname, len(content)/1024.))
                     return content
                 except Exception, e: # ignore errors, try to use old cache if any
                     tolog("Failed to load data from url=%s, error: %s .. trying to use data from cache=%s" % (url, e, fname))
@@ -1391,7 +1391,7 @@ class SiteInformation(object):
                                      'fname': os.path.join(base_dir, 'agis_ddmendpoints.cvmfs.json')},
                            'AGIS':  {'url':'http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&preset=dict&ddmendpoint=%s' % ','.join(ddmendpoints),
                                      'nretry':3,
-                                     'fname': os.path.join(base_dir, 'agis_ddmendpoints.agis.%s.json' % '_'.join(ddmendpoints))},
+                                     'fname': os.path.join(base_dir, 'agis_ddmendpoints.agis.%s.json' % ('_'.join(sorted(ddmendpoints))) or 'ALL')},
                            'PANDA' : None
         }
 
@@ -1427,7 +1427,7 @@ class SiteInformation(object):
 
     def resolveDDMProtocols(self, ddmendpoints, activity):
         """
-            Resolve (SE endpoint, path) protocol entry for requested ddmendpoint by given pilot activity ("pr" means pilot_read, "pw" for pilot_write)
+            Resolve [SE endpoint, SE path] protocol entry for requested ddmendpoint by given pilot activity ("pr" means pilot_read, "pw" for pilot_write)
             Return the list of possible protocols ordered by priority
             :return: dict('ddmendpoint_name':[(SE_1, path2), (SE_2, path2)])
         """
@@ -1439,8 +1439,27 @@ class SiteInformation(object):
 
         ret = {}
         for ddm in set(ddmendpoints):
-            protocols = [(e[0], e[2]) for e in sorted(self.ddmconf.get(ddm, {}).get('aprotocols', {}).get(activity, []), key=lambda x: x[1])]
+            protocols = [dict(se=e[0], se_path=e[2], copytool=None, copysetup=None) for e in sorted(self.ddmconf.get(ddm, {}).get('aprotocols', {}).get(activity, []), key=lambda x: x[1])] # FIX ME LATER: with proper copytool and copysetup
             ret.setdefault(ddm, protocols)
+
+        return ret
+
+
+    def resolvePandaProtocols(self, ddmendpoints, activity):
+        """
+            Resolve (SE endpoint, path, copytool, copyprefix) protocol entry for requested ddmendpoint by given pilot activity ("pr" means pilot_read, "pw" for pilot_write)
+            Return the list of possible protocols ordered by priority
+            :return: dict('ddmendpoint_name':[(SE_1, path2, copytool, copyprefix), )
+        """
+
+        # quick stab implementation: fetch data from DDMEndpoint JSON (PQ independent)
+        # FIX me later:  do fetch data from PandaQueue schedconfig JSON (PQ related)
+        #
+
+        ret = self.resolveDDMProtocols(ddmendpoints, activity)
+        for dat in ret:
+            dat['copytool'] = None  # quick stub
+            dat['copysetup'] = None # quick stub
 
         return ret
 

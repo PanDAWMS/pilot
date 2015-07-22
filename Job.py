@@ -133,6 +133,7 @@ class Job:
                     (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlocks, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
         pUtil.tolog("ddmEndPointIn=%s" % (self.ddmEndPointIn))
         pUtil.tolog("ddmEndPointOut=%s" % (self.ddmEndPointOut))
+        pUtil.tolog("ddmEndPointLog=%s" % (self.ddmEndPointLog))
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -234,7 +235,7 @@ class Job:
 
         destinationDBlockToken = data.get('destinationDBlockToken', '')
         self.destinationDBlockToken = destinationDBlockToken.split(",")
-        
+
         self.ddmEndPointIn = data.get('ddmEndPointIn', '').split(',') if data.get('ddmEndPointIn') else []
         self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
 
@@ -470,3 +471,23 @@ class Job:
         self.release = data.get('swRelease', '')
         self.destinationSE = data.get('destinationSE', '')
         self.fileDestinationSE = data.get('fileDestinationSE', '')
+
+    def isAnalysisJob(self):
+        """
+            Determine whether the job is an analysis job or not
+            normally this should be set in constructor as a property of Job class
+            specified the type of job explicitly (?)
+        """
+
+        #return pUtil.isAnalysisJob(self.trf)
+        #copied from pUtil.isAnalysisJob to isolate the logic amd move outside pUtil
+
+        #trf = self.trf.split(',')[0] # ???  used like this in few places: it will affect result only if the trf starts with ','
+        is_analysis = self.trf.startswith('https://') or self.trf.startswith('http://')
+
+        if self.prodSourceLabel == "software": # logic extracted from the sources
+            is_analysis = False
+
+        # apply addons checks later if need
+
+        return is_analysis

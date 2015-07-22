@@ -713,12 +713,7 @@ class ATLASSiteInformation(SiteInformation):
         # Returns "/cvmfs" or "/(some path)/cvmfs" in case the expected file system root path is not
         # where it usually is (e.g. on an HPC). See example implementation in self.getLocalROOTSetup()
 
-        if os.environ.has_key('ATLAS_SW_BASE'):
-            path = os.environ['ATLAS_SW_BASE']
-        else:
-            path = '/cvmfs'
-
-        return path
+        return os.environ.get('ATLAS_SW_BASE', '/cvmfs')
 
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
