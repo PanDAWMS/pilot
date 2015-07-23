@@ -343,3 +343,28 @@ class PilotErrors:
             if self.__class__.__dict__[k] == code:
                 return k
         return None
+
+
+class PilotException(Exception):
+
+    def __init__(self, message, code=PilotErrors.ERR_GENERALERROR, state='', *args):
+        self.code = code
+        self.state = state
+        self.message = message
+
+        super(PilotException, self).__init__(*args)
+
+    @property
+    def code(self):
+        return self._code
+
+    @code.setter
+    def code(self, code):
+        self._code = code
+        self.code_description = PilotErrors.getErrorStr(code)
+
+    def __str__(self):
+        return "%s: %s: %s%s" % (self.__class__.__name__, self.code, self.message, ' : %s' % self.args if self.args else '')
+
+    def __repr__(self):
+        return "%s: %s: %s%s" % (self.__class__.__name__, repr(self.code), repr(self.message), ' : %s' % repr(self.args) if self.args else '')

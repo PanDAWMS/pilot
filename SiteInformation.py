@@ -308,7 +308,7 @@ class SiteInformation(object):
         #   error code (int), status for queuedata download (boolean)
 
         if url == "":
-            exp = getExperimentObject(self.__experiment)
+            exp = getExperimentObject(self.__experiment)  # this is a bug and should not work as expected if getQueuedata() is called from child class (e.g. from ATLASSiteInformation) since self.__experiment is PRIVATE in this scope! (anisyonk)
             url = exp.getSchedconfigURL()
             tolog("The schedconfig URL was not set by the wrapper - Will use default server url = %s (hardcoded)" % (url))
 
@@ -762,6 +762,11 @@ class SiteInformation(object):
         """ Return a string with the experiment name """
 
         return self.__experiment
+
+    def getExperimentObject(self): # quick stub: to be properly implemented later
+
+        return getExperimentObject(self.getExperiment())
+
 
     def allowAlternativeStageOut(self, flag=None):
         """ Is alternative stage-out allowed? """
