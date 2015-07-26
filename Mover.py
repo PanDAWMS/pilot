@@ -2798,6 +2798,10 @@ def mover_put_data_new(outputpoolfcstring,
     if not outfiles and not logfiles:
         raise Exception("Empty Both outputfiles and logfiles data: nothing to do... processing of other cases is not implemented yet for new SiteMover")
 
+    isLogTransfer = bool(logPath)
+    if isLogTransfer:
+        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover")
+
     from movers import JobMover
     from movers.trace_report import TraceReport
 
@@ -2809,38 +2813,43 @@ def mover_put_data_new(outputpoolfcstring,
     mover = JobMover(job, si, workDir=workDir)
     mover.stageoutretry = stageoutTries
 
-
     # setup the TraceReport dictionary necessary for all instrumentation
     eventType = "put_sm"
     if analysisJob:
         eventType += "_a"
 
-    mover.trace_report = TraceReport(localSite=sitename, remoteSite=sitename, dataset=pdsname, eventType=eventType)
-    mover.trace_report.init(job)
-
-    output = mover.put_outfiles(outfiles)
-
-    # prepare compatible output
-    n_success = reduce(lambda x, y: x + y[0], output, False)
-
-    # keep track of which files have been copied
-
+    # process both out & log files
     fields = [''] * 7 # file info field used by job recovery in OLD compatible format
-    errors = []
-    for is_success, success_transfers, failed_transfers, exception in output:
-        for fdata in success_transfers: # keep track of which files have been copied
-            for i,v in enumerate(['surl', 'lfn', 'guid', 'filesize', 'checksum', 'farch', 'pfn']): # farch is not used
-                value = fdata.get(v, '')
-                if fields[i]:
-                    fields[i] += '+'
-                fields[i] += '%s' % str(value)
-        if exception:
-            errors += str(exception)
-        for err in failed_transfers:
-            errors += str(err)
+    for (func, xfiles) in [(mover.put_outfiles, outfiles), (mover.put_logfiles, logfiles)]:
 
-    if not n_success: # number of processed DDMs
-        return PilotErrors.ERR_STAGEOUTFAILED, ";".join(errors), [''] * 7, None, 0, 0
+        mover.trace_report = TraceReport(localSite=sitename, remoteSite=sitename, dataset=pdsname, eventType=eventType)
+        mover.trace_report.init(job)
+
+        output = func(xfiles) #
+        #output = mover.put_outfiles(outfiles)
+        #output = mover.put_logfiles(logfiles)
+
+        # prepare compatible output
+        n_success = reduce(lambda x, y: x + y[0], output, False)
+
+        # keep track of which files have been copied
+
+        errors = []
+        for is_success, success_transfers, failed_transfers, exception in output:
+            for fdata in success_transfers: # keep track of which files have been copied
+                for i,v in enumerate(['surl', 'lfn', 'guid', 'filesize', 'checksum', 'farch', 'pfn']): # farch is not used
+                    value = fdata.get(v, '')
+                    if fields[i]:
+                        fields[i] += '+'
+                    fields[i] += '%s' % str(value)
+            if exception:
+                errors += str(exception)
+            for err in failed_transfers:
+                errors += str(err)
+
+        if not n_success: # number of processed DDMs
+            # skip the rest of processing
+            return PilotErrors.ERR_STAGEOUTFAILED, ";".join(errors), [''] * 7, None, 0, 0
 
 
     return 0, "", fields, '1', len(fields), 0
