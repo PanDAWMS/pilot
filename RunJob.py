@@ -1116,115 +1116,6 @@ class RunJob(object):
 
         return rc, job, rf, latereg
 
-
-    def stageOut_new(self, job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo):
-        """
-            new implementation of RunJob.stageOut function (based on new mover implementation)
-            perform the stage-out
-            :return: (rc, job, rf, latereg=False)
-        """
-
-        rc = 0
-        latereg = False
-        rf = None
-
-        # generate the xml for the output files and the site mover
-        pfnFile = "OutPutFileCatalog.xml"
-        try:
-            if not pUtil.PFCxml(job.experiment, pfnFile, outs, fguids=job.outFilesGuids, fntag="pfn"):
-                job.pilotErrorDiag = "Metadata contains missing guid(s) for output file(s)"
-                tolog("!!WARNING!!2999!! %s" % job.pilotErrorDiag)
-                return PilotErrors.ERR_MISSINGGUID, job, None, False
-        except Exception, e:
-            job.pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % e
-            tolog("!!WARNING!!1113!! %s" % job.pilotErrorDiag)
-            return PilotErrors.ERR_MISSINGGUID, job, None, False
-
-        tolog("Using the newly-generated %s/%s for put operation" % (job.workdir, pfnFile))
-
-        # the cmtconfig is needed by at least the xrdcp site mover
-        cmtconfig = getCmtconfig(job.cmtconfig)
-
-        rs = "" # return string from put_data with filename in case of transfer error
-        #rf is a list of files that were not transferred
-
-        tin_0 = os.times()
-
-        try:
-
-            rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
-                                             jobSite.computingElement, ub=jobSite.dq2url, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
-                                             proxycheck=self.__proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
-                                             userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
-                                             outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
-                                             dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                             jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
-                                             stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE, job=job)
-
-            tin_1 = os.times()
-            job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
-        except Exception, e:
-            tin_1 = os.times()
-            job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
-
-            pilotErrorDiag = "Put function can not be called for staging out: %s, %s" % (e, traceback.format_exc())
-            tolog("!!WARNING!!3000!! %s" % pilotErrorDiag)
-
-            job.setState(["holding", job.result[1], PilotErrors.ERR_PUTFUNCNOCALL])
-
-            return PilotErrors.ERR_PUTFUNCNOCALL, job, None, False
-
-        if job.pilotErrorDiag:
-            if job.pilotErrorDiag.startswith("Put error:"):
-                pre = ""
-            else:
-                pre = "Put error: "
-            job.pilotErrorDiag = pre + tailPilotErrorDiag(job.pilotErrorDiag, size=256-len("pilot: Put error: "))
-
-        tolog("Put function returned code: %d" % rc)
-
-        if rc:
-            rs = rs or ""
-            if rs:
-                rs = rs.rstrip() # remove any trailing "\r" or "\n" (there can be two of them)
-                tolog("Error string: %s" % rs)
-
-            # is the job recoverable?
-            if PilotErrors.isRecoverableErrorCode(rc):
-                _state = "holding"
-                _msg = "WARNING"
-            else:
-                _state = "failed"
-                _msg = "FAILED"
-
-            # look for special error in the error string
-            if rs == "Error: string Limit exceeded 250":
-                tolog("!!%s!!3000!! Put error: file name string limit exceeded 250" % _msg)
-                job.setState([_state, job.result[1], PilotErrors.ERR_LRCREGSTRSIZE])
-            else:
-                job.setState([_state, job.result[1], rc])
-
-            tolog("!!%s!!1212!! %s" % _msg, PilotErrors.getErrorStr(rc))
-        else:
-
-            # set preliminary finished (may be overwritten below)
-            job.setState(["finished", 0, 0])
-
-            # create a weak lockfile meaning that file transfer worked
-            # (useful for job recovery if activated) in the job workdir
-            createLockFile(True, jobSite.workdir, lockfile="ALLFILESTRANSFERRED")
-            # create another lockfile in the site workdir since a transfer failure can still occur during the log transfer
-            # and a later recovery attempt will fail (job workdir will not exist at that time)
-            createLockFile(True, self.__pworkdir, lockfile="ALLFILESTRANSFERRED")
-
-        if job.result[0] == "holding" and '(unrecoverable)' in job.pilotErrorDiag:
-            job.result[0] = "failed"
-            tolog("!!WARNING!!2999!! HOLDING state changed to FAILED since error is unrecoverable")
-
-
-        return rc, job, rf, False
-
-
     def copyInputForFiles(self, workdir):
         """ """
 
@@ -1646,17 +1537,7 @@ if __name__ == "__main__":
             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
             # stage-out output files
-
-            use_newmover = readpar('use_newmover', version=1)
-            if use_newmover:
-                tolog("INFO: Will try to use new SiteMover(s) implementation since queuedata.use_newmover=%s" % use_newmover)
-
-                # outs is filtered job.outFiles, outputFileInfo is built from job.outFiles
-                # dsname is used only when datasetDict is None?
-
-                ec, job, rf, latereg = runJob.stageOut_new(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
-            else:
-                ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
+            ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
 
             # error handling
             if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:

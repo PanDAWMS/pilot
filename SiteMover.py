@@ -984,11 +984,13 @@ class SiteMover(object):
         else:
             tolog("!!WARNING!!21211! Tracing report does not have a timeStart entry: %s" % str(report))
 
+    @classmethod
     def getSURLDictionaryFilename(self, directory, jobId):
         """ return the name of the SURL dictionary file """
 
         return os.path.join(directory, "surlDictionary-%s.%s" % (jobId, getExtension()))
 
+    @classmethod
     def getSURLDictionary(self, directory, jobId):
         """ get the SURL dictionary from file """
 
@@ -1031,6 +1033,7 @@ class SiteMover(object):
 
         return surlDictionary
 
+    @classmethod
     def putSURLDictionary(self, surlDictionary, directory, jobId):
         """ store the updated SURL dictionary """
 
@@ -1060,6 +1063,7 @@ class SiteMover(object):
 
         return status
 
+    @classmethod
     def updateSURLDictionary(self, guid, surl, directory, jobId):
         """ add the guid and surl to the surl dictionary """
 

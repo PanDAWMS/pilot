@@ -1,25 +1,16 @@
 """
   Base class of site movers
   :author: Alexey Anisenkov
-
 """
 
 import hashlib
 import os
+from time import time
 
 from subprocess import Popen, PIPE, STDOUT
 
-
-#from ..pUtil import tolog
-from ..PilotErrors import PilotErrors
-
-#from config import config_sm
-
-#PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
-#PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE
-#CMD_CHECKSUM = config_sm.COMMAND_MD5
-#ARCH_DEFAULT = config_sm.ARCH_DEFAULT
-
+from pUtil import tolog #
+from PilotErrors import PilotErrors, PilotException
 
 
 class BaseSiteMover(object):
@@ -42,22 +33,12 @@ class BaseSiteMover(object):
     checksum_type = "adler32"     # algorithm name of checksum calculation
     checksum_command = "adler32"  # command to be executed to get checksum, e.g. md5sum (adler32 is internal default implementation)
 
-
-
-    has_mkdir = True
-    has_df = True
-    has_getsize = True
-    has_md5sum = True
-    has_chmod = True
-    #permissions_DIR = PERMISSIONS_DIR
-    #permissions_FILE = PERMISSIONS_FILE
-    #arch_type = ARCH_DEFAULT
-
-    filesInDQ2Dataset = {}
-
-    CONDPROJ = ['oflcond', 'comcond', 'cmccond', 'tbcond', 'tbmccond', 'testcond']
-    PRODFTYPE = ['AOD', 'CBNT', 'ESD', 'EVNT', 'HIST', 'HITS', 'RDO', 'TAG', 'log', 'NTUP']
-
+    #has_mkdir = True
+    #has_df = True
+    #has_getsize = True
+    #has_md5sum = True
+    #has_chmod = True
+    #
 
     def __init__(self, setup_path='', **kwargs):
         self.copysetup = setup_path
@@ -65,8 +46,11 @@ class BaseSiteMover(object):
 
         #self.setup_command = self.getSetup()
 
+        self.trace_report = {}
+
     def log(self, value): # quick stub
-        print value
+        #print value
+        tolog(value)
 
     @property
     def copysetup(self):
@@ -128,67 +112,6 @@ class BaseSiteMover(object):
 
         raise Exception("getSURLPath(): NOT IMPLEMENTED error: processing of non Rucio transfers is not impelemnted yet")
 
-
-    def put_data(self, source, destination, **kwargs):
-        """ copy output file from disk to Site SE """
-
-
-        status, output = self.stageOutFile(source, destination)
-
-
-        lfn = pdict.get('lfn', '')
-        guid = pdict.get('guid', '')
-
-        # get the DQ2 tracing report
-        report = self.getStubTracingReport(kwargs.get('report',{}), 'xrdcp', lfn, guid)
-
-
-        token = pdict.get('token', '')
-        dsname = pdict.get('dsname', '')
-        analysisJob = pdict.get('analJob', False)
-
-        experiment = pdict.get('experiment', '')
-        prodSourceLabel = pdict.get('prodSourceLabel', '')
-
-        # get the site information object
-        si = getSiteInformation(experiment)
-
-
-        filename = os.path.basename(source)
-
-        # get all the proper paths
-        alt = pdict.get('alt', False)
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt, sitemover=self) # quick workaround
-        if ec != 0:
-            reportState = {}
-            reportState["clientState"] = tracer_error
-            self.prepareReport(reportState, report)
-            return self.put_data_retfail(ec, pilotErrorDiag)
-
-        # get the DQ2 site name from ToA
-        try:
-            _dq2SiteName = self.getDQ2SiteName(surl=surl)
-        except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
-        else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
-
-
-        status, output = self.stageOut(source, surl, token, experiment)
-
-
-        if status !=0:
-            self.prepareReport(output["report"], report)
-            return self.put_data_retfail(status, output["errorLog"], surl)
-
-        reportState = {}
-        reportState["clientState"] = "DONE"
-        self.prepareReport(reportState, report)
-
-        return 0, pilotErrorDiag, surl, output["size"], output["checksum"], self.arch_type
-
-
     def getSetup(self):
         """
             return full setup command to be executed
@@ -231,26 +154,23 @@ class BaseSiteMover(object):
     def stageOut(self, source, destination):
         """
             Stage out the source file: do stageout file + verify remote file output
-            :return: (rcode, outputRet, ret)
+            :return: remote file details: {'checksum': '', 'checksum_type':'', 'filesize':''}
+            :raise: PilotException in case of controlled error
         """
 
         # do stageOutFle
         src_fsize = os.path.getsize(source)
 
-        status, output = self.stageOutFile(source, destination)
+        self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
 
-        ret = {'checksum': '', 'checksum_type':'', 'fsize':src_fsize}
-
-        if status: # error
-            return status, output, ret
+        dst_checksum, dst_checksum_type = self.stageOutFile(source, destination)
 
         # verify stageout by checksum
-        dst_checksum, dst_checksum_type = None, None
+        self.trace_report.update(validateStart=time.time())
+
         try:
-            dst_checksum = output.get('checksum') or self.getRemoteFileChecksum(destination)
-            dst_checksum_type = output.get('checksum_type') or self.checksum_type
-            ret['checksum'] = dst_checksum
-            ret['checksum_type'] = dst_checksum_type
+            if not dst_checksum:
+                dst_checksum, dst_checksum_type = self.getRemoteFileChecksum(destination)
         except Exception, e:
             self.log("verify StageOut: caught exception while getting remote file checksum: %s .. skipped" % e)
 
@@ -265,7 +185,7 @@ class BaseSiteMover(object):
                 self.log("checksum is_verified = %s" % is_verified)
 
                 if not is_verified:
-                    output["errorLog"] = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" % \
+                    error = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" % \
                                             (src_checksum_type, os.path.basename(destination), dst_checksum, src_checksum)
                     if src_checksum_type == 'adler32':
                         state = 'AD_MISMATCH'
@@ -273,15 +193,14 @@ class BaseSiteMover(object):
                     else:
                         state = 'MD5_MISMATCH'
                         rcode = PilotErrors.ERR_PUTMD5MISMATCH
-                    output["report"]["clientState"] = state
-                    self.log(output["errorLog"])
+                    raise PilotException(error, code=rcode, state=state)
 
-                    return rcode, output, ret
+                self.log("verifying stageout done. [by checksum]")
+                self.trace_report.update(clientState="DONE")
+                return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
-                self.log("verifying stageout done.")
-                output["report"]["clientState"] = "DONE"
-                return 0, output, ret
-
+        except PilotException:
+            raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file checksum verification: %s ..  skipped" % e)
 
@@ -295,26 +214,20 @@ class BaseSiteMover(object):
             self.log("filesize is_verified = %s" % is_verified)
 
             if not is_verified:
-                output["errorLog"] = "Remote and local file sizes do not match for %s (%s != %s)" % \
-                                        (os.path.basename(destination), dst_fsize, src_fsize)
-                output["report"]["clientState"] = 'FS_MISMATCH'
-                self.log(output["errorLog"])
-                return PilotErrors.ERR_PUTWRONGSIZE, output, ret
+                error = "Remote and local file sizes do not match for %s (%s != %s)" % (os.path.basename(destination), dst_fsize, src_fsize)
+                self.log(error)
+                raise PilotException(error, code=PilotErrors.ERR_PUTWRONGSIZE, state='FS_MISMATCH')
 
-            self.log("verifying stageout done.")
-            output["report"]["clientState"] = "DONE"
-            return 0, output, ret
+            self.log("verifying stageout done. [by filesize]")
+            self.trace_report.update(clientState="DONE")
+            return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
+        except PilotException:
+            raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file size verification: %s .. skipped" % e)
 
-        outputRet = {}
-        outputRet['report']['clientState'] = 'NOFILEVERIFICATION'
-
-        outputRet['errorLog'] = "Neither checksum nor file size could be verified (failing job)"
-        self.log('WARNING: %s' % outputRet['errorLog'])
-
-        return PilotErrors.ERR_NOFILEVERIFICATION, outputRet, ret
+        raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
     def stageOutFile(source, destination):

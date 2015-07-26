@@ -5,8 +5,8 @@
 
 from .base import BaseSiteMover
 
-from ..TimerCommand import TimerCommand
-from ..PilotErrors import PilotErrors, PilotException
+from TimerCommand import TimerCommand
+from PilotErrors import PilotErrors, PilotException
 
 from subprocess import Popen, PIPE, STDOUT
 
@@ -28,8 +28,8 @@ class xrdcpSiteMover(BaseSiteMover):
         """
             Stage out the file
             Should be implementated by different site mover
-            :return: report in case of success, throw exception in case of failure
-            :raise: PilotException exception in case of controlled error
+            :return: remote file (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
         """
 
         if self.checksum_type not in ['adler32']: # exclude md5
@@ -43,7 +43,7 @@ class xrdcpSiteMover(BaseSiteMover):
 
         self.log("status: %s, output: %s" % (c.returncode, output))
 
-        coption = "" # checksum_option
+        coption = ""
 
         if c.returncode:
             self.log('FAILED to execute command=%s: %s' % (cmd, output))
@@ -62,16 +62,14 @@ class xrdcpSiteMover(BaseSiteMover):
 
         cmd = '%s %s -np -f %s %s %s' % (self.getSetup(), self.copy_command, checksum_option, source, destination)
 
-        self.log("Executing command: %s, timeout=%s" % (cmd, self.timeout))
-
-        outputRet = {'errorLog': None}
-        outputRet['report'] = {'clientState': None, 'relativeStart': time(), 'transferStart': time()}
+        timeout = self.getTimeOut(os.path.getsize(source))
+        self.log("Executing command: %s, timeout=%s" % (cmd, timeout))
 
         t0 = datetime.now()
         is_timeout = False
         try:
             timer = TimerCommand(cmd)
-            rcode, output = timer.run(timeout=self.timeout)
+            rcode, output = timer.run(timeout=timeout)
             is_timeout = timer.is_timeout
         except Exception, e:
             self.log("WARNING: xrdcp threw an exception: %s" % e)
@@ -81,22 +79,12 @@ class xrdcpSiteMover(BaseSiteMover):
         self.log("Command execution time: %s" % dt)
         self.log("is_timeout=%s, rcode = %s, output = %s" % (is_timeout, rcode, output.replace("\n", " ")))
 
-        outputRet['output'] = output
-        outputRet['report']['validateStart'] = time()
-
         if is_timeout:
-            outputRet['report']['clientState'] = 'CP_TIMEOUT'
-            outputRet['errorLog'] = "Copy command self timed out after %s, timeout=%s" % (dt, self.timeout)
-            return PilotErrors.ERR_PUTTIMEOUT, outputRet
-            #raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, self.timeout, output), code=PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
+            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, self.timeout, output), code=PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
 
         if rcode:
             self.log('WARNING: Stage Out command (%s) failed: Status=%s Output=%s' % (cmd, rcode, output.replace("\n"," ")))
-
             error = self.resolveStageOutError(output, source)
-            outputRet['errorLog'] = error.get('error')
-            outputRet['report']['clientState'] = error.get('state', 'STAGEOUT_FAILED')
-            rcode = error.get('rcode', PilotErrors.ERR_STAGEOUTFAILED)
 
             #if rcode != PilotErrors.ERR_FILEEXIST:
             #    # check if file was partially transferred, if so, remove it
@@ -105,12 +93,13 @@ class xrdcpSiteMover(BaseSiteMover):
             #    #    self.log("Failed to remove file %s" % destination)
             #    #return rcode, outputRet
 
-            return rcode, outputRet
+            raise PilotException(error.get('error'), code=error.get('rcode', PilotErrors.ERR_STAGEOUTFAILED), state=error.get('state', 'STAGEOUT_FAILED'))
 
         # extract remote filesize and checksum values from output
-        outputRet['checksum'], outputRet['checksum_type'] = self.getRemoteFileChecksumFromOutput(output)
 
-        return 0, outputRet
+        checksum, checksum_type = self.getRemoteFileChecksumFromOutput(output)
+
+        return checksum, checksum_type
 
 
     def getRemoteFileChecksum(self, filename):
@@ -147,7 +136,7 @@ class xrdcpSiteMover(BaseSiteMover):
 
         if not ("xrootd" in output or "XRootD" in output or "adler32" in output):
             self.log("WARNING: Failed to extract checksum: Unexpected %s output: %s" % (self.copy_command, output))
-            return None
+            return None, None
 
         pattern = "(?P<type>md5|adler32): (?P<checksum>[a-zA-Z0-9]+)"
         checksum, checksum_type = None, None
@@ -162,5 +151,3 @@ class xrdcpSiteMover(BaseSiteMover):
             self.log("WARNING: Checksum info not found in output: failed to match pattern=%s in output=%s" % (pattern, output))
 
         return checksum, checksum_type
-
-
