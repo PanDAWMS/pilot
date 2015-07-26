@@ -2662,22 +2662,38 @@ def isLogTransfer(logPath):
 # keep full list of input arguments for backward compatibility as is# clean up and isolation required
 # keep logic as is
 def mover_put_data_new(outputpoolfcstring,
-                       pdsname,
-                       sitename, queuename,
-                       ub, # to be removed
-                       analysisJob,
-                       testLevel, pinitdir, proxycheck, spsetup, token,
-                       userid,  ##
-                       prodSourceLabel, datasetDict, outputDir, jobId, jobDefId,
-                       jobWorkDir,
-                       DN,      ##
-                       outputFileInfo, dispatchDBlockTokenForOut, jobCloud,
-                       logFile, cmtconfig,
-                       recoveryWorkDir,
-                       experiment, stageoutTries,
-                       scopeOut, scopeLog, fileDestinationSE, logPath,
-                       eventService, # not used!
-                       job):
+                        pdsname,
+                        sitename,
+                        queuename,
+                        ub="outdated", # to be removed
+                        analysisJob=False,
+                        testLevel="0",
+                        pinitdir="",
+                        proxycheck=True,
+                        spsetup="",
+                        token=[],
+                        userid="",
+                        prodSourceLabel="",
+                        datasetDict=None,
+                        outputDir="",
+                        jobId=None,
+                        jobDefId="",
+                        jobWorkDir=None,
+                        DN=None,
+                        outputFileInfo=None,
+                        dispatchDBlockTokenForOut=None,
+                        jobCloud="",
+                        logFile="",
+                        cmtconfig="",
+                        recoveryWorkDir=None,
+                        experiment="ATLAS",
+                        stageoutTries=2,
+                        scopeOut=None,
+                        scopeLog=None,
+                        fileDestinationSE=None,
+                        logPath="",
+                        eventService=False,
+                        job={}):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
     No DS registration in the central catalog is made. pdsname is used only to define the relative path
@@ -2779,9 +2795,8 @@ def mover_put_data_new(outputpoolfcstring,
     tolog("EXtracted data: outfiles=%s" % outfiles)
     tolog("EXtracted data: logfiles=%s" % logfiles)
 
-    if not outfiles:
-        raise Exception("Empty outputfiles data: nothing to do... processing of other cases is not implemented yet for new SiteMover")
-
+    if not outfiles and not logfiles:
+        raise Exception("Empty Both outputfiles and logfiles data: nothing to do... processing of other cases is not implemented yet for new SiteMover")
 
     from movers import JobMover
     from movers.trace_report import TraceReport
@@ -2791,7 +2806,7 @@ def mover_put_data_new(outputpoolfcstring,
 
     workDir = recoveryWorkDir or os.path.dirname(jobWorkDir)
 
-    mover = JobMover(job, si, workDir)
+    mover = JobMover(job, si, workDir=workDir)
     mover.stageoutretry = stageoutTries
 
 
@@ -2802,7 +2817,6 @@ def mover_put_data_new(outputpoolfcstring,
 
     mover.trace_report = TraceReport(localSite=sitename, remoteSite=sitename, dataset=pdsname, eventType=eventType)
     mover.trace_report.init(job)
-
 
     output = mover.put_outfiles(outfiles)
 
@@ -3147,6 +3161,8 @@ def use_newmover(newfunc):
                     return ret
                 except Exception, e:
                     print ("INFO: Failed to execute new SiteMover(s): caught an exception: %s .. ignored. Continue execution using old implementation" % e)
+                    import traceback
+                    tolog(traceback.format_exc())
             return func(*args, **kwargs)
 
         return wrapper

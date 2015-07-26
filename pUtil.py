@@ -25,7 +25,7 @@ try:
     from PilotErrors import PilotErrors
     from config import config_sm
     from timed_command import timed_command
-    
+
     CMD_CHECKSUM = config_sm.COMMAND_MD5
 except:
     pass
@@ -41,6 +41,7 @@ def getFileList(path_dir=None):
         file_list.append('saga')
         file_list.append('radical')
         file_list.append('HPC')
+        file_list.append('movers')
         tolog("Copying: %s" % str(file_list))
         return file_list
     except KeyError:
@@ -125,7 +126,7 @@ def tolog(msg, tofile=True):
 def tolog_err(msg):
     """ write error string to log """
     tolog("!!WARNING!!4000!! %s" % str(msg))
-    
+
 def tolog_warn(msg):
     """ write warning string to log """
     tolog("!!WARNING!!4000!! %s" % str(msg))
@@ -145,14 +146,14 @@ def makeHTTPUpdate(state, node, port, url='pandaserver.cern.ch', path=None):
         max_trials = 1
         delay = None
 
-    # make http connection to jobdispatcher        
+    # make http connection to jobdispatcher
     while trial <= max_trials:
         # draw a random server URL
         _url = '%s:%s/server/panda' % (url, port)
         tolog("HTTP connect using server: %s" % (_url))
         ret = httpConnect(node, _url, path=path)
         if ret[0] and trial == max_trials: # non-zero exit code
-            if delay: # final update 
+            if delay: # final update
                 tolog("!!FAILED!!4000!! [Trial %d/%d] Could not update Panda server (putting job in holding state if possible)" %\
                       (trial, max_trials))
                 # state change will take place in postJobTask
@@ -224,7 +225,7 @@ def returnLogMsg(logf=None, linenum=20):
                 ln = len(lines)
             else:
                 ln = linenum
-            
+
             for i in range(-ln,0):
                 thisLog += lines[i]
 
@@ -559,7 +560,7 @@ def setTimeConsumed(t_tuple):
 
     # The cpuConsumptionTime is the system+user time while wall time is encoded in pilotTiming, third number.
     # Previously the cpuConsumptionTime was "corrected" with a scaling factor but this was deemed outdated and is now set to 1.
-    
+
     t_tot = reduce(lambda x, y:x+y, t_tuple[2:3])
     conversionFactor = 1.0
     cpuCU = "s" # "kSI2kseconds"
@@ -567,7 +568,7 @@ def setTimeConsumed(t_tuple):
 
     return cpuCU, cpuCT, conversionFactor
 
-def timeStamp(): 
+def timeStamp():
     """ return ISO-8601 compliant date/time format """
 
     tmptz = time.timezone
@@ -588,7 +589,7 @@ def timeStampUTC(t=None, format="%d %b %H:%M:%S"):
 
 def getJobStatus(jobId, pshttpurl, psport, path):
     """
-    Return the current status of job <jobId> from the dispatcher 
+    Return the current status of job <jobId> from the dispatcher
     typical dispatcher response: 'status=finished&StatusCode=0'
     StatusCode  0: succeeded
                10: time-out
@@ -776,7 +777,7 @@ def getCPUmodel():
                 # create return string
                 modelstring = cpumodel + " " + cpucache
                 break
-                
+
         f.close()
 
     # default return string if no info was found
@@ -870,7 +871,7 @@ def OSBitsCheck():
             return 64
 
 def uniqueList(input_list):
-    """ 
+    """
     return a list of unique entries
     input_list = ['1', '1', '2'] -> ['1', '2']
     """
@@ -1042,9 +1043,9 @@ def updateMetadata(fname, fsize, checksum, format=None, fsizeXML=None, checksumX
                 newline = line.replace()
             else:
                 lines += line
-            
+
         f.close()
-        try:    
+        try:
             f = open(fname, 'w')
             f.write(lines)
             f.close()
@@ -1178,7 +1179,7 @@ def replace(filename, stext, rtext):
             for s in _input.xreadlines():
                 output.write(s.replace(stext, rtext))
             _input.close()
-            # rename tmp file and overwrite original file    
+            # rename tmp file and overwrite original file
             try:
                 os.rename(filename + "_tmp", filename)
             except Exception, e:
@@ -1308,7 +1309,7 @@ def getErrors(filename):
             if re.findall(pattern, line):
                 ret += line
 
-    return ret            
+    return ret
 
 def getLFN(pfn, lfns):
     """ Identify the LFN from the list of LFNs corresponding to a PFN """
@@ -1378,7 +1379,7 @@ def makeTransRegReport(all_transferred, some_transferred, latereg, nr_transferre
         tolog(". File transfer exit code                       : (%d, %s)" % (fail, error.getErrorStr(fail)))
     else:
         tolog(". File transfer exit code                       : (%d, <no error>)" % (fail))
-        
+
     if some_transferred:
         tolog(". File registration return values               : (%d, %s, %s)" %\
               (ec, error.getErrorStr(ec), str(ret)))
@@ -1489,7 +1490,7 @@ def timedCommand(cmd, timeout=300):
         exitcode, telapsed, cout, cerr = timed_command(cmd, timeout)
     except Exception, e:
         pilotErrorDiag = 'timed_command() threw an exception: %s' % e
-        tolog("!!WARNING!!2220!! %s" % pilotErrorDiag)            
+        tolog("!!WARNING!!2220!! %s" % pilotErrorDiag)
         exitcode = 1
         output = e
         t1 = os.times()
@@ -1548,7 +1549,7 @@ def getBatchSystemJobID():
     # LSF
     if os.environ.has_key("LSB_JOBID"):
         return "LSF", os.environ["LSB_JOBID"]
-    # Sun's Grid Engine 
+    # Sun's Grid Engine
     if os.environ.has_key("JOB_ID"):
         return "Grid Engine", os.environ["JOB_ID"]
     # Condor (variable sent through job submit file)
@@ -1560,11 +1561,11 @@ def getBatchSystemJobID():
     # SLURM
     if os.environ.has_key("SLURM_JOB_ID"):
         return "SLURM", os.environ["SLURM_JOB_ID"]
-    
+
 #    # Condor (id unknown)
 #    if os.environ.has_key("_CONDOR_SCRATCH_DIR"):
 #        return "Condor", "(unknown clusterid)"
-    
+
     return None, ""
 
 def touch(filename):
@@ -2005,7 +2006,7 @@ class _Curl:
             tolog("!!WARNING!!1111!! Caught exception from curl command: %s" % (e))
             ret = [-1, e]
         # remove temporary file
-        #os.remove(tmpName)        
+        #os.remove(tmpName)
         return ret
 
     # PUT method
@@ -2025,7 +2026,7 @@ class _Curl:
         if self.sslKey != '':
             com += ' --key %s' % self.sslKey
         #com += ' --verbose'
-        # emulate PUT 
+        # emulate PUT
         for key in data.keys():
             com += ' -F "%s=@%s"' % (key,data[key])
         com += ' %s' % url
@@ -2055,9 +2056,9 @@ def toPandaLogger(data):
     # instantiate curl
     curl = _Curl()
     url = 'http://pandamon.cern.ch/system/loghandler'
-    
+
     curlstat, response = curl.get(url, data, os.getcwd())
-    
+
     try:
         tpost = datetime.datetime.utcnow()
         tolog("Elapsed seconds: %d" % ((tpost-tpre).seconds))
@@ -2068,7 +2069,7 @@ def toPandaLogger(data):
             # parse response message
             outtxt = response.lower()
             if outtxt.find('<html>') > 0:
-                if outtxt.find('read timeout') > 0:                   
+                if outtxt.find('read timeout') > 0:
                     tolog("!!WARNING!!2999!! Timeout on dispatcher exchange")
                 else:
                     tolog("!!WARNING!!2999!! HTTP error on dispatcher exchange")
@@ -2153,7 +2154,7 @@ def toServer(baseURL, cmd, data, path, experiment):
             # parse response message
             outtxt = response.lower()
             if outtxt.find('<html>') > 0:
-                if outtxt.find('read timeout') > 0:                   
+                if outtxt.find('read timeout') > 0:
                     tolog("!!WARNING!!2999!! Timeout on dispatcher exchange")
                 else:
                     tolog("!!WARNING!!2999!! HTTP error on dispatcher exchange")
@@ -2410,8 +2411,8 @@ def parseDispatcherResponse(response):
 
     data = {}
     for p in parList:
-        data[p[0]] = p[1]  
- 
+        data[p[0]] = p[1]
+
     if 'userProxy' in str(parList):
 	for i in range(len(parList)):
 		if parList[i][0] == 'userProxy':
@@ -2614,7 +2615,7 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
     elif len(outputFiles) == 0:
         tolog("No output files for this job (outputFiles has zero length)")
     elif len(destinationDblock) == 0:
-        tolog("WARNING: destinationDblock has zero length")        
+        tolog("WARNING: destinationDblock has zero length")
     else:
         # verify that lists contains valid entries
         _l = [outputFiles, destinationDblock]
@@ -2772,7 +2773,7 @@ def getCopysetup(mode="get"):
         tolog("Extracted copysetup: %s" % (copysetup))
 
     return copysetup
-    
+
 def verifyLFNLength(outputFiles):
     """ Make sure that the LFNs are all within the allowed length """
 
@@ -3033,7 +3034,7 @@ def getMetadata(workdir, jobId, athena=False, altpath=""):
         else:
             strXML = ""
             for line in f:
-                strXML += line    
+                strXML += line
             f.close()
             if len(strXML) > 0:
                 tolog("Found metadata")
@@ -3133,7 +3134,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
         tolog(". Trf error code (2)        : %d" % job.exeErrorCode)
     tolog(". Trf error diagnosis       : %s" % job.exeErrorDiag)
 
-        
+
     if (job.exeErrorCode != 0) and (job.result[1] != job.exeErrorCode):
         mismatch = "exeErrorCode = %d, transExitCode = %d" %\
                    (job.exeErrorCode, job.result[1])
@@ -3159,7 +3160,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
             else:
                 tolog(". Payload %d produced stderr: No (%s does not exist)" % (_i + 1, _stderr))
     else:
-        filename = "%s/%s" % (job.workdir, job.stderr)    
+        filename = "%s/%s" % (job.workdir, job.stderr)
         if os.path.exists(filename):
             if os.path.getsize(filename) > 0:
                 tolog(". Payload produced stderr   : Yes (check %s)" % (job.stderr))
@@ -3330,7 +3331,7 @@ def getCmtconfigAlternatives(cmtconfig, swbase):
                     break
             if verified:
                 alternatives.append(d)
-                                                                                                 
+
 
     return alternatives
 
@@ -3378,7 +3379,7 @@ def extractFilePaths(s):
     # -> setup_paths = ['/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh']
 
     pattern = re.compile(r"export (\S+)\=(\S+)")
-    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')] 
+    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')]
     if t != []:
         for i in range(len(setup_paths)):
             for match_pair in t:
@@ -3442,7 +3443,7 @@ def getProperTimeout(paths):
 
 def getPilotVersion(initdir):
     """ Load the pilot version string from file VERSION """
- 
+
     version = "PICARD"
     try:
         f = open(os.path.join(initdir, "PILOTVERSION"), "r")
@@ -3532,7 +3533,7 @@ def removePattern(_string, _pattern):
         _substring = found[0]
         tolog("Found regexp string: %s" % (_substring))
         _string = _string.replace(_substring, "")
-        
+
     return _string
 
 def isPilotTCPServerAlive(server, port):
@@ -3627,7 +3628,7 @@ def stripDQ2FromLFN(lfn):
 
     pattern = "(\s*)\_\_DQ2\-[0-9]+"
 
-    found = re.search(pattern, lfn)    
+    found = re.search(pattern, lfn)
     if found:
         try:
             __DQ2 = found.group(0)
@@ -3902,7 +3903,7 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
     # reset site.appdir
     thisSite.appdir = readpar('appdir')
 
-    if readpar('glexec') == "True": 
+    if readpar('glexec') == "True":
         env['glexec'] = 'True'
     elif readpar('glexec') == "test":
 	env['glexec'] = 'test'
@@ -4250,7 +4251,7 @@ def shellExitCode(exitCode):
         error.ERR_QUEUEDATANOTOK : [72, "Pilot found non-valid queuedata"],
         error.ERR_NOSOFTWAREDIR  : [73, "Software directory does not exist"],
         error.ERR_KILLSIGNAL     : [137, "General kill signal"], # Job terminated by unknown kill signal
-        error.ERR_SIGTERM        : [143, "Job killed by signal: SIGTERM"], # 128+15 
+        error.ERR_SIGTERM        : [143, "Job killed by signal: SIGTERM"], # 128+15
         error.ERR_SIGQUIT        : [131, "Job killed by signal: SIGQUIT"], # 128+3
         error.ERR_SIGSEGV        : [139, "Job killed by signal: SIGSEGV"], # 128+11
         error.ERR_SIGXCPU        : [158, "Job killed by signal: SIGXCPU"], # 128+30
@@ -4419,7 +4420,7 @@ def extractHPCInfo(infoStr):
     # Return: isHPCSite (True/False), HPC_name (string)
     # infoStr = "blabla HPC_Titan" -> True, "Titan"
     # infoStr = "blabla bla" -> False, None
-    # The HPC name will be capitalized (titan -> Titan)                                                                                                                                                  
+    # The HPC name will be capitalized (titan -> Titan)
     name = None
     isHPCSite = False
 

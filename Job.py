@@ -391,14 +391,14 @@ class Job:
         outs = []
         outdb = []
         outddm = []
-        logddm = ""
+        logddm = []
         logFileDblock = ""
         # keep track of log file index in the original file output list
         i_log = -1
         for i in range(len(outfList)):
             if outfList[i] == logFile:
                 logFileDblock = outfdbList[i]
-                logddm = self.ddmEndPointOut[i]
+                logddm = [ self.ddmEndPointOut[i] ]
                 i_log = i
             else:
                 outs.append(outfList[i])
