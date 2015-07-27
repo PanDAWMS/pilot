@@ -81,10 +81,14 @@ class BaseSiteMover(object):
 
         # <prefix=rucio>/<scope>/md5(<scope>:<lfn>)[0:2]/md5(<scope:lfn>)[2:4]/<lfn>
 
-        scope = "/".join(scope.split('.')) # correct scope
         hash_hex = hashlib.md5('%s:%s' % (scope, lfn)).hexdigest()
 
-        return os.path.join(prefix, scope, hash_hex[0:2], hash_hex[2:4], lfn)
+        paths = [prefix] + scope.split('.') + [hash_hex[0:2], hash_hex[2:4], lfn]
+        paths = filter(None, paths) # remove empty parts to avoid double /-chars
+        return '/'.join(paths)
+
+        #scope = os.path.join(*scope.split('.')) # correct scope
+        #return os.path.join(prefix, scope, hash_hex[0:2], hash_hex[2:4], lfn)
 
     def getSURLRucio(self, se, se_path, scope, lfn, job=None):
         """

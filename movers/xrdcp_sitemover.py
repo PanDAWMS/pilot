@@ -53,7 +53,7 @@ class xrdcpSiteMover(BaseSiteMover):
             self.log('FAILED to execute command=%s: %s' % (cmd, output))
         else:
             if "--cksum" in output:
-                coption = "--cksum %s" % self.checksum_type
+                coption = "--cksum %s:print" % self.checksum_type
             elif "-adler" in output and self.checksum_type == 'adler32':
                 coption = "-adler"
             elif "-md5" in output and self.checksum_type == 'md5':
