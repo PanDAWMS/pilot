@@ -103,7 +103,7 @@ class JobMover(object):
         :raise: an exception in case of errors
         """
 
-        activity = 'pr'
+        activity = 'pw'
         ddms = self.job.ddmEndPointOut
 
         if not ddms:

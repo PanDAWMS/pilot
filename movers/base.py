@@ -118,7 +118,7 @@ class BaseSiteMover(object):
             Can be customized by different site mover
         """
 
-        return 'source %s;' % self.copysetup
+        return 'source %s' % self.copysetup
 
     def setup(self):
         """
@@ -335,7 +335,7 @@ class BaseSiteMover(object):
 
         cmd = "%s %s" % (command, filename)
         if setup:
-            cmd = "%s; %s" % cmd
+            cmd = "%s; %s" % (setup, cmd)
 
         self.log("Execute command (%s) to calc checksum of file" % cmd)
 

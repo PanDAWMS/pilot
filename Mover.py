@@ -2846,9 +2846,9 @@ def mover_put_data_new(outputpoolfcstring,
                         fields[i] += '+'
                     fields[i] += '%s' % str(value)
             if exception:
-                errors += str(exception)
+                errors.append(str(exception))
             for err in failed_transfers:
-                errors += str(err)
+                errors.append(str(err))
 
         if not n_success: # number of processed DDMs
             # skip the rest of processing

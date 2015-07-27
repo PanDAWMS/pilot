@@ -35,7 +35,11 @@ class xrdcpSiteMover(BaseSiteMover):
         if self.checksum_type not in ['adler32']: # exclude md5
             raise PilotException("Failed to stageOutFile(): internal error: unsupported checksum_type=%s .. " % self.checksum_type, code=PilotErrors.ERR_STAGEOUTFAILED, state='BAD_CSUMTYPE')
 
-        cmd = "%s; %s -h" % (self.getSetup(), self.copy_command)
+        cmd = "%s -h" % self.copy_command
+        setup = self.getSetup()
+        if setup:
+            cmd = "%s; %s" % (setup, cmd)
+
         self.log("Execute command (%s) to decide which option should be used to calc file checksum.." % cmd)
 
         c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
@@ -60,7 +64,10 @@ class xrdcpSiteMover(BaseSiteMover):
         else:
             self.log("Cannot find neither -adler nor --cksum. will not use checksum")
 
-        cmd = '%s %s -np -f %s %s %s' % (self.getSetup(), self.copy_command, coption, source, destination)
+        cmd = '%s -np -f %s %s %s' % (self.copy_command, coption, source, destination)
+        setup = self.getSetup()
+        if setup:
+            cmd = "%s; %s" % (setup, cmd)
 
         timeout = self.getTimeOut(os.path.getsize(source))
         self.log("Executing command: %s, timeout=%s" % (cmd, timeout))
@@ -113,7 +120,7 @@ class xrdcpSiteMover(BaseSiteMover):
         if self.checksum_type not in ['adler32']:
             raise Exception("getRemoteFileChecksum(): internal error: unsupported checksum_type=%s .. " % self.checksum_type)
 
-        return self.calc_checksum(fielname, self.checksum_command, setup=self.getSetup()), 'adler32'
+        return self.calc_checksum(filename, self.checksum_command, setup=self.getSetup()), 'adler32'
 
 
     def getRemoteFileSize(self, filename):
