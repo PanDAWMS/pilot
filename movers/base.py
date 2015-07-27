@@ -5,7 +5,7 @@
 
 import hashlib
 import os
-from time import time
+import time
 
 from subprocess import Popen, PIPE, STDOUT
 
@@ -84,7 +84,7 @@ class BaseSiteMover(object):
         scope = "/".join(scope.split('.')) # correct scope
         hash_hex = hashlib.md5('%s:%s' % (scope, lfn)).hexdigest()
 
-        return os.path.join([prefix, scope, hash_hex[0:2], hash_hex[2:4], lfn])
+        return os.path.join(prefix, scope, hash_hex[0:2], hash_hex[2:4], lfn)
 
     def getSURLRucio(self, se, se_path, scope, lfn, job=None):
         """
@@ -255,19 +255,19 @@ class BaseSiteMover(object):
             ret['rcode'] = PilotErrors.ERR_FILEEXIST
             ret['state'] = 'FILE_EXIST'
             ret['error'] = "File already exist in the destination: %s" % output
-        elif "No space left on device":
+        elif "No space left on device" in output:
             ret['rcode'] = PilotErrors.ERR_NOLOCALSPACE
             ret['state'] = 'NO_SPACE'
             ret['error'] = "No available space left on local disk: %s" % output
-        elif "globus_xio:":
+        elif "globus_xio:" in output:
             ret['rcode'] = PilotErrors.ERR_GETGLOBUSSYSERR
             ret['state'] = 'GLOBUS_FAIL'
             ret['error'] = "Globus system error: %s" % output
-        elif "No such file or directory" and "DBRelease" in fileName: ## is it a stageout error??
+        elif "No such file or directory" and "DBRelease" in filename: ## is it a stageout error??
             ret['rcode'] = PilotErrors.ERR_MISSDBREL
             ret['state'] = 'NO_DBREL'
             ret['error'] = output
-        elif "No such file or directory":
+        elif "No such file or directory" in output:
             ret['rcode'] = PilotErrors.ERR_NOSUCHFILE
             ret['state'] = 'NO_FILE'
             ret['error'] = output
@@ -279,7 +279,7 @@ class BaseSiteMover(object):
         """ Get a proper time-out limit based on the file size """
 
         timeout_max = 6*3600 # 6 hours
-        timeout_min = self.timeout; #5*60   # 5 mins
+        timeout_min = self.timeout #5*60   # 5 mins
 
         timeout = timeout_min + int(filesize/0.4e6) # approx < 0.4 Mb/sec
 

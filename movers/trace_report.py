@@ -65,9 +65,9 @@ class TraceReport(dict):
         self['ip'] = socket.gethostbyname(socket.gethostname())
 
         if job.jobDefinitionID:
-            report['uuid'] = hashlib.md5('ppilot_%s' % job.jobDefinitionID).hexdigest() # hash_pilotid
+            self['uuid'] = hashlib.md5('ppilot_%s' % job.jobDefinitionID).hexdigest() # hash_pilotid
             #tolog("Using job definition id: %s" % job.jobDefinitionID)
         else:
-            report['uuid'] = commands.getoutput('uuidgen -t 2> /dev/null').replace('-','') # all LFNs of one request have the same uuid
+            self['uuid'] = commands.getoutput('uuidgen -t 2> /dev/null').replace('-','') # all LFNs of one request have the same uuid
 
         #tolog("Tracing report initialised with: %s" % self)

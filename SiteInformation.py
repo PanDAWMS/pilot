@@ -1462,9 +1462,10 @@ class SiteInformation(object):
         #
 
         ret = self.resolveDDMProtocols(ddmendpoints, activity)
-        for dat in ret:
-            dat['copytool'] = None  # quick stub
-            dat['copysetup'] = None # quick stub
+        for ddm,prots in ret.iteritems():
+            for dat in prots:
+                dat.setdefault('copytool', None)  # quick stub
+                dat.setdefault('copysetup', None) # quick stub
 
         return ret
 

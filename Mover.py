@@ -2822,6 +2822,9 @@ def mover_put_data_new(outputpoolfcstring,
     fields = [''] * 7 # file info field used by job recovery in OLD compatible format
     for (func, xfiles) in [(mover.put_outfiles, outfiles), (mover.put_logfiles, logfiles)]:
 
+        if not xfiles:
+            tolog('files list to transfer is empty .. nothing to do.. skip and continue')
+            continue
         mover.trace_report = TraceReport(localSite=sitename, remoteSite=sitename, dataset=pdsname, eventType=eventType)
         mover.trace_report.init(job)
 
@@ -3166,7 +3169,7 @@ def use_newmover(newfunc):
                 try:
                     ret = newfunc(*args, **kwargs)
                     if ret and ret[0]: # new function return NON success code => temporary failover to old implementation
-                        raise Exception("new SiteMover return NON success code=%s .. do failover to old implementation.. r=%s" % (ret[0], r))
+                        raise Exception("new SiteMover return NON success code=%s .. do failover to old implementation.. r=%s" % (ret[0], ret))
                     return ret
                 except Exception, e:
                     print ("INFO: Failed to execute new SiteMover(s): caught an exception: %s .. ignored. Continue execution using old implementation" % e)

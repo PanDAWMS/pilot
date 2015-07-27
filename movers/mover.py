@@ -136,12 +136,12 @@ class JobMover(object):
         :raise: PilotException in case of error
         """
 
-        if not ddmednpoints:
+        if not ddmendpoints:
             raise PilotException("Failed to put files: Output ddmendpoint list is not set", code=PilotErrors.ERR_NOSTORAGE)
         if not files:
             raise PilotException("Failed to put files: empty file list to be transferred")
 
-        missing_ddms = set(self.ddmconf) - set(ddmendpoints)
+        missing_ddms = set(ddmendpoints) - set(self.ddmconf)
 
         if missing_ddms:
             self.ddmconf.update(self.si.resolveDDMConf(missing_ddms))
@@ -159,7 +159,7 @@ class JobMover(object):
             success_transfers, failed_transfers = [], []
 
             try:
-                success_transfers, failed_transfers = self.do_put_files(ddmendpoint, protocols, files)
+                success_transfers, failed_transfers = self.do_put_files(ddm, protocols, files)
                 is_success = len(success_transfers) == len(files)
                 output.append((is_success, success_transfers, failed_transfers, None))
 
@@ -172,6 +172,8 @@ class JobMover(object):
             except Exception, e:
                 self.log('put_files: caught exception: %s' % e)
                 # is_success, success_transfers, failed_transfers, exception
+                import traceback
+                self.log(traceback.format_exc())
                 output.append((False, [], [], e))
 
             ### TODO: implement proper logic of put-policy: how to handle alternative stage out (processing of next DDMEndpoint)..
@@ -209,6 +211,8 @@ class JobMover(object):
         if not surl_prot:
             self.log('FAILED to resolve default SURL path for ddmendpoint=%s' % ddmendpoint)
             return [], []
+
+        surl_prot = surl_prot[0] # take first
 
         self.trace_report.update(localSite=ddmendpoint, remoteSite=ddmendpoint)
 

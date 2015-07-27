@@ -11,9 +11,9 @@ from PilotErrors import PilotErrors, PilotException
 from subprocess import Popen, PIPE, STDOUT
 
 from datetime import datetime
-from time import time
 
 import re
+import os
 
 class xrdcpSiteMover(BaseSiteMover):
     """ SiteMover that uses xrdcp for both get and put """
@@ -60,7 +60,7 @@ class xrdcpSiteMover(BaseSiteMover):
         else:
             self.log("Cannot find neither -adler nor --cksum. will not use checksum")
 
-        cmd = '%s %s -np -f %s %s %s' % (self.getSetup(), self.copy_command, checksum_option, source, destination)
+        cmd = '%s %s -np -f %s %s %s' % (self.getSetup(), self.copy_command, coption, source, destination)
 
         timeout = self.getTimeOut(os.path.getsize(source))
         self.log("Executing command: %s, timeout=%s" % (cmd, timeout))
