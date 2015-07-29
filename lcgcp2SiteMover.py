@@ -155,7 +155,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
 #            _cmd_str = _cmd_str.replace("XXX","")
 
         tolog("Executing command: %s" % (_cmd_str))
-        # getfile = gsiftp://umfs02.grid.umich.edu/atlas/data08/dq2/other/D/DBRelease-3.1.1.tar.gz 
+        # getfile = gsiftp://umfs02.grid.umich.edu/atlas/data08/dq2/other/D/DBRelease-3.1.1.tar.gz
         # getfile = srm://head01.aglt2.org:8443/srm/managerv2?SFN=/pnfs/aglt2.org/dq2/panda/dis/08/06/04/panda.64d403f5-adae-42f8-8614-1fc044eb85ea_dis12076725/misal1_mc12.005802.JF17_pythia_jet_filter.digit.RDO.v12000601_tid008610._11639.pool.root.1
         s = -1
         o = '(not defined)'
@@ -230,7 +230,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
             loc_filename = lfn
             dest_file = os.path.join(path, loc_filename)
 
-            # get remote file size and checksum 
+            # get remote file size and checksum
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
             if ec != 0:
                 self.prepareReport('FILE_INFO_FAIL', report)
@@ -337,7 +337,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
             self.prepareReport('RFCP_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag) 
+            return self.put_data_retfail(ec, pilotErrorDiag)
 
         # get the experiment object
         thisExperiment = getExperiment(experiment)
@@ -353,7 +353,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
         filename = os.path.basename(source)
 
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt, sitemover=self) # quick workaround
         if ec != 0:
             self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag, surl=dst_gpfn)
@@ -373,7 +373,7 @@ class lcgcp2SiteMover(SiteMover.SiteMover):
         # get the DQ2 site name from ToA
         try:
             _dq2SiteName = self.getDQ2SiteName(surl=putfile)
-        except Exception, e: 
+        except Exception, e:
             tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
         else:
             report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)

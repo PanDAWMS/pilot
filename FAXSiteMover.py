@@ -137,7 +137,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         command = _setupStr
         if command != "" and not command.endswith(';'):
             command = command + ";"
-        command += " which "+ self.realCopyCommand 
+        command += " which "+ self.realCopyCommand
         status, output = commands.getstatusoutput(command)
         self.log("Execute command:  %s" % command)
         self.log("Status: %s, Output: %s" % (status, output))
@@ -596,7 +596,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             _ec, removeOutput = self.removeRemoteFile(destination)
             if not _ec :
                 self.log("Failed to remove file ") # i.e. do not retry stage-out
-           
+
             return status, output
         else:
             outputRet["output"] = o
@@ -945,7 +945,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         """
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt, sitemover=self) # quick workaround
         if ec != 0:
             reportState = {}
             reportState["clientState"] = tracer_error
@@ -960,7 +960,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         # get the DQ2 site name from ToA
         try:
             _dq2SiteName = self.getDQ2SiteName(surl=surl)
-        except Exception, e: 
+        except Exception, e:
             tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
         else:
             report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
@@ -1217,7 +1217,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         """ Get the FAX redirectors via curl or JSON """
 
         fax_redirectors_dictionary = {}
-        file_name = "fax_redirectors.json"    
+        file_name = "fax_redirectors.json"
         if os.path.exists(file_name):
             # Read back the FAX redirectors from file
             fax_redirectors_dictionary = readJSON(file_name)
@@ -1309,4 +1309,3 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 global_path = os.path.join(paths[0], filename)
 
         return global_path
-
