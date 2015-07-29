@@ -463,14 +463,6 @@ def getPilotErrorReportFilename(workdir):
     return os.path.join(workdir, "pilot_error_report.json")
 
 def updatePilotErrorReport(pilotErrorCode, pilotErrorDiag, priority, jobID, workdir):
-    """ Temporary wrapper during testing """
-
-    try:
-        updatePilotErrorReportTMP(pilotErrorCode, pilotErrorDiag, priority, jobID, workdir)
-    except Exception, e:
-        tolog("!!WARNING!!4545!! Exception caught: %s" % (e))
-
-def updatePilotErrorReportTMP(pilotErrorCode, pilotErrorDiag, priority, jobID, workdir):
     """ Write pilot error info to file """
     # Report format:
     # { jobID1: { priority1: [{ pilotErrorCode1:<nr>, pilotErrorDiag1:<str> }, .. ], .. }, .. }

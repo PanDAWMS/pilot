@@ -181,6 +181,14 @@ Added ddmEndPointIn, ddmEndPointOut, ddmEndPointLog to Job class, and handling i
 Moved exception handling for utility subprocess from executePayload() to getUtilitySubprocess() (RunJob)
 Making sure that the subprocess is still running in executePayload() (RunJob)
 Setting memory info = -1 in case of file reading trouble or if memory summary file was not updated in less than 120 s in getUtilityInfo(). Reuqested by Rodney Walker (PandaServerClient) 
+Added error code 1234, ERR_EXECUTEDCLONEJOB: "Already executed clone job" (PilotErrors)
+Now using event range functions to determine whether a cloned job should be executed in executePayload() and __main__() (RunJob)
+Moved extractEventRanges() from RunJobEvent to RunJob (RunJob, RunJobEvent)
+Setting ATHENA_PROC_NUMBER to 1 on single code nodes in __main__() (RunJobEvent)
+Removed test method updatePilotErrorReport() and renamed updatePilotErrorReportTMP() to updatePilotErrorReport() (FileHandling)
+
+Update info from Edward Karavakis:
+- Patch for chmod problem seen at BNL
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

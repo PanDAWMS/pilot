@@ -15,6 +15,7 @@ import traceback
 import atexit, signal
 import stat
 from optparse import OptionParser
+from json import loads
 
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
@@ -28,6 +29,7 @@ from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
 from FileHandling import tail, getExtension
+from EventRanges import downloadEventRanges
 
 # remove logguid, dq2url, debuglevel - not needed
 # relabelled -h, queuename to -b (debuglevel not used)
@@ -691,7 +693,28 @@ class RunJob(object):
         #    if not hP_ret:
         #        tolog("Warning: Proxy exposed to payload")
 
-        # run the payload process, which could take days to finish
+        # If clone job, make sure that the events should be processed
+        if job.cloneJob == "runonce":
+            # If the event is still available, the go ahead and run the payload
+            message = downloadEventRanges(job.jobId, job.jobsetID)
+
+            # Create a list of event ranges from the downloaded message
+            event_ranges = self.extractEventRanges(message)
+
+            # Are there any event ranges?
+            if event_ranges == []:
+                tolog("!!WARNING!!2424!! This clone job was already executed")
+                exitMsg = "Already executed clone job"
+                res_tuple = (1, exitMsg)
+                res = (res_tuple[0], res_tuple[1], exitMsg)
+                job.result[0] = exitMsg
+                job.result[1] = 0 # transExitCode
+                job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+                return res, job, False, 0
+            else:
+                tolog("Ok to execute clone job")
+
+        # Run the payload process, which could take days to finish
         t0 = os.times()
         tolog("t0 = %s" % str(t0))
         res_tuple = (0, 'Undefined')
@@ -700,14 +723,14 @@ class RunJob(object):
         _stdout = job.stdout
         _stderr = job.stderr
 
-        # loop over all run commands (only >1 for multi-trfs)
+        # Loop over all run commands (only >1 for multi-trfs)
         current_job_number = 0
         getstatusoutput_was_interrupted = False
         number_of_jobs = len(runCommandList)
         for cmd in runCommandList:
             current_job_number += 1
 
-            # create the stdout/err files
+            # Create the stdout/err files
             if multi_trf:
                 job.stdout = _stdout.replace(".txt", "_%d.txt" % (current_job_number))
                 job.stderr = _stderr.replace(".txt", "_%d.txt" % (current_job_number))
@@ -718,7 +741,7 @@ class RunJob(object):
                 break
 
             try:
-                # add the full job command to the job_setup.sh file
+                # Add the full job command to the job_setup.sh file
                 to_script = cmd.replace(";", ";\n")
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
@@ -826,7 +849,7 @@ class RunJob(object):
             from JEMstub import notifyJobEnd2JEM
             notifyJobEnd2JEM(job, tolog)
         except:
-            pass # don't care (fire and forget)
+            pass # don't care
 
         # restore the proxy
         #if hP_ret:
@@ -1257,6 +1280,20 @@ class RunJob(object):
 
     # (end event service methods) ................................................................................
 
+    def extractEventRanges(self, message):
+        """ Extract all event ranges from the server message """
+
+        # This function will return a list of event range dictionaries
+
+        event_ranges = []
+
+        try:
+            event_ranges = loads(message)
+        except Exception, e:
+            tolog("Could not extract any event ranges: %s" % (e))
+
+        return event_ranges
+
     def shouldCleanupOS(self, job):
         """ Should the OS be cleaned up? """
 
@@ -1532,26 +1569,50 @@ if __name__ == "__main__":
         # move output files from workdir to local DDM area
         finalUpdateDone = False
         if outs:
-            tolog("Setting stage-out state until all output files have been copied")
-            job.setState(["stageout", 0, 0])
-            rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
-            # stage-out output files
-            ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
-            # error handling
-            if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:
-                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
+            # If clone job, make sure that stage-out should be performed
+            if job.cloneJob == "storeonce":
+                # If the event is still available, the go ahead and run the payload
+                message = downloadEventRanges(job.jobId, job.jobsetID)
+
+                # Create a list of event ranges from the downloaded message
+                event_ranges = runJob.extractEventRanges(message)
+
+                # Are there any event ranges?
+                if event_ranges == []:
+                    tolog("!!WARNING!!2424!! This clone job was already executed")
+                    exitMsg = "Already executed clone job"
+                    res_tuple = (1, exitMsg)
+                    res = (res_tuple[0], res_tuple[1], exitMsg)
+                    job.result[0] = exitMsg
+                    job.result[1] = 0 # transExitCode
+                    job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+                    job.pilotErrorDiag = exitMsg
+                    runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
             else:
-                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True, latereg=latereg)
-            if ec == error.ERR_NOSTORAGE:
-                # update the current file states for all files since nothing could be transferred
-                updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="not_transferred")
-                dumpFileStates(runJob.getParentWorkDir(), job.jobId)
+                tolog("Ok to stage out clone job")
 
-            finalUpdateDone = True
-            if ec != 0:
-                runJob.sysExit(job, rf)
-        # (stage-out ends here) .......................................................................
+                tolog("Setting stage-out state until all output files have been copied")
+                job.setState(["stageout", 0, 0])
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
+
+                # Stage-out output files
+                ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
+                # Error handling
+                if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:
+                    rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
+                else:
+                    rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True, latereg=latereg)
+                if ec == error.ERR_NOSTORAGE:
+                    # Update the current file states for all files since nothing could be transferred
+                    updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="not_transferred")
+                    dumpFileStates(runJob.getParentWorkDir(), job.jobId)
+
+                finalUpdateDone = True
+                if ec != 0:
+                    runJob.sysExit(job, rf)
+
+        # (Stage-out ends here) .......................................................................
 
         # Object store cleanups .......................................................................
 

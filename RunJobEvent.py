@@ -1808,20 +1808,6 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, file_info_dictionary
 
-    def extractEventRanges(self, message):
-        """ Extract all event ranges from the server message """
-
-        # This function will return a list of event range dictionaries
-
-        event_ranges = []
-
-        try:
-            event_ranges = loads(message)
-        except Exception, e:
-            tolog("Could not extract any event ranges: %s" % (e))
-
-        return event_ranges
-
     def getEventRangeFilesDictionary(self, event_ranges, eventRangeFilesDictionary):
         """ Build and return the event ranges dictionary out of the event_ranges dictinoary """
 
@@ -2193,6 +2179,10 @@ if __name__ == "__main__":
             job.result[0] = "failed"
             job.result[2] = error.ERR_ESRECOVERABLE
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
+        if not os.environ.has_key('ATHENA_PROC_NUMBER')
+            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
+            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
 
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())

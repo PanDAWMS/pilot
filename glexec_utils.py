@@ -301,8 +301,11 @@ class GlexecInterface(object):
 	for file_name in os.listdir(os.environ['PilotHomeDir']):
 		full_file_name = os.path.join(os.environ['PilotHomeDir'], file_name)
 		if (os.path.isfile(full_file_name)) and '.pyc' not in file_name:
-			os.chmod(os.path.join(os.environ['PilotHomeDir'], file_name), 0777)
-			shutil.copy(full_file_name, self.sandbox_path)
+			try:
+				os.chmod(os.path.join(os.environ['PilotHomeDir'], file_name), 0777)
+				shutil.copy(full_file_name, self.sandbox_path)
+			except:
+				pUtil.tolog('cannot chmod and copy %s ' %file_name)
 
         dirs = [d for d in os.listdir(os.environ['PilotHomeDir']) if os.path.isdir(os.path.join(os.environ['PilotHomeDir'], d)) and 'gltmpdir' not in d and 'Panda_Pilot' not in d]
 	

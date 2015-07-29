@@ -95,6 +95,7 @@ class Job:
         self.ddmEndPointIn = []            #
         self.ddmEndPointOut = []           #
         self.ddmEndPointLog = []           #
+        self.cloneJob = ""                 # Is the job cloned? Allowed values: 'runonce', 'storeonce'
 
         # event service objects
         self.eventService = False          # True for event service jobs
@@ -133,6 +134,7 @@ class Job:
                     (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlocks, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
         pUtil.tolog("ddmEndPointIn=%s" % (self.ddmEndPointIn))
         pUtil.tolog("ddmEndPointOut=%s" % (self.ddmEndPointOut))
+        pUtil.tolog("cloneJob=%s" % (self.cloneJob))
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -240,6 +242,8 @@ class Job:
 
         ddmEndPointOut = data.get('ddmEndPointOut', '')
         self.ddmEndPointOut = ddmEndPointOut.split(",")
+
+        self.cloneJob = data.get('cloneJob', '')
 
         logFile = data.get('logFile', '')
         self.logFile = logFile

@@ -130,6 +130,7 @@ class PilotErrors:
     ERR_TEINVALIDGUID = 1231
     ERR_TEWRONGGUID = 1232
     ERR_TEHOSTNAME = 1233
+    ERR_EXECUTEDCLONEJOB = 1234
 
     # internal error codes
     ERR_DDMREG = 1
@@ -264,7 +265,8 @@ class PilotErrors:
         ERR_TEHOSTNAME: "Token Extractor error: Host name could not be resolved",
         ERR_TEBADURL: "Token Extractor error: Bad URL",
         ERR_TEINVALIDGUID: "Token Extractor error: Invalid GUID length",
-        ERR_TEWRONGGUID: "Token Extractor error: No tokens for this GUID"
+        ERR_TEWRONGGUID: "Token Extractor error: No tokens for this GUID",
+        ERR_EXECUTEDCLONEJOB: "Already executed clone job"
         }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]
