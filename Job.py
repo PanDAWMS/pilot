@@ -23,7 +23,7 @@ class Job:
         self.inFilesGuids = []             # list of input file guids
         self.outFilesGuids = []            # these guids are usually unknown till the job is done
         self.logFile = None                #
-        self.tarFileGuid = pUtil.getGUID() # guid for the tarball of the job workdir 
+        self.tarFileGuid = pUtil.getGUID() # guid for the tarball of the job workdir
         self.logDblock = None              #
         self.jobPars = None                # Job parameters defining the execution of the job
         self.exeErrorCode = 0              # payload error code
@@ -134,6 +134,7 @@ class Job:
                     (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlocks, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
         pUtil.tolog("ddmEndPointIn=%s" % (self.ddmEndPointIn))
         pUtil.tolog("ddmEndPointOut=%s" % (self.ddmEndPointOut))
+        pUtil.tolog("ddmEndPointLog=%s" % (self.ddmEndPointLog))
         pUtil.tolog("cloneJob=%s" % (self.cloneJob))
 
     def mkJobWorkdir(self, sitewd):
@@ -153,7 +154,7 @@ class Job:
                 pUtil.tolog(errorText)
                 ec = -1
         return ec, errorText
-        
+
     def setPayloadName(self, payload):
         """ set the payload name and its stdout/err file names """
         self.payload = payload
@@ -229,19 +230,16 @@ class Job:
         self.prodDBlockTokenForOutput = prodDBlockTokenForOutput.split(",")
 
         dispatchDBlockToken = data.get('dispatchDBlockToken', '')
-        self.dispatchDBlockToken = dispatchDBlockToken.split(",") 
+        self.dispatchDBlockToken = dispatchDBlockToken.split(",")
 
         dispatchDBlockTokenForOut = data.get('dispatchDBlockTokenForOut', '')
-        self.dispatchDBlockTokenForOut = dispatchDBlockTokenForOut.split(",") 
+        self.dispatchDBlockTokenForOut = dispatchDBlockTokenForOut.split(",")
 
         destinationDBlockToken = data.get('destinationDBlockToken', '')
-        self.destinationDBlockToken = destinationDBlockToken.split(",") 
+        self.destinationDBlockToken = destinationDBlockToken.split(",")
 
-        ddmEndPointIn = data.get('ddmEndPointIn', '')
-        self.ddmEndPointIn = ddmEndPointIn.split(",")
-
-        ddmEndPointOut = data.get('ddmEndPointOut', '')
-        self.ddmEndPointOut = ddmEndPointOut.split(",")
+        self.ddmEndPointIn = data.get('ddmEndPointIn', '').split(',') if data.get('ddmEndPointIn') else []
+        self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
 
         self.cloneJob = data.get('cloneJob', '')
 
@@ -397,14 +395,14 @@ class Job:
         outs = []
         outdb = []
         outddm = []
-        logddm = ""
+        logddm = []
         logFileDblock = ""
         # keep track of log file index in the original file output list
         i_log = -1
         for i in range(len(outfList)):
             if outfList[i] == logFile:
                 logFileDblock = outfdbList[i]
-                logddm = self.ddmEndPointOut[i]
+                logddm = [ self.ddmEndPointOut[i] ]
                 i_log = i
             else:
                 outs.append(outfList[i])
@@ -477,3 +475,23 @@ class Job:
         self.release = data.get('swRelease', '')
         self.destinationSE = data.get('destinationSE', '')
         self.fileDestinationSE = data.get('fileDestinationSE', '')
+
+    def isAnalysisJob(self):
+        """
+            Determine whether the job is an analysis job or not
+            normally this should be set in constructor as a property of Job class
+            specified the type of job explicitly (?)
+        """
+
+        #return pUtil.isAnalysisJob(self.trf)
+        #copied from pUtil.isAnalysisJob to isolate the logic amd move outside pUtil
+
+        #trf = self.trf.split(',')[0] # ???  used like this in few places: it will affect result only if the trf starts with ','
+        is_analysis = self.trf.startswith('https://') or self.trf.startswith('http://')
+
+        if self.prodSourceLabel == "software": # logic extracted from the sources
+            is_analysis = False
+
+        # apply addons checks later if need
+
+        return is_analysis

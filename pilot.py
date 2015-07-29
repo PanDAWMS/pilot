@@ -1,4 +1,4 @@
-#!/usr/bin/python -u 
+#!/usr/bin/python -u
 
 import commands
 import getopt
@@ -92,7 +92,7 @@ def execute(program):
 def argParser(argv):
     """ parse command line arguments for the main script """
 
-    pUtil.tolog("argParser arguments: %s" % str(argv))    
+    pUtil.tolog("argParser arguments: %s" % str(argv))
 
     # find the pilot ID and JSID if any from the environment variables
     try:
@@ -117,12 +117,12 @@ def argParser(argv):
         print "Invalid arguments and options!"
         usage()
         os._exit(5)
-        
+
     for o, a in opts:
-        
-        if o == "-a": 
+
+        if o == "-a":
             appdir = a
-        
+
         elif o == "-b":
             try:
                 env['debugLevel'] = int(a)
@@ -137,7 +137,7 @@ def argParser(argv):
             else:
                 if env['maxNumberOfRecoveryAttempts'] < 0:
                     env['maxNumberOfRecoveryAttempts'] = - env['maxNumberOfRecoveryAttempts']
-        
+
         elif o == "-d":
             env['workdir'] = a.strip()
             if env['workdir'].startswith("{"): # is an env. variable
@@ -150,10 +150,10 @@ def argParser(argv):
                     # OSCER test:
                     # workdir = '/hep/data/griddata'
                     raise KeyError
-        
-        elif o == "-e": 
+
+        elif o == "-e":
             env['logFileDir'] = a
-        
+
         elif o == "-f":
             jreq = a
             if jreq.upper() == "JOBREC":
@@ -163,26 +163,26 @@ def argParser(argv):
                 env['jobRequestFlag'] = True
             else:
                 env['jobRequestFlag'] = False
-        
-        elif o == "-g": 
+
+        elif o == "-g":
             env['inputDir'] = a
-        
-        elif o == "-h": 
+
+        elif o == "-h":
             env['queuename'] = a
-        
+
         elif o == "-i":
             if a == "PR" or a == "RC":
                 env['pilot_version_tag'] = a
             else:
                 print "Unknown pilot version tag: %s" % (a)
-        
+
         elif o == "-j":
             jr = a
             if jr.upper() == "TRUE":
                 env['jobrec'] = True
             else:
                 env['jobrec'] = False
-        
+
         elif o == "-k":
             try:
                 env['memory'] = int(a)
@@ -195,10 +195,10 @@ def argParser(argv):
                 env['wrapperFlag'] = True
             else:
                 env['wrapperFlag'] = False
-        
-        elif o == "-m": 
+
+        elif o == "-m":
             env['outputDir'] = a
-        
+
         elif o == "-n":
             try:
                 env['maxjobrec'] = int(a)
@@ -208,28 +208,28 @@ def argParser(argv):
                 if env['maxjobrec'] < 0:
                     env['maxjobrec'] = env['maxjobrecDefaultenv']
 
-        elif o == "-o": 
+        elif o == "-o":
             env['countryGroup'] = a
-        
+
         elif o == "-p":
             try:
                 env['psport'] = int(a)
             except ValueError:
                 print "psport not an integer:", a
 
-        elif o == "-q": 
+        elif o == "-q":
             env['dq2url'] = a
-        
+
         elif o == "-r":
             rmwd = a
             if rmwd.upper() == "TRUE":
                 env['rmwkdirenv'] = True
             elif rmwd.upper() == "FALSE":
                 env['rmwkdir'] = False
-        
-        elif o == "-s": 
+
+        elif o == "-s":
             env['sitename'] = a
-        
+
         elif o == "-t":
             pc_flag = str(a)
             if pc_flag.upper() == "TRUE":
@@ -237,15 +237,15 @@ def argParser(argv):
             else:
                 env['proxycheckFlag'] = False
 
-        elif o == "-u": 
+        elif o == "-u":
             env['uflag'] = a
-        
-        elif o == "-v": 
+
+        elif o == "-v":
             env['workingGroup'] = a
-        
-        elif o == "-w": 
+
+        elif o == "-w":
             env['pshttpurl'] = a #"https://voatlas220.cern.ch"
-        
+
         elif o == "-x":
             try:
                 env['stageinretry'] = int(a)
@@ -260,23 +260,23 @@ def argParser(argv):
                 env['loggingMode'] = False
             else:
                 env['loggingMode'] = None
-        
+
         elif o == "-z":
             update_flag = str(a)
             if update_flag.upper() == "TRUE":
                 env['updateServerFlag'] = True
             else:
                 env['updateServerFlag'] = False
-        
+
         elif o == "-A":
             if a.upper() == "TRUE":
                 env['allowOtherCountry'] = True
             else:
                 env['allowOtherCountry'] = False
-        
+
         elif o == "-B":
             pass
-        
+
         elif o == "-C":
             try:
                 env['timefloor_default'] = int(a)
@@ -288,14 +288,14 @@ def argParser(argv):
                 env['useCoPilot'] = False
             else:
                 env['useCoPilot'] = True
-        
+
         elif o == "-E":
             try:
                 env['stageoutretry'] = int(a)
             except ValueError:
                 print "stageoutretry not an integer:", a
 
-        elif o == "-F": 
+        elif o == "-F":
             env['experiment'] = a
 
             # Special case for Nordugrid: define env variable already here
@@ -303,7 +303,7 @@ def argParser(argv):
                 os.environ['Nordugrid_pilot'] = ""
                 print "Created environment variable \'Nordugrid_pilot\'"
 
-        elif o == "-G": 
+        elif o == "-G":
             try:
                 _getjobmaxtime = int(a)*60 # convert to seconds
             except ValueError:
@@ -435,17 +435,17 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
     _msg = ""
     try:
         # Note: alt stage-out numbers are not saved in recovery mode (job object not returned from this function)
-        rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (file_path), dsname, 
+        rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (file_path), dsname,
                                                           thisSite.sitename, thisSite.computingElement, ub=thisSite.dq2url, analysisJob=analJob,
                                                           proxycheck=env['proxycheckFlag'], spsetup=job.spsetup,scopeOut=job.scopeOut, scopeLog=job.scopeLog,
                                                           token=job.destinationDBlockToken, pinitdir=env['pilot_initdir'],
                                                           datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,
                                                           jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,
-                                                          dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, 
-                                                          jobCloud=job.cloud, logFile=job.logFile, 
-                                                          stageoutTries=env['stageoutretry'], experiment=experiment, 
-                                                          cmtconfig=cmtconfig, recoveryWorkDir=thisSite.workdir, 
-                                                          fileDestinationSE=job.fileDestinationSE)
+                                                          dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut,
+                                                          jobCloud=job.cloud, logFile=job.logFile,
+                                                          stageoutTries=env['stageoutretry'], experiment=experiment,
+                                                          cmtconfig=cmtconfig, recoveryWorkDir=thisSite.workdir,
+                                                          fileDestinationSE=job.fileDestinationSE, job=job) ##
     except Exception, e:
         pilotErrorDiag = "Put function can not be called for staging out: %s" % str(e)
         pUtil.tolog("!!%s!!1105!! %s" % (env['errorLabel'], pilotErrorDiag))
@@ -511,7 +511,7 @@ def FinishedJob(job):
     except:
         # finalstate is not defined (use alternative but less precise method)
         pUtil.tolog("!!WARNING!!1000!! Final state not defined - job was run by older pilot version")
-        
+
         # job has finished if pilotErrorCode is in the allowed list or recoverable jobs
         # get the pilot error diag
         error = PilotErrors()
@@ -626,7 +626,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
 
     number_of_recoveries = 0
     file_nr = 0
-    
+
     if recoveryDir != "":
         dir_path = recoveryDir
         pUtil.tolog("Recovery algorithm will search external dir for lost jobs: %s" % (dir_path))
@@ -663,7 +663,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                 if recoveryDir == "":
                     # make sure the LOCKFILE for the holding job is present (except when an external recoverydir is scanned)
                     dirname = os.path.dirname(file_path)
-                    lockFileName = dirname + "/LOCKFILE" 
+                    lockFileName = dirname + "/LOCKFILE"
                     if not os.path.exists(lockFileName):
                         # release the atomic lockfile and go to the next directory
                         releaseAtomicLockFile(fd, lockfile_name)
@@ -744,7 +744,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                     continue
                                 else:
                                     pUtil.tolog("(3) Not enough information in job state file, query server")
-                                    
+
                                     # get job status from server
                                     jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(_job.jobId, env['pshttpurl'], _psport, env['pilot_initdir'])
 
@@ -929,7 +929,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     pUtil.tolog("Removed data dir")
                                                 else:
                                                     pUtil.tolog("!!WARNING!!1110!! Failed to remove data dir")
-    
+
                                             # can log be registered?
                                             ret, _job = transferLogFile(_job, _site, jr=True)
                                             if not ret:
@@ -959,8 +959,8 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     _job.setState(['holding', _job.result[1], error.ERR_LOSTJOBFILETRANSFER])
 
                                             # update the server
-                                            rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr=strXML, 
-                                                                            ra=_recoveryAttempt, schedulerID = env['jobSchedulerId'], 
+                                            rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr=strXML,
+                                                                            ra=_recoveryAttempt, schedulerID = env['jobSchedulerId'],
                                                                             pilotID = env['pilotId'])
                                             if rt == 0:
                                                 number_of_recoveries += 1
@@ -1008,17 +1008,17 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                         pUtil.tolog("!!WARNING!!1110!! Job recovery can not recover this job! Fate of output files unknown")
                                                         _job.setState(['failed', _job.result[1], error.ERR_LOSTJOBRECOVERY])
                                                 else:
-                                                    pUtil.tolog("!!WARNING!!1110!! Job recovery can not recover this job! transExitCode=%d, pilotErrorCode=%d" 
+                                                    pUtil.tolog("!!WARNING!!1110!! Job recovery can not recover this job! transExitCode=%d, pilotErrorCode=%d"
                                                           %(_job.result[1], _job.result[2]))
                                                     _job.setState(['failed', _job.result[1], error.ERR_LOSTJOBRECOVERY])
-                                                
+
                                             # get the metadata
                                             strXML = pUtil.getMetadata(_site.workdir, _job.jobId)
 
                                             # update the server
-                                            rt, retNode = updatePandaServer(_job, _site, _psport, 
-                                                                            xmlstr=strXML, ra=_recoveryAttempt, 
-                                                                            schedulerID = env['jobSchedulerId'], 
+                                            rt, retNode = updatePandaServer(_job, _site, _psport,
+                                                                            xmlstr=strXML, ra=_recoveryAttempt,
+                                                                            schedulerID = env['jobSchedulerId'],
                                                                             pilotID = env['pilotId'])
                                             if rt == 0:
                                                 number_of_recoveries += 1
@@ -1081,8 +1081,8 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                             strXML = pUtil.getMetadata(_site.workdir, _job.jobId)
 
                                         # update the server
-                                        rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr=strXML, 
-                                                                        ra = _recoveryAttempt, 
+                                        rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr=strXML,
+                                                                        ra = _recoveryAttempt,
                                                                         schedulerID = env['jobSchedulerId'],
                                                                         pilotID = env['pilotId'])
                                         if rt == 0:
@@ -1097,7 +1097,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                             if "tobekilled" in _job.action:
                                                 pUtil.tolog("!!WARNING!!1120!! Panda server returned a \'tobekilled\' command")
                                                 _job.result[0] = "failed"
-                                                
+
                                             # further recovery attempt unnecessary, but keep the work dir for debugging
                                             if _job.result[0] == "failed":
                                                 pUtil.tolog("Further recovery attempts will be prevented for failed job (will leave work dir)")
@@ -1153,9 +1153,9 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                             strXML = pUtil.getMetadata(_site.workdir, _job.jobId)
 
                                             # update the server
-                                            rt, retNode = updatePandaServer(_job, _site, _psport, 
-                                                                            xmlstr = strXML, ra = _recoveryAttempt, 
-                                                                            schedulerID = env['jobSchedulerId'], 
+                                            rt, retNode = updatePandaServer(_job, _site, _psport,
+                                                                            xmlstr = strXML, ra = _recoveryAttempt,
+                                                                            schedulerID = env['jobSchedulerId'],
                                                                             pilotID = env['pilotId'])
                                             if rt == 0:
                                                 number_of_recoveries += 1
@@ -1225,9 +1225,9 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                             strXML = pUtil.getMetadata(_site.workdir, _job.jobId)
 
                                                             # update the server
-                                                            rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML, 
-                                                                                            ra = _recoveryAttempt, 
-                                                                                            schedulerID = env['jobSchedulerId'], 
+                                                            rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML,
+                                                                                            ra = _recoveryAttempt,
+                                                                                            schedulerID = env['jobSchedulerId'],
                                                                                             pilotID = env['pilotId'])
                                                             if rt == 0:
                                                                 pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
@@ -1262,7 +1262,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                                 pUtil.tolog("!!WARNING!!1130!! Failed to remove data dir")
 
                                                             # create log file and update panda server
-                                                            pUtil.postJobTask(_job, _site, env['workerNode'], env['experiment'], jr=True, ra=_recoveryAttempt)                                                            
+                                                            pUtil.postJobTask(_job, _site, env['workerNode'], env['experiment'], jr=True, ra=_recoveryAttempt)
                                                             number_of_recoveries += 1
                                                             # release the atomic lockfile and go to the next directory
                                                             releaseAtomicLockFile(fd, lockfile_name)
@@ -1299,7 +1299,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     releaseAtomicLockFile(fd, lockfile_name)
                                                     continue
 
-                                            else: # EC != 0 
+                                            else: # EC != 0
                                                 # create log file and update panda server
                                                 pUtil.postJobTask(_job, _site, env['workerNode'], env['experiment'], jr=True, ra=_recoveryAttempt)
                                                 number_of_recoveries += 1
@@ -1356,8 +1356,8 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     strXML = pUtil.getMetadata(_site.workdir, _job.jobId)
 
                                                     # update the server
-                                                    rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML, 
-                                                                                    ra = _recoveryAttempt, 
+                                                    rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML,
+                                                                                    ra = _recoveryAttempt,
                                                                                     schedulerID = env['jobSchedulerId'],
                                                                                     pilotID = env['pilotId'])
                                                     if rt == 0:
@@ -1407,9 +1407,9 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     strXML = pUtil.getMetadata(_site.workdir, _job.jobId)
 
                                                     # update the server
-                                                    rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML, 
-                                                                                    ra = _recoveryAttempt, 
-                                                                                    schedulerID = env['jobSchedulerId'], 
+                                                    rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML,
+                                                                                    ra = _recoveryAttempt,
+                                                                                    schedulerID = env['jobSchedulerId'],
                                                                                     pilotID = env['pilotId'])
                                                     if rt == 0:
                                                         number_of_recoveries += 1
@@ -1425,7 +1425,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                             pUtil.tolog("Further recovery attempts will be prevented for failed job (will leave work dir)")
                                                             if not JS.rename(_site, _job):
                                                                 pUtil.tolog("(Fate of job state file left for next pilot)")
-                                                                
+
                                                         # only cleanup work dir if no error code has been set
                                                         if _job.result[0] == 'finished':
                                                             if not JS.cleanup():
@@ -1462,9 +1462,9 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                     strXML = pUtil.getMetadata(_site.workdir, _job.jobId)
 
                                                 # update the server
-                                                rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML, 
-                                                                                ra = _recoveryAttempt, 
-                                                                                schedulerID = env['jobSchedulerId'], 
+                                                rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML,
+                                                                                ra = _recoveryAttempt,
+                                                                                schedulerID = env['jobSchedulerId'],
                                                                                 pilotID = env['pilotId'])
                                                 if rt == 0:
                                                     pUtil.tolog("Lost job %s updated (exit code %d)" % (_job.jobId, _job.result[2]))
@@ -1530,9 +1530,9 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                             strXML = pUtil.getMetadata(_site.workdir, _job.jobId)
 
                                         # update the server
-                                        rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML, 
-                                                                        ra = _recoveryAttempt, 
-                                                                        schedulerID = env['jobSchedulerId'], 
+                                        rt, retNode = updatePandaServer(_job, _site, _psport, xmlstr = strXML,
+                                                                        ra = _recoveryAttempt,
+                                                                        schedulerID = env['jobSchedulerId'],
                                                                         pilotID = env['pilotId'])
                                         if rt == 0:
                                             number_of_recoveries += 1
@@ -1541,7 +1541,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
                                                 pUtil.tolog("!!WARNING!!1140!! Failed to cleanup")
                                                 # release the atomic lockfile and go to the next directory
                                                 releaseAtomicLockFile(fd, lockfile_name)
-                                                continue    
+                                                continue
 
                                             # did the server send back a command?
                                             if "tobekilled" in _job.action:
@@ -1600,7 +1600,7 @@ def checkForLateRegistration(dq2url, job, site, node, type="output"):
     if dq2url == "None" or dq2url == None or dq2url == "": # dq2url is 'None' outside the US
         return True
 
-    rc = pUtil.lateRegistration(dq2url, job, type=type) 
+    rc = pUtil.lateRegistration(dq2url, job, type=type)
     if rc:
         # update job state file to prevent any further registration attempts for these files
         try:
@@ -1632,26 +1632,26 @@ def checkForLateRegistration(dq2url, job, site, node, type="output"):
 
     return status
 
-def updatePandaServer(job, site, port, xmlstr = None, spaceReport = False, 
-                      log = None, ra = 0, jr = False, schedulerID = None, pilotID = None, 
+def updatePandaServer(job, site, port, xmlstr = None, spaceReport = False,
+                      log = None, ra = 0, jr = False, schedulerID = None, pilotID = None,
                       updateServer = True, stdout_tail = ""):
     """ Update the panda server with the latest job info """
 
     # create and instantiate the client object
     from PandaServerClient import PandaServerClient
     client = PandaServerClient(pilot_version = env['version'],
-                               pilot_version_tag = env['pilot_version_tag'], 
-                               pilot_initdir = env['pilot_initdir'], 
-                               jobSchedulerId = schedulerID, 
+                               pilot_version_tag = env['pilot_version_tag'],
+                               pilot_initdir = env['pilot_initdir'],
+                               jobSchedulerId = schedulerID,
                                pilotId = pilotID,
-                               updateServer = env['updateServerFlag'], 
-                               jobrec = env['jobrec'], 
+                               updateServer = env['updateServerFlag'],
+                               jobrec = env['jobrec'],
                                pshttpurl = env['pshttpurl'])
 
     # update the panda server
-    return client.updatePandaServer(job, site, env['workerNode'], port, xmlstr = xmlstr, 
-                                    spaceReport = spaceReport, log = log, ra = ra, 
-                                    jr = jr, useCoPilot = env['useCoPilot'], 
+    return client.updatePandaServer(job, site, env['workerNode'], port, xmlstr = xmlstr,
+                                    spaceReport = spaceReport, log = log, ra = ra,
+                                    jr = jr, useCoPilot = env['useCoPilot'],
                                     stdout_tail = stdout_tail)
 
 def transferLogFile(job, site, dest=None, jr=False):
@@ -1668,7 +1668,7 @@ def transferLogFile(job, site, dest=None, jr=False):
 
     # transfer the log
     return joblog.transferLogFile(job, site, env['experiment'], dest=dest, jr=jr)
-    
+
 
 def dumpVars(thisSite):
     """ dump argParser variables """
@@ -1973,7 +1973,7 @@ def getDN():
     return DN, pilotErrorDiag
 
 def writeDispatcherEC(EC):
-    """ write the dispatcher exit code to file """    
+    """ write the dispatcher exit code to file """
     filename = os.path.join(env['pilot_initdir'], "STATUSCODE")
     if os.path.exists(filename):
         try:
@@ -1982,7 +1982,7 @@ def writeDispatcherEC(EC):
             pUtil.tolog("Warning: Could not remove file: %s" % str(e))
         else:
             pUtil.tolog("Removed existing STATUSCODE file")
-    pUtil.writeToFile(os.path.join(filename), str(EC))    
+    pUtil.writeToFile(os.path.join(filename), str(EC))
 
 def getStatusCode(data):
     """ get and write the dispatcher status code to file """
@@ -2002,7 +2002,7 @@ def getStatusCode(data):
     return StatusCode
 
 def backupDispatcherResponse(response, tofile):
-    """ Backup response (will be copied to workdir later) """        
+    """ Backup response (will be copied to workdir later) """
     try:
         fh = open(env['pandaJobDataFileName'], "w")
         fh.write(response)
@@ -2107,7 +2107,7 @@ def getNewJob(tofile=True):
 
         if ret[0]: # non-zero return
             return None, pUtil.getDispatcherErrorDiag(ret[0])
-        
+
     if StatusCode != '0':
         pilotErrorDiag = "No job received from jobDispatcher, StatusCode: %s" % (StatusCode)
         pUtil.tolog("%s" % (pilotErrorDiag), tofile=tofile)
@@ -2168,7 +2168,7 @@ def getNewJob(tofile=True):
     if transferType != "":
         # we will overwrite whatever is in job.transferType using jobPars
         data['transferType'] = transferType
-                                
+
     # update the copytoolin if transferType is set to fax/xrd
     if data.has_key('transferType'):
         if data['transferType'] == 'fax' or data['transferType']== 'xrd':
@@ -2215,30 +2215,30 @@ def getNewJob(tofile=True):
         newJob.prodSourceLabel = prodSourceLabel
     else:
         pUtil.tolog("New job has prodSourceLabel=%s" % (newJob.prodSourceLabel))
-        
+
     # should we use debug mode?
     if data.has_key('debug'):
         if data['debug'].lower() == "true":
             env['update_freq_server'] = 5*30
             pUtil.tolog("Debug mode requested: Updating server update frequency to %d s" % (env['update_freq_server']))
 
-    # Eddie: try to get user proxy from data['userproxy']                                                                                                                           
+    # Eddie: try to get user proxy from data['userproxy']
     if data.has_key('userProxy'):
         pUtil.tolog('Retrieving userproxy from panda-server')
         env['userProxy'] = data['userProxy']
     else:
         pUtil.tolog('no user proxy in data')
-        # Eddie: what do we do when there is no user proxy? Do we use the proxy that started the pilot?                                                                         
+        # Eddie: what do we do when there is no user proxy? Do we use the proxy that started the pilot?
         env['userProxy'] = ''
 
     # create a start time file in the pilot init dir (time stamp will be read and sent to the server with the job update
     if shouldCreateTimeStampFile:
         pUtil.writeTimeStampToFile(path=env['pilot_initdir'], filename='START_TIME_%s' % (newJob.jobId), overwrite=False)
- 
+
     return newJob, ""
 
 def getJob():
-    """ Download a new job from the dispatcher """    
+    """ Download a new job from the dispatcher """
     ec = 0
     job = None
     error = PilotErrors()
@@ -2335,7 +2335,7 @@ def getsetWNMem(memory):
 
     # Set the memory limit
     if maxmemory > 0:
-    
+
         # Convert MB to Bytes for the setrlimit function
         _maxmemory = maxmemory*1024**2
 
@@ -2399,7 +2399,7 @@ def runMain(runpars):
         # verify inputDir and outputDir
         getInOutDirs()
 
-        ec, env['thisSite'], env['jobrec'], env['hasQueuedata'] = pUtil.handleQueuedata(env['queuename'], env['schedconfigURL'], error, env['thisSite'], env['jobrec'], 
+        ec, env['thisSite'], env['jobrec'], env['hasQueuedata'] = pUtil.handleQueuedata(env['queuename'], env['schedconfigURL'], error, env['thisSite'], env['jobrec'],
                                                                                         env['experiment'], forceDownload = False, forceDevpilot = env['force_devpilot'])
         if ec != 0:
             return pUtil.shellExitCode(ec)
@@ -2449,7 +2449,7 @@ def runMain(runpars):
             return pUtil.shellExitCode(ec)
 
         # create the watch dog
-        wdog = WatchDog()   
+        wdog = WatchDog()
 
         # register cleanup function
         atexit.register(pUtil.cleanup, wdog, env['pilot_initdir'], env['wrapperFlag'], env['rmwkdir'])
@@ -2458,7 +2458,7 @@ def runMain(runpars):
         ec = thisExperiment.checkSpecialEnvVars(env['thisSite'].sitename)
         if ec != 0:
             return pUtil.shellExitCode(ec)
-    
+
         signal.signal(signal.SIGTERM, pUtil.sig2exc)
         signal.signal(signal.SIGQUIT, pUtil.sig2exc)
         signal.signal(signal.SIGSEGV, pUtil.sig2exc)
@@ -2500,7 +2500,7 @@ def runMain(runpars):
         # loop until pilot has run out of time (defined by timefloor)
         env['multijob_startup'] = int(time.time())
         env['hasMultiJob'] = False
-        
+
         while True:
 
             # create the pilot workdir (if it was not created before, needed for the first job)
@@ -2520,7 +2520,7 @@ def runMain(runpars):
             if env['proxycheckFlag']:
                 ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="")
                 if ec != 0:
-                    pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
+                    pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
                     return pUtil.shellExitCode(ec)
 
             pUtil.tolog("Collecting WN info from: %s" % (os.path.dirname(env['thisSite'].workdir)))
@@ -2531,7 +2531,7 @@ def runMain(runpars):
             ec = checkLocalDiskSpace(error)
             if ec != 0:
                 pUtil.tolog("Pilot was executed on host: %s" % (env['workerNode'].nodename))
-                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
+                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
                 return pUtil.shellExitCode(ec)
 
             # getJob begins here....................................................................................
@@ -2544,13 +2544,13 @@ def runMain(runpars):
                 # remove the site workdir before exiting
                 # pUtil.writeExitCode(thisSite.workdir, error.ERR_GENERALERROR)
                 # raise SystemError(1111)
-                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir']) 
+                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
                 if ec == -1: # reset temporary error code (see getJob)
                     ec = 0
                 return pUtil.shellExitCode(ec)
             else:
                 env['isJobDownloaded'] = True
-                pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))            
+                pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))
 
             # verify any contradicting job definition parameters here
             try:
@@ -2653,7 +2653,7 @@ def runMain(runpars):
 
         if len(str(errorMsg)) == 0:
             errorMsg = "(empty error string)"
-                                                                
+
         import traceback
         if 'format_exc' in traceback.__all__:
             pilotErrorDiag = "Exception caught in pilot: %s, %s" % (str(errorMsg), traceback.format_exc())
@@ -2720,5 +2720,5 @@ def runMain(runpars):
 
 # main
 if __name__ == "__main__":
-    
+
     runMain(sys.argv[1:])

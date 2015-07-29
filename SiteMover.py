@@ -23,17 +23,17 @@ LFC_HOME = '/grid/atlas/'
 
 class SiteMover(object):
     """
-    File movers move files between a storage element (of different kinds) and a local directory    
+    File movers move files between a storage element (of different kinds) and a local directory
     get_data: SE->local
     put_data: local->SE
     check_space: available space in SE
     getMover: static function returning a SiteMover
-    
+
     It furter provides functions useful for child classes (AAASiteMover):
     put_data_retfail -- facilitate return in case of failure
     mkdirWperm -- create recursively dirs setting appropriate permissions
     getLocalFileInfo -- get size and checksum of a local file
-    
+
     This is the Default SiteMover, the SE has to be locally accessible for all the WNs
     and all commands like cp, mkdir, md5checksum have to be available on files in the SE
     E.g. NFS exported file system
@@ -57,9 +57,34 @@ class SiteMover(object):
     CONDPROJ = ['oflcond', 'comcond', 'cmccond', 'tbcond', 'tbmccond', 'testcond']
     PRODFTYPE = ['AOD', 'CBNT', 'ESD', 'EVNT', 'HIST', 'HITS', 'RDO', 'TAG', 'log', 'NTUP']
 
+    ddmEndPointIn  = []
+    ddmEndPointOut = []
+    ddmEndPointLog = []
+
     def __init__(self, setup_path='', *args, **kwrds):
         self._setup = setup_path
-    
+
+    def init_data(self, job):
+
+        if job:
+            self.ddmEndPointIn  = job.ddmEndPointIn
+            self.ddmEndPointOut = job.ddmEndPointOut
+            self.ddmEndPointLog = job.ddmEndPointLog
+
+    def _dump_ddmprotocols(self): # quick debug function to display DDM protocols data
+
+        from SiteInformation import SiteInformation
+        si = SiteInformation()
+
+        tolog("INFO: _dump_ddmprotocols data: following protocols defined for stagein (ddmEndPointIn):")
+
+        protocols = si.resolveDDMProtocols(self.ddmEndPointIn, 'pr')
+        tolog("INFO: ddmEndPointIn = %s, protocols=%s" % (self.ddmEndPointIn, protocols))
+
+        protocols = si.resolveDDMProtocols(self.ddmEndPointOut, 'pw')
+        tolog("INFO: ddmEndPointOut = %s, protocols=%s" % (self.ddmEndPointOut, protocols))
+
+
     def get_timeout(self):
         return self.timeout
 
@@ -70,7 +95,7 @@ class SiteMover(object):
     def getID(self):
         """ return the current copy command """
         return self.copyCommand
-    
+
     def getSetup(self):
         """ Return the setup string (pacman setup os setup script) for the copy command used by the mover """
         return self._setup
@@ -139,7 +164,7 @@ class SiteMover(object):
     def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, **pdict):
         """
         Move a file from the local SE (where it was put from DDM) to the working directory.
-        gpfn: full source URL (e.g. method://[host[:port]/full-dir-path/filename - a SRM URL is OK) 
+        gpfn: full source URL (e.g. method://[host[:port]/full-dir-path/filename - a SRM URL is OK)
         path: destination absolute path (in a local file system). It is assumed to be there. get_data returns an error if the path is missing
         The local file is assumed to have a relative path that is the same of the relative path in the 'gpfn'
         loc_...: variables used to access the file in the locally exported file system
@@ -373,7 +398,7 @@ class SiteMover(object):
             if se != "":
                 # Now extract the seprodpath from the srm info
                 sepath = SiteMover.extractSEPath(se)
-                
+
                 # Add /rucio to sepath if not there already
                 if not sepath.endswith('/rucio'):
                     sepath += '/rucio'
@@ -432,7 +457,7 @@ class SiteMover(object):
         fsize: file size of the source file (evaluated if 0)
         fchecksum: checksum of the source file (evaluated if 0)
         pdict: to allow additional parameters that may make sense for specific movers
-        
+
         Assume that the SE is locally mounted and its local path is the same as the remote path
         if both fsize and fchecksum (for the source) are given and !=0 these are assumed without reevaluating them
         returns: exitcode, gpfn, fsize, fchecksum
@@ -506,7 +531,7 @@ class SiteMover(object):
 
         filename = os.path.basename(source)
 
-        ec, pilotErrorDiag, tracer_error, dst_loc_pfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_loc_pfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
             self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
@@ -625,10 +650,10 @@ class SiteMover(object):
 
         # Special case for GROUPDISK
         # In this case, (e.g.) token = 'dst:AGLT2_PERF-MUONS'
-        # Pilot should then consult TiersOfATLAS and get it from the corresponding srm entry 
+        # Pilot should then consult TiersOfATLAS and get it from the corresponding srm entry
         if token != None and "dst:" in token:
             # if the job comes from a different cloud than the sites' cloud, destination will be set to "" and the
-            # default space token will be used instead (the transfer to groupdisk will be handled by DDM not pilot) 
+            # default space token will be used instead (the transfer to groupdisk will be handled by DDM not pilot)
             destination = self.getGroupDiskPath(endpoint=token)
 
             if destination != "":
@@ -780,7 +805,7 @@ class SiteMover(object):
         1. check DQ space URL
         2. invoke _check_space, specific for each SiteMover
          (e.g. SiteMover's _check_space get storage path and check local space availability)
-         
+
         """
         # http://bandicoot.uits.indiana.edu:8000/dq2/space/free
         # http://bandicoot.uits.indiana.edu:8000/dq2/space/total
@@ -847,7 +872,7 @@ class SiteMover(object):
         else:
             return avail
 
-    def check_space_df(self, dst_loc_se): 
+    def check_space_df(self, dst_loc_se):
         """ Run df to check space availability """
 
         avail = -1
@@ -959,11 +984,13 @@ class SiteMover(object):
         else:
             tolog("!!WARNING!!21211! Tracing report does not have a timeStart entry: %s" % str(report))
 
+    @classmethod
     def getSURLDictionaryFilename(self, directory, jobId):
         """ return the name of the SURL dictionary file """
 
         return os.path.join(directory, "surlDictionary-%s.%s" % (jobId, getExtension()))
 
+    @classmethod
     def getSURLDictionary(self, directory, jobId):
         """ get the SURL dictionary from file """
 
@@ -1006,6 +1033,7 @@ class SiteMover(object):
 
         return surlDictionary
 
+    @classmethod
     def putSURLDictionary(self, surlDictionary, directory, jobId):
         """ store the updated SURL dictionary """
 
@@ -1035,6 +1063,7 @@ class SiteMover(object):
 
         return status
 
+    @classmethod
     def updateSURLDictionary(self, guid, surl, directory, jobId):
         """ add the guid and surl to the surl dictionary """
 
@@ -1215,12 +1244,12 @@ class SiteMover(object):
         """
         - if the dir already exists, silently completes
         - if a regular file is in the way, raise an exception
-        - parent directory does not exist, make it as well 
+        - parent directory does not exist, make it as well
         Permissions are set as they should be.
         PERMISSIONS_DIR is loaded from config.config_sm and it is currently 0775 (group write)
         """
         tolog("Creating dir %s" % newdir)
-        
+
         if os.path.isdir(newdir):
             pass
         elif os.path.isfile(newdir):
@@ -1406,7 +1435,7 @@ class SiteMover(object):
         except IndexError:
             return stripped_tag
 
-        return stripped_tag 
+        return stripped_tag
     __strip_tag = staticmethod(__strip_tag)
 
     # Code taken from same source as above
@@ -1722,7 +1751,7 @@ class SiteMover(object):
         if match and "atlasdatatape" in se:
             filtered_path = match[0]
             tolog("Found unwanted stage-in info in SE path, will filter it away: %s" % (filtered_path))
-            se = se.replace(filtered_path, "atlasdatatape") 
+            se = se.replace(filtered_path, "atlasdatatape")
 
         return se
 
@@ -1831,7 +1860,7 @@ class SiteMover(object):
         return stripped_se
 
     getSEFromToken = staticmethod(getSEFromToken)
-                                                                
+
     def getTokenFromPath(path):
         """ return the space token from an SRMv2 end point path """
         # example:
@@ -2493,7 +2522,7 @@ class SiteMover(object):
         The python version below has been reworked with Charles
         This should be no more necessary once Chimera is adopted.
         """
-        
+
         for attempt in range(1,4):
             f = open("%s/.(use)(2)(%s)" % (directory, filename), 'r')
             data = f.readlines()
@@ -3178,6 +3207,8 @@ class SiteMover(object):
 
     def getFullPath(self, scope, spacetoken, lfn, analyJob, prodSourceLabel, alt=False):
         """ Construct a full PFN using site prefix, space token, scope and LFN """
+
+        self._dump_ddmprotocols() # DEBUG
 
         # <protocol>://<hostname>:<port>/<protocol_prefix>/ + <site_prefix>/<space_token>/rucio/<scope>/md5(<scope>:<lfn>)[0:2]/md5(<scope:lfn>)[2:4]/<lfn>
 

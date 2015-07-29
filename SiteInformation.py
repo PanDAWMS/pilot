@@ -7,10 +7,18 @@ import os
 import re
 import commands
 import urlparse
+import urllib2
+from datetime import datetime, timedelta
 from pUtil import tolog, replace, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
 from FileHandling import getExtension, readJSON, writeJSON
 from PilotErrors import PilotErrors
+
+try:
+    import json
+except ImportError:
+    import simplejson as json
+
 
 class SiteInformation(object):
     """
@@ -26,6 +34,8 @@ class SiteInformation(object):
     __error = PilotErrors()                # PilotErrors object
     __securityKeys = {}                    # S3 secret keys (for object store)
     __queuename = ""                       # Name of the queue
+
+    ddmconf = {}                           # DDMEndpoints data dict with protocols definition
 
     def __init__(self):
         """ Default initialization """
@@ -64,7 +74,7 @@ class SiteInformation(object):
                 tolog("!!WARNING!!2999!! Could not read queuedata file: %s" % str(e))
                 fh = None
         if fh:
-            # 
+            #
             queuedata = fh.read()
             fh.close()
             if queuedata != "":
@@ -291,14 +301,14 @@ class SiteInformation(object):
 
         # Input:
         #   queuename = name of the PanDA queue (e.g. CERN-PROD-all-prod-CEs)
-        #   forceDownload = False (default), 
-        #   alt = False (default), if alternative queuedata should be downloaded (if stage-out to an alternative SE, new queuedata is needed 
+        #   forceDownload = False (default),
+        #   alt = False (default), if alternative queuedata should be downloaded (if stage-out to an alternative SE, new queuedata is needed
         #         but it will not overwrite the old queuedata)
         # Returns:
         #   error code (int), status for queuedata download (boolean)
 
         if url == "":
-            exp = getExperimentObject(self.__experiment)
+            exp = getExperimentObject(self.__experiment)  # this is a bug and should not work as expected if getQueuedata() is called from child class (e.g. from ATLASSiteInformation) since self.__experiment is PRIVATE in this scope! (anisyonk)
             url = exp.getSchedconfigURL()
             tolog("The schedconfig URL was not set by the wrapper - Will use default server url = %s (hardcoded)" % (url))
 
@@ -619,7 +629,7 @@ class SiteInformation(object):
                             fields[n-1] = "True"  # directIn
                             fields[n-2] = "False" # useFileStager
                         if transferType == "direct":
-                            fields[n-1] = "True"  # directIn 
+                            fields[n-1] = "True"  # directIn
                             fields[n-2] = "False" # make sure file stager is turned off
                     # in case directIn or useFileStager were set in jobParameters or with transferType
                     else:
@@ -752,6 +762,11 @@ class SiteInformation(object):
         """ Return a string with the experiment name """
 
         return self.__experiment
+
+    def getExperimentObject(self): # quick stub: to be properly implemented later
+
+        return getExperimentObject(self.getExperiment())
+
 
     def allowAlternativeStageOut(self, flag=None):
         """ Is alternative stage-out allowed? """
@@ -903,7 +918,7 @@ class SiteInformation(object):
                 tolog("Cut away trailing / from %s (see copyprefix[in])" % (pfrom))
         if pto == "":
             pto = "dummy"
-        
+
         if "," in pfrom:
             pfroms = pfrom.split(",")
         else:
@@ -1090,7 +1105,7 @@ class SiteInformation(object):
     # Required if use S3 objectstore
     def getSecurityKey(self, privateKeyName, publicKeyName):
         """ Return the key pair """
-        
+
         return {"publicKey": None, "privateKey": None}
 
     # Required if use S3 objectstore
@@ -1301,6 +1316,159 @@ class SiteInformation(object):
         # E.g. atlas_logs (for mode='logs')
 
         return self.getObjectstoresField('os_bucket_endpoint', mode)
+
+    @classmethod
+    def isFileExpired(self, fname, cache_time=0): ## should be isolated later
+        """ check if file fname older then cache_time seconds from its last_update_time """
+        if cache_time:
+            lastupdate = self.getFileLastupdateTime(fname)
+            return not (lastupdate and datetime.now() - lastupdate < timedelta(seconds=cache_time))
+
+        return True
+
+    @classmethod
+    def getFileLastupdateTime(self, fname): ## should be isolated later
+        try:
+            lastupdate = datetime.fromtimestamp(os.stat(fname).st_mtime)
+        except OSError, e:
+            lastupdate = None
+        return lastupdate
+
+    @classmethod
+    def loadURLData(self, url, fname=None, cache_time=0, nretry=3): # should be unified and isolated later
+        """
+        Download data from url/file resource and optionally save it into cachefile fname,
+        The file will not be (re-)loaded again if cache age from last file modification does not exceed "cache_time" seconds
+        :return: data loaded from the url or file content if url passed is a filename
+        """
+
+        content = None
+        if url and self.isFileExpired(fname, cache_time): # load data into temporary cache file
+            for trial in range(nretry):
+                if content:
+                    break
+                try:
+                    if os.path.isfile(url):
+                        tolog('[attempt=%s] Loading data from file=%s' % (trial, url))
+                        f = open(url, "r") # python 2.5 .. replace by 'with' statement (min python2.6??)
+                        content = f.read()
+                        f.close()
+                    else:
+                        tolog('[attempt%s] Loading data from url=%s' % (trial, url))
+                        #content = urllib2.urlopen(url, timeout=20).read() # python2.6
+                        content = urllib2.urlopen(url).read() # python 2.5
+
+                    if fname: # save to cache
+                        f = open(fname, "w+")
+                        f.write(content)
+                        f.close()
+                        tolog('Saved data from "%s" resource into file=%s, length=%.1fKb' % (url, fname, len(content)/1024.))
+                    return content
+                except Exception, e: # ignore errors, try to use old cache if any
+                    tolog("Failed to load data from url=%s, error: %s .. trying to use data from cache=%s" % (url, e, fname))
+                    # will try to use old cache below
+
+        if content is not None: # just loaded
+            return content
+
+        try:
+            f = open(fname, "r")
+            content = f.read()
+            f.close()
+        except Exception, e:
+            tolog("!!WARNING!! loadURLData: Exception catched: %s" % e)
+            return None
+            # raise # ??
+
+        return content
+
+    def loadDDMConfData(self, ddmendpoints=[], cache_time=60):
+
+        # try to get data from CVMFS first
+        # then AGIS or Panda JSON sources
+        # passing cache time is a quick hack to avoid overloading
+        # normally ddmconf data should be loaded only once in the init function and saved as dict like self.ddmconf = loadDDMConfData
+
+        # list of sources to fetch ddmconf data from
+        base_dir = os.environ.get('PilotHomeDir', '')
+        ddmconf_sources = {'CVMFS': {'url': '/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmendpoints.json',
+                                     'nretry': 1,
+                                     'fname': os.path.join(base_dir, 'agis_ddmendpoints.cvmfs.json')},
+                           'AGIS':  {'url':'http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&preset=dict&ddmendpoint=%s' % ','.join(ddmendpoints),
+                                     'nretry':3,
+                                     'fname': os.path.join(base_dir, 'agis_ddmendpoints.agis.%s.json' % ('_'.join(sorted(ddmendpoints))) or 'ALL')},
+                           'PANDA' : None
+        }
+
+        ddmconf_sources_order = ['CVMFS', 'AGIS'] # can be moved into the schedconfig in order to configure workflow in AGIS on fly: TODO
+
+        for key in ddmconf_sources_order:
+            dat = ddmconf_sources.get(key)
+            if not dat:
+                continue
+
+            content = self.loadURLData(cache_time=cache_time, **dat)
+            if not content:
+                continue
+            try:
+                data = json.loads(content)
+            except Exception, e:
+                tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('source'), e))
+                data = None
+
+            if data and isinstance(data, dict):
+                return data
+
+        return None
+
+    def resolveDDMConf(self, ddmendpoints):
+
+        if not ddmendpoints:
+            return {}
+
+        self.ddmconf = self.loadDDMConfData(ddmendpoints, cache_time=6000) or {} # quick stub: fix me later: ddmconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+
+        return self.ddmconf
+
+    def resolveDDMProtocols(self, ddmendpoints, activity):
+        """
+            Resolve [SE endpoint, SE path] protocol entry for requested ddmendpoint by given pilot activity ("pr" means pilot_read, "pw" for pilot_write)
+            Return the list of possible protocols ordered by priority
+            :return: dict('ddmendpoint_name':[(SE_1, path2), (SE_2, path2)])
+        """
+
+        if not ddmendpoints:
+            return {}
+
+        self.ddmconf = self.loadDDMConfData(ddmendpoints, cache_time=6000) or {} # quick stub: fix me later: ddmconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+
+        ret = {}
+        for ddm in set(ddmendpoints):
+            protocols = [dict(se=e[0], se_path=e[2], copytool=None, copysetup=None) for e in sorted(self.ddmconf.get(ddm, {}).get('aprotocols', {}).get(activity, []), key=lambda x: x[1])] # FIX ME LATER: with proper copytool and copysetup
+            ret.setdefault(ddm, protocols)
+
+        return ret
+
+
+    def resolvePandaProtocols(self, ddmendpoints, activity):
+        """
+            Resolve (SE endpoint, path, copytool, copyprefix) protocol entry for requested ddmendpoint by given pilot activity ("pr" means pilot_read, "pw" for pilot_write)
+            Return the list of possible protocols ordered by priority
+            :return: dict('ddmendpoint_name':[(SE_1, path2, copytool, copyprefix), )
+        """
+
+        # quick stab implementation: fetch data from DDMEndpoint JSON (PQ independent)
+        # FIX me later:  do fetch data from PandaQueue schedconfig JSON (PQ related)
+        #
+
+        ret = self.resolveDDMProtocols(ddmendpoints, activity)
+        for ddm,prots in ret.iteritems():
+            for dat in prots:
+                dat.setdefault('copytool', None)  # quick stub
+                dat.setdefault('copysetup', None) # quick stub
+
+        return ret
+
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

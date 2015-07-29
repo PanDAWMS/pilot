@@ -116,11 +116,11 @@ class JobLog:
                 #status = False
             else:
                 # Update the OS transfer dictionary
-                # Get the OS name identifier and bucket endpoint                                                                                                                                                                      
+                # Get the OS name identifier and bucket endpoint
                 os_name = si.getObjectstoreName("eventservice")
                 os_bucket_endpoint = si.getObjectstoreBucketEndpoint("logs")
 
-                # Add the transferred file to the OS transfer file                                                                                                                                                                
+                # Add the transferred file to the OS transfer file
                 addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_name, os_bucket_endpoint)
 
             # finally restore the modified schedconfig fields
@@ -246,7 +246,7 @@ class JobLog:
                                                                   recoveryWorkDir = site.workdir,
                                                                   experiment = job.experiment,
                                                                   fileDestinationSE = job.fileDestinationSE,
-                                                                  logPath = logPath)
+                                                                  logPath = logPath, job=job) ##
         except Exception, e:
             rmflag = 0 # don't remove the tarball
             status = False
@@ -808,7 +808,7 @@ class JobLog:
 #                tolog("Pilot failed to restore the proxy: %s" % str(e))
 
             tolog("Preparing to create log file")
-    
+
             # protect the work dir until the log has been registered
             createLockFile(self.__env['jobrec'], site.workdir)
             # create log file and register it
@@ -826,13 +826,13 @@ class JobLog:
                 # create metadata later (in updatePandaServer) for the log at least, if it doesn't exist already
                 if (strXML == "" or strXML == None) and job.result[0] == 'failed':
                     tolog("metadata will be created for the log only in updatePandaServer")
-    
+
                 # update the job state file
                 JR = JobRecovery()
                 if job.jobState != "stageout":
                     job.jobState = "stageout"
                     _retjs = JR.updateJobStateTest(job, site, workerNode, mode="test")
-    
+
                 # register/copy log file
                 ret, job = self.transferLogFile(job, site, experiment, dest=self.__env['logFileDir'], jr=jr)
                 if not ret:
@@ -847,7 +847,7 @@ class JobLog:
                         self.removeLockFile(site.workdir)
                     else:
                         tolog("!!WARNING!!1600!! Job failed with EC %d - lock file will not be removed (job might be recovered by a later pilot)" % job.result[2])
-    
+
                 # transfer additional files for CERNVM (below, after the final server update which update the job state file with the metadata XML)
                 # note: only needed in CoPilot mode
                 fname = os.path.join(site.workdir, job.outputFilesXML)
@@ -982,17 +982,17 @@ class JobLog:
         Transfer additional CERNVM files for CERNVM to the intermediate storage location
         where it will be read by special tool responsible for final SE transfers
         """
-    
+
         status = True
         error = PilotErrors()
         pilotErrorDiag = ""
         N_filesNormalStageOut = 0
-        N_filesAltStageOut = 0    
+        N_filesAltStageOut = 0
 
         tolog("Preparing to transfer additional file: %s" % (fileName))
         updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="file_state", state="not_transferred")
         updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="reg_state", state="not_registered")
-    
+
         # get file info
         from SiteMover import SiteMover
         from SiteMoverFarm import getSiteMover
@@ -1005,7 +1005,7 @@ class JobLog:
             return False, job
         else:
             tolog("File %s has size %s and checksum %s" % (os.path.basename(fileName), _fsize, _checksum))
-    
+
         # see if it's an analysis job or not
         analyJob = isAnalysisJob(job.trf.split(",")[0])
 
@@ -1056,7 +1056,8 @@ class JobLog:
                                                                   stageoutTries = self.__env['stageoutTries'],
                                                                   cmtconfig = cmtconfig,
                                                                   experiment = experiment,
-                                                                  fileDestinationSE = job.fileDestinationSE)
+                                                                  fileDestinationSE = job.fileDestinationSE,
+                                                                  job=job) # quick workaround
             except Exception, e:
                 status = False
                 import traceback
@@ -1071,7 +1072,7 @@ class JobLog:
                 tolog("mover_put_data finished with EC = %s" % str(ec))
                 if ec != 0:
                     job.result[0] = "holding"
-    
+
                     # remove any trailing "\r" or "\n" (there can be two of them)
                     if rs != None:
                         rs = rs.rstrip()
@@ -1088,7 +1089,7 @@ class JobLog:
                     updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="file_state", state="transferred")
                     if site.sitename != "CERNVM":
                         updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="reg_state", state="registered")
-    
+
         # do not overwrite any existing pilotErrorDiag (from a get operation e.g.)
         if job.pilotErrorDiag != "" and job.pilotErrorDiag != None:
             if pilotErrorDiag != "" and pilotErrorDiag != None:
@@ -1097,7 +1098,7 @@ class JobLog:
         else:
             if pilotErrorDiag != "" and pilotErrorDiag != None:
                 job.pilotErrorDiag = "XML put error: " + pilotErrorDiag
-    
+
         return status, job
 
     def createLogFile(self, job):
@@ -1227,7 +1228,7 @@ class JobLog:
             else:
                 tolog("No secondary log path is defined")
                 _logPath = ""
-    
+
         # Create the full path
         if _logPath != "":
             # Use the job id to generate sub directories
@@ -1240,4 +1241,3 @@ class JobLog:
             logPath = ""
 
         return logPath
-

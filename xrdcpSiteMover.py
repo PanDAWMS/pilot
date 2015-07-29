@@ -598,7 +598,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             _ec, removeOutput = self.removeRemoteFile(destination)
             if not _ec :
                 self.log("Failed to remove file ") # i.e. do not retry stage-out
-           
+
             return status, output
         else:
             outputRet["output"] = o
@@ -914,7 +914,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         filename = os.path.basename(source)
 
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt, sitemover=self) # quick workaround
         if ec != 0:
             reportState = {}
             reportState["clientState"] = tracer_error
@@ -924,7 +924,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         # get the DQ2 site name from ToA
         try:
             _dq2SiteName = self.getDQ2SiteName(surl=surl)
-        except Exception, e: 
+        except Exception, e:
             tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
         else:
             report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
@@ -1019,4 +1019,3 @@ class xrdcpSiteMover(SiteMover.SiteMover):
                     return PilotErrors.ERR_STAGEINFAILED, outputRet
                 else:
                     return PilotErrors.ERR_STAGEOUTFAILED, outputRet
-

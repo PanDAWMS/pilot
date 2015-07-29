@@ -60,7 +60,7 @@ class RunJobEvent(RunJob):
     __failureCode = None                         # Set by signal handler when user/batch system kills the job
     __pworkdir = "/tmp"                          # Site work dir used by the parent
     __logguid = None                             # GUID for the log file
-    __pilotlogfilename = "pilotlog.txt"          # Default pilotlog filename 
+    __pilotlogfilename = "pilotlog.txt"          # Default pilotlog filename
     __stageinretry = None                        # Number of stage-in tries
     __stageoutretry = None                       # Number of stage-out tries
     __pilot_initdir = ""                         # location of where the pilot is untarred and started
@@ -763,7 +763,7 @@ class RunJobEvent(RunJob):
                     try:
                         if rf != None:
                             moved_files_list = RunJobUtilities.getFileNamesFromString(rf[1])
-                            remaining_files = RunJobUtilities.getRemainingFiles(moved_files_list, self.__job.outFiles) 
+                            remaining_files = RunJobUtilities.getRemainingFiles(moved_files_list, self.__job.outFiles)
                     except Exception, e:
                         tolog("!!WARNING!!3000!! Illegal return value from Mover: %s, %s" % (str(rf), str(e)))
                         remaining_files = self.__job.outFiles
@@ -792,7 +792,7 @@ class RunJobEvent(RunJob):
                             nr_removed += 1
 
                     tolog("Removed %d output file(s) from local dir" % (nr_removed))
-                
+
                     # copy the PoolFileCatalog.xml for non build jobs
                     if not pUtil.isBuildJob(remaining_files):
                         _fname = os.path.join(self.__job.workdir, "PoolFileCatalog.xml")
@@ -965,7 +965,7 @@ class RunJobEvent(RunJob):
         # Create preliminary metadata (no metadata yet about log file - added later in pilot.py)
         _fname = "%s/metadata-%s.xml" % (self.__job.workdir, self.__job.jobId)
         tolog("fguids=%s"%str(self.__job.outFilesGuids))
- 
+
         lfns = []
         self.__job.outFilesGuids = []
         tolog("Reset output file LFN and GUID list (pilot will not report these to the server - xml shoould only contain log file info)")
@@ -975,7 +975,7 @@ class RunJobEvent(RunJob):
                                        fsize=fsize, checksum=checksum, analJob=self.__analysisJob)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
-            tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag)) 
+            tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag))
             self.failJob(self.__job.result[1], self.__error.ERR_MISSINGGUID, self.__job, pilotErrorDiag=pilotErrorDiag)
         else:
             if not _status:
@@ -1026,7 +1026,7 @@ class RunJobEvent(RunJob):
         # This function will create a metadata file called metadata-<event_range_id>.xml using file info
         # from PoolFileCatalog.xml
         # Return: ec, pilotErrorDiag, outputFileInfo, fname
-        #         where outputFileInfo: {'<full path>/filename.ext': (fsize, checksum, guid), ...} 
+        #         where outputFileInfo: {'<full path>/filename.ext': (fsize, checksum, guid), ...}
         #         (dictionary is used for stage-out)
         #         fname is the name of the metadata/XML file containing the file info above
 
@@ -1131,7 +1131,7 @@ class RunJobEvent(RunJob):
                                          dispatchDBlockTokenForOut=self.__job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
                                          jobDefId=self.__job.jobDefinitionID, jobCloud=self.__job.cloud,\
                                          logFile=self.__job.logFile, stageoutTries=self.__stageoutretry, experiment=self.__experiment,\
-                                         fileDestinationSE=self.__job.fileDestinationSE, eventService=True)
+                                         fileDestinationSE=self.__job.fileDestinationSE, eventService=True, job=self.__job)
             tin_1 = os.times()
             self.__job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
@@ -1186,13 +1186,13 @@ class RunJobEvent(RunJob):
     def transferToObjectStore(self, outputFileInfo, metadata_fname):
         """ Transfer the output file to the object store """
 
-        # FORMAT:  outputFileInfo = {'<full path>/filename.ext': (fsize, checksum, guid), ...} 
+        # FORMAT:  outputFileInfo = {'<full path>/filename.ext': (fsize, checksum, guid), ...}
         # Normally, the dictionary will only contain info about a single file
 
         ec = 0
         pilotErrorDiag = ""
 
-        # Get the site information object                                                                                                           
+        # Get the site information object
         si = getSiteInformation(self.__experiment)
 
         # Get the queuename - which is only needed if objectstores field is not present in queuedata
@@ -1207,7 +1207,7 @@ class RunJobEvent(RunJob):
             checksum = outputFileInfo[path][1]
             guid = outputFileInfo[path][2]
 
-            # First backup some schedconfig fields that need to be modified for the secondary transfer                                                  
+            # First backup some schedconfig fields that need to be modified for the secondary transfer
             copytool_org = readpar('copytool')
 
             # Temporarily modify the schedconfig fields with values
@@ -1217,7 +1217,7 @@ class RunJobEvent(RunJob):
             # needs to know source, destination, fsize=0, fchecksum=0, **pdict, from pdict: lfn, guid, logPath
             # where source is local file path and destination is not used, set to empty string
 
-            # Get the dataset name for the output file                                                                                                     
+            # Get the dataset name for the output file
             dsname, datasetDict = self.getDatasets()
 
             # Transfer the file
@@ -1232,7 +1232,7 @@ class RunJobEvent(RunJob):
                     addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_name, os_bucket_endpoint)
                 except Exception, e:
                     tolog("!!WARNING!!2121!! Caught exception: %s" % (e))
-            # Finally restore the modified schedconfig fields                                                                                           
+            # Finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
             _ec = si.replaceQueuedataField("copytool", copytool_org)
 
@@ -1436,7 +1436,7 @@ class RunJobEvent(RunJob):
 
         # Special error acronym
         if "ERR_ATHENAMP_PARSE" in msg:
-            # Note: the event range will be in the msg and not the event range id only 
+            # Note: the event range will be in the msg and not the event range id only
             pattern = re.compile(r"(ERR\_[A-Z\_]+)\ (.+)\:\ ?(.+)")
             found = re.findall(pattern, msg)
             if len(found) > 0:
@@ -1918,14 +1918,14 @@ if __name__ == "__main__":
 
         # Reassign workdir for this job
         jobSite.workdir = jobSite.wntmpdir
-    
+
         # Done with setting jobSite data members, not save the object so that the runJob methods have access to it
         runJob.setJobSite(jobSite)
 
         tolog("runJob.getPilotLogFilename=%s"%runJob.getPilotLogFilename())
         if runJob.getPilotLogFilename() != "":
             pUtil.setPilotlogFilename(runJob.getPilotLogFilename())
-    
+
         # Set node info
         node = Node.Node()
         node.setNodeName(os.uname()[1])
@@ -1971,7 +1971,7 @@ if __name__ == "__main__":
 
         # Register cleanup function
         atexit.register(runJob.cleanup, job)
-    
+
         # To trigger an exception so that the SIGTERM signal can trigger cleanup function to run
         # because by default signal terminates process without cleanup.
         def sig2exc(sig, frm):
@@ -2051,7 +2051,7 @@ if __name__ == "__main__":
         runJob.setJobState(job.jobState)
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
-        
+
         # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
         if job.transferType == 'direct':
             tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
@@ -2414,7 +2414,7 @@ if __name__ == "__main__":
         # Rename the metadata produced by the payload
         # if not pUtil.isBuildJob(outs):
         runJob.moveTrfMetadata(job.workdir, job.jobId)
-        
+
         # Check the job report for any exit code that should replace the res_tuple[0]
         res0, exitAcronym, exitMsg = runJob.getTrfExitInfo(0, job.workdir)
         res = (res0, exitMsg, exitMsg)
@@ -2446,7 +2446,7 @@ if __name__ == "__main__":
 
         tolog("Done")
         runJob.sysExit(job)
-    
+
     except Exception, errorMsg:
 
         error = PilotErrors()
@@ -2457,7 +2457,7 @@ if __name__ == "__main__":
             pilotErrorDiag = "Exception caught in RunJobEvent: %s" % str(errorMsg)
 
         if 'format_exc' in traceback.__all__:
-            pilotErrorDiag += ", " + traceback.format_exc()    
+            pilotErrorDiag += ", " + traceback.format_exc()
 
         try:
             tolog("!!FAILED!!3001!! %s" % (pilotErrorDiag))

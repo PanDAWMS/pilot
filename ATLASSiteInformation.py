@@ -92,7 +92,7 @@ class ATLASSiteInformation(SiteInformation):
                  "ND": ["ARC", ""],
                  "NL": ["SARA-MATRIX", ""],
                  "OSG": ["BNL_CVMFS_1", ""],
-                 "RU": ["RRC-KI-T1", ""], 
+                 "RU": ["RRC-KI-T1", ""],
                  "TW": ["Taiwan-LCG2", ""],
                  "UK": ["RAL-LCG2", ""],
                  "US": ["BNL_PROD", "BNL_PROD-condor"]
@@ -253,7 +253,7 @@ class ATLASSiteInformation(SiteInformation):
                 # Load the dictionary
                 all_queuedata_dict = load(f)
 
-                # Done with the file  
+                # Done with the file
                 f.close()
 
         return all_queuedata_dict
@@ -302,7 +302,7 @@ class ATLASSiteInformation(SiteInformation):
 
         return status
 
-    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
+    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict): # in current implementation this function completely depends on site mover so that it needs to be either reimplmented or completely moved outside SiteInformation
         """ Get proper paths (SURL and LFC paths) """
 
         ec = 0
@@ -316,7 +316,9 @@ class ATLASSiteInformation(SiteInformation):
         scope = pdict.get('scope', None)
 
         # Get the proper endpoint
-        sitemover = SiteMover.SiteMover()
+        # sitemover = SiteMover.SiteMover()
+        sitemover = pdict.get('sitemover', SiteMover.SiteMover()) # quick workaround HACK: to be properly implemented later
+
         se = sitemover.getProperSE(token, alt=alt)
 
         # For production jobs, the SE path is stored in seprodpath
@@ -365,7 +367,7 @@ class ATLASSiteInformation(SiteInformation):
             if surl.startswith('token'):
                 tolog("Removing space token part from SURL")
                 dummy, surl = sitemover.extractSE(surl)
-                
+
         tolog("SURL = %s" % (surl))
         tolog("dst_gpfn = %s" % (dst_gpfn))
         tolog("lfcdir = %s" % (lfcdir))
@@ -424,7 +426,7 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cs3.cern.ch:443//atlas_eventservice|logs^s3://cs3.cern.ch:443//atlas_logs")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
-            
+
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
@@ -711,12 +713,7 @@ class ATLASSiteInformation(SiteInformation):
         # Returns "/cvmfs" or "/(some path)/cvmfs" in case the expected file system root path is not
         # where it usually is (e.g. on an HPC). See example implementation in self.getLocalROOTSetup()
 
-        if os.environ.has_key('ATLAS_SW_BASE'):
-            path = os.environ['ATLAS_SW_BASE']
-        else:
-            path = '/cvmfs'
-
-        return path
+        return os.environ.get('ATLAS_SW_BASE', '/cvmfs')
 
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
@@ -724,7 +721,7 @@ class ATLASSiteInformation(SiteInformation):
         # cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
         # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
         # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
-        cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath()) 
+        cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath())
 
         return cmd
 
@@ -793,6 +790,6 @@ if __name__ == "__main__":
         tolog("Cloud %s has Tier-1 queue %s" % (cloud, queuename))
     else:
         tolog("Failed to find a Tier-1 queue name for cloud %s" % (cloud))
-    
+
     keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
     print keyPair
