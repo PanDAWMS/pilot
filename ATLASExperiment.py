@@ -23,6 +23,7 @@ from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
 from PilotErrors import PilotErrors             # Error codes
 from FileHandling import readFile, writeFile    # File handling methods
+from FileHandling import updatePilotErrorReport # Used to set the priority of an error
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
 from RunJobUtilities import findVmPeaks         #
@@ -38,7 +39,7 @@ from glob import glob
 class ATLASExperiment(Experiment):
 
     # private data members
-    __experiment = "ATLAS"                 # String defining the experiment
+    __experiment = "ATLAS"
     __instance = None                      # Boolean used by subclasses to become a Singleton
     __warning = ""
     __analysisJob = False
@@ -49,17 +50,19 @@ class ATLASExperiment(Experiment):
 
     # Required methods
 
+#    def __init__(self, *args, **kwargs):
     def __init__(self):
         """ Default initialization """
 
-        # e.g. self.__errorLabel = errorLabel
         pass
+#        super(ATLASExperiment, self).__init__(self, *args, **kwargs)
 
     def __new__(cls, *args, **kwargs):
         """ Override the __new__ method to make the class a singleton """
 
         if not cls.__instance:
             cls.__instance = super(ATLASExperiment, cls).__new__(cls, *args, **kwargs)
+#            cls.__instance = super(ATLASExperiment, cls).__new__(cls)
 
         return cls.__instance
 
@@ -186,6 +189,10 @@ class ATLASExperiment(Experiment):
                         tolog("!!WARNING!!3000!! Since setup encountered problems, any attempt of trf installation will fail (bailing out)")
                         tolog("ec=%d" % (ec))
                         tolog("pilotErrorDiag=%s" % (pilotErrorDiag))
+
+                        # Set the error priority
+                        updatePilotErrorReport(ec, pilotErrorDiag, "1",  job.jobId, pilot_initdir)
+
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
                     else:
                         tolog("Will use SITEROOT=%s" % (siteroot))
@@ -1938,7 +1945,7 @@ class ATLASExperiment(Experiment):
             elif exitcode != 0 or "Error:" in output or "(ERROR):" in output:
                 # if time out error, don't bother with trying another cmtconfig
 
-                tolog("ATLAS setup for SITEROOT failed")
+                tolog("ATLAS setup for SITEROOT failed: ec=%d, output=%s" % (exitcode, output))
                 if "No such file or directory" in output:
                     pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
@@ -1954,6 +1961,12 @@ class ATLASExperiment(Experiment):
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
                     ec = self.__error.ERR_SETUPFAILURE
                     continue
+                elif "timed out" in output:
+                    # CVMFS problem, no point in continuing
+                    pilotErrorDiag = "getProperSiterootAndCmtconfig: CVMFS setup command timed out: %s" % (output)
+                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
+                    ec = self.__error.ERR_COMMANDTIMEOUT
+                    break
 
         # reset errors if siteroot was found
         if status:

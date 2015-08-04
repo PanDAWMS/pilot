@@ -468,9 +468,10 @@ def updatePilotErrorReport(pilotErrorCode, pilotErrorDiag, priority, jobID, work
     # { jobID1: { priority1: [{ pilotErrorCode1:<nr>, pilotErrorDiag1:<str> }, .. ], .. }, .. }
     # The pilot will report only the first of the highest priority error when it reports the error at the end of the job
     # Use the following priority convention:
-    # "0": errors that originate from the main pilot module (unless otherwise necessary)
-    # "1": errors that originate from the Monitor module (-||-)
-    # "2": errors that originate from other modules (-||-)
+    # "0": highest priority [e.g. errors that originate from the main pilot module (unless otherwise necessary)]
+    # "1": high priority [e.g. errors that originate from the Monitor module (-||-)]
+    # "2": normal priority [errors that originate from other modules (-||-)]
+    # etc
 
     # Convert to string if integer is sent for priority
     if type(priority) != str:

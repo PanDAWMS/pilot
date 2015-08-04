@@ -175,17 +175,22 @@ Added missing module name to readpar() call in __monitor_processes(), affecting 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-62.2:
+62.2
 
 Added ddmEndPointIn, ddmEndPointOut, ddmEndPointLog to Job class, and handling in displayJob() and setJobDef() (Job)
 Moved exception handling for utility subprocess from executePayload() to getUtilitySubprocess() (RunJob)
 Making sure that the subprocess is still running in executePayload() (RunJob)
-Setting memory info = -1 in case of file reading trouble or if memory summary file was not updated in less than 120 s in getUtilityInfo(). Reuqested by Rodney Walker (PandaServerClient) 
+Setting memory info = -1 in case of file reading trouble or if memory summary file was not updated in less than 120 s in getUtilityInfo(). Reqested by Rodney Walker (PandaServerClient) 
 Added error code 1234, ERR_EXECUTEDCLONEJOB: "Already executed clone job" (PilotErrors)
 Now using event range functions to determine whether a cloned job should be executed in executePayload() and __main__() (RunJob)
 Moved extractEventRanges() from RunJobEvent to RunJob (RunJob, RunJobEvent)
 Setting ATHENA_PROC_NUMBER to 1 on single code nodes in __main__() (RunJobEvent)
 Removed test method updatePilotErrorReport() and renamed updatePilotErrorReportTMP() to updatePilotErrorReport() (FileHandling)
+Now recognizing a cvmfs time out in getProperSiterootAndCmtconfig() (ATLASExperiment)
+Using updatePilotErrorReport to set the error priority in getJobExecutionCommand() (ATLASExperiment)
+
+Code merge with Alexey Anisenkov
+- Added new movers sub directory with new site mover (xrdcp) and mover module
 
 Update info from Edward Karavakis:
 - Patch for chmod problem seen at BNL
@@ -194,6 +199,11 @@ Update info from Edward Karavakis:
 
 
 TODO:
+
+Remove singletons:
+- Change __experiment to experiment in Experiment classes
+- Use super() in __init__() (ATLASExperiment)
+- Same changes to SiteInformation classes
 
 62.1?
 Avoiding setting exit code 1008/65 when no jobs were downloaded in getJob(), requested by John Hover (pilot)

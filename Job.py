@@ -94,6 +94,7 @@ class Job:
         self.sourceSite = ""               # Keep track of the original source site of the job (useful for overflow jobs to get to the proper FAX redirector)
         self.ddmEndPointIn = []            #
         self.ddmEndPointOut = []           #
+#        self.ddmEndPointOutAlt = []       #
         self.ddmEndPointLog = []           #
         self.cloneJob = ""                 # Is the job cloned? Allowed values: 'runonce', 'storeonce'
 

@@ -2180,7 +2180,7 @@ if __name__ == "__main__":
             job.result[2] = error.ERR_ESRECOVERABLE
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-        if not os.environ.has_key('ATHENA_PROC_NUMBER')
+        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
             tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
             runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
 

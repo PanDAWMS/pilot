@@ -23,6 +23,8 @@ from pUtil import extractHPCInfo           # Used by getSubprocessName() to dete
 
 class Experiment(object):
 
+#    experiment = "generic"               # String defining the experiment
+
     # private data members
     __experiment = "generic"               # String defining the experiment
     __instance = None                      # Boolean used by subclasses to become a Singleton
@@ -32,15 +34,17 @@ class Experiment(object):
 
     # Required methods
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
+#        self.experiment = kwargs.get('experiment')
         pass
 
     def getExperiment(self):
         """ Return a string with the experiment name """
 
+#        return self.experiment
         return self.__experiment
 
     def getJobExecutionCommand(self):
@@ -167,7 +171,7 @@ class Experiment(object):
 
         status = False
 
-        tolog("No special checks for \'%s\'" % (self.__experiment))
+        tolog("No special checks for \'%s\'" % (self.experiment))
 
         return True # obviously change this to 'status' once implemented
 

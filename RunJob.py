@@ -695,24 +695,27 @@ class RunJob(object):
 
         # If clone job, make sure that the events should be processed
         if job.cloneJob == "runonce":
-            # If the event is still available, the go ahead and run the payload
-            message = downloadEventRanges(job.jobId, job.jobsetID)
+            try:
+                # If the event is still available, the go ahead and run the payload
+                message = downloadEventRanges(job.jobId, job.jobsetID)
 
             # Create a list of event ranges from the downloaded message
-            event_ranges = self.extractEventRanges(message)
+                event_ranges = self.extractEventRanges(message)
 
             # Are there any event ranges?
-            if event_ranges == []:
-                tolog("!!WARNING!!2424!! This clone job was already executed")
-                exitMsg = "Already executed clone job"
-                res_tuple = (1, exitMsg)
-                res = (res_tuple[0], res_tuple[1], exitMsg)
-                job.result[0] = exitMsg
-                job.result[1] = 0 # transExitCode
-                job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
-                return res, job, False, 0
-            else:
-                tolog("Ok to execute clone job")
+                if event_ranges == []:
+                    tolog("!!WARNING!!2424!! This clone job was already executed")
+                    exitMsg = "Already executed clone job"
+                    res_tuple = (1, exitMsg)
+                    res = (res_tuple[0], res_tuple[1], exitMsg)
+                    job.result[0] = exitMsg
+                    job.result[1] = 0 # transExitCode
+                    job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+                    return res, job, False, 0
+                else:
+                    tolog("Ok to execute clone job")
+            except Exception, e:
+                tolog("!1WARNING!!2323!! Exception caught: %s" % (e))
 
         # Run the payload process, which could take days to finish
         t0 = os.times()
@@ -1572,45 +1575,48 @@ if __name__ == "__main__":
 
             # If clone job, make sure that stage-out should be performed
             if job.cloneJob == "storeonce":
-                # If the event is still available, the go ahead and run the payload
-                message = downloadEventRanges(job.jobId, job.jobsetID)
+                try:
+                    # If the event is still available, the go ahead and run the payload
+                    message = downloadEventRanges(job.jobId, job.jobsetID)
 
                 # Create a list of event ranges from the downloaded message
-                event_ranges = runJob.extractEventRanges(message)
+                    event_ranges = runJob.extractEventRanges(message)
 
                 # Are there any event ranges?
-                if event_ranges == []:
-                    tolog("!!WARNING!!2424!! This clone job was already executed")
-                    exitMsg = "Already executed clone job"
-                    res_tuple = (1, exitMsg)
-                    res = (res_tuple[0], res_tuple[1], exitMsg)
-                    job.result[0] = exitMsg
-                    job.result[1] = 0 # transExitCode
-                    job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
-                    job.pilotErrorDiag = exitMsg
-                    runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+                    if event_ranges == []:
+                        tolog("!!WARNING!!2424!! This clone job was already executed and stored")
+                        exitMsg = "Already executed/stored clone job"
+                        res_tuple = (1, exitMsg)
+                        res = (res_tuple[0], res_tuple[1], exitMsg)
+                        job.result[0] = exitMsg
+                        job.result[1] = 0 # transExitCode
+                        job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+                        job.pilotErrorDiag = exitMsg
+                        runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+                    else:
+                        tolog("Ok to stage out clone job")
+                except Exception, e:
+                    tolog("!1WARNING!!2324!! Exception caught: %s" % (e))
+
+            tolog("Setting stage-out state until all output files have been copied")
+            job.setState(["stageout", 0, 0])
+            rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
+
+            # Stage-out output files
+            ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
+            # Error handling
+            if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
             else:
-                tolog("Ok to stage out clone job")
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True, latereg=latereg)
+            if ec == error.ERR_NOSTORAGE:
+                # Update the current file states for all files since nothing could be transferred
+                updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="not_transferred")
+                dumpFileStates(runJob.getParentWorkDir(), job.jobId)
 
-                tolog("Setting stage-out state until all output files have been copied")
-                job.setState(["stageout", 0, 0])
-                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
-
-                # Stage-out output files
-                ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
-                # Error handling
-                if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:
-                    rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
-                else:
-                    rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True, latereg=latereg)
-                if ec == error.ERR_NOSTORAGE:
-                    # Update the current file states for all files since nothing could be transferred
-                    updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="not_transferred")
-                    dumpFileStates(runJob.getParentWorkDir(), job.jobId)
-
-                finalUpdateDone = True
-                if ec != 0:
-                    runJob.sysExit(job, rf)
+            finalUpdateDone = True
+            if ec != 0:
+                runJob.sysExit(job, rf)
 
         # (Stage-out ends here) .......................................................................
 
