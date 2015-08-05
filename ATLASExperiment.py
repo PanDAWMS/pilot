@@ -3143,6 +3143,16 @@ class ATLASExperiment(Experiment):
 
         return cmd
 
+    # Optional
+    def getGUIDSourceFilename(self):
+        """ Return the filename of the file containing the GUIDs for the output files """
+        
+        # In the case of ATLAS, Athena produces an XML file containing the GUIDs of the output files. The name of this
+        # file is PoolFileCatalog.xml. If this method returns an empty string (ie the default), the GUID generation will
+        # be done by the pilot in RunJobUtilities::getOutFilesGuids()
+
+        return "PoolFileCatalog.xml"
+
 if __name__ == "__main__":
 
     a=ATLASExperiment()

@@ -188,12 +188,18 @@ Setting ATHENA_PROC_NUMBER to 1 on single code nodes in __main__() (RunJobEvent)
 Removed test method updatePilotErrorReport() and renamed updatePilotErrorReportTMP() to updatePilotErrorReport() (FileHandling)
 Now recognizing a cvmfs time out in getProperSiterootAndCmtconfig() (ATLASExperiment)
 Using updatePilotErrorReport to set the error priority in getJobExecutionCommand() (ATLASExperiment)
-
+Created optional getGUIDSourceFilename() (Experiment, ATLASExperiment)
+Added experiment argument to getOutFilesGuids() (RunJobUtilities)
+Now sending experiment name to getOutFilesGuids() in createFileMetadata() (RunJob)
+Importing getExperiment, getGUID (RunJobUtilities)
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module
 
 Update info from Edward Karavakis:
 - Patch for chmod problem seen at BNL
+
+Non-ATLAS related changes:
+- Now generating output file GUIDs in getOutFilesGuids() in case PoolFileCatalog.xml is not to be used (e.g. for AMS) (RunJobUtilities)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

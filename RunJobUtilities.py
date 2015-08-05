@@ -6,7 +6,7 @@ import re
 import sys
 
 from pUtil import timeStamp, debugInfo, tolog, readpar, verifyReleaseString,\
-     isAnalysisJob, dumpOrderedItems, grep,\
+     isAnalysisJob, dumpOrderedItems, grep, getExperiment, getGUID,\
      getCmtconfig, timedCommand, getProperTimeout, removePattern, encode_string
 from PilotErrors import PilotErrors
 from FileStateClient import dumpFileStates, hasOnlyCopyToScratch
@@ -459,20 +459,36 @@ def convertMetadata4NG(filenameOUT, filenameIN, outsDict, dataset, datasetDict):
     
     return status
 
-def getOutFilesGuids(outFiles, workdir, TURL=False):
+def getOutFilesGuids(outFiles, workdir, experiment, TURL=False):
     """ get the outFilesGuids from the PFC """
 
     ec = 0
     pilotErrorDiag = ""
     outFilesGuids = []
 
-    pfcFile = "%s/PoolFileCatalog.xml" % (workdir)
+    # Get the experiment object and the GUID source filename
+    thisExperiment = getExperiment(experiment)
+    filename = thisExperiment.getGUIDSourceFilename()
+
+    # If a source file should not be used (ie empty filename string), then generate the GUIDs here
+    if filename == "":
+        tolog("Pilot will generate GUIDs for the output files")
+        for i in range (0, len(outFiles)):
+            guid = getGUID()
+            if guid == "":
+                guid = "- GUID generation failed -"
+            outFilesGuids.append(guid)
+
+        return ec, pilotErrorDiag, outFilesGuids
+    else:
+        tolog("Pilot will get GUIDs for the output files from source: %s" % (filename))
+        pfcFile = os.path.join(workdir, filename) #"%s/PoolFileCatalog.xml" % (workdir)
 
     # The PFC used for Event Service will be TURL based, use the corresponding file
     if TURL:
         pfcFile = pfcFile.replace(".xml", "TURL.xml")
 
-    # initialization: make sure the guid list has the same length as the file list
+    # Initialization: make sure the guid list has the same length as the file list
     for i in range (0, len(outFiles)):
         outFilesGuids.append(None)
 

@@ -948,7 +948,7 @@ class RunJob(object):
         # get/assign guids to the output files
         if outFiles:
             if not pUtil.isBuildJob(outFiles):
-                ec, job.pilotErrorDiag, job.outFilesGuids = RunJobUtilities.getOutFilesGuids(job.outFiles, job.workdir)
+                ec, job.pilotErrorDiag, job.outFilesGuids = RunJobUtilities.getOutFilesGuids(job.outFiles, job.workdir, self.__experiment)
                 if ec:
                     # missing PoolFileCatalog (only error code from getOutFilesGuids)
                     return ec, job, None
@@ -1370,6 +1370,7 @@ if __name__ == "__main__":
 
         tolog("Current job workdir is: %s" % os.getcwd())
         tolog("Site workdir is: %s" % jobSite.workdir)
+
         # get the experiment object
         thisExperiment = getExperiment(runJob.getExperiment())
         tolog("RunJob will serve experiment: %s" % (thisExperiment.getExperiment()))
