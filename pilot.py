@@ -2431,6 +2431,7 @@ def runMain(runpars):
         env['workerNode'].setNodeName(getProperNodeName(os.uname()[1]))
 
         # collect WN info .........................................................................................
+
         # do not include the basename in the path since it has not been created yet
         # i.e. remove Panda_Pilot* from the workdir path
         # pUtil.tolog("Collecting WN info from: %s" % (os.path.dirname(thisSite.workdir)))
@@ -2442,6 +2443,18 @@ def runMain(runpars):
         # update the globals used in the exception handler
         globalSite = env['thisSite']
         globalWorkNode = env['workerNode']
+
+        # get the site information object
+        env['si'] = pUtil.getSiteInformation(env['experiment'])
+        if env['si']:
+            pUtil.tolog("Using site information for experiment: %s" % (env['si'].getExperiment()))
+        else:
+            pUtil.tolog("!!FAILED!!1234!! Did not get an experiment object from the factory")
+            return pUtil.shellExitCode(error.ERR_GENERALERROR)
+
+        # run benchmark test if required by experiment site information object
+        # (will be set to None if benchmark test is not run)
+        benchmark_dictionary = env['workerNode'].getBenchmarkDictionary(env['si'])
 
         # create the initial pilot workdir
         ec = createSiteWorkDir(env['thisSite'].workdir, error)
@@ -2488,14 +2501,6 @@ def runMain(runpars):
         # get the timefloor from the queuedata, the pilot is allowed to run multi-jobs within this limit
         # if set to zero, only one job will be executed
         env['timefloor'] = pUtil.getTimeFloor(env['timefloor_default'])
-
-        # get the site information object
-        env['si'] = pUtil.getSiteInformation(env['experiment'])
-        if env['si']:
-            pUtil.tolog("Using site information for experiment: %s" % (env['si'].getExperiment()))
-        else:
-            pUtil.tolog("!!FAILED!!1234!! Did not get an experiment object from the factory")
-            return pUtil.shellExitCode(error.ERR_GENERALERROR)
 
         # loop until pilot has run out of time (defined by timefloor)
         env['multijob_startup'] = int(time.time())

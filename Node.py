@@ -240,3 +240,14 @@ class Node:
         jobMetrics += self.addFieldToJobMetrics("allocated_CPU", self.allocatedCPU)
 
         return jobMetrics
+
+    def getBenchmarkDictionary(self, si):
+        """ Execute the benchmack test if required by the site information object """
+
+        benchmark_dictionary = None
+        if si.shouldExecuteBenchmark():
+            benchmark_dictionary = si.executeBenchmark()
+        else:
+            tolog("Not required to run the benchmark test")
+
+        return benchmark_dictionary
