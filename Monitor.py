@@ -454,6 +454,8 @@ class Monitor:
             pilotErrorDiag += " (Job stuck in stage-out state)"
             pUtil.tolog("!!FAILED!!1999!! Job stuck in stage-out state: file copy time-out")
             job.result[2] = self.__error.ERR_PUTTIMEOUT
+            job.result[0] = "failed"
+            job.currentState = job.result[0]
         else:
             job.result[2] = self.__error.ERR_LOOPINGJOB
             job.result[0] = "failed"
