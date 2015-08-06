@@ -974,6 +974,22 @@ class Experiment(object):
 
         return ""
 
+    # Optional
+    def shouldExecuteBenchmark(self):
+        """ Should the pilot execute a benchmark test before asking server for a job? """
+
+        return False
+
+    # Optional
+    def executeBenchmark(self):
+        """ Interface method for benchmark test """
+
+        # Use this method to interface with benchmark code
+        # The method should return a dictionary containing the results of the test
+        # See example implementation in ATLASExperiment
+
+        return None
+
 if __name__ == "__main__":
 
     a=Experiment()

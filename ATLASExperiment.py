@@ -24,6 +24,7 @@ from pUtil import getInitialDirs                # Used by getModernASetup()
 from PilotErrors import PilotErrors             # Error codes
 from FileHandling import readFile, writeFile    # File handling methods
 from FileHandling import updatePilotErrorReport # Used to set the priority of an error
+from FileHandling import getJSONDictionary      # Used to read the benchmark output file
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
 from RunJobUtilities import findVmPeaks         #
@@ -3152,6 +3153,41 @@ class ATLASExperiment(Experiment):
         # be done by the pilot in RunJobUtilities::getOutFilesGuids()
 
         return "PoolFileCatalog.xml"
+
+    # Optional
+    def shouldExecuteBenchmark(self):
+        """ Should the pilot execute a benchmark test before asking server for a job? """
+
+        return True
+
+    # Optional
+    def executeBenchmark(self):
+        """ Interface method for benchmark test """
+
+        # Use this method to interface with benchmark code
+        # The method should return a dictionary containing the results of the test
+
+        dictionary = {}
+        cmd = "/afs/cern.ch/user/w/walkerr/public/kflops.sh"
+        timeout = 120
+
+        tolog("Executing benchmark test: %s" % (cmd))
+        exitcode, output = timedCommand(cmd, timeout=timeout)
+        if exitcode != 0:
+            tolog("!!WARNING!!3434!! Encountered a problem with benchmark test: %s" % (output))
+        else:
+            tolog("Benchmark finished")
+
+            filename = "kflops.json"
+            if not os.path.exists(filename):
+                tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
+            else:
+                tolog("Parsing benchmark output file: %s" % (filename))
+                dictionary = getJSONDictionary(filename)
+                if dictionary == {}:
+                    tolog("!!WARNING!!3436!! Empty benchmark dictionary - nothing to report")
+
+        return dictionary
 
 if __name__ == "__main__":
 
