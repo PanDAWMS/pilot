@@ -192,7 +192,7 @@ Created optional getGUIDSourceFilename() (Experiment, ATLASExperiment)
 Added experiment argument to getOutFilesGuids() (RunJobUtilities)
 Now sending experiment name to getOutFilesGuids() in createFileMetadata() (RunJob)
 Importing getExperiment, getGUID (RunJobUtilities)
-Created shouldExecuteBenchmark() and executeBenchmark() (Experiment, ATLASExperiment)
+Created shouldExecuteBenchmark() and executeBenchmark() (SiteInformation, ATLASSiteInformation)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module
