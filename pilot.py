@@ -1870,9 +1870,9 @@ def getProdSourceLabel():
         prodSourceLabel = 'test'
 
     # override for release candidate pilots
-    if env['pilot_version_tag'] == "RC":
+    if env['pilot_version_tag'] == "RC" and env['uflag'] != 'ptest':
         prodSourceLabel = "rc_test"
-    if env['pilot_version_tag'] == "DDM":
+    if env['pilot_version_tag'] == "DDM" and env['uflag'] != 'ptest':
         prodSourceLabel = "ddm"
 
     return prodSourceLabel

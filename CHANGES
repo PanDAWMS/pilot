@@ -204,6 +204,9 @@ Code merge with Alexey Anisenkov
 Update info from Edward Karavakis:
 - Patch for chmod problem seen at BNL
 
+Update info from Wen Guan:
+- Added exceptions for ptest uflag in getProdSourceLabel() (pilot)
+
 Non-ATLAS related changes:
 - Now generating output file GUIDs in getOutFilesGuids() in case PoolFileCatalog.xml is not to be used (e.g. for AMS) (RunJobUtilities)
 

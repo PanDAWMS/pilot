@@ -4433,15 +4433,14 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
 
     # Update booleans if Rucio is used and scope dictionary is set
     copytool, dummy = getCopytool(mode="get")
-#    if scope_dict and ("/rucio" in readpar('seprodpath') or "/rucio" in readpar('sepath')) and copytool != "aria2c":
-#        tolog("Resetting file lookup boolean (LFC will not be queried)")
-#        use_rucio = True
-#        thisExperiment.doFileLookups(False)
-#    else:
-#        use_rucio = False
-#        thisExperiment.doFileLookups(True) # only has effect for ATLAS
     use_rucio = False
-    thisExperiment.doFileLookups(True)
+
+    # No need for file catalog lookups if FAX is set as primary stage-in site mover
+    if getCopytool(mode="get").lower() == "fax":
+        tolog("No need for catalog replica lookup since FAX is primary stage-in site mover")
+        thisExperiment.doFileLookups(False)
+    else:
+        thisExperiment.doFileLookups(True)
 
     if thisExperiment.willDoFileLookups():
         # Get the replica dictionary
@@ -4503,8 +4502,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             pilotErrorDiag = ""
         tolog("file_dict = %s" % str(file_dict))
 
-        # Create a pool file catalog
-        xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)
     elif use_rucio:
         tolog("Replica dictionaries will be prepared for Rucio")
 
@@ -4515,8 +4512,39 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary, copytool_dictionary
         tolog("file_dict = %s" % str(file_dict))
 
-        # Create a pool file catalog
-        xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)
+        # NOTE: have to set surl_filetype_dictionary, copytool_dictionary
+        # ..
+
+    else:
+        tolog("Will generate PFC for FAX")
+        xml_source = "FAX"
+
+        file_dict = {} # FORMAT: { guid1: surl1, .. }
+        replicas_dict = {} # FORMAT: { guid1: [replica1, .. ], .. } where replica1 is of type replica
+        surl_filetype_dictionary = {} # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
+        copytool_dictionary = {} # FORMAT: { sfn1: copytool, ..} (sfn = surl)
+
+        # Create the file dictionary 
+        i = 0
+        for lfn in lfns:
+            surl = buildFAXPath(..)
+            guid = guids[i]
+            file_dict[guid] = surl
+            surl_filetype_dictionary[surl] = "DISK" # assumed, cannot know
+            copytool_dictionary[surl] = "fax"
+            i += 1
+
+            # Create and add the replica
+            rep = replica()
+            rep.sfn = surl
+            rep.filesize = ? # from panda
+            rep.csumvalue = ? # from panda
+            rep.filetype = "DISK" # assumed, cannot know
+            rep.rse = ? # from panda
+            replicas_dic[guid] = [rep]
+
+    # Create a pool file catalog
+    xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)
 
     if xml_from_PFC == '' and not os.environ.has_key('Nordugrid_pilot'):
         # Fetch the input file xml from the dq2 server
