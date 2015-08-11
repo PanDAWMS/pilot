@@ -974,6 +974,34 @@ class Experiment(object):
 
         return ""
 
+    # Optional
+    def buildFAXPath(self, **argdict):
+        """ Build a proper FAX path """
+
+        # This method builds proper FAX paths and is used in pure FAX mode (i.e. when FAX is used in forced mode),
+        # particularly when the PoolFileCatalog.xml is built prior to stage-in
+        # Only needed if FAX mechanism is used in forced mode (i.e. when copytoolin='fax')
+
+        lfn = argdict.get('lfn', 'default_lfn')
+        scope = argdict.get('scope', 'default_scope')
+        subpath = argdict.get('subpath', '/atlas/rucio/')
+        pandaID = argdict.get('pandaID', '')
+        sourceSite = argdict.get('sourceSite', 'default_sourcesite')
+        computingSite = argdict.get('computingSite', 'default_computingsite')
+
+        # Get the proper FAX redirector (default ATLAS implementation)
+        from FAXTools import getFAXRedirectors
+        # First get the global redirectors (several, since the lib file might not be at the same place for overflow jobs)
+        fax_redirectors_dictionary = getFAXRedirectors(computingSite, sourceSite, pandaID, url='http://waniotest.appspot.com/SiteToFaxEndpointTranslator')
+
+        # select the proper fax redirector                                                                                                                                                                    
+        if ".lib." in surl:
+            redirector = fax_redirectors_dictionary['computingsite']
+        else:
+            redirector = fax_redirectors_dictionary['sourcesite']
+
+        return  redirector + subpath + scope + ":" + lfn
+
 if __name__ == "__main__":
 
     a=Experiment()

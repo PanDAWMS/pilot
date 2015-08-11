@@ -604,7 +604,7 @@ def getFileInfoDictionaryFromXML(xml_file):
     return file_info_dictionary
 
 def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
-                scope_dict, pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
+                scope_dict, computingSite="", sourceSite="", pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
     """ Build the file info dictionary """
 
     fileInfoDic = {} # FORMAT: fileInfoDic[file_nr] = (guid, pfn, size, checksum, filetype, copytool) - note: copytool not necessarily the same for all file (e.g. FAX case)
@@ -685,8 +685,8 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         # Get the PFC from the proper source
         ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary, copytool_dictionary = \
             getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
-                               DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
-                               sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
+                               DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn, sitemover,\
+                               computingSite=computingSite, sourceSite=sourceSite, pfc_name=pfc_name, thisExperiment=thisExperiment)
 
         if ec != 0:
             return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
@@ -2043,7 +2043,8 @@ def mover_get_data(lfns,
     #         replicas_dic[guid1] = [ replica1, .. ] where replicaN is an object of class replica
     ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic = \
         getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
-                    scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment)
+                    scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment,\
+                        computingSite=sitename, sourceSite=sourceSite)
     if ec != 0:
         return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 
@@ -4411,8 +4412,8 @@ def isFAXAllowed(filetype, surl):
 
     return allowed
 
-def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
-                       filesizeIn, checksumIn, sitemover, pfc_name="PoolFileCatalog.xml", thisExperiment=None):
+def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
+                       sitemover, computingSite="", sourceSite="", pfc_name="PoolFileCatalog.xml", thisExperiment=None, ddmEndPointIn=None):
     """ Create replica dictionaries and get the PFC from the proper source """
 
     xml_from_PFC = ""
@@ -4527,21 +4528,22 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         # Create the file dictionary 
         i = 0
         for lfn in lfns:
-            surl = buildFAXPath(..)
+            surl = thisExperiment.buildFAXPath(lfn=lfn, scope=scope_dict[lfn], sourceSite=sourceSite, computingSite=computingSite)
             guid = guids[i]
             file_dict[guid] = surl
-            surl_filetype_dictionary[surl] = "DISK" # assumed, cannot know
+            surl_filetype_dictionary[surl] = "DISK" # assumed, cannot know unless server tells (since no catalog lookup in this case)
             copytool_dictionary[surl] = "fax"
-            i += 1
 
             # Create and add the replica
             rep = replica()
             rep.sfn = surl
-            rep.filesize = ? # from panda
-            rep.csumvalue = ? # from panda
+            rep.filesize = filesizeIn[i]
+            rep.csumvalue = checksumIn[i]
             rep.filetype = "DISK" # assumed, cannot know
-            rep.rse = ? # from panda
+            rep.rse = ddmEndPointIn[i]
             replicas_dic[guid] = [rep]
+
+            i += 1
 
     # Create a pool file catalog
     xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)

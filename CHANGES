@@ -197,6 +197,13 @@ Moved getSiteInformation() to collect WN info section in runMain() (pilot)
 Created getBenchmarkDictionary() (Node)
 Now getting the benchmark dictionary in runRun() (pilot)
 Now setting job to failed in __killLoopingJob() for stuck stage-outs (Monitor)
+Added optional ddmEndPointIn argument to getPoolFileCatalog() (Mover)
+Created buildFAXPath() (Experiment)
+Sending optional computingSite and sourceSite to getFileInfo() from mover_get_data() (Mover)
+Added optional computingSite and sourceSite arguments to getFileInfo(), getPoolFileCatalog() (Mover)
+Sending optional computingSite and sourceSite to getPoolFileCatalog() from getFileInfo() (Mover)
+Created FAXTools module
+Moved _getFAXRedirectors() and getFAXRedirectors() from FAXSiteMover to FAXTools
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module
