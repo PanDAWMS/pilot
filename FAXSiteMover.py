@@ -23,7 +23,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, getSiteInformation, extractFilePaths, getExperiment, extractPattern
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
-from FAXTools import getFAXRedirectors
+from FAXTools import getFAXRedirectors, updateRedirector
 
 # placing the import lfc here breaks compilation on non-lcg sites
 # import lfc
@@ -1083,7 +1083,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             redirector = fax_redirectors_dictionary['sourcesite']
 
         # correct the redirector in case the protocol and/or trailing slash are missing
-        redirector = self.updateRedirector(redirector)
+        redirector = updateRedirector(redirector)
 
         # use the proper Rucio method to generate the path if possible (if scope is present in the SURL)
         scope = extractPattern(surl, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
@@ -1104,21 +1104,6 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         tolog("Will use global path: %s" % (paths[0]))
 
         return paths
-
-    def updateRedirector(self, redirector):
-        """ Correct the redirector in case the protocol and/or trailing slash are missing """
-
-        if not redirector.startswith("root://"):
-            redirector = "root://" + redirector
-            tolog("Updated redirector for missing protocol: %s" % (redirector))
-        if not redirector.endswith("/"):
-            redirector = redirector + "/"
-            tolog("Updated redirector for missing trailing /: %s" % (redirector))
-
-        # Protect against triple slashes
-        redirector = redirector.replace('///','//')
-
-        return redirector
 
     def getGlobalFilePathsDQ2(self, dsname):
         """ Get the global file paths using dq2-list-files """
@@ -1147,7 +1132,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             redirector = readpar('faxredirector') # 'root://glrd.usatlas.org/'
             if redirector != "":
                 # correct the redirector in case the protocol and/or trailing slash are missing
-                redirector = self.updateRedirector(redirector)
+                redirector = updateRedirector(redirector)
 
                 cmd = 'export STORAGEPREFIX=%s; ' % (redirector)
                 cmd += 'dq2-list-files -p %s' % (dsname)

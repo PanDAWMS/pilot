@@ -6,6 +6,21 @@ import commands
 from pUtil import tolog, readpar
 from FileHandling import readJSON, writeJSON
 
+def updateRedirector(redirector):
+    """ Correct the redirector in case the protocol and/or trailing slash are missing """
+
+    if not redirector.startswith("root://"):
+        redirector = "root://" + redirector
+        tolog("Updated redirector for missing protocol: %s" % (redirector))
+    if not redirector.endswith("/"):
+        redirector = redirector + "/"
+        tolog("Updated redirector for missing trailing /: %s" % (redirector))
+
+    # Protect against triple slashes
+    redirector = redirector.replace('///','//')
+
+    return redirector
+
 def _getFAXRedirectors(computingSite, sourceSite, pandaID, url='http://waniotest.appspot.com/SiteToFaxEndpointTranslator'):
     """ Get the FAX redirectors via curl or JSON """
 

@@ -204,6 +204,7 @@ Added optional computingSite and sourceSite arguments to getFileInfo(), getPoolF
 Sending optional computingSite and sourceSite to getPoolFileCatalog() from getFileInfo() (Mover)
 Created FAXTools module
 Moved _getFAXRedirectors() and getFAXRedirectors() from FAXSiteMover to FAXTools
+Moved updateRedirector() from FAXSiteMover to FAXTools
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module
