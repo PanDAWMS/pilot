@@ -4538,7 +4538,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             rep.csumvalue = checksumIn[i]
             rep.filetype = "DISK" # assumed, cannot know
             rep.rse = ddmEndPointIn[i]
-            replicas_dic[guid] = [rep]
+            replicas_dict[guid] = [rep]
             tolog("...")
 
             i += 1
@@ -4547,7 +4547,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         tolog("file_dict=%s"%str(file_dict))
         tolog("surl_filetype_dictionary=%s"%str(surl_filetype_dictionary))
         tolog("copytool_dictionary=%s"%str(copytool_dictionary))
-        tolog("replicas_dic=%s"%str(replicas_dic))
+        tolog("replicas_dict=%s"%str(replicas_dict))
 
     elif use_rucio:
         tolog("Replica dictionaries will be prepared for Rucio")
