@@ -1,4 +1,4 @@
-# Class definition:
+1# Class definition:
 #   ATLASSiteInformation
 #   This class is the ATLAS site information class inheriting from SiteInformation
 #   Instances are generated with SiteInformationFactory via pUtil::getSiteInformation()
@@ -13,8 +13,11 @@ import SiteMover
 from SiteInformation import SiteInformation  # Main site information class
 from pUtil import tolog                      # Logging method that sends text to the pilot log
 from pUtil import readpar                    # Used to read values from the schedconfig DB (queuedata)
+from pUtil import timedCommand               # Used by executeBenchmark
 from FileHandling import getExtension        # Used to determine file type of Tier-1 info file
+from FileHandling import getJSONDictionary   # Used by executeBenchmark
 from PilotErrors import PilotErrors          # Error codes
+
 
 class ATLASSiteInformation(SiteInformation):
 
@@ -442,7 +445,7 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
-#            ec = self.replaceQueuedataField("copytoolin", "fax")
+            ec = self.replaceQueuedataField("copytoolin", "fax")
 #            ec = self.replaceQueuedataField("copytool", "lsm")
 #            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
             ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")

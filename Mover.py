@@ -4440,8 +4440,10 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     if getCopytool(mode="get").lower() == "fax":
         tolog("No need for catalog replica lookup since FAX is primary stage-in site mover")
         thisExperiment.doFileLookups(False)
+        use_fax = True
     else:
         thisExperiment.doFileLookups(True)
+        use_fax = False
 
     if thisExperiment.willDoFileLookups():
         # Get the replica dictionary
@@ -4503,20 +4505,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             pilotErrorDiag = ""
         tolog("file_dict = %s" % str(file_dict))
 
-    elif use_rucio:
-        tolog("Replica dictionaries will be prepared for Rucio")
-
-        # Get the replica dictionary etc using predeterministic paths method
-        ec, pilotErrorDiag, file_dict, xml_source, replicas_dict = getRucioFileList(scope_dict, guid_token_dict,\
-                                                                                    lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover)
-        if ec != 0:
-            return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary, copytool_dictionary
-        tolog("file_dict = %s" % str(file_dict))
-
-        # NOTE: have to set surl_filetype_dictionary, copytool_dictionary
-        # ..
-
-    else:
+    elif use_fax:
         tolog("Will generate PFC for FAX")
         xml_source = "FAX"
 
@@ -4544,6 +4533,25 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             replicas_dic[guid] = [rep]
 
             i += 1
+
+        tolog("FAX:")
+        tolog("file_dict=%s"%str(file_dict))
+        tolog("surl_filetype_dictionary=%s"%str(surl_filetype_dictionary))
+        tolog("copytool_dictionary=%s"%str(copytool_dictionary))
+        tolog("replicas_dic=%s"%str(replicas_dic))
+
+    elif use_rucio:
+        tolog("Replica dictionaries will be prepared for Rucio")
+
+        # Get the replica dictionary etc using predeterministic paths method
+        ec, pilotErrorDiag, file_dict, xml_source, replicas_dict = getRucioFileList(scope_dict, guid_token_dict,\
+                                                                                    lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover)
+        if ec != 0:
+            return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary, copytool_dictionary
+        tolog("file_dict = %s" % str(file_dict))
+
+        # NOTE: have to set surl_filetype_dictionary, copytool_dictionary
+        # ..
 
     # Create a pool file catalog
     xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)
