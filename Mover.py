@@ -4437,7 +4437,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     use_rucio = False
 
     # No need for file catalog lookups if FAX is set as primary stage-in site mover
-    if getCopytool(mode="get").lower() == "fax":
+    if copytool == "fax":
         tolog("No need for catalog replica lookup since FAX is primary stage-in site mover")
         thisExperiment.doFileLookups(False)
         use_fax = True
