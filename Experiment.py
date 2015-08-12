@@ -995,7 +995,7 @@ class Experiment(object):
         fax_redirectors_dictionary = getFAXRedirectors(computingSite, sourceSite, pandaID)
 
         # select the proper fax redirector                                                                                                                                                                    
-        if ".lib." in surl:
+        if ".lib." in lfn:
             redirector = fax_redirectors_dictionary['computingsite']
         else:
             redirector = fax_redirectors_dictionary['sourcesite']
