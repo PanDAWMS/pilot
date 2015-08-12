@@ -992,7 +992,7 @@ class Experiment(object):
         # Get the proper FAX redirector (default ATLAS implementation)
         from FAXTools import getFAXRedirectors
         # First get the global redirectors (several, since the lib file might not be at the same place for overflow jobs)
-        fax_redirectors_dictionary = getFAXRedirectors(computingSite, sourceSite, pandaID, url='http://waniotest.appspot.com/SiteToFaxEndpointTranslator')
+        fax_redirectors_dictionary = getFAXRedirectors(computingSite, sourceSite, pandaID)
 
         # select the proper fax redirector                                                                                                                                                                    
         if ".lib." in surl:
