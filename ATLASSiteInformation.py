@@ -448,7 +448,8 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("copytoolin", "fax")
 #            ec = self.replaceQueuedataField("copytool", "lsm")
 #            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
-            ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
+            ec = self.replaceQueuedataField("faxredirector", "atlas-xrd-us.usatlas.org:1094/")
+#            ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 #            ec = self.replaceQueuedataField("copyprefixin", "^srm://gk05.swt2.uta.edu")
 # Event Service tests:

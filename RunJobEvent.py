@@ -1657,7 +1657,7 @@ class RunJobEvent(RunJob):
         tolog("Sent %s" % (message))
 
     def getPoolFileCatalog(self, dsname, tokens, workdir, dbh, DBReleaseIsAvailable,\
-                               scope_dict, filesizeIn, checksumIn, thisExperiment=None, inFilesGuids=None, lfnList=None):
+                               scope_dict, filesizeIn, checksumIn, thisExperiment=None, inFilesGuids=None, lfnList=None, ddmEndPointIn=None):
         """ Wrapper function for the actual getPoolFileCatalog function in Mover """
 
         # This function is a wrapper to the actual getPoolFileCatalog() in Mover, but also contains SURL to TURL conversion
@@ -1679,7 +1679,7 @@ class RunJobEvent(RunJob):
         ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary, copytool_dictionary = mover.getPoolFileCatalog("", inFilesGuids, lfnList, self.__pilot_initdir,\
                                                                                                   self.__analysisJob, tokens, workdir, dbh,\
                                                                                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
-                                                                                                  sitemover, thisExperiment=thisExperiment,\
+                                                                                                  sitemover, thisExperiment=thisExperiment, ddmEndPointIn=ddmEndPointIn,\
                                                                                                   pfc_name=self.getPoolFileCatalogPath())
         if ec != 0:
             tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
@@ -1718,7 +1718,7 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, file_info_dictionary
 
-    def createPoolFileCatalog(self, inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment, workdir):
+    def createPoolFileCatalog(self, inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment, workdir, ddmEndPointIn):
         """ Create the Pool File Catalog """
 
         # Note: this method is only used for the initial PFC needed to start AthenaMP
@@ -1744,7 +1744,7 @@ class RunJobEvent(RunJob):
 
         # Get the TURL based PFC
         ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
-                                                           filesizeIn, checksumIn, thisExperiment=thisExperiment, inFilesGuids=inFilesGuids, lfnList=inFiles)
+                                                           filesizeIn, checksumIn, thisExperiment=thisExperiment, inFilesGuids=inFilesGuids, lfnList=inFiles, ddmEndPointIn=ddmEndPointIn)
         if ec != 0:
             tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
@@ -1796,13 +1796,14 @@ class RunJobEvent(RunJob):
                     tokens = ['NULL']
                     filesizeIn = ['']
                     checksumIn = ['']
+                    ddmEndPointIn = ['']
                     dsname = 'dummy_dsname' # not used by getPoolFileCatalog()
                     workdir = os.getcwd()
                     dbh = None
                     DBReleaseIsAvailable = False
 
                     ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, tokens, workdir, dbh, DBReleaseIsAvailable,\
-                                                                              scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment)
+                                                                              scope_dict, filesizeIn, checksumIn, thisExperiment=thisExperiment, ddmEndPointIn=ddmEndPointIn)
                     if ec != 0:
                         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
@@ -2159,7 +2160,7 @@ if __name__ == "__main__":
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
         ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
-                                                                                    job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir())
+                                                                                    job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir(), job.ddmEndPointIn)
         if ec != 0:
             tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 

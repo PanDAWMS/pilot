@@ -4534,10 +4534,20 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             # Create and add the replica
             rep = replica()
             rep.sfn = surl
-            rep.filesize = filesizeIn[i]
-            rep.csumvalue = checksumIn[i]
             rep.filetype = "DISK" # assumed, cannot know
-            rep.rse = ddmEndPointIn[i]
+            # Currently not sending the following info from RunJobEvent::createPoolFileCatalogFromMessage()
+            try:
+                rep.filesize = filesizeIn[i]
+            except:
+                rep.filesize = ''
+            try:
+                rep.csumvalue = checksumIn[i]
+            except:
+                rep.csumvalue = ''
+            try:
+                rep.rse = ddmEndPointIn[i]
+            except:
+                rep.rse = ''
             replicas_dict[guid] = [rep]
             tolog("...")
 

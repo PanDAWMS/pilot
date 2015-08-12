@@ -208,6 +208,13 @@ Moved updateRedirector() from FAXSiteMover to FAXTools
 Sending ddmEndPointIn to getPoolFileCatalog() from getFileInfo() (Mover)
 Added optional argument ddmEndPointIn to getPoolFileCatalog() (Mover)
 Sending ddmEndPointIn to getFileInfo() from mover_get_data() (Mover)
+Added optional argument ddmEndPointIn to getPoolFileCatalog() (RunJobEvent)
+Sending ddmEndPointIn to Mover::getPoolFileCatalog() from RunJobEvent::getPoolFileCatalog() (RunJobEvent)
+Added argument ddmEndPointIn to createPoolFileCatalog() (RunJobEvent)
+Sending ddmEndPointIn to Mover::getPoolFileCatalog() from RunJobEvent::createPoolFileCatalog() (RunJobEvent)
+Sending job.ddmEndPointIn to createPoolFileCatalog() from __main__() (RunJobEvent)
+Sending ddmEndPointIn to getPoolFileCatalog() from createPoolFileCatalogFromMessage() (RunJobEvent)
+Updated findGlobalFilePath() and getGlobalFilePaths() to accept already defined FAX paths (i.e. taken from PFC) (FAXSiteMover)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module

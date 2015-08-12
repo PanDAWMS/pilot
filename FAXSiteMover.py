@@ -1082,6 +1082,11 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         else:
             redirector = fax_redirectors_dictionary['sourcesite']
 
+        # if the gpfn is already a FAX path, skip the following
+        if redirector in surl:
+            tolog("Detected FAX path: %s" % (surl))
+            return [surl]
+
         # correct the redirector in case the protocol and/or trailing slash are missing
         redirector = updateRedirector(redirector)
 
@@ -1229,6 +1234,10 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             if paths[0][-1] == ":": # this is necessary to prevent rucio paths having ":/" as will be the case if os.path.join is used
                 global_path = paths[0] + filename
             else: # for old style paths not using the ":" separator
-                global_path = os.path.join(paths[0], filename)
+                # for FAX paths taken from PFC, there's no need to add the filename
+                if paths[0].endswith(filename):
+                    global_path = paths[0]
+                else:
+                    global_path = os.path.join(paths[0], filename)
 
         return global_path
