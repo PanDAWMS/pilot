@@ -993,12 +993,17 @@ class Experiment(object):
         from FAXTools import getFAXRedirectors
         # First get the global redirectors (several, since the lib file might not be at the same place for overflow jobs)
         fax_redirectors_dictionary = getFAXRedirectors(computingSite, sourceSite, pandaID)
-
-        # select the proper fax redirector                                                                                                                                                                    
+        tolog("fax_redirectors_dictionary=%s"%str(fax_redirectors_dictionary))
+        # select the proper fax redirector
         if ".lib." in lfn:
             redirector = fax_redirectors_dictionary['computingsite']
         else:
             redirector = fax_redirectors_dictionary['sourcesite']
+
+        tolog("redirector=%s"%(redirector))
+        tolog("subpath=%s"%(subpath))
+        tolog("scope=%s"%(scope))
+        tolog("lfn=%s"%(lfn))
 
         return  redirector + subpath + scope + ":" + lfn
 

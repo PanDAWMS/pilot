@@ -205,6 +205,9 @@ Sending optional computingSite and sourceSite to getPoolFileCatalog() from getFi
 Created FAXTools module
 Moved _getFAXRedirectors() and getFAXRedirectors() from FAXSiteMover to FAXTools
 Moved updateRedirector() from FAXSiteMover to FAXTools
+Sending ddmEndPointIn to getPoolFileCatalog() from getFileInfo() (Mover)
+Added optional argument ddmEndPointIn to getPoolFileCatalog() (Mover)
+Sending ddmEndPointIn to getFileInfo() from mover_get_data() (Mover)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module

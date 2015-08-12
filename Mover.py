@@ -604,7 +604,7 @@ def getFileInfoDictionaryFromXML(xml_file):
     return file_info_dictionary
 
 def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
-                scope_dict, computingSite="", sourceSite="", pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None):
+                scope_dict, computingSite="", sourceSite="", pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None, ddmEndPointIn=None):
     """ Build the file info dictionary """
 
     fileInfoDic = {} # FORMAT: fileInfoDic[file_nr] = (guid, pfn, size, checksum, filetype, copytool) - note: copytool not necessarily the same for all file (e.g. FAX case)
@@ -686,7 +686,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary, copytool_dictionary = \
             getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
                                DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn, sitemover,\
-                               computingSite=computingSite, sourceSite=sourceSite, pfc_name=pfc_name, thisExperiment=thisExperiment)
+                               computingSite=computingSite, sourceSite=sourceSite, pfc_name=pfc_name, thisExperiment=thisExperiment, ddmEndPointIn=ddmEndPointIn)
 
         if ec != 0:
             return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
@@ -2044,7 +2044,7 @@ def mover_get_data(lfns,
     ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic = \
         getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
                     scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment,\
-                        computingSite=sitename, sourceSite=sourceSite)
+                        computingSite=sitename, sourceSite=sourceSite, ddmEndPointIn=job.ddmEndPointIn)
     if ec != 0:
         return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 
@@ -4517,12 +4517,20 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         # Create the file dictionary 
         i = 0
         for lfn in lfns:
+            tolog("i=%d"%i)
+
             surl = thisExperiment.buildFAXPath(lfn=lfn, scope=scope_dict[lfn], sourceSite=sourceSite, computingSite=computingSite)
+            tolog("surl=%s"%(surl))
             guid = guids[i]
+            tolog("guid=%s"%(guid))            
             file_dict[guid] = surl
             surl_filetype_dictionary[surl] = "DISK" # assumed, cannot know unless server tells (since no catalog lookup in this case)
             copytool_dictionary[surl] = "fax"
 
+            tolog("...")
+            tolog("filesizeIn=%s"%str(filesizeIn))
+            tolog("checksumIn=%s"%str(checksumIn))
+            tolog("ddmEndPointIn=%s"%str(ddmEndPointIn))
             # Create and add the replica
             rep = replica()
             rep.sfn = surl
@@ -4531,6 +4539,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             rep.filetype = "DISK" # assumed, cannot know
             rep.rse = ddmEndPointIn[i]
             replicas_dic[guid] = [rep]
+            tolog("...")
 
             i += 1
 
