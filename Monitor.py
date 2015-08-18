@@ -16,7 +16,7 @@ from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
-from FileHandling import updatePilotErrorReport
+from FileHandling import updatePilotErrorReport, writeJSON
 
 import inspect
 
@@ -216,12 +216,37 @@ class Monitor:
                                         %(workDir, size, maxwdirsize))
             else:
                 pUtil.tolog("(Skipping size check of workDir since it has not been created yet)")
-    
+
+    def storeDiskSpace(self, spaceleft):
+        """ Store the measured remaining disk space """
+
+        filename = "spaceleft.json"
+        dictionary = {} # FORMAT: { 'spaceleft': [value1, value2, ..] }
+        spaceleft_list = []
+
+        if os.path.exists(filename):
+            # Read back the dictionary
+            dictionary = readJSON(filename)
+            if dictionary != {}:
+                spaceleft_list = dictionary['spaceleft']
+            else:
+                tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
+
+        # Append the new value to the list and store it
+        spaceleft_list.append(spaceleft)
+        dictionary = { 'spaceleft': spaceleft_list}
+        status = writeJSON(filename, dictionary)
+
+        return status
+
     def __checkLocalSpace(self, disk):
-        """ check the remaining local disk space during running """
-    
+        """ Check the remaining local disk space during running """
+
         spaceleft = int(disk)*1024**2 # B (node.disk is in MB)
         _localspacelimit = self.__env['localspacelimit'] * 1024 # B
+
+        # store the measured disk space (the max value will later be sent with the job metrics)
+        status = self.storeLocalSpace(spaceleft)
 
         # do we have enough local disk space to continue running the job?
         if spaceleft < _localspacelimit:

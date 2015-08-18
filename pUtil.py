@@ -1077,15 +1077,15 @@ def removeFiles(dir, _fileList):
 
     return ec
 
-def createPoolFileCatalog(file_list, lfns, pfc_name="PoolFileCatalog.xml", forceLogical=False):
+def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml", forceLogical=False):
     """
     Create the PoolFileCatalog.xml
-    file_list = { guid1 : sfn1, ... }
+    file_dictionary = { guid1 : sfn1, ... }
     Adapted from R. Walker's code
     """
 
     outxml = ''
-    if len(file_list) == 0:
+    if len(file_dictionary) == 0:
         tolog('No input files so no PFC created')
     else:
         dom = minidom.getDOMImplementation()
@@ -1101,8 +1101,8 @@ def createPoolFileCatalog(file_list, lfns, pfc_name="PoolFileCatalog.xml", force
         pfc_text += '<POOLFILECATALOG>\n'
 
         # Strip .N because stagein makes soft link, and params have no .N
-        for guid in file_list.keys():
-            sfn = file_list[guid]
+        for guid in file_dictionary.keys():
+            sfn = file_dictionary[guid]
             ftype='ROOT_All'
 
             _file = doc.createElement("File")

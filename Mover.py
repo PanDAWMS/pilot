@@ -4422,6 +4422,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     replicas_dict = None # FORMAT: { guid1: [replica1, .. ], .. } where replica1 is of type replica
     surl_filetype_dictionary = None  # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
     copytool_dictionary = {} # FORMAT: { sfn1: copytool, ..} (sfn = surl)
+    file_dict = {} # FORMAT: { guid1: surl1, .. }
     error = PilotErrors()
 
     xml_source = "[undefined]"
@@ -4439,14 +4440,14 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     # No need for file catalog lookups if FAX is set as primary stage-in site mover
     if copytool == "fax":
         tolog("No need for catalog replica lookup since FAX is primary stage-in site mover")
-        thisExperiment.doFileLookups(False)
         use_fax = True
     else:
-        thisExperiment.doFileLookups(True)
         use_fax = False
-
-    if thisExperiment.willDoFileLookups():
+    thisExperiment.doFileLookups(True)
+    if thisExperiment.willDoFileLookups() and not use_fax:
         # Get the replica dictionary
+
+        tolog("Will do replica lookups in a file catalog")
 
         # In case FAX is allowed, loop over all available LFC hosts
         lfc_hosts_list = getFileCatalogHosts(thisExperiment)
@@ -4508,8 +4509,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     elif use_fax:
         tolog("Will generate PFC for FAX")
         xml_source = "FAX"
-
-        file_dict = {} # FORMAT: { guid1: surl1, .. }
         replicas_dict = {} # FORMAT: { guid1: [replica1, .. ], .. } where replica1 is of type replica
         surl_filetype_dictionary = {} # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
         copytool_dictionary = {} # FORMAT: { sfn1: copytool, ..} (sfn = surl)
@@ -4572,7 +4571,11 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         # NOTE: have to set surl_filetype_dictionary, copytool_dictionary
         # ..
 
+    else:
+        tolog("!!WARNING!!3444!! Use case not implemented")
+
     # Create a pool file catalog
+    tolog("Creating Pool File Catalog")
     xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)
 
     if xml_from_PFC == '' and not os.environ.has_key('Nordugrid_pilot'):

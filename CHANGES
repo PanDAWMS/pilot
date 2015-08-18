@@ -215,6 +215,8 @@ Sending ddmEndPointIn to Mover::getPoolFileCatalog() from RunJobEvent::createPoo
 Sending job.ddmEndPointIn to createPoolFileCatalog() from __main__() (RunJobEvent)
 Sending ddmEndPointIn to getPoolFileCatalog() from createPoolFileCatalogFromMessage() (RunJobEvent)
 Updated findGlobalFilePath() and getGlobalFilePaths() to accept already defined FAX paths (i.e. taken from PFC) (FAXSiteMover)
+Renamed file_list to file_dictionary in createPoolFileCatalog() (pUtil)
+Created storeDiskSpace(), used by __checkLocalSpace() (Monitor)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module

@@ -984,7 +984,7 @@ class Experiment(object):
 
         lfn = argdict.get('lfn', 'default_lfn')
         scope = argdict.get('scope', 'default_scope')
-        subpath = argdict.get('subpath', '/atlas/rucio/')
+        subpath = argdict.get('subpath', 'atlas/rucio/')
         pandaID = argdict.get('pandaID', '')
         sourceSite = argdict.get('sourceSite', 'default_sourcesite')
         computingSite = argdict.get('computingSite', 'default_computingsite')
@@ -1000,12 +1000,23 @@ class Experiment(object):
         else:
             redirector = fax_redirectors_dictionary['sourcesite']
 
+        # Make sure the redirector ends with a double slash
+        if not redirector.endswith('//'):
+            if redirector.endswith('/'):
+                redirector += "/"
+            else:
+                redirector += "//"
+
+        # Make sure that the subpath does not begin with a slash
+        if subpath.startswith('/') and len(subpath) > 1:
+            subpath = subpath[1:]
+
         tolog("redirector=%s"%(redirector))
         tolog("subpath=%s"%(subpath))
         tolog("scope=%s"%(scope))
         tolog("lfn=%s"%(lfn))
 
-        return  redirector + subpath + scope + ":" + lfn
+        return redirector + subpath + scope + ":" + lfn
 
 if __name__ == "__main__":
 
