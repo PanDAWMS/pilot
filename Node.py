@@ -219,25 +219,58 @@ class Node:
 
         return jobMetrics
 
+    def getMaxDiskSpace(self):
+        """ Return the maximum disk space used by a payload """
+
+        filename = "spaceleft.json"
+        maxdiskspace = 0
+
+        if os.path.exists(filename):
+            # Read back the disk space dictionary
+            from FileHandling import readJSON
+            dictionary = readJSON(filename)
+            if dictionary != {}:
+                # Get the remaining disk space list
+                try:
+                    spaceleft_list = dictionary['spaceleft']
+                except Exception, e:
+                    tolog("!!WARNING!!4557!! Could not read back remaining disk space list: %s" % (e))
+                else:
+                    # Get the maximum value from the list
+                    maxdiskspace = max(spaceleft_list)
+            else:
+                tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
+        else:
+            tolog("!!WARNING!!4556!! No such file: %s" % (filename))
+
+        return maxdiskspace
+
     def addToJobMetrics(self):
         """ Add the batch job and machine features to the job metrics """
 
         jobMetrics = ""
 
-        jobMetrics += self.addFieldToJobMetrics("hs06", self.hs06)
-        jobMetrics += self.addFieldToJobMetrics("shutdowntime", self.shutdownTime)
-        jobMetrics += self.addFieldToJobMetrics("jobslots", self.jobSlots)
-        jobMetrics += self.addFieldToJobMetrics("phys_cores", self.physCores)
-        jobMetrics += self.addFieldToJobMetrics("log_cores", self.logCores)
-        jobMetrics += self.addFieldToJobMetrics("cpufactor_lrms", self.cpuFactorLrms)
-        jobMetrics += self.addFieldToJobMetrics("cpu_limit_secs_lrms", self.cpuLimitSecsLrms)
-        jobMetrics += self.addFieldToJobMetrics("cpu_limit_secs", self.cpuLimitSecs)
-        jobMetrics += self.addFieldToJobMetrics("wall_limit_secs_lrms", self.wallLimitSecsLrms)
-        jobMetrics += self.addFieldToJobMetrics("wall_limit_secs", self.wallLimitSecs)
-        jobMetrics += self.addFieldToJobMetrics("disk_limit_GB", self.diskLimitGB)
-        jobMetrics += self.addFieldToJobMetrics("jobstart_secs", self.jobStartSecs)
-        jobMetrics += self.addFieldToJobMetrics("mem_limit_MB", self.memLimitMB)
-        jobMetrics += self.addFieldToJobMetrics("allocated_CPU", self.allocatedCPU)
+#        jobMetrics += self.addFieldToJobMetrics("hs06", self.hs06)
+#        jobMetrics += self.addFieldToJobMetrics("shutdowntime", self.shutdownTime)
+#        jobMetrics += self.addFieldToJobMetrics("jobslots", self.jobSlots)
+#        jobMetrics += self.addFieldToJobMetrics("phys_cores", self.physCores)
+#        jobMetrics += self.addFieldToJobMetrics("log_cores", self.logCores)
+#        jobMetrics += self.addFieldToJobMetrics("cpufactor_lrms", self.cpuFactorLrms)
+#        jobMetrics += self.addFieldToJobMetrics("cpu_limit_secs_lrms", self.cpuLimitSecsLrms)
+#        jobMetrics += self.addFieldToJobMetrics("cpu_limit_secs", self.cpuLimitSecs)
+#        jobMetrics += self.addFieldToJobMetrics("wall_limit_secs_lrms", self.wallLimitSecsLrms)
+#        jobMetrics += self.addFieldToJobMetrics("wall_limit_secs", self.wallLimitSecs)
+#        jobMetrics += self.addFieldToJobMetrics("disk_limit_GB", self.diskLimitGB)
+#        jobMetrics += self.addFieldToJobMetrics("jobstart_secs", self.jobStartSecs)
+#        jobMetrics += self.addFieldToJobMetrics("mem_limit_MB", self.memLimitMB)
+#        jobMetrics += self.addFieldToJobMetrics("allocated_CPU", self.allocatedCPU)
+
+        # Get the max disk space used by the payload
+        max_space = self.getMaxDiskSpace()
+        if max_space > 0L:
+            jobMetrics += self.addFieldToJobMetrics("workDirSize", max_space)
+        else:
+            tolog("Will not add max space = %d to job metrics" % (max_space))
 
         return jobMetrics
 

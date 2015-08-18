@@ -217,6 +217,7 @@ Sending ddmEndPointIn to getPoolFileCatalog() from createPoolFileCatalogFromMess
 Updated findGlobalFilePath() and getGlobalFilePaths() to accept already defined FAX paths (i.e. taken from PFC) (FAXSiteMover)
 Renamed file_list to file_dictionary in createPoolFileCatalog() (pUtil)
 Created storeDiskSpace(), used by __checkLocalSpace() (Monitor)
+Created getMaxDiskSpace(), used by addToJobMetrics() (Node)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module

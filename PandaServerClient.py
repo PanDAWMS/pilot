@@ -158,12 +158,14 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="JEM", value=1)
             # old format: jobMetrics += " JEM=%s" % (job.JEM)
 
-        # machine and job features
+        # machine and job features, max disk space used by the payload
         # jobMetrics += workerNode.addToJobMetrics()
         _jobMetrics = ""
         _jobMetrics += workerNode.addToJobMetrics()
         if _jobMetrics != "":
             tolog("Could have added: %s to job metrics" % (workerNode.addToJobMetrics()))
+
+        _jobMetrics = ""
 
         # report any OS transfers
         message = self.getOSJobMetrics()
