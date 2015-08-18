@@ -530,7 +530,7 @@ class ATLASExperiment(Experiment):
             status = True
 
         if status:
-            tolog("Will do file lookups in %s" % (readpar('lfchost')))
+            tolog("File lookups from %s" % (readpar('lfchost')))
         else:
             tolog("Will not do any file lookups")
 

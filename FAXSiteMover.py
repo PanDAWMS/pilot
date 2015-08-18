@@ -225,7 +225,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         ret_path = siteInformation.getCopyPrefixPath(path, stageIn=True)
         if not ret_path.startswith("root:"):
-            errorLog = "Failed to use copyprefix to convert the current path to local path."
+            errorLog = "Failed to use copyprefix to convert the current path to local path (does not start with \'root\' protocol)"
             tolog("!!WARNING!!1777!! %s" % (errorLog))
             outputRet["errorLog"] = errorLog
             outputRet["report"]["clientState"] = 'PSTAGE_FAIL'
@@ -524,7 +524,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         ret_path = siteInformation.getCopyPrefixPath(path, stageIn=False)
         if not ret_path.startswith("root:"):
-            errorLog = "Failed to use copyprefix to convert the current path to local path."
+            errorLog = "Failed to use copyprefix to convert the current path to local path (does not start with \'root\' protocol)"
             tolog("!!WARNING!!1777!! %s" % (errorLog))
             outputRet["errorLog"] = errorLog
             outputRet["report"]["clientState"] = 'PSTAGE_FAIL'

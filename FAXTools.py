@@ -78,7 +78,10 @@ def getFAXRedirectors(computingSite, sourceSite, jobId):
 
     else:
         tolog("sourceSite is not set, use faxredirector value from AGIS")
-        fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
-        fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
+
+        _faxredirector = readpar('faxredirector')
+        _faxredirector = updateRedirector(_faxredirector)
+        fax_redirectors_dictionary['computingsite'] = _faxredirector
+        fax_redirectors_dictionary['sourcesite'] = _faxredirector
 
     return fax_redirectors_dictionary
