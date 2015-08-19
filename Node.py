@@ -245,7 +245,7 @@ class Node:
 
         return maxdiskspace
 
-    def addToJobMetrics(self):
+    def addToJobMetrics(self, jobResult):
         """ Add the batch job and machine features to the job metrics """
 
         jobMetrics = ""
@@ -265,12 +265,13 @@ class Node:
 #        jobMetrics += self.addFieldToJobMetrics("mem_limit_MB", self.memLimitMB)
 #        jobMetrics += self.addFieldToJobMetrics("allocated_CPU", self.allocatedCPU)
 
-        # Get the max disk space used by the payload
-        max_space = self.getMaxDiskSpace()
-        if max_space > 0L:
-            jobMetrics += self.addFieldToJobMetrics("workDirSize", max_space)
-        else:
-            tolog("Will not add max space = %d to job metrics" % (max_space))
+        # Get the max disk space used by the payload (at the end of a job)
+        if jobResult == "finished" or jobResult == "failed" or jobResult == "holding":
+            max_space = self.getMaxDiskSpace()
+            if max_space > 0L:
+                jobMetrics += self.addFieldToJobMetrics("workDirSize", max_space)
+            else:
+                tolog("Will not add max space = %d to job metrics" % (max_space))
 
         return jobMetrics
 
