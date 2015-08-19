@@ -218,6 +218,7 @@ Updated findGlobalFilePath() and getGlobalFilePaths() to accept already defined 
 Renamed file_list to file_dictionary in createPoolFileCatalog() (pUtil)
 Created storeDiskSpace(), used by __checkLocalSpace() (Monitor)
 Created getMaxDiskSpace(), used by addToJobMetrics() (Node)
+Added restart of utility and token extractor subprocesses at the end of the event range loop in __main__() (RunJobEvent)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module

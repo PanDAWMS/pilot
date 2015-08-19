@@ -246,7 +246,7 @@ class Monitor:
         _localspacelimit = self.__env['localspacelimit'] * 1024 # B
 
         # store the measured disk space (the max value will later be sent with the job metrics)
-        status = self.storeLocalSpace(spaceleft)
+        status = self.storeDiskSpace(spaceleft)
 
         # do we have enough local disk space to continue running the job?
         if spaceleft < _localspacelimit:

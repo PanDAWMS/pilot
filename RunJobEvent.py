@@ -1579,7 +1579,7 @@ class RunJobEvent(RunJob):
         else:
             # In this case the input file is an EVT file
             # Define the options
-            options = '-e -s \"%s\"' % (url)
+            options = '-v -e -s \"%s\"' % (url)
 
         # Define the command
         cmd = "%s TokenExtractor %s" % (setup, options)
@@ -2207,6 +2207,7 @@ if __name__ == "__main__":
         # nonsense counter used to get different "event server" message using the downloadEventRanges() function
         tolog("Entering monitoring loop")
 
+        k = 0
         nap = 5
         eventRangeFilesDictionary = {}
         while True:
@@ -2285,7 +2286,11 @@ if __name__ == "__main__":
                     break
 
             else:
-                time.sleep(5)
+                time.sleep(6)
+
+                if k%10 == 0:
+                    tolog("AthenaMP waiting loop iteration #%d" % (k))
+                    k += 1
 
                 # Is AthenaMP still running?
                 if athenaMPProcess.poll() is not None:
@@ -2294,6 +2299,24 @@ if __name__ == "__main__":
                     job.result[2] = error.ERR_ESATHENAMPDIED
                     tolog("!!WARNING!!2222!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
                     break
+                tolog("AthenaMP still running")
+                
+                # Make sure that the utility subprocess is still running
+                if utility_subprocess:
+                    if not utility_subprocess.poll() is None:
+                        # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
+                        tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                        utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                tolog("Utility still running")
+
+                # Make sure that the token extractor is still running
+                if tokenExtractorProcess:
+                     if not tokenExtractorProcess.poll() is None:
+                         tolog("!!WARNING!!4344!! Dectected crashed token extractor subprocess - will restart it")
+                         tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
+                                                                                     stdout=tokenextractor_stdout, stderr=tokenextractor_stderr,\
+                                                                                     url=thisEventService.getEventIndexURL())
+                tolog("Token Extractor still running")
 
         # Wait for AthenaMP to finish
         i = 0
