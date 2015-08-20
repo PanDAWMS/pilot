@@ -2261,7 +2261,7 @@ if __name__ == "__main__":
                         # Take a nap
                         if i%10 == 0:
                             tolog("Event range loop iteration #%d" % (i))
-                            i += 1
+                        i += 1
                         time.sleep(nap)
 
                         # Is AthenaMP still running?
@@ -2290,7 +2290,7 @@ if __name__ == "__main__":
 
                 if k%10 == 0:
                     tolog("AthenaMP waiting loop iteration #%d" % (k))
-                    k += 1
+                k += 1
 
                 # Is AthenaMP still running?
                 if athenaMPProcess.poll() is not None:
@@ -2299,7 +2299,6 @@ if __name__ == "__main__":
                     job.result[2] = error.ERR_ESATHENAMPDIED
                     tolog("!!WARNING!!2222!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
                     break
-                tolog("AthenaMP still running")
                 
                 # Make sure that the utility subprocess is still running
                 if utility_subprocess:
@@ -2307,16 +2306,14 @@ if __name__ == "__main__":
                         # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
                         utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
-                tolog("Utility still running")
 
                 # Make sure that the token extractor is still running
-                if tokenExtractorProcess:
-                     if not tokenExtractorProcess.poll() is None:
-                         tolog("!!WARNING!!4344!! Dectected crashed token extractor subprocess - will restart it")
-                         tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
-                                                                                     stdout=tokenextractor_stdout, stderr=tokenextractor_stderr,\
-                                                                                     url=thisEventService.getEventIndexURL())
-                tolog("Token Extractor still running")
+                if not tokenExtractorProcess.poll() is None:
+                    job.pilotErrorDiag = "Token Extractor has crashed"
+                    job.result[0] = "failed"
+                    job.result[2] = error.ERR_TEFATAL
+                    tolog("!!WARNING!!2322!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
+                    break
 
         # Wait for AthenaMP to finish
         i = 0
