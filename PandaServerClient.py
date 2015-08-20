@@ -163,7 +163,7 @@ class PandaServerClient:
         _jobMetrics = ""
         _jobMetrics += workerNode.addToJobMetrics(job.result[0])
         if _jobMetrics != "":
-            tolog("Could have added: %s to job metrics" % (workerNode.addToJobMetrics()))
+            tolog("Could have added: %s to job metrics" % (_jobMetrics))
 
         _jobMetrics = ""
 
