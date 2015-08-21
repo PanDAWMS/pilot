@@ -240,6 +240,7 @@ Added scope_dict argument to createPFC4TURLs() (Mover)
 Sending lfns and scope_dict to getTURLs() from createPFC4TURLs() (Mover)
 Added lfns and scope_dict arguments to getTURLs() (Mover)
 Created getMatchingLFN() used by getTURLs() (Mover)
+Sending scope_dict to PFC4TURLs() from getPoolFileCatalog() (RunJobEvent)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module
