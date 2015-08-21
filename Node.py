@@ -219,10 +219,10 @@ class Node:
 
         return jobMetrics
 
-    def getMaxDiskSpace(self):
+    def getMaxDiskSpace(self, path):
         """ Return the maximum disk space used by a payload """
 
-        filename = "spaceleft.json"
+        filename = os.path.join(path, "spaceleft.json")
         maxdiskspace = 0
 
         if os.path.exists(filename):
@@ -245,7 +245,7 @@ class Node:
 
         return maxdiskspace
 
-    def addToJobMetrics(self, jobResult):
+    def addToJobMetrics(self, jobResult, path):
         """ Add the batch job and machine features to the job metrics """
 
         jobMetrics = ""
@@ -267,7 +267,7 @@ class Node:
 
         # Get the max disk space used by the payload (at the end of a job)
         if jobResult == "finished" or jobResult == "failed" or jobResult == "holding":
-            max_space = self.getMaxDiskSpace()
+            max_space = self.getMaxDiskSpace(path)
             if max_space > 0L:
                 jobMetrics += self.addFieldToJobMetrics("workDirSize", max_space)
             else:

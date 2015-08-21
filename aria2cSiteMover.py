@@ -250,6 +250,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # Get input parameters from pdict
         token = pdict.get('token', None)
         jobId = pdict.get('jobId', '')
+        scope = pdict.get('scope', '')
         workDir = pdict.get('workDir', '')
         proxycheck = pdict.get('proxycheck', False)
 
@@ -343,7 +344,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
           if fscope:
             rep.scope = fscope
           else:
-            scope = extractPattern(gpfn,r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
+            #scope = extractPattern(gpfn,r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
             rep.scope = scope.replace("/",".")
           replicas = {guid:[rep]}
 

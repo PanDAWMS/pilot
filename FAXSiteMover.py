@@ -847,6 +847,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         # Get input parameters from pdict
         jobId = pdict.get('jobId', '')
+        scope = pdict.get('scope', '')
         workDir = pdict.get('workDir', '')
         dsname = pdict.get('dsname', '')
         sourceSite = pdict.get('sourceSite', '')
@@ -871,7 +872,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         # get the global path (likely to update the gpfn/SURL)
         tolog("SURL=%s" % (gpfn))
-        gpfn = self.findGlobalFilePath(gpfn, dsname, computingSite, sourceSite, jobId=jobId)
+        gpfn = self.findGlobalFilePath(gpfn, scope, dsname, computingSite, sourceSite, jobId=jobId)
         if gpfn == "":
             ec = error.ERR_STAGEINFAILED
             pilotErrorDiag = "Failed to get global paths for FAX transfer"
@@ -1067,8 +1068,8 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return 'global_paths-%s.txt' % (fdsname)
 
-    def getGlobalFilePaths(self, surl, dsname, computingSite, sourceSite, jobId=None):
-        """ Get the global file paths using to_native_lfn() [dsname needed] or Rucio naming convension [surl needed to extract the scope] """
+    def getGlobalFilePaths(self, surl, scope, computingSite, sourceSite, jobId=None):
+        """ Get the global file paths """
 
         # this method will in fact only ever return a single path, but keep 'paths' as a list for consistency with getGlobalFilePathsDQ2()
         paths = []
@@ -1090,18 +1091,8 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         # correct the redirector in case the protocol and/or trailing slash are missing
         redirector = updateRedirector(redirector)
 
-        # use the proper Rucio method to generate the path if possible (if scope is present in the SURL)
-        scope = extractPattern(surl, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
-        if scope != "":
-            # for Rucio convension details see https://twiki.cern.ch/twiki/bin/view/AtlasComputing/MovingToRucio
-            native_path = "/atlas/rucio/" + scope + ":"
-        else:
-            # get the pre-path
-            native_path = self.to_native_lfn(dsname, 'DUMMYLFN')
-            native_path = native_path.replace('DUMMYLFN', '') # the real lfn will be added by the caller
-
-            # remove the /grid substring
-            native_path = native_path.replace('/grid', '')
+        # for Rucio convension details see https://twiki.cern.ch/twiki/bin/view/AtlasComputing/MovingToRucio
+        native_path = "/atlas/rucio/" + scope + ":"
 
         # construct the global path
         paths.append(redirector + native_path)
@@ -1203,7 +1194,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return self.verifyGlobalPath(output, verbose=False)
 
-    def findGlobalFilePath(self, surl, dsname, computingSite, sourceSite, jobId=None):
+    def findGlobalFilePath(self, surl, scope, dsname, computingSite, sourceSite, jobId=None):
         """ Find the global path for the given file"""
 
         global_path = ""
@@ -1229,7 +1220,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 tolog("!!WARNING!!3333!! Failed to get global file path")
         else:
             # get the global file paths from file/DQ2
-            paths = self.getGlobalFilePaths(surl, dsname, computingSite, sourceSite, jobId=jobId)
+            paths = self.getGlobalFilePaths(surl, scope, computingSite, sourceSite, jobId=jobId)
 
             if paths[0][-1] == ":": # this is necessary to prevent rucio paths having ":/" as will be the case if os.path.join is used
                 global_path = paths[0] + filename

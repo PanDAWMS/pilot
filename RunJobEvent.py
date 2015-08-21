@@ -2208,6 +2208,7 @@ if __name__ == "__main__":
         tolog("Entering monitoring loop")
 
         k = 0
+        max_wait = 30
         nap = 5
         eventRangeFilesDictionary = {}
         while True:
@@ -2309,6 +2310,7 @@ if __name__ == "__main__":
 
                 # Make sure that the token extractor is still running
                 if not tokenExtractorProcess.poll() is None:
+                    max_wait = 0
                     job.pilotErrorDiag = "Token Extractor has crashed"
                     job.result[0] = "failed"
                     job.result[2] = error.ERR_TEFATAL
@@ -2319,7 +2321,8 @@ if __name__ == "__main__":
         i = 0
         kill = False
         while athenaMPProcess.poll() is None:
-            if i > 600:
+            tolog("Waiting for AthenaMP to finish (#%d)" % (i))
+            if i > max_wait:
                 # Stop AthenaMP
                 tolog("Waited long enough - Stopping AthenaMP process")
                 athenaMPProcess.kill()
@@ -2327,7 +2330,6 @@ if __name__ == "__main__":
                 kill = True
                 break
 
-            tolog("Waiting for AthenaMP to finish (#%d)" % (i))
             time.sleep(60)
             i += 1
 

@@ -220,7 +220,7 @@ class Monitor:
     def storeDiskSpace(self, spaceleft):
         """ Store the measured remaining disk space """
 
-        filename = "spaceleft.json"
+        filename = os.path.join(self.__env['pilot_initdir'], "spaceleft.json")
         dictionary = {} # FORMAT: { 'spaceleft': [value1, value2, ..] }
         spaceleft_list = []
 
@@ -236,6 +236,8 @@ class Monitor:
         spaceleft_list.append(spaceleft)
         dictionary = { 'spaceleft': spaceleft_list}
         status = writeJSON(filename, dictionary)
+        if status:
+            tolog("Stored %d B in file %s" % (filename))
 
         return status
 

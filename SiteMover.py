@@ -3250,11 +3250,11 @@ class SiteMover(object):
 
         return full_path
 
-    def getGlobalFilePaths(self, surl, dataset, computingSite, sourceSite):
+    def getGlobalFilePaths(self, surl, scope, computingSite, sourceSite):
         """ Get the global file paths """
 
         # Note: this method depends on the site mover used, so should be defined there, and as virtual here
-        # (see e.g. FAXSiteMover, aria2cSiteMover for implementations)
+        # (see e.g. FAXSiteMover for implementations)
 
         return []
 
