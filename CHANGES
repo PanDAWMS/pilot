@@ -175,7 +175,7 @@ Added missing module name to readpar() call in __monitor_processes(), affecting 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-62.2
+63.0
 
 Added ddmEndPointIn, ddmEndPointOut, ddmEndPointLog to Job class, and handling in displayJob() and setJobDef() (Job)
 Moved exception handling for utility subprocess from executePayload() to getUtilitySubprocess() (RunJob)
@@ -242,6 +242,7 @@ Added lfns and scope_dict arguments to getTURLs() (Mover)
 Created getMatchingLFN() used by getTURLs() (Mover)
 Sending scope_dict to PFC4TURLs() from getPoolFileCatalog() (RunJobEvent)
 Corrected 'Failed' -> 'failed' message sent with updateEventRange() in listener() (RunJobEvent)
+Moved discoverAdditionalOutputFiles() from RunJob to FileHandling, added import and removed a comment
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module

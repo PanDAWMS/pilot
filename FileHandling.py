@@ -543,5 +543,56 @@ def getHighestPriorityError(jobId, workdir):
 
     return errorInfo
 
+def discoverAdditionalOutputFiles(output_file_list, workdir, datasets_list, scope_list):
+    """ Have any additional output files been produced by the trf? If so, add them to the output file list """
+
+    # In case an output file has reached the max output size, the payload can spill over the remaining events to
+    # a new file following the naming scheme: original_output_filename.extension_N, where N >= 1
+    # Any additional output file will have the same dataset as the original file
+
+    from glob import glob
+    from re import compile, findall
+    new_output_file_list = []
+    new_datasets_list = []
+    new_scope_list = []
+    found_new_files = False
+
+    # Create a lookup dictionaries
+    dataset_dict = dict(zip(output_file_list, datasets_list))
+    scope_dict = dict(zip(output_file_list, scope_list))
+
+    # Loop over all output files
+    for output_file in output_file_list:
+
+        # Add the original file and dataset
+        new_output_file_list.append(output_file)
+        new_datasets_list.append(dataset_dict[output_file])
+        new_scope_list.append(scope_dict[output_file])
+
+        # Get a list of all files whose names begin with <output_file>
+        files = glob(os.path.join(workdir, "%s*" % (output_file)))
+        for _file in files:
+
+            # Exclude the original file
+            output_file_full_path = os.path.join(workdir, output_file)
+            if _file != output_file_full_path:
+
+                # Create the search pattern
+                pattern = compile(r'(%s\_\d+)' % (output_file_full_path))
+                found = findall(pattern, _file)
+
+                # Add the file name (not full path) of the found file, if found
+                if found:
+                    found_new_files = True
+                    new_file = os.path.basename(found[0])
+                    new_output_file_list.append(new_file)
+                    dataset = dataset_dict[output_file]
+                    new_datasets_list.append(dataset)
+                    scope = scope_dict[output_file]
+                    new_scope_list.append(scope)
+                    tolog("Discovered additional output file: %s (dataset = %s, scope = %s)" % (new_file, dataset, scope))
+
+    return new_output_file_list, new_datasets_list, new_scope_list
+
 # print findLatestTRFLogFile(os.getcwd())
 

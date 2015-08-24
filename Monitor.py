@@ -16,7 +16,7 @@ from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
-from FileHandling import updatePilotErrorReport, writeJSON
+from FileHandling import updatePilotErrorReport, writeJSON, discoverAdditionalOutputFiles
 
 import inspect
 
@@ -217,8 +217,26 @@ class Monitor:
             else:
                 pUtil.tolog("(Skipping size check of workDir since it has not been created yet)")
 
-    def storeDiskSpace(self, spaceleft):
+    def addToTotalSize(path, total_size):
+        """ Add the size of file with 'path' to the total size of all in/output files """
+
+        if os.path.exists(path):
+            from SiteMover import SiteMover
+            sitemover = SiteMover()
+
+            # Get the file size
+            fsize = sitemover.getLocalFileSize(path)
+            tolog("File=%s: %s B" % (path, fsize))
+            if fsize != "":
+                total_size += long(fsize)
+        else:
+            tolog("Skipping file=%s since it has not been transferred" % (path))
+
+        return total_size
+
+    def storeDiskSpace(self, spaceleft, correction=True):
         """ Store the measured remaining disk space """
+        # If correction=True, then input and output file sizes will be deducated
 
         filename = os.path.join(self.__env['pilot_initdir'], "spaceleft.json")
         dictionary = {} # FORMAT: { 'spaceleft': [value1, value2, ..] }
@@ -232,9 +250,36 @@ class Monitor:
             else:
                 tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
 
+        # Correct for any input and output files
+        if correction:
+            for k in self.__env['jobDic'].keys():
+                job = self.__env['jobDic'][k][1]
+
+        # Correct for any input and output files
+        if correction:
+            total_size = 0L # B
+
+            for k in self.__env['jobDic'].keys():
+                job = self.__env['jobDic'][k][1]
+                if os.path.exists(job.workdir):
+                    # Find out which input and output files have been transferred and add their sizes to the total size
+                    # (Note: output files should also be removed from the total size since outputfilesize is added in the task def)
+                    # First update the file list in case additional output files have been produced
+                    job.outFiles, dummy, dummy = discoverAdditionalOutputFiles(job.outFiles, job.workdir, job.destinationDblock, job.scopeOut)
+
+                    file_list = job.inFiles + job.outFiles
+                    for f in file_list:
+                        if f != "":
+                            total_size += self.addToTotalSize(os.path.join(job.workdir, f), total_size)
+
+                    tolog("Total size of present input+output files: %d B")
+                    spaceleft -= total_size
+                else:
+                    tolog("WARNING: Can not correct for input/output files since workdir does not exist: %s" % (job.workdir))
+
         # Append the new value to the list and store it
         spaceleft_list.append(spaceleft)
-        dictionary = { 'spaceleft': spaceleft_list}
+        dictionary = { 'spaceleft': spaceleft_list }
         status = writeJSON(filename, dictionary)
         if status:
             tolog("Stored %d B in file %s" % (filename))

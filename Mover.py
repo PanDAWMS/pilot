@@ -2404,7 +2404,7 @@ def getFileSizeAndChecksum(lfn, outputFileInfo):
 
     fsize = 0
     checksum = 0
-    tolog("outputFileInfo=%s"%str(outputFileInfo))
+
     if outputFileInfo:
         try:
             fsize = outputFileInfo[lfn][0]
