@@ -219,31 +219,31 @@ class Node:
 
         return jobMetrics
 
-    def getMaxDiskSpace(self, path):
+    def getMaxWorkDirSize(self, path):
         """ Return the maximum disk space used by a payload """
 
-        filename = os.path.join(path, "spaceleft.json")
-        maxdiskspace = 0
+        filename = os.path.join(path, "workdir_size.json")
+        maxdirsize = 0
 
         if os.path.exists(filename):
-            # Read back the disk space dictionary
+            # Read back the workdir space dictionary
             from FileHandling import readJSON
             dictionary = readJSON(filename)
             if dictionary != {}:
-                # Get the remaining disk space list
+                # Get the workdir space list
                 try:
-                    spaceleft_list = dictionary['spaceleft']
+                    workdir_size_list = dictionary['workdir_size']
                 except Exception, e:
-                    tolog("!!WARNING!!4557!! Could not read back remaining disk space list: %s" % (e))
+                    tolog("!!WARNING!!4557!! Could not read back work dir space list: %s" % (e))
                 else:
                     # Get the maximum value from the list
-                    maxdiskspace = max(spaceleft_list)
+                    maxdirsize = max(workdir_size_list)
             else:
-                tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
+                tolog("!!WARNING!!4555!! Failed to read back work dir space from file: %s" % (filename))
         else:
             tolog("!!WARNING!!4556!! No such file: %s" % (filename))
 
-        return maxdiskspace
+        return maxdirsize
 
     def addToJobMetrics(self, jobResult, path):
         """ Add the batch job and machine features to the job metrics """
@@ -267,7 +267,7 @@ class Node:
 
         # Get the max disk space used by the payload (at the end of a job)
         if jobResult == "finished" or jobResult == "failed" or jobResult == "holding":
-            max_space = self.getMaxDiskSpace(path)
+            max_space = self.getMaxWorkDirSize(path)
             if max_space > 0L:
                 jobMetrics += self.addFieldToJobMetrics("workDirSize", max_space)
             else:
