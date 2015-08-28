@@ -24,7 +24,6 @@ from pUtil import getInitialDirs                # Used by getModernASetup()
 from PilotErrors import PilotErrors             # Error codes
 from FileHandling import readFile, writeFile    # File handling methods
 from FileHandling import updatePilotErrorReport # Used to set the priority of an error
-from FileHandling import getJSONDictionary      # Used to read the benchmark output file
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
 from RunJobUtilities import findVmPeaks         #

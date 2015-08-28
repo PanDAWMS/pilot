@@ -699,10 +699,10 @@ class RunJob(object):
                 # If the event is still available, the go ahead and run the payload
                 message = downloadEventRanges(job.jobId, job.jobsetID)
 
-            # Create a list of event ranges from the downloaded message
+                # Create a list of event ranges from the downloaded message
                 event_ranges = self.extractEventRanges(message)
 
-            # Are there any event ranges?
+                # Are there any event ranges?
                 if event_ranges == []:
                     tolog("!!WARNING!!2424!! This clone job was already executed")
                     exitMsg = "Already executed clone job"
@@ -1523,10 +1523,10 @@ if __name__ == "__main__":
                     # If the event is still available, the go ahead and run the payload
                     message = downloadEventRanges(job.jobId, job.jobsetID)
 
-                # Create a list of event ranges from the downloaded message
+                    # Create a list of event ranges from the downloaded message
                     event_ranges = runJob.extractEventRanges(message)
 
-                # Are there any event ranges?
+                    # Are there any event ranges?
                     if event_ranges == []:
                         tolog("!!WARNING!!2424!! This clone job was already executed and stored")
                         exitMsg = "Already executed/stored clone job"

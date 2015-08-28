@@ -8,7 +8,7 @@ from shutil import copy2, rmtree
 import Mover as mover
 from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, getGUID
-from FileHandling import addToOSTransferDictionary
+from FileHandling import addToOSTransferDictionary, getWorkDirSizeFilename, getDirSize, storeWorkDirSize
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
@@ -1112,11 +1112,24 @@ class JobLog:
         except Exception,e:
             tolog("!!WARNING!!1400!! Could not copy pilot log to workdir: %s" % str(e))
 
-        # copy pilotlog.txt to workdir before tar
+        # copy stderr to workdir before tar
         try:
             copy2(getPilotstderrFilename(), job.workdir)
         except Exception,e:
-            tolog("!!WARNING!!1400!! Could not copy pilot log to workdir: %s" % str(e))
+            tolog("!!WARNING!!1400!! Could not copy stderr to workdir: %s" % str(e))
+
+        # has the workdir size dictionary been created? (probably not if the job is less than ten minutes old)
+        workdirsize_filepath = os.path.join(job.workdir, getWorkDirSizeFilename(job.jobId))
+        if os.path.exists(workdirsize_filepath):
+            tolog("Work directory size dictionary already created: %s" % (workdirsize_filepath))
+        else:
+            tolog("Work directory size dictionary not created (will create it now)")
+            size = getDirSize(job.workdir)
+
+            # Store the measured disk space (the max value will later be sent with the job metrics)                                                                           
+            jobDic = {}
+            jobDic['prod'] = [0, job, 0]
+            status = storeWorkDirSize(size, self.__env['pilot_initdir'], jobDic)
 
         # input and output files should already be removed from the workdir in child process
         tarballNM = "%s.tar" % (job.newDirNM)

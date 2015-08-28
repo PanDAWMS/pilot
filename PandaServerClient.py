@@ -159,11 +159,9 @@ class PandaServerClient:
             # old format: jobMetrics += " JEM=%s" % (job.JEM)
 
         # machine and job features, max disk space used by the payload
-        # jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir)
-        _jobMetrics = ""
-        _jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir)
-        if _jobMetrics != "":
-            tolog("Could have added: %s to job metrics" % (_jobMetrics))
+        jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir, job.jobId)
+        #if _jobMetrics != "":
+        #    tolog("Could have added: %s to job metrics" % (_jobMetrics))
 
         _jobMetrics = ""
 

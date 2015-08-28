@@ -3,6 +3,7 @@ import os
 import re
 import commands
 from pUtil import tolog, readpar
+from FileHandling import getMaxWorkDirSize
 
 class Node:
     """ worker node information """
@@ -215,37 +216,11 @@ class Node:
 
         jobMetrics = ""
         if value != "":
-            jobMetrics += " %s=%s" % (name, value)
+            jobMetrics += "%s=%s " % (name, value)
 
         return jobMetrics
 
-    def getMaxWorkDirSize(self, path):
-        """ Return the maximum disk space used by a payload """
-
-        filename = os.path.join(path, "workdir_size.json")
-        maxdirsize = 0
-
-        if os.path.exists(filename):
-            # Read back the workdir space dictionary
-            from FileHandling import readJSON
-            dictionary = readJSON(filename)
-            if dictionary != {}:
-                # Get the workdir space list
-                try:
-                    workdir_size_list = dictionary['workdir_size']
-                except Exception, e:
-                    tolog("!!WARNING!!4557!! Could not read back work dir space list: %s" % (e))
-                else:
-                    # Get the maximum value from the list
-                    maxdirsize = max(workdir_size_list)
-            else:
-                tolog("!!WARNING!!4555!! Failed to read back work dir space from file: %s" % (filename))
-        else:
-            tolog("!!WARNING!!4556!! No such file: %s" % (filename))
-
-        return maxdirsize
-
-    def addToJobMetrics(self, jobResult, path):
+    def addToJobMetrics(self, jobResult, path, jobId):
         """ Add the batch job and machine features to the job metrics """
 
         jobMetrics = ""
@@ -267,7 +242,7 @@ class Node:
 
         # Get the max disk space used by the payload (at the end of a job)
         if jobResult == "finished" or jobResult == "failed" or jobResult == "holding":
-            max_space = self.getMaxWorkDirSize(path)
+            max_space = getMaxWorkDirSize(path, jobId)
             if max_space > 0L:
                 jobMetrics += self.addFieldToJobMetrics("workDirSize", max_space)
             else:

@@ -1823,7 +1823,7 @@ def setUpdateFrequencies():
     """ Set the update frequency of user workdir etc checks """
 
     env['update_freq_proc'] = 5*60              # Update frequency, process checks [s], 5 minutes
-    env['update_freq_space'] = 4*60            # Update frequency, space checks [s], 10 minutes
+    env['update_freq_space'] = 10*60            # Update frequency, space checks [s], 10 minutes
 
     if os.environ.has_key('NON_LOCAL_ATLAS_SCRATCH'):
         if os.environ['NON_LOCAL_ATLAS_SCRATCH'].lower() == "true":

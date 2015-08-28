@@ -16,7 +16,7 @@ from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
-from FileHandling import updatePilotErrorReport, readJSON, writeJSON, discoverAdditionalOutputFiles
+from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize
 
 import inspect
 
@@ -147,7 +147,7 @@ class Monitor:
                 else:
                     pUtil.tolog("(Skipping file size check of payload stdout file (%s) since it has not been created yet)" % (_stdout))
 
-    def __getMaxWorkDirSize(self):
+    def __getMaxAllowedWorkDirSize(self):
         """
         Return the maximum allowed size of the work directory for user jobs
         """
@@ -170,132 +170,45 @@ class Monitor:
         """
         
         # get the limit of the workdir
-        maxwdirsize = self.__getMaxWorkDirSize()
+        maxwdirsize = self.__getMaxAllowedWorkDirSize()
     
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
             # get size of workDir
             workDir = self.__env['jobDic'][k][1].workdir
-            pUtil.tolog("Checking size of work dir: %s" % (workDir))
             if os.path.exists(workDir):
-                try:
-                    # get the size in kB
-                    size_str = commands.getoutput("du -sk %s" % (workDir))
-                except Exception, e:
-                    pUtil.tolog("Warning: failed to check remaining space: %s, %s" % (workDir, str(e)))
-                else:
-                    # e.g., size_str = "900\t/scratch-local/nilsson/pilot3z"
-                    try:
-                        # remove tab and path, and convert to int (and B)
-                        size = int(size_str.split("\t")[0])*1024
-                    except Exception, e:
-                        pUtil.tolog("Warning: failed to convert to int: %s" % str(e))
+                size = getDirSize(workDir)
+                if size > 0:
+                    # is user dir within allowed size limit?
+                    if size > maxwdirsize:
+                        pilotErrorDiag = "Work directory (%s) too large: %d B (must be < %d B)" %\
+                                         (workDir, size, maxwdirsize)
+                        pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
+
+                        # kill the job
+                        killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                        self.__env['jobDic'][k][1].result[0] = "failed"
+                        self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
+                        self.__env['jobDic'][k][1].result[2] = self.__error.ERR_USERDIRTOOLARGE
+                        self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                        self.__skip = True
+
+                        # store the error info
+                        updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
+                        # remove any lingering input files from the work dir
+                        if self.__env['jobDic'][k][1].inFiles:
+                            if len(self.__env['jobDic'][k][1].inFiles) > 0:
+                                ec = pUtil.removeFiles(self.__env['jobDic'][k][1].workdir, self.__env['jobDic'][k][1].inFiles)
                     else:
-                        # is user dir within allowed size limit?
-                        if size > maxwdirsize:
-                            pilotErrorDiag = "Work directory (%s) too large: %d B (must be < %d B)" %\
-                                             (workDir, size, maxwdirsize)
-                            pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
-    
-                            # kill the job
-                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                            self.__env['jobDic'][k][1].result[0] = "failed"
-                            self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
-                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_USERDIRTOOLARGE
-                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
-                            self.__skip = True
+                        pUtil.tolog("Size of work directory %s: %d B (within %d B limit)" % (workDir, size, maxwdirsize))
 
-                            # store the error info
-                            updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
-
-                            # remove any lingering input files from the work dir
-                            if self.__env['jobDic'][k][1].inFiles:
-                                if len(self.__env['jobDic'][k][1].inFiles) > 0:
-                                    ec = pUtil.removeFiles(self.__env['jobDic'][k][1].workdir, self.__env['jobDic'][k][1].inFiles)
-                        else:
-                            pUtil.tolog("Size of work directory %s: %d B (within %d B limit)" % (workDir, size, maxwdirsize))
-
-                        # Store the measured disk space (the max value will later be sent with the job metrics)
-                        status = self.storeWorkDirSize(size)
+                    # Store the measured disk space (the max value will later be sent with the job metrics)
+                    status = storeWorkDirSize(size, self.__env['pilot_initdir'], self.__env['jobDic'])
+                else:
+                    pUtil.tolog("Skipping size of of workDir since it could not be measured")
             else:
                 pUtil.tolog("(Skipping size check of workDir since it has not been created yet)")
-
-    def addToTotalSize(self, path, total_size):
-        """ Add the size of file with 'path' to the total size of all in/output files """
-
-        if os.path.exists(path):
-            from SiteMover import SiteMover
-            sitemover = SiteMover()
-
-            # Get the file size
-            fsize = sitemover.getLocalFileSize(path)
-            pUtil.tolog("Size of file %s: %s B" % (path, fsize))
-            if fsize != "":
-                total_size += long(fsize)
-        else:
-            pUtil.tolog("Skipping file %s in work dir size check since it has not been transferred or created yet" % (path))
-
-        return total_size
-
-    def storeWorkDirSize(self, workdir_size, correction=True):
-        """ Store the measured remaining disk space """
-        # If correction=True, then input and output file sizes will be deducated
-
-        filename = os.path.join(self.__env['pilot_initdir'], "workdir_size.json")
-        dictionary = {} # FORMAT: { 'workdir_size': [value1, value2, ..] }
-        workdir_size_list = []
-
-        if os.path.exists(filename):
-            # Read back the dictionary
-            dictionary = readJSON(filename)
-            if dictionary != {}:
-                workdir_size_list = dictionary['workdir_size']
-            else:
-                pUtil.tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
-
-        # Correct for any input and output files
-        if correction:
-            for k in self.__env['jobDic'].keys():
-                job = self.__env['jobDic'][k][1]
-
-        # Correct for any input and output files
-        if correction:
-            total_size = 0L # B
-
-            for k in self.__env['jobDic'].keys():
-                job = self.__env['jobDic'][k][1]
-                if os.path.exists(job.workdir):
-                    # Find out which input and output files have been transferred and add their sizes to the total size
-                    # (Note: output files should also be removed from the total size since outputfilesize is added in the task def)
-
-                    # First remove the log file from the output file list
-                    outFiles = []
-                    for f in job.outFiles:
-                        if not job.logFile in f:
-                            outFiles.append(f)
-
-                    # Then update the file list in case additional output files have been produced
-                    # Note: don't do this deduction since it is not known by the task definition
-                    #outFiles, dummy, dummy = discoverAdditionalOutputFiles(outFiles, job.workdir, job.destinationDblock, job.scopeOut)
-
-                    file_list = job.inFiles + outFiles
-                    for f in file_list:
-                        if f != "":
-                            total_size += self.addToTotalSize(os.path.join(job.workdir, f), total_size)
-
-                    pUtil.tolog("Total size of present input+output files: %d B (work dir size: %d B)" % (total_size, workdir_size))
-                    workdir_size -= total_size
-                else:
-                    pUtil.tolog("WARNING: Can not correct for input/output files since workdir does not exist: %s" % (job.workdir))
-
-        # Append the new value to the list and store it
-        workdir_size_list.append(workdir_size)
-        dictionary = { 'workdir_size': workdir_size_list }
-        status = writeJSON(filename, dictionary)
-        if status:
-            pUtil.tolog("Stored %d B in file %s" % (workdir_size, filename))
-
-        return status
 
     def __checkLocalSpace(self, disk):
         """ Check the remaining local disk space during running """

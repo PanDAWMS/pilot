@@ -614,6 +614,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
     totalFileSize = 0L
     ec = 0
     pilotErrorDiag = ""
+    xml_source = ""
 
     tolog("Preparing to build paths for input files")
 
@@ -647,7 +648,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             ec = -1
         tolog("fileInfoDic=%s" % str(fileInfoDic))
         tolog("replicas_dic=%s" % str(replicas_dic))
-        return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+        return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source
 
     # If the pilot is running on a Tier 3 site, then neither LFC nor PFC should be used
     if si.isTier3():
@@ -670,7 +671,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             # Get the file info
             ec, pilotErrorDiag, fsize, fchecksum = sitemover.getLocalFileInfo(se_path, csumtype="default")
             if ec != 0:
-                return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+                return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source
 
             # Fill the dictionaries
             fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum, 'DISK', copytool) # no tape on T3s, so filetype is always DISK
@@ -689,14 +690,14 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
                                computingSite=computingSite, sourceSite=sourceSite, pfc_name=pfc_name, thisExperiment=thisExperiment, ddmEndPointIn=ddmEndPointIn)
 
         if ec != 0:
-            return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+            return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source
 
         tolog("Using XML source %s" % (xml_source))
         if xml_from_PFC == '':
             pilotErrorDiag = "Failed to get PoolFileCatalog"
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
             tolog("Mover get_data finished (failed)")
-            return error.ERR_NOPFC, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+            return error.ERR_NOPFC, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source
 
         xmldoc = minidom.parseString(xml_from_PFC)
         fileList = xmldoc.getElementsByTagName("File")
@@ -723,7 +724,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             if not fsize or not fchecksum:
                 ec, pilotErrorDiag, fsize, fchecksum = getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, error)
                 if ec != 0:
-                    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+                    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source
 
                 # Even though checksum and file size is most likely already known from LFC, more reliable file
                 # info is stored in Rucio. Try to get it from there unless the dispatcher has already sent it to the pilot
@@ -755,7 +756,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             except:
                 pass
 
-    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic
+    return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source
 
 def extractCopytoolForPFN(pfn, copytool_dictionary):
     """ Extract the copytool for this PFN """
@@ -1868,7 +1869,7 @@ def createStandardPFC4TRF(createdPFCTURL, pfc_name_turl, pfc_name, guidfname):
         try:
             os.rename(pfc_name_turl, pfc_name)
         except Exception, e:
-            tolog("!!WARNING!!2997!! Could not rename TURL based PFC: %s" % str(e))
+            tolog("Could not rename TURL based PFC: %s (%s)" % (e, pfc_name_turl))
         else:
             tolog("Renamed TURL based PFC from %s to %s" % (pfc_name_turl, pfc_name))
             createdPFC = True
@@ -2065,7 +2066,7 @@ def mover_get_data(lfns,
     # Build the file info dictionary (use the filesize and checksum from the dispatcher if possible) and create the PFC
     # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, copytool)
     #         replicas_dic[guid1] = [ replica1, .. ] where replicaN is an object of class replica
-    ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic = \
+    ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source = \
         getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
                     scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment,\
                         computingSite=sitename, sourceSite=sourceSite, ddmEndPointIn=job.ddmEndPointIn)
@@ -2080,9 +2081,13 @@ def mover_get_data(lfns,
 
     # Create a TURL based PFC if necessary/requested (i.e. if copy tool should not be used [useCT=False] and
     # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
-    ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict)
-    if ec != 0:
-        return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
+    if xml_source != "FAX":
+        ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict)
+        if ec != 0:
+            return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
+    else:
+        tolog("(Skipping PFC4TURL call since it is not necessary in FAX mode)")
+        createdPFCTURL = True
 
     # Correct the total file size for the DBRelease file if necessary
     totalFileSize = correctTotalFileSize(totalFileSize, fileInfoDic, lfns, dbh, DBReleaseIsAvailable)
@@ -2312,7 +2317,7 @@ def mover_get_data(lfns,
                 old_sitemover = sitemover
                 sitemover = getSiteMover("fax", "") # to be patched: job args should be passed here
                 sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
-                guidfname[guid] = sitemover.findGlobalFilePath(lfn, dsname, sitename, sourceSite)
+                guidfname[guid] = sitemover.findGlobalFilePath(lfn, scope, dsname, sitename, sourceSite)
 
                 # Restore the old sitemover
                 del sitemover
@@ -4540,8 +4545,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         # Create the file dictionary 
         i = 0
         for lfn in lfns:
-            tolog("i=%d"%i)
-
             surl = thisExperiment.buildFAXPath(lfn=lfn, scope=scope_dict[lfn], sourceSite=sourceSite, computingSite=computingSite)
             tolog("surl=%s"%(surl))
             guid = guids[i]
@@ -4550,7 +4553,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             surl_filetype_dictionary[surl] = "DISK" # assumed, cannot know unless server tells (since no catalog lookup in this case)
             copytool_dictionary[surl] = "fax"
 
-            tolog("...")
             tolog("filesizeIn=%s"%str(filesizeIn))
             tolog("checksumIn=%s"%str(checksumIn))
             tolog("ddmEndPointIn=%s"%str(ddmEndPointIn))
@@ -4572,7 +4574,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             except:
                 rep.rse = ''
             replicas_dict[guid] = [rep]
-            tolog("...")
 
             i += 1
 

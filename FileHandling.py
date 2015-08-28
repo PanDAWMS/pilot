@@ -230,8 +230,8 @@ def getNewQueuedataXXX(queuename):
         tolog("Downloading queuedata (attempt #%d)" % (trial+1))
         cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&vo_name=atlas&panda_queue=%s\" >%s" % (queuename, filename)
         tolog("Executing command: %s" % (cmd))
-        import commands
-        ret, output = commands.getstatusoutput(cmd)
+        from commands import getstatusoutput
+        ret, output = getstatusoutput(cmd)
 
         # Verify queuedata
         value = getField('copysetup')
@@ -593,6 +593,129 @@ def discoverAdditionalOutputFiles(output_file_list, workdir, datasets_list, scop
                     tolog("Discovered additional output file: %s (dataset = %s, scope = %s)" % (new_file, dataset, scope))
 
     return new_output_file_list, new_datasets_list, new_scope_list
+
+def getDirSize(d):
+    """ Return the size of directory d using du -sk """
+
+    tolog("Checking size of work dir: %s" % (d))
+    from commands import getoutput
+    size_str = getoutput("du -sk %s" % (d))
+    size = 0
+
+    # E.g., size_str = "900\t/scratch-local/nilsson/pilot3z"
+    try:
+        # Remove tab and path, and convert to int (and B)                                                                                                                                                
+        size = int(size_str.split("\t")[0])*1024
+    except Exception, e:
+        tolog("!!WARNING!!4343!! Failed to convert to int: %s" % (e))
+    else:
+        tolog("Size of directory %s: %d B" % (d, size))
+
+    return size
+
+def addToTotalSize(path, total_size):
+    """ Add the size of file with 'path' to the total size of all in/output files """
+
+    if os.path.exists(path):
+        from SiteMover import SiteMover
+        sitemover = SiteMover()
+
+        # Get the file size
+        fsize = sitemover.getLocalFileSize(path)
+        tolog("Size of file %s: %s B" % (path, fsize))
+        if fsize != "":
+            total_size += long(fsize)
+    else:
+        tolog("Skipping file %s in work dir size check since it is not present" % (path))
+
+    return total_size
+
+def storeWorkDirSize(workdir_size, pilot_initdir, jobDic, correction=True):
+    """ Store the measured remaining disk space """
+    # If correction=True, then input and output file sizes will be deducated
+
+    for k in jobDic.keys():
+        job = jobDic[k][1]
+
+        filename = os.path.join(pilot_initdir, getWorkDirSizeFilename(job.jobId))
+        dictionary = {} # FORMAT: { 'workdir_size': [value1, value2, ..] }
+        workdir_size_list = []
+
+        if os.path.exists(filename):
+            # Read back the dictionary
+            dictionary = readJSON(filename)
+            if dictionary != {}:
+                workdir_size_list = dictionary['workdir_size']
+            else:
+                tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
+
+        # Correct for any input and output files
+        if correction:
+            
+            total_size = 0L # B
+
+            if os.path.exists(job.workdir):
+                # Find out which input and output files have been transferred and add their sizes to the total size
+                # (Note: output files should also be removed from the total size since outputfilesize is added in the task def)
+
+                # First remove the log file from the output file list
+                outFiles = []
+                for f in job.outFiles:
+                    if not job.logFile in f:
+                        outFiles.append(f)
+
+                # Then update the file list in case additional output files have been produced
+                # Note: don't do this deduction since it is not known by the task definition
+                #outFiles, dummy, dummy = discoverAdditionalOutputFiles(outFiles, job.workdir, job.destinationDblock, job.scopeOut)
+
+                file_list = job.inFiles + outFiles
+                for f in file_list:
+                    if f != "":
+                        total_size = addToTotalSize(os.path.join(job.workdir, f), total_size)
+
+                tolog("Total size of present input+output files: %d B (work dir size: %d B)" % (total_size, workdir_size))
+                workdir_size -= total_size
+            else:
+                tolog("WARNING: Can not correct for input/output files since workdir does not exist: %s" % (job.workdir))
+
+        # Append the new value to the list and store it
+        workdir_size_list.append(workdir_size)
+        dictionary = { 'workdir_size': workdir_size_list }
+        status = writeJSON(filename, dictionary)
+        if status:
+            tolog("Stored %d B in file %s" % (workdir_size, filename))
+
+    return status
+
+def getWorkDirSizeFilename(jobId):
+    """ Return the name of the workdir_size.json file """
+
+    return "workdir_size-%s.json" % (jobId)
+
+def getMaxWorkDirSize(path, jobId):
+    """ Return the maximum disk space used by a payload """
+
+    filename = os.path.join(path, getWorkDirSizeFilename(jobId))
+    maxdirsize = 0
+
+    if os.path.exists(filename):
+        # Read back the workdir space dictionary
+        dictionary = readJSON(filename)
+        if dictionary != {}:
+            # Get the workdir space list
+            try:
+                workdir_size_list = dictionary['workdir_size']
+            except Exception, e:
+                tolog("!!WARNING!!4557!! Could not read back work dir space list: %s" % (e))
+            else:
+                # Get the maximum value from the list
+                maxdirsize = max(workdir_size_list)
+        else:
+            tolog("!!WARNING!!4555!! Failed to read back work dir space from file: %s" % (filename))
+    else:
+        tolog("!!WARNING!!4556!! No such file: %s" % (filename))
+
+    return maxdirsize
 
 # print findLatestTRFLogFile(os.getcwd())
 

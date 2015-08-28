@@ -6,9 +6,6 @@ Complete change log for PanDA Pilot version PICARD
 
 63.0
 
-update_freq_space changed, set it back
-
-
 Added ddmEndPointIn, ddmEndPointOut, ddmEndPointLog to Job class, and handling in displayJob() and setJobDef() (Job)
 Moved exception handling for utility subprocess from executePayload() to getUtilitySubprocess() (RunJob)
 Making sure that the subprocess is still running in executePayload() (RunJob)
@@ -48,8 +45,9 @@ Sending job.ddmEndPointIn to createPoolFileCatalog() from __main__() (RunJobEven
 Sending ddmEndPointIn to getPoolFileCatalog() from createPoolFileCatalogFromMessage() (RunJobEvent)
 Updated findGlobalFilePath() and getGlobalFilePaths() to accept already defined FAX paths (i.e. taken from PFC) (FAXSiteMover)
 Renamed file_list to file_dictionary in createPoolFileCatalog() (pUtil)
-Created storeWorkDirSize(), used by __checkWorkDir() (Monitor)
-Created getMaxWorkDirSize(), used by addToJobMetrics() (Node)
+Created storeWorkDirSize(), used by __checkWorkDir() (FileHandling, Monitor)
+Created getMaxWorkDirSize(), used by addToJobMetrics() (FileHandling, Node)
+Created getWorkDirSizeFilename() used by getMaxWorkDirSize() and storeWorkDirSize() (FileHandling)
 Added restart of utility subprocess and aborting job if token extractor has crashed at the end of the event range loop in __main__() (RunJobEvent)
 Aborting immediately if Token Extractor has died instead of waiting for AthenaMP to finish, in __main__() (RunJobEvent)
 Changed waiting time from 600 to 30, in __main__() (RunJobEvent)
@@ -75,6 +73,11 @@ Created getMatchingLFN() used by getTURLs() (Mover)
 Sending scope_dict to PFC4TURLs() from getPoolFileCatalog() (RunJobEvent)
 Corrected 'Failed' -> 'failed' message sent with updateEventRange() in listener() (RunJobEvent)
 [Out-commented call for now] Moved discoverAdditionalOutputFiles() from RunJob to FileHandling, added import and removed a comment
+Sending scope to findGlobalFilePath() from mover_get_data() (Mover)
+Renamed __getMaxWorkDirSize() to __getMaxAllowedWorkDirSize(), used by __checkWorkDir() (Monitor)
+Using getDirSize(), getWorkDirSizeFilename() and storeWorkDirSize() in createLogFile() (JobLog)
+Now returning xml_source from getFileInfo(), received in mover_get_data() (Mover)
+Skipping call to PFC4TURLs() in mover_get_data() in FAX mode (Mover)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module
