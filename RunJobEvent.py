@@ -2151,7 +2151,7 @@ if __name__ == "__main__":
                                                                     url=thisEventService.getEventIndexURL())
 
         # Create the file objects
-        athenamp_stdout, athenamp_stderr = runJob.getStdoutStderrFileObjects(stdoutName="athenamp_stdout.txt", stderrName="athenamp_stderr.txt")
+        athenamp_stdout, athenamp_stderr = runJob.getStdoutStderrFileObjects(stdoutName="athena_stdout.txt", stderrName="athena_stderr.txt")
 
         # Remove the 1>.. 2>.. bit from the command string (not needed since Popen will handle the streams)
         if " 1>" in runCommandList[0] and " 2>" in runCommandList[0]:

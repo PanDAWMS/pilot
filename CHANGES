@@ -78,6 +78,7 @@ Renamed __getMaxWorkDirSize() to __getMaxAllowedWorkDirSize(), used by __checkWo
 Using getDirSize(), getWorkDirSizeFilename() and storeWorkDirSize() in createLogFile() (JobLog)
 Now returning xml_source from getFileInfo(), received in mover_get_data() (Mover)
 Skipping call to PFC4TURLs() in mover_get_data() in FAX mode (Mover)
+Renamed athenamp_std*.txt to athena_std*.txt in __main__() (RunJobEvent)
 
 Code merge with Alexey Anisenkov
 - Added new movers sub directory with new site mover (xrdcp) and mover module

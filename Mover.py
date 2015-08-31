@@ -5196,7 +5196,7 @@ def getDataset(filename, dsdict):
             break
 
     if dataset == "":
-        tolog("!!WARNING!!2999!! Dataset not found for file %s" % (filename))
+        tolog("!!WARNING!!2999!! Dataset not found for file %s: %s" % (filename, str(dsdict)))
     else:
         tolog("File %s belongs to dataset/container %s" % (filename, dataset))
 
