@@ -1236,6 +1236,7 @@ def convertSURLtoTURLUsingScope(surl, scope, computingSite, sourceSite):
     """ Convert SURL to TURL using the scope """
 
     turl = ""
+    tolog("SURL = %s" % (surl))
 
     # Select the correct mover
     copycmd, setup = getCopytool(mode="get")
@@ -1245,13 +1246,24 @@ def convertSURLtoTURLUsingScope(surl, scope, computingSite, sourceSite):
 
     # get the global file paths from file
     paths = sitemover.getGlobalFilePaths(surl, scope, computingSite, sourceSite)
+    tolog("paths=%s"%str(paths))
     if paths != []:
         if paths[0][-1] == ":": # this is necessary to prevent rucio paths having ":/" as will be the case if os.path.join is used
             turl = paths[0] + os.path.basename(surl)
+            tolog("(path 1)")
         else:
-            turl = os.path.join(paths[0], os.path.basename(surl))
+            bname = os.path.basename(surl)
+            if ":" in bname: # valid1:EVNT.234234.root
+                bname = bname[bname.find(':')+1:] # EVNT.234234.root
+            tolog("bname = %s" % (bname))
+            if paths[0].endswith(":" + bname):
+                turl = paths[0]
+                tolog("(path 2)")
+            else:
+                turl = os.path.join(paths[0], os.path.basename(surl))
+                tolog("(path 3)")
 
-        tolog("Converted SURL: %s to TURL: %s (using the scope)" % (surl, turl))
+        tolog("TURL = %s (converted using scope=%s)" % (turl, scope))
     else:
         tolog("!!WARNING!! SURL to TURL conversion failed (sitemover.getGlobalFilePaths() returned empty path list)")
 
