@@ -445,7 +445,7 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
-            ec = self.replaceQueuedataField("copytoolin", "fax")
+            ec = self.replaceQueuedataField("copytoolin", "lsm")
 #            ec = self.replaceQueuedataField("copytool", "lsm")
 #            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
             ec = self.replaceQueuedataField("faxredirector", "atlas-xrd-us.usatlas.org:1094/")

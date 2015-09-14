@@ -2289,7 +2289,8 @@ def mover_get_data(lfns,
                                                                                                                                  sitename=sitename, token=None, timeout=get_TIMEOUT,\
                                                                                                                                  dsname=dsname, userid=userid, report=report,\
                                                                                                                                  access=file_access, inputDir=inputDir, jobId=jobId,\
-                                                                                                                                 workDir=workDir, cmtconfig=cmtconfig, experiment=experiment)
+                                                                                                                                 workDir=workDir, cmtconfig=cmtconfig, experiment=experiment,\
+                                                                                                                                 scope_dict=scope_dict, sourceSite=sourceSite)
                         if replica_transferred:
                             tolog("FAX site mover managed to transfer file from remote site (resetting error code to zero)")
                             pilotErrorDiag = ""
