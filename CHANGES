@@ -104,6 +104,7 @@ Added missing scope_dict and sourceSite in call to sitemover_get_data() in mover
 
 Updated the default event index url from ific to cern, in getEventIndexURL() (EventService)
 Sending jobReport.json with the metaData field also for event service jobs, in updatePandaServer() (PandaServerClient)
+Created _useDirectAccess(), useDirectAccessLAN(), useDirectAccessWAN() (Mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

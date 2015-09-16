@@ -5343,3 +5343,35 @@ def getRucioReplicaDictionary(cat, file_dictionary):
         tolog("!!WARNING!!2234!! Empty replica list, can not continue with Rucio replica query")
 
     return replica_dictionary, surl_dictionary
+
+def _useDirectAccess(LAN=True, WAN=False):
+    """ Should direct i/o be used over LAN or WAN? """
+
+    useDA = False
+
+    if LAN:
+        par = 'direct_access_lan'
+    elif WAN:
+        par = 'direct_access_wan'
+    else:
+        tolog("!!WARNING!!3443!! Bad LAN/WAN combination: LAN=%s, WAN=%s" % (str(LAN), str(WAN)))
+        par = ''
+
+    if par != '':
+        da = readpar(par)
+        if da:
+            da = da.lower()
+            if da == "true":
+                useDA = True
+
+    return useDA
+
+def useDirectAccessLAN():
+    """ Should direct i/o be used over LAN? """
+
+    return _useDirectAccess(LAN=True, WAN=False)
+
+def useDirectAccessWAN():
+    """ Should direct i/o be used over WAN? """
+
+    return _useDirectAccess(LAN=False, WAN=True)
