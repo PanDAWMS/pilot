@@ -1146,6 +1146,7 @@ def getPrefices(fileList):
     prefix_dictionary = {}
 
     # get the file access info (only old/newPrefix are needed here)
+    tolog("direct access = %s" % str(useDirectAccessLAN()))
     useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
 
     # get the copyprefices
@@ -1514,15 +1515,13 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
 
     status = False
 
-#    allowDirectAccess = readpar('allowdirectaccess').lower()
-#    if allowDirectAccess.lower() == "true":
     if analysisJob:
         # get the file access info
+        tolog("direct access = %s" % str(useDirectAccessLAN()))
         useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
 
         # forced TURL (only if copyprefix has enough info)
-        #_oldPrefix, _newPrefix = getPlainCopyPrefices()
-        if directIn: # and (_oldPrefix != "" and _newPrefix != "" and _oldPrefix != "dummy" and _newPrefix != "dummy"):
+        if directIn:
             tolog("Reset old/newPrefix (forced TURL mode)")
             oldPrefix = ""
             newPrefix = ""
@@ -1542,11 +1541,6 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
         if transferType == "direct":
             tolog("Will attempt to create a TURL based PFC (for transferType %s)" % (transferType))
             status = True
-#    else:
-#        if allowDirectAccess == "":
-#            tolog("This site has not set allowDirectAccess - direct access/file stager not allowed")
-#        else:
-#            tolog("This site has allowDirectAccess = %s - direct access/file stager not allowed" % (allowDirectAccess))
 
     # override if necessary for event service
     if eventService:
