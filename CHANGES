@@ -108,6 +108,11 @@ Created _useDirectAccess(), useDirectAccessLAN(), useDirectAccessWAN() (Mover)
 Sending hasInput to updateRunCommandList() from __main__() (RunJob, RunJobEvent)
 Added hasInput argument to updateRunCommandList() (RunJobUtilities)
 Removing --createTAGFileForES instruction from runCommandList in updateRunCommandList() (RunJobUtilities)
+Updated setUseEventIndex() to set __useEventIndex variable depending on jobPars (RunJobEvent)
+Sending jobPars to setUseEventIndex() from __main__(), and moved the call to setUseEventIndex() until job object is defined (RunJobEvent)
+Added a waiting loop in listener() for send event range to finish (RunJobEvent)
+Added new variables __sending_event_range, __current_event_range and corresponding getters and setters (RunJobEvent)
+Now setting __sending_event_range using setSendingEventRange(), and __current_event_range using setCurrentEventRange() in event range loop in __main__() (RunJobEvent)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
