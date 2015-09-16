@@ -672,12 +672,24 @@ def setEnvVars(sitename):
     os.environ["COPY_TOOL"] = copytool
     tolog("Set COPY_TOOL = %s" % (copytool))
 
-def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO):
+def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput):
     """ update the run command list if --directIn is no longer needed """
     # the method is using the file state dictionary
 
     # remove later
     dumpFileStates(pworkdir, jobId, type="input")
+
+    # remove any instruction regarding tag file creation for event service jobs
+    _runCommandList = []
+    for cmd in runCommandList:
+        if "--createTAGFileForES" in cmd:
+            cmd = cmd.replace("--createTAGFileForES","")
+        _runCommandList.append(cmd)
+    runCommandList = _runCommandList
+
+    # no need to continue if no input files
+    if not hasInput:
+        return runCommandList
 
     # are there only copy_to_scratch transfer modes in the file state dictionary?
     # if so, remove any lingering --directIn instruction

@@ -105,6 +105,9 @@ Added missing scope_dict and sourceSite in call to sitemover_get_data() in mover
 Updated the default event index url from ific to cern, in getEventIndexURL() (EventService)
 Sending jobReport.json with the metaData field also for event service jobs, in updatePandaServer() (PandaServerClient)
 Created _useDirectAccess(), useDirectAccessLAN(), useDirectAccessWAN() (Mover)
+Sending hasInput to updateRunCommandList() from __main__() (RunJob, RunJobEvent)
+Added hasInput argument to updateRunCommandList() (RunJobUtilities)
+Removing --createTAGFileForES instruction from runCommandList in updateRunCommandList() (RunJobUtilities)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
