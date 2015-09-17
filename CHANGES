@@ -117,6 +117,8 @@ Added memory_monitor to exclusion list for looping job killer in __loopingJobKil
 Correct bad variable name in TimerCommand::run() [timeoutout -> timeout] (TimerCommand)
 Replaced useFileStager and directIn with _dummy strings in getPrefices() and shouldPFC4TURLsBeCreated() since they are not used in these functions (Mover)
 Now getting the value of directIn from useDirectAccessLAN() instead of from getFileAccessInfo() in shouldPFC4TURLsBeCreated() (Mover)
+Replaced useFileStager and directIn with _dummy in stageIn() since they are not used (RunJob)
+Removed import of getFileAccessInfo() since it is not used (RunJobEvent)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

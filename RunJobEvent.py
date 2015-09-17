@@ -36,7 +36,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, getCmtconfig, getExperiment, getEventService, httpConnect,\
+     tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID
 from FileHandling import getExtension, addToOSTransferDictionary
 from EventRanges import downloadEventRanges, updateEventRange
