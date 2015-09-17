@@ -56,7 +56,7 @@ class TimerCommand(object):
 
             if not self.stdout:
                 self.stdout = ''
-            self.stdout += "Command Timeout(%s seconds)." % timeoutout
+            self.stdout += "Command Timeout: %s s" % timeout
 
         return self.process.returncode, self.stdout
 
