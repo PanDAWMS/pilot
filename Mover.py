@@ -1146,8 +1146,7 @@ def getPrefices(fileList):
     prefix_dictionary = {}
 
     # get the file access info (only old/newPrefix are needed here)
-    tolog("direct access = %s" % str(useDirectAccessLAN()))
-    useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
+    useCT, oldPrefix, newPrefix, _dummy, _dummy = getFileAccessInfo()
 
     # get the copyprefices
     copyprefix = readpar('copyprefixin')
@@ -1518,7 +1517,8 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
     if analysisJob:
         # get the file access info
         tolog("direct access = %s" % str(useDirectAccessLAN()))
-        useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
+        directIn = useDirectAccessLAN()
+        useCT, oldPrefix, newPrefix, _dummy, _dummy = getFileAccessInfo()
 
         # forced TURL (only if copyprefix has enough info)
         if directIn:
@@ -1527,15 +1527,13 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
             newPrefix = ""
 
         tolog("use copytool = %s (should be false for file stager)" % str(useCT))
-        tolog("useFileStager = %s (should be true for file stager)" % str(useFileStager))
         tolog("directIn = %s (should be true for file stager)" % str(directIn))
         tolog("oldPrefix = %s (should be empty if TURL based PFC is required)" % (oldPrefix))
         tolog("newPrefix = %s (should be empty if TURL based PFC is required)" % (newPrefix))
 
         # PFC should be TURL based for file stager or for direct i/o if old/new prefices are not specified
         if not useCT and directIn and oldPrefix == "" and newPrefix == "":
-            # useFileStager thus need not be set (or used here), but directIn must be True
-            # if not useCT and directIn and oldPrefix == "" and newPrefix == "":
+            # directIn must be True if not useCT and directIn and oldPrefix == "" and newPrefix == "":
             status = True
     else:
         if transferType == "direct":
@@ -1796,7 +1794,7 @@ def getPFCName(path, inputpoolfcstring):
 def getNumberOfReplicaRetries(createdPFCTURL, replica_dictionary, guid):
     """ Get the replicas retry number """
 
-    # determine whether alternative replica stage-in should be allowed (not for FileStager and Direct Access jobs)
+    # determine whether alternative replica stage-in should be allowed (not for Direct Access jobs)
     if not createdPFCTURL and replica_dictionary != {}:
         # override any get_RETRY in this mode
         get_RETRY_replicas = min(len(replica_dictionary[guid]), MAX_NUMBER_OF_RETRIES)

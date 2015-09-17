@@ -115,6 +115,8 @@ Added new variables __sending_event_range, __current_event_range and correspondi
 Now setting __sending_event_range using setSendingEventRange(), and __current_event_range using setCurrentEventRange() in event range loop in __main__() (RunJobEvent)
 Added memory_monitor to exclusion list for looping job killer in __loopingJobKiller() (Monitor)
 Correct bad variable name in TimerCommand::run() [timeoutout -> timeout] (TimerCommand)
+Replaced useFileStager and directIn with _dummy strings in getPrefices() and shouldPFC4TURLsBeCreated() since they are not used in these functions (Mover)
+Now getting the value of directIn from useDirectAccessLAN() instead of from getFileAccessInfo() in shouldPFC4TURLsBeCreated() (Mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
