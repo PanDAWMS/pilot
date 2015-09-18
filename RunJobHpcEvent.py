@@ -237,6 +237,7 @@ class RunJobHpcEvent(RunJob):
         node = {}
         node['pandaID'] = self.__job.jobId
         node['jobsetID'] = self.__job.jobsetID
+        node['taskID'] = self.__job.taskID
         node['nRanges'] = numRanges
 
         # open connection

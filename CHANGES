@@ -122,6 +122,7 @@ Removed import of getFileAccessInfo() since it is not used (RunJobEvent)
 Sending job.taskID to downloadEventRanges() from executePayload() and __main__() (RunJob, RunJobEvent)
 Added taskID argument to downloadEventRanges() (EventRanges)
 Now sending taskID with GETEVENTRANGES server request in downloadEventRanges(); requested by Tadashi Maeno (EventRanges)
+Now sending taskID with GETEVENTRANGES server request in getEventRanges(); requested by Tadashi Maeno (RunJobHpcEvent)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
