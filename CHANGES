@@ -119,6 +119,9 @@ Replaced useFileStager and directIn with _dummy strings in getPrefices() and sho
 Now getting the value of directIn from useDirectAccessLAN() instead of from getFileAccessInfo() in shouldPFC4TURLsBeCreated() (Mover)
 Replaced useFileStager and directIn with _dummy in stageIn() since they are not used (RunJob)
 Removed import of getFileAccessInfo() since it is not used (RunJobEvent)
+Sending job.taskID to downloadEventRanges() from executePayload() and __main__() (RunJob, RunJobEvent)
+Added taskID argument to downloadEventRanges() (EventRanges)
+Now sending taskID with GETEVENTRANGES server request in downloadEventRanges(); requested by Tadashi Maeno (EventRanges)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

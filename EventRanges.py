@@ -3,7 +3,7 @@
 import os
 from pUtil import httpConnect, tolog
 
-def downloadEventRanges(jobId, jobsetID):
+def downloadEventRanges(jobId, jobsetID, taskID):
     """ Download event ranges from the Event Server """
 
     # Return the server response (instruction to AthenaMP)
@@ -19,6 +19,7 @@ def downloadEventRanges(jobId, jobsetID):
     node = {}
     node['pandaID'] = jobId
     node['jobsetID'] = jobsetID
+    node['taskID'] = taskID 
 
     # open connection
     ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")

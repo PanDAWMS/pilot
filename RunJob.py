@@ -697,7 +697,7 @@ class RunJob(object):
         if job.cloneJob == "runonce":
             try:
                 # If the event is still available, the go ahead and run the payload
-                message = downloadEventRanges(job.jobId, job.jobsetID)
+                message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
 
                 # Create a list of event ranges from the downloaded message
                 event_ranges = self.extractEventRanges(message)
@@ -1524,7 +1524,7 @@ if __name__ == "__main__":
             if job.cloneJob == "storeonce":
                 try:
                     # If the event is still available, the go ahead and run the payload
-                    message = downloadEventRanges(job.jobId, job.jobsetID)
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
 
                     # Create a list of event ranges from the downloaded message
                     event_ranges = runJob.extractEventRanges(message)
