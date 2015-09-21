@@ -124,6 +124,10 @@ Added taskID argument to downloadEventRanges() (EventRanges)
 Now sending taskID with GETEVENTRANGES server request in downloadEventRanges(); requested by Tadashi Maeno (EventRanges)
 Now sending taskID with GETEVENTRANGES server request in getEventRanges(); requested by Tadashi Maeno (RunJobHpcEvent)
 Created getDirectAccess(), used by shouldPFC4TURLsBeCreated() (Mover)
+Simplified getFileAccessInfo() (pUtil)
+Updated return values from getFileAccessInfo() in getPrefices() and shouldPFC4TURLsBeCreated() (Mover)
+Updated return values from getFileAccessInfo() in stageIn() (RunJob)
+Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

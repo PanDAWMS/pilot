@@ -546,7 +546,7 @@ class RunJob(object):
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
-            useCT, oldPrefix, newPrefix, _dummy, _dummy = getFileAccessInfo()
+            useCT, oldPrefix, newPrefix = getFileAccessInfo()
 
             # Transfer input files
             tin_0 = os.times()

@@ -2799,8 +2799,6 @@ def getFileAccessInfo():
     # default values
     oldPrefix = None
     newPrefix = None
-    useFileStager = None
-    directIn = None
 
     # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
     useCT = True
@@ -2819,19 +2817,14 @@ def getFileAccessInfo():
             useCT = False
         oldPrefix = dInfo['oldPrefix']
         newPrefix = dInfo['newPrefix']
-        useFileStager = dInfo['useFileStager']
-        directIn = dInfo['directIn']
     if useCT:
         tolog("Copy tool will be used for stage-in")
     else:
-        if useFileStager:
-            tolog("File stager mode: Copy tool will not be used for stage-in of root files")
-        else:
-            tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
-            if oldPrefix == "" and newPrefix == "":
-                tolog("Will attempt to create a TURL based PFC")
+        tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
+        if oldPrefix == "" and newPrefix == "":
+            tolog("Will attempt to create a TURL based PFC")
 
-    return useCT, oldPrefix, newPrefix, useFileStager, directIn
+    return useCT, oldPrefix, newPrefix
 
 def isLogfileCopied(workdir):
     """ check whether the log file has been copied or not """

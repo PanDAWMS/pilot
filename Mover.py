@@ -1146,7 +1146,7 @@ def getPrefices(fileList):
     prefix_dictionary = {}
 
     # get the file access info (only old/newPrefix are needed here)
-    useCT, oldPrefix, newPrefix, _dummy, _dummy = getFileAccessInfo()
+    useCT, oldPrefix, newPrefix = getFileAccessInfo()
 
     # get the copyprefices
     copyprefix = readpar('copyprefixin')
@@ -1517,7 +1517,7 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
     if analysisJob:
         # get the file access info
         directIn, directInType = getDirectAccess()
-        useCT, oldPrefix, newPrefix, _dummy, _dummy = getFileAccessInfo()
+        useCT, oldPrefix, newPrefix = getFileAccessInfo()
 
         # forced TURL (only if copyprefix has enough info)
         if directIn:
@@ -4472,7 +4472,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     use_rucio = False
 
     # No need for file catalog lookups if FAX is set as primary stage-in site mover
-    if copytool == "fax":
+    if copytool == "fax" and useDirectAccessWAN():
         tolog("No need for catalog replica lookup since FAX is primary stage-in site mover")
         use_fax = True
     else:
@@ -5346,7 +5346,7 @@ def getDirectAccess():
     if directInLAN:
         directInType = 'LAN'
     if directInWAN:
-        directInType = 'WAN'
+        directInType = 'WAN' # Overrides LAN if both booleans are set to True
     if directInWAN or directInLAN:
         directIn = True
     else:
