@@ -1516,8 +1516,7 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
 
     if analysisJob:
         # get the file access info
-        tolog("direct access = %s" % str(useDirectAccessLAN()))
-        directIn = useDirectAccessLAN()
+        directIn, directInType = getDirectAccess()
         useCT, oldPrefix, newPrefix, _dummy, _dummy = getFileAccessInfo()
 
         # forced TURL (only if copyprefix has enough info)
@@ -1526,8 +1525,9 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
             oldPrefix = ""
             newPrefix = ""
 
-        tolog("use copytool = %s (should be false for file stager)" % str(useCT))
-        tolog("directIn = %s (should be true for file stager)" % str(directIn))
+        tolog("Use copytool = %s" % str(useCT))
+        tolog("Use direct I/O = %s" % str(directIn))
+        tolog("Direct I/O type = %s" % (directInType))
         tolog("oldPrefix = %s (should be empty if TURL based PFC is required)" % (oldPrefix))
         tolog("newPrefix = %s (should be empty if TURL based PFC is required)" % (newPrefix))
 
@@ -5335,6 +5335,24 @@ def getRucioReplicaDictionary(cat, file_dictionary):
         tolog("!!WARNING!!2234!! Empty replica list, can not continue with Rucio replica query")
 
     return replica_dictionary, surl_dictionary
+
+def getDirectAccess():
+    """ Should direct i/o be used, and which type of direct i/o """
+
+    directInLAN = useDirectAccessLAN()
+    directInWAN = useDirectAccessWAN()
+    directInType = 'None'
+
+    if directInLAN:
+        directInType = 'LAN'
+    if directInWAN:
+        directInType = 'WAN'
+    if directInWAN or directInLAN:
+        directIn = True
+    else:
+        directIn = False
+
+    return directIn, directInType
 
 def _useDirectAccess(LAN=True, WAN=False):
     """ Should direct i/o be used over LAN or WAN? """
