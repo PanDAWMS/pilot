@@ -128,6 +128,7 @@ Simplified getFileAccessInfo() (pUtil)
 Updated return values from getFileAccessInfo() in getPrefices() and shouldPFC4TURLsBeCreated() (Mover)
 Updated return values from getFileAccessInfo() in stageIn() (RunJob)
 Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
+Not setting general error when dispatcher has not jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

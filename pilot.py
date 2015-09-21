@@ -2272,7 +2272,7 @@ def getJob():
 
         # only set an error code if it's the first job
         if env['number_of_jobs'] == 0:
-            ec = error.ERR_GENERALERROR
+            ec = 0 #error.ERR_GENERALERROR
         else:
             errorText += "\nNot setting any error code since %d job(s) were already executed" % (env['number_of_jobs'])
             ec = -1 # temporary
