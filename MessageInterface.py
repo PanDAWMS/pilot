@@ -3,13 +3,13 @@
 import sys,os,ssl
 import time
 
+#import logging
+from pUtil import tolog
+
 try:
     import pika
 except:
-    pass
-
-#import logging
-from pUtil import tolog
+    tolog("pika module does not exist - ARGO interface will fail")
 
 #logger = logging.getLogger(__name__)
 #logging.getLogger('pika').setLevel(logging.WARNING)
