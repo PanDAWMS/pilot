@@ -1,6 +1,6 @@
 import os, re, sys
 import commands
-from time import time
+from time import time, sleep
 import urlparse
 
 from TimerCommand import TimerCommand
@@ -19,7 +19,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     # no registration is done
     copyCommand = "S3Objectstore"
     checksum_command = "adler32"
-    timeout = 600
+    timeout = 3600
 
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path.strip()
@@ -147,13 +147,43 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             return PilotErrors.ERR_STAGEINFAILED, "S3Objectstore failed to stage in file"
         return status, output
 
-    def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token):
+    def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token, outputDir=None, timeout=3600):
         """StageIn the file. should be implementated by different site mover."""
-        try:
-            status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token)
-        except:
-            tolog("Failed to stage out file: %s" % (sys.exc_info()[1]))
-            return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
+        status = -1
+        output = 'not defined'
+        if outputDir and outputDir.endswith("PilotMVOutputDir"):
+            timeStart = time()
+            outputFile = os.path.join(outputDir, os.path.basename(source))
+            mvCmd = "cp -f %s %s" % (source, outputFile)
+            tolog("Executing command: %s" % (mvCmd))
+            lstatus, loutput = commands.getstatusoutput(mvCmd)
+            if lstatus != 0:
+                status = lstatus
+                output = loutput
+            else:
+                outputFileCmd = outputFile + ".s3cmd"
+                handle = open(outputFileCmd, 'w')
+                _cmd_str = "%s %s" % (outputFile, destination)
+                handle.write(_cmd_str)
+                handle.close()
+                tolog("Write command %s to %s" % (_cmd_str, outputFileCmd))
+                tolog("Waiting remote to finish transfer")
+                status = -1
+                output = "Remote timeout to transfer out file"
+                while (time() - timeStart) < timeout:
+                    sleep(5)
+                    if os.path.exists(outputFile + ".s3cmdfinished"):
+                        status = 0
+                        output = "Remote finished transfer"
+                        tolog(output)
+                        os.remove(outputFile + ".s3cmdfinished")
+                        break
+        else:
+            try:
+                status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token, timeout=timeout)
+            except:
+                tolog("Failed to stage out file: %s" % (sys.exc_info()[1]))
+                return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
         return status, output
 
     def verifyStage(self, localSize, localChecksum, remoteSize, remoteChecksum):
@@ -235,7 +265,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.log("Finished to stagin file %s(status:%s, output:%s)" % (source, status, output))
         return status, output
 
-    def stageOut(self, source, destination, token, experiment=None):
+    def stageOut(self, source, destination, token, experiment=None, outputDir=None, timeout=3600):
         """Stage in the source file"""
         self.log("Starting to stageout file %s to %s with token: %s" % (source, destination, token))
 
@@ -249,7 +279,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             self.log("Failed to get local file(%s) info." % destination)
             return status, output, None, None
 
-        status, output = self.stageOutFile(source, destination, localSize, localChecksum, token)
+        status, output = self.stageOutFile(source, destination, localSize, localChecksum, token, outputDir=outputDir, timeout=timeout)
         self.log("stageOutFile status: %s, output: %s" % (status, output))
         if status:
              self.log("Failed to stageout this file: %s" % output)
@@ -319,6 +349,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
         prodSourceLabel = pdict.get('prodSourceLabel', '')
+        outputDir = pdict.get('outputDir', '')
+        timeout = pdict.get('timeout', None)
+        if not timeout:
+            timeout = self.timeout
 
         # get the site information object
         si = getSiteInformation(experiment)
@@ -331,10 +365,9 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         # get the DQ2 tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
 
-
         filename = os.path.basename(source)
         surl = destination
-        status, output, size, checksum = self.stageOut(source, surl, token, experiment)
+        status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout)
         if status !=0:
             errors = PilotErrors()
             state = errors.getErrorName(status)
@@ -442,11 +475,11 @@ class S3ObjctStore:
 
     def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
         timerCommand = TimerCommand()
-        ret = timerCommand.runFunction(self.s3StageInFile, args=(source, destination, sourceSize, sourceChecksum), timeout=600)
+        ret = timerCommand.runFunction(self.s3StageInFile, args=(source, destination, sourceSize, sourceChecksum), timeout=3600)
         return ret
 
-    def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
+    def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None, timeout=3600):
         timerCommand = TimerCommand()
-        ret = timerCommand.runFunction(self.s3StageOutFile, args=(source, destination, sourceSize, sourceChecksum, token), timeout=600)
+        ret = timerCommand.runFunction(self.s3StageOutFile, args=(source, destination, sourceSize, sourceChecksum, token), timeout=timeout)
         return ret
 

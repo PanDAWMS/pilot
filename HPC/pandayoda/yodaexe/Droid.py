@@ -1,14 +1,21 @@
 import commands
+import datetime
 import json
+import logging
 import os
 import shutil
 import sys
 import time
 import pickle
 import signal
+import traceback
 from os.path import abspath as _abspath, join as _join
+
+logging.basicConfig(filename='Droid.log', level=logging.DEBUG)
+
 from pandayoda.yodacore import Interaction,Database,Logger
 from EventServer.EventServerJobManager import EventServerJobManager
+from signal_block.signal_block import block_sig, unblock_sig
 
 
 class Droid:
@@ -19,17 +26,27 @@ class Droid:
         self.__comm = Interaction.Requester()
         self.__tmpLog = Logger.Logger()
         self.__esJobManager = None
+        self.__isFinished = False
         self.__rank = self.__comm.getRank()
         self.__tmpLog.info("Rank %s: Global working dir: %s" % (self.__rank, self.__globalWorkingDir))
         self.initWorkingDir()
         self.__tmpLog.info("Rank %s: Current working dir: %s" % (self.__rank, self.__currentDir))
 
+        self.__jobId = None
         self.__poolFileCatalog = None
         self.__inputFiles = None
         self.__copyInputFiles = None
         self.__preSetup = None
         self.__postRun = None
+        self.__ATHENA_PROC_NUMBER = 1
+        self.__firstGetEventRanges = True
+
         signal.signal(signal.SIGTERM, self.stop)
+        signal.signal(signal.SIGQUIT, self.stop)
+        signal.signal(signal.SIGSEGV, self.stop)
+        signal.signal(signal.SIGXCPU, self.stop)
+        signal.signal(signal.SIGUSR1, self.stop)
+        signal.signal(signal.SIGBUS, self.stop)
 
     def initWorkingDir(self):
         # Create separate working directory for each rank
@@ -42,9 +59,6 @@ class Droid:
         self.__currentDir = wkdir
 
     def postExecJob(self):
-        if self.__postRun and self.__esJobManager:
-            self.__esJobManager.postRun(self.__postRun)
-
         if self.__copyInputFiles and self.__inputFiles is not None and self.__poolFileCatalog is not None:
             for inputFile in self.__inputFiles:
                 localInputFile = os.path.join(os.getcwd(), os.path.basename(inputFile))
@@ -52,19 +66,29 @@ class Droid:
                 os.remove(localInputFile)
 
         if self.__globalWorkingDir != self.__localWorkingDir:
-            command = "mv " + self.__currentDir + " " + self.__globalWorkingDir
+            command = "cp -fr " + self.__currentDir + " " + self.__globalWorkingDir
             self.__tmpLog.debug("Rank %s: copy files from local working directory to global working dir(cmd: %s)" % (self.__rank, command))
             status, output = commands.getstatusoutput(command)
             self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
 
+        if self.__postRun and self.__esJobManager:
+            self.__esJobManager.postRun(self.__postRun)
+
     def setup(self, job):
-        #try:
-        if True:
+        try:
+            self.__jobId = job.get("JobId", None)
             self.__poolFileCatalog = job.get('PoolFileCatalog', None)
             self.__inputFiles = job.get('InputFiles', None)
             self.__copyInputFiles = job.get('CopyInputFiles', False)
             self.__preSetup = job.get('PreSetup', None)
             self.__postRun = job.get('PostRun', None)
+            self.__ATHENA_PROC_NUMBER = job.get('ATHENA_PROC_NUMBER', 1)
+            self.__jobWorkingDir = job.get('GlobalWorkingDir', None)
+            if self.__jobWorkingDir:
+                self.__jobWorkingDir = os.path.join(self.__jobWorkingDir, 'rank_%s' % self.__rank)
+                if not os.path.exists(self.__jobWorkingDir):
+                    os.makedirs(self.__jobWorkingDir)
+                os.chdir(self.__jobWorkingDir)
 
             if self.__copyInputFiles and self.__inputFiles is not None and self.__poolFileCatalog is not None:
                 for inputFile in self.__inputFiles:
@@ -81,33 +105,52 @@ class Droid:
                     
                 job["AthenaMPCmd"] = job["AthenaMPCmd"].replace('HPCWORKINGDIR', os.getcwd())
             
-            self.__esJobManager = EventServerJobManager(self.__rank)
+            self.__esJobManager = EventServerJobManager(self.__rank, self.__ATHENA_PROC_NUMBER)
             status, output = self.__esJobManager.preSetup(self.__preSetup)
             if status != 0:
                 return False, output
-            self.__esJobManager.initMessageThread(socketname='EventService_EventRanges', context='local')
-            self.__esJobManager.initTokenExtractorProcess(job["TokenExtractCmd"])
-            self.__esJobManager.initAthenaMPProcess(job["AthenaMPCmd"])
+            # self.__esJobManager.initMessageThread(socketname='EventService_EventRanges', context='local')
+            # self.__esJobManager.initTokenExtractorProcess(job["TokenExtractCmd"])
+            # self.__esJobManager.initAthenaMPProcess(job["AthenaMPCmd"])
+            ret = self.__esJobManager.init(socketname='EventService_EventRanges', context='local', athenaMPCmd=job["AthenaMPCmd"], tokenExtractorCmd=job["TokenExtractCmd"])
             return True, None
-        #except Exception, e:
-        #    errMsg = "Failed to init EventServerJobManager: %s" % str(e)
-        #    self.__esJobManager.terminate()
-        #    return False, errMsg
+        except:
+            errMsg = "Failed to init EventServerJobManager: %s" % str(traceback.format_exc())
+            self.__esJobManager.terminate()
+            return False, errMsg
 
     def getJob(self):
-        request = {'Test':'TEST'}
+        request = {'Test':'TEST', 'rank': self.__rank}
         self.__tmpLog.debug("Rank %s: getJob(request: %s)" % (self.__rank, request))
         status, output = self.__comm.sendRequest('getJob',request)
         self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
         if status:
             statusCode = output["StatusCode"]
             job = output["job"]
-            if statusCode == 0:
+            if statusCode == 0 and job:
                 return True, job
         return False, None
 
-    def getEventRanges(self):
-        request = {'nRanges': 1}
+    def copyOutput(self, output):
+        if self.__localWorkingDir == self.__globalWorkingDir:
+            return 0, output
+
+        filename = output.split(",")[0]
+        new_file_name = filename.replace(self.__localWorkingDir, self.__globalWorkingDir)
+        dirname = os.path.dirname(new_file_name)
+        if not os.path.exists(dirname):
+             os.makedirs (dirname)
+        shutil.copy(filename, new_file_name)
+        os.remove(filename)
+        return 0, output.replace(filename, new_file_name)
+
+    def getEventRanges(self, nRanges=1):
+        #if self.__firstGetEventRanges:
+        #    request = {'nRanges': self.__ATHENA_PROC_NUMBER}
+        #    self.__firstGetEventRanges = False
+        #else:
+        #    request = {'nRanges': nRanges}
+        request = {'jobId': self.__jobId, 'nRanges': nRanges}
         self.__tmpLog.debug("Rank %s: getEventRanges(request: %s)" % (self.__rank, request))
         status, output = self.__comm.sendRequest('getEventRanges',request)
         self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
@@ -124,8 +167,12 @@ class Droid:
         except Exception, e:
             self.__tmpLog.warnning("Rank %s: failed to get eventRangeID from output: %s" % (self.__rank, output))
             self.__tmpLog.warnning("Rank %s: error message: %s" % (self.__rank, str(e)))
+        status, output = self.copyOutput(output)
+        if status != 0:
+            self.__tmpLog.debug("Rank %s: failed to copy output from local working dir to global working dir: %s" % (self.__rank, output))
+            return False
         request = {"eventRangeID": eventRangeID,
-                   'eventStatus':" finished",
+                   'eventStatus': "finished",
                    "output": output}
         self.__tmpLog.debug("Rank %s: updateEventRange(request: %s)" % (self.__rank, request))
         retStatus, retOutput = self.__comm.sendRequest('updateEventRange',request)
@@ -136,8 +183,68 @@ class Droid:
                 return True
         return False
 
+
+    def dumpUpdates(self, outputs):
+        timeNow = datetime.datetime.utcnow()
+        outFileName = 'rank_' + str(self.__rank) + '_' + timeNow.strftime("%Y-%m-%d-%H-%M-%S") + '.dump'
+        outFileName = os.path.join(self.globalWorkingDir, outFileName)
+        outFile = open(outFileName,'w')
+        for eventRangeID,status,output in outputs:
+            outFile.write('{0} {1} {2}\n'.format(eventRangeID,status,output))
+        outFile.close()
+
+    def updateOutputs(self, signal=False, final=False):
+        outputs = self.__esJobManager.getOutputs(signal)
+        if outputs:
+            self.__tmpLog.info("Rank %s: get outputs(%s)" % (self.__rank, outputs))
+            if final:
+                self.dumpUpdates(outputs)
+            requests = []
+            for outputMsg in outputs:
+                try:
+                    #eventRangeID = output.split(",")[1]
+                    eventRangeID, eventStatus, output = outputMsg
+                except Exception, e:
+                    self.__tmpLog.warnning("Rank %s: failed to parse output message: %s" % (self.__rank, outputMsg))
+                    self.__tmpLog.warnning("Rank %s: error message: %s" % (self.__rank, str(e)))
+                    continue
+                status, output = self.copyOutput(output)
+                if status != 0:
+                    self.__tmpLog.debug("Rank %s: failed to copy output from local working dir to global working dir: %s" % (self.__rank, output))
+                    continue
+
+                request = {"jobId": self.__jobId,
+                           "eventRangeID": eventRangeID,
+                           'eventStatus': eventStatus,
+                           "output": output}
+                requests.append(request)
+            if requests:
+                self.__tmpLog.debug("Rank %s: updateEventRanges(request: %s)" % (self.__rank, requests))
+                retStatus, retOutput = self.__comm.sendRequest('updateEventRanges',requests)
+                self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, retStatus, retOutput))
+                if retStatus:
+                    statusCode = retOutput["StatusCode"]
+                    if statusCode == 0:
+                        if signal:
+                            self.__esJobManager.updatedOutputs(outputs)
+                        return True
+        return False
+
     def finishJob(self):
-        request = {'state': 'finished'}
+        if not self.__isFinished:
+            request = {'jobId': self.__jobId, 'state': 'finished'}
+            self.__tmpLog.debug("Rank %s: updateJob(request: %s)" % (self.__rank, request))
+            status, output = self.__comm.sendRequest('updateJob',request)
+            self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
+            if status:
+                statusCode = output["StatusCode"]
+
+            #self.__comm.disconnect()
+            return True
+        return False
+
+    def failedJob(self):
+        request = {'jobId': self.__jobId, 'state': 'failed'}
         self.__tmpLog.debug("Rank %s: updateJob(request: %s)" % (self.__rank, request))
         status, output = self.__comm.sendRequest('updateJob',request)
         self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
@@ -147,15 +254,16 @@ class Droid:
                 return True
         return False
 
-    def failedJob(self):
-        request = {'state': 'failed'}
-        self.__tmpLog.debug("Rank %s: updateJob(request: %s)" % (self.__rank, request))
-        status, output = self.__comm.sendRequest('updateJob',request)
+    def finishDroid(self):
+        request = {'state': 'finished'}
+        self.__tmpLog.debug("Rank %s: finishDroid(request: %s)" % (self.__rank, request))
+        status, output = self.__comm.sendRequest('finishDroid',request)
         self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
         if status:
             statusCode = output["StatusCode"]
             if statusCode == 0:
                 return True
+        self.__comm.disconnect()
         return False
 
     def waitYoda(self):
@@ -170,13 +278,13 @@ class Droid:
                     return True
         return True
 
-    def run(self):
-        self.__tmpLog.info("Droid Starts")
+    def runOneJob(self):
+        self.__tmpLog.info("Droid Starts to get job")
         status, job = self.getJob()
         self.__tmpLog.info("Rank %s: getJob(%s)" % (self.__rank, job))
-        if not status:
+        if not status or not job:
             self.__tmpLog.debug("Rank %s: Failed to get job" % self.__rank)
-            self.failedJob()
+            # self.failedJob()
             return -1
         status, output = self.setup(job)
         self.__tmpLog.info("Rank %s: setup job(status:%s, output:%s)" % (self.__rank, status, output))
@@ -191,66 +299,76 @@ class Droid:
         while not self.__esJobManager.isDead():
             #self.__tmpLog.info("Rank %s: isDead: %s" % (self.__rank, self.__esJobManager.isDead()))
             #self.__tmpLog.info("Rank %s: isNeedMoreEvents: %s" % (self.__rank, self.__esJobManager.isNeedMoreEvents()))
-            if self.__esJobManager.isNeedMoreEvents():
-                self.__tmpLog.info("Rank %s: need more events" % self.__rank)
-                status, eventRanges = self.getEventRanges()
+            while self.__esJobManager.isNeedMoreEvents() > 0:
+                neededEvents = self.__esJobManager.isNeedMoreEvents()
+                self.__tmpLog.info("Rank %s: need %s events" % (self.__rank, neededEvents))
+                status, eventRanges = self.getEventRanges(neededEvents)
                 # failed to get message again and again
                 if not status:
-                    fileNum += 1
-                    if fileNum > 30:
+                    failedNum += 1
+                    if failedNum > 30:
                         self.__tmpLog.warning("Rank %s: failed to get events more than 30 times. finish job" % self.__rank)
                         self.__esJobManager.insertEventRange("No more events")
                     else:
                         continue
                 else:
-                    fileNum = 0
+                    failedNum = 0
                     self.__tmpLog.info("Rank %s: get event ranges(%s)" % (self.__rank, eventRanges))
                     if len(eventRanges) == 0:
                         self.__tmpLog.info("Rank %s: no more events" % self.__rank)
                         self.__esJobManager.insertEventRange("No more events")
-                    for eventRange in eventRanges:
-                        self.__esJobManager.insertEventRange(eventRange)
+                    else:    
+                        self.__esJobManager.insertEventRanges(eventRanges)
 
             self.__esJobManager.poll()
-            output = self.__esJobManager.getOutput()
-            if output is not None:
-                self.__tmpLog.info("Rank %s: get output(%s)" % (self.__rank, output))
-                self.updateEventRange(output)
+            self.updateOutputs()
 
-            time.sleep(2)
+            time.sleep(0.001)
 
         self.__esJobManager.flushMessages()
-        output = self.__esJobManager.getOutput()
-        while output:
-            self.__tmpLog.info("Rank %s: get output(%s)" % (self.__rank, output))
-            self.updateEventRange(output)
-            output = self.__esJobManager.getOutput()
+        self.updateOutputs()
 
         self.__tmpLog.info("Rank %s: post exec job" % self.__rank)
         self.postExecJob()
         self.__tmpLog.info("Rank %s: finish job" % self.__rank)
         self.finishJob()
-        self.waitYoda()
+        #self.waitYoda()
         return 0
 
+    def run(self):
+        self.__tmpLog.info("Rank %s: Droid starts" % self.__rank)
+        while True:
+            self.__tmpLog.info("Rank %s: Droid starts to run one job" % self.__rank)
+            os.chdir(self.__globalWorkingDir)
+            try:
+                ret = self.runOneJob()
+                if ret != 0:
+                    self.__tmpLog.warning("Rank %s: Droid fails to run one job: ret - %s" % (self.__rank, ret))
+                    break
+            except:
+                self.__tmpLog.warning("Rank %s: Droid throws exception when running one job: %s" % (self.__rank, traceback.format_exc()))
+                break
+            os.chdir(self.__globalWorkingDir)
+            self.__tmpLog.info("Rank %s: Droid finishes to run one job" % self.__rank)
+        self.finishDroid()
+        return 0
+            
     def stop(self, signum=None, frame=None):
         self.__tmpLog.info('Rank %s: stop signal received' % self.__rank)
+        block_sig(signal.SIGTERM)
         self.__esJobManager.terminate()
         self.__esJobManager.flushMessages()
-        output = self.__esJobManager.getOutput()
-        while output:
-            self.__tmpLog.info("Rank %s: get output(%s)" % (self.__rank, output))
-            self.updateEventRange(output)
-            output = self.__esJobManager.getOutput()
+        self.updateOutputs(signal=True, final=True)
 
         self.__tmpLog.info("Rank %s: post exec job" % self.__rank)
         self.postExecJob()
-        self.__tmpLog.info("Rank %s: finish job" % self.__rank)
-        self.finishJob()
+        #self.__tmpLog.info("Rank %s: finish job" % self.__rank)
+        #self.finishJob()
 
         self.__tmpLog.info('Rank %s: stop' % self.__rank)
+        unblock_sig(signal.SIGTERM)
 
-    def __del__(self):
+    def __del_not_use__(self):
         self.__tmpLog.info('Rank %s: __del__ function' % self.__rank)
         #self.__esJobManager.terminate()
         #self.__esJobManager.flushMessages()
@@ -262,8 +380,13 @@ class Droid:
 
         #self.__tmpLog.info("Rank %s: post exec job" % self.__rank)
         #self.postExecJob()
-        #self.__tmpLog.info("Rank %s: finish job" % self.__rank)
-        #self.finishJob()
+        self.__esJobManager.flushMessages()
+        self.updateOutputs(signal=True, final=True)
+
+        self.__tmpLog.info("Rank %s: post exec job" % self.__rank)
+        self.postExecJob()
+        self.__tmpLog.info("Rank %s: finish job" % self.__rank)
+        self.finishJob()
 
         self.__tmpLog.info('Rank %s: __del__ function' % self.__rank)
 

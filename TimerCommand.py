@@ -13,6 +13,7 @@
 import os
 import signal
 import time
+import traceback
 
 from Queue import Empty, Full
 import subprocess, threading
@@ -59,8 +60,16 @@ class TimerCommand(object):
 
     def runFunction(self, func, args, timeout=3600):
         def target(func, args, retQ):
-            ret= func(*args)
-            retQ.put(ret)
+            error = ''
+            try:
+                signal.signal(signal.SIGTERM, signal.SIG_DFL)
+            except:
+                error = error + '%s\n' % traceback.format_exc()
+            try:
+                ret= func(*args)
+                retQ.put(ret)
+            except:
+                retQ.put((-1, error + '%s\n' % traceback.format_exc()))
             
         retQ = Queue()
         process = Process(target=target, args=(func, args, retQ))
@@ -74,12 +83,14 @@ class TimerCommand(object):
                     process.terminate()
                     process.join(2)
                 if process.is_alive():
-                    os.kill(int(process.pid), signal.SIGKILL)
+                    # os.kill(int(process.pid), signal.SIGKILL)
+                    process.terminate()
                     process.join(2)
             except:
                 if process.is_alive():
                     try:
-                        os.kill(int(process.pid), signal.SIGKILL)
+                        # os.kill(int(process.pid), signal.SIGKILL)
+                        process.terminate()
                     except:
                         pass
                     process.join(2)

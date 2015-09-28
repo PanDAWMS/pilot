@@ -11,6 +11,7 @@ import sys
 import signal
 import cgi
 from glob import glob
+import traceback
 
 from PilotErrors import PilotErrors
 from JobState import JobState
@@ -553,11 +554,11 @@ def runJobRecovery(thisSite, _psport, extradir):
         dircounter += 1
         pUtil.tolog("Scanning for lost jobs [pass %d/%d]" % (dircounter, len(dirs)))
         try:
-            lostPandaID = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
-        except Exception, e:
+            lostPandaIDs = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
+        except:
             pUtil.tolog("!!WARNING!!1999!! Failed during search for lost HPCEvent jobs: %s" % str(e))
         else:
-            pUtil.tolog("Recovered/Updated lost HPCEvent job(%s)" % (lostPandaID))
+            pUtil.tolog("Recovered/Updated lost HPCEvent jobs(%s)" % (lostPandaIDs))
 
         try:
             found_lost_jobs = RecoverLostJobs(_dir, thisSite, _psport)
@@ -1600,13 +1601,15 @@ def RecoverLostHPCEventJobs(recoveryDir, thisSite, _psport):
     except:
         pUtil.tolog("!!WARNING!!1100!! No such dir path (%s)" % (dir_path))
     else:
-        HPC_state_files = glob(dir_path + "/Panda_Pilot_*/PandaJob_*/HPCManagerState.json")
+        HPC_state_files = glob(dir_path + "/Panda_Pilot_*/HPCManagerState.json")
         pUtil.tolog("Number of found HPC job state files: %d" % (len(HPC_state_files)))
         if HPC_state_files:
             for file_path in HPC_state_files:
-                #try:
-                if True:
+                try:
+                    current_dir = os.getcwd()
                     pUtil.tolog("Working on %s" % file_path)
+                    pUtil.tolog("Chdir from current dir %s to %s" % (current_dir, os.path.dirname(file_path)))
+                    pUtil.chdir(os.path.dirname(file_path))
                     fd, lockfile_name = createAtomicLockFile(file_path)
                     if not fd:
                         continue
@@ -1615,6 +1618,7 @@ def RecoverLostHPCEventJobs(recoveryDir, thisSite, _psport):
                         HPC_state = json.load(data_file)
                     job_state_file = HPC_state['JobStateFile']
                     job_command = HPC_state['JobCommand']
+                    # global_work_dir = HPC_state['GlobalWorkingDir']
                     JS = JobState()
                     JS.get(job_state_file)
                     _job, _site, _node, _recoveryAttempt = JS.decode()
@@ -1625,7 +1629,7 @@ def RecoverLostHPCEventJobs(recoveryDir, thisSite, _psport):
                         # release the atomic lockfile and go to the next directory
                         releaseAtomicLockFile(fd, lockfile_name)
                         continue
-                    elif jobStatus == "transferring" or jobStatus == "failed" or \
+                    elif jobStatus == "failed" or \
                          jobStatus == "notfound" or jobStatus == "finished" or "tobekilled" in _job.action:
                         pUtil.tolog("Job %s is currently in state \'%s\' with attemptNr = %d (according to server - will not be recovered)" %\
                                     (_job.jobId, jobStatus, jobAttemptNr))
@@ -1637,11 +1641,22 @@ def RecoverLostHPCEventJobs(recoveryDir, thisSite, _psport):
                     releaseAtomicLockFile(fd, lockfile_name)
 
                     monitor = Monitor(env)
-                    monitor.monitor_recovery_job(_job, _site, _node, job_command, job_state_file)
-                   
-                #except Exception, ex:
-                #    pUtil.tolog("Failed to recovery lost HPC job: %s" % str(ex))
-                #    releaseAtomicLockFile(fd, lockfile_name)
+                    monitor.monitor_recovery_job(_job, _site, _node, job_command, job_state_file, recover_dir=os.path.dirname(file_path))
+
+                    pUtil.tolog("Chdir back to %s" % current_dir)
+                    pUtil.chdir(current_dir)
+
+                    panda_jobs = glob(os.path.dirname(file_path) + "/PandaJob_*_*")
+                    panda_logs = glob(os.path.dirname(file_path) + "/*.log.tgz.*")
+                    if panda_jobs or panda_logs:
+                        pUtil.tolog("Number of founded panda jobs: %d, number of panda log tar file %d, will not remove recover dir" % (len(panda_jobs), len(panda_logs)))
+                    else:
+                        pUtil.tolog("Number of founded panda jobs: %d, number of panda log tar file %d, will remove recover dir" % (len(panda_jobs), len(panda_logs)))
+                        pUtil.tolog("Remove recovery dir %s" % os.path.dirname(file_path))
+                        os.system("rm -rf %s" % (os.path.dirname(file_path)))
+                except:
+                    pUtil.tolog("Failed to recovery lost HPC job: %s" % traceback.format_exc())
+                    releaseAtomicLockFile(fd, lockfile_name)
 
 def getProperNodeName(nodename):
     """ Get the proper node name (if possible, containing the _CONDOR_SLOT (SlotID)) """
@@ -2078,6 +2093,22 @@ def backupDispatcherResponse(response, tofile):
         pUtil.tolog("!!WARNING!!1999!! Could not store job definition: %s" % str(e), tofile=tofile)
     else:
         pUtil.tolog("Job definition stored (for later backup) in file %s" % (env['pandaJobDataFileName']), tofile=tofile)
+
+def dumpEnv():
+    localEnv = {}
+    localEnv['uflag'] = env['uflag']
+    localEnv['pilot_version_tag'] = env ['pilot_version_tag']
+    localEnv['workingGroup'] = env['workingGroup']
+    localEnv['countryGroup'] = env['countryGroup']
+    localEnv['allowOtherCountry'] = env['allowOtherCountry']
+    localEnv['pilotToken'] = env['pilotToken']
+    localEnv['pandaJobDataFileName'] = env['pandaJobDataFileName']
+    localEnv['pshttpurl'] = env['pshttpurl']
+    localEnv['psport'] = env['psport']
+    localEnv['experiment'] = env['experiment']
+
+    with open(os.path.join(env['thisSite'].workdir, 'env.json'), 'w') as outputFile:
+        json.dump(localEnv, outputFile)
 
 def getNewJob(tofile=True):
     """ Get a new job definition from the jobdispatcher or from file """
@@ -2636,6 +2667,7 @@ def runMain(runpars):
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))
 
+            dumpEnv()
             if env['glexec'] == 'False':
                 monitor = Monitor(env)
                 monitor.monitor_job()

@@ -98,6 +98,7 @@ class Job:
         self.eventServiceMerge = False     # True for event service merge jobs
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
+        self.pandaProxySecretKey = None    # secret key to access panda proxy
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
 #        self.lastEvent = None              # Set for event service jobs
@@ -298,6 +299,10 @@ class Job:
             self.mode = data.get("mode", None)
         if data.has_key('hpcStatus'):
             self.hpcStatus = data.get('hpcStatus', None)
+
+        # panda proxy secret key
+        if data.has_key('pandaProxySecretKey'):
+             self.pandaProxySecretKey = data.get('pandaProxySecretKey', None)
 
 #        self.eventRangeID = data.get('eventRangeID', None)
 #        self.startEvent = data.get('startEvent', None)

@@ -1462,6 +1462,12 @@ class RunJobEvent(RunJob):
 
         # Execute and return the AthenaMP subprocess object
         #return thisExperiment.getSubprocess(thisExperiment.getJobExecutionCommand4EventService(pilot_initdir)) # move method to EventService class
+        try:
+            athena_proc_number = int(os.environ['ATHENA_PROC_NUMBER'])
+        except Exception, e:
+            tolog("ATHENA_PROC_NUMBER not defined, setting it to: %s" % (swap_value))
+            runCommand = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommand)
+
         return thisExperiment.getSubprocess(runCommand, stdout=stdout, stderr=stderr)
 
     def createMessageServer(self):
@@ -1896,6 +1902,9 @@ if __name__ == "__main__":
             job.experiment = runJob.getExperiment()
             # figure out and set payload file names
             job.setPayloadName(thisExperiment.getPayloadName(job))
+            logGUID = newJobDef.job.get('logGUID', "")
+            if logGUID != "NULL" and logGUID != "":
+                job.tarFileGuid = logGUID
             # reset the default job output file list which is anyway not correct
             job.outFiles = []
             runJob.setOutputFiles(job.outFiles)

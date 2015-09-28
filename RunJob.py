@@ -175,10 +175,17 @@ class RunJob(object):
         return self.__cache
 
     def getRecovery(self):
+
         return self.__recovery
 
     def getJobStateFile(self):
+
         return self.__jobStateFile
+
+    def  setLogGUID(self, logguid):
+        """ Setter for __logguid """
+
+        self.__logguid = logguid
 
 
     # Required methods
@@ -813,7 +820,9 @@ class RunJob(object):
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
             self.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
 
-        if self.__logguid:
+        if job.tarFileGuid and len(job.tarFileGuid.strip()):
+             guid = job.tarFileGuid
+        elif self.__logguid:
             guid = self.__logguid
         else:
             guid = job.tarFileGuid
@@ -1175,6 +1184,9 @@ if __name__ == "__main__":
             job.experiment = runJob.getExperiment()
             # figure out and set payload file names
             job.setPayloadName(thisExperiment.getPayloadName(job))
+            logGUID = newJobDef.job.get('logGUID', "")
+            if logGUID != "NULL" and logGUID != "":
+                job.tarFileGuid = logGUID
         except Exception, e:
             pilotErrorDiag = "Failed to process job info: %s" % str(e)
             tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))

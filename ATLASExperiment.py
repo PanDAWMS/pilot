@@ -2133,7 +2133,8 @@ class ATLASExperiment(Experiment):
 
         # define the setup options
         if not cacheVer:
-            cacheVer = atlasRelease
+            # cacheVer = atlasRelease
+            cacheVer = homePackage.replace("/",",")
 
         # add the fast option if possible (for the moment, check for locally defined env variable)
         if os.environ.has_key("ATLAS_FAST_ASETUP"):

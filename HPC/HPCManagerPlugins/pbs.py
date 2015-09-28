@@ -72,7 +72,7 @@ class pbs(Plugin):
 
         return res
 
-    def submitJob(self, globalWorkingDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes):
+    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes):
         submit_script = "#!/bin/bash -l" + "\n"
         submit_script += "#PBS -q " + queue + "\n"
         if repo:
@@ -86,12 +86,16 @@ class pbs(Plugin):
         submit_script += "#PBS -e athena_stderr.txt" + "\n"
         submit_script += "cd $PBS_O_WORKDIR" + "\n"
         submit_script += "module load mpi4py" + "\n"
-        submit_script += "source /project/projectdirs/atlas/sw/python-yampl/setup.sh" + "\n"
+        #submit_script += "source /project/projectdirs/atlas/sw/python-yampl/setup.sh" + "\n"
+        submit_script += "export PYTHONPATH=/project/projectdirs/atlas/sw/python-yampl/python-yampl/1.0/lib.linux-x86_64-2.6:$PYTHONPATH" + "\n"
+        submit_script += "export LD_LIBRARY_PATH=/project/projectdirs/atlas/sw/python-yampl/yampl/1.0/lib:$LD_LIBRARY_PATH" + "\n"
+
+        submit_script += "env" + "\n"
 
         #submit_script += "aprun -n " + str(nodes) + " -N " + str(mppnppn) + " -d " + str(ATHENA_PROC_NUMBER) + " -cc none python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalWorkingDir+" --localWorkingDir="+localWorkingDir+""
-        submit_script += "aprun -n " + str(nodes) + " -N " + str(mppnppn) + " -cc none python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalWorkingDir+" --localWorkingDir="+localWorkingDir+""
+        submit_script += "aprun -n " + str(nodes) + " -N " + str(mppnppn) + " -cc none python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
         ###cmd = "mpiexec -n 2 python " + os.path.join(self.__globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+self.__globalWorkingDir+" --localWorkingDir="+self.__localWorkingDir+"&"
-        self.__submit_file = os.path.join(globalWorkingDir, 'submit_script')
+        self.__submit_file = os.path.join(globalYodaDir, 'submit_script')
         handle = open(self.__submit_file, 'w')
         handle.write(submit_script)
         handle.close()

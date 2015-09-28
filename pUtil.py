@@ -89,7 +89,7 @@ def appendToLog(txt):
         else:
             print "WARNING: Exception caught: %s" % str(e)
 
-def tolog(msg, tofile=True):
+def tolog(msg, tofile=True, toStderr=True):
     """ write date+msg to pilot log and to stdout """
 
     import inspect
@@ -117,7 +117,7 @@ def tolog(msg, tofile=True):
     print "%s| %s" % (t, msg)
 
     # write any FAILED messages to stderr
-    if "!!FAILED!!" in msg:
+    if "!!FAILED!!" in msg and toStderr:
         print >> sys.stderr, "%s| %s" % (t, msg)
 
 def tolog_err(msg):
@@ -187,6 +187,8 @@ def httpConnect(data, url, mode="UPDATE", sendproxy=False, path=None, experiment
         cmd = 'getEventRanges'
     elif mode == "UPDATEEVENTRANGE":
         cmd = 'updateEventRange'
+    elif mode == "UPDATEEVENTRANGES":
+        cmd = 'updateEventRanges'
     elif mode == "GETKEYPAIR":
         cmd = 'getKeyPair'
     else:
@@ -1201,11 +1203,11 @@ def dumpFile(filename, topilotlog=False):
                 i += 1
                 line = line.rstrip()
                 if topilotlog:
-                    tolog("%s" % (line))
+                    tolog("%s" % (line), toStderr=False)
                 else:
                     print "%s" % (line)
             f.close()
-            tolog("Dumped %d lines from file %s" % (i, filename))
+            tolog("Dumped %d lines from file %s" % (i, filename), toStderr=False)
     else:
         tolog("!!WARNING!!4000!! %s does not exist" % (filename))
 
@@ -1906,7 +1908,7 @@ class _Curl:
         com = '%s --silent --get' % self.path
         if "HPC_HPC" in readpar('catchall'):
             com += ' --tls'
-        com += ' --connect-timeout 100 --max-time 120'
+        com += ' --connect-timeout 10000 --max-time 12000'
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
@@ -1953,7 +1955,7 @@ class _Curl:
         com = '%s --silent --show-error' % self.path
         if "HPC_HPC" in readpar('catchall'):
             com += ' --tls'
-        com += ' --connect-timeout 100 --max-time 120'
+        com += ' --connect-timeout 10000 --max-time 12000'
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
@@ -2831,13 +2833,19 @@ def getExtension(alternative='pickle'):
 
     return extension
 
-def isLogfileCopied(workdir):
+def isLogfileCopied(workdir, jobId=None):
     """ check whether the log file has been copied or not """
 
-    if os.path.exists(workdir + '/LOGFILECOPIED'):
-        return True
+    if jobId:
+        if os.path.exists(workdir + '/LOGFILECOPIED_%s' % jobId):
+            return True
+        else:
+            return False
     else:
-        return False
+        if os.path.exists(workdir + '/LOGFILECOPIED'):
+            return True
+        else:
+            return False
 
 def isLogfileRegistered(workdir):
     """ check whether the log file has been registered or not """
@@ -4434,3 +4442,27 @@ def getInitialDirs(path, n):
         tolog("!!WARNING!!2211!! Not a path: %s" % (path))
 
     return subpath
+
+def recursive_overwrite(src, dest, ignore=None):
+    if os.path.isdir(src):
+        if not os.path.isdir(dest):
+            os.makedirs(dest)
+        files = os.listdir(src)
+        if ignore is not None:
+            ignored = ignore(src, files)
+        else:
+            ignored = set()
+        for f in files:
+            if f not in ignored:
+                recursive_overwrite(os.path.join(src, f), 
+                                    os.path.join(dest, f), 
+                                    ignore)
+    else:
+        shutil.copyfile(src, dest)
+
+def chunks(l, n):
+    """
+    Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]

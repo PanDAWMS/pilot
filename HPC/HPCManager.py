@@ -1,7 +1,9 @@
 import commands
 import os
+import shutil
 import sys
 import time
+import traceback
 import json
 import pickle
 
@@ -38,13 +40,11 @@ class HPCManager:
         self.__lastState = None
         self.__lastTime = time.time()
 
-        self.__poolFileCatalog = poolFileCatalog
-        self.__inputFiles = inputFiles
         self.__copyInputFiles = copyInputFiles
 
         self.__mode = None
-        self.__job = None
-        self.__jobFile = None
+        self.__jobs = {}
+        self.__jobsFile = None
         self.__eventRanges = None
         self.__eventRangesFile = None
         self.__jobid = None
@@ -54,13 +54,17 @@ class HPCManager:
         self.__pluginName = 'pbs'
         self.__plugin = None
 
-    def __init__(self, globalWorkingDir=None, localWorkingDir=None, logFileName=None, poolFileCatalog=None, inputFiles=None, copyInputFiles=False):
+    def __init__(self, globalWorkingDir=None, localWorkingDir=None, logFileName=None, copyInputFiles=False):
         self.__globalWorkingDir = globalWorkingDir
+        # self.__globalYodaDir = os.path.join(globalWorkingDir, 'Yoda')
+        self.__globalYodaDir = self.__globalWorkingDir
+        if not os.path.exists(self.__globalYodaDir):
+            os.makedirs (self.__globalYodaDir)
         self.__localWorkingDir = localWorkingDir
         if self.__localWorkingDir is None:
-            self.__localWorkingDir = self.__globalWorkingDir
+            self.__localWorkingDir = self.__globalYodaDir
 
-        self.__jobStateFile = 'HPCManagerState.json'
+        self.__jobStateFile = os.path.join(self.__globalYodaDir, 'HPCManagerState.json')
         self.__logFileName = logFileName
         self.__log= Logger(logFileName)
         self.__isFinished = False
@@ -82,14 +86,12 @@ class HPCManager:
         self.__lastState = None
         self.__lastTime = time.time()
 
-        self.__poolFileCatalog = poolFileCatalog
-        self.__inputFiles = inputFiles
         self.__copyInputFiles = copyInputFiles
 
         self.__mode = None
-        self.__job = None
-        self.__jobFile = None
-        self.__eventRanges = None
+        self.__jobs = {}
+        self.__jobsFile = None
+        self.__eventRanges = {}
         self.__eventRangesFile = None
         self.__jobid = None
         self.__stageout_threads = 1
@@ -97,25 +99,6 @@ class HPCManager:
 
         self.__pluginName = 'pbs'
         self.__plugin = None
-
-    def initJob(self, job):
-        self.__log.info("initJob: %s" % job)
-        # job = {"TokenExtractCmd": tokenExtractorCommand, "AthenaMPCmd": athenaMPCommand}
-        self.__job = job
-        self.__job["AthenaMPCmd"] = "export ATHENA_PROC_NUMBER=" + str(self.__ATHENA_PROC_NUMBER) + "; export TRF_ECHO=1; " + self.__job["AthenaMPCmd"]
-        self.__job["PoolFileCatalog"] = self.__poolFileCatalog
-        self.__job["InputFiles"] = self.__inputFiles
-        self.__job["CopyInputFiles"] = self.__copyInputFiles
-
-        self.__jobFile = "HPCJob.json"
-        with open(self.__jobFile, 'w') as outputFile:
-           json.dump(self.__job, outputFile)
-
-    def initEventRanges(self, eventRanges):
-        self.__eventRanges = eventRanges
-        self.__eventRangesFile = "EventRanges.json"
-        with open(self.__eventRangesFile, 'w') as outputFile:
-           json.dump(self.__eventRanges, outputFile)
 
     def setPandaJobStateFile(self, file):
         self.__pandaJobStateFile = file
@@ -213,7 +196,7 @@ class HPCManager:
         self.__walltime_m = walltime
         h, m = divmod(walltime, 60)
         self.__walltime = "%d:%02d:%02d" % (h, m, 0)
-        self.__eventsPerWorker = (int(walltime) - int(initialtime_m) - 5)/time_per_event_m
+        self.__eventsPerWorker = (int(walltime) - int(initialtime_m))/time_per_event_m
         if self.__eventsPerWorker < 1:
             self.__eventsPerWorker = 1
         self.__ATHENA_PROC_NUMBER = defaultResources['ATHENA_PROC_NUMBER']
@@ -229,6 +212,50 @@ class HPCManager:
         #return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER) + (int(self.__nodes) -1) * 1
         return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER)
 
+    def initJobs(self, jobs, eventRanges):
+        self.__log.info("initJobs: %s" % jobs)
+        ranks = [i for i in range(1, self.__nodes)]
+        for jobId in jobs:
+            # job = {"TokenExtractCmd": tokenExtractorCommand, "AthenaMPCmd": athenaMPCommand}
+            job = jobs[jobId]
+            job['JobId'] = jobId
+            job["AthenaMPCmd"] = "export ATHENA_PROC_NUMBER=" + str(self.__ATHENA_PROC_NUMBER) + "; export TRF_ECHO=1; " + job["AthenaMPCmd"]
+            job["CopyInputFiles"] = self.__copyInputFiles
+            job["LocalWorkingDir"] = self.__localWorkingDir
+            job["ATHENA_PROC_NUMBER"] = self.__ATHENA_PROC_NUMBER
+            job['neededRanks'] = 0
+            job['ranks'] = []
+            eventsPerNode = int(self.__ATHENA_PROC_NUMBER) * (int(self.__eventsPerWorker))
+            if jobId in eventRanges:
+                job['neededRanks'] = len(eventRanges[jobId]) / eventsPerNode + (len(eventRanges[jobId]) % eventsPerNode + eventsPerNode - 1)/eventsPerNode
+                if len(eventRanges[jobId]) >= eventsPerNode * 4:
+                    job['neededRanks'] += 2
+                elif len(eventRanges[jobId]) > eventsPerNode:
+                    job['neededRanks'] += 1
+            self.__jobs[jobId] = job
+
+        self.__jobsFile = os.path.join(self.__globalYodaDir, "HPCJobs.json")
+        with open(self.__jobsFile, 'w') as outputFile:
+           json.dump(self.__jobs, outputFile)
+
+        self.__eventRanges = eventRanges
+        self.__eventRangesFile = os.path.join(self.__globalYodaDir, "JobsEventRanges.json")
+        with open(self.__eventRangesFile, 'w') as outputFile:
+           json.dump(self.__eventRanges, outputFile)
+
+    def getJobsRanks(self):
+        jobRanks = {}
+        for jobId in self.__jobs:
+            jobRanks[jobId] = self.__jobs[jobId]['ranks']
+
+    # will remove
+    def initEventRanges(self, eventRanges):
+        self.__eventRanges = eventRanges
+        self.__eventRangesFile = os.path.join(self.__globalYodaDir, "EventRanges.json")
+        with open(self.__eventRangesFile, 'w') as outputFile:
+           json.dump(self.__eventRanges, outputFile)
+
+    # will remove
     def initJobRanks(self):
         numRanges = 0
         if self.__eventRanges:
@@ -241,13 +268,13 @@ class HPCManager:
             self.__nodes = nodes
             self.__mppwidth = int(self.__nodes) * int(self.__cpuPerNode)
             if self.__nodes <= 5 and self.__mode != 'backfill':
-                 self.__walltime_m =  self.__walltime_m * 2
+                 # self.__walltime_m =  self.__walltime_m * 2
                  h, m = divmod(self.__walltime_m, 60)
                  self.__walltime = "%d:%02d:%02d" % (h, m, 0)
 
     def submit(self):
         for i in range(5):
-            status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes)
+            status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__globalYodaDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes)
             if status != 0:
                 self.__log.info("Failed to submit this job to HPC. will sleep one minute and retry")
                 time.sleep(60)
@@ -258,7 +285,7 @@ class HPCManager:
             self.__log.info("Failed to submit this job to HPC. All retries finished. will fail") 
 
     def saveState(self):
-        hpcState = {'GlobalWorkingDir': self.__globalWorkingDir, 'Plugin':self.__pluginName, 'JobID': self.__jobid, 'JobCommand': sys.argv, 'JobStateFile': self.__pandaJobStateFile}
+        hpcState = {'GlobalWorkingDir': self.__globalWorkingDir, 'Plugin':self.__pluginName, 'JobID': self.__jobid, 'JobCommand': sys.argv, 'JobStateFile': self.__pandaJobStateFile, 'StageoutThreads': self.__stageout_threads}
         with open(self.__jobStateFile, 'w') as outputFile:
            json.dump(hpcState, outputFile)
 
@@ -270,6 +297,7 @@ class HPCManager:
             self.__globalWorkingDir = hpcState['GlobalWorkingDir']
             self.__jobid = hpcState['JobID']
             self.__pluginName = hpcState['Plugin']
+            self.__stageout_threads = hpcState['StageoutThreads']
             self.setupPlugin(self.__pluginName)
 
     def poll(self):
@@ -283,7 +311,7 @@ class HPCManager:
         return state
 
     def checkHPCJobLog(self):
-        logFile = os.path.join(self.__globalWorkingDir, "athena_stdout.txt")
+        logFile = os.path.join(self.__globalYodaDir, "athena_stdout.txt")
         command = "grep 'HPCJob-Yoda failed' " + logFile
         status, output = commands.getstatusoutput(command)
         if status == 0:
@@ -292,16 +320,19 @@ class HPCManager:
 
     def getOutputs(self):
         outputs = []
-        all_files = os.listdir(self.__globalWorkingDir)
+        all_files = os.listdir(self.__globalYodaDir)
         for file in all_files:
             if file.endswith(".dump"):
-                filename = os.path.join(self.__globalWorkingDir, file)
+                filename = os.path.join(self.__globalYodaDir, file)
                 handle = open(filename)
                 for line in handle:
                     line = line.replace("  ", " ")
                     eventRange, status, output = line.split(" ")
-                    outputFileName = output.split(",")[0]
-                    outputs.append((eventRange, status, outputFileName))
+                    if status == 'finished':
+                        outputFileName = output.split(",")[0]
+                        outputs.append((eventRange, status, outputFileName))
+                    else:
+                        outputs.append((eventRange, status, output))
                 handle.close()
                 os.rename(filename, filename + ".BAK")
         return outputs
@@ -318,3 +349,43 @@ class HPCManager:
             status, output = commands.getstatusoutput(command)
             self.__log.debug("Run Command: %s " % command)
             self.__log.debug("Status: %s, Output: %s" % (status, output))
+
+    def flushOutputs(self):
+        try:
+            self.__log.debug("Flush Yoda outputs")
+            from pandayoda.yodacore import Database
+            db = Database.Backend(self.__globalYodaDir)
+            db.dumpUpdates(True)
+        except:
+            self.__log.debug("Failed to flush outputs: %s" % traceback.format_exc())
+
+    def old_postRun(self):
+        try:
+            self.__log.debug("postRun")
+            all_files = os.listdir(self.__globalYodaDir)
+            for file in all_files:
+                path = os.path.join(self.__globalYodaDir, file)
+                if file.startswith("rank_") and os.path.isdir(path):
+                    self.__log.debug("Found dir %s" % path)
+                    for jobId in self.__jobs:
+                        dest_dir = os.path.join(self.__jobs[jobId]['GlobalWorkingDir'], file)
+                        if not os.path.exists(dest_dir):
+                            os.makedirs(dest_dir)
+                        for localFile in os.listdir(path):
+                            localPath = os.path.join(path, localFile)
+                            self.__log.debug("Copying %s to %s" % (localPath, dest_dir))
+                            if os.path.isdir(localPath):
+                                try:
+                                    shutil.copytree(localPath, dest_dir)
+                                except:
+                                    self.__log.warning("Failed to copy %s to %s: %s" % (localPath, dest_dir, traceback.format_exc()))
+                            else:
+                                try:
+                                    shutil.copy(localPath, dest_dir)
+                                except:
+                                    self.__log.warning("Failed to copy %s to %s: %s" % (localPath, dest_dir, traceback.format_exc()))
+        except:
+            self.__log.warning("Failed to post run: %s" % traceback.format_exc())
+
+    def postRun(self):
+        return

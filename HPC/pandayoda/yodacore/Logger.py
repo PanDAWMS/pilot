@@ -19,13 +19,13 @@ class Logger:
         else:
             # make handler
             fmt = logging.Formatter('%(asctime)s %(name)s: %(levelname)s  %(message)s')
-            sh = logging.StreamHandler()
-            sh.setLevel(logging.DEBUG)
-            sh.setFormatter(fmt)
-            # make logger
+            for handler in logging.root.handlers:
+                handler.setFormatter(fmt)
+
             self.log = logging.getLogger(modName)
             self.log.propagate = False
-            self.log.addHandler(sh)
+            for handler in logging.root.handlers:
+                self.log.addHandler(handler)
             loggerMap[modName] = self.log
 
 

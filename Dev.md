@@ -39,4 +39,5 @@ git pull --all --prune --progress
 unset SSH_ASKPASS
 git push upstream HPCEvent
 
-
+9) create test tar file
+rm wguan-pilot-dev-HPC_recov.tar.gz; tar czf wguan-pilot-dev-HPC_recov.tar.gz *; cp wguan-pilot-dev-HPC_recov.tar.gz ~/www/wiscgroup/

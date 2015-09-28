@@ -333,7 +333,7 @@ class PandaServerClient:
             pass
         else:
             # only create and send log xml if the log was transferred
-            if job.result[0] == 'failed' and isLogfileCopied(workdir):
+            if job.result[0] == 'failed' and isLogfileCopied(workdir, job.jobId):
                 # generate the xml string for log file
                 # at this time the job.workdir might have been removed (because this function can be called
                 # after the removal of workdir is done), so we make a new dir
@@ -399,7 +399,7 @@ class PandaServerClient:
                                     tolog("Successfully copied NG log metadata file to pilot init dir: %s" % (self.__pilot_initdir))
 
                 else: # log file does not exist anymore
-                    if isLogfileCopied(workdir):
+                    if isLogfileCopied(workdir, job.jobId):
                         tolog("Log file has already been copied and removed")
                         if readpar('region') != 'Nordugrid':
                             # only send xml with log info if the log has been transferred
@@ -774,7 +774,7 @@ class PandaServerClient:
             node['xml'] = updateXMLWithSURLs(experiment, node['xml'], site.workdir, job.jobId, self.__jobrec)
 
             _xml = node['xml']
-            if not isLogfileCopied(site.workdir):
+            if not isLogfileCopied(site.workdir, job.jobId):
                 tolog("Pilot will not send xml about output files since log was not transferred")
                 node['xml'] = ""
 
