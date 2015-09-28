@@ -25,8 +25,6 @@ except:
 try:
     from PilotErrors import PilotErrors
     from config import config_sm
-    from timed_command import timed_command
-
     CMD_CHECKSUM = config_sm.COMMAND_MD5
 except:
     pass
@@ -1501,21 +1499,20 @@ def timedCommand(cmd, timeout=300):
     tolog("Executing command: %s (protected by timed_command, timeout: %d s)" % (cmd, timeout))
     t0 = os.times()
     try:
-        exitcode, telapsed, cout, cerr = timed_command(cmd, timeout)
+        from TimerCommand import TimerCommand
+        timerCommand = TimerCommand(cmd)
+        exitcode, output = timerCommand.run(timeout=timeout)
     except Exception, e:
-        pilotErrorDiag = 'timed_command() threw an exception: %s' % e
+        pilotErrorDiag = 'TimedCommand() threw an exception: %s' % e
         tolog("!!WARNING!!2220!! %s" % pilotErrorDiag)
         exitcode = 1
-        output = e
-        t1 = os.times()
-        telapsed = int(round(t1[4] - t0[4]))
+        output = str(e)
     else:
-        if cerr != "" and exitcode != 0:
-            tolog("!!WARNING!!2220!! Timed command stderr: %s" % (cerr))
-            output = cerr
-        else:
-            output = cout
+        if exitcode != 0:
+            tolog("!!WARNING!!2220!! Timed command returned: %s" % (output))
 
+    t1 = os.times()
+    telapsed = int(round(t1[4] - t0[4]))
     tolog("Elapsed time: %d" % (telapsed))
 
     if telapsed >= timeout:
@@ -4507,3 +4504,31 @@ def dumpFile(filename, topilotlog=False):
             tolog("Dumped %d lines from file %s" % (i, filename))
     else:
         tolog("!!WARNING!!4000!! %s does not exist" % (filename))
+
+def tryint(x):
+    """ Used by numbered string comparison (to protect against unexpected letters in version number) """
+
+    try:
+        return int(x)
+    except ValueError:
+        return x
+
+def splittedname(s):
+    """ Used by numbered string comparison """
+
+    # Can also be used for sorting:
+    # > names = ['YT4.11', '4.3', 'YT4.2', '4.10', 'PT2.19', 'PT2.9']
+    # > sorted(names, key=splittedname)
+    # ['4.3', '4.10', 'PT2.9', 'PT2.19', 'YT4.2', 'YT4.11']
+
+    from re import split
+    return tuple(tryint(x) for x in split('([0-9]+)', s))
+
+def isAGreaterOrEqualToB(A, B):
+    """ Is numbered string A > B? """
+    # > a="1.2.3"
+    # > b="2.2.2"
+    # > e.isAGreaterThanB(a,b)
+    # False
+    
+    return splittedname(A) >= splittedname(B)

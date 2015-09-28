@@ -132,6 +132,12 @@ Not setting general error when dispatcher has not jobs, but zero, in getJob(); r
 Removed obsolete function getLFCChecksumType() (SiteMover)
 Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMover, rfcpLFCSiteMover)
 
+NG changes:
+- Removed obsolete import of timed_command in pUtil
+- Updated timedCommand() to use TimerCommand instead of timed_command (pUtil)
+- Moved tryint(), splittedname() and isAGreaterOrEqualToB() from PandaServerClient to pUtil
+- Now using isAGreaterOrEqualToB() in getUtilityCommand() for the MemoryMonitor setup (ATLASExperiment)
+
 Update from Danila Oleynik, Taylor Childers:
 - New modules: ArgoJob, RunJobArgo, BalsamJob
 - Updated RunJobFactory; replaced Mira with Argo

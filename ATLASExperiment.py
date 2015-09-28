@@ -21,6 +21,7 @@ from pUtil import isBuildJob                    # Is the current job a build job
 from pUtil import remove                        # Used to remove redundant file before log file creation
 from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
+from pUtil import isAGreaterOrEqualToB          #
 from PilotErrors import PilotErrors             # Error codes
 from FileHandling import readFile, writeFile    # File handling methods
 from FileHandling import updatePilotErrorReport # Used to set the priority of an error
@@ -502,7 +503,6 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
         tolog("\nCommand to run the job is: \n%s" % (cmd))
-        #tolog("ATLAS_PYTHON_PILOT = %s" % (os.environ['ATLAS_PYTHON_PILOT']))
 
         if special_setup_cmd != "":
             tolog("Special setup command: %s" % (special_setup_cmd))
@@ -3110,11 +3110,15 @@ class ATLASExperiment(Experiment):
         cacheVer = homePackage.split('/')[-1]
 
         # Could anything be extracted?
-        if homePackage == cacheVer: # (no)
+        #if homePackage == cacheVer: # (no)
+        if isAGreaterOrEqualToB(default_release, release) or default_release == release: # or NG
             # This means there is no patched release available, ie. we need to use the fallback
             useDefault = True
+            tolog("%s >= %s" % (default_release, release))
         else:
             useDefault = False
+            tolog("%s <= %s" % (default_release, release))
+        useDefault = True
 
         if useDefault:
             tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
