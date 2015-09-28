@@ -131,6 +131,7 @@ Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC wit
 Not setting general error when dispatcher has not jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
 Removed obsolete function getLFCChecksumType() (SiteMover)
 Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMover, rfcpLFCSiteMover)
+Added Logger module (copy of HPC/Logger - move later)
 
 NG changes:
 - Removed obsolete import of timed_command in pUtil
