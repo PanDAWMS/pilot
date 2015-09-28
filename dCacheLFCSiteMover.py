@@ -31,38 +31,6 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         """dCache specific space verification.
         There is no way at the moment to verify full dCache space availability"""
         return 999999
-        
-    def addMD5sum(self, lfn, md5sum):
-        """ add md5sum to lfn """
-        if os.environ.has_key('LD_LIBRARY_PATH'):
-            tolog("LD_LIBRARY_PATH prior to lfc import: %s" % os.environ['LD_LIBRARY_PATH'])
-        else:
-            tolog("!!WARNING!!2999!! LD_LIBRARY_PATH not set prior to lfc import")
-        try:
-            import lfc
-        except Exception, e:
-            tolog("!!WARNING!!2999!! addMD5Sum() could not import lfc module: %s" % str(e))
-            return -1
-
-        os.environ['LFC_HOST'] = readpar('lfchost')
-        #    b="."
-        #    buffer = b.zfill(200)
-        #    ret = lfc.lfc_seterrbuf(buffer, len(buffer))
-        stat = lfc.lfc_filestatg()
-        exitcode = lfc.lfc_statg(lfn, "", stat)
-        if exitcode != 0:
-            #    print "error:",buffer
-            err_num = lfc.cvar.serrno
-            tolog("!!WARNING!!2999!! lfc.lfc_statg: %d %s" % (err_num, lfn))
-            return exitcode
-        exitcode = lfc.lfc_setfsizeg(stat.guid, stat.filesize, 'MD', md5sum)
-        if exitcode != 0:
-            #    print "error:",buffer
-            err_num = lfc.cvar.serrno
-            tolog("[Non-fatal] ERROR: lfc.lfc_setfsizeg: %d %s %s" % (err_num, lfn, md5sum))
-            return exitcode
-        tolog("Successfully set md5sum for %s" % (lfn))
-        return exitcode
 
     def put_data(self, source, ddm_storage, fsize=0, fchecksum=0, dsname='', **pdict):
         """Data transfer using dCache - generic version"""

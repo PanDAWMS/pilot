@@ -12,7 +12,7 @@ from RunJobTitan import RunJobTitan
 from RunJobHopper import RunJobHopper
 from RunJobEdison import RunJobEdison
 from RunJobAnselm import RunJobAnselm
-from RunJobMira import RunJobMira
+from RunJobArgo import RunJobArgo
 from RunJobNormal import RunJobNormal
 from RunJobHpcEvent import RunJobHpcEvent
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     factory = RunJobFactory()
 
-    types = ['Normal', 'Normal2', 'RunJobEvent', 'HPC', 'Mira', 'Titan', 'Dummy']
+    types = ['Normal', 'Normal2', 'RunJobEvent', 'HPC', 'Argo', 'Titan', 'Dummy']
 
     for t in types:
         print "\nAttempting to get class for type", t

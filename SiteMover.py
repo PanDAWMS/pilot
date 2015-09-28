@@ -1601,30 +1601,6 @@ class SiteMover(object):
 
     getChecksumType = staticmethod(getChecksumType)
 
-    def getLFCChecksumType(lfn):
-        """ get the checksum type (should be MD or AD) """
-
-        try:
-            import lfc
-        except Exception, e:
-            pilotErrorDiag = "getLFCChecksumType() could not import lfc module: %s" % str(e)
-            tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            return None
-
-        os.environ['LFC_HOST'] = readpar('lfchost')
-        stat = lfc.lfc_filestatg()
-        rc = lfc.lfc_statg(lfn, "", stat)
-        if rc != 0:
-            err_num = lfc.cvar.serrno
-            err_string = lfc.sstrerror(err_num)
-            tolog("!!WARNING!!2999!! (rc = %d) lfc_statg failed for lfn %s with: %d, %s" %\
-                  (rc, lfn, err_num, err_string))
-            return None
-        else:
-            return stat.csumtype
-
-    getLFCChecksumType = staticmethod(getLFCChecksumType)
-
     def isDummyChecksum(fchecksum):
         """ ignore dummy checksum values, e.g. used in the M4/5 cosmics tests """
         # Also skipping checksum values of "0" from Aug 12, 2008 (v 24g)

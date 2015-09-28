@@ -34,30 +34,6 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
         """CASTOR specific space verification.
         There is no simple way at the moment to verify CASTOR space availability - check info system instead"""
         return 999999
-        
-    def addMD5sum(self, lfn, md5sum):
-        """ add md5sum to lfn """
-        if os.environ.has_key('LD_LIBRARY_PATH'):
-            tolog("LD_LIBRARY_PATH prior to lfc import: %s" % os.environ['LD_LIBRARY_PATH'])
-        else:
-            tolog("!!WARNING!!2999!! LD_LIBRARY_PATH not set prior to lfc import")
-        import lfc
-        os.environ['LFC_HOST'] = readpar('lfchost')
-        stat = lfc.lfc_filestatg()
-        exitcode = lfc.lfc_statg(lfn, "", stat)
-        if exitcode != 0:
-            #    print "error:",buffer
-            err_num = lfc.cvar.serrno
-            tolog("!!WARNING!!2999!! lfc.lfc_statg: %d %s" % (err_num, lfn))
-            return exitcode
-        exitcode = lfc.lfc_setfsizeg(stat.guid, stat.filesize, 'MD', md5sum)
-        if exitcode != 0:
-            #    print "error:",buffer
-            err_num = lfc.cvar.serrno
-            tolog("[Non-fatal] ERROR: lfc.lfc_setfsizeg: %d %s %s" % (err_num, lfn, md5sum))
-            return exitcode
-        tolog("Successfully set md5sum for %s" % (lfn))
-        return exitcode
 
     def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, **pdict):
         """ The local file is assubed to have a relative path that is the same of the relative path in the 'gpfn'

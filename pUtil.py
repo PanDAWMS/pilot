@@ -1,6 +1,7 @@
 import sys, os, signal, time, shutil, cgi
 import commands, re
 import urllib
+import json 
 
 from xml.dom import minidom
 from xml.dom.minidom import Document
@@ -29,6 +30,19 @@ try:
     CMD_CHECKSUM = config_sm.COMMAND_MD5
 except:
     pass
+
+# Functions to serialize ARGO messages
+
+def serialize(obj):
+    return json.dumps(obj,sort_keys=True,indent=2, separators=(',', ': '))
+
+def deserialize(text):
+    return json.loads(text)
+
+def convert_unicode_string(unicode_string):
+    if unicode_string is not None:
+        return str(unicode_string)
+    return None
 
 # all files that need to be copied to the workdir
 #fileList = commands.getoutput('ls *.py').split()
@@ -1903,7 +1917,7 @@ class _Curl:
         # verification of the host certificate
         self._verifyHost = True
         # modified for Titan test
-        if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
+        if ('HPC_Titan' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             self._verifyHost = False
 
         # request a compressed response

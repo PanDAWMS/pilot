@@ -33,33 +33,6 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
         """DPM/CASTOR specific space verification.
         There is no way at the moment to verify DPM/CASTOR space availability - check info system instead"""
         return 999999
-        
-    def addMD5sum(self, lfn, md5sum):
-        """ add md5sum to lfn """
-        if os.environ.has_key('LD_LIBRARY_PATH'):
-            tolog("LD_LIBRARY_PATH prior to lfc import: %s" % os.environ['LD_LIBRARY_PATH'])
-        else:
-            tolog("!!WARNING!!2999!! LD_LIBRARY_PATH not set prior to lfc import")
-        import lfc
-        os.environ['LFC_HOST'] = readpar('lfchost')
-        #    b="."
-        #    buffer = b.zfill(200)
-        #    ret = lfc.lfc_seterrbuf(buffer, len(buffer))
-        stat = lfc.lfc_filestatg()
-        exitcode = lfc.lfc_statg(lfn, "", stat)
-        if exitcode != 0:
-            #    print "error:",buffer
-            err_num = lfc.cvar.serrno
-            tolog("!!WARNING!!2999!! lfc.lfc_statg: %d %s" % (err_num, lfn))
-            return exitcode
-        exitcode = lfc.lfc_setfsizeg(stat.guid, stat.filesize, 'MD', md5sum)
-        if exitcode != 0:
-            #    print "error:",buffer
-            err_num = lfc.cvar.serrno
-            tolog("[Non-fatal] ERROR: lfc.lfc_setfsizeg: %d %s %s" % (err_num, lfn, md5sum))
-            return exitcode
-        tolog("Successfully set md5sum for %s" % (lfn))
-        return exitcode
 
     def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, **pdict):
         """
@@ -301,7 +274,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
             report = {}
         else:
             # set the proper protocol
-            report['protocol'] = 'rfpLFC'
+            report['protocol'] = 'rfcpLFC'
             # mark the relative start
             report['relativeStart'] = time()
             # the current file

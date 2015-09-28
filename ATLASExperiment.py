@@ -502,8 +502,7 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
         tolog("\nCommand to run the job is: \n%s" % (cmd))
-
-        tolog("ATLAS_PYTHON_PILOT = %s" % (os.environ['ATLAS_PYTHON_PILOT']))
+        #tolog("ATLAS_PYTHON_PILOT = %s" % (os.environ['ATLAS_PYTHON_PILOT']))
 
         if special_setup_cmd != "":
             tolog("Special setup command: %s" % (special_setup_cmd))

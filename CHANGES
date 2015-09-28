@@ -129,6 +129,16 @@ Updated return values from getFileAccessInfo() in getPrefices() and shouldPFC4TU
 Updated return values from getFileAccessInfo() in stageIn() (RunJob)
 Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
 Not setting general error when dispatcher has not jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
+Removed obsolete function getLFCChecksumType() (SiteMover)
+Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMover, rfcpLFCSiteMover)
+
+Update from Danila Oleynik, Taylor Childers:
+- New modules: ArgoJob, RunJobArgo, BalsamJob
+- Updated RunJobFactory; replaced Mira with Argo
+- Added functions to serialize ARGO messages: serialize(), deserialize(), convert_unicode_string() (pUtil)
+
+REMOVE RunJobMira.py FROM DISTRIBUTION
+ADD TO DISTRIBUTION: ArgoJob, RunJobArgo, BalsamJob
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
