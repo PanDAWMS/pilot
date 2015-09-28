@@ -1,7 +1,12 @@
 # Interface for Rabbit MQ to intercommunicate with ARGO jobs 
 
 import sys,os,ssl
-import pika,time
+import time
+
+try:
+    import pika
+except:
+    pass
 
 #import logging
 from pUtil import tolog

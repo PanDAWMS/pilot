@@ -140,7 +140,7 @@ NG changes:
 - Now using isAGreaterOrEqualToB() in getUtilityCommand() for the MemoryMonitor setup (ATLASExperiment)
 
 Update from Danila Oleynik, Taylor Childers:
-- New modules: ArgoJob, RunJobArgo, BalsamJob
+- New modules: ArgoJob, RunJobArgo, BalsamJob, MessageInterface
 - Updated RunJobFactory; replaced Mira with Argo
 - Added functions to serialize ARGO messages: serialize(), deserialize(), convert_unicode_string() (pUtil)
 
