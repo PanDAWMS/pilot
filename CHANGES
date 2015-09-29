@@ -132,6 +132,8 @@ Not setting general error when dispatcher has not jobs, but zero, in getJob(); r
 Removed obsolete function getLFCChecksumType() (SiteMover)
 Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMover, rfcpLFCSiteMover)
 Added Logger module (copy of HPC/Logger - move later)
+Added purge argument to getUtilityInfo() (PandaServerClient)
+Now sending purge=True to getUtilityInfo() from getNodeStructure() (PandaServerClient)
 
 NG changes:
 - Removed obsolete import of timed_command in pUtil

@@ -235,7 +235,7 @@ class PandaServerClient:
 
         return message
 
-    def getUtilityInfo(self, node, experiment, workdir):
+    def getUtilityInfo(self, node, experiment, workdir, purge=False):
         """ Add the utility info to the node structure if available """
 
         # Get the experiment object and check if the special utility (e.g. a memory monitor) was used
@@ -316,7 +316,7 @@ class PandaServerClient:
                             tolog("Extracted info from memory monitor JSON")
 
             # Done with the memory monitor for this job (if the file is read from the pilots' init dir), remove the file in case there are other jobs to be run
-            if os.path.exists(init_path):
+            if os.path.exists(init_path) and purge:
                 try:
                     os.system("rm -rf %s" % (init_path))
                 except Exception, e:
@@ -488,7 +488,7 @@ class PandaServerClient:
             node['messageLevel'] = site.dq2spmsg
 
         # Add the utility info if it is available
-        node = self.getUtilityInfo(node, job.experiment, job.workdir)
+        node = self.getUtilityInfo(node, job.experiment, job.workdir, purge=True)
 
         return node
 
