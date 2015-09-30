@@ -491,6 +491,9 @@ class Monitor:
                     pilotErrorDiag = "Pilot received a panda server signal to kill job %s at %s" %\
                                      (self.__env['jobDic'][k][1].jobId, pUtil.timeStamp())
                     pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
+                    if not processCanBeKilled(self.__env['jobDic'][k][0]):
+                        pUtil.tolog("Process %s cannot be killed. It's shared by other panda job" % self.__env['jobDic'][k][0])
+                        continue
                     if self.__env['jobrec']:
                         self.__env['jobrec'] = False
                         pUtil.tolog("Switching off job recovery")
@@ -967,6 +970,15 @@ class Monitor:
                 self.__env['number_of_jobs'] += 1
             except:
                 pUtil.tolog("Failed to load unmonitored job %s: %s" % (jobId, traceback.format_exc()))
+
+
+    def processCanBeKilled(processId):
+        # to check whether the process is shared be other panda job
+        # for multi-job Yoda, this is the case.
+        for jobId in self.__env['jobDic']:
+            if self.__env['jobDic'][jobId][0] == processId and not ("tobekilled" in self.__env['jobDic'][jobId][1].action):
+                return False
+        return True
 
 
     def monitor_job(self):

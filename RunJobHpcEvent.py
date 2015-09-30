@@ -534,6 +534,7 @@ class RunJobHpcEvent(RunJob):
             if self.__firstJobId and (jobId == self.__firstJobId):
                 firstJob = jobs[jobId]['job']
                 continue
+            job = jobs[jobId]['job']
             self.failOneJob(transExitCode, pilotExitCode, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=updatePanda)
         if firstJob:
             self.failOneJob(transExitCode, pilotExitCode, firstJob, ins=firstJob.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=updatePanda)
@@ -554,11 +555,12 @@ class RunJobHpcEvent(RunJob):
                 tolog("Failing job with ec: %d" % (jobRet.result[2]))
                 jobResult = jobRet.result[2]
                 pilotErrorDiag = job.pilotErrorDiag
-                break
+                self.failOneJob(0, jobResult, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=False)
+                #continue
             job.displayJob()
             self.__jobs[job.jobId]['job'] = job
-        if jobResult != 0:
-            self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
+        #if jobResult != 0:
+        #    self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
 
 
     def updateEventRange(self, event_range_id, status='finished'):
