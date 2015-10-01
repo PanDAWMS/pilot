@@ -3090,7 +3090,7 @@ class ATLASExperiment(Experiment):
         homePackage = argdict.get('homePackage', '')
         cmtconfig = argdict.get('cmtconfig', '')
         summary = self.getUtilityJSONFilename()
-
+        workdir = argdict.get('workdir', '.')
         interval = 60
         
         default_release = "20.1.5"
@@ -3143,6 +3143,8 @@ class ATLASExperiment(Experiment):
 
         # Now add the MemoryMonitor command
         cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
+        cmd = "cd " + workdir + ";" + cmd
+        tolog("cmd=%s"%cmd)
 
         return cmd
 

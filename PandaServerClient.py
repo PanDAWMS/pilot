@@ -251,7 +251,6 @@ class PandaServerClient:
                 if os.path.exists(init_path):
                     path = init_path
                 else:
-                    tolog("File does not exist either: %s" % (path))
                     path = ""
                 primary_location = False
             else:

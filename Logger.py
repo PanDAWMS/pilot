@@ -1,11 +1,58 @@
 import logging
 import inspect
+import time
 import sys
+import os
 
 loggerMap = {}
+logging.basicConfig(level=logging.DEBUG)
+
+class MyFormatter(logging.Formatter):
+
+    def __init__(self, fmt="%(levelno)s: %(msg)s"):
+
+        logging.Formatter.__init__(self, fmt)
+
+        self.debug_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
+        self.info_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s: %(message)s'
+        self.warning_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
+        self.error_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
+        self.critical_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
+
+    def format(self, record):
+
+        # Save the original format configured by the user
+        # when the logger formatter was instantiated
+        format_orig = self._fmt
+
+        # Replace the original format with one customized by logging level
+        if record.levelno == logging.DEBUG:
+            self._fmt = self.debug_fmt
+
+        elif record.levelno == logging.INFO:
+            self._fmt = self.info_fmt
+
+        elif record.levelno == logging.WARNING:
+            self._fmt = self.warning_fmt
+
+        elif record.levelno == logging.ERROR:
+            self._fmt = self.error_fmt
+
+        elif record.levelno == logging.CRITICAL:
+            self._fmt = self.critical_fmt
+
+        # Call the original formatter class to do the grunt work
+        result = logging.Formatter.format(self, record)
+
+        # Restore the original format configured by the user
+        self._fmt = format_orig
+
+        return result
 
 class Logger:
+
     def __init__(self, filename=None):
+
         # get logger name
         frm = inspect.stack()[1]
         mod = inspect.getmodule(frm[0])
@@ -19,19 +66,20 @@ class Logger:
             self.log = loggerMap[modName]
         else:
             # make handler
-            fmt = logging.Formatter('%(asctime)s %(name)s: %(levelname)s  %(message)s')
+            fmt = MyFormatter()
+            fmt.converter = time.gmtime # to convert timestamps to UTC
             if filename:
                 sh = logging.FileHandler(filename, mode='a')
             else:
                 sh = logging.StreamHandler(sys.stdout)
             sh.setLevel(logging.DEBUG)
             sh.setFormatter(fmt)
+
             # make logger
             self.log = logging.getLogger(modName)
             self.log.propagate = False
             self.log.addHandler(sh)
             loggerMap[modName] = self.log
-
 
     def info(self,msg):
         self.log.info(msg)

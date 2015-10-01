@@ -662,7 +662,7 @@ class RunJob(object):
         utility_subprocess = None
         if thisExperiment.shouldExecuteUtility():
             try:
-                mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf)
+                mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf, workdir=job.workdir)
                 if mem_cmd != "":
                     utility_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
                     if utility_subprocess:

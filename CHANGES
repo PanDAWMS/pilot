@@ -134,6 +134,12 @@ Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMov
 Added Logger module (copy of HPC/Logger - move later)
 Added purge argument to getUtilityInfo() (PandaServerClient)
 Now sending purge=True to getUtilityInfo() from getNodeStructure() (PandaServerClient)
+Sending workdir to getUtilityCommand() from getUtilitySubprocess() (RunJob)
+Extracting argument workdir in getUtilityCommand() (ATLASExperiment)
+Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
+
+Logging changes:
+- Added new logging module to distribution: Logger.py with code constributions from Wen Guan (logging) and Jose Caballero (formatting)
 
 NG changes:
 - Removed obsolete import of timed_command in pUtil
