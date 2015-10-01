@@ -121,9 +121,9 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
 
     from Logger import Logger
     if essential:
-        log = Logger(pilotlogFilename)
-    else:
         log = Logger(essentialPilotlogFilename)
+    else:
+        log = Logger(pilotlogFilename)
 
     print msg
     if tofile:
