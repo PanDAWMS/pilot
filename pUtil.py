@@ -60,23 +60,28 @@ def getFileList(path_dir=None):
         return []
 
 # default pilot log files
-pilotlogFilename = "pilotlog.out"
+pilotlogFilename = "pilotlog.txt"
+essentialPilotlogFilename = "pilotlog-essential.txt"
 pilotstderrFilename = "pilot.stderr"
 
 def setPilotlogFilename(filename):
-    """ set the pilot log file name"""
+    """ Set the pilot log file name"""
 
-    global pilotlogFilename
+    global pilotlogFilename, essentialPilotlogFilename
     if len(filename) > 0:
         pilotlogFilename = filename
 
+        # Add the essential sub string
+        base = pilotlogFilename[:pilotlogFilename.find('.')] # pilotlog.txt -> pilotlog
+        essentialPilotlogFilename = pilotlogFilename.replace(base, base+'-essential')
+
 def getPilotlogFilename():
-    """ return the pilot log file name"""
+    """ Return the pilot log file name"""
 
     return pilotlogFilename
 
 def setPilotstderrFilename(filename):
-    """ set the pilot stderr file name"""
+    """ Set the pilot stderr file name"""
 
     global pilotstderrFilename
     if len(filename) > 0:
@@ -106,7 +111,33 @@ def appendToLog(txt):
         else:
             print "WARNING: Exception caught: %s" % e
 
-def tolog(msg, tofile=True):
+def tolog(msg, tofile=True, label='INFO', essential=False):
+    """ Write message to pilot log and to stdout """
+
+    # remove backquotes from the msg since they cause problems with batch submission of pilot
+    # (might be present in error messages from the OS)
+    msg = msg.replace("`","'")
+    msg = msg.replace('"','\\"')
+
+    if essential:
+        log = Logger(pilotlogFilename)
+    else:
+        log = Logger(essentialPilotlogFilename)
+
+    if label == 'INFO':
+        log.info(msg)
+    elif label == 'WARNING':
+        log.warning(msg)
+    elif label == 'DEBUG':
+        log.debug(msg)
+    elif label == 'ERROR':
+        log.error(msg)
+        print >> sys.stderr, msg # write any serious messages to stderr
+    elif label == 'CRITICAL':
+        log.critical(msg)
+        print >> sys.stderr, msg # write any FAILED messages to stderr
+
+def tologOLD(msg, tofile=True):
     """ write date+msg to pilot log and to stdout """
 
     import inspect

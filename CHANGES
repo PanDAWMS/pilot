@@ -137,6 +137,11 @@ Now sending purge=True to getUtilityInfo() from getNodeStructure() (PandaServerC
 Sending workdir to getUtilityCommand() from getUtilitySubprocess() (RunJob)
 Extracting argument workdir in getUtilityCommand() (ATLASExperiment)
 Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
+Change default log file name from pilotlog.out to pilotlog.txt (pUtil)
+Created new global essentialPilotlogFilename (pUtil)
+Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
+Updated the tolog() function to use the new Logger module (pUtil)
+Added arguments label and essential to tolog() (pUtil)
 
 Logging changes:
 - Added new logging module to distribution: Logger.py with code constributions from Wen Guan (logging) and Jose Caballero (formatting)
