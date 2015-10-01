@@ -124,17 +124,24 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
     else:
         log = Logger(essentialPilotlogFilename)
 
-    if label == 'INFO':
-        log.info(msg)
-    elif label == 'WARNING':
-        log.warning(msg)
-    elif label == 'DEBUG':
-        log.debug(msg)
-    elif label == 'ERROR':
-        log.error(msg)
-        print >> sys.stderr, msg # write any serious messages to stderr
-    elif label == 'CRITICAL':
-        log.critical(msg)
+    print msg
+    if tofile:
+        if label == 'INFO':
+            log.info(msg)
+        elif label == 'WARNING':
+            log.warning(msg)
+        elif label == 'DEBUG':
+            log.debug(msg)
+        elif label == 'ERROR':
+            log.error(msg)
+        elif label == 'CRITICAL':
+            log.critical(msg)
+        else:
+            log.warning('Unknown label: %s' % (label))
+            log.info(msg)
+
+    # write any serious messages to stderr        
+    if label == 'ERROR' or label == 'CRITICAL':
         print >> sys.stderr, msg # write any FAILED messages to stderr
 
 def tologOLD(msg, tofile=True):
@@ -3548,6 +3555,7 @@ def dumpPilotInfo(version, pilot_version_tag, pilotId, jobSchedulerId, pilot_ini
     """ Pilot info """
 
     tolog("Panda Pilot, version %s" % (version), tofile=tofile)
+    tolog("Panda Pilot, version %s" % (version), tofile=tofile, essential=True)
     tolog("Version tag = %s" % (pilot_version_tag))
     tolog("PilotId = %s, jobSchedulerId = %s" % (str(pilotId), str(jobSchedulerId)), tofile=tofile)
     tolog("Current time: %s" % (timeStamp()), tofile=tofile)
