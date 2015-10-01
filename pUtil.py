@@ -119,6 +119,7 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
     msg = msg.replace("`","'")
     msg = msg.replace('"','\\"')
 
+    from Logger import Logger
     if essential:
         log = Logger(pilotlogFilename)
     else:
