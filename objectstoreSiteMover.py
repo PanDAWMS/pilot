@@ -27,12 +27,16 @@ class objectstoreSiteMover(SiteMover.SiteMover):
     copyCommand = "objectstore"
     checksum_command = "adler32"
 
+    def __init__(self, setup_path='', useTimerCommand=True, *args, **kwrds):
+        self._setup = setup_path
+        self._useTimerCommand = useTimerCommand
+
     def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, **pdict):
         if gpfn.startswith("root:"):
             sitemover = xrootdObjectstoreSiteMover(self.getSetup())
             return sitemover.get_data(gpfn, lfn, path, fsize, fchecksum, guid, **pdict)
         if gpfn.startswith("s3:"):
-            sitemover = S3ObjectstoreSiteMover(self.getSetup())
+            sitemover = S3ObjectstoreSiteMover(self.getSetup(), self._useTimerCommand)
             return sitemover.get_data(gpfn, lfn, path, fsize, fchecksum, guid, **pdict)
         return -1, "No objectstore sitemover found for this scheme(%s)" % gpfn
 
@@ -49,7 +53,7 @@ class objectstoreSiteMover(SiteMover.SiteMover):
             sitemover = xrootdObjectstoreSiteMover(self.getSetup())
             return sitemover. put_data(source, destination, fsize, fchecksum, **pdict)
         if surl.startswith("s3:"):
-            sitemover = S3ObjectstoreSiteMover(self.getSetup())
+            sitemover = S3ObjectstoreSiteMover(self.getSetup(), self._useTimerCommand)
             return sitemover. put_data(source, surl, fsize, fchecksum, **pdict)
         return -1, "No objectstore sitemover found for this scheme(%s)" % destination, destination, fsize, fchecksum, config_sm.ARCH_DEFAULT
 

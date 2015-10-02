@@ -546,21 +546,27 @@ class RunJobHpcEvent(RunJob):
         pilotErrorDiag = ""
         self.__avail_files = {}
         for jobId in self.__jobs:
-            job = self.__jobs[jobId]['job']
-            self.updateJobState(job, 'transferring', '')
+            try:
+                job = self.__jobs[jobId]['job']
+                self.updateJobState(job, 'transferring', '')
 
-            # stage-in all input files (if necessary)
-            jobRet, ins, statusPFCTurl, usedFAXandDirectIO = self.stageInOneJob(job, self.__jobSite, self.__jobs[job.jobId]['analysisJob'], self.__avail_files, pfc_name="PFC.xml")
-            if jobRet.result[2] != 0:
-                tolog("Failing job with ec: %d" % (jobRet.result[2]))
-                jobResult = jobRet.result[2]
-                pilotErrorDiag = job.pilotErrorDiag
-                self.failOneJob(0, jobResult, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=False)
-                #continue
-            job.displayJob()
-            self.__jobs[job.jobId]['job'] = job
-        #if jobResult != 0:
-        #    self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
+                # stage-in all input files (if necessary)
+                jobRet, ins, statusPFCTurl, usedFAXandDirectIO = self.stageInOneJob(job, self.__jobSite, self.__jobs[job.jobId]['analysisJob'], self.__avail_files, pfc_name="PFC.xml")
+                if jobRet.result[2] != 0:
+                    tolog("Failing job with ec: %d" % (jobRet.result[2]))
+                    jobResult = jobRet.result[2]
+                    pilotErrorDiag = job.pilotErrorDiag
+                    self.failOneJob(0, jobResult, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=False)
+                    #continue
+                    break
+                job.displayJob()
+                self.__jobs[job.jobId]['job'] = job
+            except:
+                tolog("stageInHPCJobsException")
+                tolog(traceback.format_exc())
+
+        if jobResult != 0:
+            self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
 
 
     def updateEventRange(self, event_range_id, status='finished'):

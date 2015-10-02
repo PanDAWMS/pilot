@@ -27,7 +27,7 @@ class EventStager:
             os.makedirs(self.__updateEventRangesDir)
         self.__logFile = os.path.join(workDir, 'EventStager.log')
         self.__setup = setup
-        self.__siteMover = objectstoreSiteMover(setup)
+        self.__siteMover = objectstoreSiteMover(setup, useTimerCommand=False)
         self.__esPath = esPath
         self.__token = token
         self.__experiment = experiment
@@ -52,6 +52,8 @@ class EventStager:
         self.__processedJobs = []
         self.__handlingOthers = 0
         self.__otherProcesses = []
+        self.__startWait = None
+        self.__waitTime = 15 * 60 # 15 minutes
 
         if not os.environ.has_key('PilotHomeDir'):
             os.environ['PilotHomeDir'] = os.getcwd()
@@ -248,6 +250,7 @@ class EventStager:
     def getEventRanges(self):
         outputFiles = self.getUnstagedOutputFiles()
         for file in outputFiles:
+            self.__startWait = None
             self.__eventRanges[file] = {}
             self.__eventRanges_staged[file] = []
             self.__eventRanges_faileStaged[file] = []
@@ -382,6 +385,7 @@ class EventStager:
             p.start()
             self.__otherProcesses.append(p)
             self.__handlingOthers += 1
+            self.__startWait = None
 
         s3Files = self.getUnstagedOutputFiles(".s3cmd")
         for s3File in s3Files:
@@ -389,6 +393,7 @@ class EventStager:
             p.start()
             self.__otherProcesses.append(p)
             self.__handlingOthers += 1
+            self.__startWait = None
 
         termProcesses = []
         for p in self.__otherProcesses:
@@ -420,6 +425,9 @@ class EventStager:
                 #logging.debug("%s" % self.__eventRanges)
                 logging.debug("otherProcesses:%s" % len(self.__otherProcesses))
                 if len(self.__eventRanges.keys()) == 0 and len(self.__otherProcesses) == 0:
+                    if self.__startWait == None:
+                        self.__startWait = time.time()
+                if self.__startWait and (time.time() - self.__startWait) > self.__waitTime:
                     break
             except:
                 logging.info(traceback.format_exc())
