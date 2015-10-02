@@ -23,6 +23,8 @@ from pUtil import extractHPCInfo           # Used by getSubprocessName() to dete
 
 class Experiment(object):
 
+#    experiment = "generic"               # String defining the experiment
+
     # private data members
     __experiment = "generic"               # String defining the experiment
     __instance = None                      # Boolean used by subclasses to become a Singleton
@@ -32,15 +34,17 @@ class Experiment(object):
 
     # Required methods
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
+#        self.experiment = kwargs.get('experiment')
         pass
 
     def getExperiment(self):
         """ Return a string with the experiment name """
 
+#        return self.experiment
         return self.__experiment
 
     def getJobExecutionCommand(self):
@@ -159,6 +163,7 @@ class Experiment(object):
 
     def specialChecks(self, **kwargs):
         """ Implement special checks here """
+
         # Return False if fatal failure, otherwise return True
         # The pilot will abort if this method returns a False
 
@@ -166,7 +171,7 @@ class Experiment(object):
 
         status = False
 
-        tolog("No special checks for \'%s\'" % (self.__experiment))
+        tolog("No special checks for \'%s\'" % (self.experiment))
 
         return True # obviously change this to 'status' once implemented
 
@@ -329,7 +334,6 @@ class Experiment(object):
 
         # get the queuedata info
         # (directAccess info is stored in the copysetup variable)
-        region = readpar('region')
 
         # get relevant file transfer info
         dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl, lfcHost =\
@@ -738,7 +742,6 @@ class Experiment(object):
                        "-s", env['thisSite'].sitename,
                        "-t", str(env['proxycheckFlag']),
                        "-x", str(env['stageinretry']),
-                       "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
                        "-F", env['experiment'],
                        "-H", env['cache']]
@@ -758,7 +761,6 @@ class Experiment(object):
                        "-s", env['thisSite'].sitename,
                        "-t", str(env['proxycheckFlag']),
                        "-x", str(env['stageinretry']),
-                       "-B", str(env['lfcRegistration']),
                        "-E", str(env['stageoutretry']),
                        "-F", env['experiment'],
                        "-H", env['cache']]
@@ -918,6 +920,103 @@ class Experiment(object):
         # are reported by the pilot to the DQ2 Tracing Service if this method returns True
 
         return False
+
+    # Optional
+    def updateJobDefinition(self, job, filename):
+        """ Update the job definition file and object before using it in RunJob """
+
+        # This method is called from Monitor, before RunJob is launched, which allows to make changes to the job object after it was downloaded from the job dispatcher
+        # (used within Monitor) and the job definition file (which is used from RunJob to recreate the same job object as is used in Monitor).
+        # 'job' is the job object, defined in Job.py, while 'filename' is the name of the file containing the job definition information.
+
+        return job
+
+    # Optional
+    def shouldExecuteUtility(self):
+        """ Determine whether a special utility should be executed """ 
+
+        # The RunJob class has the possibility to execute a special utility, e.g. a memory monitor, that runs in parallel
+        # to the payload (launched after the main payload process).
+        # The utility is executed if this method returns True. The utility is currently expected to produce
+        # a summary JSON file whose name is defined by the getUtilityJSONFilename() method. The contents of
+        # this file (ie. the full JSON dictionary) will be added to the job update.
+
+        return False
+
+    # Optional
+    def getUtilityJSONFilename(self):
+        """ Return the filename of the memory monitor JSON file """
+
+        # For explanation, see shouldExecuteUtility()
+        return "utility_summary.json"
+
+    # Optional
+    def getUtilityCommand(self, **argdict):
+        """ Prepare a utility command string """
+
+        # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
+        # that will be executed by the pilot in parallel with the payload.
+        # The pilot will look for an output JSON file (summary.json) and will extract pre-determined fields
+        # from it and report them with the job updates. Currently the pilot expects to find fields related
+        # to memory information.
+
+        # pid = argdict.get('pid', 0)
+
+        return ""
+
+    # Optional
+    def getGUIDSourceFilename(self):
+        """ Return the filename of the file containing the GUIDs for the output files """
+        
+        # In the case of ATLAS, Athena produces an XML file containing the GUIDs of the output files. The name of this
+        # file is PoolFileCatalog.xml. If this method returns an empty string (ie the default), the GUID generation will
+        # be done by the pilot in RunJobUtilities::getOutFilesGuids()
+
+        return ""
+
+    # Optional
+    def buildFAXPath(self, **argdict):
+        """ Build a proper FAX path """
+
+        # This method builds proper FAX paths and is used in pure FAX mode (i.e. when FAX is used in forced mode),
+        # particularly when the PoolFileCatalog.xml is built prior to stage-in
+        # Only needed if FAX mechanism is used in forced mode (i.e. when copytoolin='fax')
+
+        lfn = argdict.get('lfn', 'default_lfn')
+        scope = argdict.get('scope', 'default_scope')
+        subpath = argdict.get('subpath', 'atlas/rucio/')
+        pandaID = argdict.get('pandaID', '')
+        sourceSite = argdict.get('sourceSite', 'default_sourcesite')
+        computingSite = argdict.get('computingSite', 'default_computingsite')
+
+        # Get the proper FAX redirector (default ATLAS implementation)
+        from FAXTools import getFAXRedirectors
+        # First get the global redirectors (several, since the lib file might not be at the same place for overflow jobs)
+        fax_redirectors_dictionary = getFAXRedirectors(computingSite, sourceSite, pandaID)
+        tolog("fax_redirectors_dictionary=%s"%str(fax_redirectors_dictionary))
+        # select the proper fax redirector
+        if ".lib." in lfn:
+            redirector = fax_redirectors_dictionary['computingsite']
+        else:
+            redirector = fax_redirectors_dictionary['sourcesite']
+
+        # Make sure the redirector ends with a double slash
+        if not redirector.endswith('//'):
+            if redirector.endswith('/'):
+                redirector += "/"
+            else:
+                redirector += "//"
+
+        # Make sure that the subpath does not begin with a slash
+        if subpath.startswith('/') and len(subpath) > 1:
+            subpath = subpath[1:]
+
+        tolog("redirector=%s"%(redirector))
+        tolog("subpath=%s"%(subpath))
+        tolog("scope=%s"%(scope))
+        tolog("lfn=%s"%(lfn))
+
+        return redirector + subpath + scope + ":" + lfn
 
 if __name__ == "__main__":
 

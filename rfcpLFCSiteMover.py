@@ -103,7 +103,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, _setup_str)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         # remove any host and SFN info from PFN path
@@ -135,7 +135,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('FOUND_ROOT', report)
+                    self.prepareReport('FOUND_ROOT', report)
                     if useFileStager:
                         updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                     else:
@@ -192,11 +192,11 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "No such file or directory: %s" % (loc_pfn)
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
                     ec = error.ERR_NOSUCHFILE
-                self.__sendReport('RFCP_FAIL', report)
+                self.prepareReport('RFCP_FAIL', report)
             elif is_timeout(s):
                 pilotErrorDiag = "rfcp get was timed out after %d seconds" % (telapsed)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('GET_TIMEOUT', report)
+                self.prepareReport('GET_TIMEOUT', report)
                 ec = error.ERR_GETTIMEOUT
 
             return ec, pilotErrorDiag
@@ -208,7 +208,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
             except OSError, e:
                 pilotErrorDiag = "Could not get file size: %s" % str(e)
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                self.__sendReport('FS_FAIL', report)
+                self.prepareReport('FS_FAIL', report)
 
                 # remove the local file before any get retry is attempted
                 _status = self.removeLocal(dest_path)
@@ -226,7 +226,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
         # get remote file size and checksum 
         ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_path, csumtype=csumtype)
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(dest_path)
@@ -240,7 +240,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(gpfn), str(dstfsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(dest_path)
@@ -261,14 +261,14 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
                 tolog("!!WARNING!!1112!! Failed to remove local file, get retry will fail")
 
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return error.ERR_GETADMISMATCH, pilotErrorDiag
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, source, ddm_storage, fsize=0, fchecksum=0, dsname='', **pdict):
@@ -314,12 +314,12 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
         if destination == '':
             pilotErrorDiag = "put_data destination path in SE not defined"
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('DEST_PATH_UNDEF', report)
+            self.prepareReport('DEST_PATH_UNDEF', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
         if dsname == '':
             pilotErrorDiag = "Dataset name not specified to put_data"
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('DSN_UNDEF', report)
+            self.prepareReport('DSN_UNDEF', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 #        else:
 #            dsname = self.remove_sub(dsname)
@@ -335,7 +335,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
         else:
             pilotErrorDiag = "put_data encountered unexpected dataset name format: %s" % (dsname)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('DSN_FORMAT_FAIL', report)
+            self.prepareReport('DSN_FORMAT_FAIL', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
         # preparing variables
@@ -343,7 +343,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(src_pfn, csumtype="adler32")
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
             return SiteMover.SiteMover.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -394,8 +394,8 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
         except IOError, e:
             pilotErrorDiag = "put_data could not create dir: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('MKDIR_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag)
+            self.prepareReport('MKDIR_FAIL', report)
+            return SiteMover.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag, surl=dst_gpfn)
 
         cmd = '%srfcp %s %s' % (_setup_str, source, dst_loc_sedir)
         tolog("Executing command: %s" % cmd)
@@ -407,14 +407,14 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
             check_syserr(s, o)
             pilotErrorDiag = "Error in copying: %s" % (o)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('RFCP_FAIL', report)
-            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+            self.prepareReport('RFCP_FAIL', report)
+            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=dst_gpfn)
         try:
             os.chmod(dst_loc_pfn, self.permissions_FILE)
         except IOError, e:
             pilotErrorDiag = "put_data could not change permission of the file: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            return SiteMover.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+            return SiteMover.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=dst_gpfn)
 
         # Comparing only file size since MD5sum is problematic
         try:
@@ -422,13 +422,13 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
         except OSError, e:
             pilotErrorDiag = "put_data could not get file size: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag)
+            self.prepareReport('FS_FAIL', report)
+            return SiteMover.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag, surl=dst_gpfn)
         if fsize != nufsize:
             pilotErrorDiag = "File sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(source), str(fsize), str(nufsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
             return SiteMover.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=dst_gpfn)
 
         # get a proper envsetup
@@ -447,30 +447,17 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "LFC registration failed: %s" % (o)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             check_syserr(s, o)
-            self.__sendReport('LFC_REG_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag)
+            self.prepareReport('LFC_REG_FAIL', report)
+            return SiteMover.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag, surl=dst_gpfn)
         else:
             # add checksum and file size to LFC
             csumtype = self.getChecksumType(fchecksum, format="short")
             exitcode, pilotErrorDiag = self.addFileInfo(lfclfn, fchecksum, csumtype=csumtype)
             if exitcode != 0:
-                self.__sendReport('LFC_ADD_CS_FAIL', report)
-                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag)
+                self.prepareReport('LFC_ADD_CS_FAIL', report)
+                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag, surl=dst_gpfn)
             else:
                 tolog('Successfully set filesize and checksum for %s' % pfn)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, fsize, '', self.arch_type
-
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

@@ -9,10 +9,11 @@ from urllib import urlopen, urlencode
 from urllib2 import Request, urlopen
 
 from futil import *
-from pUtil import tolog, readpar, dumpOrderedItems, getDirectAccessDic, getExtension, getSiteInformation
+from pUtil import tolog, readpar, dumpOrderedItems, getDirectAccessDic, getSiteInformation
 from PilotErrors import PilotErrors
 from timed_command import timed_command
 from config import config_sm
+from FileHandling import getExtension, getTracingReportFilename, writeJSON
 
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE
@@ -22,17 +23,17 @@ LFC_HOME = '/grid/atlas/'
 
 class SiteMover(object):
     """
-    File movers move files between a storage element (of different kinds) and a local directory    
+    File movers move files between a storage element (of different kinds) and a local directory
     get_data: SE->local
     put_data: local->SE
     check_space: available space in SE
     getMover: static function returning a SiteMover
-    
+
     It furter provides functions useful for child classes (AAASiteMover):
     put_data_retfail -- facilitate return in case of failure
     mkdirWperm -- create recursively dirs setting appropriate permissions
     getLocalFileInfo -- get size and checksum of a local file
-    
+
     This is the Default SiteMover, the SE has to be locally accessible for all the WNs
     and all commands like cp, mkdir, md5checksum have to be available on files in the SE
     E.g. NFS exported file system
@@ -56,9 +57,34 @@ class SiteMover(object):
     CONDPROJ = ['oflcond', 'comcond', 'cmccond', 'tbcond', 'tbmccond', 'testcond']
     PRODFTYPE = ['AOD', 'CBNT', 'ESD', 'EVNT', 'HIST', 'HITS', 'RDO', 'TAG', 'log', 'NTUP']
 
+    ddmEndPointIn  = []
+    ddmEndPointOut = []
+    ddmEndPointLog = []
+
     def __init__(self, setup_path='', *args, **kwrds):
         self._setup = setup_path
-    
+
+    def init_data(self, job):
+
+        if job:
+            self.ddmEndPointIn  = job.ddmEndPointIn
+            self.ddmEndPointOut = job.ddmEndPointOut
+            self.ddmEndPointLog = job.ddmEndPointLog
+
+    def _dump_ddmprotocols(self): # quick debug function to display DDM protocols data
+
+        from SiteInformation import SiteInformation
+        si = SiteInformation()
+
+        tolog("INFO: _dump_ddmprotocols data: following protocols defined for stagein (ddmEndPointIn):")
+
+        protocols = si.resolveDDMProtocols(self.ddmEndPointIn, 'pr')
+        tolog("INFO: ddmEndPointIn = %s, protocols=%s" % (self.ddmEndPointIn, protocols))
+
+        protocols = si.resolveDDMProtocols(self.ddmEndPointOut, 'pw')
+        tolog("INFO: ddmEndPointOut = %s, protocols=%s" % (self.ddmEndPointOut, protocols))
+
+
     def get_timeout(self):
         return self.timeout
 
@@ -69,7 +95,7 @@ class SiteMover(object):
     def getID(self):
         """ return the current copy command """
         return self.copyCommand
-    
+
     def getSetup(self):
         """ Return the setup string (pacman setup os setup script) for the copy command used by the mover """
         return self._setup
@@ -138,7 +164,7 @@ class SiteMover(object):
     def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, **pdict):
         """
         Move a file from the local SE (where it was put from DDM) to the working directory.
-        gpfn: full source URL (e.g. method://[host[:port]/full-dir-path/filename - a SRM URL is OK) 
+        gpfn: full source URL (e.g. method://[host[:port]/full-dir-path/filename - a SRM URL is OK)
         path: destination absolute path (in a local file system). It is assumed to be there. get_data returns an error if the path is missing
         The local file is assumed to have a relative path that is the same of the relative path in the 'gpfn'
         loc_...: variables used to access the file in the locally exported file system
@@ -182,7 +208,7 @@ class SiteMover(object):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = SiteMover.getLocalFileInfo(src_loc_pfn, csumtype=csumtype)
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return ec, pilotErrorDiag
         dest_file = os.path.join(path, src_loc_filename)
 
@@ -227,13 +253,13 @@ class SiteMover(object):
                     ec = error.ERR_STAGEINFAILED
 
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('COPY_FAIL', report)
+            self.prepareReport('COPY_FAIL', report)
             return ec, pilotErrorDiag
 
         # get remote file size and checksum
         ec, pilotErrorDiag, dstfsize, dstfchecksum = SiteMover.getLocalFileInfo(dest_file, csumtype=csumtype)
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
             return ec, pilotErrorDiag
 
         # compare remote and local file size
@@ -241,7 +267,7 @@ class SiteMover(object):
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(gpfn), str(dstfsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
             return error.ERR_GETWRONGSIZE, pilotErrorDiag
 
         # compare remote and local file checksum
@@ -250,59 +276,14 @@ class SiteMover(object):
                              (csumtype, os.path.basename(gpfn), dstfchecksum, fchecksum)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
+                self.prepareReport('AD_MISMATCH', report)
                 return error.ERR_GETADMISMATCH, pilotErrorDiag
             else:
-                self.__sendReport('MD5_MISMATCH', report)
+                self.prepareReport('MD5_MISMATCH', report)
                 return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
-
-    def isFileOnTape(surl):
-        """ Check if the file is on tape """
-
-        status = False
-
-        # first get the corresponding DQ2 site name
-        try:
-            sitename = SiteMover.getDQ2SiteName(surl=surl)
-        except:
-            sitename = None
-        if sitename:
-            tolog("Attempting to use SiteMover.isTapeSite() for site %s" % (sitename))
-            try:
-                if SiteMover.isTapeSite(sitename):
-                    status = True
-            except Exception, e:
-                tolog("Failed to execute isTapeSite(): %s (assuming replica is on disk)" % str(e))
-                status = None
-            if status:
-                tolog("Replica is on tape: %s" % (surl))
-            else:
-                tolog("Replica is on disk: %s" % (surl))
-        else:
-            tolog("!!WARNING!!2999!! Site problem: Can not determine whether file is on tape since the DQ2 site name is unknown (setup file not sourced)")
-            tolog("Replica is assumed to be on disk: %s" % (surl))
-
-        return status
-    isFileOnTape = staticmethod(isFileOnTape)
-
-    def isTapeSite(sitename):
-        """ Check whether the DQ2 site is a tape site or not """
-
-        status = False
-        try:
-            from dq2.info import TiersOfATLAS
-            if TiersOfATLAS.isTapeSite(sitename):
-                status = True
-            else:
-                status = False
-        except:
-            tolog("Exception caught (assuming no tape site)")
-            status = False
-        return status
-    isTapeSite = staticmethod(isTapeSite)
 
     def getDQ2SEType(dq2sitename):
         """ Return the corresponding setype for the site """
@@ -417,7 +398,7 @@ class SiteMover(object):
             if se != "":
                 # Now extract the seprodpath from the srm info
                 sepath = SiteMover.extractSEPath(se)
-                
+
                 # Add /rucio to sepath if not there already
                 if not sepath.endswith('/rucio'):
                     sepath += '/rucio'
@@ -476,7 +457,7 @@ class SiteMover(object):
         fsize: file size of the source file (evaluated if 0)
         fchecksum: checksum of the source file (evaluated if 0)
         pdict: to allow additional parameters that may make sense for specific movers
-        
+
         Assume that the SE is locally mounted and its local path is the same as the remote path
         if both fsize and fchecksum (for the source) are given and !=0 these are assumed without reevaluating them
         returns: exitcode, gpfn, fsize, fchecksum
@@ -511,7 +492,7 @@ class SiteMover(object):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = SiteMover.getLocalFileInfo(source, csumtype="adler32")
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return SiteMover.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -539,7 +520,7 @@ class SiteMover(object):
                 except Exception, e:
                     pilotErrorDiag = "Could not figure out destination path from dst_se (%s): %s" % (dst_se, str(e))
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('DEST_PATH_UNDEF', report)
+                    self.prepareReport('DEST_PATH_UNDEF', report)
                     return SiteMover.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
         # VCH added check for Tier3 sites because the ds name is added to the path in SiteMove.getTier3Path()
@@ -550,9 +531,9 @@ class SiteMover(object):
 
         filename = os.path.basename(source)
 
-        ec, pilotErrorDiag, tracer_error, dst_loc_pfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_loc_pfn, lfcdir, surl = si.getProperPaths(error, analyJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
-            self.__sendReport(tracer_error, report)
+            self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         #dst_loc_pfn = os.path.join(dst_loc_sedir, filename)
@@ -592,24 +573,24 @@ class SiteMover(object):
                 o = o.replace('\n', ' ')
                 pilotErrorDiag = "cp failed with output: ec = %d, output = %s" % (s, o)
                 ec = error.ERR_STAGEOUTFAILED
-            self.__sendReport('COPY_FAIL', report)
-            return SiteMover.put_data_retfail(ec, pilotErrorDiag)
+            self.prepareReport('COPY_FAIL', report)
+            return SiteMover.put_data_retfail(ec, pilotErrorDiag, surl=dst_loc_pfn)
 
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
 
         # get remote file size and checksum
         ec, pilotErrorDiag, dstfsize, dstfchecksum = SiteMover.getLocalFileInfo(dst_loc_pfn, csumtype="adler32")
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
-            return SiteMover.put_data_retfail(ec, pilotErrorDiag)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
+            return SiteMover.put_data_retfail(ec, pilotErrorDiag, surl=dst_loc_pfn)
 
         # compare remote and local file size
         if dstfsize != fsize:
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(dst_gpfn), str(dstfsize), str(fsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
-            return SiteMover.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag)
+            self.prepareReport('FS_MISMATCH', report)
+            return SiteMover.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=dst_loc_pfn)
 
         # compare remote and local checksums
         if dstfchecksum != fchecksum:
@@ -617,13 +598,13 @@ class SiteMover(object):
                              (csumtype, os.path.basename(dst_gpfn), dstfchecksum, fchecksum)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             if csumtype == "adler32":
-                self.__sendReport('AD_MISMATCH', report)
-                return SiteMover.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
+                self.prepareReport('AD_MISMATCH', report)
+                return SiteMover.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=dst_loc_pfn)
             else:
-                self.__sendReport('MD5_MISMATCH', report)
-                return SiteMover.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
+                self.prepareReport('MD5_MISMATCH', report)
+                return SiteMover.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=dst_loc_pfn)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, str(dst_gpfn), fsize, fchecksum, ARCH_DEFAULT # Eddie added str, unicode protection
 
     def getLCGPaths(self, destination, dsname, filename, lfcpath):
@@ -669,10 +650,10 @@ class SiteMover(object):
 
         # Special case for GROUPDISK
         # In this case, (e.g.) token = 'dst:AGLT2_PERF-MUONS'
-        # Pilot should then consult TiersOfATLAS and get it from the corresponding srm entry 
-        if "dst:" in token:
+        # Pilot should then consult TiersOfATLAS and get it from the corresponding srm entry
+        if token != None and "dst:" in token:
             # if the job comes from a different cloud than the sites' cloud, destination will be set to "" and the
-            # default space token will be used instead (the transfer to groupdisk will be handled by DDM not pilot) 
+            # default space token will be used instead (the transfer to groupdisk will be handled by DDM not pilot)
             destination = self.getGroupDiskPath(endpoint=token)
 
             if destination != "":
@@ -824,7 +805,7 @@ class SiteMover(object):
         1. check DQ space URL
         2. invoke _check_space, specific for each SiteMover
          (e.g. SiteMover's _check_space get storage path and check local space availability)
-         
+
         """
         # http://bandicoot.uits.indiana.edu:8000/dq2/space/free
         # http://bandicoot.uits.indiana.edu:8000/dq2/space/total
@@ -891,7 +872,7 @@ class SiteMover(object):
         else:
             return avail
 
-    def check_space_df(self, dst_loc_se): 
+    def check_space_df(self, dst_loc_se):
         """ Run df to check space availability """
 
         avail = -1
@@ -960,23 +941,56 @@ class SiteMover(object):
         else:
             tolog("Tracing report sent")
 
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
+    def prepareReport(self, state, report):
+        """ Prepare the DQ2 tracing report. Set the client exit state and finish """
+
+        if report.has_key('timeStart'):
+
+            # Handle the client state which might be a string or a dictionary
+            if type(state) is str:
+                report['clientState'] = state
+            elif type(state) is dict:
+                for key in state.keys():
+                    report[key] = state[key]
+            else:
+                tolog("!!WARNING!!3332!! Do not know how to handle this tracing state: %s" % str(state))
+
+            # Store the tracing report to file
+            filename = getTracingReportFilename()
+            status = writeJSON(filename, report)
+            if status:
+                tolog("Wrote tracing report to file %s" % (filename))
+            else:
+                tolog("!!WARNING!!3333!! Failed to write tracing report to file")
+
+            # Send the report
+            #try:
+            #    self.sendTrace(report)
+            #except Exception, e:
+            #    tolog("!!WARNING!!3334!! Failed to send tracing report: %s" % (e))
+        else:
+            tolog("!!WARNING!!3331!! No timeStart found in tracing report, cannot send")
+
+    def sendReport(self, report):
+        """ Send DQ2 tracing report. Set the client exit state and finish """
+
         if report.has_key('timeStart'):
             # finish instrumentation
             report['timeEnd'] = time.time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
 
+            # send report
+            tolog("Sending tracing report: %s" % str(report))
+            self.sendTrace(report)
+        else:
+            tolog("!!WARNING!!21211! Tracing report does not have a timeStart entry: %s" % str(report))
+
+    @classmethod
     def getSURLDictionaryFilename(self, directory, jobId):
         """ return the name of the SURL dictionary file """
 
         return os.path.join(directory, "surlDictionary-%s.%s" % (jobId, getExtension()))
 
+    @classmethod
     def getSURLDictionary(self, directory, jobId):
         """ get the SURL dictionary from file """
 
@@ -1019,6 +1033,7 @@ class SiteMover(object):
 
         return surlDictionary
 
+    @classmethod
     def putSURLDictionary(self, surlDictionary, directory, jobId):
         """ store the updated SURL dictionary """
 
@@ -1048,6 +1063,7 @@ class SiteMover(object):
 
         return status
 
+    @classmethod
     def updateSURLDictionary(self, guid, surl, directory, jobId):
         """ add the guid and surl to the surl dictionary """
 
@@ -1110,6 +1126,45 @@ class SiteMover(object):
 
         return fileInDataset
 
+    def getFileInfoFromRucio(self, scope, dataset, guid):
+        """ Get the file size and checksum from Rucio """
+
+        filesize = ""
+        checksum = ""
+
+        tolog("scope=%s"%scope)
+        tolog("dataset=%s"%dataset)
+        tolog("guid=%s"%guid)
+        pre = scope + ":"
+        if dataset.startswith(pre):
+            dataset = dataset.replace(pre, "")
+        try:
+            from rucio.client import Client
+            client = Client()
+            replica_list = [i for i in client.list_files(scope, dataset)]
+        except Exception, e:
+            tolog("!!WARNING!!2233!! Exception caught: %s" % (e))
+        else:
+            # Extract the info for the correct guid
+            tolog("Rucio returned a replica list with %d entries" % (len(replica_list)))
+            for i in range(0, len(replica_list)):
+                # replica = {u'adler32': u'9849e8ae', u'name': u'EVNT.01580095._002901.pool.root.1', u'bytes': 469906, u'scope': u'mc12_13TeV', u'guid': u'F88E0A836696344981358463A641A486', u'events': None}
+                # Is it the replica we are looking for?
+                if not "-" in replica_list[i]['guid']:
+                    # Convert the guid (guids in Rucio might not have dashes)
+                    guid = guid.replace('-', '')
+                if guid == replica_list[i]['guid']:
+                    checksum = replica_list[i]['adler32']
+                    filesize = str(replica_list[i]['bytes'])
+                    events = replica_list[i]['events']
+                    if events != None:
+                        tolog("File %s has checksum %s, size %s and %d events" % (replica_list[i]['name'], checksum, filesize, str(replica_list[i]['events'])))
+                    else:
+                        tolog("File %s has checksum %s and size %s (no recorded events)" % (replica_list[i]['name'], checksum, filesize))
+                    break
+
+        return filesize, checksum
+
     def getFileInfoFromDQ2(self, dataset, guid):
         """ Get the file size and checksum from DQ2 """
 
@@ -1163,9 +1218,9 @@ class SiteMover(object):
         surl = re.sub('/srm/managerv2\?SFN=', '', surl)
         tolog("Cleaned up SURL: %s" % (surl))
         try:
-            from dq2.clientapi.DQ2 import DQ2
-            dq2 = DQ2()
-            dq2.declareSuspiciousFiles(surls=[surl], reason='File corrupted', reportedby='p')
+            from rucio.client import Client
+            client = Client()
+            c.declare_suspicious_file_replicas(pfns=[surl], reason='Corrupted File')
         except:
             tolog("!!WARNING!!2111!! Failed to report corrupted file to consistency server")
         else:
@@ -1189,12 +1244,12 @@ class SiteMover(object):
         """
         - if the dir already exists, silently completes
         - if a regular file is in the way, raise an exception
-        - parent directory does not exist, make it as well 
+        - parent directory does not exist, make it as well
         Permissions are set as they should be.
         PERMISSIONS_DIR is loaded from config.config_sm and it is currently 0775 (group write)
         """
         tolog("Creating dir %s" % newdir)
-        
+
         if os.path.isdir(newdir):
             pass
         elif os.path.isfile(newdir):
@@ -1380,7 +1435,7 @@ class SiteMover(object):
         except IndexError:
             return stripped_tag
 
-        return stripped_tag 
+        return stripped_tag
     __strip_tag = staticmethod(__strip_tag)
 
     # Code taken from same source as above
@@ -1696,7 +1751,7 @@ class SiteMover(object):
         if match and "atlasdatatape" in se:
             filtered_path = match[0]
             tolog("Found unwanted stage-in info in SE path, will filter it away: %s" % (filtered_path))
-            se = se.replace(filtered_path, "atlasdatatape") 
+            se = se.replace(filtered_path, "atlasdatatape")
 
         return se
 
@@ -1805,7 +1860,7 @@ class SiteMover(object):
         return stripped_se
 
     getSEFromToken = staticmethod(getSEFromToken)
-                                                                
+
     def getTokenFromPath(path):
         """ return the space token from an SRMv2 end point path """
         # example:
@@ -2297,181 +2352,6 @@ class SiteMover(object):
         return ec, pilotErrorDiag
     lcg_rf = staticmethod(lcg_rf)
 
-    def bulkRegisterFiles(host, guid, scope, dsname, lfn, surl, checksum, fsize):
-        """ Use Rucio method to register a file in the catalog """
-        # NOTE: not actually a bulk method, files are currently registered one by one
-        # Sites are expected to start using lfcregister=server so this should not be a problem
-
-        ec = 0
-        pilotErrorDiag = ""
-        error = PilotErrors()
-
-        # Create the files dictionary
-        files = { guid: { 'dsn': dsname, 'lfn':"%s:%s" % (scope, lfn), 'surl':surl, 'fsize':long(fsize), 'checksum':checksum } }
-
-        try:
-            from dq2.filecatalog import create_file_catalog
-            from dq2.filecatalog.FileCatalogException import FileCatalogException
-            from dq2.filecatalog.FileCatalogUnavailable import FileCatalogUnavailable
-        except:
-            pilotErrorDiag = "Bad environment: Could not import dq2 modules needed for Rucio"
-            tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
-            ec = error.ERR_FAILEDLFCREG # use LFC error code for now
-        else:
-            tolog("Using host=%s for file registration" % (host))
-
-            try:
-                catalog = create_file_catalog(host)
-                catalog.connect()
-                dictionaryReplicas = catalog.bulkRegisterFiles(files)
-                catalog.disconnect()
-            except:
-                pilotErrorDiag = "Caught exception while trying to interact with catalog %s" % (host)
-                tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
-                ec = error.ERR_FAILEDLFCREG # use LFC error code for now
-            else:
-                # Verify that the file registration worked
-                if dictionaryReplicas != {}:
-                    for guid in dictionaryReplicas.keys():
-                        if dictionaryReplicas[guid]:
-                            tolog("Confirmed file registration for guid=%s" % (guid))
-                        else:
-                            pilotErrorDiag = "Could not register guid=%s in file catalog=%s: %s" % (guid, host, str(dictionaryReplicas[guid]))
-                            tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
-                            ec = error.ERR_FAILEDLFCREG # use LFC error code for now
-                else:
-                    pilotErrorDiag = "bulkRegisterFiles() returned empty dictionary"
-                    tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
-                    ec = error.ERR_FAILEDLFCREG # use LFC error code for now
-
-        return ec, pilotErrorDiag
-    bulkRegisterFiles = staticmethod(bulkRegisterFiles)
-
-#     where files is dictionary mapping guid to another dictionary with
-#     lfn(scope:lfn), surl. lfn is still concatenated with scope.
-
-    def registerFileInCatalog(host, analyJob, destination, scope, dsname, lfn, gpfn, guid, fchecksum, fsize):
-        """ Register file in catalog """
-
-        error = PilotErrors()
-        pilotErrorDiag = ""
-        ec = 0
-
-        tolog("Preparing for file registration")
-
-        # use rucio methods for all file registrations
-        ec, pilotErrorDiag = SiteMover.bulkRegisterFiles(host, guid, scope, dsname, lfn, gpfn, fchecksum, fsize)
-        return ec, pilotErrorDiag
-
-        # Use Rucio method if /rucio/ is found in the SURL
-#        if "/rucio/" in gpfn:
-#            ec, pilotErrorDiag = SiteMover.bulkRegisterFiles(host, guid, scope, dsname, lfn, gpfn, fchecksum, fsize)
-#            return ec, pilotErrorDiag
-
-        # get the SE
-        se = readpar('se').split(",")[0]
-        _dummytoken, se = SiteMover.extractSE(se)
-
-        # get the corresponding hostname
-        hostname = SiteMover.extractHostname(se)
-        if hostname == "":
-            hostname = os.getenv("LFC_HOST")
-        tolog("File registration using host: %s" % (hostname))
-
-        try:
-            import lfc
-        except Exception, e:
-            pilotErrorDiag = "registerFileInCatalog() could not import lfc module: %s (unrecoverable)" % str(e)
-            tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            return error.ERR_PUTLFCIMPORT, pilotErrorDiag
-
-        # prepare for LFC registration
-        lfcdir, pilotErrorDiag = SiteMover.getLFCDir(analyJob, destination, dsname, lfn)
-        if lfcdir == "":
-            pilotErrorDiag += " (unrecoverable)"
-            return error.ERR_FAILEDLFCREG, pilotErrorDiag
-
-        tolog("Got lfcdir: %s" % (lfcdir))
-        lfclfn = '%s/%s' % (lfcdir, lfn)
-
-        # create the LFC dir
-        try:
-            # to provoke a false LFC exception for testing
-            if not ".log." in lfn:
-                fake = True
-            else:
-                fake = False
-            exitcode, pilotErrorDiag = SiteMover.lfc_mkdir(lfcdir, fake=False)
-        except Exception, e:
-            exitcode = 1
-            pilotErrorDiag = "Caught exception in lfc_mkdir function: %s (unrecoverable)" % str(e)
-            tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
-        if exitcode != 0:
-            return error.ERR_FAILEDLFCREG, pilotErrorDiag
-        else:
-            tolog("Created lfcdir: %s" % (lfcdir))
-
-        # API version does not create directories recursively, which cause problems for analysis jobs
-        #        exitcode = lfc.lfc_mkdir(lfcdir, 0775)
-
-        # create the LFC entry
-        tolog("lfc_creatg called with lfclfn: %s" % (lfclfn))
-        try:
-            exitcode = lfc.lfc_creatg(lfclfn, guid, 0774)
-        except Exception, e:
-            pilotErrorDiag = "lfc_creatg threw an exception: %s (unrecoverable)" % str(e)
-            tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            return error.ERR_FAILEDLFCREG, pilotErrorDiag
-        else:
-            if exitcode != 0:
-                errno = lfc.cvar.serrno
-                errstr = lfc.sstrerror(errno)
-                pilotErrorDiag = "lfc_creatg failed with (%d, %s)" % (errno, errstr)
-                tolog("!!WARNING!!2999!! %s (unrecoverable)" % (pilotErrorDiag))
-                return error.ERR_FAILEDLFCREG, pilotErrorDiag
-            else:
-                tolog("Created LFC entry: (%s, %s, %d)" % (lfclfn, guid, 0774))
-
-        # add the replica
-        status = '-'
-        f_type = 'D'
-        tolog("lfc_addreplica called with gpfn: %s, status: %s, f_type: %s" % (gpfn, status, f_type))
-        try:
-            tolog("guid = %s (type=%s)" % (guid, type(guid)))
-            tolog("hostname = %s (type=%s)" % (hostname, type(hostname)))
-            tolog("gpfn = %s (type=%s)" % (gpfn, type(gpfn)))
-            tolog("status = %s (type=%s)" % (status, type(status)))
-            tolog("f_type = %s (type=%s)" % (f_type, type(f_type)))
-            exitcode = lfc.lfc_addreplica(guid, None, hostname, gpfn, status, f_type, "", "")
-        except Exception, e:
-            pilotErrorDiag = "lfc_addreplica threw an exception: %s (unrecoverable)" % str(e)
-            tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            return error.ERR_FAILEDLFCREG, pilotErrorDiag
-        else:
-            if exitcode != 0:
-                errno = lfc.cvar.serrno
-                errstr = lfc.sstrerror(errno)
-                pilotErrorDiag = "lfc_addreplica failed with (%d, %s) (unrecoverable)" % (errno, errstr)
-                tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                return error.ERR_FAILEDLFCREG, pilotErrorDiag
-            else:
-                tolog("Added LFC replica: %s" % (gpfn))
-
-        # add checksum and file size to LFC
-        csumtype = SiteMover.getChecksumType(fchecksum, format="short")
-        exitcode, pilotErrorDiag = SiteMover.addFileInfo(lfclfn, fchecksum, csumtype=csumtype, fsize=fsize)
-        if exitcode == -1:
-            ec = error.ERR_PUTLFCIMPORT
-            pilotErrorDiag += " (unrecoverable)"
-        elif exitcode != 0:
-            ec = error.ERR_LFCADDCSUMFAILED
-            pilotErrorDiag += " (unrecoverable)"
-        else:
-            tolog('Successfully set filesize and checksum')
-
-        return ec, pilotErrorDiag
-    registerFileInCatalog = staticmethod(registerFileInCatalog)
-
     def getLFCPath(analyJob, alt=False):
         """ return the proper schedconfig lfcpath """
 
@@ -2642,7 +2522,7 @@ class SiteMover(object):
         The python version below has been reworked with Charles
         This should be no more necessary once Chimera is adopted.
         """
-        
+
         for attempt in range(1,4):
             f = open("%s/.(use)(2)(%s)" % (directory, filename), 'r')
             data = f.readlines()
@@ -3328,6 +3208,8 @@ class SiteMover(object):
     def getFullPath(self, scope, spacetoken, lfn, analyJob, prodSourceLabel, alt=False):
         """ Construct a full PFN using site prefix, space token, scope and LFN """
 
+        self._dump_ddmprotocols() # DEBUG
+
         # <protocol>://<hostname>:<port>/<protocol_prefix>/ + <site_prefix>/<space_token>/rucio/<scope>/md5(<scope>:<lfn>)[0:2]/md5(<scope:lfn>)[2:4]/<lfn>
 
         full_path = ""
@@ -3368,11 +3250,11 @@ class SiteMover(object):
 
         return full_path
 
-    def getGlobalFilePaths(self, surl, dataset, computingSite, sourceSite):
+    def getGlobalFilePaths(self, surl, scope, computingSite, sourceSite):
         """ Get the global file paths """
 
         # Note: this method depends on the site mover used, so should be defined there, and as virtual here
-        # (see e.g. FAXSiteMover, aria2cSiteMover for implementations)
+        # (see e.g. FAXSiteMover for implementations)
 
         return []
 

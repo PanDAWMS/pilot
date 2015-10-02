@@ -22,6 +22,8 @@ from pUtil import remove                        # Used to remove redundant file 
 from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
 from PilotErrors import PilotErrors             # Error codes
+from FileHandling import readFile, writeFile    # File handling methods
+from FileHandling import updatePilotErrorReport # Used to set the priority of an error
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
 from RunJobUtilities import findVmPeaks         #
@@ -37,7 +39,7 @@ from glob import glob
 class ATLASExperiment(Experiment):
 
     # private data members
-    __experiment = "ATLAS"                 # String defining the experiment
+    __experiment = "ATLAS"
     __instance = None                      # Boolean used by subclasses to become a Singleton
     __warning = ""
     __analysisJob = False
@@ -48,17 +50,19 @@ class ATLASExperiment(Experiment):
 
     # Required methods
 
+#    def __init__(self, *args, **kwargs):
     def __init__(self):
         """ Default initialization """
 
-        # e.g. self.__errorLabel = errorLabel
         pass
+#        super(ATLASExperiment, self).__init__(self, *args, **kwargs)
 
     def __new__(cls, *args, **kwargs):
         """ Override the __new__ method to make the class a singleton """
 
         if not cls.__instance:
             cls.__instance = super(ATLASExperiment, cls).__new__(cls, *args, **kwargs)
+#            cls.__instance = super(ATLASExperiment, cls).__new__(cls)
 
         return cls.__instance
 
@@ -87,6 +91,29 @@ class ATLASExperiment(Experiment):
 
         return cmd1
 
+    def addMAKEFLAGS(self, jobCoreCount, cmd2):
+        """ Correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make) """
+
+        # ATHENA_PROC_NUMBER is set in Node.py using the schedconfig value
+        try:
+            coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+        except:
+            coreCount = -1
+        if coreCount == -1:
+            try:
+                coreCount = int(jobCoreCount)
+            except:
+                pass
+            else:
+                if coreCount >= 1:
+                    cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
+                    tolog("Added multi-core support to cmd2: %s" % (cmd2))
+        # make sure that MAKEFLAGS is always set
+        if not "MAKEFLAGS=" in cmd2:
+            cmd2 += 'export MAKEFLAGS="j1 QUICK=1 -l1";'
+
+        return cmd2
+
     def getJobExecutionCommand(self, job, jobSite, pilot_initdir):
         """ Define and test the command(s) that will be used to execute the payload """
 
@@ -106,7 +133,7 @@ class ATLASExperiment(Experiment):
         #   cmtconfig              : cmtconfig symbol from the job def or schedconfig, e.g. "x86_64-slc5-gcc43-opt"
 
         pilotErrorDiag = ""
-        cmd = None
+        cmd = ""
         special_setup_cmd = ""
         pysiteroot = ""
         siteroot = ""
@@ -162,6 +189,10 @@ class ATLASExperiment(Experiment):
                         tolog("!!WARNING!!3000!! Since setup encountered problems, any attempt of trf installation will fail (bailing out)")
                         tolog("ec=%d" % (ec))
                         tolog("pilotErrorDiag=%s" % (pilotErrorDiag))
+
+                        # Set the error priority
+                        updatePilotErrorReport(ec, pilotErrorDiag, "1",  job.jobId, pilot_initdir)
+
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
                     else:
                         tolog("Will use SITEROOT=%s" % (siteroot))
@@ -303,22 +334,7 @@ class ATLASExperiment(Experiment):
                 special_setup_cmd = self.getSpecialSetupCommand()
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
-                try:
-                    coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-                except:
-                    coreCount = -1
-                if coreCount == -1:
-                    try:
-                        coreCount = int(job.coreCount)
-                    except:
-                        pass
-                    else:
-                        if coreCount >= 1:
-                            cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
-                            tolog("Added multi-core support to cmd2: %s" % (cmd2))
-                # make sure that MAKEFLAGS is always set
-                if not "MAKEFLAGS=" in cmd2:
-                    cmd2 += 'export MAKEFLAGS="j1 QUICK=1 -l1";'
+                cmd2 = self.addMAKEFLAGS(job.coreCount, cmd2)
 
                 # Prepend cmd0 to cmd1 if set and if release < 16.1.0
                 if cmd0 != "" and job.release < "16.1.0":
@@ -423,10 +439,14 @@ class ATLASExperiment(Experiment):
                     tolog("cacheDir = %s" % (cacheDir))
                     tolog("cacheVer = %s" % (cacheVer))
                     if cacheDir != "" and cacheVer != "":
-                        asetup = "export AtlasSetup=%s/%s/%s/%s/AtlasSetup; " % (swbase, cacheDir, cmtconfig, cacheVer)
-                        asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s;" % (cacheDir, cacheVer)
 
-                        # now squeeze it in
+                        #asetup = "export AtlasSetup=%s/%s/%s/%s/AtlasSetup; " % (swbase, cacheDir, cmtconfig, cacheVer)
+                        #asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
+
+                        asetup = self.getModernASetup()
+                        asetup += " %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
+
+                        # now squeeze it back in
                         cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
                         tolog("Updated run command for special homePackage: %s" % (cmd))
                     else:
@@ -456,8 +476,7 @@ class ATLASExperiment(Experiment):
 
         # add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall"):
-            #cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
-            pass
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
         else: 
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
 
@@ -482,9 +501,6 @@ class ATLASExperiment(Experiment):
         elif '--enable-jem' in cmd:
             tolog("!!WARNING!!1111!! JEM can currently only be used on certain sites in DE")
 
-        # Pipe stdout/err for payload to files
-        if 'HPC_' not in readpar("catchall"):
-            cmd += " 1>%s 2>%s" % (job.stdout, job.stderr)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
         tolog("ATLAS_PYTHON_PILOT = %s" % (os.environ['ATLAS_PYTHON_PILOT']))
@@ -513,7 +529,7 @@ class ATLASExperiment(Experiment):
             status = True
 
         if status:
-            tolog("Will do file lookups in %s" % (readpar('lfchost')))
+            tolog("File lookups from %s" % (readpar('lfchost')))
         else:
             tolog("Will not do any file lookups")
 
@@ -1720,7 +1736,7 @@ class ATLASExperiment(Experiment):
         _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
         _frontier1 = 'export FRONTIER_ID=\"[%s]\";' % (jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
-        _ttc = 'export ROOT_TTREECACHE_SIZE=1;'
+        _ttc = ''
 
         # Unset ATHENA_PROC_NUMBER if set for event service Merge jobs
         if "Merge_tf" in cmd and os.environ.has_key('ATHENA_PROC_NUMBER'):
@@ -1730,6 +1746,7 @@ class ATLASExperiment(Experiment):
 
         _coreCount = ""
         if analysisJob:
+            _ttc = 'export ROOT_TTREECACHE_SIZE=1;'
             try:
                 coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
             except:
@@ -1868,10 +1885,9 @@ class ATLASExperiment(Experiment):
         if not cmtconfig_alternatives:
             cmtconfig_alternatives = [_cmtconfig]
 
-        if readpar('region') == 'CERN':
-            if swbase[-len('builds'):] == 'builds':
-                status = True
-                return ec, pilotErrorDiag, status, swbase, _cmtconfig
+        if swbase[-len('builds'):] == 'builds':
+            status = True
+            return ec, pilotErrorDiag, status, swbase, _cmtconfig
 
         # loop over all available cmtconfig's until a working one is found (the default cmtconfig value is the first to be tried)
         for cmtconfig in cmtconfig_alternatives:
@@ -1929,7 +1945,7 @@ class ATLASExperiment(Experiment):
             elif exitcode != 0 or "Error:" in output or "(ERROR):" in output:
                 # if time out error, don't bother with trying another cmtconfig
 
-                tolog("ATLAS setup for SITEROOT failed")
+                tolog("ATLAS setup for SITEROOT failed: ec=%d, output=%s" % (exitcode, output))
                 if "No such file or directory" in output:
                     pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
@@ -1945,97 +1961,12 @@ class ATLASExperiment(Experiment):
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
                     ec = self.__error.ERR_SETUPFAILURE
                     continue
-
-        # reset errors if siteroot was found
-        if status:
-            ec = 0
-            pilotErrorDiag = ""
-        return ec, pilotErrorDiag, status, siteroot, cmtconfig
-
-    def getProperSiterootAndCmtconfigOld(self, swbase, release, homePackage, _cmtconfig, cmtconfig_alternatives=None):
-        """ return a proper $SITEROOT and cmtconfig """
-
-        status = False
-        siteroot = ""
-        ec = 0 # only non-zero for fatal errors (missing installation)
-        pilotErrorDiag = ""
-
-        # make sure the cmtconfig_alternatives is not empty/not set
-        if not cmtconfig_alternatives:
-            cmtconfig_alternatives = [_cmtconfig]
-
-        if readpar('region') == 'CERN':
-            if swbase[-len('builds'):] == 'builds':
-                status = True
-                return ec, pilotErrorDiag, status, swbase, _cmtconfig
-
-        # loop over all available cmtconfig's until a working one is found (the default cmtconfig value is the first to be tried)
-        for cmtconfig in cmtconfig_alternatives:
-            ec = 0
-            pilotErrorDiag = ""
-            tolog("Testing cmtconfig=%s" % (cmtconfig))
-
-            if self.useAtlasSetup(swbase, release, homePackage, cmtconfig):
-                cmd = self.getProperASetup(swbase, release, homePackage, cmtconfig, tailSemiColon=True)
-                cmd += " echo SITEROOT=$SITEROOT"
-            elif "slc5" in cmtconfig and "gcc43" in cmtconfig:
-                cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,%s,runtime; echo SITEROOT=$SITEROOT" % (swbase, release, release, cmtconfig)
-            else:
-                cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,runtime; echo SITEROOT=$SITEROOT" % (swbase, release, release)
-
-            # verify that the setup path actually exists before attempting the source command
-            ec, pilotErrorDiag = self.verifySetupCommand(cmd)
-            if ec != 0:
-                pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (pilotErrorDiag)
-                tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                ec = self.__error.ERR_MISSINGINSTALLATION
-                continue
-
-            (exitcode, output) = timedCommand(cmd, timeout=getProperTimeout(cmd))
-
-            if exitcode != 0 or "Error:" in output or "(ERROR):" in output:
-                # if time out error, don't bother with trying another cmtconfig
-
-                tolog("ATLAS setup for SITEROOT failed")
-                if "No such file or directory" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
+                elif "timed out" in output:
+                    # CVMFS problem, no point in continuing
+                    pilotErrorDiag = "getProperSiterootAndCmtconfig: CVMFS setup command timed out: %s" % (output)
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_MISSINGINSTALLATION
-                    continue
-                elif "Error:" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Caught CMT error: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_SETUPFAILURE
-                    continue
-                elif "AtlasSetup(ERROR):" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Caught AtlasSetup error: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_SETUPFAILURE
-                    continue
-
-            if output:
-                tolog("Command output: %s" % (output))
-                if 'SITEROOT' in output:
-                    re_sroot = re.compile('SITEROOT=(.+)')
-                    _sroot = re_sroot.search(output)
-                    if _sroot:
-                        siteroot = _sroot.group(1)
-                        status = True
-                        break
-                    else:
-                        # should this case be accepted?
-                        ec = self.__error.ERR_SETUPFAILURE
-                        pilotErrorDiag = "SITEROOT not found in command output: %s" % (output)
-                        tolog("WARNING: %s" % (pilotErrorDiag))
-                        continue
-                else:
-                    siteroot = os.path.join(swbase, release)
-                    siteroot = siteroot.replace('//','/')
-                    status = True
+                    ec = self.__error.ERR_COMMANDTIMEOUT
                     break
-            else:
-                pilotErrorDiag = "getProperSiterootAndCmtconfig: Command produced no output"
-                tolog("WARNING: %s" % (pilotErrorDiag))
 
         # reset errors if siteroot was found
         if status:
@@ -2120,7 +2051,7 @@ class ATLASExperiment(Experiment):
 
         # need to tell asetup where the compiler is in the US (location of special config file)
         _path = "%s/AtlasSite/AtlasSiteSetup" % (path)
-        if readpar('region') == "US" and os.path.exists(_path):
+        if readpar('cloud') == "US" and os.path.exists(_path):
             _input = "--input %s" % (_path)
         else:
             _input = ""
@@ -2133,8 +2064,7 @@ class ATLASExperiment(Experiment):
 
         # define the setup options
         if not cacheVer:
-            # cacheVer = atlasRelease
-            cacheVer = homePackage.replace("/",",")
+            cacheVer = atlasRelease
 
         # add the fast option if possible (for the moment, check for locally defined env variable)
         if os.environ.has_key("ATLAS_FAST_ASETUP"):
@@ -2317,7 +2247,7 @@ class ATLASExperiment(Experiment):
         except Exception, e:
             tolog("WARNING: os.environ.has_key failed: %s" % str(e))
 
-        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and readpar('region') != "Nordugrid":
+        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and not os.environ.has_key('Nordugrid_pilot'):
             vo_atlas_sw_dir = os.environ["VO_ATLAS_SW_DIR"]
             if vo_atlas_sw_dir != "":
                 # on cvmfs the following dirs are symbolic links, so all tests are needed
@@ -2378,29 +2308,33 @@ class ATLASExperiment(Experiment):
     def getFileCatalog(self):
         """ Return the default file catalog to use (e.g. for replica lookups) """
         # See usage in Mover.py
+        # Note: no longer needed since list_replicas() doesn't need to know the catalog
+        # Return a dummy default to allow the existing host loop to remain in Mover
 
-        fileCatalog = ""
-        try:
-            ddm = readpar('ddm')
-            # note that ddm can contain a comma separated list; if it does, get the first value
-            if "," in ddm:
-                ddm = ddm.split(',')[0]
-            # Try to get the default file catalog from Rucio
-            from dq2.info import TiersOfATLAS
-            fileCatalog = TiersOfATLAS.getLocalCatalog(ddm)
-        except:
-            tolog("!!WARNING!!3333!! Failed to import TiersOfATLAS from dq2.info")
+        fileCatalog = "<rucio default>"
+#        fileCatalog = ""
+#        try:
+#            ddm = readpar('ddm')
+#            # note that ddm can contain a comma separated list; if it does, get the first value
+#            if "," in ddm:
+#                ddm = ddm.split(',')[0]
+#            # Try to get the default file catalog from Rucio
+#            from dq2.info import TiersOfATLAS
+#            fileCatalog = TiersOfATLAS.getLocalCatalog(ddm)
+#        except:
+#            tolog("!!WARNING!!3333!! Failed to import TiersOfATLAS from dq2.info")
+#
+#        # This should not be necessary post-LFC
+#        if fileCatalog == "":
+#            tolog("Did not get a file catalog from dq2.info. Trying to construct one from lfchost")
+#            lfchost = readpar('lfchost')
+#            if not "lfc://" in lfchost:
+#                lfchost = "lfc://" + lfchost
+#            fileCatalog = lfchost + ":/grid/atlas"
+#
+#            # e.g. 'lfc://prod-lfc-atlas.cern.ch:/grid/atlas'
 
-        # This should not be necessary post-LFC
-        if fileCatalog == "":
-            tolog("Did not get a file catalog from dq2.info. Trying to construct one from lfchost")
-            lfchost = readpar('lfchost')
-            if not "lfc://" in lfchost:
-                lfchost = "lfc://" + lfchost
-            fileCatalog = lfchost + ":/grid/atlas"
-
-            # e.g. 'lfc://prod-lfc-atlas.cern.ch:/grid/atlas'
-            tolog("Using file catalog: %s" % (fileCatalog))
+        tolog("Using file catalog: %s" % (fileCatalog))
 
         return fileCatalog
 
@@ -2409,20 +2343,20 @@ class ATLASExperiment(Experiment):
 
         file_catalog_hosts = []
 
-        # Get the catalogTopology dictionary
-        try:
-            from dq2.info import TiersOfATLAS
-            catalogsTopology_dict = TiersOfATLAS.ToACache.catalogsTopology
-
-            # Extract all the LFC hosts from the catalogTopology dictionary
-            file_catalog_hosts = catalogsTopology_dict.keys()
-            tolog("catalogsTopology=%s" % str(file_catalog_hosts))
-        except:
-            import traceback
-            tolog("!!WARNING!!3334!! Exception caught in Mover: %s" % str(traceback.format_exc()))
-            tolog("!!WARNING!!1212!! catalogsTopology lookup failed")
-        else:
-            tolog("Extracted file catalog hosts: %s" % (file_catalog_hosts))
+#        # Get the catalogTopology dictionary
+#        try:
+#            from dq2.info import TiersOfATLAS
+#            catalogsTopology_dict = TiersOfATLAS.ToACache.catalogsTopology
+#
+#            # Extract all the LFC hosts from the catalogTopology dictionary
+#            file_catalog_hosts = catalogsTopology_dict.keys()
+#            tolog("catalogsTopology=%s" % str(file_catalog_hosts))
+#        except:
+#            import traceback
+#            tolog("!!WARNING!!3334!! Exception caught in Mover: %s" % str(traceback.format_exc()))
+#            tolog("!!WARNING!!1212!! catalogsTopology lookup failed")
+#        else:
+#            tolog("Extracted file catalog hosts: %s" % (file_catalog_hosts))
 
         return file_catalog_hosts
 
@@ -2486,7 +2420,7 @@ class ATLASExperiment(Experiment):
         failed = out_of_memory # failed boolean used below
 
         # Always look for the max and average VmPeak?
-        if not self.__analysisJob:
+        if not self.__analysisJob and not self.shouldExecuteUtility():
             setup = getSourceSetup(runCommandList[0])
             job.vmPeakMax, job.vmPeakMean, job.RSSMean = findVmPeaks(setup)
 
@@ -2728,8 +2662,7 @@ class ATLASExperiment(Experiment):
         # Verify the validity of the release string in case it is not set (as can be the case for prun jobs)
         release = verifyReleaseString(release)
 
-        region = readpar('region')
-        if region == 'Nordugrid':
+        if os.environ.has_key('Nordugrid_pilot'):
             if os.environ.has_key('RUNTIME_CONFIG_DIR'):
                 _swbase = os.environ['RUNTIME_CONFIG_DIR']
                 if os.path.exists(_swbase):
@@ -2977,7 +2910,7 @@ class ATLASExperiment(Experiment):
         # Used in the case of payload using multiple steps with different release versions
         # E.g. release = "19.0.0\n19.1.0" -> ['19.0.0', '19.1.0']
 
-        if readpar('region') == 'Nordugrid':
+        if os.environ.has_key('Nordugrid_pilot') and os.environ.has_key('ATLAS_RELEASE'):
             return os.environ['ATLAS_RELEASE'].split(",")
         else:
             return release.split("\n")
@@ -3075,6 +3008,150 @@ class ATLASExperiment(Experiment):
         # are reported by the pilot to the DQ2 Tracing Service if this method returns True
 
         return True
+
+    # Optional
+    def updateJobDefinition(self, job, filename):
+        """ Update the job definition file and object before using it in RunJob """
+
+        # This method is called from Monitor, before RunJob is launched, which allows to make changes to the job object after it was downloaded from the job dispatcher
+        # (used within Monitor) and the job definition file (which is used from RunJob to recreate the same job object as is used in Monitor).
+        # 'job' is the job object, defined in Job.py, while 'filename' is the name of the file containing the job definition information.
+
+        # Update the job definition in case ATHENA_PROC_NUMBER has been set
+        if os.environ.has_key('ATHENA_PROC_NUMBER'):
+            try:
+                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+            except Exception, e:
+                tolog("!!WARNING!!2332!! ATHENA_PROC_NUMBER not an integer (can not update job definition): %s" % (e))
+            else:
+                tolog("ATHENA_PROC_NUMBER set to %d - will update job object and job definition file" % (coreCount))
+                job.coreCount = coreCount
+
+                # Get the contents of the job definition
+                contents = readFile(filename)
+                if contents != "":
+                    # Parse the job definition and extract the coreCount string + value
+                    pattern = re.compile(r"coreCount\=([A-Za-z0-9]+)?")
+                    found = re.findall(pattern, contents)
+                    if len(found) > 0: # ie found a least 'coreCount='
+                        try:
+                            coreCount_string = "coreCount=%s" % found[0] # might or might not add an int, or even NULL
+                        except Exception, e:
+                            tolog("!!WARNING!!2333!! Failed to extract coreCount from job definition: %s" % (e))
+                        else:
+                            tolog("Extracted \'%s\' from job definition" % (coreCount_string))
+
+                            # Update the coreCount
+                            new_coreCount = "coreCount=%d" % (coreCount)
+                            updated_contents = contents.replace(coreCount_string, new_coreCount)
+                            if writeFile(filename, updated_contents):
+                                tolog("Updated job definition with: \'%s\'" % (new_coreCount))
+                            else:
+                                tolog("!!WARNING!!2336!! Failed to update coreCount in job definition")
+                    else:
+                        tolog("!!WARNING!!2334!! coreCount could not be extracted from job definition")
+                else:
+                    tolog("!!WARNING!!2335!! Empty job definition")
+        else:
+            tolog("ATHENA_PROC_NUMBER is not set, will not update coreCount in job definition")
+
+        return job
+
+    # Optional
+    def shouldExecuteUtility(self):
+        """ Determine where a memory utility monitor should be executed """ 
+
+        # The RunJob class has the possibility to execute a memory utility monitor that can track the memory usage
+        # of the payload. The monitor is executed if this method returns True. The monitor is expected to produce
+        # a summary JSON file whose name is defined by the getMemoryMonitorJSONFilename() method. The contents of
+        # this file (ie. the full JSON dictionary) will be added to the jobMetrics at the end of the job (see
+        # PandaServerClient class).
+
+        return True
+
+    # Optional
+    def getUtilityJSONFilename(self):
+        """ Return the filename of the memory monitor JSON file """
+
+        # For explanation, see shouldExecuteUtility()
+        return "memory_monitor_summary.json"
+
+    # Optional
+    def getUtilityCommand(self, **argdict):
+        """ Prepare a utility command string """
+
+        # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
+        # that will be executed by the pilot in parallel with the payload.
+        # The pilot will look for an output JSON file (summary.json) and will extract pre-determined fields
+        # from it and report them with the job updates. Currently the pilot expects to find fields related
+        # to memory information.
+
+        pid = argdict.get('pid', 0)
+        release = argdict.get('release', '')
+        homePackage = argdict.get('homePackage', '')
+        cmtconfig = argdict.get('cmtconfig', '')
+        summary = self.getUtilityJSONFilename()
+
+        interval = 60
+        
+        default_release = "20.1.5"
+        default_patch_release = "20.1.5.2" #"20.1.4.1"
+        default_cmtconfig = "x86_64-slc6-gcc48-opt"
+        default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
+        #default_path = "%s/%s/%s/AtlasProduction/%s/InstallArea/%s/bin/MemoryMonitor" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
+        default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest --cmtconfig %s" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
+
+        # Construct the name of the output file using the summary variable
+        if summary.endswith('.json'):
+            output = summary.replace('.json', '.txt')
+        else:
+            output = summary + '.txt'
+
+        # Get the standard setup
+        cacheVer = homePackage.split('/')[-1]
+
+        # Could anything be extracted?
+        if homePackage == cacheVer: # (no)
+            # This means there is no patched release available, ie. we need to use the fallback
+            useDefault = True
+        else:
+            useDefault = False
+
+        if useDefault:
+            tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
+            cmd = default_setup
+        else:
+            # get the standard setup
+            standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
+            _cmd = standard_setup + "; which MemoryMonitor"
+            # Can the MemoryMonitor be found?
+            try:
+                ec, output = timedCommand(_cmd, timeout=60)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
+                cmd = default_setup
+            else:
+                if "which: no MemoryMonitor in" in output:
+                    tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                    cmd = default_setup
+                else:
+                    # Standard setup passed the test
+                    cmd = standard_setup
+
+        # Now add the MemoryMonitor command
+        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
+
+        return cmd
+
+    # Optional
+    def getGUIDSourceFilename(self):
+        """ Return the filename of the file containing the GUIDs for the output files """
+        
+        # In the case of ATLAS, Athena produces an XML file containing the GUIDs of the output files. The name of this
+        # file is PoolFileCatalog.xml. If this method returns an empty string (ie the default), the GUID generation will
+        # be done by the pilot in RunJobUtilities::getOutFilesGuids()
+
+        return "PoolFileCatalog.xml"
 
 if __name__ == "__main__":
 

@@ -2225,7 +2225,7 @@ class AMSTaiwanExperiment(Experiment):
         except Exception, e:
             tolog("WARNING: os.environ.has_key failed: %s" % str(e))
 
-        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and readpar('region') != "Nordugrid":
+        if os.environ.has_key("VO_ATLAS_SW_DIR") and not "CERNVM" in sitename and not os.environ.has_key('Nordugrid_pilot'):
             vo_atlas_sw_dir = os.environ["VO_ATLAS_SW_DIR"]
             if vo_atlas_sw_dir != "":
                 # on cvmfs the following dirs are symbolic links, so all tests are needed
@@ -2286,53 +2286,15 @@ class AMSTaiwanExperiment(Experiment):
     def getFileCatalog(self):
         """ Return the default file catalog to use (e.g. for replica lookups) """
         # See usage in Mover.py
+        # Note: no longer needed since list_replicas() doesn't need to know the catalog
+        # Return a dummy default to allow the existing host loop to remain in Mover
 
-        fileCatalog = ""
-        try:
-            ddm = readpar('ddm')
-            # note that ddm can contain a comma separated list; if it does, get the first value
-            if "," in ddm:
-                ddm = ddm.split(',')[0]
-            # Try to get the default file catalog from Rucio
-            from dq2.info import TiersOfATLAS
-            fileCatalog = TiersOfATLAS.getLocalCatalog(ddm)
-        except:
-            tolog("!!WARNING!!3333!! Failed to import TiersOfATLAS from dq2.info")
-
-        # This should not be necessary post-LFC
-        if fileCatalog == "":
-            tolog("Did not get a file catalog from dq2.info. Trying to construct one from lfchost")
-            lfchost = readpar('lfchost')
-            if not "lfc://" in lfchost:
-                lfchost = "lfc://" + lfchost
-            fileCatalog = lfchost + ":/grid/atlas"
-
-            # e.g. 'lfc://prod-lfc-atlas.cern.ch:/grid/atlas'
-            tolog("Using file catalog: %s" % (fileCatalog))
-
-        return fileCatalog
+        return "<rucio default>"
 
     def getFileCatalogHosts(self):
         """ Return a list of file catalog hosts """
 
-        file_catalog_hosts = []
-
-        # Get the catalogTopology dictionary
-        try:
-            from dq2.info import TiersOfATLAS
-            catalogsTopology_dict = TiersOfATLAS.ToACache.catalogsTopology
-
-            # Extract all the LFC hosts from the catalogTopology dictionary
-            file_catalog_hosts = catalogsTopology_dict.keys()
-            tolog("catalogsTopology=%s" % str(file_catalog_hosts))
-        except:
-            import traceback
-            tolog("!!WARNING!!3334!! Exception caught in Mover: %s" % str(traceback.format_exc()))
-            tolog("!!WARNING!!1212!! catalogsTopology lookup failed")
-        else:
-            tolog("Extracted file catalog hosts: %s" % (file_catalog_hosts))
-
-        return file_catalog_hosts
+        return []
 
     def verifySwbase(self, appdir):
         """ Confirm existence of appdir/swbase """
@@ -2636,7 +2598,7 @@ class AMSTaiwanExperiment(Experiment):
         release = verifyReleaseString(release)
 
         region = readpar('region')
-        if region == 'Nordugrid':
+        if os.environ.has_key('Nordugrid_pilot'):
             if os.environ.has_key('RUNTIME_CONFIG_DIR'):
                 _swbase = os.environ['RUNTIME_CONFIG_DIR']
                 if os.path.exists(_swbase):
@@ -2884,7 +2846,7 @@ class AMSTaiwanExperiment(Experiment):
         # Used in the case of payload using multiple steps with different release versions
         # E.g. release = "19.0.0\n19.1.0" -> ['19.0.0', '19.1.0']
 
-        if readpar('region') == 'Nordugrid':
+        if os.environ.has_key('Nordugrid_pilot'):
             return os.environ['ATLAS_RELEASE'].split(",")
         else:
             return release.split("\n")
@@ -2982,6 +2944,20 @@ class AMSTaiwanExperiment(Experiment):
         # are reported by the pilot to the DQ2 Tracing Service if this method returns True
 
         return True
+
+    # Optional
+    def getUtilityCommand(self, **argdict):
+        """ Prepare a utility command string """
+
+        # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
+        # that will be executed by the pilot in parallel with the payload.
+        # The pilot will look for an output JSON file (summary.json) and will extract pre-determined fields
+        # from it and report them with the job updates. Currently the pilot expects to find fields related
+        # to memory information.
+
+        # pid = argdict.get('pid', 0)
+
+        return ""
 
 if __name__ == "__main__":
 

@@ -1,5 +1,5 @@
 
-__author__    = "Andre Merzky, Ole Weidner"
+__author__    = "Andre Merzky"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
@@ -8,16 +8,17 @@ __license__   = "MIT"
 
 import weakref
 
+import radical.utils.config  as ruc
+import radical.utils.logger  as rul
+
 from   saga.exceptions import *
-import saga.utils.config     as suc
-import saga.utils.logger     as sul
 
 
 # ------------------------------------------------------------------------------
 #
 # CPI base class
 #
-class CPIBase (suc.Configurable) :
+class CPIBase (ruc.Configurable) :
 
     # --------------------------------------------------------------------------
     #
@@ -26,17 +27,18 @@ class CPIBase (suc.Configurable) :
         self._session   = None
         self._adaptor   = adaptor
         self._cpi_cname = self.__class__.__name__
-        self._logger    = sul.getLogger (self._cpi_cname)
+        self._logger    = rul.getLogger ('saga', self._cpi_cname)
 
         # The API object must obviously keep an adaptor instance.  If we also
         # keep an API instance ref in this adaptor base, we create a ref cycle
         # which will annoy (i.e. disable) garbage collection.  We thus use weak
         # references to break that cycle.  The inheriting classes MUST use
         # get_api() to obtain the API reference.
-        if api :
-            self._api   = weakref.ref (api)
-        else :
-            self._api   = None
+      # if  api :
+      #     self._api   = weakref.ref (api)
+      # else :
+      #     self._api   = None
+        self._api   = weakref.ref (api)
 
         # by default, we assume that no bulk optimizations are supported by the
         # adaptor class.  Any adaptor class supporting bulks ops must overwrite
@@ -55,14 +57,20 @@ class CPIBase (suc.Configurable) :
 
 
     def get_api (self) :
-        if self._api :
-            # get api from weakref.  We can be quite confident that the api
-            # object has *not* been garbage collected, yet, as it obviously is
-            # still binding this adaptor instance.
-            return self._api ()
-        else :
-            # no need to de-weakref 'None'
-            return self._api
+
+        # get api from weakref.  We can be quite confident that the api
+        # object has *not* been garbage collected, yet, as it obviously is
+        # still binding this adaptor instance.
+        return self._api ()
+
+    #   if self._api :
+    #       # get api from weakref.  We can be quite confident that the api
+    #       # object has *not* been garbage collected, yet, as it obviously is
+    #       # still binding this adaptor instance.
+    #       return self._api ()
+    #   else :
+    #       # no need to de-weakref 'None'
+    #       return self._api
 
 
     def get_adaptor_name (self) :
@@ -77,5 +85,5 @@ class CPIBase (suc.Configurable) :
         return self._session
 
 
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
 

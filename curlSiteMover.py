@@ -30,7 +30,7 @@ class curlSiteMover(SiteMover.SiteMover):
     sslCert = si.getSSLCertificate()
     sslKey = sslCert
     sslCertDir = si.getSSLCertificatesDirectory()
-               
+
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path
 
@@ -39,7 +39,7 @@ class curlSiteMover(SiteMover.SiteMover):
 
     def check_space(self, ub):
         """ For when space availability is not verifiable """
-        return 999999        
+        return 999999
 
     def core_get_data(self, envsetup, token, source_surl, dest_path, experiment):
         """ stage-in core function, can be overridden (see stormSiteMover) """
@@ -52,7 +52,7 @@ class curlSiteMover(SiteMover.SiteMover):
         sslCert = self.sslCert
         sslKey = self.sslKey
         sslCertDir = self.sslCertDir
-        
+
         # used curl options:
         # --cert: <cert[:passwd]> Client certificate file and password (SSL)
         # --capath: <directory> CA directory (made using c_rehash) to verify
@@ -61,10 +61,10 @@ class curlSiteMover(SiteMover.SiteMover):
         # --cilent: Makes Curl mute
         # --show-error: When used with -s it makes curl show error message if it fails
         # Removed for SL6: --ciphers <list of ciphers> (SSL)  Specifies  which  ciphers  to use in the connection.
-        
+
         """ define curl command string """
         _cmd_str = 'lcg-gt %s https' % (source_surl)
-        try: 
+        try:
             s, o = commands.getstatusoutput(_cmd_str)
             tolog("Executing command: %s" % (_cmd_str))
         except Exception, e:
@@ -184,7 +184,7 @@ class curlSiteMover(SiteMover.SiteMover):
             # do we have a valid proxy?
             s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
             if s != 0:
-                self.__sendReport('PROXYFAIL', report)
+                self.prepareReport('PROXYFAIL', report)
                 return s, pilotErrorDiag
         else:
             tolog("Proxy verification turned off")
@@ -213,7 +213,7 @@ class curlSiteMover(SiteMover.SiteMover):
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('FOUND_ROOT', report)
+                    self.prepareReport('FOUND_ROOT', report)
                     if useFileStager:
                         updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                     else:
@@ -229,7 +229,7 @@ class curlSiteMover(SiteMover.SiteMover):
             except Exception, e:
                 pilotErrorDiag = "get_data() could not import lfc module: %s" % str(e)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('LFC_IMPORT', report)
+                self.prepareReport('LFC_IMPORT', report)
                 return error.ERR_GETLFCIMPORT, pilotErrorDiag
 
             os.environ['LFC_HOST'] = readpar('lfchost')
@@ -239,12 +239,12 @@ class curlSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Failed to get LFC replicas: %s" % str(e)
                 tolog("!!WARNING!!2990!! Exception caught: %s" % (pilotErrorDiag))
                 tolog("Mover get_data finished (failed)")
-                self.__sendReport('NO_LFC_REPS', report)
+                self.prepareReport('NO_LFC_REPS', report)
                 return error.ERR_FAILEDLFCGETREPS, pilotErrorDiag
             if ret != 0:
                 pilotErrorDiag = "Failed to get replicas: %d, %s" % (ret, res)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('NO_REPS', report)
+                self.prepareReport('NO_REPS', report)
                 return error.ERR_FAILEDLFCGETREPS, pilotErrorDiag
             else:
                 # extract the filesize and checksum
@@ -254,7 +254,7 @@ class curlSiteMover(SiteMover.SiteMover):
                 except Exception, e:
                     pilotErrorDiag = "lfc_getreplicas did not return filesize/checksum: %s" % str(e)
                     tolog("!!WARNING!!2990!! Exception caught: %s" % (pilotErrorDiag))
-                    self.__sendReport('NO_LFC_FS_CS', report)
+                    self.prepareReport('NO_LFC_FS_CS', report)
                     return error.ERR_FAILEDLFCGETREPS, pilotErrorDiag
                 else:
                     tolog("filesize: %s" % str(fsize))
@@ -266,7 +266,7 @@ class curlSiteMover(SiteMover.SiteMover):
         result = self.core_get_data(envsetup, token, getfile, fullname, experiment)
         report['validateStart'] = time()
         if result:
-            self.__sendReport('CORE_FAIL', report)
+            self.prepareReport('CORE_FAIL', report)
             return result
 
         # get the checksum type (md5sum or adler32)
@@ -285,10 +285,10 @@ class curlSiteMover(SiteMover.SiteMover):
             else:
                 csumtype = "default"
 
-            # get remote file size and checksum 
+            # get remote file size and checksum
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return ec, pilotErrorDiag
 
             # compare remote and local file size
@@ -296,7 +296,7 @@ class curlSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                                  (os.path.basename(gpfn), str(dstfsize), str(fsize))
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('FS_MISMATCH', report)
+                self.prepareReport('FS_MISMATCH', report)
                 return error.ERR_GETWRONGSIZE, pilotErrorDiag
 
             # compare remote and local file checksum
@@ -309,14 +309,14 @@ class curlSiteMover(SiteMover.SiteMover):
                 self.reportFileCorruption(gpfn)
 
                 if csumtype == "adler32":
-                    self.__sendReport('AD_MISMATCH', report)
+                    self.prepareReport('AD_MISMATCH', report)
                     return error.ERR_GETADMISMATCH, pilotErrorDiag
                 else:
-                    self.__sendReport('MD5_MISMATCH', report)
+                    self.prepareReport('MD5_MISMATCH', report)
                     return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -366,7 +366,7 @@ class curlSiteMover(SiteMover.SiteMover):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(source, csumtype="adler32")
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return self.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -387,17 +387,17 @@ class curlSiteMover(SiteMover.SiteMover):
         if proxycheck:
             s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
             if s != 0:
-                self.__sendReport('NO_PROXY', report)
+                self.prepareReport('NO_PROXY', report)
                 return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
         else:
             tolog("Proxy verification turned off")
 
         filename = os.path.basename(source)
-        
+
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
-            self.__sendReport(tracer_error, report)
+            self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
         putfile = surl
@@ -414,7 +414,7 @@ class curlSiteMover(SiteMover.SiteMover):
 
         # get https surl
         full_http_surl = full_surl.replace("srm://", "https://")
-        
+
         # get the DQ2 site name from ToA
         try:
             _dq2SiteName = self.getDQ2SiteName(surl=putfile)
@@ -441,7 +441,7 @@ class curlSiteMover(SiteMover.SiteMover):
         except Exception, e:
             tolog("!!WARNING!!2990!! Exception caught: %s (%d, %s)" % (str(e), s, o))
             o = str(e)
-        
+
         if s != 0:
             tolog("!!WARNING!!2990!! Command failed: %s" % (_cmd_str))
             o = o.replace('\n', ' ')
@@ -514,31 +514,31 @@ class curlSiteMover(SiteMover.SiteMover):
             if "Could not establish context" in o:
                 pilotErrorDiag += "Could not establish context: Proxy / VO extension of proxy has probably expired"
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('CONTEXT_FAIL', report)
-                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
+                self.prepareReport('CONTEXT_FAIL', report)
+                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag, surl=full_surl)
             elif "No such file or directory" in o:
                 pilotErrorDiag += "No such file or directory: %s" % (o)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('NO_FILE_DIR', report)
-                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                self.prepareReport('NO_FILE_DIR', report)
+                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
             elif "globus_xio: System error" in o:
                 pilotErrorDiag += "Globus system error: %s" % (o)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('GLOBUS_FAIL', report)
-                return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag)
+                self.prepareReport('GLOBUS_FAIL', report)
+                return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag, surl=full_surl)
             else:
                 if len(o) == 0 and t >= self.timeout:
                     pilotErrorDiag += "Copy command self timed out after %d s" % (t)
                     tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                    self.__sendReport('CP_TIMEOUT', report)
-                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
+                    self.prepareReport('CP_TIMEOUT', report)
+                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag, surl=full_surl)
                 else:
                     if len(o) == 0:
                         pilotErrorDiag += "Copy command returned error code %d but no output" % (ec)
                     else:
                         pilotErrorDiag += o
-                    self.__sendReport('CP_ERROR', report)
-                    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                    self.prepareReport('CP_ERROR', report)
+                    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
 
         verified = False
 
@@ -561,10 +561,10 @@ class curlSiteMover(SiteMover.SiteMover):
                                  (csumtype, os.path.basename(dst_gpfn), remote_checksum, fchecksum)
                 tolog("!!WARNING!!1800!! %s" % (pilotErrorDiag))
                 if csumtype == "adler32":
-                    self.__sendReport('AD_MISMATCH', report)
+                    self.prepareReport('AD_MISMATCH', report)
                     return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=full_surl)
                 else:
-                    self.__sendReport('MD5_MISMATCH', report)
+                    self.prepareReport('MD5_MISMATCH', report)
                     return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=full_surl)
             else:
                 tolog("Remote and local checksums verified")
@@ -595,8 +595,8 @@ class curlSiteMover(SiteMover.SiteMover):
                 if remote_checksum == "NOSUCHFILE":
                     pilotErrorDiag = "The pilot will fail the job since the remote file does not exist"
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('NOSUCHFILE', report)
-                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
+                    self.prepareReport('NOSUCHFILE', report)
+                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag, surl=full_surl)
                 elif remote_checksum:
                     tolog("Remote checksum: %s" % (remote_checksum))
                 else:
@@ -607,10 +607,10 @@ class curlSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" %\
                                      (csumtype, _filename, remote_checksum, fchecksum)
                     if csumtype == "adler32":
-                        self.__sendReport('AD_MISMATCH', report)
+                        self.prepareReport('AD_MISMATCH', report)
                         return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=full_surl)
                     else:
-                        self.__sendReport('MD5_MISMATCH', report)
+                        self.prepareReport('MD5_MISMATCH', report)
                         return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=full_surl)
                 else:
                     tolog("Remote and local checksums verified")
@@ -627,7 +627,7 @@ class curlSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                                      (_filename, remote_fsize, str(fsize))
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('FS_MISMATCH', report)
+                    self.prepareReport('FS_MISMATCH', report)
                     return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=full_surl)
                 else:
                     tolog("Remote and local file sizes verified")
@@ -640,20 +640,8 @@ class curlSiteMover(SiteMover.SiteMover):
             # fail at this point
             pilotErrorDiag = "Neither checksum nor file size could be verified (failing job)"
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('NOFILEVERIFICATION', report)
-            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag)
+            self.prepareReport('NOFILEVERIFICATION', report)
+            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag, surl=full_surl)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, full_surl, fsize, fchecksum, self.arch_type
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

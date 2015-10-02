@@ -1,4 +1,4 @@
-# Class definition:
+1# Class definition:
 #   ATLASSiteInformation
 #   This class is the ATLAS site information class inheriting from SiteInformation
 #   Instances are generated with SiteInformationFactory via pUtil::getSiteInformation()
@@ -13,8 +13,11 @@ import SiteMover
 from SiteInformation import SiteInformation  # Main site information class
 from pUtil import tolog                      # Logging method that sends text to the pilot log
 from pUtil import readpar                    # Used to read values from the schedconfig DB (queuedata)
-from pUtil import getExtension               # Used to determine file type of Tier-1 info file
+from pUtil import timedCommand               # Used by executeBenchmark
+from FileHandling import getExtension        # Used to determine file type of Tier-1 info file
+from FileHandling import getJSONDictionary   # Used by executeBenchmark
 from PilotErrors import PilotErrors          # Error codes
+
 
 class ATLASSiteInformation(SiteInformation):
 
@@ -92,7 +95,7 @@ class ATLASSiteInformation(SiteInformation):
                  "ND": ["ARC", ""],
                  "NL": ["SARA-MATRIX", ""],
                  "OSG": ["BNL_CVMFS_1", ""],
-                 "RU": ["RRC-KI-T1", ""], 
+                 "RU": ["RRC-KI-T1", ""],
                  "TW": ["Taiwan-LCG2", ""],
                  "UK": ["RAL-LCG2", ""],
                  "US": ["BNL_PROD", "BNL_PROD-condor"]
@@ -253,7 +256,7 @@ class ATLASSiteInformation(SiteInformation):
                 # Load the dictionary
                 all_queuedata_dict = load(f)
 
-                # Done with the file  
+                # Done with the file
                 f.close()
 
         return all_queuedata_dict
@@ -302,7 +305,7 @@ class ATLASSiteInformation(SiteInformation):
 
         return status
 
-    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict):
+    def getProperPaths(self, error, analyJob, token, prodSourceLabel, dsname, filename, **pdict): # in current implementation this function completely depends on site mover so that it needs to be either reimplmented or completely moved outside SiteInformation
         """ Get proper paths (SURL and LFC paths) """
 
         ec = 0
@@ -316,7 +319,9 @@ class ATLASSiteInformation(SiteInformation):
         scope = pdict.get('scope', None)
 
         # Get the proper endpoint
-        sitemover = SiteMover.SiteMover()
+        # sitemover = SiteMover.SiteMover()
+        sitemover = pdict.get('sitemover', SiteMover.SiteMover()) # quick workaround HACK: to be properly implemented later
+
         se = sitemover.getProperSE(token, alt=alt)
 
         # For production jobs, the SE path is stored in seprodpath
@@ -365,7 +370,7 @@ class ATLASSiteInformation(SiteInformation):
             if surl.startswith('token'):
                 tolog("Removing space token part from SURL")
                 dummy, surl = sitemover.extractSE(surl)
-                
+
         tolog("SURL = %s" % (surl))
         tolog("dst_gpfn = %s" % (dst_gpfn))
         tolog("lfcdir = %s" % (lfcdir))
@@ -400,8 +405,10 @@ class ATLASSiteInformation(SiteInformation):
         if 'pandadev' in pshttpurl or force_devpilot or thisSite.sitename == "CERNVM":
             ec = self.replaceQueuedataField("status", "online")
 
-#        if thisSite.sitename == "RAL-LCG2_MCORE":
-#            ec = self.replaceQueuedataField("copytool", "gfal-copy")
+#        if thisSite.sitename == "RAL-LCG2_SL6":
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_logs")
+#            ec = self.replaceQueuedataField("copytoolin", "fax")
 
 #            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
@@ -410,17 +417,27 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("catchall", "allow_alt_stageout")
 #            ec = self.replaceQueuedataField("catchall", "force_alt_stageout allow_alt_stageout")
 
-#        if thisSite.sitename == "ANALY_CERN_SLC6" or thisSite.sitename == "AGLT2_SL6":
+#        if thisSite.sitename == "ANALY_CERN_SLC6":
 #            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
 #        if thisSite.sitename == "ANALY_CERN_SLC6":
 #            ec = self.replaceQueuedataField("copysetupin", "/cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh^False^True")
 
+#        ec = self.replaceQueuedataField("timefloor", "0")
+
+#        if thisSite.sitename == "CERN-PROD_MCORE":
+#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cs3.cern.ch:443//atlas_eventservice|logs^s3://cs3.cern.ch:443//atlas_logs")
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
+
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
+            ec = self.replaceQueuedataField("direct_access_lan", "True")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 #            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
-            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
+            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
             ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
@@ -429,10 +446,11 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
-#            ec = self.replaceQueuedataField("copytoolin", "fax")
+            ec = self.replaceQueuedataField("copytoolin", "lsm")
 #            ec = self.replaceQueuedataField("copytool", "lsm")
 #            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
-            ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
+            ec = self.replaceQueuedataField("faxredirector", "atlas-xrd-us.usatlas.org:1094/")
+#            ec = self.replaceQueuedataField("faxredirector", "root://glrd.usatlas.org/")
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^gsiftp://gk01.swt2.uta.edu")
 #            ec = self.replaceQueuedataField("copyprefixin", "^srm://gk05.swt2.uta.edu")
 # Event Service tests:
@@ -448,11 +466,24 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "MWT2_SL6":
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^https://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 #            ec = self.replaceQueuedataField("timefloor", "0")
+
+#        if thisSite.sitename == "CERN_PROD_MCORE":
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
+#            ec = self.replaceQueuedataField("timefloor", "0")
+
+#        if thisSite.sitename == "MWT2_MCORE":
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
+#            ec = self.replaceQueuedataField("copyprefixin", "srm://uct2-dc1.uchicago.edu^srm://uct2-dc1.uchicago.edu")
+#            ec = self.replaceQueuedataField("timefloor", "0")
+
 #        if thisSite.sitename == "BNL_PROD_MCORE":
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
-#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
 #            ec = self.replaceQueuedataField("timefloor", "0")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
+#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov:8443//atlas/logs|https^https://ceph007.usatlas.bnl.gov:8443//atlas/logs")
+#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
+#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
 #        if thisSite.sitename == "SWT2_CPB" or thisSite.sitename == "AGLT2_SL6":
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
@@ -461,100 +492,65 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 #            ec = self.replaceQueuedataField("timefloor", "0")
 
-#        if thisSite.sitename == "AGLT2_SL6" or thisSite.sitename == "SWT2_CPB":
-#        if thisSite.sitename == "BNL_PROD" or thisSite.sitename == "MWT2_MCORE":
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
-
-#            ec = self.replaceQueuedataField("status", "online")
-#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
-
-#        if thisSite.sitename == "BNL_PROD":
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
-#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore,stdout_to_text_indexer")
-#            ec = self.replaceQueuedataField("copytoolin", "fax")
-#            ec = self.replaceQueuedataField("allowfax", "True")
-
-#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^root://dcdcap01.usatlas.bnl.gov:1094")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov:8443//atlas/logs|https^https://ceph007.usatlas.bnl.gov:8443//atlas/logs")
-#            ec = self.replaceQueuedataField("timefloor", "0")
-#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
-
-        if thisSite.sitename == "BNL_PROD" or thisSite.sitename == 'BNL_EC2E1':
-            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
+#        if thisSite.sitename == 'BNL_EC2E1':
+#            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
             #ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov/pnfs/usatlas.bnl.gov/BNLT0D1/rucio^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice")
             #ec = self.replaceQueuedataField("copyprefix", "srm://dcsrm.usatlas.bnl.gov/pnfs/usatlas.bnl.gov/BNLT0D1/rucio^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice")
-            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^s3://s3.amazonaws.com:80//atlas_pilot_bucket/eventservice")
-            ec = self.replaceQueuedataField("copyprefix", "srm://dcsrm.usatlas.bnl.gov:8443^s3://s3.amazonaws.com:80//atlas_pilot_bucket/eventservice")
-            ec = self.replaceQueuedataField("copyprefixin", "srm://aws01.racf.bnl.gov/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
-            ec = self.replaceQueuedataField("copyprefix", "srm://aws01.racf.bnl.gov/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
-            ec = self.replaceQueuedataField("se", "token:ATLASPRODDISK:srm://aws01.racf.bnl.gov:8443/srm/managerv2?SFN=")
-            ec = self.replaceQueuedataField("seprodpath", "/mnt/atlasproddisk/rucio,/mnt/atlasdatadisk/rucio,/mnt/atlasuserdisk/rucio")
-            ec = self.replaceQueuedataField("setokens", "ATLASPRODDISK,ATLASDATADISK,ATLASUSERDISK")
+#            ec = self.replaceQueuedataField("copyprefixin", "srm://dcsrm.usatlas.bnl.gov^s3://s3.amazonaws.com:80//atlas_pilot_bucket/eventservice")
+#            ec = self.replaceQueuedataField("copyprefix", "srm://dcsrm.usatlas.bnl.gov:8443^s3://s3.amazonaws.com:80//atlas_pilot_bucket/eventservice")
+#            ec = self.replaceQueuedataField("copyprefixin", "srm://aws01.racf.bnl.gov/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
+#            ec = self.replaceQueuedataField("copyprefix", "srm://aws01.racf.bnl.gov/mnt/atlasdatadisk,srm://aws01.racf.bnl.gov/mnt/atlasuserdisk,srm://aws01.racf.bnl.gov/mnt/atlasproddisk^s3://s3.amazonaws.com:80//s3-atlasdatadisk-racf,s3://s3.amazonaws.com:80//s3-atlasuserdisk-racf,s3://s3.amazonaws.com:80//s3-atlasproddisk-racf")
+#            ec = self.replaceQueuedataField("se", "token:ATLASPRODDISK:srm://aws01.racf.bnl.gov:8443/srm/managerv2?SFN=")
+#            ec = self.replaceQueuedataField("seprodpath", "/mnt/atlasproddisk/rucio,/mnt/atlasdatadisk/rucio,/mnt/atlasuserdisk/rucio")
+#            ec = self.replaceQueuedataField("setokens", "ATLASPRODDISK,ATLASDATADISK,ATLASUSERDISK")
 
-            ec = self.replaceQueuedataField("copytoolin", "S3")
-            ec = self.replaceQueuedataField("copytool", "S3")
-        if  thisSite.sitename == "NERSC_Edison1":
-            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
-            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=10")
-
-        if  thisSite.sitename == "NERSC_Edison":
-            ec = self.replaceQueuedataField("copytool", "gfal-copy")
-            ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
-            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+#            ec = self.replaceQueuedataField("copytoolin", "S3")
+#            ec = self.replaceQueuedataField("copytool", "S3")
+#        if  thisSite.sitename == "NERSC_Edison":
+#            ec = self.replaceQueuedataField("copytool", "gfal-copy")
+#            ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
+#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
             #ec = self.replaceQueuedataField("appdir", "/global/homes/w/wguan/software/Athena")
 
             # Edison
             #ec = self.replaceQueuedataField("appdir", "/project/projectdirs/atlas/software")
-            ec = self.replaceQueuedataField("appdir", "/scratch1/scratchdirs/tsulaia/sw/software")
+#            ec = self.replaceQueuedataField("appdir", "/scratch1/scratchdirs/tsulaia/sw/software")
             ##ec = self.replaceQueuedataField("envsetup", "source /global/homes/w/wguan/software/emi/current/setup.sh")
-            ec = self.replaceQueuedataField("envsetup", "source /global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
-            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
-            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
-            ec = self.replaceQueuedataField("objectstore", "s3://s3.amazonaws.com:80/|eventservice^/atlas_eventservice|logs^/atlas_logs")
-            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_eventservice|logs^/atlas_logs")
-            ec = self.replaceQueuedataField("timefloor", "0")
-            ec = self.replaceQueuedataField("coreCount", "0")
-            ec = self.replaceQueuedataField("retry", "True")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore")
+#            ec = self.replaceQueuedataField("envsetup", "source /global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
+#            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
+#            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
+#            ec = self.replaceQueuedataField("objectstore", "s3://s3.amazonaws.com:80/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
+#            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
+#            ec = self.replaceQueuedataField("timefloor", "0")
+#            ec = self.replaceQueuedataField("coreCount", "0")
+#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=backfill,queue=debug,backfill_queue=regular,max_events=2100,initialtime_m=8,time_per_event_m=10,repo=m2015,nodes=26,min_nodes=2,max_nodes=50,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=8,time_per_event_m=10,repo=m2015,nodes=50,min_nodes=45,max_nodes=50,partition=edison,min_walltime_m=118,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=20000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=20,min_nodes=20,max_nodes=60,partition=edison,min_walltime_m=178,walltime_m=180,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
+#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=8,time_per_event_m=10,repo=m2015,nodes=50,min_nodes=45,max_nodes=50,partition=edison,min_walltime_m=118,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
+#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=20000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=20,min_nodes=20,max_nodes=60,partition=edison,min_walltime_m=178,walltime_m=180,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,mode=backfill,backfill_queue=regular")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=50,min_nodes=20,max_nodes=600,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=100,min_nodes=100,max_nodes=105,partition=edison,min_walltime_m=60,walltime_m=60,max_walltime_m=185,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=10,time_per_event_m=14,repo=m2015,nodes=1000,min_nodes=1000,max_nodes=1005,partition=edison,min_walltime_m=60,walltime_m=60,max_walltime_m=65,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
-            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=200,min_nodes=200,max_nodes=205,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
-            
-            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=60,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=true,localWorkingDir=/tmp/tsulaia")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=25,min_nodes=25,max_nodes=30,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=1000")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=100,min_nodes=100,max_nodes=101,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=1000")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=200,min_nodes=50,max_nodes=1001,partition=edison,min_walltime_m=119,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
-
+#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m1523,nodes=50,min_nodes=20,max_nodes=600,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
+#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=13,time_per_event_m=13,repo=m670,nodes=11,min_nodes=10,max_nodes=20,partition=edison,min_walltime_m=60,walltime_m=90,max_walltime_m=185,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
             #backfill
-            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=backfill,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=13,min_nodes=8,max_nodes=15,partition=edison,min_walltime_m=60,walltime_m=180,max_walltime_m=240,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=backfill,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=13,time_per_event_m=13,repo=m670,nodes=13,min_nodes=8,max_nodes=15,partition=edison,min_walltime_m=60,walltime_m=180,max_walltime_m=240,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
             #debug
-            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m1523,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
 
-        if  thisSite.sitename == "NERSC_Hopper":
-            ec = self.replaceQueuedataField("copytool", "gfal-copy")
-            ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
-            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+#        if  thisSite.sitename == "NERSC_Hopper":
+#            ec = self.replaceQueuedataField("copytool", "gfal-copy")
+#            ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
+#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
             #ec = self.replaceQueuedataField("appdir", "/global/homes/w/wguan/software/Athena")
 
             # Hopper
-            ec = self.replaceQueuedataField("appdir", "/scratch/scratchdirs/tsulaia/software")
+#            ec = self.replaceQueuedataField("appdir", "/scratch/scratchdirs/tsulaia/software")
             ##ec = self.replaceQueuedataField("envsetup", "source /global/homes/w/wguan/software/emi/current/setup.sh")
-            ec = self.replaceQueuedataField("envsetup", "source /global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
-            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
-            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
+#            ec = self.replaceQueuedataField("envsetup", "source /global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
+#            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
+#            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
             #ec = self.replaceQueuedataField("objectstore", "s3://s3.amazonaws.com:80/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
-            ec = self.replaceQueuedataField("objectstore", "s3://cephgw02.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,queue=debug,max_events=2000,initialtime_m=8, time_per_event_m=10,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=hopper,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
+#            ec = self.replaceQueuedataField("objectstore", "s3://cephgw02.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
+#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore")
+#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,queue=debug,max_events=2000,initialtime_m=8, time_per_event_m=10,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=hopper,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
 
         _status = self.readpar('status')
         if _status != None and _status != "":
@@ -659,17 +655,17 @@ class ATLASSiteInformation(SiteInformation):
                 if ec == 0 and _appdir != "":
                     return ec, _appdir
 
-        elif "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
-            value = 'VO_ATLAS_RELEASE_DIR'
-            tolog("Encountered HLT homepackage: %s, will look for a set $%s" % (homePackage, value))
-
-            # does a HLT directory exist?
-            if os.environ.has_key(value):
-                ec, _appdir = self.getSpecialAppdir(value)
-                if ec == 0 and _appdir != "":
-                    return ec, _appdir
-            else:
-                tolog('$%s is not set' % (value))
+#        elif "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
+#            value = 'VO_ATLAS_RELEASE_DIR'
+#            tolog("Encountered HLT homepackage: %s, will look for a set $%s" % (homePackage, value))
+#
+#            # does a HLT directory exist?
+#            if os.environ.has_key(value):
+#                ec, _appdir = self.getSpecialAppdir(value)
+#                if ec == 0 and _appdir != "":
+#                    return ec, _appdir
+#            else:
+#                tolog('$%s is not set' % (value))
 
         _appdir = appdir
         if "|" in _appdir and "^" in _appdir:
@@ -722,12 +718,7 @@ class ATLASSiteInformation(SiteInformation):
         # Returns "/cvmfs" or "/(some path)/cvmfs" in case the expected file system root path is not
         # where it usually is (e.g. on an HPC). See example implementation in self.getLocalROOTSetup()
 
-        if os.environ.has_key('ATLAS_SW_BASE'):
-            path = os.environ['ATLAS_SW_BASE']
-        else:
-            path = '/cvmfs'
-
-        return path
+        return os.environ.get('ATLAS_SW_BASE', '/cvmfs')
 
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
@@ -735,7 +726,7 @@ class ATLASSiteInformation(SiteInformation):
         # cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
         # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
         # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
-        cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath()) 
+        cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath())
 
         return cmd
 
@@ -791,6 +782,41 @@ class ATLASSiteInformation(SiteInformation):
 
         return {"publicKey": None, "privateKey": None}
 
+    # Optional
+    def shouldExecuteBenchmark(self):
+        """ Should the pilot execute a benchmark test before asking server for a job? """
+
+        return False
+
+    # Optional
+    def executeBenchmark(self):
+        """ Interface method for benchmark test """
+
+        # Use this method to interface with benchmark code
+        # The method should return a dictionary containing the results of the test
+
+        dictionary = {}
+        cmd = "/afs/cern.ch/user/w/walkerr/public/kflops.sh"
+        timeout = 120
+
+        tolog("Executing benchmark test: %s" % (cmd))
+        exitcode, output = timedCommand(cmd, timeout=timeout)
+        if exitcode != 0:
+            tolog("!!WARNING!!3434!! Encountered a problem with benchmark test: %s" % (output))
+        else:
+            tolog("Benchmark finished")
+
+            filename = "kflops.json"
+            if not os.path.exists(filename):
+                tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
+            else:
+                tolog("Parsing benchmark output file: %s" % (filename))
+                dictionary = getJSONDictionary(filename)
+                if dictionary == {}:
+                    tolog("!!WARNING!!3436!! Empty benchmark dictionary - nothing to report")
+
+        return dictionary
+
 if __name__ == "__main__":
 
     os.environ['PilotHomeDir'] = os.getcwd()
@@ -804,6 +830,6 @@ if __name__ == "__main__":
         tolog("Cloud %s has Tier-1 queue %s" % (cloud, queuename))
     else:
         tolog("Failed to find a Tier-1 queue name for cloud %s" % (cloud))
-    
+
     keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
     print keyPair

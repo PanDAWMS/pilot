@@ -3,6 +3,7 @@ import os
 import re
 import commands
 from pUtil import tolog, readpar
+from FileHandling import getMaxWorkDirSize
 
 class Node:
     """ worker node information """
@@ -215,28 +216,47 @@ class Node:
 
         jobMetrics = ""
         if value != "":
-            jobMetrics += " %s=%s" % (name, value)
+            jobMetrics += "%s=%s " % (name, value)
 
         return jobMetrics
 
-    def addToJobMetrics(self):
+    def addToJobMetrics(self, jobResult, path, jobId):
         """ Add the batch job and machine features to the job metrics """
 
         jobMetrics = ""
 
-        jobMetrics += self.addFieldToJobMetrics("hs06", self.hs06)
-        jobMetrics += self.addFieldToJobMetrics("shutdowntime", self.shutdownTime)
-        jobMetrics += self.addFieldToJobMetrics("jobslots", self.jobSlots)
-        jobMetrics += self.addFieldToJobMetrics("phys_cores", self.physCores)
-        jobMetrics += self.addFieldToJobMetrics("log_cores", self.logCores)
-        jobMetrics += self.addFieldToJobMetrics("cpufactor_lrms", self.cpuFactorLrms)
-        jobMetrics += self.addFieldToJobMetrics("cpu_limit_secs_lrms", self.cpuLimitSecsLrms)
-        jobMetrics += self.addFieldToJobMetrics("cpu_limit_secs", self.cpuLimitSecs)
-        jobMetrics += self.addFieldToJobMetrics("wall_limit_secs_lrms", self.wallLimitSecsLrms)
-        jobMetrics += self.addFieldToJobMetrics("wall_limit_secs", self.wallLimitSecs)
-        jobMetrics += self.addFieldToJobMetrics("disk_limit_GB", self.diskLimitGB)
-        jobMetrics += self.addFieldToJobMetrics("jobstart_secs", self.jobStartSecs)
-        jobMetrics += self.addFieldToJobMetrics("mem_limit_MB", self.memLimitMB)
-        jobMetrics += self.addFieldToJobMetrics("allocated_CPU", self.allocatedCPU)
+#        jobMetrics += self.addFieldToJobMetrics("hs06", self.hs06)
+#        jobMetrics += self.addFieldToJobMetrics("shutdowntime", self.shutdownTime)
+#        jobMetrics += self.addFieldToJobMetrics("jobslots", self.jobSlots)
+#        jobMetrics += self.addFieldToJobMetrics("phys_cores", self.physCores)
+#        jobMetrics += self.addFieldToJobMetrics("log_cores", self.logCores)
+#        jobMetrics += self.addFieldToJobMetrics("cpufactor_lrms", self.cpuFactorLrms)
+#        jobMetrics += self.addFieldToJobMetrics("cpu_limit_secs_lrms", self.cpuLimitSecsLrms)
+#        jobMetrics += self.addFieldToJobMetrics("cpu_limit_secs", self.cpuLimitSecs)
+#        jobMetrics += self.addFieldToJobMetrics("wall_limit_secs_lrms", self.wallLimitSecsLrms)
+#        jobMetrics += self.addFieldToJobMetrics("wall_limit_secs", self.wallLimitSecs)
+#        jobMetrics += self.addFieldToJobMetrics("disk_limit_GB", self.diskLimitGB)
+#        jobMetrics += self.addFieldToJobMetrics("jobstart_secs", self.jobStartSecs)
+#        jobMetrics += self.addFieldToJobMetrics("mem_limit_MB", self.memLimitMB)
+#        jobMetrics += self.addFieldToJobMetrics("allocated_CPU", self.allocatedCPU)
+
+        # Get the max disk space used by the payload (at the end of a job)
+        if jobResult == "finished" or jobResult == "failed" or jobResult == "holding":
+            max_space = getMaxWorkDirSize(path, jobId)
+            if max_space > 0L:
+                jobMetrics += self.addFieldToJobMetrics("workDirSize", max_space)
+            else:
+                tolog("Will not add max space = %d to job metrics" % (max_space))
 
         return jobMetrics
+
+    def getBenchmarkDictionary(self, si):
+        """ Execute the benchmack test if required by the site information object """
+
+        benchmark_dictionary = None
+        if si.shouldExecuteBenchmark():
+            benchmark_dictionary = si.executeBenchmark()
+        else:
+            tolog("Not required to run the benchmark test")
+
+        return benchmark_dictionary

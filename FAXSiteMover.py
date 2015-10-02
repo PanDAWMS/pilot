@@ -23,6 +23,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, getSiteInformation, extractFilePaths, getExperiment, extractPattern
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
+from FAXTools import getFAXRedirectors, updateRedirector
 
 # placing the import lfc here breaks compilation on non-lcg sites
 # import lfc
@@ -129,20 +130,20 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
     def verifySetup(self, _setupStr, experiment, proxycheck=False):
         statusRet, outputRet = self.verifySetupCommand(_setupStr)
         if statusRet != 0:
-            #self.__sendReport('RFCP_FAIL', self._variables['report'])
+            #self.prepareReport('RFCP_FAIL', self._variables['report'])
             outputRet["report"]["clientState"] = "RFCP_FAIL"
             return statusRet, outputRet
 
         command = _setupStr
         if command != "" and not command.endswith(';'):
             command = command + ";"
-        command += " which "+ self.realCopyCommand 
+        command += " which "+ self.realCopyCommand
         status, output = commands.getstatusoutput(command)
         self.log("Execute command:  %s" % command)
         self.log("Status: %s, Output: %s" % (status, output))
         if status != 0:
             self.log(self.copyCommand +" is not found in envsetup: " + _setupStr)
-            #self.__sendReport('RFCP_FAIL', self._variables['report'])
+            #self.prepareReport('RFCP_FAIL', self._variables['report'])
             outputRet["report"]["clientState"] = "RFCP_FAIL"
             outputRet["errorLog"] = output
             return status, outputRet
@@ -224,7 +225,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         ret_path = siteInformation.getCopyPrefixPath(path, stageIn=True)
         if not ret_path.startswith("root:"):
-            errorLog = "Failed to use copyprefix to convert the current path to local path."
+            errorLog = "Failed to use copyprefix to convert the current path to local path (does not start with \'root\' protocol)"
             tolog("!!WARNING!!1777!! %s" % (errorLog))
             outputRet["errorLog"] = errorLog
             outputRet["report"]["clientState"] = 'PSTAGE_FAIL'
@@ -523,7 +524,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         ret_path = siteInformation.getCopyPrefixPath(path, stageIn=False)
         if not ret_path.startswith("root:"):
-            errorLog = "Failed to use copyprefix to convert the current path to local path."
+            errorLog = "Failed to use copyprefix to convert the current path to local path (does not start with \'root\' protocol)"
             tolog("!!WARNING!!1777!! %s" % (errorLog))
             outputRet["errorLog"] = errorLog
             outputRet["report"]["clientState"] = 'PSTAGE_FAIL'
@@ -595,7 +596,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             _ec, removeOutput = self.removeRemoteFile(destination)
             if not _ec :
                 self.log("Failed to remove file ") # i.e. do not retry stage-out
-           
+
             return status, output
         else:
             outputRet["output"] = o
@@ -846,6 +847,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         # Get input parameters from pdict
         jobId = pdict.get('jobId', '')
+        scope = pdict.get('scope', '')
         workDir = pdict.get('workDir', '')
         dsname = pdict.get('dsname', '')
         sourceSite = pdict.get('sourceSite', '')
@@ -870,12 +872,12 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         # get the global path (likely to update the gpfn/SURL)
         tolog("SURL=%s" % (gpfn))
-        gpfn = self.findGlobalFilePath(gpfn, dsname, computingSite, sourceSite)
+        gpfn = self.findGlobalFilePath(gpfn, scope, dsname, computingSite, sourceSite, jobId=jobId)
         if gpfn == "":
             ec = error.ERR_STAGEINFAILED
             pilotErrorDiag = "Failed to get global paths for FAX transfer"
             tolog("!!WARNING!!3330!! %s" % (pilotErrorDiag))
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         tolog("GPFN=%s" % (gpfn))
@@ -891,7 +893,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         if output["transfer_mode"]:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], type="input")
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return status, output["errorLog"]
 
         if path == '': path = './'
@@ -902,7 +904,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
 
-        self.__sendReport(output["report"], report)
+        self.prepareReport(output["report"], report)
         return status, output["errorLog"]
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -944,11 +946,11 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         """
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, alt=alt, sitemover=self) # quick workaround
         if ec != 0:
             reportState = {}
             reportState["clientState"] = tracer_error
-            self.__sendReport(reportState, report)
+            self.prepareReport(reportState, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
         """
         if logPath != "":
@@ -959,7 +961,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         # get the DQ2 site name from ToA
         try:
             _dq2SiteName = self.getDQ2SiteName(surl=surl)
-        except Exception, e: 
+        except Exception, e:
             tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
         else:
             report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
@@ -971,12 +973,12 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         status, output = self.stageOut(source, surl, token, experiment)
         if status !=0:
-            self.__sendReport(output["report"], report)
+            self.prepareReport(output["report"], report)
             return self.put_data_retfail(status, output["errorLog"], surl)
 
         reportState = {}
         reportState["clientState"] = "DONE"
-        self.__sendReport(reportState, report)
+        self.prepareReport(reportState, report)
         return 0, pilotErrorDiag, surl, output["size"], output["checksum"], self.arch_type
 
     def errorToReport(self, errorOutput, timeUsed, fileName, stageMethod='stageIN'):
@@ -989,28 +991,28 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         if "File exists" in errorOutput or "SRM_FILE_BUSY" in errorOutput or "file already exists" in errorOutput:
             pilotErrorDiag = "File already exist in the destination."
             tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-            #self.__sendReport('FILE_EXIST', report)
+            #self.prepareReport('FILE_EXIST', report)
             outputRet["report"]["clientState"] = 'FILE_EXIST'
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_FILEEXIST, outputRet
         elif "Could not establish context" in errorOutput:
             pilotErrorDiag = "Could not establish context: Proxy / VO extension of proxy has probably expired"
             tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-            #self.__sendReport('CONTEXT_FAIL', report)
+            #self.prepareReport('CONTEXT_FAIL', report)
             outputRet["report"]["clientState"] = 'CONTEXT_FAIL'
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_NOPROXY, outputRet
         elif "globus_xio:" in errorOutput:
             pilotErrorDiag = "Globus system error: %s" % (errorOuput)
             self.log("Globus system error encountered")
-            #self.__sendReport('GLOBUS_FAIL', report)
+            #self.prepareReport('GLOBUS_FAIL', report)
             outputRet["report"]["clientState"] = 'GLOBUS_FAIL'
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_GETGLOBUSSYSERR, outputRet
         elif "No space left on device" in errorOutput:
             pilotErrorDiag = "No available space left on local disk: %s" % (errorOutput)
             tolog("No available space left on local disk")
-            #self.__sendReport('NO_SPACE', report)
+            #self.prepareReport('NO_SPACE', report)
             outputRet["report"]["clientState"] = 'NO_SPACE'
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_NOLOCALSPACE, outputRet
@@ -1018,14 +1020,14 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             if "DBRelease" in fileName:
                 pilotErrorDiag = "Missing DBRelease file: %s" % (fileName)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                #self.__sendReport('NO_DBREL', report)
+                #self.prepareReport('NO_DBREL', report)
                 outputRet["report"]["clientState"] = 'NO_DBREL'
                 outputRet["errorLog"] = pilotErrorDiag
                 return PilotErrors.ERR_MISSDBREL, outputRet
             else:
                 pilotErrorDiag = "No such file or directory: %s" % (fileName)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                #self.__sendReport('NO_FILE_DIR', report)
+                #self.prepareReport('NO_FILE_DIR', report)
                 outputRet["report"]["clientState"] = 'NO_FILE'
                 outputRet["errorLog"] = pilotErrorDiag
                 return PilotErrors.ERR_NOSUCHFILE, outputRet
@@ -1034,12 +1036,12 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 pilotErrorDiag = "Copy command self timed out after %d s" % (timeUsed)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 if stageMethod == "stageIN":
-                    #self.__sendReport('GET_TIMEOUT', report)
+                    #self.prepareReport('GET_TIMEOUT', report)
                     outputRet["report"]["clientState"] = 'GET_TIMEOUT'
                     outputRet["errorLog"] = pilotErrorDiag
                     return PilotErrors.ERR_GETTIMEOUT, pilotErrorDiag
                 else:
-                    #self.__sendReport('CP_TIMEOUT', report)
+                    #self.prepareReport('CP_TIMEOUT', report)
                     outputRet["report"]["clientState"] = 'CP_TIMEOUT'
                     outputRet["errorLog"] = pilotErrorDiag
                     return PilotErrors.ERR_PUTTIMEOUT, outputRet
@@ -1048,29 +1050,13 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                     pilotErrorDiag = "Copy command returned error code %d but no output" % (s)
                 else:
                     pilotErrorDiag = errorOutput
-                #self.__sendReport('COPY_ERROR', report)
+                #self.prepareReport('COPY_ERROR', report)
                 outputRet["report"]["clientState"] = 'COPY_ERROR'
                 outputRet["errorLog"] = pilotErrorDiag
                 if stageMethod == "stageIN":
                     return PilotErrors.ERR_STAGEINFAILED, outputRet
                 else:
                     return PilotErrors.ERR_STAGEOUTFAILED, outputRet
-
-
-    def __sendReport(self, reportState, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            for key in reportState.keys():
-                report[key] = reportState[key]
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
-
-
 
     def getGlobalPathsFileName(self, dsname):
 
@@ -1082,16 +1068,14 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return 'global_paths-%s.txt' % (fdsname)
 
-    def getGlobalFilePaths(self, surl, dsname, computingSite, sourceSite):
-        """ Get the global file paths using to_native_lfn() [dsname needed] or Rucio naming convension [surl needed to extract the scope] """
-
-        #tolog("Guessing the global path using to_native_lfn()..")
+    def getGlobalFilePaths(self, surl, scope, computingSite, sourceSite, jobId=None):
+        """ Get the global file paths """
 
         # this method will in fact only ever return a single path, but keep 'paths' as a list for consistency with getGlobalFilePathsDQ2()
         paths = []
 
         # get the global redirectors (several, since the lib file might not be at the same place for overflow jobs)
-        fax_redirectors_dictionary = self.getFAXRedirectors(computingSite, sourceSite)
+        fax_redirectors_dictionary = getFAXRedirectors(computingSite, sourceSite, jobId)
 
         # select the proper fax redirector
         if ".lib." in surl:
@@ -1099,21 +1083,16 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         else:
             redirector = fax_redirectors_dictionary['sourcesite']
 
+        # if the gpfn is already a FAX path, skip the following
+        if redirector in surl:
+            tolog("Detected FAX path: %s" % (surl))
+            return [surl]
+
         # correct the redirector in case the protocol and/or trailing slash are missing
-        redirector = self.updateRedirector(redirector)
+        redirector = updateRedirector(redirector)
 
-        # use the proper Rucio method to generate the path if possible (if scope is present in the SURL)
-        scope = extractPattern(surl, r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
-        if scope != "":
-            # for Rucio convension details see https://twiki.cern.ch/twiki/bin/view/AtlasComputing/MovingToRucio
-            native_path = "/atlas/rucio/" + scope + ":"
-        else:
-            # get the pre-path
-            native_path = self.to_native_lfn(dsname, 'DUMMYLFN')
-            native_path = native_path.replace('DUMMYLFN', '') # the real lfn will be added by the caller
-
-            # remove the /grid substring
-            native_path = native_path.replace('/grid', '')
+        # for Rucio convension details see https://twiki.cern.ch/twiki/bin/view/AtlasComputing/MovingToRucio
+        native_path = "/atlas/rucio/" + scope + ":"
 
         # construct the global path
         paths.append(redirector + native_path)
@@ -1121,18 +1100,6 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         tolog("Will use global path: %s" % (paths[0]))
 
         return paths
-
-    def updateRedirector(self, redirector):
-        """ Correct the redirector in case the protocol and/or trailing slash are missing """
-
-        if not redirector.startswith("root://"):
-            redirector = "root://" + redirector
-            tolog("Updated redirector for missing protocol: %s" % (redirector))
-        if not redirector.endswith("/"):
-            redirector = redirector + "/"
-            tolog("Updated redirector for missing trailing /: %s" % (redirector))
-
-        return redirector
 
     def getGlobalFilePathsDQ2(self, dsname):
         """ Get the global file paths using dq2-list-files """
@@ -1161,7 +1128,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
             redirector = readpar('faxredirector') # 'root://glrd.usatlas.org/'
             if redirector != "":
                 # correct the redirector in case the protocol and/or trailing slash are missing
-                redirector = self.updateRedirector(redirector)
+                redirector = updateRedirector(redirector)
 
                 cmd = 'export STORAGEPREFIX=%s; ' % (redirector)
                 cmd += 'dq2-list-files -p %s' % (dsname)
@@ -1227,50 +1194,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return self.verifyGlobalPath(output, verbose=False)
 
-    def getFAXRedirectors(self, computingSite, sourceSite, url='http://waniotest.appspot.com/UpdateFromAGIS'):
-        """ Get the FAX redirectors primarily from the google server, fall back to schedconfig.faxredirector value """
-
-        fax_redirectors_dictionary = {}
-
-        # is the sourceSite set?
-        if sourceSite and sourceSite.lower() != 'null':
-            # attempt to get fax redirectors from Ilija Vukotic's google server
-            cmd = "curl --silent --connect-timeout 100 --max-time 120 -X POST --data \'computingsite=%s&sourcesite=%s\' %s" % (computingSite, sourceSite, url)
-            tolog("Trying to get FAX redirectors: %s" % (cmd))
-            out = commands.getoutput(cmd)
-            tolog("Command returned: %s" % (out))
-
-            # try to convert to a python dictionary
-            if out != "":
-                try:
-                    from json import loads
-                    fax_redirectors_dictionary = loads(out)
-                except Exception, e:
-                    tolog("!!WARNING!!4444!! Failed to parse fax redirector json: %s" % (e))
-                else:
-                    # verify the dictionary
-                    if fax_redirectors_dictionary.has_key('computingsite'):
-                        if fax_redirectors_dictionary['computingsite'] == "" or fax_redirectors_dictionary['computingsite'].lower() == "null":
-                            fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
-                            tolog("!!WARNING!!5555!! FAX computingsite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
-                    else:
-                        fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
-                        tolog("!!WARNING!!5556!! FAX computingsite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['computingsite'])
-                    if fax_redirectors_dictionary.has_key('sourcesite'):
-                        if fax_redirectors_dictionary['sourcesite'] == "" or fax_redirectors_dictionary['sourcesite'].lower() == "null":
-                            fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
-                            tolog("!!WARNING!!5555!! FAX sourcesite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
-                    else:
-                        fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
-                        tolog("!!WARNING!!5556!! FAX aourcesite is unknown, using defautl AGIS value (%s)" % fax_redirectors_dictionary['sourcesite'])
-        else:
-            tolog("sourceSite is not set, use faxredirector value from AGIS")
-            fax_redirectors_dictionary['computingsite'] = readpar('faxredirector')
-            fax_redirectors_dictionary['sourcesite'] = readpar('faxredirector')
-
-        return fax_redirectors_dictionary
-
-    def findGlobalFilePath(self, surl, dsname, computingSite, sourceSite):
+    def findGlobalFilePath(self, surl, scope, dsname, computingSite, sourceSite, jobId=None):
         """ Find the global path for the given file"""
 
         global_path = ""
@@ -1296,12 +1220,15 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
                 tolog("!!WARNING!!3333!! Failed to get global file path")
         else:
             # get the global file paths from file/DQ2
-            paths = self.getGlobalFilePaths(surl, dsname, computingSite, sourceSite)
+            paths = self.getGlobalFilePaths(surl, scope, computingSite, sourceSite, jobId=jobId)
 
             if paths[0][-1] == ":": # this is necessary to prevent rucio paths having ":/" as will be the case if os.path.join is used
                 global_path = paths[0] + filename
             else: # for old style paths not using the ":" separator
-                global_path = os.path.join(paths[0], filename)
+                # for FAX paths taken from PFC, there's no need to add the filename
+                if paths[0].endswith(filename):
+                    global_path = paths[0]
+                else:
+                    global_path = os.path.join(paths[0], filename)
 
         return global_path
-

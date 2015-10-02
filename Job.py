@@ -23,7 +23,7 @@ class Job:
         self.inFilesGuids = []             # list of input file guids
         self.outFilesGuids = []            # these guids are usually unknown till the job is done
         self.logFile = None                #
-        self.tarFileGuid = pUtil.getGUID() # guid for the tarball of the job workdir 
+        self.tarFileGuid = pUtil.getGUID() # guid for the tarball of the job workdir
         self.logDblock = None              #
         self.jobPars = None                # Job parameters defining the execution of the job
         self.exeErrorCode = 0              # payload error code
@@ -92,13 +92,17 @@ class Job:
         self.coreCount = None              # Number of cores as requested by the task
         self.pgrp = 0                      # Process group (RunJob* subprocess)
         self.sourceSite = ""               # Keep track of the original source site of the job (useful for overflow jobs to get to the proper FAX redirector)
+        self.ddmEndPointIn = []            #
+        self.ddmEndPointOut = []           #
+#        self.ddmEndPointOutAlt = []       #
+        self.ddmEndPointLog = []           #
+        self.cloneJob = ""                 # Is the job cloned? Allowed values: 'runonce', 'storeonce'
 
         # event service objects
         self.eventService = False          # True for event service jobs
         self.eventServiceMerge = False     # True for event service merge jobs
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
-        self.pandaProxySecretKey = None    # secret key to access panda proxy
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
 #        self.lastEvent = None              # Set for event service jobs
@@ -110,7 +114,6 @@ class Job:
         self.mode = None
         self.hpcStatus = None
         self.refreshNow = False
-        self.hpcEvent = False
 
         # walltime counting for various steps
         self.timeSetup = 0
@@ -128,8 +131,12 @@ class Job:
             _spsetup = self.spsetup
         else:
             _spsetup = "(not defined)"
-        pUtil.tolog("\nPandaID=%s\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlocks=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\scopeOut=%s\nscopeLog=%s" %\
+        pUtil.tolog("\nPandaID=%s\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlocks=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\nscopeOut=%s\nscopeLog=%s" %\
                     (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlocks, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
+        pUtil.tolog("ddmEndPointIn=%s" % (self.ddmEndPointIn))
+        pUtil.tolog("ddmEndPointOut=%s" % (self.ddmEndPointOut))
+        pUtil.tolog("ddmEndPointLog=%s" % (self.ddmEndPointLog))
+        pUtil.tolog("cloneJob=%s" % (self.cloneJob))
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -148,7 +155,7 @@ class Job:
                 pUtil.tolog(errorText)
                 ec = -1
         return ec, errorText
-        
+
     def setPayloadName(self, payload):
         """ set the payload name and its stdout/err file names """
         self.payload = payload
@@ -224,14 +231,19 @@ class Job:
         self.prodDBlockTokenForOutput = prodDBlockTokenForOutput.split(",")
 
         dispatchDBlockToken = data.get('dispatchDBlockToken', '')
-        self.dispatchDBlockToken = dispatchDBlockToken.split(",") 
+        self.dispatchDBlockToken = dispatchDBlockToken.split(",")
 
         dispatchDBlockTokenForOut = data.get('dispatchDBlockTokenForOut', '')
-        self.dispatchDBlockTokenForOut = dispatchDBlockTokenForOut.split(",") 
+        self.dispatchDBlockTokenForOut = dispatchDBlockTokenForOut.split(",")
 
         destinationDBlockToken = data.get('destinationDBlockToken', '')
-        self.destinationDBlockToken = destinationDBlockToken.split(",") 
-        
+        self.destinationDBlockToken = destinationDBlockToken.split(",")
+
+        self.ddmEndPointIn = data.get('ddmEndPointIn', '').split(',') if data.get('ddmEndPointIn') else []
+        self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
+
+        self.cloneJob = data.get('cloneJob', '')
+
         logFile = data.get('logFile', '')
         self.logFile = logFile
 
@@ -300,10 +312,6 @@ class Job:
         if data.has_key('hpcStatus'):
             self.hpcStatus = data.get('hpcStatus', None)
 
-        # panda proxy secret key
-        if data.has_key('pandaProxySecretKey'):
-             self.pandaProxySecretKey = data.get('pandaProxySecretKey', None)
-
 #        self.eventRangeID = data.get('eventRangeID', None)
 #        self.startEvent = data.get('startEvent', None)
 #        self.lastEvent = data.get('lastEvent', None)
@@ -356,6 +364,12 @@ class Job:
         else:
             # use default
             pass
+        # Overwrite the coreCount value with ATHENA_PROC_NUMBER if it is set
+        if os.environ.has_key('ATHENA_PROC_NUMBER'):
+            try:
+                self.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+            except Exception, e:
+                pUtil.tolog("ATHENA_PROC_NUMBER is not properly set: %s (will use existing job.coreCount value)" % (e))
 
         if data.has_key('sourceSite'):
             self.sourceSite = str(data['sourceSite'])
@@ -381,17 +395,20 @@ class Job:
         pUtil.tolog("outfdbList = %s" % (outfdbList))
         outs = []
         outdb = []
-        logFileDblock = ''
+        outddm = []
+        logddm = []
+        logFileDblock = ""
         # keep track of log file index in the original file output list
         i_log = -1
         for i in range(len(outfList)):
             if outfList[i] == logFile:
                 logFileDblock = outfdbList[i]
+                logddm = [ self.ddmEndPointOut[i] ]
                 i_log = i
             else:
-#                if not skip: #PN tmp
                 outs.append(outfList[i])
                 outdb.append(outfdbList[i])
+                outddm.append(self.ddmEndPointOut[i])
 
         # put the space token for the log file at the end of the list
         if i_log != -1:
@@ -419,6 +436,11 @@ class Job:
         self.outFiles = outs
         self.destinationDblock = outdb
         self.logDblock = logFileDblock
+        self.ddmEndPointOut = outddm
+        self.ddmEndPointLog = logddm
+
+        pUtil.tolog("Updated ddmEndPointOut=%s" % (self.ddmEndPointOut))
+        pUtil.tolog("Updated ddmEndPointLog=%s" % (self.ddmEndPointLog))
 
         self.jobPars = data.get('jobPars', '')
         # for accessmode testing: self.jobPars += " --accessmode=direct"
@@ -454,3 +476,23 @@ class Job:
         self.release = data.get('swRelease', '')
         self.destinationSE = data.get('destinationSE', '')
         self.fileDestinationSE = data.get('fileDestinationSE', '')
+
+    def isAnalysisJob(self):
+        """
+            Determine whether the job is an analysis job or not
+            normally this should be set in constructor as a property of Job class
+            specified the type of job explicitly (?)
+        """
+
+        #return pUtil.isAnalysisJob(self.trf)
+        #copied from pUtil.isAnalysisJob to isolate the logic amd move outside pUtil
+
+        #trf = self.trf.split(',')[0] # ???  used like this in few places: it will affect result only if the trf starts with ','
+        is_analysis = self.trf.startswith('https://') or self.trf.startswith('http://')
+
+        if self.prodSourceLabel == "software": # logic extracted from the sources
+            is_analysis = False
+
+        # apply addons checks later if need
+
+        return is_analysis

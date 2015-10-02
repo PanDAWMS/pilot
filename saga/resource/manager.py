@@ -1,23 +1,26 @@
 
-__author__    = "Andre Merzky"
+__author__    = "Andre Merzky, Ole Weidner"
 __copyright__ = "Copyright 2012-2013, The SAGA Project"
 __license__   = "MIT"
 
+
+import radical.utils.signatures as rus
+
+import saga.adaptors.base       as sab
+import saga.async               as async
+import saga.task                as st
+import saga.base                as sb
+import saga.session             as ss
+import saga.exceptions          as se
+import saga.attributes          as sa
+import saga.constants           as sc
+import saga.url                 as surl
 import constants                as const
 import description              as descr
 import resource                 as resrc
-import saga.adaptors.base       as sab
-import saga.async               as async
-import saga.attributes          as sa
-import saga.base                as sb
-from   saga.constants           import SYNC, ASYNC, TASK
-import saga.constants           as sc
-import saga.exceptions          as se
+
 from   saga.resource.constants  import *
-import saga.session             as ss
-import saga.task                as st
-import saga.url                 as surl
-import saga.utils.signatures    as sus
+from   saga.constants           import SYNC, ASYNC, TASK
 
 
 # ------------------------------------------------------------------------------
@@ -36,13 +39,13 @@ class Manager (sb.Base, async.Async) :
     
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
-                  sus.optional (basestring, surl.Url), 
-                  sus.optional (ss.Session),
-                  sus.optional (sab.Base), 
-                  sus.optional (dict), 
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns (sus.nothing)
+    @rus.takes   ('Manager', 
+                  rus.optional (basestring, surl.Url), 
+                  rus.optional (ss.Session),
+                  rus.optional (sab.Base), 
+                  rus.optional (dict), 
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns (rus.nothing)
     def __init__ (self, url=None, session=None,
                   _adaptor=None, _adaptor_state={}, _ttype=None) : 
         """
@@ -69,11 +72,11 @@ class Manager (sb.Base, async.Async) :
     # --------------------------------------------------------------------------
     #
     @classmethod
-    @sus.takes   ('Manager', 
-                  sus.optional ((surl.Url, basestring)), 
-                  sus.optional (ss.Session),
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns (st.Task)
+    @rus.takes   ('Manager', 
+                  rus.optional ((surl.Url, basestring)), 
+                  rus.optional (ss.Session),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns (st.Task)
     def create   (cls, url_in=None, session=None, ttype=sc.SYNC) :
         """ 
         This is the asynchronous class constructor, returning
@@ -86,10 +89,10 @@ class Manager (sb.Base, async.Async) :
 
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
-                  sus.optional (sus.one_of (COMPUTE, STORAGE, NETWORK)),
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((sus.list_of (basestring), st.Task))
+    @rus.takes   ('Manager', 
+                  rus.optional (rus.one_of (COMPUTE, STORAGE, NETWORK)),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.list_of (basestring), st.Task))
     def list     (self, rtype=None, ttype=None) :
         """ 
         list(rtype=None)
@@ -106,10 +109,10 @@ class Manager (sb.Base, async.Async) :
 
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
-                  sus.optional (basestring),
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((descr.Description, st.Task))
+    @rus.takes   ('Manager', 
+                  rus.optional (basestring),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((descr.Description, st.Task))
     def get_description (self, rid, ttype=None) :
         """ 
         get_description(rid)
@@ -126,10 +129,10 @@ class Manager (sb.Base, async.Async) :
 
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
-                  sus.optional (sus.one_of (COMPUTE, STORAGE, NETWORK)),
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((sus.list_of (basestring), st.Task))
+    @rus.takes   ('Manager', 
+                  rus.optional (rus.one_of (COMPUTE, STORAGE, NETWORK)),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.list_of (basestring), st.Task))
     def list_templates (self, rtype=None, ttype=None) :
         """
         list_templates(rtype=None)
@@ -146,10 +149,10 @@ class Manager (sb.Base, async.Async) :
 
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
-                  sus.optional (basestring),
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((descr.Description, st.Task))
+    @rus.takes   ('Manager', 
+                  rus.optional (basestring),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((descr.Description, st.Task))
     def get_template (self, name, ttype=None) :
         """
         get_template(name)
@@ -171,10 +174,10 @@ class Manager (sb.Base, async.Async) :
 
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
-                  sus.optional (sus.one_of (COMPUTE, STORAGE, NETWORK)),
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((sus.list_of (basestring), st.Task))
+    @rus.takes   ('Manager', 
+                  rus.optional (rus.one_of (COMPUTE, STORAGE, NETWORK)),
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.list_of (basestring), st.Task))
     def list_images (self, rtype=None, ttype=None) :
         """
         list_images(rtype=None)
@@ -190,10 +193,10 @@ class Manager (sb.Base, async.Async) :
 
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
+    @rus.takes   ('Manager', 
                   basestring,
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((dict, st.Task))
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((dict, st.Task))
     def get_image (self, name, ttype=None) :
         """
         get_image(name)
@@ -209,10 +212,10 @@ class Manager (sb.Base, async.Async) :
 
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
+    @rus.takes   ('Manager', 
                   (basestring, surl.Url, descr.Description),
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((resrc.Resource, st.Task))
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((resrc.Resource, st.Task))
     def acquire  (self, spec, ttype=None) :
         """
         acquire(desc)
@@ -251,10 +254,10 @@ class Manager (sb.Base, async.Async) :
 
     # --------------------------------------------------------------------------
     # 
-    @sus.takes   ('Manager', 
+    @rus.takes   ('Manager', 
                   basestring,
-                  sus.optional (sus.one_of (SYNC, ASYNC, TASK)))
-    @sus.returns ((sus.nothing, st.Task))
+                  rus.optional (rus.one_of (SYNC, ASYNC, TASK)))
+    @rus.returns ((rus.nothing, st.Task))
     def destroy  (self, rid, ttype=None) :
         """
         destroy(rid)
@@ -273,5 +276,5 @@ class Manager (sb.Base, async.Async) :
   # resources = property (list,           get_description) # dict {string : Description}
 
 
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
 

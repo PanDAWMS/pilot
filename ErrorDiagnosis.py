@@ -82,7 +82,7 @@ class ErrorDiagnosis(Diagnosis):
                 # done with the file
                 f.close()
         else:
-            tolog("!!WARNING!!1111!! File %s does not exist" % (fileName))
+            tolog("WARNING: File %s does not exist" % (fileName))
             jobReport_dictionary = {}
 
         return jobReport_dictionary

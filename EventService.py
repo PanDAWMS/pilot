@@ -126,20 +126,20 @@ class EventService(object):
 
         return event_range
 
-    def createPFC4TRF(self, pfc_name, guidfname):
-        """ Create PFC to be used by trf/runAthena """
-
-        # First create a SURL based PFC then convert to TURL based?
-
-        tolog("Creating %s" % (pfc_name))
-
-        # get the PFC from the proper source
-        ec, pilotErrorDiag, _xml_from_PFC, _xml_source, replicas_dic = \
-            getPoolFileCatalog(lfchost, ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
-                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
-                                   sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
-
-        return ec, pilotErrorDiag, replicas_dic
+#    def createPFC4TRF(self, pfc_name, guidfname):
+#        """ Create PFC to be used by trf/runAthena """
+#
+#        # First create a SURL based PFC then convert to TURL based?
+#
+#        tolog("Creating %s" % (pfc_name))
+#
+#        # get the PFC from the proper source
+#        ec, pilotErrorDiag, _xml_from_PFC, _xml_source, replicas_dic, surl_filetype_dictionary, copytool_dictionary = \
+#            getPoolFileCatalog(lfchost, ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, dbh,\
+#                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
+#                                   sitemover, pfc_name=pfc_name, thisExperiment=thisExperiment)
+#
+#        return ec, pilotErrorDiag, replicas_dic
 
     # Optional
     def extractSetup(self, runCommand, trfName):
@@ -156,6 +156,18 @@ class EventService(object):
             cmd = _cmd.group(1)
 
         return cmd
+
+    # Optional
+    def getEventIndexURL(self):
+        """ Return the proper URL for the Event Index """
+
+        if os.environ.has_key('EVENT_INDEX_URL'):
+            url = os.environ['EVENT_INDEX_URL']
+        else:
+            url = "http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid="
+            #url = "http://atlas-service-eies.web.cern.ch/atlas-service-EIES/EI.jsp?guid="
+
+        return url
 
 if __name__ == "__main__":
 

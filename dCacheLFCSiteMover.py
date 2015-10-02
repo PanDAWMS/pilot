@@ -91,12 +91,12 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         if destination == '':
             pilotErrorDiag = "put_data destination path in SE not defined"
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('DEST_PATH_UNDEF', report)
+            self.prepareReport('DEST_PATH_UNDEF', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
         if dsname == '':
             pilotErrorDiag = "Dataset name not specified to put_data"
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('DSN_UNDEF', report)
+            self.prepareReport('DSN_UNDEF', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 #        else:
 #            dsname = self.remove_sub(dsname)
@@ -112,7 +112,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         else:
             pilotErrorDiag = "put_data encountered unexpected dataset name format: %s" % (dsname)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('DSN_FORMAT_FAIL', report)
+            self.prepareReport('DSN_FORMAT_FAIL', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
         # preparing variables
@@ -120,7 +120,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(src_pfn, csumtype="adler32")
         if ec != 0:
-            self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+            self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
             return SiteMover.SiteMover.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -171,8 +171,8 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         except IOError, e:
             pilotErrorDiag = "put_data could not create dir: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('MKDIR_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag)
+            self.prepareReport('MKDIR_FAIL', report)
+            return SiteMover.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag, surl=dst_gpfn)
 
         cmd = '%sdccp -A %s %s' % (_setup_str, source, dst_loc_sedir)
         tolog("Executing command: %s" % cmd)
@@ -185,15 +185,15 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
             check_syserr(s, o)
             pilotErrorDiag = "Error in copying: %s" % (o)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('DCCP_FAIL', report)
-            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+            self.prepareReport('DCCP_FAIL', report)
+            return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=dst_gpfn)
         try:
             os.chmod(dst_loc_pfn, self.permissions_FILE)
         except IOError, e:
             pilotErrorDiag = "put_data could not change permission of the file: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('PERMISSION_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+            self.prepareReport('PERMISSION_FAIL', report)
+            return SiteMover.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=dst_gpfn)
 
         # Comparing only file size since MD5sum is problematic
         try:
@@ -201,13 +201,13 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         except OSError, e:
             pilotErrorDiag = "put_data could not get file size: %s" % str(e)
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('NO_FS', report)
-            return SiteMover.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag)
+            self.prepareReport('NO_FS', report)
+            return SiteMover.put_data_retfail(error.ERR_FAILEDSIZE, pilotErrorDiag, surl=dst_gpfn)
         if fsize != nufsize:
             pilotErrorDiag = "File sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(source), str(fsize), str(nufsize))
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('FS_MISMATCH', report)
+            self.prepareReport('FS_MISMATCH', report)
             return SiteMover.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=dst_gpfn)
 
         # get a proper envsetup
@@ -215,8 +215,8 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag) 
+            self.prepareReport('RFCP_FAIL', report)
+            return self.put_data_retfail(ec, pilotErrorDiag, surl=dst_gpfn)
 
         # register the file in LFC
         report['catStart'] = time()
@@ -231,30 +231,17 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
             pilotErrorDiag = "LFC registration failed: %s" % (o)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             check_syserr(s, o)
-            self.__sendReport('LFC_REG_FAIL', report)
-            return SiteMover.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag)
+            self.prepareReport('LFC_REG_FAIL', report)
+            return SiteMover.put_data_retfail(error.ERR_FAILEDLFCREG, pilotErrorDiag, surl=dst_gpfn)
         else:
             # add checksum and file size to LFC
             csumtype = self.getChecksumType(fchecksum, format="short")
             exitcode, pilotErrorDiag = self.addFileInfo(lfclfn, fchecksum, csumtype=csumtype)
             if exitcode != 0:
-                self.__sendReport('LFC_ADD_SUM_FAIL', report)
-                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag)
+                self.prepareReport('LFC_ADD_SUM_FAIL', report)
+                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag, surl=dst_gpfn)
             else:
                 tolog('Successfully set filesize and checksum for %s' % pfn)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, fsize, '', self.arch_type
-
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

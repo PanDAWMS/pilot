@@ -193,7 +193,6 @@ class mvSiteMover(SiteMover.SiteMover):
 
             lfcpath, pilotErrorDiag = self.getLFCPath(analJob)
             if lfcpath == "":
-                # self.__sendReport('STAGEOUT_FAIL', report)
                 return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
             else:
                 tolog("Got LFC path: %s" % (lfcpath))

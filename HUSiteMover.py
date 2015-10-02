@@ -117,7 +117,7 @@ class HUSiteMover(SiteMover.SiteMover):
             # did the copy command time out?
             if is_timeout(s):
                 pilotErrorDiag = "necp get was timed out after %d seconds" % (telapsed)
-                self.__sendReport('COPY_TIMEOUT', report)
+                self.prepareReport('COPY_TIMEOUT', report)
                 return error.ERR_GETTIMEOUT, pilotErrorDiag
 
             ec = error.ERR_STAGEINFAILED
@@ -138,7 +138,7 @@ class HUSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "necp failed with output: ec = %d, output = %s" % (s, o)
 
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('COPY_FAIL', report)
+            self.prepareReport('COPY_FAIL', report)
             return ec, pilotErrorDiag
 
         if fsize == 0:
@@ -152,10 +152,10 @@ class HUSiteMover(SiteMover.SiteMover):
             ec, pilotErrorDiag = self.verifyLocalFile(fsize, fchecksum, lfn, path)
 
         if ec != 0:
-            self.__sendReport('VERIFY_FAIL', report)
+            self.prepareReport('VERIFY_FAIL', report)
             return ec, pilotErrorDiag
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, source, destination, fsize=0, fmd5sum=0, **pdict):
@@ -205,7 +205,7 @@ class HUSiteMover(SiteMover.SiteMover):
         if fsize == 0 or fmd5sum == 0:
             ec, pilotErrorDiag, fsize, fmd5sum = self.getLocalFileInfo(source, csumtype="adler32")
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return self.put_data_retfail(ec, pilotErrorDiag) 
 
         # now that the file size is known, add it to the tracing report
@@ -294,28 +294,15 @@ class HUSiteMover(SiteMover.SiteMover):
                     # is the timeout interferring with SIGPIPE?
                     pilotErrorDiag = "necp put was timed out after %d seconds" % (telapsed)
                     tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                    self.__sendReport('COPY_TIMEOUT', report)
-                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
-                self.__sendReport('COPY_FAIL', report)
-                return self.put_data_retfail(fail, pilotErrorDiag)
+                    self.prepareReport('COPY_TIMEOUT', report)
+                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag, surl=dst_gpfn)
+                self.prepareReport('COPY_FAIL', report)
+                return self.put_data_retfail(fail, pilotErrorDiag, surl=dst_gpfn)
 
         # Directory permission not set: it should be set correctly by necp 
 
         # Impossible to compare MD5sum or file size, trusting necp
 
         #return 0, dst_gpfn, fsize, '', 'P'
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, fsize, fmd5sum, self.arch_type
-
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

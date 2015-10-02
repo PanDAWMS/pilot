@@ -25,7 +25,7 @@ try:
     from PilotErrors import PilotErrors
     from config import config_sm
     from timed_command import timed_command
-    
+
     CMD_CHECKSUM = config_sm.COMMAND_MD5
 except:
     pass
@@ -41,6 +41,7 @@ def getFileList(path_dir=None):
         file_list.append('saga')
         file_list.append('radical')
         file_list.append('HPC')
+        file_list.append('movers')
         tolog("Copying: %s" % str(file_list))
         return file_list
     except KeyError:
@@ -52,27 +53,31 @@ pilotstderrFilename = "pilot.stderr"
 
 def setPilotlogFilename(filename):
     """ set the pilot log file name"""
+
     global pilotlogFilename
     if len(filename) > 0:
         pilotlogFilename = filename
 
 def getPilotlogFilename():
     """ return the pilot log file name"""
+
     return pilotlogFilename
 
 def setPilotstderrFilename(filename):
     """ set the pilot stderr file name"""
+
     global pilotstderrFilename
     if len(filename) > 0:
         pilotstderrFilename = filename
 
 def getPilotstderrFilename():
     """ return the pilot stderr file name"""
+
     return pilotstderrFilename
 
 def tolog_file(msg):
     """ write date+msg to pilot log only """
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
+
     t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time()))
     appendToLog("%s| %s\n" % (t, msg))
 
@@ -104,8 +109,6 @@ def tolog(msg, tofile=True, toStderr=True):
     module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
     msg = "%s| %s" % (module_name_cut, msg)
 
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.localtime())
-    # t = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.time()))
     t = timeStampUTC()
     if tofile:
         appendToLog("%s|%s\n" % (t, msg))
@@ -123,7 +126,7 @@ def tolog(msg, tofile=True, toStderr=True):
 def tolog_err(msg):
     """ write error string to log """
     tolog("!!WARNING!!4000!! %s" % str(msg))
-    
+
 def tolog_warn(msg):
     """ write warning string to log """
     tolog("!!WARNING!!4000!! %s" % str(msg))
@@ -143,14 +146,14 @@ def makeHTTPUpdate(state, node, port, url='pandaserver.cern.ch', path=None):
         max_trials = 1
         delay = None
 
-    # make http connection to jobdispatcher        
+    # make http connection to jobdispatcher
     while trial <= max_trials:
         # draw a random server URL
         _url = '%s:%s/server/panda' % (url, port)
         tolog("HTTP connect using server: %s" % (_url))
         ret = httpConnect(node, _url, path=path)
         if ret[0] and trial == max_trials: # non-zero exit code
-            if delay: # final update 
+            if delay: # final update
                 tolog("!!FAILED!!4000!! [Trial %d/%d] Could not update Panda server (putting job in holding state if possible)" %\
                       (trial, max_trials))
                 # state change will take place in postJobTask
@@ -224,7 +227,7 @@ def returnLogMsg(logf=None, linenum=20):
                 ln = len(lines)
             else:
                 ln = linenum
-            
+
             for i in range(-ln,0):
                 thisLog += lines[i]
 
@@ -270,7 +273,7 @@ def preprocessMetadata(filename):
     try:
         f = open(filename, "r")
     except Exception, e:
-        tolog("!!WARNING!!2999!! Could not open file: %s (%s)" % (filename, str(e)))
+        tolog("!!WARNING!!2999!! Could not open file: %s (%s)" % (filename, e))
         status = False
     else:
         lines = f.readlines()
@@ -286,13 +289,13 @@ def preprocessMetadata(filename):
         try:
             os.remove(filename)
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not remove file: %s (%s)" % (filename, str(e)))
+            tolog("!!WARNING!!2999!! Could not remove file: %s (%s)" % (filename, e))
             status = False
         else:
             try:
                 f = open(filename, "w")
             except Exception, e:
-                tolog("!!WARNING!!2999!! Could not recreate file: %s (%s)" % (filename, str(e)))
+                tolog("!!WARNING!!2999!! Could not recreate file: %s (%s)" % (filename, e))
                 status = False
             else:
                 f.writelines(new_lines)
@@ -312,7 +315,7 @@ def prepareMetadata(metadata_filename):
         try:
             shutil.copy2(metadata_filename, metadata_filename_BAK)
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not copy metadata: %s" % str(e))
+            tolog("!!WARNING!!2999!! Could not copy metadata: %s" % (e))
         else:
             metadata_filename = metadata_filename_BAK
             tolog("Created file: %s" % (metadata_filename))
@@ -321,7 +324,7 @@ def prepareMetadata(metadata_filename):
         try:
             status = preprocessMetadata(metadata_filename)
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not preprocess metadata: %s" % str(e))
+            tolog("!!WARNING!!2999!! Could not preprocess metadata: %s" % (e))
             metadata_filename = metadata_filename_ORG
         else:
             if status:
@@ -521,14 +524,14 @@ def stageInPyModules(initdir, workdir):
                 try:
                     shutil.copy2("%s/%s" % (initdir, k), workdir)
                 except Exception, e:
-                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy file %s/%s to %s: %s" % (initdir, k, workdir, str(e)))
+                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy file %s/%s to %s: %s" % (initdir, k, workdir, e))
                     status = False
                     break
             elif os.path.isdir("%s/%s" % (initdir, k)):
                 try:
                     shutil.copytree("%s/%s" % (initdir, k), "%s/%s" % (workdir,k))
                 except Exception, e:
-                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy directory %s/%s to %s: %s" % (initdir, k, workdir, str(e)))
+                    tolog("!!WARNING!!2999!! stageInPyModules failed to copy directory %s/%s to %s: %s" % (initdir, k, workdir, e))
                     status = False
                     break
             else:
@@ -559,7 +562,7 @@ def setTimeConsumed(t_tuple):
 
     # The cpuConsumptionTime is the system+user time while wall time is encoded in pilotTiming, third number.
     # Previously the cpuConsumptionTime was "corrected" with a scaling factor but this was deemed outdated and is now set to 1.
-    
+
     t_tot = reduce(lambda x, y:x+y, t_tuple[2:3])
     conversionFactor = 1.0
     cpuCU = "s" # "kSI2kseconds"
@@ -567,7 +570,7 @@ def setTimeConsumed(t_tuple):
 
     return cpuCU, cpuCT, conversionFactor
 
-def timeStamp(): 
+def timeStamp():
     """ return ISO-8601 compliant date/time format """
 
     tmptz = time.timezone
@@ -579,16 +582,16 @@ def timeStamp():
 
     return str("%s%s%02d%02d" % (time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()), signstr, tmptz_hours, int(tmptz/60-tmptz_hours*60)))
 
-def timeStampUTC(t=None):
+def timeStampUTC(t=None, format="%d %b %H:%M:%S"):
     """ return UTC time stamp """
 
     if not t:
         t = time.time()
-    return time.strftime("%d %b %H:%M:%S", time.gmtime(t))
+    return time.strftime(format, time.gmtime(t))
 
 def getJobStatus(jobId, pshttpurl, psport, path):
     """
-    Return the current status of job <jobId> from the dispatcher 
+    Return the current status of job <jobId> from the dispatcher
     typical dispatcher response: 'status=finished&StatusCode=0'
     StatusCode  0: succeeded
                10: time-out
@@ -628,7 +631,7 @@ def getJobStatus(jobId, pshttpurl, psport, path):
                     attemptNr = int(response['attemptNr'])   # e.g. '0'
                     StatusCode = int(response['StatusCode']) # e.g. '0'
                 except Exception, e:
-                    tolog("!!WARNING!!2997!! Exception: Dispatcher did not return allowed values: %s, %s" % (str(ret), str(e)))
+                    tolog("!!WARNING!!2997!! Exception: Dispatcher did not return allowed values: %s, %s" % (str(ret), e))
                     status = "unknown"
                     attemptNr = -1
                     StatusCode = 20
@@ -638,7 +641,7 @@ def getJobStatus(jobId, pshttpurl, psport, path):
                 attemptNr = -1
                 StatusCode = 20
         except Exception,e:
-            tolog("Could not interpret job status from dispatcher: %s, %s" % (response, str(e)))
+            tolog("Could not interpret job status from dispatcher: %s, %s" % (response, e))
             status = 'unknown'
             attemptNr = -1
             StatusCode = -1
@@ -670,7 +673,7 @@ def getExitCode(path, filename):
     try:
         os.system("tail %s/%s >%s/%s" % (path, filename, path, tmp_file_name))
     except Exception, e:
-        tolog("Job Recovery could not create tmp file %s: %s" % (tmp_file_name, str(e)))
+        tolog("Job Recovery could not create tmp file %s: %s" % (tmp_file_name, e))
     else:
         # open the tmp file and look for the pilot exit info
         try:
@@ -681,7 +684,7 @@ def getExitCode(path, filename):
             try:
                 all_lines = tmp_file.readlines()
             except Exception, e:
-                tolog("Job Recovery could not read tmp file %s: %s" % (tmp_file_name, str(e)))
+                tolog("Job Recovery could not read tmp file %s: %s" % (tmp_file_name, e))
 
             tmp_file.close()
 
@@ -752,7 +755,7 @@ def getCPUmodel():
     try:
         f = open('/proc/cpuinfo', 'r')
     except Exception, e:
-        tolog("Could not open /proc/cpuinfo: %s" % str(e))
+        tolog("Could not open /proc/cpuinfo: %s" % e)
     else:
         re_model = re.compile('^model name\s+:\s+(\w.+)')
         re_cache = re.compile('^cache size\s+:\s+(\d+ KB)')
@@ -776,7 +779,7 @@ def getCPUmodel():
                 # create return string
                 modelstring = cpumodel + " " + cpucache
                 break
-                
+
         f.close()
 
     # default return string if no info was found
@@ -870,7 +873,7 @@ def OSBitsCheck():
             return 64
 
 def uniqueList(input_list):
-    """ 
+    """
     return a list of unique entries
     input_list = ['1', '1', '2'] -> ['1', '2']
     """
@@ -957,7 +960,7 @@ def updateMetadata(fname, fsize, checksum, format=None, fsizeXML=None, checksumX
     try:
         f = open(fname, 'r')
     except Exception, e:
-        tolog("Failed to open metadata file: %s" % str(e))
+        tolog("Failed to open metadata file: %s" % e)
         ec = -1
     else:
         if format == 'NG':
@@ -1042,14 +1045,14 @@ def updateMetadata(fname, fsize, checksum, format=None, fsizeXML=None, checksumX
                 newline = line.replace()
             else:
                 lines += line
-            
+
         f.close()
-        try:    
+        try:
             f = open(fname, 'w')
             f.write(lines)
             f.close()
         except Exception, e:
-            tolog("Failed to write new metadata for log: %s" % str(e))
+            tolog("Failed to write new metadata for log: %s" % e)
             ec = -1
 
     return ec, lines
@@ -1076,15 +1079,15 @@ def removeFiles(dir, _fileList):
 
     return ec
 
-def createPoolFileCatalog(file_list, pfc_name="PoolFileCatalog.xml", forceLogical=False):
+def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml", forceLogical=False):
     """
     Create the PoolFileCatalog.xml
-    file_list = { guid1 : sfn1, ... }
+    file_dictionary = { guid1 : sfn1, ... }
     Adapted from R. Walker's code
     """
 
     outxml = ''
-    if len(file_list) == 0:
+    if len(file_dictionary) == 0:
         tolog('No input files so no PFC created')
     else:
         dom = minidom.getDOMImplementation()
@@ -1100,8 +1103,8 @@ def createPoolFileCatalog(file_list, pfc_name="PoolFileCatalog.xml", forceLogica
         pfc_text += '<POOLFILECATALOG>\n'
 
         # Strip .N because stagein makes soft link, and params have no .N
-        for guid in file_list.keys():
-            sfn = file_list[guid]
+        for guid in file_dictionary.keys():
+            sfn = file_dictionary[guid]
             ftype='ROOT_All'
 
             _file = doc.createElement("File")
@@ -1124,7 +1127,7 @@ def createPoolFileCatalog(file_list, pfc_name="PoolFileCatalog.xml", forceLogica
                 _file.appendChild(logical)
 
                 # remove any __DQ2 substring from the LFN if necessary
-                _lfn = os.path.basename(sfn)
+                _lfn = getLFN(sfn, lfns) #os.path.basename(sfn)
                 if "__DQ2" in _lfn:
                     _lfn = stripDQ2FromLFN(_lfn)
 
@@ -1165,51 +1168,28 @@ def replace(filename, stext, rtext):
     try:
         _input = open(filename, "r")
     except Exception, e:
-        tolog("!!WARNING!!4000!! Open failed with %s" % str(e))
+        tolog("!!WARNING!!4000!! Open failed with %s" % e)
         status = False
     else:
         try:
             output = open(filename + "_tmp", "w")
         except Exception, e:
-            tolog("!!WARNING!!4000!! Open failed with %s" % str(e))
+            tolog("!!WARNING!!4000!! Open failed with %s" % e)
             status = False
             _input.close()
         else:
             for s in _input.xreadlines():
                 output.write(s.replace(stext, rtext))
             _input.close()
-            # rename tmp file and overwrite original file    
+            # rename tmp file and overwrite original file
             try:
                 os.rename(filename + "_tmp", filename)
             except Exception, e:
-                tolog("!!WARNING!!4000!! Rename failed with %s" % str(e))
+                tolog("!!WARNING!!4000!! Rename failed with %s" % e)
                 status = False
             output.close()
 
-    return status                
-
-def dumpFile(filename, topilotlog=False):
-    """ dump a given file to stdout or to pilotlog """
-
-    if os.path.exists(filename):
-        tolog("Dumping file: %s (size: %d)" % (filename, os.path.getsize(filename)))
-        try:
-            f = open(filename, "r")
-        except Exception, e:
-            tolog("!!WARNING!!4000!! Exception caught: %s" % str(e))
-        else:
-            i = 0
-            for line in f.readlines():
-                i += 1
-                line = line.rstrip()
-                if topilotlog:
-                    tolog("%s" % (line), toStderr=False)
-                else:
-                    print "%s" % (line)
-            f.close()
-            tolog("Dumped %d lines from file %s" % (i, filename), toStderr=False)
-    else:
-        tolog("!!WARNING!!4000!! %s does not exist" % (filename))
+    return status
 
 def getDirectAccessDic(qdata):
     """ return the directAccess dictionary in case the site supports direct access / file stager """
@@ -1323,7 +1303,7 @@ def getErrors(filename):
         lines = f.readlines()
         f.close()
     except Exception, e:
-        tolog("!!WARNING!!4000!! could not open/read file: %s" % str(e))
+        tolog("!!WARNING!!4000!! could not open/read file: %s" % e)
     else:
         p = r"!!(\S+)!!\d+!!"
         pattern = re.compile(p)
@@ -1331,19 +1311,30 @@ def getErrors(filename):
             if re.findall(pattern, line):
                 ret += line
 
-    return ret            
+    return ret
 
-def getLFN(pfn, lfnlist):
-    """
-    get the local file name from the xml, and ignore any trailing __DQ2-parts
-    e.g. HITS.017771._00188.pool.root__DQ2-1200097946 -> HITS.017771._00188.pool.root
-    """
+def getLFN(pfn, lfns):
+    """ Identify the LFN from the list of LFNs corresponding to a PFN """
+    # Note: important since the basename of the PFN can contain additional characters,
+    # e.g. PFN = /../data15_cos.00259101.physics_IDCosmic.merge.RAW._lb0116._SFO-ALL._0001.1_1427497374
+    # but LFN = data15_cos.00259101.physics_IDCosmic.merge.RAW._lb0116._SFO-ALL._0001.1
 
     lfn = ""
-    for lfn in lfnlist:
-        bpfn = os.path.basename(pfn)
-        if bpfn[:len(lfn)] == lfn:
-            break
+    for _lfn in lfns:
+        _basename = os.path.basename(pfn)
+        if _lfn in _basename:
+#        if _basename.endswith(_lfn):
+            # Handle scopes in case they are present
+            if ":" in _basename:
+                l = _basename.split(":")
+                lfn = l[1]
+            else:
+                lfn = _lfn
+
+    if lfn == "":
+        tolog("!!WARNING!!2323!! Correct LFN could not be identified: pfn=%s, lfns=%s (assume basename of PFN)" % (pfn, str(lfns)))
+        lfn = os.path.basename(pfn)
+
     return lfn
 
 def makeTransRegReport(all_transferred, some_transferred, latereg, nr_transferred, nr_files, fail, ec, ret, fields):
@@ -1390,7 +1381,7 @@ def makeTransRegReport(all_transferred, some_transferred, latereg, nr_transferre
         tolog(". File transfer exit code                       : (%d, %s)" % (fail, error.getErrorStr(fail)))
     else:
         tolog(". File transfer exit code                       : (%d, <no error>)" % (fail))
-        
+
     if some_transferred:
         tolog(". File registration return values               : (%d, %s, %s)" %\
               (ec, error.getErrorStr(ec), str(ret)))
@@ -1462,7 +1453,7 @@ def lateRegistration(ub, job, type="unknown"):
             tolog("!!WARNING!!4000!! Skipping late registration step")
             pass
     except Exception, e:
-        tolog("!!WARNING!!4000!! Late registration has come upon an old jobState file - can not perform this step: %s" % str(e))
+        tolog("!!WARNING!!4000!! Late registration has come upon an old jobState file - can not perform this step: %s" % e)
         pass
     else:
         tolog("latereg: %s" % str(latereg))
@@ -1500,16 +1491,19 @@ def timedCommand(cmd, timeout=300):
     try:
         exitcode, telapsed, cout, cerr = timed_command(cmd, timeout)
     except Exception, e:
-        pilotErrorDiag = 'timed_command() threw an exception: %s' % str(e)
-        tolog("!!WARNING!!2220!! %s" % pilotErrorDiag)            
+        pilotErrorDiag = 'timed_command() threw an exception: %s' % e
+        tolog("!!WARNING!!2220!! %s" % pilotErrorDiag)
         exitcode = 1
-        output = str(e)
+        output = e
         t1 = os.times()
         telapsed = int(round(t1[4] - t0[4]))
     else:
-        if cerr != "":
+        if cerr != "" and exitcode != 0:
             tolog("!!WARNING!!2220!! Timed command stderr: %s" % (cerr))
-        output = cout
+            output = cerr
+        else:
+            output = cout
+
     tolog("Elapsed time: %d" % (telapsed))
 
     if telapsed >= timeout:
@@ -1534,13 +1528,13 @@ def stringToFields(jobFields):
 
     return fields
 
-def readpar(parameter, alt=False):
+def readpar(parameter, alt=False, version=0):
     """ Read 'parameter' from queuedata via SiteInformation class """
 
     from SiteInformation import SiteInformation
     si = SiteInformation()
 
-    return si.readpar(parameter, alt=alt)
+    return si.readpar(parameter, alt=alt, version=version)
 
 def getBatchSystemJobID():
     """ return the batch system job id (will be reported to the server) """
@@ -1557,7 +1551,7 @@ def getBatchSystemJobID():
     # LSF
     if os.environ.has_key("LSB_JOBID"):
         return "LSF", os.environ["LSB_JOBID"]
-    # Sun's Grid Engine 
+    # Sun's Grid Engine
     if os.environ.has_key("JOB_ID"):
         return "Grid Engine", os.environ["JOB_ID"]
     # Condor (variable sent through job submit file)
@@ -1569,11 +1563,11 @@ def getBatchSystemJobID():
     # SLURM
     if os.environ.has_key("SLURM_JOB_ID"):
         return "SLURM", os.environ["SLURM_JOB_ID"]
-    
+
 #    # Condor (id unknown)
 #    if os.environ.has_key("_CONDOR_SCRATCH_DIR"):
 #        return "Condor", "(unknown clusterid)"
-    
+
     return None, ""
 
 def touch(filename):
@@ -1583,7 +1577,7 @@ def touch(filename):
         try:
             os.system("touch %s" % (filename))
         except Exception, e:
-            tolog("!!WARNING!!1000!! Failed to touch file: %s" % str(e))
+            tolog("!!WARNING!!1000!! Failed to touch file: %s" % e)
         else:
             tolog("Lock file created: %s" % (filename))
 
@@ -1669,6 +1663,28 @@ def removeLEDuplicates(logMsg):
     # return the stripped logMsg
     return "\n".join(log_extracts_tmp)
 
+def writeTimeStampToFile(path="", filename="", overwrite=True):
+    """ Write the current time stamp to file """
+
+    if filename == "":
+        filename = "START_TIME"
+    if path == "":
+        path = os.getcwd()
+
+    _filename = os.path.join(path, filename)
+
+    # Are we allowed to overwrite?
+    proceed = False
+    if overwrite:
+        proceed = True
+    else:
+        # Only proceed if the file does not exist already
+        if not os.path.exists(_filename):
+            proceed = True
+
+    if proceed:
+        writeToFile(_filename, timeStampUTC(format='%Y-%m-%d %H:%M:%S'))
+
 def writeToFile(filename, s):
     """ Write string s to file """
 
@@ -1700,7 +1716,7 @@ def readCodeFromFile(filename):
         try:
             f = open(filename, "r")
         except Exception, e:
-            tolog("Failed to open %s: %s" % (filename, str(e)))
+            tolog("Failed to open %s: %s" % (filename, e))
         else:
             ec = int(f.read())
             tolog("Found code %d in file %s" % (ec, filename))
@@ -1717,7 +1733,7 @@ def readStringFromFile(filename):
         try:
             f = open(filename, "r")
         except Exception, e:
-            tolog("Failed to open %s: %s" % (filename, str(e)))
+            tolog("Failed to open %s: %s" % (filename, e))
         else:
             s = f.read()
             tolog("Found string %s in file %s" % (s, filename))
@@ -1733,7 +1749,7 @@ def verifyQueuedata(queuename, filename, _i, _N, url):
     try:
         f = open(filename, "r")
     except Exception, e:
-        tolog("!!WARNING!!1999!! Open failed with %s" % str(e))
+        tolog("!!WARNING!!1999!! Open failed with %s" % e)
     else:
         output = f.read()
         f.close()
@@ -1749,7 +1765,7 @@ def verifyQueuedata(queuename, filename, _i, _N, url):
             try:
                 os.remove(filename)
             except Exception, e:
-                tolog("!!WARNING!!1999!! Failed to remove file %s: %s" % (filename, str(e)))
+                tolog("!!WARNING!!1999!! Failed to remove file %s: %s" % (filename, e))
         else:
             # found valid queuedata info, break the for-loop
             tolog("schedconfigDB returned: %s" % (output))
@@ -1812,7 +1828,7 @@ def addToSkipped(lfn, guid):
         # append to skipped.xml file
         fd = open("skipped.xml", "a")
     except Exception, e:
-        tolog("!!WARNING!!2999!! Exception caught: %s" % str(e))
+        tolog("!!WARNING!!2999!! Exception caught: %s" % e)
         ec = -1
     else:
         fd.write('  <File ID="%s">\n' % (guid))
@@ -1830,7 +1846,7 @@ def addSkippedToPFC(fname, skippedfname):
     try:
         fd = open(skippedfname, "r")
     except Exception, e:
-        tolog("!!WARNING!!2999!! %s" % str(e))
+        tolog("!!WARNING!!2999!! %s" % e)
         ec = -1
     else:
         skippedXML = fd.read()
@@ -1838,7 +1854,7 @@ def addSkippedToPFC(fname, skippedfname):
         try:
             fdPFC = open(fname, "r")
         except Exception, e:
-            tolog("!!WARNING!!2999!! %s" % str(e))
+            tolog("!!WARNING!!2999!! %s" % e)
             ec = -1
         else:
             PFCXML = fdPFC.read()
@@ -1853,13 +1869,13 @@ def addSkippedToPFC(fname, skippedfname):
         try:
             os.system("mv %s %s.BAK2" % (fname, fname))
         except Exception, e:
-            tolog("!!WARNING!!2999!! %s" % str(e))
+            tolog("!!WARNING!!2999!! %s" % e)
             ec = -1
         else:
             try:
                 fdNEW = open(fname, "w")
             except Exception, e:
-                tolog("!!WARNING!!2999!! %s" % str(e))
+                tolog("!!WARNING!!2999!! %s" % e)
                 ec = -1
             else:
                 fdNEW.write(PFCXML)
@@ -1908,7 +1924,7 @@ class _Curl:
         com = '%s --silent --get' % self.path
         if "HPC_HPC" in readpar('catchall'):
             com += ' --tls'
-        com += ' --connect-timeout 10000 --max-time 12000'
+        com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
@@ -1932,7 +1948,7 @@ class _Curl:
             tmpFile.write(strData)
             tmpFile.close()
         except IOError, e:
-            tolog("!!WARNING!!2999!! %s" % str(e))
+            tolog("!!WARNING!!2999!! %s" % e)
         if os.path.exists(tmpName):
             com += ' --config %s' % tmpName
         else:
@@ -1955,7 +1971,7 @@ class _Curl:
         com = '%s --silent --show-error' % self.path
         if "HPC_HPC" in readpar('catchall'):
             com += ' --tls'
-        com += ' --connect-timeout 10000 --max-time 12000'
+        com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
@@ -1978,7 +1994,7 @@ class _Curl:
             tmpFile.write(strData)
             tmpFile.close()
         except IOError, e:
-            tolog("!!WARNING!!2999!! %s" % str(e))
+            tolog("!!WARNING!!2999!! %s" % e)
         if os.path.exists(tmpName):
             com += ' --config %s' % tmpName
         else:
@@ -1992,7 +2008,7 @@ class _Curl:
             tolog("!!WARNING!!1111!! Caught exception from curl command: %s" % (e))
             ret = [-1, e]
         # remove temporary file
-        #os.remove(tmpName)        
+        #os.remove(tmpName)
         return ret
 
     # PUT method
@@ -2012,7 +2028,7 @@ class _Curl:
         if self.sslKey != '':
             com += ' --key %s' % self.sslKey
         #com += ' --verbose'
-        # emulate PUT 
+        # emulate PUT
         for key in data.keys():
             com += ' -F "%s=@%s"' % (key,data[key])
         com += ' %s' % url
@@ -2042,9 +2058,9 @@ def toPandaLogger(data):
     # instantiate curl
     curl = _Curl()
     url = 'http://pandamon.cern.ch/system/loghandler'
-    
+
     curlstat, response = curl.get(url, data, os.getcwd())
-    
+
     try:
         tpost = datetime.datetime.utcnow()
         tolog("Elapsed seconds: %d" % ((tpost-tpre).seconds))
@@ -2055,7 +2071,7 @@ def toPandaLogger(data):
             # parse response message
             outtxt = response.lower()
             if outtxt.find('<html>') > 0:
-                if outtxt.find('read timeout') > 0:                   
+                if outtxt.find('read timeout') > 0:
                     tolog("!!WARNING!!2999!! Timeout on dispatcher exchange")
                 else:
                     tolog("!!WARNING!!2999!! HTTP error on dispatcher exchange")
@@ -2140,7 +2156,7 @@ def toServer(baseURL, cmd, data, path, experiment):
             # parse response message
             outtxt = response.lower()
             if outtxt.find('<html>') > 0:
-                if outtxt.find('read timeout') > 0:                   
+                if outtxt.find('read timeout') > 0:
                     tolog("!!WARNING!!2999!! Timeout on dispatcher exchange")
                 else:
                     tolog("!!WARNING!!2999!! HTTP error on dispatcher exchange")
@@ -2182,19 +2198,19 @@ def getPilotToken(tofile=False):
         try:
             f = open(filename, "r")
         except Exception, e:
-            tolog("!!WARNING!!2999!! Could not open pilot token file: %s" % str(e), tofile=tofile)
+            tolog("!!WARNING!!2999!! Could not open pilot token file: %s" % e, tofile=tofile)
         else:
             try:
                 pilottoken = f.read()
             except Exception, e:
-                tolog("!!WARNING!!2999!! Could not read pilot token: %s" % str(e), tofile=tofile)
+                tolog("!!WARNING!!2999!! Could not read pilot token: %s" % e, tofile=tofile)
             else:
                 f.close()
                 tolog("Successfully read pilot token", tofile=tofile)
                 try:
                     os.remove(filename)
                 except Exception, e:
-                    tolog("!!WARNING!!2999!! Could not remove pilot token file: %s" % str(e), tofile=tofile)
+                    tolog("!!WARNING!!2999!! Could not remove pilot token file: %s" % e, tofile=tofile)
                 else:
                     tolog("Pilot token file has been removed", tofile=tofile)
 
@@ -2290,13 +2306,8 @@ def updateESGUIDs(guids):
     # guids = 'NULL,NULL,NULL,sasdasdasdasdd'
     # -> 'DUMMYGUID0,DUMMYGUID1,DUMMYGUID2,sasdasdasdasdd'
 
-    # for ES jobs, put all guids to DUMMYGUID
-    # guids = 'NULL,NULL,NULL,sasdasdasdasdd'
-    # -> 'DUMMYGUID0,DUMMYGUID1,DUMMYGUID2,DUMMYGUID3'                                                                                                                                                                  
-    guid_list = []
-    for i in range(len(guids.split(','))):
-        guid_list.append('DUMMYGUID%d' % (i))
-    guids = ','.join(guid_list)
+    for i in range(guids.count('NULL')):
+        guids = guids.replace('NULL', 'DUMMYGUID%d' % (i), 1)
 
     return guids
 
@@ -2402,8 +2413,8 @@ def parseDispatcherResponse(response):
 
     data = {}
     for p in parList:
-        data[p[0]] = p[1]  
- 
+        data[p[0]] = p[1]
+
     if 'userProxy' in str(parList):
 	for i in range(len(parList)):
 		if parList[i][0] == 'userProxy':
@@ -2431,7 +2442,7 @@ def grep(patterns, file_name):
     try:
         f = open(file_name, "r")
     except IOError, e:
-        tolog("!!WARNING!!2999!! %s" % str(e))
+        tolog("!!WARNING!!2999!! %s" % e)
     else:
         while True:
             # get the next line in the file
@@ -2455,7 +2466,7 @@ def getJobReport(filename):
         try:
             f = open(filename, "r")
         except IOError, e:
-            tolog("!!WARNING!!1299!! %s" % str(e))
+            tolog("!!WARNING!!1299!! %s" % e)
         else:
             matched_lines = []
             status = True
@@ -2504,7 +2515,7 @@ def tail(filename, number_of_lines):
             # U is to open it with Universal newline support
             f = open(filename, "rU")
         except IOError, e:
-            tolog("!!WARNING!!1299!! %s" % str(e))
+            tolog("!!WARNING!!1299!! %s" % e)
         else:
             read_size = 1024
             offset = read_size
@@ -2534,7 +2545,7 @@ def tail(filename, number_of_lines):
                             break
                     except Exception, e:
                         # the following message will be visible in the log extracts
-                        report = "!!WARNING!!1299!! tail command caught an exception when reading payload stdout: %s" % str(e)
+                        report = "!!WARNING!!1299!! tail command caught an exception when reading payload stdout: %s" % e
                         tolog(report)
                         break
 
@@ -2606,7 +2617,7 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
     elif len(outputFiles) == 0:
         tolog("No output files for this job (outputFiles has zero length)")
     elif len(destinationDblock) == 0:
-        tolog("WARNING: destinationDblock has zero length")        
+        tolog("WARNING: destinationDblock has zero length")
     else:
         # verify that lists contains valid entries
         _l = [outputFiles, destinationDblock]
@@ -2623,7 +2634,7 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
             try:
                 datasetDict = dict(zip(outputFiles, destinationDblock))
             except Exception, e:
-                tolog("!!WARNING!!2999!! Exception caught in getDatasetDict(): %s" % str(e))
+                tolog("!!WARNING!!2999!! Exception caught in getDatasetDict(): %s" % e)
                 datasetDict = None
             else:
                 # add the log file info
@@ -2667,13 +2678,13 @@ def tailPilotErrorDiag(pilotErrorDiag, size=256):
     try:
         return pilotErrorDiag[-size:]
     except Exception, e:
-        tolog("Warning: tailPilotErrorDiag caught exception: %s" % str(e))
+        tolog("Warning: tailPilotErrorDiag caught exception: %s" % e)
         return pilotErrorDiag
 
 def getMaxInputSize(MB=False):
     """ Return a proper maxinputsize value """
 
-    _maxinputsize = readpar('maxinputsize') # normally 14336 MB
+    _maxinputsize = readpar('maxwdir') # normally 14336+2000 MB
     MAX_INPUT_FILESIZES = 14*1024*1024*1024 # 14 GB, 14336 MB (pilot default)
     MAX_INPUT_FILESIZES_MB = 14*1024 # 14336 MB (pilot default)
     if _maxinputsize != "":
@@ -2683,11 +2694,14 @@ def getMaxInputSize(MB=False):
             else: # convert to B int
                 _maxinputsize = int(_maxinputsize)*1024*1024 # MB -> B
         except Exception, e:
-            tolog("!!WARNING!!2999!! schedconfig.maxinputsize: %s" % str(e))
+            tolog("!!WARNING!!2999!! schedconfig.maxinputsize: %s" % e)
             if MB:
                 _maxinputsize = MAX_INPUT_FILESIZES_MB
             else:
                 _maxinputsize = MAX_INPUT_FILESIZES
+        else:
+            # 2 GB correction (ignoring that 2000 != 2048 MB..)
+            _maxinputsize -= 2000
     else:
         if MB:
             _maxinputsize = MAX_INPUT_FILESIZES_MB
@@ -2761,7 +2775,7 @@ def getCopysetup(mode="get"):
         tolog("Extracted copysetup: %s" % (copysetup))
 
     return copysetup
-    
+
 def verifyLFNLength(outputFiles):
     """ Make sure that the LFNs are all within the allowed length """
 
@@ -2787,8 +2801,6 @@ def getFileAccessInfo():
     # default values
     oldPrefix = None
     newPrefix = None
-    useFileStager = None
-    directIn = None
 
     # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
     useCT = True
@@ -2807,31 +2819,14 @@ def getFileAccessInfo():
             useCT = False
         oldPrefix = dInfo['oldPrefix']
         newPrefix = dInfo['newPrefix']
-        useFileStager = dInfo['useFileStager']
-        directIn = dInfo['directIn']
     if useCT:
         tolog("Copy tool will be used for stage-in")
     else:
-        if useFileStager:
-            tolog("File stager mode: Copy tool will not be used for stage-in of root files")
-        else:
-            tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
-            if oldPrefix == "" and newPrefix == "":
-                tolog("Will attempt to create a TURL based PFC")
+        tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
+        if oldPrefix == "" and newPrefix == "":
+            tolog("Will attempt to create a TURL based PFC")
 
-    return useCT, oldPrefix, newPrefix, useFileStager, directIn
-
-def getExtension(alternative='pickle'):
-    """ get the file extension (json or whatever 'alternative' is set to, pickle by default) """
-
-    try:
-        from json import load
-    except:
-        extension = alternative
-    else:
-        extension = "json"
-
-    return extension
+    return useCT, oldPrefix, newPrefix
 
 def isLogfileCopied(workdir, jobId=None):
     """ check whether the log file has been copied or not """
@@ -2999,8 +2994,6 @@ def putMetadata(workdir, jobId, strXML):
 
     status = False
 
-    tolog("x1 jobId=%s, type=%s" % (jobId, type(jobId)))
-
     filename = os.path.join(workdir, "metadata-%s.xml" % (jobId))
     try:
         f = open(filename, "w")
@@ -3038,11 +3031,11 @@ def getMetadata(workdir, jobId, athena=False, altpath=""):
         try:
             f = open(fname)
         except Exception, e:
-            tolog("!!WARNING!!1000!! Can not open the file %s, %s" % (fname, str(e)))
+            tolog("!!WARNING!!1000!! Can not open the file %s, %s" % (fname, e))
         else:
             strXML = ""
             for line in f:
-                strXML += line    
+                strXML += line
             f.close()
             if len(strXML) > 0:
                 tolog("Found metadata")
@@ -3142,7 +3135,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
         tolog(". Trf error code (2)        : %d" % job.exeErrorCode)
     tolog(". Trf error diagnosis       : %s" % job.exeErrorDiag)
 
-        
+
     if (job.exeErrorCode != 0) and (job.result[1] != job.exeErrorCode):
         mismatch = "exeErrorCode = %d, transExitCode = %d" %\
                    (job.exeErrorCode, job.result[1])
@@ -3168,7 +3161,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
             else:
                 tolog(". Payload %d produced stderr: No (%s does not exist)" % (_i + 1, _stderr))
     else:
-        filename = "%s/%s" % (job.workdir, job.stderr)    
+        filename = "%s/%s" % (job.workdir, job.stderr)
         if os.path.exists(filename):
             if os.path.getsize(filename) > 0:
                 tolog(". Payload produced stderr   : Yes (check %s)" % (job.stderr))
@@ -3339,7 +3332,7 @@ def getCmtconfigAlternatives(cmtconfig, swbase):
                     break
             if verified:
                 alternatives.append(d)
-                                                                                                 
+
 
     return alternatives
 
@@ -3387,7 +3380,7 @@ def extractFilePaths(s):
     # -> setup_paths = ['/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase/user/atlasLocalSetup.sh']
 
     pattern = re.compile(r"export (\S+)\=(\S+)")
-    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')] 
+    t = re.findall(pattern, s) # t = [('ATLAS_LOCAL_ROOT_BASE', '/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase')]
     if t != []:
         for i in range(len(setup_paths)):
             for match_pair in t:
@@ -3451,8 +3444,8 @@ def getProperTimeout(paths):
 
 def getPilotVersion(initdir):
     """ Load the pilot version string from file VERSION """
- 
-    version = "SULU"
+
+    version = "PICARD"
     try:
         f = open(os.path.join(initdir, "PILOTVERSION"), "r")
     except Exception, e:
@@ -3541,7 +3534,7 @@ def removePattern(_string, _pattern):
         _substring = found[0]
         tolog("Found regexp string: %s" % (_substring))
         _string = _string.replace(_substring, "")
-        
+
     return _string
 
 def isPilotTCPServerAlive(server, port):
@@ -3636,7 +3629,7 @@ def stripDQ2FromLFN(lfn):
 
     pattern = "(\s*)\_\_DQ2\-[0-9]+"
 
-    found = re.search(pattern, lfn)    
+    found = re.search(pattern, lfn)
     if found:
         try:
             __DQ2 = found.group(0)
@@ -3660,7 +3653,7 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
             try:
                 rc, rs = commands.getstatusoutput("rm -rf %s" % (workdir))
             except Exception, e:
-                print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, str(e))
+                print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, e)
             else:
                 if rc == 0:
                     print "Removed site workdir: %s" % (workdir)
@@ -3675,7 +3668,7 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
                         try:
                             rc, rs = commands.getstatusoutput("rm -rf %s" % (workdir))
                         except Exception, e:
-                            print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, str(e))
+                            print "!!WARNING!!1999!! Could not remove site workdir: %s, %s" % (workdir, e)
                         else:
                             if rc == 0:
                                 print "Removed site workdir: %s" % (workdir)
@@ -3720,20 +3713,26 @@ def fastCleanup(workdir, pilot_initdir, rmwkdir):
 def getStdoutFilename(workdir, preliminary_stdout_filename):
     """ Return the proper stdout filename """
     # In the case of runGen/runAthena, the preliminary filename should be updated since stdout is redirected at some point
+    # In the case there are *.log files present, they are of greater interest than the stdout file so the last updated
+    # one will be chosen instead of the stdout (prod jobs)
 
-    from glob import glob
-    filename = ""
+    # look for *.log files
+    from FileHandling import findLatestTRFLogFile
+    filename = findLatestTRFLogFile(workdir)
+    # fall back to old method identifying the stdout file name
+    if filename == "":
+        from glob import glob
 
-    # look for redirected stdout
-    _path = os.path.join(os.path.join(workdir, "workDir"), "tmp.stdout.*")
-    tolog("path=%s"%(_path))
-    path_list = glob(_path)
-    if len(path_list) > 0:
-        # there should only be one path
-        tolog("Found redirected stdout: %s" % str(path_list))
-        filename = path_list[0]
-    else:
-        filename = preliminary_stdout_filename
+        # look for redirected stdout
+        _path = os.path.join(os.path.join(workdir, "workDir"), "tmp.stdout.*")
+        tolog("path=%s"%(_path))
+        path_list = glob(_path)
+        if len(path_list) > 0:
+            # there should only be one path
+            tolog("Found redirected stdout: %s" % str(path_list))
+            filename = path_list[0]
+        else:
+            filename = preliminary_stdout_filename
 
     tolog("Using stdout filename: %s" % (filename))
     return filename
@@ -3805,7 +3804,7 @@ def getStdoutDictionary(jobDic):
                         nlines = pilotErrorDiag
                 stdout_dictionary[jobId] += "\n[%s]" % (nlines)
             else:
-                tolog("(Skipping tail of payload stdout file (%s) since it has not been created yet)" % (_stdout))
+                tolog("(Skipping tail of payload stdout file (%s) since it has not been created yet)" % (os.path.basename(filename)))
                 stdout_dictionary[jobId] = "(stdout not available yet)"
 
     tolog("Returning tail stdout dictionary with %d entries" % len(stdout_dictionary.keys()))
@@ -3852,6 +3851,12 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
     if ec != 0:
         return ec, thisSite, _jobrec, hasQueuedata
 
+    # Get the new queuedata file from AGIS (unless it already exists)
+    try:
+        s = si.getNewQueuedata(_queuename, overwrite=False)
+    except Exception, e:
+        tolog("!!WARNING!!1212!! Exception caught: %s" % (e))
+
     if hasQueuedata:
         # update queuedata and thisSite if necessary
         ec, _thisSite, _jobrec = si.postProcessQueuedata(_queuename, _pshttpurl, thisSite, _jobrec, forceDevpilot)
@@ -3862,7 +3867,6 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
 
         # should the server or the pilot do the LFC registration?
         if readpar("lfcregister") == "server":
-            env['lfcRegistration'] = False
             tolog("File registration will be done by server")
 
             # special check for storm sites
@@ -3880,7 +3884,8 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
                 tolog("!!FAILED!!1111!! Found schedconfig misconfiguration: Site cannot use copytool=lcgcp2 without lfcregister=server")
                 return error.ERR_GENERALERROR, thisSite, _jobrec, hasQueuedata
 
-            tolog("LFC registration will be done by pilot")
+            tolog("File catalog registration no longer supported by pilot")
+            return error.ERR_GENERALERROR, thisSite, _jobrec, hasQueuedata
 
         # should the number of stage-in/out retries be updated?
         env['stageinretry'] = getStagingRetry("stage-in")
@@ -3893,13 +3898,13 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
 
     # update experiment for Nordugrid
     global experiment
-    if readpar('region').lower() == "nordugrid":
+    if os.environ.has_key('Nordugrid_pilot'):
         experiment = "Nordugrid-ATLAS"
 
     # reset site.appdir
     thisSite.appdir = readpar('appdir')
 
-    if readpar('glexec') == "True": 
+    if readpar('glexec') == "True":
         env['glexec'] = 'True'
     elif readpar('glexec') == "test":
 	env['glexec'] = 'test'
@@ -4027,7 +4032,10 @@ def moveToExternal(workdir, recoveryDir):
             logfile_registered = os.path.join(_site.workdir, "LOGFILEREGISTERED")
             metadatafile1 = "metadata-%s.xml" % (_job.jobId)
             metadatafile2 = "metadata-%s.xml.PAYLOAD" % (_job.jobId)
+
+            from FileHandling import getExtension
             surlDictionary = os.path.join(_site.workdir, "surlDictionary-%s.%s" % (_job.jobId, getExtension()))
+
             moveDic = {"workdir" : _job.workdir, "datadir" : _job.datadir, "logfile" : logfile, "logfile_copied" : logfile_copied,
                        "logfile_registered" : logfile_registered, "metadata1" : metadatafile1,
                        "metadata2" : metadatafile2, "surlDictionary" : surlDictionary }
@@ -4133,7 +4141,7 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                 try:
                     os.system("chmod -R g+w %s" % (initdir))
                 except Exception, e:
-                    tolog("Failed to chmod pilot init dir: %s" % str(e))
+                    tolog("Failed to chmod pilot init dir: %s" % e)
                     pass
                 else:
                     tolog("Successfully changed permission on pilot init dir (for later pilots that may be run by different users)")
@@ -4147,7 +4155,9 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                     chdir(initdir)
                     os.system("rm -rf %s" % (wkdir))
                 except Exception, e:
-                    tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+                    tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % e)
+                else:
+                    setPilotlogFilename("%s/pilotlog-last.txt" % (initdir))
             else:
                 if lockfile:
                     # check if the workdir+job state file should be moved to an external directory
@@ -4169,11 +4179,11 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                                         chdir("/")
                                         os.system("rm -rf %s" % (wkdir))
                                     except Exception, e:
-                                        tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+                                        tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % e)
                                 try:
                                     os.system("chmod -R g+w %s" % (recoveryDir))
                                 except Exception, e:
-                                    tolog("Failed to chmod recovery dir: %s" % str(e))
+                                    tolog("Failed to chmod recovery dir: %s" % e)
                                     pass
                                 else:
                                     tolog("Successfully changed permission on external recovery dir (for later pilots that may be run by different users)")
@@ -4192,7 +4202,7 @@ def cleanup(wd, initdir, wrflag, rmwkdir):
                 chdir("/")
                 os.system("rm -rf %s" % (wkdir))
             except Exception,e:
-                tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % str(e))
+                tolog("!!WARNING!!1000!! Failed to remove pilot workdir: %s" % e)
         else:
             tolog("Work dir already deleted by multi-job loop: %s" % (wkdir))
 
@@ -4242,7 +4252,7 @@ def shellExitCode(exitCode):
         error.ERR_QUEUEDATANOTOK : [72, "Pilot found non-valid queuedata"],
         error.ERR_NOSOFTWAREDIR  : [73, "Software directory does not exist"],
         error.ERR_KILLSIGNAL     : [137, "General kill signal"], # Job terminated by unknown kill signal
-        error.ERR_SIGTERM        : [143, "Job killed by signal: SIGTERM"], # 128+15 
+        error.ERR_SIGTERM        : [143, "Job killed by signal: SIGTERM"], # 128+15
         error.ERR_SIGQUIT        : [131, "Job killed by signal: SIGQUIT"], # 128+3
         error.ERR_SIGSEGV        : [139, "Job killed by signal: SIGSEGV"], # 128+11
         error.ERR_SIGXCPU        : [158, "Job killed by signal: SIGXCPU"], # 128+30
@@ -4411,7 +4421,7 @@ def extractHPCInfo(infoStr):
     # Return: isHPCSite (True/False), HPC_name (string)
     # infoStr = "blabla HPC_Titan" -> True, "Titan"
     # infoStr = "blabla bla" -> False, None
-    # The HPC name will be capitalized (titan -> Titan)                                                                                                                                                  
+    # The HPC name will be capitalized (titan -> Titan)
     name = None
     isHPCSite = False
 
@@ -4443,6 +4453,55 @@ def getInitialDirs(path, n):
 
     return subpath
 
+def convert(data):
+    """ Convert unicode data to utf-8 """
+
+    # Dictionary:
+    #   data = {u'Max': {u'maxRSS': 3664, u'maxSwap': 0, u'maxVMEM': 142260, u'maxPSS': 1288}, u'Avg': {u'avgVMEM': 94840, u'avgPSS': 850, u'avgRSS': 2430, u'avgSwap': 0}}
+    # convert(data)
+    #   {'Max': {'maxRSS': 3664, 'maxSwap': 0, 'maxVMEM': 142260, 'maxPSS': 1288}, 'Avg': {'avgVMEM': 94840, 'avgPSS': 850, 'avgRSS': 2430, 'avgSwap': 0}}
+    # String:
+    #   data = u'hello'
+    # convert(data)
+    #   'hello'
+    # List:
+    #   data = [u'1',u'2','3']
+    # convert(data)
+    #   ['1', '2', '3']
+
+    import collections
+    if isinstance(data, basestring):
+        return str(data)
+    elif isinstance(data, collections.Mapping):
+        return dict(map(convert, data.iteritems()))
+    elif isinstance(data, collections.Iterable):
+        return type(data)(map(convert, data))
+    else:
+        return data
+
+def dumpFile(filename, topilotlog=False):
+    """ dump a given file to stdout or to pilotlog """
+
+    if os.path.exists(filename):
+        tolog("Dumping file: %s (size: %d)" % (filename, os.path.getsize(filename)))
+        try:
+            f = open(filename, "r")
+        except IOError, e:
+            tolog("!!WARNING!!4000!! Exception caught: %s" % (e))
+        else:
+            i = 0
+            for line in f.readlines():
+                i += 1
+                line = line.rstrip()
+                if topilotlog:
+                    tolog("%s" % (line), toStderr=False)
+                else:
+                    print "%s" % (line)
+            f.close()
+            tolog("Dumped %d lines from file %s" % (i, filename), toStderr=False)
+    else:
+        tolog("!!WARNING!!4000!! %s does not exist" % (filename))
+
 def recursive_overwrite(src, dest, ignore=None):
     if os.path.isdir(src):
         if not os.path.isdir(dest):
@@ -4454,8 +4513,8 @@ def recursive_overwrite(src, dest, ignore=None):
             ignored = set()
         for f in files:
             if f not in ignored:
-                recursive_overwrite(os.path.join(src, f), 
-                                    os.path.join(dest, f), 
+                recursive_overwrite(os.path.join(src, f),
+                                    os.path.join(dest, f),
                                     ignore)
     else:
         shutil.copyfile(src, dest)
@@ -4466,3 +4525,4 @@ def chunks(l, n):
     """
     for i in xrange(0, len(l), n):
         yield l[i:i+n]
+

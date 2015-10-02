@@ -15,22 +15,23 @@ import traceback
 import atexit, signal
 import stat
 from optparse import OptionParser
+from json import loads
 
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExtension, getExperiment, getGUID
+     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-
+from FileHandling import tail, getExtension, discoverAdditionalOutputFiles
+from EventRanges import downloadEventRanges
 
 # remove logguid, dq2url, debuglevel - not needed
-# rename lfcRegistration to catalogRegistration
 # relabelled -h, queuename to -b (debuglevel not used)
 
 
@@ -48,11 +49,10 @@ class RunJob(object):
     __globalPilotErrorDiag = ""          # global pilotErrorDiag used with signal handler (only)
     __globalErrorCode = 0                # global error code used with signal handler (only)
     __inputDir = ""                      # location of input files (source for mv site mover)
-    __fileCatalogRegistration = True     # should the pilot perform file catalog registration?
     __logguid = None                     # guid for the log file
     __outputDir = ""                     # location of output files (destination for mv site mover)
     __pilot_initdir = ""                 # location of where the pilot is untarred and started
-    __pilotlogfilename = "pilotlog.txt"  # default pilotlog filename 
+    __pilotlogfilename = "pilotlog.txt"  # default pilotlog filename
     __pilotserver = "localhost"          # default server
     __pilotport = 88888                  # default port
     __proxycheckFlag = True              # True (default): perform proxy validity checks, False: no check
@@ -64,8 +64,6 @@ class RunJob(object):
 #    __testLevel = 0                      # test suite control variable (0: no test, 1: put error, 2: ...)  NOT USED
 #    __workdir = "/tmp" # NOT USED
     __cache = ""                         # Cache URL, e.g. used by LSST
-    __recovery = False
-    __jobStateFile = None
 
     # Getter and setter methods
 
@@ -113,11 +111,6 @@ class RunJob(object):
         """ Getter for __inputDir """
 
         return self.__inputDir
-
-    def getFileCatalogRegistration(self):
-        """ Getter for __fileCatalogRegistration """
-
-        return self.__fileCatalogRegistration
 
     def getLogGUID(self):
         """ Getter for __logguid """
@@ -242,16 +235,12 @@ class RunJob(object):
                           help="DQ2 URL TO BE RETIRED", metavar="DQ2URL")
         parser.add_option("-x", "--stageinretries", dest="stageinretry",
                           help="The number of stage-in retries", metavar="STAGEINRETRY")
-        parser.add_option("-B", "--filecatalogregistration", dest="fileCatalogRegistration",
-                          help="True (default): perform file catalog registration, False: no catalog registration", metavar="FILECATALOGREGISTRATION")
+        #parser.add_option("-B", "--filecatalogregistration", dest="fileCatalogRegistration",
+        #                  help="True (default): perform file catalog registration, False: no catalog registration", metavar="FILECATALOGREGISTRATION")
         parser.add_option("-E", "--stageoutretries", dest="stageoutretry",
                           help="The number of stage-out retries", metavar="STAGEOUTRETRY")
         parser.add_option("-F", "--experiment", dest="experiment",
                           help="Current experiment (default: ATLAS)", metavar="EXPERIMENT")
-        parser.add_option("-R", "--recovery", dest="recovery",
-                          help="Run in recovery mode", metavar="RECOVERY")
-        parser.add_option("-S", "--jobStateFile", dest="jobStateFile",
-                          help="Job State File", metavar="JOBSTATEFILE")
         parser.add_option("-H", "--cache", dest="cache",
                           help="Cache URL", metavar="CACHE")
 
@@ -275,13 +264,6 @@ class RunJob(object):
                 self.__logguid = options.logguid
             if options.inputDir:
                 self.__inputDir = options.inputDir
-            if options.fileCatalogRegistration:
-                if options.fileCatalogRegistration.lower() == "false":            
-                    self.__fileCatalogRegistration = False
-                else:
-                    self.__fileCatalogRegistration = True
-            else:
-                self.__fileCatalogRegistration = True
             if options.pilot_initdir:
                 self.__pilot_initdir = options.pilot_initdir
             if options.pilotlogfilename:
@@ -323,9 +305,6 @@ class RunJob(object):
                 workdir = options.workdir
             if options.cache:
                 self.__cache = options.cache
-
-            self.__recovery = options.recovery
-            self.__jobStateFile = options.jobStateFile
 
         return sitename, appdir, workdir, dq2url, queuename
 
@@ -404,7 +383,7 @@ class RunJob(object):
                     try:
                         if rf != None:
                             moved_files_list = RunJobUtilities.getFileNamesFromString(rf[1])
-                            remaining_files = RunJobUtilities.getRemainingFiles(moved_files_list, job.outFiles) 
+                            remaining_files = RunJobUtilities.getRemainingFiles(moved_files_list, job.outFiles)
                     except Exception, e:
                         tolog("!!WARNING!!3000!! Illegal return value from Mover: %s, %s" % (str(rf), str(e)))
                         remaining_files = job.outFiles
@@ -489,6 +468,16 @@ class RunJob(object):
         if docleanup:
             self.sysExit(job)
 
+    def isMultiTrf(self, parameterList):
+        """ Will we execute multiple jobs? """
+
+        if len(parameterList) > 1:
+            multi_trf = True
+        else:
+            multi_trf = False
+
+        return multi_trf
+
     def setup(self, job, jobSite, thisExperiment):
         """ prepare the setup and get the run command list """
 
@@ -505,10 +494,7 @@ class RunJob(object):
         releaseList = thisExperiment.getRelease(job.release)
 
         tolog("Number of transformations to process: %s" % len(jobParameterList))
-        if len(jobParameterList) > 1:
-            multi_trf = True
-        else:
-            multi_trf = False
+        multi_trf = self.isMultiTrf(jobParameterList)
 
         # verify that the multi-trf job is setup properly
         ec, job.pilotErrorDiag, releaseList = RunJobUtilities.verifyMultiTrf(jobParameterList, jobHomePackageList, jobTrfList, releaseList)
@@ -574,7 +560,7 @@ class RunJob(object):
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
-            useCT, oldPrefix, newPrefix, useFileStager, directIn = getFileAccessInfo()
+            useCT, oldPrefix, newPrefix = getFileAccessInfo()
 
             # Transfer input files
             tin_0 = os.times()
@@ -616,6 +602,10 @@ class RunJob(object):
 
         if os.path.exists(filename):
             tolog("Found job report: %s" % (filename))
+
+            # wait a few seconds to make sure the job report is finished
+            tolog("Taking a 5s nap to make sure the job report is finished")
+            time.sleep(5)
 
             # first backup the jobReport to the job workdir since it will be needed later
             # (the current location will disappear since it will be tarred up in the jobs' log file)
@@ -680,11 +670,35 @@ class RunJob(object):
 
         return _obj
 
+    def getUtilitySubprocess(self, thisExperiment, cmd, pid, job):
+        """ Return the utility subprocess if required """
+
+        utility_subprocess = None
+        if thisExperiment.shouldExecuteUtility():
+            try:
+                mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf)
+                if mem_cmd != "":
+                    utility_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
+                    if utility_subprocess:
+                        try:
+                            tolog("Process id of utility: %d" % (utility_subprocess.pid))
+                        except Exception, e:
+                            tolog("!!WARNING!!3436!! Exception caught: %s" % (e))
+                else:
+                    tolog("Could not launch utility since the command path does not exist")
+            except Exception, e:
+                tolog("!!WARNING!!5454!! Exception caught: %s" % (e))
+                utility_subprocess = None
+        else:
+            tolog("Not required to run utility")
+
+        return utility_subprocess
+
     def executePayload(self, thisExperiment, runCommandList, job):
         """ execute the payload """
 
         # do not hide the proxy for PandaMover since it needs it or for sites that has sc.proxy = donothide
-        #if 'DDM' not in jobSite.sitename and readpar('proxy') != 'donothide':
+        # if 'DDM' not in jobSite.sitename and readpar('proxy') != 'donothide':
         #    # create the proxy guard object (must be created here before the sig2exc())
         #    proxyguard = ProxyGuard()
         #
@@ -693,33 +707,123 @@ class RunJob(object):
         #    if not hP_ret:
         #        tolog("Warning: Proxy exposed to payload")
 
-        # run the payload process, which could take days to finish
+        # If clone job, make sure that the events should be processed
+        if job.cloneJob == "runonce":
+            try:
+                # If the event is still available, the go ahead and run the payload
+                message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
+
+                # Create a list of event ranges from the downloaded message
+                event_ranges = self.extractEventRanges(message)
+
+                # Are there any event ranges?
+                if event_ranges == []:
+                    tolog("!!WARNING!!2424!! This clone job was already executed")
+                    exitMsg = "Already executed clone job"
+                    res_tuple = (1, exitMsg)
+                    res = (res_tuple[0], res_tuple[1], exitMsg)
+                    job.result[0] = exitMsg
+                    job.result[1] = 0 # transExitCode
+                    job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+                    return res, job, False, 0
+                else:
+                    tolog("Ok to execute clone job")
+            except Exception, e:
+                tolog("!1WARNING!!2323!! Exception caught: %s" % (e))
+
+        # Run the payload process, which could take days to finish
         t0 = os.times()
         tolog("t0 = %s" % str(t0))
         res_tuple = (0, 'Undefined')
 
-        # loop over all run commands (only >1 for multi-trfs)
+        multi_trf = self.isMultiTrf(runCommandList)
+        _stdout = job.stdout
+        _stderr = job.stderr
+
+        # Loop over all run commands (only >1 for multi-trfs)
         current_job_number = 0
         getstatusoutput_was_interrupted = False
         number_of_jobs = len(runCommandList)
         for cmd in runCommandList:
             current_job_number += 1
+
+            # Create the stdout/err files
+            if multi_trf:
+                job.stdout = _stdout.replace(".txt", "_%d.txt" % (current_job_number))
+                job.stderr = _stderr.replace(".txt", "_%d.txt" % (current_job_number))
+            file_stdout, file_stderr = self.getStdoutStderrFileObjects(stdoutName=job.stdout, stderrName=job.stderr)
+            if not (file_stdout and file_stderr):
+                res_tuple = (1, "Could not open stdout/stderr files, piping not possible")
+                tolog("!!WARNING!!2222!! %s" % (res_tuple[1]))
+                break
+
             try:
-                # add the full job command to the job_setup.sh file
+                # Add the full job command to the job_setup.sh file
                 to_script = cmd.replace(";", ";\n")
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
-                tolog("Executing job command %d/%d: %s" % (current_job_number, number_of_jobs, cmd))
-                # Eddie: Commented out the part where we execute ONLY the payload under GLExec as now everything is under a glexec'ed environment
-                #if readpar('glexec').lower() in ['true', 'uid']: 
-                #    # execute trf under glexec
-                #    res_tuple = executePayloadGLExec(cmd, job)
-                #else:
-                #    # execute trf normally
-                res_tuple = commands.getstatusoutput(cmd)
+                tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
+
+                # Start the subprocess
+                main_subprocess = self.getSubprocess(thisExperiment, cmd, stdout=file_stdout, stderr=file_stderr)
+
+                if main_subprocess:
+                    time.sleep(2)
+
+                    # Start the utility if required
+                    utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+
+                    # Loop until the main subprocess has finished
+                    while main_subprocess.poll() is None:
+                        # Take a short nap
+                        time.sleep(5)
+
+                        # Make sure that the utility subprocess is still running
+                        if utility_subprocess:
+                            # Take another short nap
+                            time.sleep(5)
+                            if not utility_subprocess.poll() is None:
+                                # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
+                                tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                                utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+
+                    # Stop the utility
+                    if utility_subprocess:
+                        utility_subprocess.send_signal(signal.SIGUSR1)
+                        tolog("Terminated the utility subprocess")
+
+                        _nap = 10
+                        tolog("Taking a short nap (%d s) to allow the utility to finish writing to the summary file" % (_nap))
+                        time.sleep(_nap)
+
+                        # Copy the output JSON to the pilots init dir
+                        _path = "%s/%s" % (job.workdir, thisExperiment.getUtilityJSONFilename())
+                        if os.path.exists(_path):
+                            try:
+                                copy2(_path, self.__pilot_initdir)
+                            except Exception, e:
+                                tolog("!!WARNING!!2222!! Caught exception while trying to copy JSON files: %s" % (e))
+                            else:
+                                tolog("Copied %s to pilot init dir" % (_path))
+                        else:
+                            tolog("File %s was not created" % (_path))
+
+                    # Handle main subprocess errors
+                    try:
+                        stdout = open(job.stdout, 'r')
+                        res_tuple = (main_subprocess.returncode, tail(stdout))
+                    except Exception, e:
+                        tolog("!!WARNING!!3002!! Failed during tail operation: %s" % (e))
+                    else:
+                        tolog("Tail:\n%s" % (res_tuple[1]))
+                        stdout.close()
+
+                else:
+                    res_tuple = (1, "Popen ended prematurely (payload command failed to execute, see stdout/err)")
+                    tolog("!!WARNING!!3001!! %s" % (res_tuple[1]))
 
             except Exception, e:
-                tolog("!!FAILED!!3000!! Failed to run command %s" % str(e))
+                tolog("!!FAILED!!3000!! Failed to run command: %s" % str(e))
                 getstatusoutput_was_interrupted = True
                 if self.__failureCode:
                     job.result[2] = self.__failureCode
@@ -762,7 +866,7 @@ class RunJob(object):
             from JEMstub import notifyJobEnd2JEM
             notifyJobEnd2JEM(job, tolog)
         except:
-            pass # don't care (fire and forget)
+            pass # don't care
 
         # restore the proxy
         #if hP_ret:
@@ -804,7 +908,7 @@ class RunJob(object):
         # get/assign guids to the output files
         if outFiles:
             if not pUtil.isBuildJob(outFiles):
-                ec, job.pilotErrorDiag, job.outFilesGuids = RunJobUtilities.getOutFilesGuids(job.outFiles, job.workdir)
+                ec, job.pilotErrorDiag, job.outFilesGuids = RunJobUtilities.getOutFilesGuids(job.outFiles, job.workdir, self.__experiment)
                 if ec:
                     # missing PoolFileCatalog (only error code from getOutFilesGuids)
                     return ec, job, None
@@ -834,7 +938,7 @@ class RunJob(object):
                                    fsize=fsize, checksum=checksum, analJob=analysisJob)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
-            tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag)) 
+            tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag))
             self.failJob(job.result[1], error.ERR_MISSINGGUID, job, pilotErrorDiag=pilotErrorDiag)
         else:
             if not _status:
@@ -854,8 +958,7 @@ class RunJob(object):
 
         # convert the preliminary metadata-<jobId>.xml file to OutputFiles-<jobId>.xml for NG and for CERNVM
         # note: for CERNVM this is only really needed when CoPilot is used
-        region = readpar("region")
-        if region == 'Nordugrid' or sitename == 'CERNVM':
+        if os.environ.has_key('Nordugrid_pilot') or sitename == 'CERNVM':
             if RunJobUtilities.convertMetadata4NG(os.path.join(job.workdir, job.outputFilesXML), _fname, outsDict, dsname, datasetDict):
                 tolog("Metadata has been converted to NG/CERNVM format")
             else:
@@ -913,7 +1016,7 @@ class RunJob(object):
             _status = pUtil.PFCxml(job.experiment, pfnFile, outs, fguids=job.outFilesGuids, fntag="pfn")
         except Exception, e:
             job.pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
-            tolog("!!WARNING!!1113!! %s" % (job.pilotErrorDiag)) 
+            tolog("!!WARNING!!1113!! %s" % (job.pilotErrorDiag))
             return error.ERR_MISSINGGUID, job, rf, latereg
         else:
             if not _status:
@@ -930,13 +1033,13 @@ class RunJob(object):
         tin_0 = os.times()
         try:
             rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
-                                             ub=jobSite.dq2url, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
+                                             jobSite.computingElement, ub=jobSite.dq2url, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
                                              proxycheck=self.__proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
                                              userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
                                              outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
                                              dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                             lfcreg=self.__fileCatalogRegistration, jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
-                                             stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE)
+                                             jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
+                                             stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE, job=job)
             tin_1 = os.times()
             job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
@@ -985,7 +1088,7 @@ class RunJob(object):
 
                 tolog("!!%s!!1212!! %s" % (_msg, error.getErrorStr(rc)))
             else:
-                # set preliminary finished (may be overwritten below in the LRC registration)
+                # set preliminary finished (may be overwritten below)
                 job.setState(["finished", 0, 0])
 
                 # create a weak lockfile meaning that file transfer worked
@@ -1011,6 +1114,25 @@ class RunJob(object):
         except IOError, e:
             pass
         tolog(out)
+
+    def getStdoutStderrFileObjects(self, stdoutName="stdout.txt", stderrName="stderr.txt"):
+        """ Create stdout/err file objects """
+
+        try:
+            stdout = open(os.path.join(os.getcwd(), stdoutName), "w")
+            stderr = open(os.path.join(os.getcwd(), stderrName), "w")
+        except Exception, e:
+            tolog("!!WARNING!!3330!! Failed to open stdout/err files: %s" % (e))
+            stdout = None
+            stderr = None
+
+        return stdout, stderr
+
+    def getSubprocess(self, thisExperiment, runCommand, stdout=None, stderr=None):
+        """ Execute a command as a subprocess """
+
+        # Execute and return the subprocess object
+        return thisExperiment.getSubprocess(runCommand, stdout=stdout, stderr=stderr)
 
     # Methods used by event service RunJob* modules ..............................................................
 
@@ -1091,7 +1213,7 @@ class RunJob(object):
         # We cannot have ATHENA_PROC_NUMBER set to a value larger than 1, since that will
         # activate AthenaMP. Reset it for now, and swap it back at the end of this method
         athena_proc_number = self.swapAthenaProcNumber(0)
-        
+
         # Remove everything after the trf command from the job execution command
         cmd = self.stripSetupCommand(jobExecutionCommand, trfName)
         tolog("Stripped command: %s" % (cmd))
@@ -1123,6 +1245,50 @@ class RunJob(object):
 
     # (end event service methods) ................................................................................
 
+    def extractEventRanges(self, message):
+        """ Extract all event ranges from the server message """
+
+        # This function will return a list of event range dictionaries
+
+        event_ranges = []
+
+        try:
+            event_ranges = loads(message)
+        except Exception, e:
+            tolog("Could not extract any event ranges: %s" % (e))
+
+        return event_ranges
+
+    def shouldCleanupOS(self, job):
+        """ Should the OS be cleaned up? """
+
+        status = False
+
+        # Only clean up the OS if the merge job finished correctly and if it an event service merge job
+        if job.eventServiceMerge and job.result[1] == 0 and job.result[2] == 0:
+            status = True
+
+        return status
+
+    def cleanupOS(self, inFiles, si):
+        """ Removed merged files from the object store """
+
+        status = False
+
+        # Generate a proper file list
+        for filename in inFiles:
+            # Is this a log file or a pre-merged event service file? Determine the bucket accordingly
+            if ".log." in filename:
+                mode = "logs"
+            else:
+                mode = "eventservice"
+
+            # Generate a proper bucket endpoint
+            path = si.getObjectstorePath(mode)
+            from FileHandling import getHashedBucketEndpoint
+            hashed_endpoint = getHashedBucketEndpoint(path, file_name)
+
+        return status
 
 # main process starts here
 if __name__ == "__main__":
@@ -1166,6 +1332,7 @@ if __name__ == "__main__":
 
         tolog("Current job workdir is: %s" % os.getcwd())
         tolog("Site workdir is: %s" % jobSite.workdir)
+
         # get the experiment object
         thisExperiment = getExperiment(runJob.getExperiment())
         tolog("RunJob will serve experiment: %s" % (thisExperiment.getExperiment()))
@@ -1174,7 +1341,6 @@ if __name__ == "__main__":
         if runJob.getCache():
             thisExperiment.setCache(runJob.getCache())
 
-        region = readpar('region')
         JR = JobRecovery()
         try:
             job = Job.Job()
@@ -1293,7 +1459,10 @@ if __name__ == "__main__":
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
         if job.inFiles != ['']:
-            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
+            hasInput = True
+        else:
+            hasInput = False
+        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput)
 
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
         #runJob.copyInputForFiles(job.workdir)
@@ -1333,6 +1502,10 @@ if __name__ == "__main__":
         job.jobState = "stageout"
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
+        # are there any additional output files created by the trf/payload?
+        job.outFiles, job.destinationDblock, job.scopeOut = discoverAdditionalOutputFiles(job.outFiles, job.workdir, job.destinationDblock, job.scopeOut)
+        tolog("outFiles = %s" % str(job.outFiles))
+
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
         if ec:
@@ -1365,26 +1538,64 @@ if __name__ == "__main__":
         # move output files from workdir to local DDM area
         finalUpdateDone = False
         if outs:
+
+            # If clone job, make sure that stage-out should be performed
+            if job.cloneJob == "storeonce":
+                try:
+                    # If the event is still available, the go ahead and run the payload
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
+
+                    # Create a list of event ranges from the downloaded message
+                    event_ranges = runJob.extractEventRanges(message)
+
+                    # Are there any event ranges?
+                    if event_ranges == []:
+                        tolog("!!WARNING!!2424!! This clone job was already executed and stored")
+                        exitMsg = "Already executed/stored clone job"
+                        res_tuple = (1, exitMsg)
+                        res = (res_tuple[0], res_tuple[1], exitMsg)
+                        job.result[0] = exitMsg
+                        job.result[1] = 0 # transExitCode
+                        job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+                        job.pilotErrorDiag = exitMsg
+                        runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+                    else:
+                        tolog("Ok to stage out clone job")
+                except Exception, e:
+                    tolog("!1WARNING!!2324!! Exception caught: %s" % (e))
+
             tolog("Setting stage-out state until all output files have been copied")
             job.setState(["stageout", 0, 0])
             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
-            # stage-out output files
+            # Stage-out output files
             ec, job, rf, latereg = runJob.stageOut(job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo)
-            # error handling
+            # Error handling
             if job.result[0] == "finished" or ec == error.ERR_PUTFUNCNOCALL:
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
             else:
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True, latereg=latereg)
             if ec == error.ERR_NOSTORAGE:
-                # update the current file states for all files since nothing could be transferred
+                # Update the current file states for all files since nothing could be transferred
                 updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="not_transferred")
                 dumpFileStates(runJob.getParentWorkDir(), job.jobId)
 
             finalUpdateDone = True
             if ec != 0:
                 runJob.sysExit(job, rf)
-            # (stage-out ends here) .......................................................................
+
+        # (Stage-out ends here) .......................................................................
+
+        # Object store cleanups .......................................................................
+
+        # Only execute this step for merge jobs and if the order is given
+        if runJob.shouldCleanupOS(job):
+
+            # Go ahead and clean up the OS
+            # status = runJob.cleanupOS(job.inFiles, si)
+            pass
+
+        # (Object store cleanups end here) ............................................................
 
         job.setState(["finished", 0, 0])
         if not finalUpdateDone:
@@ -1401,7 +1612,7 @@ if __name__ == "__main__":
             pilotErrorDiag = "Exception caught in runJob: %s" % str(errorMsg)
 
         if 'format_exc' in traceback.__all__:
-            pilotErrorDiag += ", " + traceback.format_exc()    
+            pilotErrorDiag += ", " + traceback.format_exc()
 
         try:
             tolog("!!FAILED!!3001!! %s" % (pilotErrorDiag))
@@ -1441,6 +1652,3 @@ if __name__ == "__main__":
         runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag, docleanup=False)
 
     # end of runJob
-
-    
-    

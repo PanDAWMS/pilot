@@ -1,9 +1,13 @@
 
+__author__    = "Andre Merzky"
+__copyright__ = "Copyright 2012-2013, The SAGA Project"
+__license__   = "MIT"
+
+
 import time
 
-import redis_ordered_dict   as rod
-import saga.utils.threads   as sut
-
+import threading
+import redis_ordered_dict    as rod
 
 CACHE_DEFAULT_SIZE = 10000
 CACHE_DEFAULT_TTL  = 1.0    # 1 second
@@ -28,13 +32,14 @@ class Cache :
         self.size   = size
         self.ttl    = ttl
         self.dict   = rod.OrderedDict ()
-        self.lock   = sut.RLock ()
+        self.lock   = threading.RLock ()
         self.logger = logger
         self.hit    = 0
         self.miss   = 0
 
         # start a thread which, with low priority, cleans out the dict now and
         # then (pops items until a live one is found
+
 
     # ----------------------------------------------------------------
     #
@@ -46,6 +51,8 @@ class Cache :
         print " miss: %5d" % self.miss
         print self.dict.keys()
         print " ---------------------------------------------- "
+
+
     # ----------------------------------------------------------------
     #
     def get (self, key) :
@@ -67,7 +74,6 @@ class Cache :
 
                 else :
                     # entry timed out
-                    self.miss += 1
                     del self.dict[key]
 
             # cache entry not found, or timed out
@@ -101,5 +107,5 @@ class Cache :
     # ----------------------------------------------------------------
 
 
-# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
 

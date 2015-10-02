@@ -23,6 +23,7 @@ from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
+from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize
 
 import inspect
 
@@ -138,7 +139,10 @@ class Monitor:
                             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_STDOUTTOOBIG
                             self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                             self.__skip = True
-    
+
+                            # store the error info
+                            updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
                             # remove the payload stdout file after the log extracts have been created
     
                             # remove any lingering input files from the work dir
@@ -150,7 +154,7 @@ class Monitor:
                 else:
                     pUtil.tolog("(Skipping file size check of payload stdout file (%s) since it has not been created yet)" % (_stdout))
 
-    def __getMaxWorkDirSize(self):
+    def __getMaxAllowedWorkDirSize(self):
         """
         Return the maximum allowed size of the work directory for user jobs
         """
@@ -169,60 +173,56 @@ class Monitor:
 
     def __checkWorkDir(self):
         """
-        Check the size of the pilot work dir for use jobs
+        Check the size of the work directory
         """
         
         # get the limit of the workdir
-        maxwdirsize = self.__getMaxWorkDirSize()
+        maxwdirsize = self.__getMaxAllowedWorkDirSize()
     
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
             # get size of workDir
-            workDir = "%s" % (self.__env['jobDic'][k][1].workdir)
+            workDir = self.__env['jobDic'][k][1].workdir
             if os.path.exists(workDir):
-                try:
-                    # get the size in kB
-                    size_str = commands.getoutput("du -sk %s" % (workDir))
-                except Exception, e:
-                    pUtil.tolog("Warning: failed to check remaining space: %s, %s" % (workDir, str(e)))
-                else:
-                    # e.g., size_str = "900\t/scratch-local/nilsson/pilot3z"
-                    try:
-                        # remove tab and path, and convert to int (and B)
-                        size = int(size_str.split("\t")[0])*1024
-                    except Exception, e:
-                        pUtil.tolog("Warning: failed to convert to int: %s" % str(e))
-                    else:
-                        # is user dir within allowed size limit?
-                        if size > maxwdirsize:
-                            pilotErrorDiag = "Work directory (%s) too large: %d B (must be < %d B)" %\
-                                             (workDir, size, maxwdirsize)
-                            pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
-    
-                            # kill the job
-                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                            self.__env['jobDic'][k][1].result[0] = "failed"
-                            self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
-                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_USERDIRTOOLARGE
-                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
-                            self.__skip = True
+                size = getDirSize(workDir)
+                if size > 0:
+                    # is user dir within allowed size limit?
+                    if size > maxwdirsize:
+                        pilotErrorDiag = "Work directory (%s) too large: %d B (must be < %d B)" %\
+                                         (workDir, size, maxwdirsize)
+                        pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
 
-                            # remove any lingering input files from the work dir
-                            if self.__env['jobDic'][k][1].inFiles:
-                                if len(self.__env['jobDic'][k][1].inFiles) > 0:
-                                    ec = pUtil.removeFiles(self.__env['jobDic'][k][1].workdir, self.__env['jobDic'][k][1].inFiles)
-                        else:
-                            pUtil.tolog("Checked size of user analysis work directory %s: %d B (within %d B limit)" 
-                                        %(workDir, size, maxwdirsize))
+                        # kill the job
+                        killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                        self.__env['jobDic'][k][1].result[0] = "failed"
+                        self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
+                        self.__env['jobDic'][k][1].result[2] = self.__error.ERR_USERDIRTOOLARGE
+                        self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                        self.__skip = True
+
+                        # store the error info
+                        updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
+                        # remove any lingering input files from the work dir
+                        if self.__env['jobDic'][k][1].inFiles:
+                            if len(self.__env['jobDic'][k][1].inFiles) > 0:
+                                ec = pUtil.removeFiles(self.__env['jobDic'][k][1].workdir, self.__env['jobDic'][k][1].inFiles)
+                    else:
+                        pUtil.tolog("Size of work directory %s: %d B (within %d B limit)" % (workDir, size, maxwdirsize))
+
+                    # Store the measured disk space (the max value will later be sent with the job metrics)
+                    status = storeWorkDirSize(size, self.__env['pilot_initdir'], self.__env['jobDic'])
+                else:
+                    pUtil.tolog("Skipping size of of workDir since it could not be measured")
             else:
                 pUtil.tolog("(Skipping size check of workDir since it has not been created yet)")
-    
+
     def __checkLocalSpace(self, disk):
-        """ check the remaining local disk space during running """
-    
+        """ Check the remaining local disk space during running """
+
         spaceleft = int(disk)*1024**2 # B (node.disk is in MB)
         _localspacelimit = self.__env['localspacelimit'] * 1024 # B
-    
+
         # do we have enough local disk space to continue running the job?
         if spaceleft < _localspacelimit:
             pilotErrorDiag = "Too little space left on local disk to run job: %d B (need > %d B)" % (spaceleft, _localspacelimit)
@@ -237,6 +237,9 @@ class Monitor:
                 self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                 self.__skip = True
 
+                # store the error info
+                updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
                 # remove any lingering input files from the work dir
                 if self.__env['jobDic'][k][1].inFiles:
                     if len(self.__env['jobDic'][k][1].inFiles) > 0:
@@ -246,7 +249,7 @@ class Monitor:
     
     def __check_remaining_space(self):
         """
-        every ten minutes, check the remaining disk space and size of user workDir (for analysis jobs)
+        Every ten minutes, check the remaining disk space, the size of the workDir
         and the size of the payload stdout file
         """
         if (int(time.time()) - self.__env['curtime_sp']) > self.__env['update_freq_space']:
@@ -258,8 +261,7 @@ class Monitor:
             self.__skip = self.__checkLocalSpace(self.__env['workerNode'].disk)
 
             # check the size of the workdir for user jobs
-            if self.__env['uflag']:
-                self.__skip = self.__checkWorkDir()
+            self.__skip = self.__checkWorkDir()
 
             # update the time for checking disk space
             self.__env['curtime_sp'] = int(time.time())
@@ -314,7 +316,7 @@ class Monitor:
         pUtil.tolog("!!WARNING!!1999!! The pilot has decided to kill the job since there is less than 10 minutes of the allowed batch system running time")
         pilotErrorDiag = "Reached maximum batch system time limit"
         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
-    
+
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
             # kill the job
@@ -324,6 +326,9 @@ class Monitor:
             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_REACHEDMAXTIME
             self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+
+            # store the error info
+            updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
     
     def __monitor_processes(self):
         # monitor the number of running processes and the pilot running time
@@ -339,8 +344,11 @@ class Monitor:
                         % (time_passed_since_pilot_startup, self.__env['maxtime']))
             if (self.__env['maxtime'] - time_passed_since_pilot_startup) < 10*60 and not self.__env['stageout']:
                 # reached maximum batch system time limit
-                self.__failMaxTimeJob()
-                self.__skip = True
+                if not "NO_PILOT_TIME_LIMIT_KILL" in pUtil.readpar('catchall'):
+                    self.__failMaxTimeJob()
+                    self.__skip = True
+                else:
+                    pUtil.tolog("Max allowed batch system time passed (%d s) - but pilot will not kill job since NO_PILOT_TIME_LIMIT_KILL is present in catchall field" % (time_passed_since_pilot_startup))
 
             # update the time for checking processes
             self.__env['curtime_proc'] = int(time.time())
@@ -394,6 +402,9 @@ class Monitor:
             self.__env['jobDic'][job_index][1].result[2] = rc
             self.__env['jobDic'][job_index][1].pilotErrorDiag = pilotErrorDiag
             self.__skip = True
+
+            # store the error info
+            updatePilotErrorReport(self.__env['jobDic'][job_index][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
             
     def __verify_output_sizes(self):
         # verify output file sizes every ten minutes
@@ -443,19 +454,24 @@ class Monitor:
             pilotErrorDiag += " (Job stuck in stage-out state)"
             pUtil.tolog("!!FAILED!!1999!! Job stuck in stage-out state: file copy time-out")
             job.result[2] = self.__error.ERR_PUTTIMEOUT
+            job.result[0] = "failed"
+            job.currentState = job.result[0]
         else:
             job.result[2] = self.__error.ERR_LOOPINGJOB
             job.result[0] = "failed"
             job.currentState = job.result[0]
             job.pilotErrorDiag = pilotErrorDiag
-    
+
+        # store the error info
+        updatePilotErrorReport(job.result[2], pilotErrorDiag, "1",  job.jobId, self.__env['pilot_initdir'])
+
         # remove any lingering input files from the work dir
         if job.inFiles:
             if len(job.inFiles) > 0:
                 ec = pUtil.removeFiles(job.workdir, job.inFiles)
-    
+
         return job
-        
+
     def __updateJobs(self):
         """ Make final server update for all ended jobs"""
     
@@ -504,7 +520,10 @@ class Monitor:
                     self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
                     self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PANDAKILL
                     self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
-    
+
+                    # store the error info
+                    updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
                 # did we receive a command to turn on debug mode?
                 if "debug" in self.__env['jobDic'][k][1].action.lower():
                     pUtil.tolog("Pilot received a command to turn on debug mode from the server")
@@ -575,6 +594,7 @@ class Monitor:
                                     "pandaJob" in _file or
                                     "runjob" in _file or
                                     "matched_replicas" in _file or
+                                    "memory_monitor" in _file or
                                     "DBRelease-" in _file):
                                 _files.append(_file)
     #                        else:
@@ -703,6 +723,7 @@ class Monitor:
     
         # convert local space to B and compare with the space limit
         spaceleft = int(disk)*1024**2 # B (node.disk is in MB)
+
         _localspacelimit = self.__env['localspacelimit0'] * 1024 # B
         pUtil.tolog("Local space limit: %d B" % (_localspacelimit))
         if spaceleft < _localspacelimit:
@@ -757,7 +778,7 @@ class Monitor:
 
     def __createJobWorkdir(self, job, stderr):
         """ Attempt to create the job workdir """
-    
+
         ec, errorText = job.mkJobWorkdir(self.__env['thisSite'].workdir)
         if ec != 0:
             job.setState(["failed", 0, self.__error.ERR_MKDIRWORKDIR])
@@ -774,8 +795,13 @@ class Monitor:
         else:
             pUtil.tolog("Created job workdir at %s" % (job.workdir))
             # copy the job def file into job workdir
-            pUtil.tolog(os.getcwd())
             copy("%s/Job_%s.py" % (os.getcwd(), job.jobId), "%s/newJobDef.py" % job.workdir)
+
+            # also copy the time stamp file if it exists
+            _path = os.path.join(self.__env['pilot_initdir'], 'START_TIME_%s' % (job.jobId))
+            if os.path.exists(_path):
+                copy(_path, job.workdir)
+                pUtil.tolog("File %s copied to workdir" % (_path))
 
             self.__storePilotInitdir(self.__env['job'].workdir, self.__env['pilot_initdir'])
     
@@ -823,7 +849,7 @@ class Monitor:
                     pUtil.tolog("!!WARNING!!1999!! Could not backup job definition: %s" % str(e))
         else:
             pUtil.tolog("!!WARNING!!1999!! Could not backup job definition since file %s does not exist" % (self.__env['pandaJobDataFileName']))
-            
+
     def updateTerminatedJobs(self):
         """ For multiple jobs, pilot may took long time collect logs. We need to heartbeat for these jobs. """
         for k in self.__env['jobDic'].keys():
@@ -842,7 +868,7 @@ class Monitor:
                     pUtil.tolog("!!WARNING!!1999!! updatePandaServer failed: %s" % (traceback.format_exc()))
                 finally:
                     self.__env['jobDic'][k][1].result = jobResult
-
+            
     def __cleanUpEndedJobs(self):
         """ clean up the ended jobs (if there are any) """
     
@@ -886,13 +912,13 @@ class Monitor:
                     prodJobDone = True
     
                 # for NG write the error code, if any
-                if pUtil.readpar('region') == "Nordugrid" and (perr != 0 or terr != 0):
+                if os.environ.has_key('Nordugrid_pilot') and (perr != 0 or terr != 0):
                     if perr != 0:
                         ec = perr
                     else:
                         ec = terr
                     pUtil.writeToFile(os.path.join(self.__env['thisSite'].workdir, "EXITCODE"), str(ec))
-   
+
                 if k == "prod" or (self.__env['jobDic'][k][0] != self.__env['jobDic']['prod'][0]):
                     # move this job from env['jobDic'] to zombieJobList for later collection
                     self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
@@ -1055,6 +1081,10 @@ class Monitor:
                 pUtil.tolog("Pilot was executed on host: %s" % (self.__env['workerNode'].nodename))
                 pUtil.fastCleanup(self.__env['thisSite'].workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
                 self.__env['return'] = ec
+
+                # store the error info
+                updatePilotErrorReport(ec, "Too little space left on local disk to run job", "1",  self.__env['job'].jobId, self.__env['pilot_initdir'])
+
                 return
 
             # make sure the pilot TCP server is still running
@@ -1192,6 +1222,10 @@ class Monitor:
                 self.__env['job'].result[0] = 'failed'
                 self.__env['job'].currentState = self.__env['job'].result[0]
                 self.__env['job'].result[2] = ec
+
+                # store the error info
+                updatePilotErrorReport(self.__env['job'].result[2], self.__env['job'].pilotErrorDiag, "1",  self.__env['job'].jobId, self.__env['pilot_initdir'])
+
                 pUtil.postJobTask(self.__env['job'], self.__env['thisSite'], 
                                   self.__env['workerNode'], self.__env['experiment'], 
                                   jr=False)
@@ -1255,6 +1289,9 @@ class Monitor:
                 else:
                     # copy all python files to workdir
                     pUtil.stageInPyModules(self.__env['thisSite'].workdir, self.__env['jobDic']["prod"][1].workdir)
+
+                    # update the job definition file (and env object) before using it in RunJob (if necessary)
+                    self.__env['job'] = thisExperiment.updateJobDefinition(self.__env['job'], self.__env['pandaJobDataFileName'])
 
                     # backup job definition
                     self.__backupJobDef()
@@ -1330,7 +1367,7 @@ class Monitor:
     
             # a bit more cleanup
             self.__wdog.collectZombieJob()
-
+    
             # call the cleanup function (only needed for multi-jobs)
             if self.__env['hasMultiJob']:
                 pUtil.cleanup(self.__wdog, self.__env['pilot_initdir'], True, self.__env['rmwkdir'])

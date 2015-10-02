@@ -95,7 +95,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
 
         s, pilotErrorDiag = self.verifyProxy(envsetup=_setup_str)
         if s != 0:
-            self.__sendReport('DONE', report)
+            self.prepareReport('DONE', report)
             return s, pilotErrorDiag
 
         tolog("gpfn: %s" % (gpfn))
@@ -126,7 +126,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "No such file or directory: %s" % (_ftp_gpfn)
                     tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
                     ec = error.ERR_NOSUCHFILE
-            self.__sendReport('NO_FILE', report)
+            self.prepareReport('NO_FILE', report)
             return ec, pilotErrorDiag
 
         if fsize != 0 or fchecksum != 0:
@@ -141,7 +141,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
             # get remote file size and checksum 
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return ec, pilotErrorDiag
 
             # compare remote and local file size
@@ -149,7 +149,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                                  (os.path.basename(dest_file), str(dstfsize), str(fsize))
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('FS_MISMATCH', report)
+                self.prepareReport('FS_MISMATCH', report)
                 return error.ERR_GETWRONGSIZE, pilotErrorDiag
 
             # compare remote and local file checksum
@@ -158,13 +158,13 @@ class GSIftpSiteMover(SiteMover.SiteMover):
                                  (csumtype, os.path.basename(gpfn), dstfchecksum, fchecksum)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 if csumtype == "adler32":
-                    self.__sendReport('AD_MISMATCH', report)
+                    self.prepareReport('AD_MISMATCH', report)
                     return error.ERR_GETADMISMATCH, pilotErrorDiag
                 else:
-                    self.__sendReport('MD5_MISMATCH', report)
+                    self.prepareReport('MD5_MISMATCH', report)
                     return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, pfn, destination, fsize=0, fchecksum=0, dsname='', extradirs='', **pdict):
@@ -207,7 +207,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
 
         s, pilotErrorDiag = self.verifyProxy(envsetup=_setup_str, limit=2)
         if s != 0:
-            self.__sendReport('PROXY_FAIL', report)
+            self.prepareReport('PROXY_FAIL', report)
             return self.put_data_retfail(s, pilotErrorDiag)
 
         # Make the dir structure locally and do a recursive copy
@@ -222,7 +222,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
         except Exception, e:
             pilotErrorDiag = "Could not create dirs: %s" % (_tmpdir)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            self.__sendReport('MKDIR_FAIL', report)
+            self.prepareReport('MKDIR_FAIL', report)
             return self.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag) 
 
         _tmpfulldir = os.path.join(_tmpdir, os.path.join(extradirs, dsname))
@@ -247,7 +247,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(_tmpfname)
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return self.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -274,22 +274,8 @@ class GSIftpSiteMover(SiteMover.SiteMover):
             else:
                 pilotErrorDiag = "Error copying the file: %d, %s " % (s, o)
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                self.__sendReport('COPY_FAIL', report)
-                return self.put_data_retfail(s, pilotErrorDiag)
+                self.prepareReport('COPY_FAIL', report)
+                return self.put_data_retfail(s, pilotErrorDiag, surl=_ftp_destination)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, fsize, fchecksum, self.arch_type
-
-
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

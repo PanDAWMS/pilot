@@ -8,7 +8,7 @@ from subprocess import Popen, PIPE
 import SiteMover
 from futil import *
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, getDirectAccessDic, extractPattern, getSiteInformation 
+from pUtil import tolog, readpar, getDirectAccessDic, extractPattern, getSiteInformation
 from timed_command import timed_command
 from FileStateClient import updateFileState
 try:
@@ -50,12 +50,12 @@ class aria2cSiteMover(SiteMover.SiteMover):
     has_chmod = False
     timeout = 3600
     """ get proxy """
-    
+
     try:
         sslCert = os.environ['X509_USER_PROXY']
     except:
         sslCert = ""
-    try: 
+    try:
         sslKey = os.environ['X509_USER_PROXY']
     except:
         sslKey = ""
@@ -74,13 +74,16 @@ class aria2cSiteMover(SiteMover.SiteMover):
         site_name = os.environ['SITE_NAME']
     except:
         site_name = ""
-               
+
     def __init__(self, setup_path, *args, **kwrds):
         self._setup = setup_path
         self.copyCommand = 'aria2c'
         self.commandInPATH()
 	rucio_account=self.rucio_account
 	tolog("Rucio account: %s" %(rucio_account))
+	if rucio_account == "":
+		tolog("!!FAILED!!2999!! Rucio account not set!")
+		raise Exception("!!FAILED!!2999!! Rucio account not set!")
 	cmd="curl -1 -i -H \"X-Rucio-Account: $RUCIO_ACCOUNT\" --cacert %s --cert %s --key %s --capath %s -X GET https://rucio-auth-prod.cern.ch/auth/x509_proxy| grep 'X-Rucio-Auth-Token:'"%(self.sslKey,self.sslKey,self.sslKey,self.sslCertDir)
         tolog("Command to be launched: %s" %(cmd))
         token_rucio_cmd=Popen(cmd,stdout=PIPE,stderr=PIPE, shell=True)
@@ -97,14 +100,20 @@ class aria2cSiteMover(SiteMover.SiteMover):
 
 	   if os.path.exists('token_file'):
     		os.remove('token_file')
-	   token_file=open('token_file', 'w')
-	   token_file.write(token_rucio)
+	   try:
+			token_file=open('token_file', 'w')
+	   except IOError, e:
+            tolog ("!!WARNING!! Failed to create file: %s"%(e))
+            raise Exception("!!FAILED!!1099!! Cannot create file for registering token!")
+	   else:
+			token_file.write(token_rucio)
 	else:
-	   tolog("In __init__: Std error from curl: %s" %(stderr))
-           tolog("!!WARNING!!2999!! Cannot get Rucio token!")
+		tolog("In __init__: Std error from curl: %s" %(stderr))
+		tolog("!!FAILED!!2999!! Cannot get Rucio token!")
+		raise Exception("!!FAILED!!2999!! Cannot get Rucio token!")
 
     def commandInPATH(self):
-        _cmd_str = 'which %s'%self.copyCommand 
+        _cmd_str = 'which %s'%self.copyCommand
         tolog("Executing command: %s" % (_cmd_str))
         s, o = commands.getstatusoutput(_cmd_str)
         if s != 0:
@@ -115,13 +124,13 @@ class aria2cSiteMover(SiteMover.SiteMover):
           self.copyCommand = cvmfs_aria2c
         else:
           tolog("aria2c not in PATH or %s"%cvmfs_aria2c)
-           
+
     def get_timeout(self):
         return self.timeout
 
     def check_space(self, ub):
         """ For when space availability is not verifiable """
-        return 999999        
+        return 999999
     def getSurl2httpsMap(self):
         """This will come from AGIS but for now from a url, wih fallback to hard-coded value"""
         s2hurl = 'http://walkerr.web.cern.ch/walkerr/surl2https.py'
@@ -129,16 +138,16 @@ class aria2cSiteMover(SiteMover.SiteMover):
           u = urllib2.urlopen(s2hurl)
           exec u.read()
         except:
-          tolog('Problem getting surl2https map from: %s'%s2hurl)  
-          surl2https_map = {}  
+          tolog('Problem getting surl2https map from: %s'%s2hurl)
+          surl2https_map = {}
         if len(surl2https_map) > 0:
-          tolog('Using surl2https map from %s of length %d'%(s2hurl,len(surl2https_map)))  
+          tolog('Using surl2https map from %s of length %d'%(s2hurl,len(surl2https_map)))
           self.surl2https_map = surl2https_map
         else:
           tolog('surl2https_map not set or zero length. Using default.')
           self.surl2https_map = {
               'atlassrm-fzk.gridka.de':('srm://atlassrm-fzk.gridka.de(:8443/srm/managerv2\?SFN=)*',
-                                        'https://f01-060-114-e.gridka.de:2880'),            
+                                        'https://f01-060-114-e.gridka.de:2880'),
               'srm.ndgf.org':('srm://srm.ndgf.org(:8443/srm/managerv2\?SFN=)*','https://fozzie.ndgf.org:2881'),
               'srm.grid.sara.nl':('srm://srm.grid.sara.nl(:8443/srm/managerv2\?SFN=)*','https://bee34.grid.sara.nl'),
               'lcg-lrz-se.lrz-muenchen.de':('srm://lcg-lrz-se.lrz.de(:8443/srm/managerv2\?SFN=)*',
@@ -148,7 +157,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
               'golias100.farm.particle.cz':('srm://golias100.farm.particle.cz','https://golias100.farm.particle.cz'),
               'grid-se.physik.uni-wuppertal.de':('srm://grid-se.physik.uni-wuppertal.de(:8443/srm/managerv2\?SFN=)*/pnfs/physik.uni-wuppertal.de/data','https://grid-se.physik.uni-wuppertal.de:2881')
            }
-                    
+
 
     def surls2metalink(self,replicas,metalinkFile):
         """ Convert list of replicas (of multiple files) to metalink
@@ -171,12 +180,17 @@ class aria2cSiteMover(SiteMover.SiteMover):
         for guid in replicas.keys():
           reps = replicas[guid]
           tolog("Got replicas=%s for guid=%s" % (str(reps), guid))
-	
-        token_file=open('token_file', 'r')
-        token_rucio=token_file.readline() 
-	pos2print=token_rucio.find("CN")
-        token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
-        tolog("Token I am using: %s" %(token_rucio2print))
+
+        try:
+			token_file=open('token_file', 'r')
+        except IOError, e:
+			tolog ("!!WARNING!! Failed to open file: %s"%(e))
+			raise Exception("!!FAILED!!1099!! Cannot open file with token!")
+        else:
+			token_rucio=token_file.readline()
+			pos2print=token_rucio.find("CN")
+			token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
+			tolog("Token I am using: %s" %(token_rucio2print))
 	httpredirector = readpar('httpredirector')
 	if not httpredirector:
             cmd = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
@@ -194,10 +208,11 @@ class aria2cSiteMover(SiteMover.SiteMover):
         tolog("curl command to be executed: %s" %(cmd2print))
         metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
 	metalink, stderr=metalink_cmd.communicate()
-        tolog("Metalink produced by rucio %s" %(metalink))
+        tolog("Metalink given by rucio %s" %(metalink))
 	if not "location" in metalink:
            tolog("In surls2metalink: command std error: %s" %(stderr))
            tolog("!!WARNING!!1099!! No metalink to download file, or error in metalink!")
+           raise Exception("!!FAILED!!1099!! No metalink to download file, or error in metalink!")
 	else:
            mlfile = open(metalinkFile,'w')
            mlfile.write(metalink)
@@ -209,7 +224,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         if srmhost:
             return srmhost.group(1)
         else:
-            return None  
+            return None
 
 
     def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, fscope=None, **pdict):
@@ -219,22 +234,23 @@ class aria2cSiteMover(SiteMover.SiteMover):
         sslCert = self.sslCert
         sslKey = self.sslKey
         sslCertDir = self.sslCertDir
-        
+
         # used aria2c options:
         # --certificate Client certificate file and password (SSL)(proxy)
-        # --private-key user proxy again 
+        # --private-key user proxy again
         # --ca-certificate: concatenate *.0 in cert dir to make bundle
         # --out: <file> Write output to <file> instead of stdout
         # --dir: output directory, needed when multiple files(metalink)
         # --continue: if file is already there (from previous) then success
         # --auto-file-renaming=false : don't rename existing file
-        
+
         error = PilotErrors()
         pilotErrorDiag = ""
 
         # Get input parameters from pdict
         token = pdict.get('token', None)
         jobId = pdict.get('jobId', '')
+        scope = pdict.get('scope', '')
         workDir = pdict.get('workDir', '')
         proxycheck = pdict.get('proxycheck', False)
 
@@ -264,7 +280,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         #    # do we have a valid proxy?
         #    s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup)
         #    if s != 0:
-        #        self.__sendReport('PROXYFAIL', report)
+        #        self.prepareReport('PROXYFAIL', report)
         #        return s, pilotErrorDiag
         #else:
         #    tolog("Proxy verification turned off")
@@ -294,7 +310,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('FOUND_ROOT', report)
+                    self.prepareReport('FOUND_ROOT', report)
                     if useFileStager:
                         updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                     else:
@@ -308,8 +324,8 @@ class aria2cSiteMover(SiteMover.SiteMover):
         # Build ca bundle if not already there
         cabundleFile='cabundle.pem'
         if not os.path.exists(cabundleFile):
-           _cmd_str = 'cat %s/*.0 > %s'%(sslCertDir,cabundleFile)  
-           tolog("Executing command: %s" % (_cmd_str))                        
+           _cmd_str = 'cat %s/*.0 > %s'%(sslCertDir,cabundleFile)
+           tolog("Executing command: %s" % (_cmd_str))
            s, o = commands.getstatusoutput(_cmd_str)
 
 
@@ -318,7 +334,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
 
         if os.path.exists('AllInput.xml.meta4'):
           metalink='AllInput.xml.meta4'
-        else:    
+        else:
 	  tolog("Getting metalink from Rucio")
           rep = replica()
           rep.sfn = gpfn
@@ -328,32 +344,32 @@ class aria2cSiteMover(SiteMover.SiteMover):
           if fscope:
             rep.scope = fscope
           else:
-            scope = extractPattern(gpfn,r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
-            rep.scope = scope.replace("/",".") 
+            #scope = extractPattern(gpfn,r'\/rucio\/(.+)\/[a-zA-Z0-9]{2}\/[a-zA-Z0-9]{2}\/')
+            rep.scope = scope.replace("/",".")
           replicas = {guid:[rep]}
-        
+
           self.surls2metalink(replicas,'oneInput.xml.meta4')
           metalink='oneInput.xml.meta4'
 
-           
+
         # build the copy command
-	#search how many links are available for download	
+	#search how many links are available for download
 	word_occour=0
 	metaL_file= open(metalink)
 	for line in metaL_file:
 	   for word in line.strip().split():
 		if word in ("<url"):
-			word_occour +=1 
-	tolog("number of links: %s, using only the first" % (str(word_occour)))                        
+			word_occour +=1
+	tolog("number of links: %s, using only the first" % (str(word_occour)))
 
         #--check-certificate=false makes it easier(sles11)
         _cmd_str = '%s -j 1 --ca-certificate=%s --certificate=%s --private-key=%s --auto-file-renaming=false --continue --server-stat-of=aria2cperf.txt %s'%(self.copyCommand, cabundleFile,sslCert,sslCert,metalink)
 
-        
+
         # invoke the transfer commands
         report['relativeStart'] = time()
         report['transferStart'] = time()
-        tolog("Executing command: %s" % (_cmd_str))                        
+        tolog("Executing command: %s" % (_cmd_str))
         s, o = commands.getstatusoutput(_cmd_str)
         tolog(o)
         if s != 0:
@@ -363,7 +379,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
           tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
           ec = error.ERR_STAGEINFAILED
           return ec, pilotErrorDiag
-        
+
         report['validateStart'] = time()
 
         # get the checksum type (md5sum or adler32)
@@ -382,10 +398,10 @@ class aria2cSiteMover(SiteMover.SiteMover):
             else:
                 csumtype = "default"
 
-            # get remote file size and checksum 
+            # get remote file size and checksum
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return ec, pilotErrorDiag
 
             # compare remote and local file size
@@ -393,7 +409,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                                  (os.path.basename(gpfn), str(dstfsize), str(fsize))
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('FS_MISMATCH', report)
+                self.prepareReport('FS_MISMATCH', report)
                 return error.ERR_GETWRONGSIZE, pilotErrorDiag
 
             # compare remote and local file checksum
@@ -405,14 +421,14 @@ class aria2cSiteMover(SiteMover.SiteMover):
                 self.reportFileCorruption(gpfn)
 
                 if csumtype == "adler32":
-                    self.__sendReport('AD_MISMATCH', report)
+                    self.prepareReport('AD_MISMATCH', report)
                     return error.ERR_GETADMISMATCH, pilotErrorDiag
                 else:
-                    self.__sendReport('MD5_MISMATCH', report)
+                    self.prepareReport('MD5_MISMATCH', report)
                     return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -462,7 +478,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(source, csumtype="adler32")
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return self.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
@@ -480,18 +496,18 @@ class aria2cSiteMover(SiteMover.SiteMover):
         #if proxycheck:
         #    s, pilotErrorDiag = self.verifyProxy(envsetup=envsetup, limit=2)
         #    if s != 0:
-        #        self.__sendReport('NO_PROXY', report)
+        #        self.prepareReport('NO_PROXY', report)
         #        return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
         #else:
         #    tolog("Proxy verification turned off")
         tolog("Proxy verification turned off")
 
         filename = os.path.basename(source)
-        
+
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
-            self.__sendReport(tracer_error, report)
+            self.prepareReport(tracer_error, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 	#here begins the new magic... from Vincenzo Lavorini
         sitemover = SiteMover.SiteMover()
@@ -516,7 +532,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         full_http_surl=v_address+v_path
         tolog("prova3 full_http__surl is %s" % (full_http_surl))
 
-        full_surl =surl 
+        full_surl =surl
         if full_surl[:len('token:')] == 'token:':
             # remove the space token (e.g. at Taiwan-LCG2) from the SURL info
             full_surl = full_surl[full_surl.index('srm://'):]
@@ -530,7 +546,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
 
         # get https surl
         #full_http_surl = full_surl.replace("srm://", "https://")
-        
+
         # get the DQ2 site name from ToA ---why? Is it needed?
         #try:
         #    _dq2SiteName = self.getDQ2SiteName(surl=putfile)
@@ -558,7 +574,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
         #except Exception, e:
         #    tolog("!!WARNING!!2990!! Exception caught: %s (%d, %s)" % (str(e), s, o))
         #    o = str(e)
-        
+
         #if s != 0:
         #    tolog("!!WARNING!!2990!! Command failed: %s" % (_cmd_str))
         #    o = o.replace('\n', ' ')
@@ -617,35 +633,35 @@ class aria2cSiteMover(SiteMover.SiteMover):
             if "Could not establish context" in o:
                 pilotErrorDiag += "Could not establish context: Proxy / VO extension of proxy has probably expired"
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('CONTEXT_FAIL', report)
+                self.prepareReport('CONTEXT_FAIL', report)
                 return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
             elif "No such file or directory" in o:
                 pilotErrorDiag += "No such file or directory: %s" % (o)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('NO_FILE_DIR', report)
+                self.prepareReport('NO_FILE_DIR', report)
                 return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
             elif "globus_xio: System error" in o:
                 pilotErrorDiag += "Globus system error: %s" % (o)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('GLOBUS_FAIL', report)
+                self.prepareReport('GLOBUS_FAIL', report)
                 return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag)
             else:
                 if len(o) == 0 and t >= self.timeout:
                     pilotErrorDiag += "Copy command self timed out after %d s" % (t)
                     tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                    self.__sendReport('CP_TIMEOUT', report)
+                    self.prepareReport('CP_TIMEOUT', report)
                     return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
                 else:
                     if len(o) == 0:
                         pilotErrorDiag += "Copy command returned error code %d but no output" % (ec)
                     else:
                         pilotErrorDiag += o
-                    self.__sendReport('CP_ERROR', report)
+                    self.prepareReport('CP_ERROR', report)
                     return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 	'''
         verified = False
 	#getting the remote checksum from Rucio:
-	token_file=open('token_file', 'r')
+	token_file=open('token_fle', 'r')
         token_rucio=token_file.readline()
 	pos2print=token_rucio.find("CN")
         token_rucio2print=token_rucio[:pos2print]+'(Hidden token)'
@@ -669,7 +685,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
                    tolog("HTTP redirector I am using: %s" %(httpredirector))
                    cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
                    cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
-   
+
            tolog("Getting remote checksum: command to be executed: %s" %(cmd2print))
            checksum_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
            remote_checksum, stderr=checksum_cmd.communicate()
@@ -679,7 +695,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
                pilotErrorDiag = "Cannot get the checksum of file on SE"
                tolog("!!WARNING!!1137!! %s" % (pilotErrorDiag))
                tolog("!!WARNING!!1137!! trial numebr %s" % (trial_n))
-	       time.sleep(3) 
+	       time.sleep(3)
                # try to get the remote checksum with lcg-get-checksum
                #remote_checksum = self.lcgGetChecksum(envsetup, self.timeout, full_surl)
                #if not remote_checksum:
@@ -699,10 +715,10 @@ class aria2cSiteMover(SiteMover.SiteMover):
                                  (csumtype, os.path.basename(dst_gpfn), remote_checksum, fchecksum)
                 tolog("!!WARNING!!1800!! %s" % (pilotErrorDiag))
                 if csumtype == "adler32":
-                    self.__sendReport('AD_MISMATCH', report)
+                    self.prepareReport('AD_MISMATCH', report)
                     return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=full_surl)
                 else:
-                    self.__sendReport('MD5_MISMATCH', report)
+                    self.prepareReport('MD5_MISMATCH', report)
                     return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=full_surl)
             else:
                 tolog("Remote and local checksums verified")
@@ -733,8 +749,8 @@ class aria2cSiteMover(SiteMover.SiteMover):
                 if remote_checksum == "NOSUCHFILE":
                     pilotErrorDiag = "The pilot will fail the job since the remote file does not exist"
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('NOSUCHFILE', report)
-                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
+                    self.prepareReport('NOSUCHFILE', report)
+                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag, surl=full_surl)
                 elif remote_checksum:
                     tolog("Remote checksum: %s" % (remote_checksum))
                 else:
@@ -745,10 +761,10 @@ class aria2cSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" %\
                                      (csumtype, _filename, remote_checksum, fchecksum)
                     if csumtype == "adler32":
-                        self.__sendReport('AD_MISMATCH', report)
+                        self.prepareReport('AD_MISMATCH', report)
                         return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=full_surl)
                     else:
-                        self.__sendReport('MD5_MISMATCH', report)
+                        self.prepareReport('MD5_MISMATCH', report)
                         return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=full_surl)
                 else:
                     tolog("Remote and local checksums verified")
@@ -765,7 +781,7 @@ class aria2cSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                                      (_filename, remote_fsize, str(fsize))
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('FS_MISMATCH', report)
+                    self.prepareReport('FS_MISMATCH', report)
                     return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=full_surl)
                 else:
                     tolog("Remote and local file sizes verified")
@@ -778,26 +794,11 @@ class aria2cSiteMover(SiteMover.SiteMover):
             # fail at this point
             pilotErrorDiag = "Neither checksum nor file size could be verified (failing job)"
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('NOFILEVERIFICATION', report)
-            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag)
+            self.prepareReport('NOFILEVERIFICATION', report)
+            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag, surl=full_surl)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, full_surl, fsize, fchecksum, self.arch_type
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
-
-
-
 
 if __name__ == "__main__":
 #  surl='https://fozzie.ndgf.org:2881/atlas/disk/atlashotdisk/ddo/DBRelease/v200202/ddo.000001.Atlas.Ideal.DBRelease.v200202/DBRelease-20.2.2.tar.gz'

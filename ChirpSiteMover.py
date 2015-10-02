@@ -79,7 +79,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('FOUND_ROOT', report)
+                    self.prepareReport('FOUND_ROOT', report)
                     return 0, self.__pilotErrorDiag
                 else:
                     tolog("Normal file transfer")
@@ -119,17 +119,17 @@ class ChirpSiteMover(SiteMover.SiteMover):
             if is_timeout(status):
                 self.__pilotErrorDiag = "lsm-get failed: time out after %d seconds" % (telapsed)
                 tolog(self.__warningStr % self.__pilotErrorDiag)            
-                self.__sendReport('GET_TIMEOUT', report)
+                self.prepareReport('GET_TIMEOUT', report)
                 return self.__error.ERR_GETTIMEOUT, self.__pilotErrorDiag
 
             status = os.WEXITSTATUS(status)
             self.__pilotErrorDiag = 'lsm-get failed (%s): %s' % (status, output)
             tolog(self.__warningStr % self.__pilotErrorDiag)            
-            self.__sendReport('COPY_FAIL', report)
+            self.prepareReport('COPY_FAIL', report)
             return self.__error.ERR_STAGEINFAILED, self.__pilotErrorDiag
 
         # the lsm-get command will compare the file size and checksum with the catalog values
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, self.__pilotErrorDiag
 
     def put_data(self, source, destination, fsize=0, fchecksum=0, **pdict):
@@ -171,7 +171,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
         if fsize == 0 or fchecksum == 0:
             ec, self.__pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(source, csumtype=csumtype)
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
                 return self.put_data_retfail(ec, self.__pilotErrorDiag)
 
         # do not transfer files larger than 50 MB except for CERNVM
@@ -252,30 +252,17 @@ class ChirpSiteMover(SiteMover.SiteMover):
             if is_timeout(status):
                 self.__pilotErrorDiag = "chirp_put failed: time out after %d seconds" % (telapsed)
                 tolog(self.__warningStr % self.__pilotErrorDiag)            
-                self.__sendReport('PUT_TIMEOUT', report)
-                return self.put_data_retfail(self.__error.ERR_PUTTIMEOUT, self.__pilotErrorDiag)
+                self.prepareReport('PUT_TIMEOUT', report)
+                return self.put_data_retfail(self.__error.ERR_PUTTIMEOUT, self.__pilotErrorDiag, surl=chirp_path)
 
             status = os.WEXITSTATUS(status)
             self.__pilotErrorDiag = 'chirp_put failed (%s): %s' % (status, output)
             tolog(self.__warningStr % self.__pilotErrorDiag)
-            self.__sendReport('COPY_FAIL', report)
-            return self.put_data_retfail(self.__error.ERR_STAGEOUTFAILED, self.__pilotErrorDiag)
+            self.prepareReport('COPY_FAIL', report)
+            return self.put_data_retfail(self.__error.ERR_STAGEOUTFAILED, self.__pilotErrorDiag, surl=chirp_path)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, self.__pilotErrorDiag, chirp_path, fsize, fchecksum, self.arch_type
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
-
 
 if __name__ == '__main__':
   sitemover = ChirpSiteMover()

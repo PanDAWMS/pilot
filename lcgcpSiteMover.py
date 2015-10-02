@@ -151,7 +151,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
+            self.prepareReport('RFCP_FAIL', report)
             return ec, pilotErrorDiag
 
         # get the experiment object
@@ -161,7 +161,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             # do we have a valid proxy?
             s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup)
             if s != 0:
-                self.__sendReport('PROXYFAIL', report)
+                self.prepareReport('PROXYFAIL', report)
                 return s, pilotErrorDiag
         else:
             tolog("Proxy verification turned off")
@@ -190,7 +190,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
-                    self.__sendReport('FOUND_ROOT', report)
+                    self.prepareReport('FOUND_ROOT', report)
                     if useFileStager:
                         updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                     else:
@@ -206,7 +206,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             except Exception, e:
                 pilotErrorDiag = "get_data() could not import lfc module: %s" % str(e)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                self.__sendReport('LFC_IMPORT', report)
+                self.prepareReport('LFC_IMPORT', report)
                 return error.ERR_GETLFCIMPORT, pilotErrorDiag
 
             os.environ['LFC_HOST'] = readpar('lfchost')
@@ -216,12 +216,12 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Failed to get LFC replicas: %s" % str(e)
                 tolog("!!WARNING!!2990!! Exception caught: %s" % (pilotErrorDiag))
                 tolog("Mover get_data finished (failed)")
-                self.__sendReport('NO_LFC_REPS', report)
+                self.prepareReport('NO_LFC_REPS', report)
                 return error.ERR_FAILEDLFCGETREPS, pilotErrorDiag
             if ret != 0:
                 pilotErrorDiag = "Failed to get replicas: %d, %s" % (ret, res)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('NO_REPS', report)
+                self.prepareReport('NO_REPS', report)
                 return error.ERR_FAILEDLFCGETREPS, pilotErrorDiag
             else:
                 # extract the filesize and checksum
@@ -231,7 +231,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                 except Exception, e:
                     pilotErrorDiag = "lfc_getreplicas did not return filesize/checksum: %s" % str(e)
                     tolog("!!WARNING!!2990!! Exception caught: %s" % (pilotErrorDiag))
-                    self.__sendReport('NO_LFC_FS_CS', report)
+                    self.prepareReport('NO_LFC_FS_CS', report)
                     return error.ERR_FAILEDLFCGETREPS, pilotErrorDiag
                 else:
                     tolog("filesize: %s" % str(fsize))
@@ -243,7 +243,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         result = self.core_get_data(envsetup, token, getfile, fullname, experiment)
         report['validateStart'] = time()
         if result:
-            self.__sendReport('CORE_FAIL', report)
+            self.prepareReport('CORE_FAIL', report)
 
             # remove the local file before any get retry is attempted
             _status = self.removeLocal(fullname)
@@ -268,10 +268,10 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             else:
                 csumtype = "default"
 
-            # get remote file size and checksum 
+            # get remote file size and checksum
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
 
                 # remove the local file before any get retry is attempted
                 _status = self.removeLocal(fullname)
@@ -285,7 +285,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                                  (os.path.basename(gpfn), str(dstfsize), str(fsize))
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('FS_MISMATCH', report)
+                self.prepareReport('FS_MISMATCH', report)
 
                 # remove the local file before any get retry is attempted
                 _status = self.removeLocal(fullname)
@@ -309,14 +309,14 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                     tolog("!!WARNING!!1112!! Failed to remove local file, get retry will fail")
 
                 if csumtype == "adler32":
-                    self.__sendReport('AD_MISMATCH', report)
+                    self.prepareReport('AD_MISMATCH', report)
                     return error.ERR_GETADMISMATCH, pilotErrorDiag
                 else:
-                    self.__sendReport('MD5_MISMATCH', report)
+                    self.prepareReport('MD5_MISMATCH', report)
                     return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
     def put_data(self, pfn, destination, fsize=0, fchecksum=0, dsname='', extradirs='', **pdict):
@@ -353,15 +353,15 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         if dsname == '':
             pilotErrorDiag = "Dataset name not specified to put_data"
             tolog('!!WARNING!!2990!! %s' % (pilotErrorDiag))
-            self.__sendReport('DSN_UNDEF', report)
+            self.prepareReport('DSN_UNDEF', report)
             return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
 
         # preparing variables
         if fsize == 0 or fchecksum == 0:
             ec, pilotErrorDiag, fsize, fchecksum = self.getLocalFileInfo(pfn, csumtype="adler32")
             if ec != 0:
-                self.__sendReport('LOCAL_FILE_INFO_FAIL', report)
-                return self.put_data_retfail(ec, pilotErrorDiag) 
+                self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
+                return self.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
         report['filesize'] = fsize
@@ -371,8 +371,8 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
-            self.__sendReport('RFCP_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag) 
+            self.prepareReport('RFCP_FAIL', report)
+            return self.put_data_retfail(ec, pilotErrorDiag)
 
         # get the experiment object
         thisExperiment = getExperiment(experiment)
@@ -381,16 +381,16 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         if proxycheck:
             s, pilotErrorDiag = thisExperiment.verifyProxy(envsetup=envsetup, limit=2)
             if s != 0:
-                self.__sendReport('PROXY_FAIL', report)
+                self.prepareReport('PROXY_FAIL', report)
                 return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
         else:
             tolog("Proxy verification turned off")
 
         # get all the proper paths
-        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope)
+        ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl = si.getProperPaths(error, analysisJob, token, prodSourceLabel, dsname, filename, scope=scope, sitemover=self) # quick workaround
         if ec != 0:
-            self.__sendReport(tracer_error, report)
-            return self.put_data_retfail(ec, pilotErrorDiag)
+            self.prepareReport(tracer_error, report)
+            return self.put_data_retfail(ec, pilotErrorDiag, surl=dst_gpfn)
 
         lfclfn = os.path.join(lfcdir, lfn)
         # LFC LFN = /grid/atlas/dq2/testpanda/testpanda.destDB.dfb45803-1251-43bb-8e7a-6ad2b6f205be_sub01000492/
@@ -437,12 +437,12 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag = "Could not establish context: Proxy / VO extension of proxy has probably expired"
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
                 self.dumpExtendedProxy(envsetup)
-                self.__sendReport('CONTEXT_FAIL', report)
-                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
+                self.prepareReport('CONTEXT_FAIL', report)
+                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag, surl=full_surl)
             else:
                 pilotErrorDiag = "LFC setup and mkdir failed: %s" % (o)
-                self.__sendReport('LFC_SETUP_FAIL', report)
-                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                self.prepareReport('LFC_SETUP_FAIL', report)
+                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
 
         # determine which timeout option to use
         if self.isNewLCGVersion("%s lcg-cr" % (envsetup)):
@@ -475,7 +475,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         else:
             surl = putfile
             _cmd_str = '%s which lcg-cr; lcg-cr --version; lcg-cr --verbose --vo atlas %s -l %s -g %s -d %s file:%s' % (envsetup, timeout_option, lfclfn, guid, surl, fppfn)
-        
+
         # GoeGrid testing: _cmd_str = '%s which lcg-cr; lcg-cr --version; lcg-crXXX --verbose --vo atlas %s -l %s -g %s -d %s file:%s' % (envsetup, timeout_option, lfclfn, guid, surl, fppfn)
 
         tolog("Executing command: %s" % (_cmd_str))
@@ -505,11 +505,11 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                     pilotErrorDiag += " (failed to remove file) " # i.e. do not retry stage-out
 
             if exitcode == -1:
-                self.__sendReport('LFC_IMPORT_FAIL', report)
-                return self.put_data_retfail(error.ERR_PUTLFCIMPORT, pilotErrorDiag)
+                self.prepareReport('LFC_IMPORT_FAIL', report)
+                return self.put_data_retfail(error.ERR_PUTLFCIMPORT, pilotErrorDiag, surl=full_surl)
             elif exitcode != 0:
-                self.__sendReport('LFC_ADDCSUM_FAIL', report)
-                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag)
+                self.prepareReport('LFC_ADDCSUM_FAIL', report)
+                return self.put_data_retfail(error.ERR_LFCADDCSUMFAILED, pilotErrorDiag, surl=full_surl)
             else:
                 tolog('Successfully set filesize and checksum for %s' % (pfn))
         else:
@@ -527,31 +527,31 @@ class lcgcpSiteMover(SiteMover.SiteMover):
             if o.find("Could not establish context") >= 0:
                 pilotErrorDiag += "Could not establish context: Proxy / VO extension of proxy has probably expired"
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('CONTEXT_FAIL', report)
-                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag)
+                self.prepareReport('CONTEXT_FAIL', report)
+                return self.put_data_retfail(error.ERR_NOPROXY, pilotErrorDiag, surl=full_surl)
             elif o.find("No such file or directory") >= 0:
                 pilotErrorDiag += "No such file or directory: %s" % (o)
-                self.__sendReport('NO_FILE_DIR', report)
+                self.prepareReport('NO_FILE_DIR', report)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
             elif o.find("globus_xio: System error") >= 0:
                 pilotErrorDiag += "Globus system error: %s" % (o)
                 tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                self.__sendReport('GLOBUS_FAIL', report)
-                return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag)
+                self.prepareReport('GLOBUS_FAIL', report)
+                return self.put_data_retfail(error.ERR_PUTGLOBUSSYSERR, pilotErrorDiag, surl=full_surl)
             else:
                 if t >= self.timeout:
                     pilotErrorDiag += "Copy command self timed out after %d s" % (t)
                     tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-                    self.__sendReport('CP_TIMEOUT', report)
-                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag)
+                    self.prepareReport('CP_TIMEOUT', report)
+                    return self.put_data_retfail(error.ERR_PUTTIMEOUT, pilotErrorDiag, surl=full_surl)
                 else:
                     if len(o) == 0:
                         pilotErrorDiag += "Copy command returned error code %d but no output" % (s)
                     else:
                         pilotErrorDiag += o
-                    self.__sendReport('CP_ERROR', report)
-                    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag)
+                    self.prepareReport('CP_ERROR', report)
+                    return self.put_data_retfail(error.ERR_STAGEOUTFAILED, pilotErrorDiag, surl=full_surl)
 
         verified = False
 
@@ -584,11 +584,11 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
                 tolog("!!WARNING!!1800!! %s" % (pilotErrorDiag))
                 if csumtype == "adler32" or csumtype == "AD":
-                    self.__sendReport('AD_MISMATCH', report)
-                    return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
+                    self.prepareReport('AD_MISMATCH', report)
+                    return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=full_surl)
                 else:
-                    self.__sendReport('MD5_MISMATCH', report)
-                    return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
+                    self.prepareReport('MD5_MISMATCH', report)
+                    return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=full_surl)
             else:
                 tolog("Remote and local checksums verified")
                 verified = True
@@ -624,8 +624,8 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                         pilotErrorDiag += " (failed to remove file) " # i.e. do not retry stage-out
 
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('NOSUCHFILE', report)
-                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag)
+                    self.prepareReport('NOSUCHFILE', report)
+                    return self.put_data_retfail(error.ERR_NOSUCHFILE, pilotErrorDiag, surl=full_surl)
                 elif remote_checksum:
                     tolog("Remote checksum: %s" % (remote_checksum))
                 else:
@@ -645,11 +645,11 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                         pilotErrorDiag += " (failed to remove file) " # i.e. do not retry stage-out
 
                     if csumtype == "adler32":
-                        self.__sendReport('AD_MISMATCH', report)
-                        return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag)
+                        self.prepareReport('AD_MISMATCH', report)
+                        return self.put_data_retfail(error.ERR_PUTADMISMATCH, pilotErrorDiag, surl=full_surl)
                     else:
-                        self.__sendReport('MD5_MISMATCH', report)
-                        return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag)
+                        self.prepareReport('MD5_MISMATCH', report)
+                        return self.put_data_retfail(error.ERR_PUTMD5MISMATCH, pilotErrorDiag, surl=full_surl)
                 else:
                     tolog("Remote and local checksums verified")
                     verified = True
@@ -675,8 +675,8 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                         pilotErrorDiag += " (failed to remove file) " # i.e. do not retry stage-out
 
                     tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                    self.__sendReport('FS_MISMATCH', report)
-                    return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag)
+                    self.prepareReport('FS_MISMATCH', report)
+                    return self.put_data_retfail(error.ERR_PUTWRONGSIZE, pilotErrorDiag, surl=full_surl)
                 else:
                     tolog("Remote and local file sizes verified")
                     verified = True
@@ -699,10 +699,10 @@ class lcgcpSiteMover(SiteMover.SiteMover):
                 pilotErrorDiag += " (failed to remove file) " # i.e. do not retry stage-out
 
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            self.__sendReport('NOFILEVERIFICATION', report)
-            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag)
+            self.prepareReport('NOFILEVERIFICATION', report)
+            return self.put_data_retfail(error.ERR_NOFILEVERIFICATION, pilotErrorDiag, surl=full_surl)
 
-        self.__sendReport('DONE', report)
+        self.prepareReport('DONE', report)
         return 0, pilotErrorDiag, dst_gpfn, 0, 0, self.arch_type
 
     def useNoLFC(self, _stdout):
@@ -713,15 +713,3 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         else:
             nolfc = False
         return nolfc
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)

@@ -77,7 +77,6 @@ def set_environment():
     env['outputDir'] = ""                      # Location of output files (destination for mv site mover)
     env['jobIds'] = []                         # Global job id list
     env['stageoutStartTime'] = None            # Set when pilot receives "stageout" state message, used by looping job killer
-    env['lfcRegistration'] = True              # Should the pilot perform LFC registration?
     env['timefloor_default'] = None            # Time limit for multi-jobs in minutes (turned off by default)
     env['useCoPilot'] = False                  # CERNVM Co-Pilot framework (on: let Co-Pilot finish job, off: let pilot finish job (default))
     env['update_freq_server'] = 30*60          # Server update frequency, 30 minutes
