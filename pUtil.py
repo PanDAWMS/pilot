@@ -125,7 +125,6 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
     else:
         log = Logger(pilotlogFilename)
 
-    print msg
     if tofile:
         if label == 'INFO':
             log.info(msg)
@@ -140,6 +139,8 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
         else:
             log.warning('Unknown label: %s' % (label))
             log.info(msg)
+    else:
+        print msg
 
     # write any serious messages to stderr        
     if label == 'ERROR' or label == 'CRITICAL':

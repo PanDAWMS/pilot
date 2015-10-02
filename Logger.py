@@ -81,19 +81,19 @@ class Logger:
             self.log.addHandler(sh)
             loggerMap[modName] = self.log
 
-    def info(self,msg):
+    def info(self, msg):
         self.log.info(msg)
 
-    def debug(self,msg):
+    def debug(self, msg):
         self.log.debug(msg)
 
-    def warning(self,msg):
+    def warning(self, msg):
         self.log.warning(msg)
 
-    def error(self,msg):
+    def error(self, msg):
         self.log.error(msg)
 
-    def critical(self,msg):
+    def critical(self, msg):
         self.log.critical(msg)
 
     
