@@ -503,7 +503,10 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             if "dst:" in token:
                 token = token[len('dst:'):]
                 tolog("Dropped dst: part of space token descriptor; token=%s" % (token))
-                token = "ATLASGROUPDISK"
+                if 'DATADISK' in token:
+                    token = "ATLASDATADISK"
+                else:
+                    token = "ATLASGROUPDISK"
                 tolog("Space token descriptor reset to: %s" % (token))
 
             _cmd_str = '%s gfal-copy --verbose %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" -S %s file:%s %s' % (self._setup, timeout_option, token, source, destination)

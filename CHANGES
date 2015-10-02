@@ -158,6 +158,10 @@ Update from Danila Oleynik, Taylor Childers:
 - Updated RunJobFactory; replaced Mira with Argo
 - Added functions to serialize ARGO messages: serialize(), deserialize(), convert_unicode_string() (pUtil)
 
+GROUPDISK updates:
+- stageOutFile() updated (GFAL2SiteMover, LocalSiteMover)
+- put_data() updated (lcgcpSiteMover, lcgcp2SiteMover, curlSiteMover)
+
 REMOVE RunJobMira.py FROM DISTRIBUTION
 ADD TO DISTRIBUTION: ArgoJob, RunJobArgo, BalsamJob
 
