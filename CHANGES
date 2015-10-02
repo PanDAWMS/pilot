@@ -142,6 +142,7 @@ Created new global essentialPilotlogFilename (pUtil)
 Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
 Updated the tolog() function to use the new Logger module (pUtil)
 Added arguments label and essential to tolog() (pUtil)
+(Still using old tolog function)
 
 Logging changes:
 - Added new logging module to distribution: Logger.py with code constributions from Wen Guan (logging) and Jose Caballero (formatting)
