@@ -111,7 +111,7 @@ def appendToLog(txt):
         else:
             print "WARNING: Exception caught: %s" % e
 
-def tolog(msg, tofile=True, label='INFO', essential=False):
+def tologNew(msg, tofile=True, label='INFO', essential=False):
     """ Write message to pilot log and to stdout """
 
     # remove backquotes from the msg since they cause problems with batch submission of pilot
@@ -146,7 +146,7 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
     if label == 'ERROR' or label == 'CRITICAL':
         print >> sys.stderr, msg # write any FAILED messages to stderr
 
-def tologOLD(msg, tofile=True):
+def tolog(msg, tofile=True, label='INFO', essential=False):
     """ write date+msg to pilot log and to stdout """
 
     import inspect
