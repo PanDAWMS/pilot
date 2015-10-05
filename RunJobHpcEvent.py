@@ -1140,6 +1140,8 @@ class RunJobHpcEvent(RunJob):
                 filename = os.path.join(self.__pilotWorkingDir, file)
                 handle = open(filename)
                 for output_info in handle:
+                    if len(output_info)<2:
+                        continue
                     jobId, eventRangeID, status, output = output_info.split(" ")
                     if jobId not in self.__eventRanges:
                         self.__eventRanges[jobId] = {}
@@ -1405,8 +1407,9 @@ class RunJobHpcEvent(RunJob):
             path = os.path.join(self.__pilotWorkingDir, file)
             if os.path.isdir(path):
                 if file not in ['HPC', 'lib', 'radical', 'saga'] and not file.startswith("PandaJob_"):
-                    found_dirs[file] = path
-                    tolog("Found log dir %s" % path)
+                    if file == 'rank_0' or not file.startswith('rank_'):
+                        found_dirs[file] = path
+                        tolog("Found log dir %s" % path)
             else:
                 if not (file.endswith(".py") or file.endswith(".pyc")):
                     found_files[file] = path
@@ -1423,6 +1426,8 @@ class RunJobHpcEvent(RunJob):
                 except:
                     tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
             for file in found_files:
+                if '.dump.' in file and not file.startswith(str(jobId)):
+                    continue
                 path = found_files[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:
