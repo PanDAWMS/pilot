@@ -153,6 +153,7 @@ Time-out changes:
 - Updated timer command output (TimerCommand)
 - Protection added against no Popen process in run() (TimerCommand)
 - Converting exitcode to string in case it is not an integer in getProperSiterootAndCmtconfig() (ATLASExperiment)
+- Removed useless is_timeout variable (TimerCommand)
 
 Logging changes:
 - Added new logging module to distribution: Logger.py with code constributions from Wen Guan (logging) and Jose Caballero (formatting)
