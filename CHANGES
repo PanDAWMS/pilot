@@ -173,6 +173,20 @@ GROUPDISK updates:
 - stageOutFile() updated (GFAL2SiteMover, LocalSiteMover)
 - put_data() updated (lcgcpSiteMover, lcgcp2SiteMover, curlSiteMover)
 
+Merged with Wen's version:
+- Added EventStager module for HPC Nersc
+- Added GetJob module for getting multiple jobs
+- Update EventServerManager to let it run in a sub-process. Before it was running in the current process, in this case it cannot be switched to another job which is needed by multi-jobs Yoda.
+- In EventServerManager add functions to handle AthenMP error messages.
+- Update to use bulk event ranges updates to panda server
+- Fix cases that all ranks of Yoda were killed when one rank finished.
+- Update HPCManager to handle multi-jobs.
+- Update Yoda database function to fix the bottleneck which was slow to update db changes
+- Update Yoda Interaction module to fix the messages delay
+- Update Yoda and Droid to handle multi-jobs
+- Add Signal_block module in Yoda to make Yoda soft termination
+- Update monitor module to monitor multi-jobs, terminate multi-jobs, handle multi-jobs logs and recover HPC jobs
+
 REMOVE RunJobMira.py FROM DISTRIBUTION
 ADD TO DISTRIBUTION: ArgoJob, RunJobArgo, BalsamJob
 
