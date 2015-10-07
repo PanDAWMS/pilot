@@ -349,10 +349,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             if state == None:
                 state = "PSTAGE_FAIL"
 
-<<<<<<< HEAD
-=======
-        # self.__sendReport(state, report)
->>>>>>> HPCEvent
         self.prepareReport(state, report)
         return status, output
 
@@ -392,10 +388,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         # get the DQ2 tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
-<<<<<<< HEAD
-
-=======
->>>>>>> HPCEvent
 
         filename = os.path.basename(source)
         surl = destination
@@ -405,36 +397,14 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             state = errors.getErrorName(status)
             if state == None:
                 state = "PSTAGE_FAIL"
-<<<<<<< HEAD
-=======
-            # self.__sendReport(state, report)
->>>>>>> HPCEvent
+
             self.prepareReport(state, report)
             return self.put_data_retfail(status, output, surl)
 
         state = "DONE"
-<<<<<<< HEAD
+
         self.prepareReport(state, report)
         return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
-
-class S3ObjctStore:
-    def __init__(self, privateKey, publicKey, is_secure):
-=======
-        # self.__sendReport(state, report)
-        # self.prepareReport(state, report)
-        return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
-
-    def __sendReport(self, state, report):
-        """
-        Send DQ2 tracing report. Set the client exit state and finish
-        """
-        if report.has_key('timeStart'):
-            # finish instrumentation
-            report['timeEnd'] = time()
-            report['clientState'] = state
-            # send report
-            tolog("Updated tracing report: %s" % str(report))
-            self.sendTrace(report)
 
 class S3ObjctStore(object):
     _instance = None
@@ -445,7 +415,6 @@ class S3ObjctStore(object):
         return cls._instance
 
     def __init__(self, privateKey, publicKey, useTimerCommand):
->>>>>>> HPCEvent
         self.access_key = publicKey
         self.secret_key = privateKey
         self.is_secure = is_secure
@@ -465,18 +434,6 @@ class S3ObjctStore(object):
         self.port = int(parsed.netloc.partition(':')[2])
         path = parsed.path.strip("/")
 
-<<<<<<< HEAD
-        self.__conn = boto.connect_s3(
-            aws_access_key_id = self.access_key,
-            aws_secret_access_key = self.secret_key,
-            host = self.hostname,
-            port = self.port,
-            is_secure = self.is_secure, #False,               # uncommmnt if you are not using ssl
-            calling_format = boto.s3.connection.OrdinaryCallingFormat(),
-            )
-
-=======
->>>>>>> HPCEvent
         pos = path.index("/")
         bucket_name = path[:pos]
         key_name = path[pos+1:]
