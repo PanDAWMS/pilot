@@ -2635,11 +2635,7 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
                                                                 userid=userid, report=report, cmtconfig=cmtconfig, prodSourceLabel=prodSourceLabel,\
                                                                 outputDir=outputDir, DN=DN, fsize=fsize, fchecksum=checksum, logFile=logFile,\
                                                                 attempt=_attempt, experiment=experiment, alt=alt, scope=scope, fileDestinationSE=fileDestinationSE,\
-<<<<<<< HEAD
                                                                 nFiles=nFiles, logPath=logPath)
-=======
-                                                                nFiles=nFiles, logPath=logPath, jobId=jobId)
->>>>>>> HPCEvent
         tolog("Stage-out returned: s=%s, r_gpfn=%s, r_fsize=%s, r_fchecksum=%s, r_farch=%s, pilotErrorDiag=%s" %\
               (s, r_gpfn, r_fsize, r_fchecksum, r_farch, pilotErrorDiag))
     except:
