@@ -676,11 +676,7 @@ class RunJob(object):
         utility_subprocess = None
         if thisExperiment.shouldExecuteUtility():
             try:
-<<<<<<< HEAD
                 mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf, workdir=job.workdir)
-=======
-                mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf)
->>>>>>> HPCEvent
                 if mem_cmd != "":
                     utility_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
                     if utility_subprocess:
@@ -815,14 +811,10 @@ class RunJob(object):
                     # Handle main subprocess errors
                     try:
                         stdout = open(job.stdout, 'r')
-<<<<<<< HEAD
                         if main_subprocess:
                             res_tuple = (main_subprocess.returncode, tail(stdout))
                         else:
                             res_tuple = (1, "Popen process does not exist (see stdout/err)")
-=======
-                        res_tuple = (main_subprocess.returncode, tail(stdout))
->>>>>>> HPCEvent
                     except Exception, e:
                         tolog("!!WARNING!!3002!! Failed during tail operation: %s" % (e))
                     else:
@@ -1567,11 +1559,7 @@ if __name__ == "__main__":
                         res = (res_tuple[0], res_tuple[1], exitMsg)
                         job.result[0] = exitMsg
                         job.result[1] = 0 # transExitCode
-<<<<<<< HEAD
                         job.result[2] = runJob.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
-=======
-                        job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
->>>>>>> HPCEvent
                         job.pilotErrorDiag = exitMsg
                         runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
                     else:
