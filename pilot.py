@@ -1617,8 +1617,9 @@ def RecoverLostHPCEventJobs(recoveryDir, thisSite, _psport):
                     if not fd:
                         continue
 
+                    from json import load
                     with open(file_path) as data_file:
-                        HPC_state = json.load(data_file)
+                        HPC_state = load(data_file)
                     job_state_file = HPC_state['JobStateFile']
                     job_command = HPC_state['JobCommand']
                     # global_work_dir = HPC_state['GlobalWorkingDir']
@@ -2110,8 +2111,9 @@ def dumpEnv():
     localEnv['psport'] = env['psport']
     localEnv['experiment'] = env['experiment']
 
+    from json import dump
     with open(os.path.join(env['thisSite'].workdir, 'env.json'), 'w') as outputFile:
-        json.dump(localEnv, outputFile)
+        dump(localEnv, outputFile)
 
 def getNewJob(tofile=True):
     """ Get a new job definition from the jobdispatcher or from file """
