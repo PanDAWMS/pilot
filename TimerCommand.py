@@ -66,11 +66,6 @@ class TimerCommand(object):
 
     def runFunction(self, func, args, timeout=3600):
         def target(func, args, retQ):
-<<<<<<< HEAD
-            ret= func(*args)
-            retQ.put(ret)
-
-=======
             error = ''
             try:
                 signal.signal(signal.SIGTERM, signal.SIG_DFL)
@@ -81,8 +76,7 @@ class TimerCommand(object):
                 retQ.put(ret)
             except:
                 retQ.put((-1, error + '%s\n' % traceback.format_exc()))
-            
->>>>>>> HPCEvent
+
         retQ = Queue()
         process = Process(target=target, args=(func, args, retQ))
         process.start()
