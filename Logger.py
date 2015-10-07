@@ -51,11 +51,15 @@ class MyFormatter(logging.Formatter):
 
 class Logger:
 
+    sh1 = None
+    sh2 = None
+
     def __init__(self, filename=None):
 
         # get logger name
+        print inspect.stack()
         frm = inspect.stack()[1]
-        mod = inspect.getmodule(frm[0])
+        mod = inspect.getmodule(frm[2])
         if mod == None or mod.__name__ == '__main__':
             modName = 'main'
         else:
@@ -68,21 +72,28 @@ class Logger:
             # make handler
             fmt = MyFormatter()
             fmt.converter = time.gmtime # to convert timestamps to UTC
-            if filename:
-                sh = logging.FileHandler(filename, mode='a')
-            else:
-                sh = logging.StreamHandler(sys.stdout)
-            sh.setLevel(logging.DEBUG)
-            sh.setFormatter(fmt)
+#            if filename:
+#                sh = logging.FileHandler(filename, mode='a')
+#            else:
+#                sh = logging.StreamHandler(sys.stdout)
+            self.sh1 = logging.FileHandler(filename, mode='a')
+            self.sh2 = logging.StreamHandler(sys.stdout)
+            self.sh1.setLevel(logging.DEBUG)
+            self.sh1.setFormatter(fmt)
+            self.sh2.setLevel(logging.DEBUG)
+            self.sh2.setFormatter(fmt)
 
             # make logger
             self.log = logging.getLogger(modName)
             self.log.propagate = False
-            self.log.addHandler(sh)
+            self.log.addHandler(self.sh1)
+            self.log.addHandler(self.sh2)
             loggerMap[modName] = self.log
 
     def info(self, msg):
         self.log.info(msg)
+        self.sh1.flush()
+        self.sh2.flush()
 
     def debug(self, msg):
         self.log.debug(msg)

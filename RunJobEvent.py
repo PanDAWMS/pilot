@@ -2325,7 +2325,7 @@ if __name__ == "__main__":
                             if not utility_subprocess.poll() is None:
                                 # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                                 tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                                utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                                utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
 
                         # Make sure that the token extractor is still running
                         if not tokenExtractorProcess.poll() is None:
@@ -2373,7 +2373,7 @@ if __name__ == "__main__":
                     if not utility_subprocess.poll() is None:
                         # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                        utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                        utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
 
                 # Make sure that the token extractor is still running
                 if not tokenExtractorProcess.poll() is None:

@@ -121,9 +121,9 @@ def tologNew(msg, tofile=True, label='INFO', essential=False):
 
     from Logger import Logger
     if essential:
-        log = Logger(essentialPilotlogFilename)
+        log = Logger(filename=essentialPilotlogFilename)
     else:
-        log = Logger(pilotlogFilename)
+        log = Logger(filename=pilotlogFilename)
 
     if tofile:
         if label == 'INFO':

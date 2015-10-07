@@ -1340,14 +1340,17 @@ class ATLASExperiment(Experiment):
             pilotErrorDiag = "Detected severe CMT error: %d, %s" % (exitcode, _pilotErrorDiag)
             tolog("!!WARNING!!2992!! %s" % (pilotErrorDiag))
         elif exitcode != 0:
-            from futil import is_timeout
-            if is_timeout(exitcode):
-                pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
+            if "Command time-out" in _pilotErrorDiag:
+                pilotErrorDiag = "cmtsite command was timed out: %s, %s" % (str(exitcode), _pilotErrorDiag)
             else:
-                if "timed out" in _pilotErrorDiag:
+                from futil import is_timeout
+                if is_timeout(exitcode):
                     pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
                 else:
-                    pilotErrorDiag = "cmtsite command failed: %d, %s" % (exitcode, _pilotErrorDiag)
+                    if "timed out" in _pilotErrorDiag:
+                        pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
+                    else:
+                        pilotErrorDiag = "cmtsite command failed: %d, %s" % (exitcode, _pilotErrorDiag)
 
             tolog("!!WARNING!!2992!! %s" % (pilotErrorDiag))
         else:
@@ -1944,7 +1947,7 @@ class ATLASExperiment(Experiment):
             elif exitcode != 0 or "Error:" in output or "(ERROR):" in output:
                 # if time out error, don't bother with trying another cmtconfig
 
-                tolog("ATLAS setup for SITEROOT failed: ec=%d, output=%s" % (exitcode, output))
+                tolog("ATLAS setup for SITEROOT failed: ec=%s, output=%s" % (str(exitcode), output))
                 if "No such file or directory" in output:
                     pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))

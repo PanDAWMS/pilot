@@ -797,7 +797,10 @@ class RunJob(object):
                     # Handle main subprocess errors
                     try:
                         stdout = open(job.stdout, 'r')
-                        res_tuple = (main_subprocess.returncode, tail(stdout))
+                        if main_subprocess:
+                            res_tuple = (main_subprocess.returncode, tail(stdout))
+                        else:
+                            res_tuple = (1, "Popen process does not exist (see stdout/err)")
                     except Exception, e:
                         tolog("!!WARNING!!3002!! Failed during tail operation: %s" % (e))
                     else:
@@ -1537,7 +1540,7 @@ if __name__ == "__main__":
                         res = (res_tuple[0], res_tuple[1], exitMsg)
                         job.result[0] = exitMsg
                         job.result[1] = 0 # transExitCode
-                        job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+                        job.result[2] = runJob.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
                         job.pilotErrorDiag = exitMsg
                         runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
                     else:

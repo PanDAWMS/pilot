@@ -142,7 +142,17 @@ Created new global essentialPilotlogFilename (pUtil)
 Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
 Updated the tolog() function to use the new Logger module (pUtil)
 Added arguments label and essential to tolog() (pUtil)
+Corrected self -> runJob in __main__() in event range check (RunJob)
+Corrected self -> runJob in __main__() in calls to getUtilitySubprocess() (RunJobEvent)
+Protection added against no Popen process in executePayload() (RunJob)
+
 (Still using old tolog function)
+
+Time-out changes:
+- verifyCmtsiteCmd() was updated for new timer command output (ATLASExperiment)
+- Updated timer command output (TimerCommand)
+- Protection added against no Popen process in run() (TimerCommand)
+- Converting exitcode to string in case it is not an integer in getProperSiterootAndCmtconfig() (ATLASExperiment)
 
 Logging changes:
 - Added new logging module to distribution: Logger.py with code constributions from Wen Guan (logging) and Jose Caballero (formatting)
