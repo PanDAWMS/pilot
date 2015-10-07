@@ -1991,6 +1991,10 @@ if __name__ == "__main__":
             # figure out and set payload file names
             job.setPayloadName(thisExperiment.getPayloadName(job))
             # reset the default job output file list which is anyway not correct
+            logGUID = newJobDef.job.get('logGUID', "")
+            if logGUID != "NULL" and logGUID != "":
+                job.tarFileGuid = logGUID
+
             job.outFiles = []
             runJob.setOutputFiles(job.outFiles)
         except Exception, e:
@@ -2325,7 +2329,11 @@ if __name__ == "__main__":
                             if not utility_subprocess.poll() is None:
                                 # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                                 tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+<<<<<<< HEAD
                                 utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+=======
+                                utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+>>>>>>> HPCEvent
 
                         # Make sure that the token extractor is still running
                         if not tokenExtractorProcess.poll() is None:
@@ -2373,7 +2381,11 @@ if __name__ == "__main__":
                     if not utility_subprocess.poll() is None:
                         # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+<<<<<<< HEAD
                         utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+=======
+                        utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+>>>>>>> HPCEvent
 
                 # Make sure that the token extractor is still running
                 if not tokenExtractorProcess.poll() is None:

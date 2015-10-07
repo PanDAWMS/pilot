@@ -167,6 +167,20 @@ class RunJob(object):
 
         return self.__cache
 
+    def getRecovery(self):
+
+        return self.__recovery
+
+    def getJobStateFile(self):
+
+        return self.__jobStateFile
+
+    def  setLogGUID(self, logguid):
+        """ Setter for __logguid """
+
+        self.__logguid = logguid
+
+
     # Required methods
 
     def __init__(self):
@@ -662,7 +676,11 @@ class RunJob(object):
         utility_subprocess = None
         if thisExperiment.shouldExecuteUtility():
             try:
+<<<<<<< HEAD
                 mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf, workdir=job.workdir)
+=======
+                mem_cmd = thisExperiment.getUtilityCommand(job_command=cmd, pid=pid, release=job.release, homePackage=job.homePackage, cmtconfig=job.cmtconfig, trf=job.trf)
+>>>>>>> HPCEvent
                 if mem_cmd != "":
                     utility_subprocess = self.getSubprocess(thisExperiment, mem_cmd)
                     if utility_subprocess:
@@ -797,10 +815,14 @@ class RunJob(object):
                     # Handle main subprocess errors
                     try:
                         stdout = open(job.stdout, 'r')
+<<<<<<< HEAD
                         if main_subprocess:
                             res_tuple = (main_subprocess.returncode, tail(stdout))
                         else:
                             res_tuple = (1, "Popen process does not exist (see stdout/err)")
+=======
+                        res_tuple = (main_subprocess.returncode, tail(stdout))
+>>>>>>> HPCEvent
                     except Exception, e:
                         tolog("!!WARNING!!3002!! Failed during tail operation: %s" % (e))
                     else:
@@ -913,7 +935,9 @@ class RunJob(object):
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
             self.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
 
-        if self.__logguid:
+        if job.tarFileGuid and len(job.tarFileGuid.strip()):
+             guid = job.tarFileGuid
+        elif self.__logguid:
             guid = self.__logguid
         else:
             guid = job.tarFileGuid
@@ -1337,6 +1361,9 @@ if __name__ == "__main__":
             job.experiment = runJob.getExperiment()
             # figure out and set payload file names
             job.setPayloadName(thisExperiment.getPayloadName(job))
+            logGUID = newJobDef.job.get('logGUID', "")
+            if logGUID != "NULL" and logGUID != "":
+                job.tarFileGuid = logGUID
         except Exception, e:
             pilotErrorDiag = "Failed to process job info: %s" % str(e)
             tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
@@ -1540,7 +1567,11 @@ if __name__ == "__main__":
                         res = (res_tuple[0], res_tuple[1], exitMsg)
                         job.result[0] = exitMsg
                         job.result[1] = 0 # transExitCode
+<<<<<<< HEAD
                         job.result[2] = runJob.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+=======
+                        job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+>>>>>>> HPCEvent
                         job.pilotErrorDiag = exitMsg
                         runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
                     else:

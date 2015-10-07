@@ -39,6 +39,9 @@ class ThreadPool:
         """Wait for completion of all the tasks in the queue"""
         self.tasks.join()
 
+    def is_empty(self):
+        return self.tasks.empty()
+
 if __name__ == '__main__':
     from random import randrange
     from time import sleep
@@ -59,4 +62,10 @@ if __name__ == '__main__':
     for i, d in enumerate(delays):
         pool.add_task(wait_delay, d)
 
+    print 'wait completion'
+    pool.wait_completion()
+
+    for i, d in enumerate(delays):
+        pool.add_task(wait_delay, d)
+    print 'wait completion'
     pool.wait_completion()

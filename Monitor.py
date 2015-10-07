@@ -2,9 +2,16 @@ import atexit
 import time
 import os
 import commands
+import json
+import re
 import sys
 import pUtil
 import signal
+import traceback
+
+import Node
+import Job
+
 from shutil import copy, copy2
 from random import shuffle
 from glob import glob
@@ -500,6 +507,9 @@ class Monitor:
                     pilotErrorDiag = "Pilot received a panda server signal to kill job %s at %s" %\
                                      (self.__env['jobDic'][k][1].jobId, pUtil.timeStamp())
                     pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
+                    if not processCanBeKilled(self.__env['jobDic'][k][0]):
+                        pUtil.tolog("Process %s cannot be killed. It's shared by other panda job" % self.__env['jobDic'][k][0])
+                        continue
                     if self.__env['jobrec']:
                         self.__env['jobrec'] = False
                         pUtil.tolog("Switching off job recovery")
@@ -839,17 +849,41 @@ class Monitor:
                     pUtil.tolog("!!WARNING!!1999!! Could not backup job definition: %s" % str(e))
         else:
             pUtil.tolog("!!WARNING!!1999!! Could not backup job definition since file %s does not exist" % (self.__env['pandaJobDataFileName']))
+
+    def updateTerminatedJobs(self):
+        """ For multiple jobs, pilot may took long time collect logs. We need to heartbeat for these jobs. """
+        for k in self.__env['jobDic'].keys():
+            tmp = self.__env['jobDic'][k][1].result[0]
+            if tmp == "finished" or tmp == "failed" or tmp == "holding":
+                jobResult = self.__env['jobDic'][k][1].result
+                try:
+                    self.__env['jobDic'][k][1].result[0] = 'transferring'
+                    # update the panda server
+                    ret, retNode = pUtil.updatePandaServer(self.__env['jobDic'][k][1], stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
+                    if ret == 0:
+                        pUtil.tolog("Successfully updated panda server at %s" % pUtil.timeStamp())
+                    else:
+                        pUtil.tolog("!!WARNING!!1999!! updatePandaServer returned a %d" % (ret))
+                except:
+                    pUtil.tolog("!!WARNING!!1999!! updatePandaServer failed: %s" % (traceback.format_exc()))
+                finally:
+                    self.__env['jobDic'][k][1].result = jobResult
             
     def __cleanUpEndedJobs(self):
         """ clean up the ended jobs (if there are any) """
     
         # after multitasking was removed from the pilot, there is actually only one job
         first = True
+        handled_jobs = 0
         for k in self.__env['jobDic'].keys():
+            if k == 'prod' and len(self.__env['jobDic'].keys()) > 1:
+                # 'prod' should be the last one to be collected.
+                continue
             perr = self.__env['jobDic'][k][1].result[2]
             terr = self.__env['jobDic'][k][1].result[1]
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
+                handled_jobs += 1
                 pUtil.tolog("Clean up the ended job: %s" % str(self.__env['jobDic'][k]))
     
                 # do not put the getStdoutDictionary() call outside the loop since cleanUpEndedJobs() is called every minute
@@ -884,31 +918,95 @@ class Monitor:
                     else:
                         ec = terr
                     pUtil.writeToFile(os.path.join(self.__env['thisSite'].workdir, "EXITCODE"), str(ec))
+
+                if k == "prod" or (self.__env['jobDic'][k][0] != self.__env['jobDic']['prod'][0]):
+                    # move this job from env['jobDic'] to zombieJobList for later collection
+                    self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
     
-                # move this job from env['jobDic'] to zombieJobList for later collection
-                self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
-    
-                # athena processes can loop indefinately (e.g. pool utils), so kill all subprocesses just in case
-                pUtil.tolog("Killing remaining subprocesses (if any)")
-                if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
-                    killOrphans()
-                #pUtil.tolog("Going to kill pid %d" %lineno()) 
-                killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
-                    killOrphans()
-                # remove the process id file to prevent cleanup from trying to kill the remaining processes another time
-                # (should only be necessary for jobs killed by the batch system)
-                if os.path.exists(os.path.join(self.__env['thisSite'].workdir, "PROCESSID")):
-                    try:
-                        os.remove(os.path.join(self.__env['thisSite'].workdir, "PROCESSID"))
-                    except Exception, e:
-                        pUtil.tolog("!!WARNING!!2999!! Could not remove process id file: %s" % str(e))
-                    else:
-                        pUtil.tolog("Process id file removed")
+                    # athena processes can loop indefinately (e.g. pool utils), so kill all subprocesses just in case
+                    pUtil.tolog("Killing remaining subprocesses (if any)")
+                    if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
+                        killOrphans()
+                    #pUtil.tolog("Going to kill pid %d" %lineno()) 
+                    killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                    if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
+                        killOrphans()
+                    # remove the process id file to prevent cleanup from trying to kill the remaining processes another time
+                    # (should only be necessary for jobs killed by the batch system)
+                    if os.path.exists(os.path.join(self.__env['thisSite'].workdir, "PROCESSID")):
+                        try:
+                            os.remove(os.path.join(self.__env['thisSite'].workdir, "PROCESSID"))
+                        except Exception, e:
+                            pUtil.tolog("!!WARNING!!2999!! Could not remove process id file: %s" % str(e))
+                        else:
+                            pUtil.tolog("Process id file removed")
     
                 # ready with this object, delete it
                 del self.__env['jobDic'][k]
-                
+
+            # let pilot to heartbeat
+            if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
+                self.updateTerminatedJobs()
+                break
+
+    def check_unmonitored_jobs(self, global_work_dir=None):
+        self.__logguid = None
+        all_jobs = {}
+        if global_work_dir:
+            all_files = os.listdir(global_work_dir)
+        else:
+            all_files = os.listdir(self.__env['thisSite'].workdir)
+        for file in all_files:
+            if re.search('Job_[0-9]+.json', file):
+                if global_work_dir:
+                    filename = os.path.join(global_work_dir, file)
+                else:
+                    filename = os.path.join(self.__env['thisSite'].workdir, file)
+                jobId = file.replace("Job_", "").replace(".json", "")
+                all_jobs[jobId] = filename
+        for jobKey in self.__env['jobDic']:
+            job = self.__env['jobDic'][jobKey][1]
+            if str(job.jobId) in all_jobs.keys():
+                del all_jobs[str(job.jobId)]
+        # pUtil.tolog("Found unmonitored jobs: %s" % all_jobs)
+
+        for jobId in all_jobs:
+            try:
+                if not os.path.exists(all_jobs[jobId]):
+                    pUtil.tolog("Job %s file %s doesn't exist, will not monitor" % (jobId, all_jobs[jobId]))
+                    continue
+                pUtil.tolog("Job %s file %s exist, will check its work dir to decide whether monitor it or not" % (jobId, all_jobs[jobId]))
+                with open(all_jobs[jobId]) as inputFile:
+                    content = json.load(inputFile)
+                job = Job.Job()
+                job.setJobDef(content['data'])
+                job.workdir = content['workdir']
+                job.experiment = self.__env['experiment']
+                job.jobState = "starting"
+                job.setState([job.jobState, 0, 0])
+                logGUID = content['data'].get('logGUID', "")
+                if logGUID != "NULL" and logGUID != "":
+                    job.tarFileGuid = logGUID
+
+                if not os.path.exists(job.workdir):
+                    pUtil.tolog("Job %s work dir %s doesn't exit, will not add it to monitor" % (job.jobId, job.workdir))
+                    continue
+
+                self.__env['jobDic'][job.jobId] = [self.__env['jobDic']['prod'][0], job, self.__env['jobDic']['prod'][2]]
+                self.__env['number_of_jobs'] += 1
+            except:
+                pUtil.tolog("Failed to load unmonitored job %s: %s" % (jobId, traceback.format_exc()))
+
+
+    def processCanBeKilled(processId):
+        # to check whether the process is shared be other panda job
+        # for multi-job Yoda, this is the case.
+        for jobId in self.__env['jobDic']:
+            if self.__env['jobDic'][jobId][0] == processId and not ("tobekilled" in self.__env['jobDic'][jobId][1].action):
+                return False
+        return True
+
+
     def monitor_job(self):
         """ Main monitoring loop launched from the pilot module """
 
@@ -1222,6 +1320,7 @@ class Monitor:
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
                 self.__check_remaining_space()        
                 self.create_softlink()
+                self.check_unmonitored_jobs()
                 self.__monitor_processes()
                 self.__verify_output_sizes()              
                 #self.__verify_memory_limits()
@@ -1408,6 +1507,305 @@ class Monitor:
             self.__env['return'] = error.ERR_PILOTEXC 
             return
     
+        # end of the pilot
+        else:
+            self.__env['return'] = 0
+            return
+
+    def monitor_recovery_job(self, job, site, node, jobCommand, jobStateFile, recover_dir):
+        """ Main monitoring loop launched from the pilot module """
+
+        try:
+            self.__env['jobRecoveryMode'] = True
+            self.__env['timefloor'] = 0
+            self.__env['job'] = job
+            self.__env['thisSite'] = site
+
+            # if self.__env['thisSite'].workdir.endswith("/"):
+            #    self.__env['thisSite'].workdir = self.__env['thisSite'].workdir[:-1]
+            # self.__env['thisSite'].workdir = os.path.dirname(self.__env['thisSite'].workdir)
+            # pUtil.tolog("Change site from work dir %s to recover dir : %s" % (self.__env['thisSite'].workdir, recover_dir))
+            # self.__env['thisSite'].workdir = recover_dir
+            self.__env['workerNode'] = Node.Node()
+            self.__env['update_freq_proc'] = 5*60              # Update frequency, process checks [s], 5 minutes
+            self.__env['update_freq_space'] = 10*60            # Update frequency, space checks [s], 10 minutes
+
+            # multi-job variables
+            maxFailedMultiJobs = 3
+            multiJobTimeDelays = range(2, maxFailedMultiJobs+2) # [2,3,4]
+            shuffle(multiJobTimeDelays)
+            number_of_failed_jobs = 0
+
+            self.__set_outputs()
+            self.__verify_permissions()
+
+
+            # start the monitor and watchdog process
+            monthread = PilotTCPServer(UpdateHandler)
+            if not monthread.port:
+                pUtil.tolog("!!WARNING!!1234!! Failed to open TCP connection to localhost (worker node network problem), cannot continue")
+                pUtil.fastCleanup(self.__env['thisSite'].workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
+                self.__env['return'] = self.__error.ERR_NOTCPCONNECTION
+                return
+            else:
+                pUtil.tolog("Pilot TCP server will use port: %d" % (monthread.port))
+            monthread.start()
+
+            # dump some pilot info, version id, etc (to the log file this time)
+            pUtil.dumpPilotInfo(self.__env['version'], self.__env['pilot_version_tag'], self.__env['pilotId'],
+                                self.__env['jobSchedulerId'], self.__env['pilot_initdir'], tofile = True)
+
+            # local checks begin here..................................................................................
+
+            # collect WN info again to avoid getting wrong disk info from gram dir which might differ from the payload workdir
+            pUtil.tolog("Collecting WN info from: %s (again)" % (self.__env['thisSite'].workdir))
+            self.__env['workerNode'].collectWNInfo(self.__env['thisSite'].workdir)
+
+            # overwrite mem since this should come from either pilot argument or queuedata
+            self.__env['workerNode'].mem = self.__getsetWNMem()
+
+            # update the globals used in the exception handler
+            globalSite = self.__env['thisSite']
+            globalWorkNode = self.__env['workerNode']
+
+            # get the experiment object
+            thisExperiment = pUtil.getExperiment(self.__env['experiment'])
+
+            # do we have a valid proxy?
+            if self.__env['proxycheckFlag']:
+                ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="")
+                if ec != 0:
+                    self.__env['return'] = ec
+                    return
+
+            # make sure the pilot TCP server is still running
+            pUtil.tolog("Verifying that pilot TCP server is still alive...")
+            if pUtil.isPilotTCPServerAlive('localhost', monthread.port):
+                pUtil.tolog("...Pilot TCP server is still running")
+            else:
+                pUtil.tolog("!!WARNING!!1231!! Pilot TCP server is down - aborting pilot (payload cannot be started)")
+                pUtil.fastCleanup(self.__env['thisSite'].workdir)
+                self.__env['return'] = self.__error.ERR_NOPILOTTCPSERVER
+                return
+
+            # prod job start time counter
+            tp_0 = os.times()
+
+            # reset stageout start time (used by looping job killer)
+            self.__env['stageoutStartTime'] = None
+            self.__env['stagein'] = False
+            self.__env['stageout'] = False
+
+            tp_1 = os.times()
+            self.__env['job'].timeGetJob = int(round(tp_1[4] - tp_0[4]))
+
+            # update the global used in the exception handler
+            globalJob = self.__env['job']
+
+            # update job id list
+            self.__env['jobIds'].append(self.__env['job'].jobId)
+
+            pUtil.tolog("Current time :%s" % (pUtil.timeStamp()))
+            pUtil.tolog("The site this pilot runs on: %s" % (self.__env['thisSite'].sitename))
+            pUtil.tolog("Pilot executing on host: %s" % (self.__env['workerNode'].nodename))
+            pUtil.tolog("The workdir this pilot runs on:%s" % (self.__env['thisSite'].workdir))
+            pUtil.tolog("The dq2url for this site is: %s" % (self.__env['thisSite'].dq2url))
+            pUtil.tolog("The DQ2 SE has %d GB space left (NB: dCache is defaulted to 999999)" % (self.__env['thisSite'].dq2space))
+            pUtil.tolog("New job has prodSourceLabel: %s" % (self.__env['job'].prodSourceLabel))
+
+            # does the looping job limit need to be updated?
+            pUtil.tolog("env = %s" % str(self.__env['job'].jobPars))
+
+            os.environ['PandaID'] = self.__env['job'].jobId
+
+            self.__env['job'].displayJob()
+            self.__env['jobDic']["prod"] = [None, self.__env['job'], None] # pid, job, os.getpgrp()
+
+            # short delay requested by the server
+            self.__throttleJob()
+
+            # maximum number of found processes
+            self.__env['maxNProc'] = 0
+            self.__env['number_of_jobs'] = 1
+
+            # fork into two processes, one for the pilot main control loop, and one for RunJob
+            pid_1 = os.fork()
+            if pid_1: # parent process
+                # store the process id in case cleanup need to kill lingering processes
+                pUtil.writeToFile(os.path.join(self.__env['thisSite'].workdir, "PROCESSID"), str(pid_1))
+                self.__env['jobDic']["prod"][0] = pid_1
+                self.__env['jobDic']["prod"][2] = os.getpgrp()
+                self.__env['jobDic']["prod"][1].result[0] = "running"
+
+                pUtil.tolog("Parent process %s has set job state: %s" % (pid_1, self.__env['jobDic']["prod"][1].result[0]))
+
+                # do not set self.__jobDic["prod"][1].currentState = "running" here (the state is at this point only needed for the server)
+                ret, retNode = pUtil.updatePandaServer(self.__env['jobDic']["prod"][1])
+                if ret == 0:
+                    pUtil.tolog("Successfully updated panda server at %s" % pUtil.timeStamp())
+                else:
+                    pUtil.tolog("!!WARNING!!1999!! updatePandaServer returned a %d" % (ret))
+            else: # child job
+                pUtil.tolog("Starting child process in dir: %s" % self.__env['jobDic']["prod"][1].workdir)
+
+                # start the RunJob* subprocess
+                # pUtil.chdir(self.__env['jobDic']["prod"][1].workdir)
+                sys.path.insert(1,".")
+                jobargs = [self.__env['pyexe']] + jobCommand + ['-R', 'True', '-S', jobStateFile]
+                # replace monthread.port
+                i = -1
+                for jobarg in jobargs:
+                    i += 1
+                    if jobarg == '-p':
+                        break
+                jobargs[i+1] = '%s' % monthread.port
+                pUtil.tolog("jobargs=%s" % (jobargs))
+                os.execvpe(self.__env['pyexe'], jobargs, os.environ)
+
+            # Control variables for looping jobs
+            self.__env['lastTimeFilesWereModified'] = {}
+            for k in self.__env['jobDic'].keys(): # loop over production and possible analysis job
+                self.__env['lastTimeFilesWereModified'][k] = int(time.time())
+
+            # main monitoring loop
+            iteration = 1
+            self.__env['curtime'] = int(time.time())
+            self.__env['curtime_sp'] = self.__env['curtime']
+            self.__env['curtime_of'] = self.__env['curtime']
+            self.__env['curtime_proc'] = self.__env['curtime']
+            #self.__env['curtime_mem'] = self.__env['curtime']
+            self.__env['create_softlink'] = True
+            while True:
+
+                pUtil.tolog("--- Main pilot monitoring loop (job id %s, state:%s (%s), iteration %d)"
+                            % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
+                self.__check_remaining_space()
+                self.create_softlink()
+                self.check_unmonitored_jobs()
+                self.__monitor_processes()
+                self.__verify_output_sizes()
+                #self.__verify_memory_limits()
+                self.__check_looping_jobs()
+
+                # check if any jobs are done by scanning the process list
+                # some jobs might have sent updates to the monitor thread about their final states at other times
+                self.__wdog.pollChildren()
+
+                # clean up the ended jobs (if there are any)
+                self.__cleanUpEndedJobs()
+
+                # collect all the zombie processes
+                self.__wdog.collectZombieJob(tn=10)
+
+                # is there still a job in the self.__?
+                if len(self.__env['jobDic']) == 0: # no child jobs in self.__
+                    pUtil.tolog("The job has finished")
+                    break
+                else:
+                    iteration += 1
+
+                # rest a minute before next iteration
+                time.sleep(60)
+
+            # do not bother with saving the log file if it has already been transferred and registered
+            try:
+                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, type="output")
+                pUtil.tolog("Current log file state: %s" % str(state))
+                if os.path.exists(os.path.join(self.__env['thisSite'].workdir, self.__env['job'].logFile)) and state[0] == "transferred" and state[1] == "registered":
+                    pUtil.tolog("Safe to remove the log file")
+                    ec = pUtil.removeFiles(self.__env['thisSite'].workdir, [self.__env['job'].logFile])
+                else:
+                    pUtil.tolog("Will not remove log file at this point (possibly already removed)")
+            except Exception, e:
+                pUtil.tolog("!!WARNING!!1111!! %s" % (e))
+
+            pUtil.tolog("--------------------------------------------------------------------------------")
+            pUtil.tolog("Number of processed jobs              : %d" % (self.__env['number_of_jobs']))
+            pUtil.tolog("Maximum number of monitored processes : %d" % (self.__env['maxNProc']))
+            pUtil.tolog("Pilot executed last job in directory  : %s" % (self.__env['thisSite'].workdir))
+            pUtil.tolog("Current time                          : %s" % (pUtil.timeStamp()))
+            pUtil.tolog("--------------------------------------------------------------------------------")
+
+            # a bit more cleanup
+            self.__wdog.collectZombieJob()
+
+            # flush buffers
+            sys.stdout.flush()
+            sys.stderr.flush()
+
+            # multi-job loop ends here ..............................................................................
+
+        # catch any uncaught pilot exceptions
+        except Exception, errorMsg:
+
+            error = PilotErrors()
+            # can globalJob be added here?
+
+            if len(str(errorMsg)) == 0:
+                errorMsg = "(empty error string)"
+
+            import traceback
+            if 'format_exc' in traceback.__all__:
+                pilotErrorDiag = "Exception caught: %s, %s" % (str(errorMsg), traceback.format_exc())
+            else:
+                pUtil.tolog("traceback.format_exc() not available in this python version")
+                pilotErrorDiag = "Exception caught: %s" % (str(errorMsg))
+            pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
+
+            if self.__env['isJobDownloaded']:
+                if self.__env['isServerUpdated']:
+                    pUtil.tolog("Do a full cleanup since job was downloaded and server updated")
+
+                    # was the process id added to env['jobDic']?
+                    bPID = False
+                    try:
+                        for k in self.__env['jobDic'].keys():
+                            pUtil.tolog("Found process id in env['jobDic']: %d" % (self.__env['jobDic'][k][0]))
+                    except:
+                        pUtil.tolog("Process id not added to env['jobDic']")
+                    else:
+                        bPID = True
+
+                    if bPID:
+                        pUtil.tolog("Cleanup using env['jobDic']")
+                        for k in self.__env['jobDic'].keys():
+                            self.__env['jobDic'][k][1].result[0] = "failed"
+                            self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
+                            if self.__env['jobDic'][k][1].result[2] == 0:
+                                self.__env['jobDic'][k][1].result[2] = error.ERR_PILOTEXC
+                            if self.__env['jobDic'][k][1].pilotErrorDiag == "":
+                                self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                            if globalSite:
+                                pUtil.postJobTask(self.__env['jobDic'][k][1], globalSite, globalWorkNode,
+                                                  self.__env['experiment'], jr=False)
+                                self.__env['logTransferred'] = True
+                            pUtil.tolog("Killing process: %d from line %d" % (self.__env['jobDic'][k][0], lineno()))
+                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                            # move this job from env['jobDic'] to zombieJobList for later collection
+                            self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
+                            del self.__env['jobDic'][k]
+
+                        # collect all the zombie processes
+                        self.__wdog.collectZombieJob(tn=10)
+                    else:
+                        pUtil.tolog("Cleanup using globalJob")
+                        globalJob.result[0] = "failed"
+                        globalJob.currentState = globalJob.result[0]
+                        globalJob.result[2] = error.ERR_PILOTEXC
+                        globalJob.pilotErrorDiag = pilotErrorDiag
+                        if globalSite:
+                            pUtil.postJobTask(globalJob, globalSite, globalWorkNode, self.__env['experiment'], jr=False)
+                else:
+                    if globalSite:
+                        pUtil.tolog("Do a fast cleanup since server was not updated after job was downloaded (no log)")
+                        pUtil.fastCleanup(globalSite.workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
+            else:
+                if globalSite:
+                    pUtil.tolog("Do a fast cleanup since job was not downloaded (no log)")
+                    pUtil.fastCleanup(globalSite.workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
+            self.__env['return'] = error.ERR_PILOTEXC
+            return
+
         # end of the pilot
         else:
             self.__env['return'] = 0

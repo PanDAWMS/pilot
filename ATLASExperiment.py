@@ -1948,6 +1948,7 @@ class ATLASExperiment(Experiment):
                 # if time out error, don't bother with trying another cmtconfig
 
                 tolog("ATLAS setup for SITEROOT failed: ec=%s, output=%s" % (str(exitcode), output))
+
                 if "No such file or directory" in output:
                     pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
@@ -3147,7 +3148,6 @@ class ATLASExperiment(Experiment):
         # Now add the MemoryMonitor command
         cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
         cmd = "cd " + workdir + ";" + cmd
-        tolog("cmd=%s"%cmd)
 
         return cmd
 

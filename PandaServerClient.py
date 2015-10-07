@@ -235,7 +235,11 @@ class PandaServerClient:
 
         return message
 
+<<<<<<< HEAD
     def getUtilityInfo(self, node, experiment, workdir, purge=False):
+=======
+    def getUtilityInfo(self, node, experiment, workdir):
+>>>>>>> HPCEvent
         """ Add the utility info to the node structure if available """
 
         # Get the experiment object and check if the special utility (e.g. a memory monitor) was used
@@ -251,6 +255,10 @@ class PandaServerClient:
                 if os.path.exists(init_path):
                     path = init_path
                 else:
+<<<<<<< HEAD
+=======
+                    tolog("File does not exist either: %s" % (path))
+>>>>>>> HPCEvent
                     path = ""
                 primary_location = False
             else:
@@ -315,7 +323,11 @@ class PandaServerClient:
                             tolog("Extracted info from memory monitor JSON")
 
             # Done with the memory monitor for this job (if the file is read from the pilots' init dir), remove the file in case there are other jobs to be run
+<<<<<<< HEAD
             if os.path.exists(init_path) and purge:
+=======
+            if os.path.exists(init_path):
+>>>>>>> HPCEvent
                 try:
                     os.system("rm -rf %s" % (init_path))
                 except Exception, e:
@@ -487,7 +499,11 @@ class PandaServerClient:
             node['messageLevel'] = site.dq2spmsg
 
         # Add the utility info if it is available
+<<<<<<< HEAD
         node = self.getUtilityInfo(node, job.experiment, job.workdir, purge=True)
+=======
+        node = self.getUtilityInfo(node, job.experiment, job.workdir)
+>>>>>>> HPCEvent
 
         return node
 
@@ -508,7 +524,7 @@ class PandaServerClient:
             pass
         else:
             # only create and send log xml if the log was transferred
-            if job.result[0] == 'failed' and isLogfileCopied(workdir):
+            if job.result[0] == 'failed' and isLogfileCopied(workdir, job.jobId):
                 # generate the xml string for log file
                 # at this time the job.workdir might have been removed (because this function can be called
                 # after the removal of workdir is done), so we make a new dir
@@ -574,7 +590,7 @@ class PandaServerClient:
                                     tolog("Successfully copied NG log metadata file to pilot init dir: %s" % (self.__pilot_initdir))
 
                 else: # log file does not exist anymore
-                    if isLogfileCopied(workdir):
+                    if isLogfileCopied(workdir, job.jobId):
                         tolog("Log file has already been copied and removed")
                         if not os.environ.has_key('Nordugrid_pilot'):
                             # only send xml with log info if the log has been transferred
@@ -946,7 +962,7 @@ class PandaServerClient:
             node['xml'] = updateXMLWithSURLs(experiment, node['xml'], site.workdir, job.jobId, self.__jobrec)
 
             _xml = node['xml']
-            if not isLogfileCopied(site.workdir):
+            if not isLogfileCopied(site.workdir, job.jobId):
                 tolog("Pilot will not send xml about output files since log was not transferred")
                 node['xml'] = ""
 

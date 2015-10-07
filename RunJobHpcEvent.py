@@ -9,8 +9,11 @@ import commands
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import time
+import traceback
 
 # Import relevant python/pilot modules
 # Pilot modules
@@ -19,9 +22,11 @@ import Node
 import Site
 import pUtil
 import RunJobUtilities
+import Mover as mover
 
 from ThreadPool import ThreadPool
 from RunJob import RunJob              # Parent RunJob class
+from JobState import JobState
 from JobRecovery import JobRecovery
 from PilotErrors import PilotErrors
 from ErrorDiagnosis import ErrorDiagnosis
@@ -30,6 +35,8 @@ from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getFilePathForObjectStore, getInitialTracingReport
 from PandaServerClient import PandaServerClient
 
+from GetJob import GetJob
+from EventStager import EventStager
 from HPC.HPCManager import HPCManager
 
 class RunJobHpcEvent(RunJob):
@@ -49,7 +56,33 @@ class RunJobHpcEvent(RunJob):
         self.__output_es_files = []
         self.__eventRanges = {}
         self.__failedStageOuts = []
-        self._hpcManager = None
+        self.__hpcManager = None
+        self.__stageout_threads = 1
+        self.__userid = None
+
+        self.__stageinretry = 1
+        self.__siteInfo = None
+        # multi-jobs
+        self.__firstJob = True
+        self.__firstJobId = None
+        self.__pilotWorkingDir = None
+        self.__jobs = {}
+        self.__jobEventRanges = {}
+        self.__nJobs = 1
+        self.__hpcMode = 'normal'
+        self.__hpcStatue = 'starting'
+        self.__hpcCoreCount = 0
+        self.__hpcEventRanges = 0
+        self.__neededEventRanges = 0
+        self.__avail_files = {}
+        self.__avail_tag_files = {}
+
+        # event Stager
+        self.__eventStager = None
+
+        # for recovery
+        self.__jobStateFile = None
+
 
     def __new__(cls, *args, **kwargs):
         """ Override the __new__ method to make the class a singleton """
@@ -79,11 +112,11 @@ class RunJobHpcEvent(RunJob):
         # in environment.py (see e.g. loopingLimitDefaultProd)
 
         return False
-
         
     def setupHPCEvent(self):
         self.__jobSite = Site.Site()
         self.__jobSite.setSiteInfo(self.argumentParser())
+        self.__logguid = None
         ## For HPC job, we don't need to reassign the workdir
         # reassign workdir for this job
         self.__jobSite.workdir = self.__jobSite.wntmpdir
@@ -103,353 +136,20 @@ class RunJobHpcEvent(RunJob):
         # redirect stderr
         #sys.stderr = open("%s/runJobHPCEvent.stderr" % (self.__jobSite.workdir), "w")
 
+        self.__pilotWorkingDir = self.getParentWorkDir()
+        tolog("Pilot workdir is: %s" % self.__pilotWorkingDir)
+        os.chdir(self.__pilotWorkingDir)
         tolog("Current job workdir is: %s" % os.getcwd())
+        # self.__jobSite.workdir = self.__pilotWorkingDir
         tolog("Site workdir is: %s" % self.__jobSite.workdir)
 
         # get the experiment object
         self.__thisExperiment = getExperiment(self.getExperiment())
         tolog("runEvent will serve experiment: %s" % (self.__thisExperiment.getExperiment()))
-
-
-    def getHPCEventJobFromPanda(self):
-        pass
-
-    def getHPCEventJobFromEnv(self):
-        tolog("getHPCEventJobFromEnv")
-        try:
-            # always use this filename as the new jobDef module name
-            import newJobDef
-            job = Job.Job()
-            job.setJobDef(newJobDef.job)
-            job.coreCount = 0
-            job.workdir = self.__jobSite.workdir
-            job.experiment = self.getExperiment()
-            # figure out and set payload file names
-            job.setPayloadName(self.__thisExperiment.getPayloadName(job))
-            # reset the default job output file list which is anyway not correct
-            job.outFiles = []
-        except Exception, e:
-            pilotErrorDiag = "Failed to process job info: %s" % str(e)
-            tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
-            self.failJob(0, PilotErrors.ERR_UNKNOWN, job, pilotErrorDiag=pilotErrorDiag)
-
-        self.__job = job
-        # prepare for the output file data directory
-        # (will only created for jobs that end up in a 'holding' state)
-        self.__job.datadir = self.getParentWorkDir() + "/PandaJob_%s_data" % (job.jobId)
-
-        # See if it's an analysis job or not
-        trf = self.__job.trf
-        self.__analysisJob = isAnalysisJob(trf.split(",")[0])
-
-        # Setup starts here ................................................................................
-
-        # Update the job state file
-        self.__job.jobState = "starting"
-        self.__job.setHpcStatus('init')
-
-
-        # Send [especially] the process group back to the pilot
-        self.__job.setState([self.__job.jobState, 0, 0])
-        self.__job.jobState = self.__job.result
-        rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), runJob.getPilotPort())
-
-        self.__JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=self.__job.workdir)
-        self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
-        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
-
-        # prepare the setup and get the run command list
-        ec, runCommandList, job, multi_trf = self.setup(self.__job, self.__jobSite, self.__thisExperiment)
-        if ec != 0:
-            tolog("!!WARNING!!2999!! runJob setup failed: %s" % (job.pilotErrorDiag))
-            self.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
-        tolog("Setup has finished successfully")
-        self.__job =  job
-        self.__runCommandList = runCommandList
-        self.__multi_trf = multi_trf
-
-        # job has been updated, display it again
-        self.__job.displayJob()
-        tolog("RunCommandList: %s" % self.__runCommandList)
-        tolog("Multi_trf: %s" % self.__multi_trf)
-
-
-    def stageInHPCEvent(self):
-        tolog("Setting stage-in state until all input files have been copied")
-        self.__job.jobState = "transferring"
-        self.__job.setState([self.__job.jobState, 0, 0])
-        rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
-        self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
-
-        # stage-in all input files (if necessary)
-        job, ins, statusPFCTurl, usedFAXandDirectIO = self.stageIn(self.__job, self.__jobSite, self.__analysisJob, pfc_name="PFC.xml")
-        if job.result[2] != 0:
-            tolog("Failing job with ec: %d" % (job.result[2]))
-            self.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
-        self.__job = job
-        self.__job.displayJob()
-
-        # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
-        # consult the FileState file dictionary if cmd3 should be updated (--directIn should not be set if all
-        # remote_io modes have been changed to copy_to_scratch as can happen with ByteStream files)
-        # and update the run command list if necessary.
-        # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
-        # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
-        #if self.__job.inFiles != ['']:
-        #    runCommandList = RunJobUtilities.updateRunCommandList(self.__runCommandList, self.getParentWorkDir(), self.__job.jobId, statusPFCTurl, self.__analysisJob, usedFAXandDirectIO)
-        #    tolog("New runCommandList: %s" % runCommandList)
-
-    def updateEventRange(self, event_range_id, status='finished'):
-        """ Update an event range on the Event Server """
-        tolog("Updating an event range..")
-
-        message = ""
-        # url = "https://aipanda007.cern.ch:25443/server/panda"
-        url = "https://pandaserver.cern.ch:25443/server/panda"
-        node = {}
-        node['eventRangeID'] = event_range_id
-
-        # node['cpu'] =  eventRangeList[1]
-        # node['wall'] = eventRangeList[2]
-        node['eventStatus'] = status
-        # tolog("node = %s" % str(node))
-
-        # open connection
-        ret = httpConnect(node, url, path=self.__job.workdir, mode="UPDATEEVENTRANGE")
-        # response = ret[1]
-
-        if ret[0]: # non-zero return code
-            message = "Failed to update event range - error code = %d" % (ret[0])
-        else:
-            message = ""
-
-        return ret[0], message
-
-
-    def getEventRanges(self, numRanges=2):
-        """ Download event ranges from the Event Server """
-        tolog("Server: Downloading new event ranges..")
-
-        message = ""
-        # url = "https://aipanda007.cern.ch:25443/server/panda"
-        url = "https://pandaserver.cern.ch:25443/server/panda"
-
-        node = {}
-        node['pandaID'] = self.__job.jobId
-        node['jobsetID'] = self.__job.jobsetID
-        node['taskID'] = self.__job.taskID
-        node['nRanges'] = numRanges
-
-        # open connection
-        ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")
-        response = ret[1]
-
-        if ret[0]: # non-zero return code
-            message = "Failed to download event range - error code = %d" % (ret[0])
-            tolog(message)
-            return []
-        else:
-            message = response['eventRanges']
-            return json.loads(message)
-
-
-    def updateHPCEventRanges(self):
-        for eventRangeID in self.__eventRanges:
-            if self.__eventRanges[eventRangeID] == 'stagedOut':
-                try:
-                    ret, message = self.updateEventRange(eventRangeID)
-                except Exception, e:
-                    tolog("Failed to update event range: %s, exception: %s " % (eventRangeID, str(e)))
-                else:
-                    if ret == 0:
-                        self.__eventRanges[eventRangeID] = "Done"
-                    else:
-                        tolog("Failed to update event range: %s" % eventRangeID)
-
-
-    def prepareHPCJob(self):
-        #print self.__runCommandList
-        #print self.getParentWorkDir()
-        #print self.__job.workdir
-        # 1. input files
-        inputFiles = []
-        inputFilesGlobal = []
-        for inputFile in self.__job.inFiles:
-            #inputFiles.append(os.path.join(self.__job.workdir, inputFile))
-            inputFilesGlobal.append(os.path.join(self.__job.workdir, inputFile))
-            inputFiles.append(os.path.join('HPCWORKINGDIR', inputFile))
-        inputFileDict = dict(zip(self.__job.inFilesGuids, inputFilesGlobal))
-        self.__inputFilesGlobal = inputFilesGlobal
-
-        tagFiles = {}
-        EventFiles = {}
-        for guid in inputFileDict:
-            if '.TAG.' in inputFileDict[guid]:
-                tagFiles[guid] = inputFileDict[guid]
-            elif not "DBRelease" in inputFileDict[guid]:
-                EventFiles[guid] = {}
-                EventFiles[guid]['file'] = inputFileDict[guid]
-
-        # 2. create TAG file
-        for guid in EventFiles:
-            inFiles = [EventFiles[guid]['file']]
-            input_tag_file, input_tag_file_guid = self.createTAGFile(self.__runCommandList[0], self.__job.trf, inFiles, "MakeRunEventCollection.py")
-            if input_tag_file != "" and input_tag_file_guid != "":
-                tolog("Will run TokenExtractor on file %s" % (input_tag_file))
-                EventFiles[guid]['TAG'] = input_tag_file
-                EventFiles[guid]['TAG_guid'] = input_tag_file_guid
-            else:
-                # only for current test
-                if len(tagFiles)>0:
-                    EventFiles[guid]['TAG_guid'] = tagFiles.keys()[0]
-                    EventFiles[guid]['TAG'] = tagFiles[tagFiles.keys()[0]]
-                else:
-                    return -1, "Failed to create the TAG file", None
-
-        # 3. create Pool File Catalog
-        inputFileDict = dict(zip(self.__job.inFilesGuids, inputFilesGlobal))
-        self.__poolFileCatalog = os.path.join(self.__job.workdir, "PoolFileCatalog_HPC.xml")
-        createPoolFileCatalog(inputFileDict, self.__job.inFiles, self.__poolFileCatalog)
-        inputFileDictTemp = dict(zip(self.__job.inFilesGuids, inputFiles))
-        self.__poolFileCatalogTemp = os.path.join(self.__job.workdir, "PoolFileCatalog_Temp.xml")
-        self.__poolFileCatalogTempName = "HPCWORKINGDIR/PoolFileCatalog_Temp.xml"
-        createPoolFileCatalog(inputFileDictTemp, self.__job.inFiles, self.__poolFileCatalogTemp)
-
-        # 4. getSetupCommand
-        setupCommand = self.stripSetupCommand(self.__runCommandList[0], self.__job.trf)
-        _cmd = re.search('(source.+\;)', setupCommand)
-        if _cmd:
-            setup = _cmd.group(1)
-            source_setup = setup.split(";")[0]
-            #setupCommand = setupCommand.replace(source_setup, source_setup + " --cmtextratags=ATLAS,useDBRelease")
-            # for test, asetup has a bug
-            #new_source_setup = source_setup.split("cmtsite/asetup.sh")[0] + "setup-19.2.0-quick.sh"
-            #setupCommand = setupCommand.replace(source_setup, new_source_setup)
-        tolog("setup command: " + setupCommand)
-
-        # 5. AthenaMP command
-        if not self.__copyInputFiles:
-            jobInputFileList = None
-            jobInputFileList = ','.join(inputFilesGlobal)
-            #for inputFile in self.__job.inFiles:
-            #    jobInputFileList = ','.join(os.path.join(self.__job.workdir, inputFile))
-            #    self.__runCommandList[0] = self.__runCommandList[0].replace(inputFile, os.path.join(self.__job.workdir, inputFile))
-            command_list = self.__runCommandList[0].split(" ")
-            command_list_new = []
-            for command_part in command_list:
-                if command_part.startswith("--input"):
-                    command_arg = command_part.split("=")[0]
-                    command_part_new = command_arg + "=" + jobInputFileList
-                    command_list_new.append(command_part_new)
-                else:
-                    command_list_new.append(command_part)
-            self.__runCommandList[0] = " ".join(command_list_new)
-
-            self.__runCommandList[0] += ' --preExec \'from G4AtlasApps.SimFlags import simFlags;simFlags.RunNumber=222222;from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.Strategy="TokenScatterer";from AthenaCommon.AppMgr import ServiceMgr as svcMgr;from AthenaServices.AthenaServicesConf import OutputStreamSequencerSvc;outputStreamSequencerSvc = OutputStreamSequencerSvc();outputStreamSequencerSvc.SequenceIncidentName = "NextEventRange";outputStreamSequencerSvc.IgnoreInputFileBoundary = True;svcMgr += outputStreamSequencerSvc\' '
-            self.__runCommandList[0] += " '--skipFileValidation' '--checkEventCount=False' '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.__poolFileCatalog)
-        else:
-            self.__runCommandList[0] += ' --preExec \'from G4AtlasApps.SimFlags import simFlags;simFlags.RunNumber=222222;from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.Strategy="TokenScatterer";from AthenaCommon.AppMgr import ServiceMgr as svcMgr;from AthenaServices.AthenaServicesConf import OutputStreamSequencerSvc;outputStreamSequencerSvc = OutputStreamSequencerSvc();outputStreamSequencerSvc.SequenceIncidentName = "NextEventRange";outputStreamSequencerSvc.IgnoreInputFileBoundary = True;svcMgr += outputStreamSequencerSvc\' '
-            self.__runCommandList[0] += " '--skipFileValidation' '--checkEventCount=False' '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.__poolFileCatalogTempName)
-
-        # should not have --DBRelease and UserFrontier.py in HPC
-        self.__runCommandList[0] = self.__runCommandList[0].replace("--DBRelease=current", "")
-        if 'RecJobTransforms/UseFrontier.py,' in self.__runCommandList[0]:
-            self.__runCommandList[0] = self.__runCommandList[0].replace('RecJobTransforms/UseFrontier.py,', '')
-        if ',RecJobTransforms/UseFrontier.py' in self.__runCommandList[0]:
-            self.__runCommandList[0] = self.__runCommandList[0].replace(',RecJobTransforms/UseFrontier.py', '')
-        if ' --postInclude=RecJobTransforms/UseFrontier.py ' in self.__runCommandList[0]:
-            self.__runCommandList[0] = self.__runCommandList[0].replace(' --postInclude=RecJobTransforms/UseFrontier.py ', ' ')
-
-        #self.__runCommandList[0] = self.__runCommandList[0].replace(source_setup, source_setup + " --cmtextratags=ATLAS,useDBRelease --skipFileValidation --checkEventCount=False")
-        # for tests, asetup has a bug
-        #self.__runCommandList[0] = self.__runCommandList[0].replace(source_setup, new_source_setup)
-
-        self.__runCommandList[0] += " 1>athenaMP_stdout.txt 2>athenaMP_stderr.txt"
-        self.__runCommandList[0] = self.__runCommandList[0].replace(";;", ";")
-  
-        # 6. Token Extractor file list
-        # in the token extractor file list, the guid is the Event guid, not the tag guid.
-        self.__tagFile = os.path.join(self.__job.workdir, "TokenExtractor_filelist")
-        handle = open(self.__tagFile, 'w')
-        for guid in EventFiles:
-            tagFile = EventFiles[guid]['TAG']
-            line = guid + ",PFN:" + tagFile + "\n"
-            handle.write(line)
-        handle.close()
-
-        # 7. Token Extractor command
-        setup = setupCommand
-        self.__tokenExtractorCmd = setup + ";" + " TokenExtractor -v  --source " + self.__tagFile + " 1>tokenExtract_stdout.txt 2>tokenExtract_stderr.txt"
-        self.__tokenExtractorCmd = self.__tokenExtractorCmd.replace(";;", ";")
-        # special case
-        #self.__tokenExtractorCmd = "export LD_LIBRARY_PATH="+source_setup.split("cmtsite/asetup.sh")[0].strip().split(" ")[1]+"/patch/ldpatch/:$LD_LIBRARY_PATH; " + self.__tokenExtractorCmd
-
-        return 0, None, {"TokenExtractCmd": self.__tokenExtractorCmd, "AthenaMPCmd": self.__runCommandList[0]}
-
-    def getDatasets(self):
-        """ Get the datasets for the output files """
-
-        # Get the default dataset
-        if self.__job.destinationDblock and self.__job.destinationDblock[0] != 'NULL' and self.__job.destinationDblock[0] != ' ':
-            dsname = self.__job.destinationDblock[0]
-        else:
-            dsname = "%s-%s-%s" % (time.localtime()[0:3]) # pass it a random name
-
-        # Create the dataset dictionary
-        # (if None, the dsname above will be used for all output files)
-        datasetDict = getDatasetDict(self.__job.outFiles, self.__job.destinationDblock, self.__job.logFile, self.__job.logDblock)
-        if datasetDict:
-            tolog("Dataset dictionary has been verified: %s" % str(datasetDict))
-        else:
-            tolog("Dataset dictionary could not be verified, output files will go to: %s" % (dsname))
-
-        return dsname, datasetDict
-
-    def setupStageOutHPCEvent(self):
-        if self.__job.prodDBlockTokenForOutput is not None and len(self.__job.prodDBlockTokenForOutput) > 0 and self.__job.prodDBlockTokenForOutput[0] != 'NULL':
-            siteInfo = getSiteInformation(self.getExperiment())
-            objectstore_orig = siteInfo.readpar("objectstore")
-            #siteInfo.replaceQueuedataField("objectstore", self.__job.prodDBlockTokenForOutput[0])
-            espath = getFilePathForObjectStore(filetype="eventservice")
-        else:
-            #siteInfo = getSiteInformation(self.getExperiment())
-            #objectstore = siteInfo.readpar("objectstore")
-            espath = getFilePathForObjectStore(filetype="eventservice")
-        self.__espath = getFilePathForObjectStore(filetype="eventservice")
-        tolog("EventServer objectstore path: " + espath)
-
-        siteInfo = getSiteInformation(self.getExperiment())
-        # get the copy tool
-        setup = siteInfo.getCopySetup(stageIn=False)
-        tolog("Copy Setup: %s" % (setup))
-
-        dsname, datasetDict = self.getDatasets()
-        self.__report = getInitialTracingReport(userid=self.__job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=self.__analysisJob, jobId=self.__job.jobId, jobDefId=self.__job.jobDefinitionID, dn=self.__job.prodUserID)
-        self.__siteMover = objectstoreSiteMover(setup)
-
-
-    def stageOutHPCEvent(self, output_info):
-        eventRangeID, status, output = output_info
-        self.__output_es_files.append(output)
-
-        status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(output, self.__espath, lfn=os.path.basename(output), report=self.__report, token=self.__job.destinationDBlockToken, experiment=self.__job.experiment)
-        if status == 0:
-            try:
-                #self.updateEventRange(eventRangeID)
-                self.__eventRanges[eventRangeID] = 'stagedOut'
-                tolog("Remove staged out output file: %s" % output)
-                os.remove(output)
-            except Exception, e:
-                tolog("!!WARNING!!2233!! remove ouput file threw an exception: %s" % (e))
-                #self.__failedStageOuts.append(output_info)
-            else:
-                tolog("remove output file has returned")
-        else:
-            tolog("!!WARNING!!1164!! Failed to upload file to objectstore: %d, %s" % (status, pilotErrorDiag))
-            self.__failedStageOuts.append(output_info)
+        self.__siteInfo = getSiteInformation(self.getExperiment())
 
     def getDefaultResources(self):
-        siteInfo = getSiteInformation(self.getExperiment())
+        siteInfo = self.__siteInfo
         catchalls = siteInfo.readpar("catchall")
         values = {}
         for catchall in catchalls.split(","):
@@ -476,134 +176,950 @@ class RunJobHpcEvent(RunJob):
         res['backfill_queue'] = values.get('backfill_queue', 'regular')
         res['stageout_threads'] = int(values.get('stageout_threads', 4))
         res['copy_input_files'] = values.get('copy_input_files', 'false').lower()
+        res['plugin'] =  values.get('plugin', 'pbs').lower()
+        res['localWorkingDir'] =  values.get('localWorkingDir', None)
+        res['parallel_jobs'] = values.get('parallel_jobs', 1)
+        res['events_limit_per_job'] = values.get('events_limit_per_job', 1000)
         return res
 
-    def runHPCEvent(self):
-        tolog("runHPCEvent")
-        self.__job.jobState = "running"
-        self.__job.setState([self.__job.jobState, 0, 0])
-        self.__job.pilotErrorDiag = None
-        rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
-        self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
-
-        defRes = self.getDefaultResources()
-        if defRes['copy_input_files'] == 'true':
-            self.__copyInputFiles = True
-        else:
-            self.__copyInputFiles = False
-
-        status, output, hpcJob = self.prepareHPCJob()
-        if status == 0:
-            tolog("HPC Job: %s " % hpcJob)
-        else:
-            tolog("failed to create the Tag file")
-            self.failJob(0, PilotErrors.ERR_UNKNOWN, self.__job, pilotErrorDiag=output)
-            return 
-
-
-        self.__hpcStatus = None
-        self.__hpcLog = None
-
+    def setupHPCManager(self):
         logFileName = None
         tolog("runJobHPCEvent.getPilotLogFilename=%s"% self.getPilotLogFilename())
         if self.getPilotLogFilename() != "":
             logFileName = self.getPilotLogFilename()
-        hpcManager = HPCManager(globalWorkingDir=self.__job.workdir, logFileName=logFileName, poolFileCatalog=self.__poolFileCatalogTemp, inputFiles=self.__inputFilesGlobal, copyInputFiles=self.__copyInputFiles)
 
-        self.__hpcManager = hpcManager
-        self.HPCMode = "HPC_" + hpcManager.getMode(defRes)
-        self.__job.setMode(self.HPCMode)
-        self.__job.setHpcStatus('waitingResource')
-        rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
-        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
+        defRes = self.getDefaultResources()
+        if defRes['copy_input_files'] == 'true' and defRes['localWorkingDir']:
+            self.__copyInputFiles = True
+        else:
+            self.__copyInputFiles = False
+        self.__nJobs = defRes['parallel_jobs']
+        self.__stageout_threads = defRes['stageout_threads']
 
+        tolog("Setup HPC Manager")
+        hpcManager = HPCManager(globalWorkingDir=self.__pilotWorkingDir, localWorkingDir=defRes['localWorkingDir'], logFileName=logFileName, copyInputFiles=self.__copyInputFiles)
+
+        #jobStateFile = '%s/jobState-%s.pickle' % (self.__pilotWorkingDir, self.__job.jobId)
+        #hpcManager.setPandaJobStateFile(jobStateFile)
+        self.__hpcMode = "HPC_" + hpcManager.getMode(defRes)
+        self.__hpcStatue = 'waitingResource'
+        pluginName = defRes.get('plugin', 'pbs')
+        hpcManager.setupPlugin(pluginName)
+
+        tolog("HPC Manager getting free resouces")
         hpcManager.getFreeResources(defRes)
-        self.__job.coreCount = hpcManager.getCoreCount()
-        self.__job.setHpcStatus('gettingEvents')
-        rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
-        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
+        self.__hpcStatue = 'gettingJobs'
 
-        numRanges = hpcManager.getEventsNumber()
-        tolog("HPC Manager needs events: %s, max_events: %s; use the smallest one." % (numRanges, defRes['max_events']))
-        if numRanges > int(defRes['max_events']):
-            numRanges = int(defRes['max_events'])
-        eventRanges = self.getEventRanges(numRanges=numRanges)
-        #tolog("Event Ranges: %s " % eventRanges)
-        if len(eventRanges) == 0:
-            tolog("Get no Event ranges. return")
-            return
+        tolog("HPC Manager getting needed events number")
+        self.__hpcEventRanges = hpcManager.getEventsNumber()
+        tolog("HPC Manager needs events: %s, max_events: %s; use the smallest one." % (self.__hpcEventRanges, defRes['max_events']))
+        if self.__hpcEventRanges > int(defRes['max_events']):
+            self.__hpcEventRanges = int(defRes['max_events'])
+        self.__neededEventRanges = self.__hpcEventRanges
+        self.__hpcManager = hpcManager
+        tolog("HPC Manager setup finished")
+
+    def setupJob(self, job, data):
+        tolog("setupJob")
+        try:
+            job.coreCount = 0
+            job.hpcEvent = True
+            if self.__firstJob:
+                job.workdir = self.__jobSite.workdir
+                self.__firstJob = False
+            else:
+                # job.mkJobWorkdir(self.__pilotWorkingDir)
+                pass
+            job.experiment = self.getExperiment()
+            # figure out and set payload file names
+            job.setPayloadName(self.__thisExperiment.getPayloadName(job))
+            # reset the default job output file list which is anyway not correct
+            job.outFiles = []
+        except Exception, e:
+            pilotErrorDiag = "Failed to process job info: %s" % str(e)
+            tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
+            
+            self.failOneJob(0, PilotErrors.ERR_UNKNOWN, job, pilotErrorDiag=pilotErrorDiag, final=True, updatePanda=False)
+            return -1
+
+        current_dir = os.getcwd()
+        os.chdir(job.workdir)
+
+        tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
+
+        self.__userid = job.prodUserID
+        self.__jobs[job.jobId] = {'job': job}
+        # prepare for the output file data directory
+        # (will only created for jobs that end up in a 'holding' state)
+        job.datadir = self.__pilotWorkingDir + "/PandaJob_%s_data" % (job.jobId)
+
+        # See if it's an analysis job or not
+        trf = job.trf
+        self.__jobs[job.jobId]['analysisJob'] = isAnalysisJob(trf.split(",")[0])
+
+        # Setup starts here ................................................................................
+
+        # Update the job state file
+        job.jobState = "starting"
+        job.setHpcStatus('init')
+
+
+        # Send [especially] the process group back to the pilot
+        job.setState([job.jobState, 0, 0])
+        job.jobState = job.result
+        rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), runJob.getPilotPort())
+
+        JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=job.workdir)
+        JR.updateJobStateTest(job, self.__jobSite, self.__node, mode="test")
+        JR.updatePandaServer(job, self.__jobSite, self.__node, 25443)
+
+        # prepare the setup and get the run command list
+        ec, runCommandList, job, multi_trf = self.setup(job, self.__jobSite, self.__thisExperiment)
+        if ec != 0:
+            tolog("!!WARNING!!2999!! runJob setup failed: %s" % (job.pilotErrorDiag))
+            self.failOneJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag, final=True, updatePanda=False)
+            return -1
+        tolog("Setup has finished successfully")
+
+
+        # job has been updated, display it again
+        job.displayJob()
+        tolog("RunCommandList: %s" % runCommandList)
+        tolog("Multi_trf: %s" % multi_trf)
+        self.__jobs[job.jobId]['job'] = job
+        self.__jobs[job.jobId]['JR'] = JR
+        self.__jobs[job.jobId]['runCommandList'] = runCommandList
+        self.__jobs[job.jobId]['multi_trf'] = multi_trf
+
+        tolog("Get Event Ranges for job %s" % job.jobId)
+        eventRanges = self.getJobEventRanges(job, numRanges=self.__neededEventRanges)
+        self.__neededEventRanges = self.__neededEventRanges - len(eventRanges)
+        tolog("Get %s Event ranges for job %s" % (len(eventRanges), job.jobId))
+        self.__eventRanges[job.jobId] = {}
+        self.__jobEventRanges[job.jobId] = eventRanges 
         for eventRange in eventRanges:
-            self.__eventRanges[eventRange['eventRangeID']] = 'new'
+            self.__eventRanges[job.jobId][eventRange['eventRangeID']] = 'new'
+
+        # backup job file
+        filename = os.path.join(self.__pilotWorkingDir, "Job_%s.json" % job.jobId)
+        content = {'workdir': job.workdir, 'data': data, 'experiment': self.getExperiment(), 'runCommandList': runCommandList}
+        with open(filename, 'w') as outputFile:
+            json.dump(content, outputFile)
+
+        tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
+        os.chdir(current_dir)
+        return 0
+
+
+    def getHPCEventJobFromPanda(self):
+        try:
+            tolog("Switch to pilot working dir: %s" % self.__pilotWorkingDir)
+            os.chdir(self.__pilotWorkingDir)
+            tolog("Get new job from Panda")
+            getJob = GetJob(self.__pilotWorkingDir, self.__node, self.__siteInfo, self.__jobSite)
+            job, data, errLog = getJob.getNewJob()
+            if not job:
+                if "No job received from jobDispatcher" in errLog or "Dispatcher has no jobs" in errLog:
+                    errorText = "!!FINISHED!!0!!Dispatcher has no jobs"
+                else:
+                    errorText = "!!FAILED!!1999!!%s" % (errLog)
+                tolog(errorText)
+
+                # remove the site workdir before exiting
+                # pUtil.writeExitCode(thisSite.workdir, error.ERR_GENERALERROR)
+                # raise SystemError(1111)
+                #pUtil.fastCleanup(self.__jobSite.workdir, self.__pilotWorkingDir, True)
+                return -1
+            else:
+                tolog("download job definition id: %s" % (job.jobDefinitionID))
+                # verify any contradicting job definition parameters here
+                try:
+                    ec, pilotErrorDiag = self.__thisExperiment.postGetJobActions(job)
+                    if ec == 0:
+                        tolog("postGetJobActions: OK")
+                        # return ec
+                    else:
+                        tolog("!!WARNING!!1231!! Post getJob() actions encountered a problem - job will fail")
+                        try:
+                            # job must be failed correctly
+                            pUtil.tolog("Updating PanDA server for the failed job (error code %d)" % (ec))
+                            job.jobState = 'failed'
+                            job.setState([job.jobState, 0, ec])
+                            # note: job.workdir has not been created yet so cannot create log file
+                            pilotErrorDiag = "Post getjob actions failed - workdir does not exist, cannot create job log, see batch log"
+                            tolog("!!WARNING!!2233!! Work dir has not been created yet so cannot create job log in this case - refer to batch log")
+
+                            JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=job.workdir)
+                            JR.updatePandaServer(job, self.__jobSite, self.__node, 25443) 
+                            #pUtil.fastCleanup(self.__jobSite.workdir, self.__pilotWorkingDir, True)
+                            return ec
+                        except Exception, e:
+                            pUtil.tolog("Caught exception: %s" % (e))
+                            return ec
+                except Exception, e:
+                    pUtil.tolog("Caught exception: %s" % (e))
+                    return -1
+        except:
+            tolog("Failed to get job: %s" % (traceback.format_exc()))
+            return -1
+
+        self.setupJob(job, data)
+        self.updateJobState(job, 'starting', '', final=False)
+        return 0
+
+    def getHPCEventJobFromEnv(self):
+        tolog("getHPCEventJobFromEnv")
+        try:
+            # always use this filename as the new jobDef module name
+            import newJobDef
+            job = Job.Job()
+            job.setJobDef(newJobDef.job)
+            logGUID = newJobDef.job.get('logGUID', "")
+            if logGUID != "NULL" and logGUID != "":
+                job.tarFileGuid = logGUID
+
+            if self.__firstJob:
+                job.workdir = self.__jobSite.workdir
+                self.__firstJob = False
+
+            self.__firstJobId = job.jobId
+            filename = os.path.join(self.__pilotWorkingDir, "Job_%s.json" % job.jobId)
+            content = {'workdir': job.workdir, 'data': newJobDef.job, 'experiment': self.__thisExperiment.getExperiment()}
+            with open(filename, 'w') as outputFile:
+                json.dump(content, outputFile)
+
+            self.__jobStateFile = '%s/jobState-%s.pickle' % (self.__pilotWorkingDir, job.jobId)
+        except Exception, e:
+            pilotErrorDiag = "Failed to process job info: %s" % str(e)
+            tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
+            self.failOneJob(0, PilotErrors.ERR_UNKNOWN, job, pilotErrorDiag=pilotErrorDiag, final=True, updatePanda=False)
+            return -1
+
+        self.setupJob(job, newJobDef.job)
+        self.updateJobState(job, 'starting', '', final=False)
+        return 0
+
+    def updateJobState(self, job, jobState, hpcState, final=False, updatePanda=True):
+        job.setMode(self.__hpcMode)
+        job.jobState = jobState
+        job.setState([job.jobState, 0, 0])
+        job.setHpcStatus(hpcState)
+        if job.pilotErrorDiag and len(job.pilotErrorDiag.strip()) == 0:
+            job.pilotErrorDiag = None
+        JR = self.__jobs[job.jobId]['JR']
+
+        pilotErrorDiag = job.pilotErrorDiag
+
+        JR.updateJobStateTest(job, self.__jobSite, self.__node, mode="test")
+        rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), self.getPilotPort(), final=final)
+        if updatePanda:
+            JR.updatePandaServer(job, self.__jobSite, self.__node, 25443)
+        job.pilotErrorDiag = pilotErrorDiag
+
+    def updateAllJobsState(self, jobState, hpcState, final=False):
+        for jobId in self.__jobs:
+            self.updateJobState(self.__jobs[jobId]['job'], jobState, hpcState, final=final)
+
+    def getHPCEventJobs(self):
+        self.getHPCEventJobFromEnv()
+        tolog("NJobs: %s" % self.__nJobs)
+        while self.__neededEventRanges > 0 and (len(self.__jobs.keys()) < int(self.__nJobs)):
+            tolog("Len(jobs): %s" % len(self.__jobs.keys()))
+            tolog("NJobs: %s" % self.__nJobs)
+            try:
+                ret = self.getHPCEventJobFromPanda()
+                if ret != 0:
+                    tolog("Failed to get a job from panda.")
+                    break
+            except:
+                tolog("Failed to get job: %s" % (traceback.format_exc()))
+                break
+
+        self.__hpcStatue = ''
+        #self.updateAllJobsState('starting', self.__hpcStatue)
+            
+
+    def stageInOneJob(self, job, jobSite, analysisJob, avail_files={}, pfc_name="PoolFileCatalog.xml"):
+        """ Perform the stage-in """
+
+        current_dir = os.getcwd()
+        os.chdir(job.workdir)
+        tolog("Start to stage in input files for job %s" % job.jobId)
+        tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
+
+        real_stagein = False
+        for lfn in job.inFiles:
+            if not (lfn in self.__avail_files):
+                real_stagein = True
+        if not real_stagein:
+            tolog("All files for job %s have copies locally, will try to copy locally" % job.jobId)
+            for lfn in job.inFiles:
+                try:
+                    copy_src = self.__avail_files[lfn]
+                    copy_dest = os.path.join(job.workdir, lfn)
+                    tolog("Copy %s to %s" % (copy_src, copy_dest))
+                    shutil.copyfile(copy_src, copy_dest)
+                except:
+                    tolog("Failed to copy file: %s" % traceback.format_exc())
+                    real_stagein = True
+                    break
+        if not real_stagein:
+            tolog("All files for job %s copied locally" % job.jobId)
+            tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
+            os.chdir(current_dir)
+            return job, job.inFiles, None, None
+
+        ec = 0
+        statusPFCTurl = None
+        usedFAXandDirectIO = False
+
+        # Prepare the input files (remove non-valid names) if there are any
+        ins, job.filesizeIn, job.checksumIn = RunJobUtilities.prepareInFiles(job.inFiles, job.filesizeIn, job.checksumIn)
+        if ins:
+            tolog("Preparing for get command")
+
+            # Get the file access info (only useCT is needed here)
+            useCT, oldPrefix, newPrefix, useFileStager, directIn = pUtil.getFileAccessInfo()
+
+            # Transfer input files
+            tin_0 = os.times()
+            ec, job.pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
+                mover.get_data(job, jobSite, ins, self.__stageinretry, analysisJob=analysisJob, usect=useCT,\
+                               pinitdir=self.__pilotWorkingDir, proxycheck=False, inputDir=None, workDir=job.workdir, pfc_name=pfc_name)
+            if ec != 0:
+                job.result[2] = ec
+            tin_1 = os.times()
+            job.timeStageIn = int(round(tin_1[4] - tin_0[4]))
+
+            # Extract any FAX info from the dictionary
+            if FAX_dictionary.has_key('N_filesWithoutFAX'):
+                job.filesWithoutFAX = FAX_dictionary['N_filesWithoutFAX']
+            if FAX_dictionary.has_key('N_filesWithFAX'):
+                job.filesWithFAX = FAX_dictionary['N_filesWithFAX']
+            if FAX_dictionary.has_key('bytesWithoutFAX'):
+                job.bytesWithoutFAX = FAX_dictionary['bytesWithoutFAX']
+            if FAX_dictionary.has_key('bytesWithFAX'):
+                job.bytesWithFAX = FAX_dictionary['bytesWithFAX']
+            if FAX_dictionary.has_key('usedFAXandDirectIO'):
+                usedFAXandDirectIO = FAX_dictionary['usedFAXandDirectIO']
+
+        tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
+        os.chdir(current_dir)
+
+        if ec == 0:
+            for inFile in ins:
+                self.__avail_files[inFile] = os.path.join(job.workdir, inFile)
+        return job, ins, statusPFCTurl, usedFAXandDirectIO
+
+    def failOneJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True, final=True, updatePanda=False):
+        """ set the fail code and exit """
+
+        if pilotExitCode and job.attemptNr < 4 and job.eventServiceMerge:
+            pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
+        job.setState(["failed", transExitCode, pilotExitCode])
+        if pilotErrorDiag:
+            job.pilotErrorDiag = pilotErrorDiag
+        tolog("Job %s failed. Will now update local pilot TCP server" % job.jobId)
+        self.updateJobState(job, 'failed', 'failed', final=final, updatePanda=updatePanda)
+        if ins:
+            ec = pUtil.removeFiles(job.workdir, ins)
+
+        self.cleanup(job)
+        sys.stderr.close()
+        tolog("Job %s has failed" % job.jobId)
+
+    def failAllJobs(self, transExitCode, pilotExitCode, jobs, pilotErrorDiag=None, docleanup=True, updatePanda=False):
+        firstJob = None
+        for jobId in jobs:
+            if self.__firstJobId and (jobId == self.__firstJobId):
+                firstJob = jobs[jobId]['job']
+                continue
+            job = jobs[jobId]['job']
+            self.failOneJob(transExitCode, pilotExitCode, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=updatePanda)
+        if firstJob:
+            self.failOneJob(transExitCode, pilotExitCode, firstJob, ins=firstJob.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=updatePanda)
+        os._exit(pilotExitCode)
+
+    def stageInHPCJobs(self):
+        tolog("Setting stage-in state until all input files have been copied")
+        jobResult = 0
+        pilotErrorDiag = ""
+        self.__avail_files = {}
+        for jobId in self.__jobs:
+            try:
+                job = self.__jobs[jobId]['job']
+                self.updateJobState(job, 'transferring', '')
+
+                # stage-in all input files (if necessary)
+                jobRet, ins, statusPFCTurl, usedFAXandDirectIO = self.stageInOneJob(job, self.__jobSite, self.__jobs[job.jobId]['analysisJob'], self.__avail_files, pfc_name="PFC.xml")
+                if jobRet.result[2] != 0:
+                    tolog("Failing job with ec: %d" % (jobRet.result[2]))
+                    jobResult = jobRet.result[2]
+                    pilotErrorDiag = job.pilotErrorDiag
+                    self.failOneJob(0, jobResult, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=False)
+                    #continue
+                    break
+                job.displayJob()
+                self.__jobs[job.jobId]['job'] = job
+            except:
+                tolog("stageInHPCJobsException")
+                tolog(traceback.format_exc())
+
+        if jobResult != 0:
+            self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
+
+
+    def updateEventRange(self, event_range_id, status='finished'):
+        """ Update an event range on the Event Server """
+        tolog("Updating an event range..")
+
+        message = ""
+        # url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
+        node = {}
+        node['eventRangeID'] = event_range_id
+
+        # node['cpu'] =  eventRangeList[1]
+        # node['wall'] = eventRangeList[2]
+        node['eventStatus'] = status
+        # tolog("node = %s" % str(node))
+
+        # open connection
+        ret = httpConnect(node, url, path=self.__pilotWorkingDir, mode="UPDATEEVENTRANGE")
+        # response = ret[1]
+
+        if ret[0]: # non-zero return code
+            message = "Failed to update event range - error code = %d" % (ret[0])
+        else:
+            message = ""
+
+        return ret[0], message
+
+
+    def getJobEventRanges(self, job, numRanges=2):
+        """ Download event ranges from the Event Server """
+        tolog("Server: Downloading new event ranges..")
+
+        message = ""
+        # url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
+
+        node = {}
+<<<<<<< HEAD
+        node['pandaID'] = self.__job.jobId
+        node['jobsetID'] = self.__job.jobsetID
+        node['taskID'] = self.__job.taskID
+=======
+        node['pandaID'] = job.jobId
+        node['jobsetID'] = job.jobsetID
+        node['taskID'] = job.taskID
+>>>>>>> HPCEvent
+        node['nRanges'] = numRanges
+
+        # open connection
+        ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")
+        response = ret[1]
+
+        if ret[0]: # non-zero return code
+            message = "Failed to download event range - error code = %d" % (ret[0])
+            tolog(message)
+            return []
+        else:
+            message = response['eventRanges']
+            return json.loads(message)
+
+
+    def updateHPCEventRanges(self):
+        for jobId in self.__eventRanges:
+            for eventRangeID in self.__eventRanges[jobId]:
+                if self.__eventRanges[jobId][eventRangeID] == 'stagedOut' or self.__eventRanges[jobId][eventRangeID] == 'failed':
+                    if self.__eventRanges[jobId][eventRangeID] == 'stagedOut':
+                        eventStatus = 'finished'
+                    else:
+                        eventStatus = 'failed'
+                    try:
+                        ret, message = self.updateEventRange(eventRangeID, eventStatus)
+                    except Exception, e:
+                        tolog("Failed to update event range: %s, %s, exception: %s " % (eventRangeID, eventStatus, str(e)))
+                    else:
+                        if ret == 0:
+                            self.__eventRanges[jobId][eventRangeID] = "Done"
+                        else:
+                            tolog("Failed to update event range: %s" % eventRangeID)
+
+
+    def prepareHPCJob(self, job):
+        tolog("Prepare for job %s" % job.jobId)
+        current_dir = os.getcwd()
+        os.chdir(job.workdir)
+        tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
+
+        #print self.__runCommandList
+        #print self.getParentWorkDir()
+        #print self.__job.workdir
+        # 1. input files
+        inputFiles = []
+        inputFilesGlobal = []
+        for inputFile in job.inFiles:
+            #inputFiles.append(os.path.join(self.__job.workdir, inputFile))
+            inputFilesGlobal.append(os.path.join(job.workdir, inputFile))
+            inputFiles.append(os.path.join('HPCWORKINGDIR', inputFile))
+        inputFileDict = dict(zip(job.inFilesGuids, inputFilesGlobal))
+        self.__jobs[job.jobId]['inputFilesGlobal'] = inputFilesGlobal
+
+        tagFiles = {}
+        EventFiles = {}
+        for guid in inputFileDict:
+            if '.TAG.' in inputFileDict[guid]:
+                tagFiles[guid] = inputFileDict[guid]
+            elif not "DBRelease" in inputFileDict[guid]:
+                EventFiles[guid] = {}
+                EventFiles[guid]['file'] = inputFileDict[guid]
+
+        # 2. create TAG file
+        for guid in EventFiles:
+            local_copy = False
+            if guid in self.__avail_tag_files:
+                local_copy = True
+                try:
+                    tolog("Copy TAG file from %s to %s" % (self.__avail_tag_files[guid]['TAG_path'], job.workdir))
+                    shutil.copy(self.__avail_tag_files[guid]['TAG_path'], job.workdir)
+                except:
+                    tolog("Failed to copy %s to %s" % (self.__avail_tag_files[guid]['TAG_path'], job.workdir))
+                    local_copy = False
+            if local_copy:
+                tolog("Tag file for %s already copied locally. Will not create it again" % guid)
+                EventFiles[guid]['TAG'] = self.__avail_tag_files[guid]['TAG']
+                EventFiles[guid]['TAG_guid'] = self.__avail_tag_files[guid]['TAG_guid']
+            else:
+                tolog("Tag file for %s does not exist. Will create it." % guid)
+                inFiles = [EventFiles[guid]['file']]
+                input_tag_file, input_tag_file_guid = self.createTAGFile(self.__jobs[job.jobId]['runCommandList'][0], job.trf, inFiles, "MakeRunEventCollection.py")
+                if input_tag_file != "" and input_tag_file_guid != "":
+                    tolog("Will run TokenExtractor on file %s" % (input_tag_file))
+                    EventFiles[guid]['TAG'] = input_tag_file
+                    EventFiles[guid]['TAG_guid'] = input_tag_file_guid
+                    self.__avail_tag_files[guid] = {'TAG': input_tag_file, 'TAG_path': os.path.join(job.workdir, input_tag_file), 'TAG_guid': input_tag_file_guid}
+                else:
+                    # only for current test
+                    if len(tagFiles)>0:
+                        EventFiles[guid]['TAG_guid'] = tagFiles.keys()[0]
+                        EventFiles[guid]['TAG'] = tagFiles[tagFiles.keys()[0]]
+                    else:
+                        return -1, "Failed to create the TAG file", None
+
+        # 3. create Pool File Catalog
+<<<<<<< HEAD
+        inputFileDict = dict(zip(self.__job.inFilesGuids, inputFilesGlobal))
+        self.__poolFileCatalog = os.path.join(self.__job.workdir, "PoolFileCatalog_HPC.xml")
+        createPoolFileCatalog(inputFileDict, self.__job.inFiles, self.__poolFileCatalog)
+        inputFileDictTemp = dict(zip(self.__job.inFilesGuids, inputFiles))
+        self.__poolFileCatalogTemp = os.path.join(self.__job.workdir, "PoolFileCatalog_Temp.xml")
+        self.__poolFileCatalogTempName = "HPCWORKINGDIR/PoolFileCatalog_Temp.xml"
+        createPoolFileCatalog(inputFileDictTemp, self.__job.inFiles, self.__poolFileCatalogTemp)
+=======
+        inputFileDict = dict(zip(job.inFilesGuids, inputFilesGlobal))
+        poolFileCatalog = os.path.join(job.workdir, "PoolFileCatalog_HPC.xml")
+        createPoolFileCatalog(inputFileDict, poolFileCatalog)
+        inputFileDictTemp = dict(zip(job.inFilesGuids, inputFiles))
+        poolFileCatalogTemp = os.path.join(job.workdir, "PoolFileCatalog_Temp.xml")
+        poolFileCatalogTempName = "HPCWORKINGDIR/PoolFileCatalog_Temp.xml"
+        createPoolFileCatalog(inputFileDictTemp, poolFileCatalogTemp)
+        self.__jobs[job.jobId]['poolFileCatalog'] = poolFileCatalog
+        self.__jobs[job.jobId]['poolFileCatalogTemp'] = poolFileCatalogTemp
+        self.__jobs[job.jobId]['poolFileCatalogTempName'] = poolFileCatalogTempName
+>>>>>>> HPCEvent
+
+        # 4. getSetupCommand
+        setupCommand = self.stripSetupCommand(self.__jobs[job.jobId]['runCommandList'][0], job.trf)
+        _cmd = re.search('(source.+\;)', setupCommand)
+        source_setup = None
+        if _cmd:
+            setup = _cmd.group(1)
+            source_setup = setup.split(";")[0]
+            #setupCommand = setupCommand.replace(source_setup, source_setup + " --cmtextratags=ATLAS,useDBRelease")
+            # for test, asetup has a bug
+            #new_source_setup = source_setup.split("cmtsite/asetup.sh")[0] + "setup-19.2.0-quick.sh"
+            #setupCommand = setupCommand.replace(source_setup, new_source_setup)
+        tolog("setup command: " + setupCommand)
+
+        # 5. check if release-compact.tgz exists. If it exists, use it.
+        preSetup = None
+        postRun = None
+        new_source_setup = None
+        yoda_setup = None
+        if source_setup and '--cmtconfig' in source_setup:
+            try:
+                cmtconfig = source_setup.split('--cmtconfig')[1].strip().split(" ")[0].strip()
+                tolog("cmtconfig: %s" % cmtconfig)
+                source_setup_path = source_setup.replace('source ', '').strip().split(' ')[0]
+                source_setup_option = source_setup.split(source_setup_path)[1]
+                tolog("source_setup_path: %s" % source_setup_path)
+                release_path = os.path.join(source_setup_path.split(cmtconfig)[0], cmtconfig)
+                tolog("release_path: %s" % release_path)
+                release_version = source_setup_path.split(cmtconfig)[1].split('/')[1]
+                tolog("release_version: %s" % release_version)
+                compact_path = os.path.join(release_path, release_version + '-compact.tgz')
+                tolog("compact_path: %s" % compact_path)
+                if os.path.exists(compact_path):
+                    tolog("compact_path exists: %s" % compact_path)
+                    # preSetup = 'rm -fr /tmp/yoda; mkdir -p /tmp/yoda; cd /tmp/yoda; cp ' + compact_path + ' ./; tar xzf ' + release_version + '-compact.tgz'
+                    # preSetup += '; mkdir poolcond; cp ' + release_path + '/' + release_version + '/DBRelease/current/poolcond/*.xml poolcond/'
+                    # preSetup += '; cd -'
+                    if '19.2.1' in release_version:
+                        athena_local_dir = '/tmp/tsulaia'
+                    else:
+                        athena_local_dir = '/tmp/yoda'
+                    postRun = 'rm -fr ' + athena_local_dir
+                    new_source_setup = ' source ' + athena_local_dir + '/' + release_version + '/setup-quick.sh ' + source_setup_option
+                    new_source_setup += '; export  DATAPATH=' + athena_local_dir + ':$DATAPATH'
+                    new_source_setup += '; export  LD_LIBRARY_PATH=/scratch1/scratchdirs/tsulaia/sw/software/x86_64-slc6-gcc47-opt/19.2.1/patch/ldpatch/:$LD_LIBRARY_PATH'
+                    newSetupCommand = setupCommand.replace(source_setup, new_source_setup)
+                    tolog("new setup command: %s" % newSetupCommand)
+
+                    # create yoda_setup.sh
+                    yoda_setup = '#!/bin/bash\n'
+                    yoda_setup += 'compact_path=%s\n' % compact_path
+                    yoda_setup += 'local_path=' + athena_local_dir + '\n'
+                    yoda_setup += 'release=%s\n' % release_version
+                    yoda_setup += 'compact_release=%s-compact.tgz\n' % release_version
+                    yoda_setup += 'compact_release_path=%s\n' % release_path
+                    yoda_setup += 'setup_options="%s"\n' % source_setup_option
+                    yoda_setup += '\n'
+                    yoda_setup += '\n'
+                    yoda_setup += 'function local_setup(){\n'
+                    yoda_setup += '    echo $compact_path\n'
+                    yoda_setup += '    if [ -f "$compact_path" ]; then\n'
+                    yoda_setup += '        echo "Compact relaese $compact_path exists."\n'
+                    yoda_setup += '    else\n'
+                    yoda_setup += '        return 1\n'
+                    yoda_setup += '    fi\n'
+                    yoda_setup += '\n'
+                    yoda_setup += '    if [ -d "$local_path" ]; then\n'
+                    yoda_setup += '        echo "$local_path exits. remove it."\n'
+                    yoda_setup += '        rm -fr $local_path\n'
+                    yoda_setup += '        if [ $? -ne 0 ]; then\n'
+                    yoda_setup += '            echo "failed to remove $local_path"\n'
+                    yoda_setup += '            return 1\n'
+                    yoda_setup += '        fi\n'
+                    yoda_setup += '    fi\n'
+                    yoda_setup += '\n'
+                    yoda_setup += '    mkdir -p $local_path\n'
+                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
+                    yoda_setup += '        echo "failed to mkdir $local_path"\n'
+                    yoda_setup += '        return 1\n'
+                    yoda_setup += '    fi\n'
+                    yoda_setup += '    cd $local_path\n'
+                    yoda_setup += '    cp $compact_path ./\n'
+                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
+                    yoda_setup += '        echo "failed to copy $compact_path to $local_path"\n'
+                    yoda_setup += '        cd -\n'
+                    yoda_setup += '        rm -fr $local_path\n'
+                    yoda_setup += '        return 1\n'
+                    yoda_setup += '    fi\n'
+                    yoda_setup += '    tar xzf $compact_release\n'
+                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
+                    yoda_setup += '        echo "failed to untar $compact_release"\n'
+                    yoda_setup += '        cd -\n'
+                    yoda_setup += '        rm -fr $local_path\n'
+                    yoda_setup += '        return 1\n'
+                    yoda_setup += '    fi\n'
+                    yoda_setup += '    mkdir poolcond\n'
+                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
+                    yoda_setup += '        echo "failed to mkdir poolcond"\n'
+                    yoda_setup += '        cd -\n'
+                    yoda_setup += '        rm -fr $local_path\n'
+                    yoda_setup += '        return 1\n'
+                    yoda_setup += '    fi\n'
+                    yoda_setup += '    cp ${compact_release_path}/${release}/DBRelease/current/poolcond/*.xml poolcond/\n'
+                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
+                    yoda_setup += '        echo "failed to copy pool xml file poolcond"\n'
+                    yoda_setup += '        cd -\n'
+                    yoda_setup += '        rm -fr $local_path\n'
+                    yoda_setup += '        return 1\n'
+                    yoda_setup += '    fi\n'
+                    yoda_setup += '    cd -\n'
+                    yoda_setup += '    source ${local_path}/${release}/setup-quick.sh %s\n' % source_setup_option
+                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
+                    yoda_setup += '        echo "failed to source ${local_path}/${release}/setup-quick.sh"\n'
+                    yoda_setup += '        rm -fr $local_path\n'
+                    yoda_setup += '        return 1\n'
+                    yoda_setup += '    fi\n'
+                    yoda_setup += '    export  DATAPATH=${local_path}:$DATAPATH\n'
+                    yoda_setup += '    export  LD_LIBRARY_PATH=/scratch1/scratchdirs/tsulaia/sw/software/x86_64-slc6-gcc47-opt/19.2.1/patch/ldpatch/:$LD_LIBRARY_PATH\n'
+                    yoda_setup += '    export G4ATLAS_SKIPFILEPEEK=1\n'
+                    yoda_setup += '    return 0\n'
+                    yoda_setup += '}\n'
+                    yoda_setup += '\n'
+                    yoda_setup += 'function global_setup(){\n'
+                    yoda_setup += '    %s\n' % source_setup
+                    yoda_setup += '    export G4ATLAS_SKIPFILEPEEK=1\n'
+                    yoda_setup += '}\n'
+                    yoda_setup += '\n'
+                    yoda_setup += 'current_dir=`pwd`\n'
+                    yoda_setup += 'local_setup\n'
+                    yoda_setup += 'ret=$?\n'
+                    yoda_setup += 'echo $ret\n'
+                    yoda_setup += 'cd $current_dir\n'
+                    yoda_setup += '\n'
+                    yoda_setup += 'if [ $ret -ne 0 ]; then\n'
+                    yoda_setup += '    echo "local setup failed, will use global setup"\n'
+                    yoda_setup += '    global_setup\n'
+                    yoda_setup += 'fi\n'
+                else:
+                    tolog("compact_path does not exist: %s" % compact_path)
+            except Exception ,e:
+                tolog("Failed to convert setup to use compact version, exception: %s " % (str(e)))
+                tolog(traceback.format_exc())
+                yoda_setup = None
+        if not yoda_setup:
+            yoda_setup = '#!/bin/bash\n'
+            yoda_setup += '%s\n' % source_setup
+            yoda_setup += 'export G4ATLAS_SKIPFILEPEEK=1\n'
+        job = self.__jobs[job.jobId]['job']
+        yoda_setup_name = os.path.join(job.workdir, 'yoda_setup.sh')
+        yoda_setup_handle = open(yoda_setup_name, 'w')
+        yoda_setup_handle.write(yoda_setup)
+        yoda_setup_handle.close()
+        yoda_setup_command = 'source %s' % yoda_setup_name
+
+        # 6. AthenaMP command
+        runCommandList_0 = self.__jobs[job.jobId]['runCommandList'][0]
+        if yoda_setup_command:
+            runCommandList_0 = self.__jobs[job.jobId]['runCommandList'][0]
+            runCommandList_0 = runCommandList_0.replace(source_setup, yoda_setup_command)
+        if not self.__copyInputFiles:
+            jobInputFileList = None
+            jobInputFileList = inputFilesGlobal[0]
+            command_list = runCommandList_0.split(" ")
+            command_list_new = []
+            for command_part in command_list:
+                if command_part.startswith("--input"):
+                    command_arg = command_part.split("=")[0]
+                    command_part_new = command_arg + "=" + jobInputFileList
+                    command_list_new.append(command_part_new)
+                else:
+                    command_list_new.append(command_part)
+            runCommandList_0 = " ".join(command_list_new)
+
+
+            runCommandList_0 += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (poolFileCatalog)
+        else:
+            runCommandList_0 += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (poolFileCatalogTempName)
+
+        # should not have --DBRelease and UserFrontier.py in HPC
+        runCommandList_0 = runCommandList_0.replace("--DBRelease=current", "")
+        if 'RecJobTransforms/UseFrontier.py,' in runCommandList_0:
+            runCommandList_0 = runCommandList_0.replace('RecJobTransforms/UseFrontier.py,', '')
+        if ',RecJobTransforms/UseFrontier.py' in runCommandList_0:
+            runCommandList_0 = runCommandList_0.replace(',RecJobTransforms/UseFrontier.py', '')
+        if ' --postInclude=RecJobTransforms/UseFrontier.py ' in runCommandList_0:
+            runCommandList_0 = runCommandList_0.replace(' --postInclude=RecJobTransforms/UseFrontier.py ', ' ')
+        if '--postInclude "default:RecJobTransforms/UseFrontier.py"' in runCommandList_0:
+            runCommandList_0 = runCommandList_0.replace('--postInclude "default:RecJobTransforms/UseFrontier.py"', ' ')
+
+        runCommandList_0 += " 1>athenaMP_stdout.txt 2>athenaMP_stderr.txt"
+        runCommandList_0 = runCommandList_0.replace(";;", ";")
+        #self.__jobs[job.jobId]['runCommandList'][0] = runCommandList_0
+
+        # 7. Token Extractor file list
+        # in the token extractor file list, the guid is the Event guid, not the tag guid.
+        tagFile_list = os.path.join(job.workdir, "TokenExtractor_filelist")
+        handle = open(tagFile_list, 'w')
+        for guid in EventFiles:
+            tagFile = EventFiles[guid]['TAG']
+            line = guid + ",PFN:" + tagFile + "\n"
+            handle.write(line)
+        handle.close()
+        self.__jobs[job.jobId]['tagFile_list'] = tagFile_list
+
+        # 8. Token Extractor command
+        setup = setupCommand
+        tokenExtractorCmd = setup + ";" + " TokenExtractor -v  --source " + tagFile_list + " 1>tokenExtract_stdout.txt 2>tokenExtract_stderr.txt"
+        tokenExtractorCmd = tokenExtractorCmd.replace(";;", ";")
+        self.__jobs[job.jobId]['tokenExtractorCmd'] = tokenExtractorCmd
+
+        os.chdir(current_dir)
+        tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
+
+        return 0, None, {"TokenExtractCmd": tokenExtractorCmd, "AthenaMPCmd": runCommandList_0, "PreSetup": preSetup, "PostRun": postRun, 'PoolFileCatalog': poolFileCatalog, 'InputFiles': inputFilesGlobal, 'GlobalWorkingDir': job.workdir}
+
+    def prepareHPCJobs(self):
+        for jobId in self.__jobs:
+            status, output, hpcJob = self.prepareHPCJob(self.__jobs[jobId]['job'])
+            tolog("HPC Job %s: %s " % (jobId, hpcJob))
+            if status == 0:
+                self.__jobs[jobId]['hpcJob'] = hpcJob
+            else:
+                return status, output
+        return 0, None
+
+    def getJobDatasets(self, job):
+        """ Get the datasets for the output files """
+
+        # Get the default dataset
+        if job.destinationDblock and job.destinationDblock[0] != 'NULL' and job.destinationDblock[0] != ' ':
+            dsname = job.destinationDblock[0]
+        else:
+            dsname = "%s-%s-%s" % (time.localtime()[0:3]) # pass it a random name
+
+        # Create the dataset dictionary
+        # (if None, the dsname above will be used for all output files)
+        datasetDict = getDatasetDict(job.outFiles, job.destinationDblock, job.logFile, job.logDblock)
+        if datasetDict:
+            tolog("Dataset dictionary has been verified: %s" % str(datasetDict))
+        else:
+            tolog("Dataset dictionary could not be verified, output files will go to: %s" % (dsname))
+
+        return dsname, datasetDict
+
+    def setupJobStageOutHPCEvent(self, job):
+        if job.prodDBlockTokenForOutput is not None and len(job.prodDBlockTokenForOutput) > 0 and job.prodDBlockTokenForOutput[0] != 'NULL':
+            siteInfo = getSiteInformation(self.getExperiment())
+            objectstore_orig = siteInfo.readpar("objectstore")
+            #siteInfo.replaceQueuedataField("objectstore", self.__job.prodDBlockTokenForOutput[0])
+            espath = getFilePathForObjectStore(filetype="eventservice")
+        else:
+            #siteInfo = getSiteInformation(self.getExperiment())
+            #objectstore = siteInfo.readpar("objectstore")
+            espath = getFilePathForObjectStore(filetype="eventservice")
+        espath = getFilePathForObjectStore(filetype="eventservice")
+        tolog("EventServer objectstore path: " + espath)
+
+        siteInfo = getSiteInformation(self.getExperiment())
+        # get the copy tool
+        setup = siteInfo.getCopySetup(stageIn=False)
+        tolog("Copy Setup: %s" % (setup))
+
+        dsname, datasetDict = self.getJobDatasets(job)
+        report = getInitialTracingReport(userid=job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=self.__analysisJob, jobId=self.__job.jobId, jobDefId=self.__job.jobDefinitionID, dn=self.__job.prodUserID)
+        self.__siteMover = objectstoreSiteMover(setup)
+
+
+    def stageOutHPCEvent(self, output_info):
+        eventRangeID, status, output = output_info
+        self.__output_es_files.append(output)
+
+        if status == 'failed':
+            try:
+                self.__eventRanges[eventRangeID] = 'failed'
+            except Exception, e:
+                tolog("!!WARNING!!2233!! update %s:%s threw an exception: %s" % (eventRangeID, 'failed', e))
+        if status == 'finished':
+            status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(output, self.__espath, lfn=os.path.basename(output), report=self.__report, token=self.__job.destinationDBlockToken, experiment=self.__job.experiment)
+            if status == 0:
+                try:
+                    #self.updateEventRange(eventRangeID)
+                    self.__eventRanges[eventRangeID] = 'stagedOut'
+                    tolog("Remove staged out output file: %s" % output)
+                    os.remove(output)
+                except Exception, e:
+                    tolog("!!WARNING!!2233!! remove ouput file threw an exception: %s" % (e))
+                    #self.__failedStageOuts.append(output_info)
+                else:
+                    tolog("remove output file has returned")
+            else:
+                tolog("!!WARNING!!1164!! Failed to upload file to objectstore: %d, %s" % (status, pilotErrorDiag))
+                self.__failedStageOuts.append(output_info)
+
+
+    def startHPCJobs(self):
+        tolog("startHPCJobs")
+        self.__hpcStatue = 'starting'
+        self.updateAllJobsState('starting', self.__hpcStatue)
+
+        status, output = self.prepareHPCJobs()
+        if status != 0:
+            tolog("Failed to prepare HPC jobs: status %s, output %s" % (status, output))
+            self.failAllJobs(0, PilotErrors.ERR_UNKNOWN, self.__jobs, pilotErrorDiag=output)
+            return 
 
         # setup stage out
-        self.setupStageOutHPCEvent()
+        #self.setupStageOutHPCEvent()
 
-        hpcManager.initJob(hpcJob)
-        hpcManager.initEventRanges(eventRanges)
-        
+        self.__hpcStatus = None
+        self.__hpcLog = None
+
+        hpcManager = self.__hpcManager
+        hpcJobs = {}
+        for jobId in self.__jobs:
+            if len(self.__eventRanges[jobId]) > 0:
+                hpcJobs[jobId] = self.__jobs[jobId]['hpcJob']
+        hpcManager.initJobs(hpcJobs, self.__jobEventRanges)
+
         hpcManager.submit()
-        threadpool = ThreadPool(defRes['stageout_threads'])
+        
+        hpcManager.setPandaJobStateFile(self.__jobStateFile)
+        #self.__stageout_threads = defRes['stageout_threads']
+        hpcManager.setStageoutThreads(self.__stageout_threads)
+        hpcManager.saveState()
+        self.__hpcManager = hpcManager
 
-        old_state = None
-        time_start = time.time()
-        while not hpcManager.isFinished():
-            state = hpcManager.poll()
-            self.__job.setHpcStatus(state)
-            if old_state is None or old_state != state or time.time() > (time_start + 60*10):
-                old_state = state
-                time_start = time.time()
-                tolog("HPCManager Job stat: %s" % state)
-                self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
-                rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
-                self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
+    def runHPCEvent(self):
+        tolog("runHPCEvent")
+        threadpool = ThreadPool(self.__stageout_threads)
+        hpcManager = self.__hpcManager
 
-            if state and state == 'Complete':
-                break
-            outputs = hpcManager.getOutputs()
-            for output in outputs:
-                #self.stageOutHPCEvent(output)
-                threadpool.add_task(self.stageOutHPCEvent, output)
+        try:
+            old_state = None
+            time_start = time.time()
+            while not hpcManager.isFinished():
+                state = hpcManager.poll()
+                self.__job.setHpcStatus(state)
+                if old_state is None or old_state != state or time.time() > (time_start + 60*10):
+                    old_state = state
+                    time_start = time.time()
+                    tolog("HPCManager Job stat: %s" % state)
+                    self.__JR.updateJobStateTest(self.__job, self.__jobSite, self.__node, mode="test")
+                    rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+                    self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
 
-            time.sleep(30)
-            self.updateHPCEventRanges()
+                if state and state == 'Running':
+                    self.__job.jobState = "running"
+                    self.__job.setState([self.__job.jobState, 0, 0])
+                if state and state == 'Complete':
+                    break
+                outputs = hpcManager.getOutputs()
+                for output in outputs:
+                    #self.stageOutHPCEvent(output)
+                    threadpool.add_task(self.stageOutHPCEvent, output)
 
-        tolog("HPCManager Job Finished")
-        self.__job.setHpcStatus('stagingOut')
-        rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
-        self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
+                time.sleep(30)
+                self.updateHPCEventRanges()
 
-        outputs = hpcManager.getOutputs()
-        for output in outputs:
-            #self.stageOutHPCEvent(output)
-            threadpool.add_task(self.stageOutHPCEvent, output)
+            tolog("HPCManager Job Finished")
+            self.__job.setHpcStatus('stagingOut')
+            rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+            self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
+        except:
+            tolog("RunHPCEvent failed: %s" % traceback.format_exc())
 
-        self.updateHPCEventRanges()
-        threadpool.wait_completion()
-        self.updateHPCEventRanges()
+        for i in range(3):
+            try:
+                tolog("HPC Stage out outputs retry %s" % i)
+                hpcManager.flushOutputs()
+                outputs = hpcManager.getOutputs()
+                for output in outputs:
+                    #self.stageOutHPCEvent(output)
+                    threadpool.add_task(self.stageOutHPCEvent, output)
 
+                self.updateHPCEventRanges()
+                threadpool.wait_completion()
+                self.updateHPCEventRanges()
+            except:
+                tolog("RunHPCEvent stageout outputs retry %s failed: %s" % (i, traceback.format_exc()))
 
-        if len(self.__failedStageOuts) > 0:
-            tolog("HPC Stage out retry 1")
-            half_stageout_threads = defRes['stageout_threads'] / 2
-            if half_stageout_threads < 1:
-                half_stageout_threads = 1
-            threadpool = ThreadPool(half_stageout_threads)
-            failedStageOuts = self.__failedStageOuts
-            self.__failedStageOuts = []
-            for failedStageOut in failedStageOuts:
-                threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
-            threadpool.wait_completion()
-            self.updateHPCEventRanges()
-
-        if len(self.__failedStageOuts) > 0:
-            tolog("HPC Stage out retry 2")
-            threadpool = ThreadPool(1)
-            failedStageOuts = self.__failedStageOuts
-            self.__failedStageOuts = []
-            for failedStageOut in failedStageOuts:
-                threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
-            threadpool.wait_completion()
-            self.updateHPCEventRanges()
+        for i in range(3):
+            try:
+                tolog("HPC Stage out failed outputs retry %s" % i)
+                failedStageOuts = self.__failedStageOuts
+                self.__failedStageOuts = []
+                for failedStageOut in failedStageOuts:
+                    threadpool.add_task(self.stageOutHPCEvent, failedStageOut)
+                threadpool.wait_completion()
+                self.updateHPCEventRanges()
+            except:
+                tolog("RunHPCEvent stageout failed outputs retry %s failed: %s" % (i, traceback.format_exc()))
 
         self.__job.setHpcStatus('finished')
         self.__JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
@@ -611,85 +1127,361 @@ class RunJobHpcEvent(RunJob):
         tolog("HPC job log status: %s, job log error: %s" % (self.__hpcStatus, self.__hpcLog))
         
 
-    def finishJob(self):
+    def startEventStager(self):
         try:
-            self.__hpcManager.finishJob()
-        except:
-            tolog(sys.exc_info()[1])
-            tolog(sys.exc_info()[2])
+            tolog("Starting Event Stager")
+            # get the copy tool
+            setup = self.__siteInfo.getCopySetup(stageIn=False)
 
-        # If payload leaves the input files, delete them explicitly
-        if self.__job.inFiles:
-            ec = pUtil.removeFiles(self.__job.workdir, self.__job.inFiles)
+            espath = getFilePathForObjectStore(filetype="eventservice")
+            token = None
+            
+            self.__eventStager = EventStager(workDir=self.__pilotWorkingDir, setup=setup, esPath=espath, token=token, experiment=self.getExperiment(), userid=self.__userid, sitename=self.__jobSite.sitename, threads=self.__stageout_threads, outputDir=self.getOutputDir())
+            self.__eventStager.start()
+        except:
+            tolog("Failed to start Event Stager: %s" % traceback.format_exc())
+
+    def getEventStagerLog(self):
+        try:
+            return self.__eventStager.getLog()
+        except:
+            tolog("Failed to get Event Stager Log: %s" % traceback.format_exc())
+            return None
+
+    def updateEventRangesFromStager(self):
+        tolog("updateEventRangesFromStager")
+        all_files = os.listdir(self.__pilotWorkingDir)
+        for file in all_files:
+            if file.endswith(".staged.reported"):
+                filename = os.path.join(self.__pilotWorkingDir, file)
+                handle = open(filename)
+                for output_info in handle:
+                    if len(output_info)<2:
+                        continue
+                    jobId, eventRangeID, status, output = output_info.split(" ")
+                    if jobId not in self.__eventRanges:
+                        self.__eventRanges[jobId] = {}
+                    self.__eventRanges[jobId][eventRangeID] = 'Done'
+                handle.close()
+            if file.endswith(".staged"):
+                filename = os.path.join(self.__pilotWorkingDir, file)
+                handle = open(filename)
+                for output_info in handle:
+                    jobId, eventRangeID, status, output = output_info.split(" ")
+                    self.__eventRanges[jobId][eventRangeID] = 'stagedOut'
+                handle.close()
+                self.updateHPCEventRanges()
+                os.rename(file, file + ".reported")
+
+    def monitorEventStager(self):
+        try:
+            self.__eventStager.monitor()
+            self.updateEventRangesFromStager()
+        except:
+            tolog("Failed to monitor Event Stager: %s" % traceback.format_exc())
+
+    def finishEventStager(self):
+        try:
+            self.__eventStager.finish()
+        except:
+            tolog("failed to finish event ranges %s" % traceback.format_exc())
+
+    def isEventStagerFinished(self):
+        try:
+            return self.__eventStager.isFinished()
+        except:
+            tolog("Failed in check Event Stager status: %s" % traceback.format_exc())
+            return False
+
+    def runHPCEventJobsWithEventStager(self):
+        tolog("runHPCEventWithEventStager")
+        hpcManager = self.__hpcManager
+        self.startEventStager()
+
+        try:
+            old_state = None
+            time_start = time.time()
+            while not hpcManager.isFinished():
+                state = hpcManager.poll()
+                self.__hpcStatue = state
+                if old_state is None or old_state != state or time.time() > (time_start + 60*10):
+                    old_state = state
+                    time_start = time.time()
+                    tolog("HPCManager Job stat: %s" % state)
+                    self.updateAllJobsState('running', self.__hpcStatue)
+
+                if state and state == 'Complete':
+                    break
+
+                self.monitorEventStager()
+                time.sleep(30)
+
+            tolog("HPCManager Job Finished")
+            self.__hpcStatue = 'stagingOut'
+            self.updateAllJobsState('running', self.__hpcStatue)
+        except:
+            tolog("RunHPCEvent failed: %s" % traceback.format_exc())
+
+        try:
+            self.finishEventStager()
+            while not self.isEventStagerFinished():
+                self.monitorEventStager()
+                time.sleep(30)
+
+            eventStager_log = self.getEventStagerLog()
+            for jobId in self.__jobs:
+                job_workdir = self.__jobs[jobId]['job'].workdir
+                tolog("Copy event stager log %s to job %s work dir %s" % (eventStager_log, jobId, job_workdir))
+                shutil.copy(eventStager_log, job_workdir)
+        except:
+            tolog("Waiting EventStager: %s" % traceback.format_exc())
+
+        try:
+            hpcManager.postRun()
+        except:
+            tolog("HPCManager postRun: %s" % traceback.format_exc())
+
+        self.__hpcStatue = 'finished'
+        self.updateAllJobsState('running', self.__hpcStatue)
+        self.__hpcStatus, self.__hpcLog = hpcManager.checkHPCJobLog()
+        tolog("HPC job log status: %s, job log error: %s" % (self.__hpcStatus, self.__hpcLog))
+
+
+    def check_unmonitored_jobs(self):
+        all_jobs = {}
+        all_files = os.listdir(self.__pilotWorkingDir)
+        for file in all_files:
+            if re.search('Job_[0-9]+.json', file):
+                filename = os.path.join(self.__pilotWorkingDir, file)
+                jobId = file.replace("Job_", "").replace(".json", "")
+                all_jobs[jobId] = filename
+        pUtil.tolog("Found jobs: %s" % all_jobs)
+        for jobId in all_jobs:
+            try:
+                with open(all_jobs[jobId]) as inputFile:
+                    content = json.load(inputFile)
+                job = Job.Job()
+                job.setJobDef(content['data'])
+                job.workdir = content['workdir']
+                job.experiment = content['experiment']
+                runCommandList = content.get('runCommandList', [])
+                logGUID = content['data'].get('logGUID', "")
+                if logGUID != "NULL" and logGUID != "":
+                    job.tarFileGuid = logGUID
+                if job.prodUserID:
+                    self.__userid = job.prodUserID
+                job.outFiles = []
+
+                if (not job.workdir) or (not os.path.exists(job.workdir)):
+                    pUtil.tolog("Job %s work dir %s doesn't exit, will not add it to monitor" % (job.jobId, job.workdir))
+                    continue
+                if jobId not in self.__jobs:
+                    self.__jobs[jobId] = {}
+                self.__jobs[jobId]['job'] = job
+                self.__jobs[job.jobId]['JR'] = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=job.workdir)
+                self.__jobs[job.jobId]['runCommandList'] = runCommandList
+                self.__eventRanges[job.jobId] = {}
+            except:
+                pUtil.tolog("Failed to load unmonitored job %s: %s" % (jobId, traceback.format_exc()))
+
+    def recoveryJobs(self):
+        tolog("Start to recovery job.")
+        job_state_file = self.getJobStateFile()
+        JS = JobState()
+        JS.get(job_state_file)
+        _job, _site, _node, _recoveryAttempt = JS.decode()
+        #self.__job = _job
+        self.__jobs[_job.jobId] = {'job': _job}
+        self.__jobSite = _site
+
+        # set node info
+        self.__node = Node.Node()
+        self.__node.setNodeName(os.uname()[1])
+        self.__node.collectWNInfo(self.__jobSite.workdir)
+
+        tolog("The job state is %s" % _job.jobState)
+        if _job.jobState in ['starting', 'transfering']:
+            tolog("The job hasn't started to run, will not recover it. Just finish it.")
+            return False
+
+        os.chdir(self.__jobSite.workdir)
+        self.__jobs[_job.jobId]['JR'] = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=_job.workdir)
+        self.__pilotWorkingDir = os.path.dirname(_job.workdir)
+        self.__siteInfo = getSiteInformation(self.getExperiment())
+        self.__userid = "HPCEventRecovery"
+
+        self.check_unmonitored_jobs()
+
+        return True
+
+    def recoveryHPCManager(self):
+        logFileName = None
+        tolog("Recover Lost HPC Event job")
+        tolog("runJobHPCEvent.getPilotLogFilename=%s"% self.getPilotLogFilename())
+        if self.getPilotLogFilename() != "":
+            logFileName = self.getPilotLogFilename()
+        hpcManager = HPCManager(globalWorkingDir=self.__pilotWorkingDir, logFileName=logFileName)
+        hpcManager.recoveryState()
+        self.__hpcManager = hpcManager
+        self.__stageout_threads = hpcManager.getStageoutThreads()
+
+    def finishOneJob(self, job):
+        tolog("Finishing job %s" % job.jobId)
+        current_dir = os.getcwd()
+        os.chdir(job.workdir)
+        tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
+
+        pilotErrorDiag = ""
+        if job.inFiles:
+            ec = pUtil.removeFiles(job.workdir, job.inFiles)
         #if self.__output_es_files:
         #    ec = pUtil.removeFiles("/", self.__output_es_files)
 
 
         errorCode = PilotErrors.ERR_UNKNOWN
-        if self.__job.attemptNr < 4:
+        if job.attemptNr < 4:
             errorCode = PilotErrors.ERR_ESRECOVERABLE
 
-        #check HPC job status
-        #if self.__hpcStatus:
-        #    self.failJob(0, 1220, self.__job, pilotErrorDiag="HPC job failed")
-
-        if len(self.__eventRanges) == 0:
+        if (not job.jobId in self.__eventRanges) or len(self.__eventRanges[job.jobId]) == 0:
             tolog("Cannot get event ranges")
-            self.failJob(0, errorCode, self.__job, pilotErrorDiag="Cannot get event ranges")
+            pilotErrorDiag = "Cannot get event ranges"
+            # self.failOneJob(0, errorCode, job, pilotErrorDiag="Cannot get event ranges", final=True, updatePanda=False)
+            # return -1
+        else:
+            if job.jobId in self.__eventRanges:
+                eventRanges = self.__eventRanges[job.jobId]
+                # check whether all event ranges are handled
+                tolog("Total event ranges: %s" % len(eventRanges))
+                not_handled_events = eventRanges.values().count('new')
+                tolog("Not handled events: %s" % not_handled_events)
+                done_events = eventRanges.values().count('Done')
+                tolog("Finished events: %s" % done_events)
+                stagedOut_events = eventRanges.values().count('stagedOut')
+                tolog("stagedOut but not updated to panda server events: %s" % stagedOut_events)
+                if done_events + stagedOut_events:
+                    errorCode = PilotErrors.ERR_ESRECOVERABLE
+                if not_handled_events + stagedOut_events:
+                    tolog("Not all event ranges are handled. failed job")
+                    # self.failOneJob(0, errorCode, job, pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(eventRanges), not_handled_events + stagedOut_events), final=True, updatePanda=False)
+                    # return -1
+                    pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(eventRanges), not_handled_events + stagedOut_events)
 
-        # check whether all event ranges are handled
-        tolog("Total event ranges: %s" % len(self.__eventRanges))
-        not_handled_events = self.__eventRanges.values().count('new')
-        tolog("Not handled events: %s" % not_handled_events)
-        done_events = self.__eventRanges.values().count('Done')
-        tolog("Finished events: %s" % done_events)
-        stagedOut_events = self.__eventRanges.values().count('stagedOut')
-        tolog("stagedOut but not updated to panda server events: %s" % stagedOut_events)
-        if done_events + stagedOut_events:
-            errorCode = PilotErrors.ERR_ESRECOVERABLE
-        if not_handled_events + stagedOut_events:
-            tolog("Not all event ranges are handled. failed job")
-            self.failJob(0, errorCode, self.__job, pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(self.__eventRanges), not_handled_events + stagedOut_events))
-
-        dsname, datasetDict = self.getDatasets()
+        dsname, datasetDict = self.getJobDatasets(job)
         tolog("dsname = %s" % (dsname))
         tolog("datasetDict = %s" % (datasetDict))
 
         # Create the output file dictionary needed for generating the metadata
-        ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(self.__job.outFiles, self.__job.logFile, self.__job.workdir, fullpath=True)
+        ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir, fullpath=True)
         if ec:
             # missing output file (only error code from prepareOutFiles)
-            self.failJob(self.__job.result[1], ec, self.__job, pilotErrorDiag=pilotErrorDiag)
+            # self.failOneJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
+            errorCode = ec
+            pilotErrorDiag += pilotErrorDiag
         tolog("outsDict: %s" % str(outsDict))
 
         # Create metadata for all successfully staged-out output files (include the log file as well, even if it has not been created yet)
-        ec, job, outputFileInfo = self.createFileMetadata([], self.__job, outsDict, dsname, datasetDict, self.__jobSite.sitename)
+        ec, job, outputFileInfo = self.createFileMetadata([], job, outsDict, dsname, datasetDict, self.__jobSite.sitename)
         if ec:
-            self.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+            # self.failOneJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+            errorCode = ec
+            pilotErrorDiag += job.pilotErrorDiag
+            self.failOneJob(0, ec, job, pilotErrorDiag=pilotErrorDiag, final=True, updatePanda=False)
+            return -1
 
         # Rename the metadata produced by the payload
         # if not pUtil.isBuildJob(outs):
-        self.moveTrfMetadata(self.__job.workdir, self.__job.jobId)
+        self.moveTrfMetadata(job.workdir, job.jobId)
 
         # Check the job report for any exit code that should replace the res_tuple[0]
-        res0, exitAcronym, exitMsg = self.getTrfExitInfo(0, self.__job.workdir)
+        res0, exitAcronym, exitMsg = self.getTrfExitInfo(0, job.workdir)
         res = (res0, exitMsg, exitMsg)
 
         # Payload error handling
         ed = ErrorDiagnosis()
-        job = ed.interpretPayload(self.__job, res, False, 0, self.__runCommandList, self.getFailureCode())
+        job = ed.interpretPayload(job, res, False, 0, self.__jobs[job.jobId]['runCommandList'], self.getFailureCode())
         if job.result[1] != 0 or job.result[2] != 0:
-            self.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
-        self.__job = job
+            self.failOneJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag, final=True, updatePanda=False)
+            return -1
 
         job.jobState = "finished"
         job.setState([job.jobState, 0, 0])
         job.jobState = job.result
         rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), self.getPilotPort(), final=True)
 
-        tolog("Done")
-        self.sysExit(self.__job)
+        tolog("Panda Job %s Done" % job.jobId)
+        #self.sysExit(self.__job)
+        self.cleanup(job)
+        tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
+        os.chdir(current_dir)
+        tolog("Finished job %s" % job.jobId)
 
+    def copyLogFilesToJob(self):
+        found_dirs = {}
+        found_files = {}
+        all_files = os.listdir(self.__pilotWorkingDir)
+        for file in all_files:
+            path = os.path.join(self.__pilotWorkingDir, file)
+            if os.path.isdir(path):
+                if file not in ['HPC', 'lib', 'radical', 'saga'] and not file.startswith("PandaJob_"):
+                    if file == 'rank_0' or not file.startswith('rank_'):
+                        found_dirs[file] = path
+                        tolog("Found log dir %s" % path)
+            else:
+                if not (file.endswith(".py") or file.endswith(".pyc")):
+                    found_files[file] = path
+                    tolog("Found log file %s" % path)
+
+        for jobId in self.__jobs:
+            job = self.__jobs[jobId]['job']
+            tolog("Copy log files to job %s work dir %s" % (jobId, job.workdir))
+            for file in found_dirs:
+                path = found_dirs[file]
+                dest_dir = os.path.join(job.workdir, file)
+                try:
+                    pUtil.recursive_overwrite(path, dest_dir)
+                except:
+                    tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
+            for file in found_files:
+                if '.dump.' in file and not file.startswith(str(jobId)):
+                    continue
+                path = found_files[file]
+                dest_dir = os.path.join(job.workdir, file)
+                try:
+                    pUtil.recursive_overwrite(path, dest_dir)
+                except:
+                    tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
+
+    def finishJobs(self):
+        try:
+            self.__hpcManager.finishJob()
+        except:
+            tolog(sys.exc_info()[1])
+            tolog(sys.exc_info()[2])
+
+        try:
+            tolog("Copying Log files to Job working dir")
+            self.copyLogFilesToJob()
+        except:
+            tolog("Failed to copy log files to job working dir: %s" % (traceback.format_exc()))
+
+        # If payload leaves the input files, delete them explicitly
+        firstJob = None
+        for jobId in self.__jobs:
+            try:
+                if self.__firstJobId and (jobId == self.__firstJobId):
+                    firstJob = self.__jobs[jobId]['job']
+                    continue
+
+                job = self.__jobs[jobId]['job']
+                self.finishOneJob(job)
+            except:
+                tolog("Failed to finish one job %s: %s" % (job.jobId, traceback.format_exc()))
+        if firstJob:
+            try:
+                self.finishOneJob(firstJob)
+            except:
+                tolog("Failed to finish the first job %s: %s" % (firstJob.jobId, traceback.format_exc()))
+        time.sleep(1)
 
 if __name__ == "__main__":
 
@@ -704,11 +1496,23 @@ if __name__ == "__main__":
     runJob = RunJobHpcEvent()
     try:
         runJob.setupHPCEvent()
-        runJob.getHPCEventJobFromEnv()
-        runJob.stageInHPCEvent()
-        runJob.runHPCEvent()
+        if runJob.getRecovery():
+            # recovery job
+            runJob.recoveryJobs()
+            runJob.recoveryHPCManager()
+            #runJob.runHPCEvent()
+            runJob.runHPCEventJobsWithEventStager()
+        else:
+            runJob.setupHPCManager()
+            runJob.getHPCEventJobs()
+            runJob.stageInHPCJobs()
+            runJob.startHPCJobs()
+            #runJob.runHPCEvent()
+            runJob.runHPCEventJobsWithEventStager()
     except:
+        tolog("RunJobHpcEventException")
+        tolog(traceback.format_exc())
         tolog(sys.exc_info()[1])
         tolog(sys.exc_info()[2])
     finally:
-        runJob.finishJob()
+        runJob.finishJobs()

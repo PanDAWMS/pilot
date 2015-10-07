@@ -122,6 +122,75 @@ class Backend:
         return
 
 
+    # setup table
+    def setupJobsEventTable(self,jobs, eventRangeList):
+        # delete file just in case
+        try:
+            os.remove(self.dsFileName)
+            os.remove(self.dsFileName_backup)
+        except:
+            pass
+        # make connection
+        self.conn = sqlite3.connect(self.dsFileName)
+        # make cursor
+        self.cur = self.conn.cursor()
+        self.cur.execute('''PRAGMA journal_mode = OFF''')
+
+        self.conn_backup = sqlite3.connect(self.dsFileName_backup)
+        self.cur_backup = self.conn_backup.cursor()
+        self.cur_backup.execute('''PRAGMA journal_mode = OFF''')
+
+        # make event table
+        sqlM  = "CREATE TABLE JEDI_Events("
+        sqlM += "eventRangeID text,"
+        sqlM += "startEvent integer,"
+        sqlM += "lastEvent integer,"
+        sqlM += "LFN text,"
+        sqlM += "GUID text,"
+        sqlM += "scope text,"
+        sqlM += "status text,"
+        sqlM += "todump integer,"
+        sqlM += "output text,"
+        sqlM  = sqlM[:-1]
+        sqlM += ")"
+        self.cur.execute(sqlM)
+        self.cur_backup.execute(sqlM)
+
+        # insert event ranges
+        sqlI  = "INSERT INTO JEDI_Events ("
+        sqlI += "eventRangeID,"
+        sqlI += "startEvent,"
+        sqlI += "lastEvent,"
+        sqlI += "LFN,"
+        sqlI += "GUID,"
+        sqlI += "scope,"
+        sqlI += "status,"
+        sqlI += "todump,"
+        sqlI  = sqlI[:-1]
+        sqlI += ") "
+        sqlI += "VALUES("
+        sqlI += ":eventRangeID,"
+        sqlI += ":startEvent,"
+        sqlI += ":lastEvent,"
+        sqlI += ":LFN,"
+        sqlI += ":GUID,"
+        sqlI += ":scope,"
+        sqlI += ":status,"
+        sqlI += ":todump,"
+        sqlI  = sqlI[:-1]
+        sqlI += ")"
+        for jobid in eventRangeList:
+            for tmpDict in eventRangeList[jobid]:
+                tmpDict['status'] = 'ready'
+                tmpDict['todump'] = 0
+                self.cur.execute(sqlI,tmpDict)
+                self.cur_backup.execute(sqlI,tmpDict)
+        self.conn.commit()
+        self.conn_backup.commit()
+        # return
+        return
+
+
     def insertEventRanges(self, eventRanges):
         # make connection
         self.conn = sqlite3.connect(self.dsFileName)
@@ -159,6 +228,48 @@ class Backend:
             tmpDict['todump'] = 0
             self.cur.execute(sqlI,tmpDict)
             self.cur_backup.execute(sqlI,tmpDict)
+        self.conn.commit()
+        self.conn_backup.commit()
+
+
+    def insertJobsEventRanges(self, eventRanges):
+        # make connection
+        self.conn = sqlite3.connect(self.dsFileName)
+        # make cursor
+        self.cur = self.conn.cursor()
+
+        self.conn_backup = sqlite3.connect(self.dsFileName_backup)
+        self.cur_backup = self.conn_backup.cursor()
+
+        # insert event ranges
+        sqlI  = "INSERT INTO JEDI_Events ("
+        sqlI += "eventRangeID,"
+        sqlI += "startEvent,"
+        sqlI += "lastEvent,"
+        sqlI += "LFN,"
+        sqlI += "GUID,"
+        sqlI += "scope,"
+        sqlI += "status,"
+        sqlI += "todump,"
+        sqlI  = sqlI[:-1]
+        sqlI += ") "
+        sqlI += "VALUES("
+        sqlI += ":eventRangeID,"
+        sqlI += ":startEvent,"
+        sqlI += ":lastEvent,"
+        sqlI += ":LFN,"
+        sqlI += ":GUID,"
+        sqlI += ":scope,"
+        sqlI += ":status,"
+        sqlI += ":todump,"
+        sqlI  = sqlI[:-1]
+        sqlI += ")"
+        for jobId in eventRanges:
+            for tmpDict in eventRanges[jobId]:
+                tmpDict['status'] = 'ready'
+                tmpDict['todump'] = 0
+                self.cur.execute(sqlI,tmpDict)
+                self.cur_backup.execute(sqlI,tmpDict)
         self.conn.commit()
         self.conn_backup.commit()
 
@@ -234,6 +345,30 @@ class Backend:
         varMap['todump']       = 1
         varMap['output']       = output
         self.cur.execute(sql,varMap)
+        self.conn.commit()
+        return
+
+
+
+    # update event range
+    def updateEventRanges(self, eventRanges):
+        # make connection
+        self.conn = sqlite3.connect(self.dsFileName)
+        # make cursor
+        self.cur = self.conn.cursor()
+
+        sql = "UPDATE JEDI_Events SET status=:status,todump=:todump, output=:output WHERE eventRangeID=:eventRangeID "
+        for eventRangeID,eventStatus,output in eventRanges:
+            varMap = {}
+            varMap['eventRangeID'] = eventRangeID
+            varMap['status']       = eventStatus
+            if 'finished' in eventStatus:
+                varMap['todump']       = 1
+                varMap['output']       = output
+            else:
+                varMap['todump']       = 0
+                varMap['output']       = ''
+            self.cur.execute(sql,varMap)
         self.conn.commit()
         return
 

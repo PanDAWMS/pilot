@@ -156,7 +156,7 @@ class JobLog:
             self.__env['errorLabel'] = "FAILED"
 
         # only check for performed log transfer for normal stage-out (not for any special transfers)
-        if isLogfileCopied(site.workdir) and not specialTransfer:
+        if isLogfileCopied(site.workdir, job.jobId) and not specialTransfer:
             tolog("Log file already transferred")
             return status, job
 
@@ -296,7 +296,7 @@ class JobLog:
             else:
                 # create a weak lock file for the log transfer (but not for any special transfer, ie the log transfer to the special/secondary log area)
                 if not specialTransfer:
-                    createLockFile(self.__env['jobrec'], site.workdir, lockfile="LOGFILECOPIED")
+                    createLockFile(self.__env['jobrec'], site.workdir, lockfile="LOGFILECOPIED_%s" % job.jobId)
 
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
             if job.result[2] == 0:

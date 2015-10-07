@@ -1,6 +1,6 @@
 import os, re, sys
 import commands
-from time import time
+from time import time, sleep
 import urlparse
 
 from TimerCommand import TimerCommand
@@ -19,12 +19,20 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     # no registration is done
     copyCommand = "S3Objectstore"
     checksum_command = "adler32"
-    timeout = 600
+    timeout = 3600
+    _instance = None
 
-    def __init__(self, setup_path, *args, **kwrds):
+    def __init__(self, setup_path, useTimerCommand=True, *args, **kwrds):
         self._setup = setup_path.strip()
         self._defaultSetup = "source /cvmfs/atlas.cern.ch/repo/sw/external/boto/setup.sh; unset http_proxy; unset https_proxy"
         self.s3Objectstore = None
+        self.__isBotoLoaded = False
+        self._useTimerCommand = useTimerCommand
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(S3ObjectstoreSiteMover, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
 
     def get_timeout(self):
         return self.timeout
@@ -34,20 +42,23 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def setup(self, experiment=None, surl=None):
         """ setup env """
-        try:
-            import boto
-            import boto.s3.connection
-            from boto.s3.key import Key
-        except ImportError:
-            tolog("Failed to import boto, add /cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/ to sys.path")
-            sys.path.append('/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/')
+        if not self.__isBotoLoaded:
             try:
                 import boto
                 import boto.s3.connection
                 from boto.s3.key import Key
+                self.__isBotoLoaded = True
             except ImportError:
-                tolog("Failed to import boto again. exit")
-                return PilotErrors.ERR_UNKNOWN, "Failed to import boto"
+                tolog("Failed to import boto, add /cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/ to sys.path")
+                sys.path.append('/cvmfs/atlas.cern.ch/repo/sw/external/boto/lib/python2.6/site-packages/')
+                try:
+                    import boto
+                    import boto.s3.connection
+                    from boto.s3.key import Key
+                    self.__isBotoLoaded = True
+                except ImportError:
+                    tolog("Failed to import boto again. exit")
+                    return PilotErrors.ERR_UNKNOWN, "Failed to import boto"
 
         if os.environ.get("http_proxy"):
             del os.environ['http_proxy']
@@ -160,13 +171,43 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             return PilotErrors.ERR_STAGEINFAILED, "S3Objectstore failed to stage in file"
         return status, output
 
-    def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token):
+    def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token, outputDir=None, timeout=3600):
         """StageIn the file. should be implementated by different site mover."""
-        try:
-            status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token)
-        except:
-            tolog("Failed to stage out file: %s" % (sys.exc_info()[1]))
-            return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
+        status = -1
+        output = 'not defined'
+        if outputDir and outputDir.endswith("PilotMVOutputDir"):
+            timeStart = time()
+            outputFile = os.path.join(outputDir, os.path.basename(source))
+            mvCmd = "cp -f %s %s" % (source, outputFile)
+            tolog("Executing command: %s" % (mvCmd))
+            lstatus, loutput = commands.getstatusoutput(mvCmd)
+            if lstatus != 0:
+                status = lstatus
+                output = loutput
+            else:
+                outputFileCmd = outputFile + ".s3cmd"
+                handle = open(outputFileCmd, 'w')
+                _cmd_str = "%s %s" % (outputFile, destination)
+                handle.write(_cmd_str)
+                handle.close()
+                tolog("Write command %s to %s" % (_cmd_str, outputFileCmd))
+                tolog("Waiting remote to finish transfer")
+                status = -1
+                output = "Remote timeout to transfer out file"
+                while (time() - timeStart) < timeout:
+                    sleep(5)
+                    if os.path.exists(outputFile + ".s3cmdfinished"):
+                        status = 0
+                        output = "Remote finished transfer"
+                        tolog(output)
+                        os.remove(outputFile + ".s3cmdfinished")
+                        break
+        else:
+            try:
+                status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token, timeout=timeout)
+            except:
+                tolog("Failed to stage out file: %s" % (sys.exc_info()[1]))
+                return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
         return status, output
 
     def verifyStage(self, localSize, localChecksum, remoteSize, remoteChecksum):
@@ -248,7 +289,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.log("Finished to stagin file %s(status:%s, output:%s)" % (source, status, output))
         return status, output
 
-    def stageOut(self, source, destination, token, experiment=None):
+    def stageOut(self, source, destination, token, experiment=None, outputDir=None, timeout=3600):
         """Stage in the source file"""
         self.log("Starting to stageout file %s to %s with token: %s" % (source, destination, token))
 
@@ -262,7 +303,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             self.log("Failed to get local file(%s) info." % destination)
             return status, output, None, None
 
-        status, output = self.stageOutFile(source, destination, localSize, localChecksum, token)
+        status, output = self.stageOutFile(source, destination, localSize, localChecksum, token, outputDir=outputDir, timeout=timeout)
         self.log("stageOutFile status: %s, output: %s" % (status, output))
         if status:
              self.log("Failed to stageout this file: %s" % output)
@@ -308,6 +349,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             if state == None:
                 state = "PSTAGE_FAIL"
 
+<<<<<<< HEAD
+=======
+        # self.__sendReport(state, report)
+>>>>>>> HPCEvent
         self.prepareReport(state, report)
         return status, output
 
@@ -332,6 +377,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
         prodSourceLabel = pdict.get('prodSourceLabel', '')
+        outputDir = pdict.get('outputDir', '')
+        timeout = pdict.get('timeout', None)
+        if not timeout:
+            timeout = self.timeout
 
         # get the site information object
         si = getSiteInformation(experiment)
@@ -343,30 +392,67 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         # get the DQ2 tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
+<<<<<<< HEAD
 
+=======
+>>>>>>> HPCEvent
 
         filename = os.path.basename(source)
         surl = destination
-        status, output, size, checksum = self.stageOut(source, surl, token, experiment)
+        status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout)
         if status !=0:
             errors = PilotErrors()
             state = errors.getErrorName(status)
             if state == None:
                 state = "PSTAGE_FAIL"
+<<<<<<< HEAD
+=======
+            # self.__sendReport(state, report)
+>>>>>>> HPCEvent
             self.prepareReport(state, report)
             return self.put_data_retfail(status, output, surl)
 
         state = "DONE"
+<<<<<<< HEAD
         self.prepareReport(state, report)
         return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
 
 class S3ObjctStore:
     def __init__(self, privateKey, publicKey, is_secure):
+=======
+        # self.__sendReport(state, report)
+        # self.prepareReport(state, report)
+        return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
+
+    def __sendReport(self, state, report):
+        """
+        Send DQ2 tracing report. Set the client exit state and finish
+        """
+        if report.has_key('timeStart'):
+            # finish instrumentation
+            report['timeEnd'] = time()
+            report['clientState'] = state
+            # send report
+            tolog("Updated tracing report: %s" % str(report))
+            self.sendTrace(report)
+
+class S3ObjctStore(object):
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(S3ObjctStore, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def __init__(self, privateKey, publicKey, useTimerCommand):
+>>>>>>> HPCEvent
         self.access_key = publicKey
         self.secret_key = privateKey
         self.is_secure = is_secure
         self.hostname = None
         self.port = None
+        self.buckets = {}
+        self._useTimerCommand = useTimerCommand
 
     def get_key(self, url, create=False):
         import boto
@@ -379,6 +465,7 @@ class S3ObjctStore:
         self.port = int(parsed.netloc.partition(':')[2])
         path = parsed.path.strip("/")
 
+<<<<<<< HEAD
         self.__conn = boto.connect_s3(
             aws_access_key_id = self.access_key,
             aws_secret_access_key = self.secret_key,
@@ -388,15 +475,34 @@ class S3ObjctStore:
             calling_format = boto.s3.connection.OrdinaryCallingFormat(),
             )
 
+=======
+>>>>>>> HPCEvent
         pos = path.index("/")
         bucket_name = path[:pos]
         key_name = path[pos+1:]
+
+        bucket_key = "%s_%s_%s" % (self.hostname, self.port, bucket_name)
+        if bucket_key in self.buckets:
+            bucket = self.buckets[bucket_key]
+        else:
+            self.__conn = boto.connect_s3(
+                aws_access_key_id = self.access_key,
+                aws_secret_access_key = self.secret_key,
+                host = self.hostname,
+                port = self.port,
+                is_secure=False,               # uncommmnt if you are not using ssl
+                calling_format = boto.s3.connection.OrdinaryCallingFormat(),
+                )
+
+            if create:
+                bucket = self.__conn.create_bucket(bucket_name)
+            else:
+                bucket = self.__conn.get_bucket(bucket_name)
+
         if create:
-            bucket = self.__conn.create_bucket(bucket_name)
             key = Key(bucket, key_name)
             key.set_metadata('mode',33188)
         else:
-            bucket = self.__conn.get_bucket(bucket_name)
             key = bucket.get_key(key_name)
 
         return key
@@ -443,12 +549,18 @@ class S3ObjctStore:
         return 0, None
 
     def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
-        timerCommand = TimerCommand()
-        ret = timerCommand.runFunction(self.s3StageInFile, args=(source, destination, sourceSize, sourceChecksum), timeout=600)
-        return ret
+        if self._useTimerCommand:
+            timerCommand = TimerCommand()
+            ret = timerCommand.runFunction(self.s3StageInFile, args=(source, destination, sourceSize, sourceChecksum), timeout=3600)
+            return ret
+        else:
+            return self.s3StageInFile(source, destination, sourceSize, sourceChecksum)
 
-    def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
-        timerCommand = TimerCommand()
-        ret = timerCommand.runFunction(self.s3StageOutFile, args=(source, destination, sourceSize, sourceChecksum, token), timeout=600)
-        return ret
+    def stageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None, timeout=3600):
+        if self._useTimerCommand:
+            timerCommand = TimerCommand()
+            ret = timerCommand.runFunction(self.s3StageOutFile, args=(source, destination, sourceSize, sourceChecksum, token), timeout=timeout)
+            return ret
+        else:
+            return self.s3StageOutFile(source, destination, sourceSize, sourceChecksum, token)
 

@@ -28,9 +28,10 @@ class Receiver:
         # wait for a request from any ranks
         while not self.comm.Iprobe(source=MPI.ANY_SOURCE,
                                    status=self.stat):
-            time.sleep(1)
+            time.sleep(0.0001)
         try:
             # get the request
+            # reqData = self.comm.recv(source=MPI.ANY_SOURCE, status=self.stat)
             reqData = self.comm.recv(source=self.stat.Get_source())
             # decode
             data = json.loads(reqData)
@@ -82,6 +83,16 @@ class Receiver:
             return False,errMsg,None
 
 
+    def disconnect(self):
+        try:
+            self.comm.Disconnect()
+            return True,None
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errMsg = 'failed to disconnect with {0}:{1}'.format(errtype.__name__,errvalue)
+            return False,errMsg
+
+
 # class to send requests
 class Requester:
     
@@ -105,10 +116,10 @@ class Requester:
             # send a request ro rank0
             self.comm.send(reqData,dest=0)
             # wait for the answer from Rank 0
-            while not self.comm.Iprobe(source=0):
-                time.sleep(1)
+            #while not self.comm.Iprobe(source=0):
+            #    time.sleep(0.001)
             # get the answer
-            ansData = self.comm.recv()
+            ansData = self.comm.recv(source=0)
             # decode
             #answer = cgi.parse_qs(ansData)
             answer = json.loads(ansData)
@@ -122,16 +133,25 @@ class Requester:
     def waitMessage(self):
         try:
             # wait for message from Rank 0
-            while not self.comm.Iprobe(source=0):
-                time.sleep(1)
+            #while not self.comm.Iprobe(source=0):
+            #    time.sleep(1)
             # get the answer
-            ansData = self.comm.recv()
+            ansData = self.comm.recv(source=0)
             # decode
             #answer = cgi.parse_qs(ansData)
             answer = json.loads(ansData)
             return True,answer
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            errMsg = 'failed to send the request with {0}:{1}'.format(errtype.__name__,errvalue)
+            errMsg = 'failed to receive msg with {0}:{1}'.format(errtype.__name__,errvalue)
             return False,errMsg
 
+
+    def disconnect(self):
+        try:
+            self.comm.Disconnect()
+            return True,None
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errMsg = 'failed to disconnect with {0}:{1}'.format(errtype.__name__,errvalue)
+            return False,errMsg

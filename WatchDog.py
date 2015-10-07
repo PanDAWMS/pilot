@@ -1,5 +1,6 @@
 import os
 import time
+import traceback
 import pUtil
 from PilotErrors import PilotErrors
 from Configuration import Configuration
@@ -21,6 +22,12 @@ class WatchDog:
             try:
                 _id, rc = os.waitpid(self.__env['jobDic'][k][0], os.WNOHANG)
             except OSError, e:
+                try:
+                    if self.__env['jobDic'][k][1].result[0] == "finished" or self.__env['jobDic'][k][1].result[0] == "failed" or self.__env['jobDic'][k][1].result[0] == "holding":
+                        continue
+                except:
+                    pUtil.tolog("!!FAILED!!1000!! Pilot failed to check the job state: %s" % traceback.format_exc())
+
                 pUtil.tolog("Harmless exception when checking job %s, %s" % (self.__env['jobDic'][k][1].jobId, e))
                 if str(e).rstrip() == "[Errno 10] No child processes":
                     pilotErrorDiag = "Exception caught by pilot watchdog: %s" % str(e)
