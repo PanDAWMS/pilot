@@ -605,15 +605,9 @@ class RunJobHpcEvent(RunJob):
         url = "https://pandaserver.cern.ch:25443/server/panda"
 
         node = {}
-<<<<<<< HEAD
-        node['pandaID'] = self.__job.jobId
-        node['jobsetID'] = self.__job.jobsetID
-        node['taskID'] = self.__job.taskID
-=======
         node['pandaID'] = job.jobId
         node['jobsetID'] = job.jobsetID
         node['taskID'] = job.taskID
->>>>>>> HPCEvent
         node['nRanges'] = numRanges
 
         # open connection
@@ -709,15 +703,6 @@ class RunJobHpcEvent(RunJob):
                         return -1, "Failed to create the TAG file", None
 
         # 3. create Pool File Catalog
-<<<<<<< HEAD
-        inputFileDict = dict(zip(self.__job.inFilesGuids, inputFilesGlobal))
-        self.__poolFileCatalog = os.path.join(self.__job.workdir, "PoolFileCatalog_HPC.xml")
-        createPoolFileCatalog(inputFileDict, self.__job.inFiles, self.__poolFileCatalog)
-        inputFileDictTemp = dict(zip(self.__job.inFilesGuids, inputFiles))
-        self.__poolFileCatalogTemp = os.path.join(self.__job.workdir, "PoolFileCatalog_Temp.xml")
-        self.__poolFileCatalogTempName = "HPCWORKINGDIR/PoolFileCatalog_Temp.xml"
-        createPoolFileCatalog(inputFileDictTemp, self.__job.inFiles, self.__poolFileCatalogTemp)
-=======
         inputFileDict = dict(zip(job.inFilesGuids, inputFilesGlobal))
         poolFileCatalog = os.path.join(job.workdir, "PoolFileCatalog_HPC.xml")
         createPoolFileCatalog(inputFileDict, poolFileCatalog)
@@ -728,7 +713,6 @@ class RunJobHpcEvent(RunJob):
         self.__jobs[job.jobId]['poolFileCatalog'] = poolFileCatalog
         self.__jobs[job.jobId]['poolFileCatalogTemp'] = poolFileCatalogTemp
         self.__jobs[job.jobId]['poolFileCatalogTempName'] = poolFileCatalogTempName
->>>>>>> HPCEvent
 
         # 4. getSetupCommand
         setupCommand = self.stripSetupCommand(self.__jobs[job.jobId]['runCommandList'][0], job.trf)
