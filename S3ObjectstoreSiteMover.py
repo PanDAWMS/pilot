@@ -75,7 +75,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
 
         os_is_secure = si.getObjectstoresField("os_is_secure", "eventservice")
-        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure)
+        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure, self._useTimerCommand)
 
 #        keyPair = None
 #        if re.search("^s3://.*\.usatlas\.bnl\.gov:8443", surl) != None:
@@ -427,11 +427,12 @@ class S3ObjctStore(object):
             cls._instance = super(S3ObjctStore, cls).__new__(cls, *args, **kwargs)
         return cls._instance
 
-    def __init__(self, privateKey, publicKey, useTimerCommand):
+    def __init__(self, privateKey, publicKey, is_secure, useTimerCommand):
         self.access_key = publicKey
         self.secret_key = privateKey
         self.hostname = None
         self.port = None
+        self.is_secure = is_secure
         self.buckets = {}
         self._useTimerCommand = useTimerCommand
 
@@ -459,7 +460,7 @@ class S3ObjctStore(object):
                 aws_secret_access_key = self.secret_key,
                 host = self.hostname,
                 port = self.port,
-                is_secure=False,               # uncommmnt if you are not using ssl
+                is_secure=self.is_secure, # False,               # uncommmnt if you are not using ssl
                 calling_format = boto.s3.connection.OrdinaryCallingFormat(),
                 )
 
