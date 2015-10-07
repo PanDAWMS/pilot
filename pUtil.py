@@ -173,7 +173,7 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
     print "%s| %s" % (t, msg)
 
     # write any FAILED messages to stderr
-    if "!!FAILED!!" in msg and toStderr:
+    if "!!FAILED!!" in msg:
         print >> sys.stderr, "%s| %s" % (t, msg)
 
 def tolog_err(msg):
