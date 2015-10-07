@@ -25,11 +25,6 @@ except:
 try:
     from PilotErrors import PilotErrors
     from config import config_sm
-<<<<<<< HEAD
-=======
-    from timed_command import timed_command
-
->>>>>>> HPCEvent
     CMD_CHECKSUM = config_sm.COMMAND_MD5
 except:
     pass
@@ -70,15 +65,10 @@ essentialPilotlogFilename = "pilotlog-essential.txt"
 pilotstderrFilename = "pilot.stderr"
 
 def setPilotlogFilename(filename):
-<<<<<<< HEAD
-    """ Set the pilot log file name"""
+    """ Set the pilot log file name """
 
     global pilotlogFilename, essentialPilotlogFilename
-=======
-    """ set the pilot log file name"""
 
-    global pilotlogFilename
->>>>>>> HPCEvent
     if len(filename) > 0:
         pilotlogFilename = filename
 
@@ -87,20 +77,12 @@ def setPilotlogFilename(filename):
         essentialPilotlogFilename = pilotlogFilename.replace(base, base+'-essential')
 
 def getPilotlogFilename():
-<<<<<<< HEAD
-    """ Return the pilot log file name"""
-=======
-    """ return the pilot log file name"""
->>>>>>> HPCEvent
+    """ Return the pilot log file name """
 
     return pilotlogFilename
 
 def setPilotstderrFilename(filename):
-<<<<<<< HEAD
     """ Set the pilot stderr file name"""
-=======
-    """ set the pilot stderr file name"""
->>>>>>> HPCEvent
 
     global pilotstderrFilename
     if len(filename) > 0:
@@ -133,7 +115,6 @@ def appendToLog(txt):
 def tologNew(msg, tofile=True, label='INFO', essential=False):
     """ Write message to pilot log and to stdout """
 
-<<<<<<< HEAD
     # remove backquotes from the msg since they cause problems with batch submission of pilot
     # (might be present in error messages from the OS)
     msg = msg.replace("`","'")
@@ -167,10 +148,7 @@ def tologNew(msg, tofile=True, label='INFO', essential=False):
         print >> sys.stderr, msg # write any FAILED messages to stderr
 
 def tolog(msg, tofile=True, label='INFO', essential=False):
-=======
-def tolog(msg, tofile=True, toStderr=True):
->>>>>>> HPCEvent
-    """ write date+msg to pilot log and to stdout """
+    """ Write date+msg to pilot log and to stdout """
 
     import inspect
 
@@ -1568,7 +1546,6 @@ def timedCommand(cmd, timeout=300):
         timerCommand = TimerCommand(cmd)
         exitcode, output = timerCommand.run(timeout=timeout)
     except Exception, e:
-<<<<<<< HEAD
         pilotErrorDiag = 'TimedCommand() threw an exception: %s' % e
         tolog("!!WARNING!!2220!! %s" % pilotErrorDiag)
         exitcode = 1
@@ -1579,21 +1556,6 @@ def timedCommand(cmd, timeout=300):
 
     t1 = os.times()
     telapsed = int(round(t1[4] - t0[4]))
-=======
-        pilotErrorDiag = 'timed_command() threw an exception: %s' % e
-        tolog("!!WARNING!!2220!! %s" % pilotErrorDiag)
-        exitcode = 1
-        output = e
-        t1 = os.times()
-        telapsed = int(round(t1[4] - t0[4]))
-    else:
-        if cerr != "" and exitcode != 0:
-            tolog("!!WARNING!!2220!! Timed command stderr: %s" % (cerr))
-            output = cerr
-        else:
-            output = cout
-
->>>>>>> HPCEvent
     tolog("Elapsed time: %d" % (telapsed))
 
     if telapsed >= timeout:
@@ -2918,11 +2880,7 @@ def getFileAccessInfo():
 
     return useCT, oldPrefix, newPrefix
 
-<<<<<<< HEAD
-def isLogfileCopied(workdir):
-=======
 def isLogfileCopied(workdir, jobId=None):
->>>>>>> HPCEvent
     """ check whether the log file has been copied or not """
 
     if jobId:
@@ -4589,7 +4547,6 @@ def dumpFile(filename, topilotlog=False):
                 i += 1
                 line = line.rstrip()
                 if topilotlog:
-<<<<<<< HEAD
                     tolog("%s" % (line))
                 else:
                     print "%s" % (line)
@@ -4625,14 +4582,6 @@ def isAGreaterOrEqualToB(A, B):
     # False
     
     return splittedname(A) >= splittedname(B)
-=======
-                    tolog("%s" % (line), toStderr=False)
-                else:
-                    print "%s" % (line)
-            f.close()
-            tolog("Dumped %d lines from file %s" % (i, filename), toStderr=False)
-    else:
-        tolog("!!WARNING!!4000!! %s does not exist" % (filename))
 
 def recursive_overwrite(src, dest, ignore=None):
     if os.path.isdir(src):
@@ -4657,5 +4606,3 @@ def chunks(l, n):
     """
     for i in xrange(0, len(l), n):
         yield l[i:i+n]
-
->>>>>>> HPCEvent
