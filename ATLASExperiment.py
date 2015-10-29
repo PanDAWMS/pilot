@@ -2042,19 +2042,21 @@ class ATLASExperiment(Experiment):
         if swbase[-len('builds'):] == 'builds' or verifyReleaseString(atlasRelease) == "NULL":
             path = swbase
         else:
-            if os.path.exists(os.path.join(swbase, cmtconfig)):
-                if os.path.exists(os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)):
-                    path = os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)
-                else:
-                    path = os.path.join(swbase, atlasRelease)
-            else:
-                # Check for special release (such as AthSimulationBase/1.0.3)
-                if homePackage.startsWith('Ath'):
-                    if "/" in homePackage:
-                        s = homePackage.split('/')
-                        path = os.path.join(swbase, s[0]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
-                        path = os.path.join(path, cmtconfig)
-                        path = os.path.join(path, s[1]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase/1.0.3
+            # Check for special release (such as AthSimulationBase/1.0.3)
+            done = False
+            if homePackage.startsWith('Ath'):
+                if "/" in homePackage:
+                    s = homePackage.split('/')
+                    path = os.path.join(swbase, s[0]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
+                    path = os.path.join(path, cmtconfig)
+                    path = os.path.join(path, s[1]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase/1.0.3
+                    done = True
+
+            # Normal setup
+            if not done:
+                if os.path.exists(os.path.join(swbase, cmtconfig)):
+                    if os.path.exists(os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)):
+                        path = os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)
                     else:
                         path = os.path.join(swbase, atlasRelease)
                 else:
