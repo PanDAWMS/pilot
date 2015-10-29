@@ -688,21 +688,6 @@ class ATLASExperiment(Experiment):
         else:
             tolog("Can not display ChangeLog: Found no appdir")
 
-    def testImportLFCModule(self):
-        """ Can the LFC module be imported? """
-
-        status = False
-
-        try:
-            import lfc
-        except Exception, e:
-            tolog("!!WARNING!!3111!! Failed to import the LFC module: %s" % (e))
-        else:
-            tolog("Successfully imported the LFC module")
-            status = True
-
-        return status
-
     def getCVMFSPath(self):
         """ Return the proper cvmfs path """
 
@@ -745,6 +730,16 @@ class ATLASExperiment(Experiment):
         if not job:
             tolog("!!WARNING!!2332!! getNumberOfEvents did not receive a job object")
             return 0, 0, ""
+
+        tolog("Looking for number of processed events (pass -1: jobReport.json)")
+
+        from FileHandling import getNumberOfEvents
+        nEventsRead = getNumberOfEvents(job.workdir)
+        nEventsWritten = 0
+        if nEventsRead > 0:
+            return nEventsRead, nEventsWritten, str(nEventsRead)
+        else:
+            nEventsRead = 0
 
         tolog("Looking for number of processed events (pass 0: metadata.xml)")
 
@@ -2025,6 +2020,9 @@ class ATLASExperiment(Experiment):
     def useAtlasSetup(self, swbase, release, homePackage, cmtconfig):
         """ determine whether AtlasSetup is to be used """
 
+        #PN
+        return True
+
         status = False
 
         # are we using at least release 16.1.0?
@@ -2050,7 +2048,17 @@ class ATLASExperiment(Experiment):
                 else:
                     path = os.path.join(swbase, atlasRelease)
             else:
-                path = os.path.join(swbase, atlasRelease)
+                # Check for special release (such as AthSimulationBase/1.0.3)
+                if homePackage.startsWith('Ath'):
+                    if "/" in homePackage:
+                        s = homePackage.split('/')
+                        path = os.path.join(swbase, s[0]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
+                        path = os.path.join(path, cmtconfig)
+                        path = os.path.join(path, s[1]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase/1.0.3
+                    else:
+                        path = os.path.join(swbase, atlasRelease)
+                else:
+                    path = os.path.join(swbase, atlasRelease)
 
         # need to tell asetup where the compiler is in the US (location of special config file)
         _path = "%s/AtlasSite/AtlasSiteSetup" % (path)
@@ -2227,12 +2235,8 @@ class ATLASExperiment(Experiment):
         if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             status = True
         else:
-            # Test the LFC module
-            status = self.testImportLFCModule()
-
             # Test CVMFS
-            if status:
-                status = self.testCVMFS()
+            status = self.testCVMFS()
         
         return status
 

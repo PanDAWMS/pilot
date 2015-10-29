@@ -92,8 +92,8 @@ class Logger:
 
     def info(self, msg):
         self.log.info(msg)
-        self.sh1.flush()
-        self.sh2.flush()
+        #self.sh1.flush()
+        #self.sh2.flush()
 
     def debug(self, msg):
         self.log.debug(msg)

@@ -657,6 +657,8 @@ class SiteMover(object):
             destination = self.getGroupDiskPath(endpoint=token)
 
             if destination != "":
+                if destination.endswith('//rucio'):
+                    destination = destination.replace('//rucio','/rucio')
                 tolog("GROUPDISK token requested (%s), destination=%s" % (token, destination))
                 return destination
             else:

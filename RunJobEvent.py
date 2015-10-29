@@ -592,8 +592,7 @@ class RunJobEvent(RunJob):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
-        self.__yamplChannelName = "EventService_EventRanges"
-#        self.__yamplChannelName = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
+        self.__yamplChannelName = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
 
     # is this necessary? doesn't exist in RunJob
     def __new__(cls, *args, **kwargs):
@@ -2170,7 +2169,8 @@ if __name__ == "__main__":
 
         # In case the event index is not to be used, we need to create a TAG file
         if not runJob.useEventIndex():
-            input_file, input_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
+            input_file, tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
+            input_file_guid = job.inFilesGuids[0]
 
             if input_file == "" or input_file_guid == "":
                 pilotErrorDiag = "Required TAG file/guid could not be identified"
@@ -2234,6 +2234,15 @@ if __name__ == "__main__":
 
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
+
+        # Tell AthenaMP the name of the yampl channel
+        if not "--preExec" in runCommandList[0]:
+            runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
+        else:
+            if "import jobproperties as jps" in runCommandList[0]:
+                runCommandList[0] = runCommandList[0].replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+            else:
+                runCommandList[0] = runCommandList[0].replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
 
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 

@@ -114,7 +114,56 @@ Added a waiting loop in listener() for send event range to finish (RunJobEvent)
 Added new variables __sending_event_range, __current_event_range and corresponding getters and setters (RunJobEvent)
 Now setting __sending_event_range using setSendingEventRange(), and __current_event_range using setCurrentEventRange() in event range loop in __main__() (RunJobEvent)
 Added memory_monitor to exclusion list for looping job killer in __loopingJobKiller() (Monitor)
-Correct bad variable name in TimerCommand::run() [timeoutout -> timeout] (TimerCommand)
+
+Corrected self -> runJob in __main__() in event range check (RunJob)
+Corrected self -> runJob in __main__() in calls to getUtilitySubprocess() (RunJobEvent)
+Protection added against no Popen process in executePayload() (RunJob)
+
+Time-out changes:
+- verifyCmtsiteCmd() was updated for new timer command output (ATLASExperiment)
+- Updated timer command output (TimerCommand)
+- Protection added against no Popen process in run() (TimerCommand)
+- Converting exitcode to string in case it is not an integer in getProperSiterootAndCmtconfig() (ATLASExperiment)
+- Corrected bad variable name in TimerCommand::run() [timeoutout -> timeout] (TimerCommand)
+
+NG changes:
+- Removed obsolete import of timed_command in pUtil
+- Updated timedCommand() to use TimerCommand instead of timed_command (pUtil)
+- Moved tryint(), splittedname() and isAGreaterOrEqualToB() from PandaServerClient to pUtil
+- Now using isAGreaterOrEqualToB() in getUtilityCommand() for the MemoryMonitor setup (ATLASExperiment)
+
+GROUPDISK updates:
+- stageOutFile() updated (GFAL2SiteMover, LocalSiteMover)
+- put_data() updated (lcgcpSiteMover, lcgcp2SiteMover, curlSiteMover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+63.3:
+
+Added optional . in reg exp for discovery of additional output files, in discoverAdditionalOutputFiles() (FileHandling)
+Created extractOutputFilesFromJSON(), updateOutputFileLists(), getJobReport() (FileHandling)
+Now using extractOutputFilesFromJSON() instead of discoverAdditionalOutputFiles() in __main__() (RunJob)
+Not setting general error when dispatcher has not jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
+Removed the testImportLFCModule() and its call from specialChecks() (ATLASExperiment, NordugridATLASExperiment, AMSTaiwanExperiment)
+Corrected %f to %s in getOutputFileItem() (FileHandling)
+Now verifying that nentries is actually an integer (can aparently be 'null') in extractOutputFilesFromJSON() (FileHandling)
+Now using allowNoOutput list in extractOutputFilesFromJSON() to know when an empty file can be ignored (FileHandling)
+Now using FileHandling::getNumberOfEvents() in ATLASExperiment::getNumberOfEvents() (ATLASExperiment)
+Removed obsolete 2 GB subtraction from the maxinputsize in getMaxInputSize(), requested by Tadashi Maeno (pUtil)
+Added try-statement around call to extractOutputFilesFromJSON() (RunJob)
+Only using extractOutputFilesFromJSON() for production jobs (Runjob)
+Corrected //rucio -> /rucio in getPreDestination() (SiteMover)
+Added allowNoOutput to Job class, including handling (Job)
+Now sending job.allowNoOutput list to extractOutputFilesFromJSON() (RunJob)
+Overriding the input file guid for the TE input file list in __main__() (RunJobEvent)
+Adding a random string to the yampl channel name in __init__() (RunJobEvent)
+Telling AthenaMP the name of the yampl channel in __main__() (RunJobEvent)
+Updated getMaxMemoryUsageFromCGroups() and removed the need for ATLAS_CGROUPS_BASE (processes)
+Created getCGROUPSBasePath() used by getMaxMemoryUsageFromCGroups() (processes)
+Updated isCGROUPSSite() to use getCGROUPSBasePath() instead of using ATLAS_CGROUPS_BASE (processes)
+
+64.0
+
 Replaced useFileStager and directIn with _dummy strings in getPrefices() and shouldPFC4TURLsBeCreated() since they are not used in these functions (Mover)
 Now getting the value of directIn from useDirectAccessLAN() instead of from getFileAccessInfo() in shouldPFC4TURLsBeCreated() (Mover)
 Replaced useFileStager and directIn with _dummy in stageIn() since they are not used (RunJob)
@@ -128,7 +177,6 @@ Simplified getFileAccessInfo() (pUtil)
 Updated return values from getFileAccessInfo() in getPrefices() and shouldPFC4TURLsBeCreated() (Mover)
 Updated return values from getFileAccessInfo() in stageIn() (RunJob)
 Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
-Not setting general error when dispatcher has not jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
 Removed obsolete function getLFCChecksumType() (SiteMover)
 Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMover, rfcpLFCSiteMover)
 Added Logger module (copy of HPC/Logger - move later)
@@ -142,36 +190,23 @@ Created new global essentialPilotlogFilename (pUtil)
 Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
 Updated the tolog() function to use the new Logger module (pUtil)
 Added arguments label and essential to tolog() (pUtil)
-Corrected self -> runJob in __main__() in event range check (RunJob)
-Corrected self -> runJob in __main__() in calls to getUtilitySubprocess() (RunJobEvent)
-Protection added against no Popen process in executePayload() (RunJob)
+Added support for Ath* releases (e.g. for jobs with homePackage=AthSimulationBase/1.0.3) in getProperASetup() (ATLASExperiment)
+
+Note: useAtlasSetup() is always returning True (ATLASExperiment)
 
 (Still using old tolog function)
 
 Time-out changes:
-- verifyCmtsiteCmd() was updated for new timer command output (ATLASExperiment)
-- Updated timer command output (TimerCommand)
-- Protection added against no Popen process in run() (TimerCommand)
-- Converting exitcode to string in case it is not an integer in getProperSiterootAndCmtconfig() (ATLASExperiment)
 - Removed useless is_timeout variable (TimerCommand)
+- Protected against exitcode None being sent in run() (TimerCommand)
 
 Logging changes:
 - Added new logging module to distribution: Logger.py with code constributions from Wen Guan (logging) and Jose Caballero (formatting)
-
-NG changes:
-- Removed obsolete import of timed_command in pUtil
-- Updated timedCommand() to use TimerCommand instead of timed_command (pUtil)
-- Moved tryint(), splittedname() and isAGreaterOrEqualToB() from PandaServerClient to pUtil
-- Now using isAGreaterOrEqualToB() in getUtilityCommand() for the MemoryMonitor setup (ATLASExperiment)
 
 Update from Danila Oleynik, Taylor Childers:
 - New modules: ArgoJob, RunJobArgo, BalsamJob, MessageInterface
 - Updated RunJobFactory; replaced Mira with Argo
 - Added functions to serialize ARGO messages: serialize(), deserialize(), convert_unicode_string() (pUtil)
-
-GROUPDISK updates:
-- stageOutFile() updated (GFAL2SiteMover, LocalSiteMover)
-- put_data() updated (lcgcpSiteMover, lcgcp2SiteMover, curlSiteMover)
 
 Merged with Wen's version:
 - Added EventStager module for HPC Nersc
@@ -186,6 +221,7 @@ Merged with Wen's version:
 - Update Yoda and Droid to handle multi-jobs
 - Add Signal_block module in Yoda to make Yoda soft termination
 - Update monitor module to monitor multi-jobs, terminate multi-jobs, handle multi-jobs logs and recover HPC jobs
+- Restored is_secure variable which got lost in the merging process (S3ObjectstoreSiteMover)
 
 REMOVE RunJobMira.py FROM DISTRIBUTION
 ADD TO DISTRIBUTION: ArgoJob, RunJobArgo, BalsamJob

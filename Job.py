@@ -97,6 +97,7 @@ class Job:
 #        self.ddmEndPointOutAlt = []       #
         self.ddmEndPointLog = []           #
         self.cloneJob = ""                 # Is the job cloned? Allowed values: 'runonce', 'storeonce'
+        self.allowNoOutput = []            # Used to disregard empty files from jobReport
 
         # event service objects
         self.eventService = False          # True for event service jobs
@@ -137,6 +138,7 @@ class Job:
         pUtil.tolog("ddmEndPointOut=%s" % (self.ddmEndPointOut))
         pUtil.tolog("ddmEndPointLog=%s" % (self.ddmEndPointLog))
         pUtil.tolog("cloneJob=%s" % (self.cloneJob))
+        pUtil.tolog("allowNoOutput=%s" % (self.allowNoOutput))
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -241,6 +243,7 @@ class Job:
 
         self.ddmEndPointIn = data.get('ddmEndPointIn', '').split(',') if data.get('ddmEndPointIn') else []
         self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
+        self.allowNoOutput = data.get('allowNoOutput', '').split(',') if data.get('allowNoOutput') else []
 
         self.cloneJob = data.get('cloneJob', '')
 

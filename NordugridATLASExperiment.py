@@ -195,9 +195,6 @@ class NordugridATLASExperiment(ATLASExperiment):
 
         return self.__warning
 
-    def testImportLFCModule(self):
-	return True
-
     def getRelease(self, release):
         """ Return a list of the software release id's """
         # Assuming 'release' is a string that separates release id's with '\n'

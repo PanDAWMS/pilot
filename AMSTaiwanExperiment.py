@@ -638,21 +638,6 @@ class AMSTaiwanExperiment(Experiment):
         else:
             tolog("Can not display ChangeLog: Found no appdir")
 
-    def testImportLFCModule(self):
-        """ Can the LFC module be imported? """
-
-        status = False
-
-        try:
-            import lfc
-        except Exception, e:
-            tolog("!!WARNING!!3111!! Failed to import the LFC module: %s" % (e))
-        else:
-            tolog("Successfully imported the LFC module")
-            status = True
-
-        return status
-
     def getCVMFSPath(self):
         """ Return the proper cvmfs path """
 
