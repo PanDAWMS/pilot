@@ -2044,7 +2044,7 @@ class ATLASExperiment(Experiment):
         else:
             # Check for special release (such as AthSimulationBase/1.0.3)
             done = False
-            if homePackage.startsWith('Ath'):
+            if homePackage.startswith('Ath'):
                 if "/" in homePackage:
                     s = homePackage.split('/')
                     path = os.path.join(swbase, s[0]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
