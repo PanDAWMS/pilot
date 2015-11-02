@@ -3203,14 +3203,16 @@ def use_newmover(newfunc):
                 print ("INFO: Will try to use new SiteMover(s) implementation since queuedata.use_newmover=%s" % use_newmover)
                 try:
                     ret = newfunc(*args, **kwargs)
-                    if ret and ret[0]: # new function return NON success code => temporary failover to old implementation
-                        raise Exception("new SiteMover return NON success code=%s .. do failover to old implementation.. r=%s" % (ret[0], ret))
+                    #if ret and ret[0]: # new function return NON success code => temporary failover to old implementation
+                    #    raise Exception("new SiteMover return NON success code=%s .. do failover to old implementation.. r=%s" % (ret[0], ret))
                     return ret
                 except Exception, e:
-                    print ("INFO: Failed to execute new SiteMover(s): caught an exception: %s .. ignored. Continue execution using old implementation" % e)
+                    #print ("INFO: Failed to execute new SiteMover(s): caught an exception: %s .. ignored. Continue execution using old implementation" % e)
                     import traceback
                     tolog(traceback.format_exc())
-            return func(*args, **kwargs)
+                    raise # disable failover to old implementation
+
+            return func(*args, **kwargs) # failover to old implementation
 
         return wrapper
     return dec
@@ -4547,13 +4549,13 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         surl_filetype_dictionary = {} # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
         copytool_dictionary = {} # FORMAT: { sfn1: copytool, ..} (sfn = surl)
 
-        # Create the file dictionary 
+        # Create the file dictionary
         i = 0
         for lfn in lfns:
             surl = thisExperiment.buildFAXPath(lfn=lfn, scope=scope_dict[lfn], sourceSite=sourceSite, computingSite=computingSite)
             tolog("surl=%s"%(surl))
             guid = guids[i]
-            tolog("guid=%s"%(guid))            
+            tolog("guid=%s"%(guid))
             file_dict[guid] = surl
             surl_filetype_dictionary[surl] = "DISK" # assumed, cannot know unless server tells (since no catalog lookup in this case)
             copytool_dictionary[surl] = "fax"
