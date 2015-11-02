@@ -25,6 +25,7 @@ class TimerCommand(object):
         self.process = None
         self.stdout = None
         self.stderr = None
+        self.is_timeout = False
 
     def run(self, timeout=3600):
         def target():
@@ -38,6 +39,7 @@ class TimerCommand(object):
 
         thread.join(timeout)
         if thread.is_alive():
+            self.is_timeout = True
             try:
                 # print 'TimeOut. Terminating process'
                 self.process.terminate()
