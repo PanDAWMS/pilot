@@ -159,7 +159,7 @@ class JobMover(object):
         for ddm in ddmendpoints:
             protocols = ddmprot.get(ddm)
             if not protocols:
-                self.log('Failed to resolve protocols data for ddmendpoint=%s .. skipped processing..' % ddm)
+                self.log('Failed to resolve protocols data for ddmendpoint=%s and activity=%s.. skipped processing..' % (ddm, activity))
                 continue
 
             success_transfers, failed_transfers = [], []
