@@ -212,7 +212,7 @@ class JobMover(object):
         # get SURL for Panda calback registration
         # resolve from special protocol activity=SE # fix me later to proper name of activitiy=SURL (panda SURL, at the moment only 2-letter name is allowed on AGIS side)
 
-        surl_prot = [dict(se=e[0], se_path=e[2]) for e in sorted(self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
+        surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
 
         if not surl_prot:
             self.log('FAILED to resolve default SURL path for ddmendpoint=%s' % ddmendpoint)
@@ -244,7 +244,7 @@ class JobMover(object):
             self.trace_report.update(protocol=copytool)
             sitemover.trace_report = self.trace_report
 
-            se, se_path = dat.get('se', ''), dat.get('se_path', '')
+            se, se_path = dat.get('se', ''), dat.get('path', '')
 
             self.log("Found N=%s files to be transferred: %s" % (len(files), [e.get('pfn') for e in files]))
 
@@ -252,7 +252,7 @@ class JobMover(object):
                 scope, lfn, pfn = fdata.get('scope', ''), fdata.get('lfn'), fdata.get('pfn')
                 guid = fdata.get('guid', '')
 
-                surl = sitemover.getSURL(surl_prot.get('se'), surl_prot.get('se_path'), scope, lfn, self.job) # job is passing here for possible JOB specific processing
+                surl = sitemover.getSURL(surl_prot.get('se'), surl_prot.get('path'), scope, lfn, self.job) # job is passing here for possible JOB specific processing
                 turl = sitemover.getSURL(se, se_path, scope, lfn, self.job) # job is passing here for possible JOB specific processing
 
                 self.trace_report.update(scope=scope, dataset=fdata.get('dsname_report'), url=surl)

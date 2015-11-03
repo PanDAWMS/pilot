@@ -1448,7 +1448,7 @@ class SiteInformation(object):
 
         ret = {}
         for ddm in set(ddmendpoints):
-            protocols = [dict(se=e[0], se_path=e[2]) for e in sorted(self.ddmconf.get(ddm, {}).get('aprotocols', {}).get(activity, []), key=lambda x: x[1])]
+            protocols = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(ddm, {}).get('aprotocols', {}).get(activity, []), key=lambda x: x[1])]
             ret.setdefault(ddm, protocols)
 
         return ret
