@@ -114,7 +114,7 @@ class BaseSiteMover(object):
         if '/rucio' in se_path:
             return self.getSURLRucio(se, se_path, scope, lfn)
 
-        raise Exception("getSURLPath(): NOT IMPLEMENTED error: processing of non Rucio transfers is not impelemnted yet")
+        raise Exception("getSURL(): NOT IMPLEMENTED error: processing of non Rucio transfers is not implemented yet, se_path=%s" % se_path)
 
     def getSetup(self):
         """

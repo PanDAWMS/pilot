@@ -219,6 +219,8 @@ class JobMover(object):
             return [], []
 
         surl_prot = surl_prot[0] # take first
+        self.log("SURL protocol to be used: %s" % surl_prot)
+
 
         self.trace_report.update(localSite=ddmendpoint, remoteSite=ddmendpoint)
 
