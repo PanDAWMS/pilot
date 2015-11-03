@@ -146,7 +146,13 @@ class JobMover(object):
         if missing_ddms:
             self.ddmconf.update(self.si.resolveDDMConf(missing_ddms))
 
-        ddmprot = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(ddmendpoints, activity))
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        prot = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
+
+        # group by ddmendpoint
+        ddmprot = {}
+        for e in prot:
+            ddmprot.setdefault(e['ddm'], []).append(e)
 
         output = []
 
@@ -221,8 +227,7 @@ class JobMover(object):
 
         for dat in protocols:
 
-            copytool = dat.get('copytool') or 'xrdcp' # quick stub : to be implemented later
-            copysetup = dat.get('copysetup') or '/cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' # quick stub : to be implemented later
+            copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
             try:
                 sitemover = getSiteMover(copytool)(copysetup)

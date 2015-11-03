@@ -1335,7 +1335,7 @@ class SiteInformation(object):
         return lastupdate
 
     @classmethod
-    def loadURLData(self, url, fname=None, cache_time=0, nretry=3): # should be unified and isolated later
+    def loadURLData(self, url, fname=None, cache_time=0, nretry=3, sleeptime=60): # should be unified and isolated later
         """
         Download data from url/file resource and optionally save it into cachefile fname,
         The file will not be (re-)loaded again if cache age from last file modification does not exceed "cache_time" seconds
@@ -1354,9 +1354,9 @@ class SiteInformation(object):
                         content = f.read()
                         f.close()
                     else:
-                        tolog('[attempt%s] Loading data from url=%s' % (trial, url))
-                        #content = urllib2.urlopen(url, timeout=20).read() # python2.6
-                        content = urllib2.urlopen(url).read() # python 2.5
+                        tolog('[attempt=%s] Loading data from url=%s' % (trial, url))
+                        content = urllib2.urlopen(url, timeout=20).read() # python2.6
+                        #content = urllib2.urlopen(url).read() # python 2.5
 
                     if fname: # save to cache
                         f = open(fname, "w+")
@@ -1367,6 +1367,10 @@ class SiteInformation(object):
                 except Exception, e: # ignore errors, try to use old cache if any
                     tolog("Failed to load data from url=%s, error: %s .. trying to use data from cache=%s" % (url, e, fname))
                     # will try to use old cache below
+                    if trial < nretry-1:
+                        tolog("Will try again after %ss.." % sleeptime)
+                        from time import sleep
+                        sleep(sleeptime)
 
         if content is not None: # just loaded
             return content
@@ -1396,7 +1400,7 @@ class SiteInformation(object):
                                      'fname': os.path.join(base_dir, 'agis_ddmendpoints.cvmfs.json')},
                            'AGIS':  {'url':'http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&preset=dict&ddmendpoint=%s' % ','.join(ddmendpoints),
                                      'nretry':3,
-                                     'fname': os.path.join(base_dir, 'agis_ddmendpoints.agis.%s.json' % ('_'.join(sorted(ddmendpoints))) or 'ALL')},
+                                     'fname': os.path.join(base_dir, 'agis_ddmendpoints.agis.%s.json' % ('_'.join(sorted(ddmendpoints)) or 'ALL'))},
                            'PANDA' : None
         }
 
@@ -1444,28 +1448,83 @@ class SiteInformation(object):
 
         ret = {}
         for ddm in set(ddmendpoints):
-            protocols = [dict(se=e[0], se_path=e[2], copytool=None, copysetup=None) for e in sorted(self.ddmconf.get(ddm, {}).get('aprotocols', {}).get(activity, []), key=lambda x: x[1])] # FIX ME LATER: with proper copytool and copysetup
+            protocols = [dict(se=e[0], se_path=e[2]) for e in sorted(self.ddmconf.get(ddm, {}).get('aprotocols', {}).get(activity, []), key=lambda x: x[1])]
             ret.setdefault(ddm, protocols)
 
         return ret
 
 
-    def resolvePandaProtocols(self, ddmendpoints, activity):
+    def loadSchedConfData(self, pandaqueues=[], cache_time=60):
+        """
+            Download the queuedata from various soures (prioritized)
+            this function should replace getNewQueuedata() later.
+        """
+
+        # try to get data from CVMFS first
+        # then AGIS or Panda JSON sources
+        # passing cache time is a quick hack to avoid overloading
+        # normally data should be loaded only once in the init function and saved as dict like self.queueconf = loadQueueData
+
+        # list of sources to fetch ddmconf data from
+        base_dir = os.environ.get('PilotHomeDir', '')
+        pandaqueues = set(pandaqueues)
+
+        schedcond_sources = {'CVMFS': {'url': '/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json',
+                                     'nretry': 1,
+                                     'fname': os.path.join(base_dir, 'agis_schedconf.cvmfs.json')},
+                            'AGIS':  {'url':'http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s' % ','.join(pandaqueues),
+                                     'nretry':3,
+                                     'fname': os.path.join(base_dir, 'agis_schedconf.agis.%s.json' % ('_'.join(sorted(pandaqueues)) or 'ALL'))},
+                            'PANDA' : None
+        }
+
+        schedcond_sources_order = ['CVMFS', 'AGIS'] # can be moved into the schedconfig in order to configure workflow in AGIS on fly: TODO
+
+        for key in schedcond_sources_order:
+            dat = schedcond_sources.get(key)
+            if not dat:
+                continue
+
+            content = self.loadURLData(cache_time=cache_time, **dat)
+            if not content:
+                continue
+            try:
+                data = json.loads(content)
+            except Exception, e:
+                tolog("!!WARNING: loadSchedConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('source'), e))
+                data = None
+
+            if data and isinstance(data, dict):
+                if 'error' in data:
+                    tolog("!!WARNING: loadSchedConfData(): skipped source=%s since response contains error: data=%s" % (dat.get('source'), data))
+                else: # valid response
+                    return data
+
+        return None
+
+
+    def resolvePandaProtocols(self, pandaqueues, activity):
         """
             Resolve (SE endpoint, path, copytool, copyprefix) protocol entry for requested ddmendpoint by given pilot activity ("pr" means pilot_read, "pw" for pilot_write)
             Return the list of possible protocols ordered by priority
             :return: dict('ddmendpoint_name':[(SE_1, path2, copytool, copyprefix), )
         """
 
-        # quick stab implementation: fetch data from DDMEndpoint JSON (PQ independent)
-        # FIX me later:  do fetch data from PandaQueue schedconfig JSON (PQ related)
-        #
+        if not pandaqueues:
+            return {}
+        if isinstance(pandaqueues, (str, unicode)):
+            pandaqueues = [pandaqueues]
 
-        ret = self.resolveDDMProtocols(ddmendpoints, activity)
-        for ddm,prots in ret.iteritems():
-            for dat in prots:
-                dat.setdefault('copytool', None)  # quick stub
-                dat.setdefault('copysetup', None) # quick stub
+        self.schedconf = self.loadSchedConfData(pandaqueues, cache_time=6000) or {} # quick stub: fix me later: schedconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+
+        ret = {}
+        for pandaqueue in set(pandaqueues):
+            qdata = self.schedconf.get(pandaqueue, {})
+            protocols = qdata.get('aprotocols', {}).get(activity, [])
+            copytools = qdata.get('copytools', {})
+            for p in protocols:
+                p.setdefault('copysetup', copytools.get(p.get('copytool'), {}).get('setup'))
+            ret.setdefault(pandaqueue, protocols)
 
         return ret
 

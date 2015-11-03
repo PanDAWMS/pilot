@@ -2841,7 +2841,7 @@ def mover_put_data_new(outputpoolfcstring,
     from movers.trace_report import TraceReport
 
     si = getSiteInformation(job.experiment)
-    #si.setQueueName(queuename) # may be used in other functions since its singleton???
+    si.setQueueName(queuename) # keep logic as is: but SiteInformation is singleton: may be used in other functions! FIX me later to proper implementation
 
     workDir = recoveryWorkDir or os.path.dirname(jobWorkDir)
 

@@ -3184,8 +3184,6 @@ class SiteMover(object):
     def getFullPath(self, scope, spacetoken, lfn, analyJob, prodSourceLabel, alt=False):
         """ Construct a full PFN using site prefix, space token, scope and LFN """
 
-        self._dump_ddmprotocols() # DEBUG
-
         # <protocol>://<hostname>:<port>/<protocol_prefix>/ + <site_prefix>/<space_token>/rucio/<scope>/md5(<scope>:<lfn>)[0:2]/md5(<scope:lfn>)[2:4]/<lfn>
 
         full_path = ""
