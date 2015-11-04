@@ -1507,11 +1507,7 @@ if __name__ == "__main__":
 
         # are there any additional output files created by the trf/payload?
         try:
-            if not analysisJob:
-                output_files_json = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
-            else:
-                tolog("Will not extract output files from jobReport for user job")
-                output_files_json = []
+            output_files_json = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
         except Exception, e:
             tolog("!!WARNING!!2323!! Exception caught: %s" % (e))
             output_files_json = []

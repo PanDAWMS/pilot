@@ -161,6 +161,10 @@ Telling AthenaMP the name of the yampl channel in __main__() (RunJobEvent)
 Updated getMaxMemoryUsageFromCGroups() and removed the need for ATLAS_CGROUPS_BASE (processes)
 Created getCGROUPSBasePath() used by getMaxMemoryUsageFromCGroups() (processes)
 Updated isCGROUPSSite() to use getCGROUPSBasePath() instead of using ATLAS_CGROUPS_BASE (processes)
+Added support for AthSimulation* releases (e.g. for jobs with homePackage=AthSimulationBase/1.0.3) in getProperASetup() and getProperSiterootAndCmtconfig() (ATLASExperiment)
+Created getSiterootWithHomepackage(), used by getProperSiterootAndCmtconfig() and getProperASetup() (ATLASExperiment)
+Created getSplitHomePackage() used by getSiterootWithHomepackage(), getProperASetup() (ATLASExperiment)
+Now extracting output files from jobReport for user jobs as well in __main__() (RunJob)
 
 64.0
 
@@ -190,7 +194,10 @@ Created new global essentialPilotlogFilename (pUtil)
 Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
 Updated the tolog() function to use the new Logger module (pUtil)
 Added arguments label and essential to tolog() (pUtil)
-Added support for Ath* releases (e.g. for jobs with homePackage=AthSimulationBase/1.0.3) in getProperASetup() (ATLASExperiment)
+Now importing isAGreaterOrEqualToB() (RunJobEvent)
+Created useTokenExtractor(), setUseTokenExtractor() (RunJobEvent)
+Now using useTokenExtractor in several places in __main__() (RunJobEvent)
+Added exit code 11 and exit acronym TRF_OUTPUT_FILE_ERROR to ignore list in __main__() (RunJobEvent)
 
 Note: useAtlasSetup() is always returning True (ATLASExperiment)
 

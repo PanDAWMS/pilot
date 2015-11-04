@@ -37,7 +37,7 @@ from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService, httpConnect,\
-     getSiteInformation, getGUID
+     getSiteInformation, getGUID, isAGreaterOrEqualToB
 from FileHandling import getExtension, addToOSTransferDictionary
 from EventRanges import downloadEventRanges, updateEventRange
 
@@ -93,6 +93,7 @@ class RunJobEvent(RunJob):
     __tokenextractor_input_list_filenane = ""    #
     __sending_event_range = False                # True while event range is being sent to payload
     __current_event_range = ""                   # Event range being sent to payload
+    __useTokenExtractor = False                  # Should the TE be used?
 
     # Getter and setter methods
 
@@ -586,6 +587,22 @@ class RunJobEvent(RunJob):
             value = True
         self.__useEventIndex = value
 
+    def useTokenExtractor(self):
+        """ Should the Token Extractor be used? """
+
+        return self.__useTokenExtractor
+
+    def setUseTokenExtractor(self, release):
+        """ Set the __useTokenExtractor variable to a boolean value """
+        # Decision is based on the release
+
+        if isAGreaterOrEqualToB(release, "20.3.3"):
+            self.__useTokenExtractor = False
+            tolog("Token Extractor is not needed for release %s" % (release))
+        else:
+            self.__useTokenExtractor = True
+            tolog("Token Extractor is needed for release %s" % (release))
+
     # Required methods
 
     def __init__(self):
@@ -946,7 +963,8 @@ class RunJobEvent(RunJob):
                 tolog("...exitMsg=%s" % (exitMsg))
 
                 # Ignore special trf error for now
-                if (exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL") or (exitCode == 68 and exitAcronym == "TRF_EXEC_LOGERROR") or (exitCode == 66 and exitAcronym == "TRF_EXEC_VALIDATION_FAIL"):
+                if (exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL") or (exitCode == 68 and exitAcronym == "TRF_EXEC_LOGERROR") or (exitCode == 66 and exitAcronym == "TRF_EXEC_VALIDATION_FAIL") or \
+                        (exitCode == 11 and exitAcronym == "TRF_OUTPUT_FILE_ERROR"):
                     exitCode = 0
                     exitAcronym = ""
                     exitMsg = ""
@@ -2152,6 +2170,9 @@ if __name__ == "__main__":
         runJob.setMessageThread(message_thread)
         runJob.startMessageThread()
 
+        # Should the token extractor be used?
+        runJob.setUseTokenExtractor(job.release)
+
         # Stdout/err file objects
         tokenextractor_stdout = None
         tokenextractor_stderr = None
@@ -2160,42 +2181,47 @@ if __name__ == "__main__":
 
         # Create and start the TokenExtractor
 
-        # Extract the proper setup string from the run command
-        setupString = thisEventService.extractSetup(runCommandList[0], job.trf)
-        tolog("The Token Extractor will be setup using: %s" % (setupString))
+        # Extract the proper setup string from the run command in case the token extractor should be used
+        if runJob.useTokenExtractor():
+            setupString = thisEventService.extractSetup(runCommandList[0], job.trf)
+            tolog("The Token Extractor will be setup using: %s" % (setupString))
 
-        # Create the file objects
-        tokenextractor_stdout, tokenextractor_stderr = runJob.getStdoutStderrFileObjects(stdoutName="tokenextractor_stdout.txt", stderrName="tokenextractor_stderr.txt")
+            # Create the file objects
+            tokenextractor_stdout, tokenextractor_stderr = runJob.getStdoutStderrFileObjects(stdoutName="tokenextractor_stdout.txt", stderrName="tokenextractor_stderr.txt")
 
-        # In case the event index is not to be used, we need to create a TAG file
-        if not runJob.useEventIndex():
-            input_file, tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
-            input_file_guid = job.inFilesGuids[0]
+            # In case the event index is not to be used, we need to create a TAG file
+            if not runJob.useEventIndex():
+                input_file, tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
+                input_file_guid = job.inFilesGuids[0]
 
-            if input_file == "" or input_file_guid == "":
-                pilotErrorDiag = "Required TAG file/guid could not be identified"
-                tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
+                if input_file == "" or input_file_guid == "":
+                    pilotErrorDiag = "Required TAG file/guid could not be identified"
+                    tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
 
-                # Stop threads
-                runJob.stopAsyncOutputStagerThread()
-                runJob.joinAsyncOutputStagerThread()
-                runJob.stopMessageThread()
-                runJob.joinMessageThread()
+                    # Stop threads
+                    runJob.stopAsyncOutputStagerThread()
+                    runJob.joinAsyncOutputStagerThread()
+                    runJob.stopMessageThread()
+                    runJob.joinMessageThread()
 
-                # Set error code
-                job.result[0] = "failed"
-                job.result[2] = error.ERR_ESRECOVERABLE
-                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+                    # Set error code
+                    job.result[0] = "failed"
+                    job.result[2] = error.ERR_ESRECOVERABLE
+                    runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+            else:
+                input_file = job.inFiles[0]
+                input_file_guid = job.inFilesGuids[0]
 
-        else:
-            input_file = job.inFiles[0]
-            input_file_guid = job.inFilesGuids[0]
-
-        # Get the Token Extractor command
-        tolog("Will use input file %s for the TokenExtractor" % (input_file))
-        tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
+            # Get the Token Extractor command
+            tolog("Will use input file %s for the TokenExtractor" % (input_file))
+            tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
                                                                     stdout=tokenextractor_stdout, stderr=tokenextractor_stderr,\
                                                                     url=thisEventService.getEventIndexURL())
+        else:
+            setupString = None
+            tokenextractor_stdout = None
+            tokenextractor_stderr = None
+            tokenExtractorProcess = None
 
         # Create the file objects
         athenamp_stdout, athenamp_stderr = runJob.getStdoutStderrFileObjects(stdoutName="athena_stdout.txt", stderrName="athena_stderr.txt")
@@ -2216,7 +2242,8 @@ if __name__ == "__main__":
             runJob.joinAsyncOutputStagerThread()
             runJob.stopMessageThread()
             runJob.joinMessageThread()
-            tokenExtractorProcess.kill()
+            if tokenExtractorProcess:
+                tokenExtractorProcess.kill()
 
             # Close stdout/err streams
             if tokenextractor_stdout:
@@ -2236,13 +2263,16 @@ if __name__ == "__main__":
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
 
         # Tell AthenaMP the name of the yampl channel
-        if not "--preExec" in runCommandList[0]:
-            runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
-        else:
-            if "import jobproperties as jps" in runCommandList[0]:
-                runCommandList[0] = runCommandList[0].replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+        if runJob.useTokenExtractor():
+            if not "--preExec" in runCommandList[0]:
+                runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
             else:
-                runCommandList[0] = runCommandList[0].replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+                if "import jobproperties as jps" in runCommandList[0]:
+                    runCommandList[0] = runCommandList[0].replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+                else:
+                    runCommandList[0] = runCommandList[0].replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+        else:
+            runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";\'" % (runJob.getYamplChannelName())
 
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 
@@ -2287,7 +2317,8 @@ if __name__ == "__main__":
                 # Update the token extractor file list and keep track of added guids to the file list (not needed for Event Index)
                 if not runJob.useEventIndex():
                     eventRangeFilesDictionary = runJob.getEventRangeFilesDictionary(event_ranges, eventRangeFilesDictionary)
-                    eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary, input_file)
+                    if runJob.useTokenExtractor():
+                        eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary, input_file)
 
                 # Get the current list of eventRangeIDs
                 currentEventRangeIDs = runJob.extractEventRangeIDs(event_ranges)
@@ -2341,13 +2372,14 @@ if __name__ == "__main__":
                                 utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
 
                         # Make sure that the token extractor is still running
-                        if not tokenExtractorProcess.poll() is None:
-                            max_wait = 0
-                            job.pilotErrorDiag = "Token Extractor has crashed"
-                            job.result[0] = "failed"
-                            job.result[2] = error.ERR_TEFATAL
-                            tolog("!!WARNING!!2322!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
-                            break
+                        if runJob.useTokenExtractor():
+                            if not tokenExtractorProcess.poll() is None:
+                                max_wait = 0
+                                job.pilotErrorDiag = "Token Extractor has crashed"
+                                job.result[0] = "failed"
+                                job.result[2] = error.ERR_TEFATAL
+                                tolog("!!WARNING!!2322!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
+                                break
 
                     # Is AthenaMP still running?
                     if athenaMPProcess.poll() is not None:
@@ -2389,13 +2421,14 @@ if __name__ == "__main__":
                         utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
 
                 # Make sure that the token extractor is still running
-                if not tokenExtractorProcess.poll() is None:
-                    max_wait = 0
-                    job.pilotErrorDiag = "Token Extractor has crashed"
-                    job.result[0] = "failed"
-                    job.result[2] = error.ERR_TEFATAL
-                    tolog("!!WARNING!!2322!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
-                    break
+                if runJob.useTokenExtractor():
+                    if not tokenExtractorProcess.poll() is None:
+                        max_wait = 0
+                        job.pilotErrorDiag = "Token Extractor has crashed"
+                        job.result[0] = "failed"
+                        job.result[2] = error.ERR_TEFATAL
+                        tolog("!!WARNING!!2322!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
+                        break
 
         # Wait for AthenaMP to finish
         i = 0

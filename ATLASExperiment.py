@@ -1919,6 +1919,9 @@ class ATLASExperiment(Experiment):
                 if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage) and os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
                     tolog("Encountered HLT homepackage: %s (must use special siteroot)" % (homePackage))
                     siteroot = os.path.join(swbase, release)
+                elif homePackage.startswith('AthSimulation'):
+                    tolog("Encountered an Ath* release: %s" % (homePackage))
+                    siteroot = self.getSiterootWithHomepackage(swbase, homePackage, cmtconfig, release)
                 else:
                     # default SITEROOT on CVMFS
                     if "/cvmfs" in swbase:
@@ -2035,6 +2038,47 @@ class ATLASExperiment(Experiment):
 
         return status
 
+    def getSplitHomePackage(self, homePackage):
+        """ Split the homePackage if it has a project/release format """
+        # E.g. homePackage = AthSimulationBase/1.0.3 -> AthSimulationBase, 1.0.3
+
+        if "/" in homePackage:
+            s = homePackage.split('/')
+            project = s[0]
+            release = s[1]
+        else:
+            project = homePackage
+            release = ""
+
+        return project, release
+
+    def getSiterootWithHomepackage(self, swbase, homePackage, cmtconfig, release):
+        """ Use the homePackage to set the siteroot """
+
+        _project, _release = self.getSplitHomePackage(homePackage)
+        if _release != "": # i.e. "/" is present in homePackage:
+            path = os.path.join(swbase, _project) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
+            path = os.path.join(path, cmtconfig)
+            siteroot = os.path.join(path, _release) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase/1.0.3
+        else:
+            if release == "":
+                tolog("!!WARNING!!4545!! Found no slash in homePackage and release is not set - have to guess siteroot")
+                if os.path.exists(os.path.join(swbase, _project)):
+                    siteroot = os.path.join(swbase, _project)
+                    if os.path.exists(os.path.join(siteroot, cmtconfig)):
+                        siteroot = os.path.join(siteroot, cmtconfig)
+                    else:
+                        siteroot = os.path.join(swbase, _project)
+                else:
+                    siteroot = os.path.join(swbase, cmtconfig)
+            else:
+                tolog("!!WARNING!!4545!! Found no slash in homePackage - have to guess siteroot")
+                # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
+                siteroot = os.path.join(swbase, cmtconfig)
+                siteroot = os.path.join(siteroot, release)
+                
+        return siteroot
+
     def getProperASetup(self, swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=False, source=True, cacheVer=None, cacheDir=None):
         """ return a proper asetup.sh command """
         
@@ -2044,13 +2088,13 @@ class ATLASExperiment(Experiment):
         else:
             # Check for special release (such as AthSimulationBase/1.0.3)
             done = False
-            if homePackage.startswith('Ath'):
-                if "/" in homePackage:
-                    s = homePackage.split('/')
-                    path = os.path.join(swbase, s[0]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
-                    path = os.path.join(path, cmtconfig)
-                    path = os.path.join(path, s[1]) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase/1.0.3
+            if homePackage.startswith('AthSimulation'):
+                path = self.getSiterootWithHomepackage(swbase, homePackage, cmtconfig, "") # do not send the release in this case
+                if os.path.exists(path):
+                    tolog("Verified siteroot path: %s" % (path))
                     done = True
+                else:
+                    tolog("!!WARNING!!4545!! Siteroot path does not exist: %s" % (path))
 
             # Normal setup
             if not done:
@@ -2086,6 +2130,11 @@ class ATLASExperiment(Experiment):
             options = cacheVer + ",notest"
         if cacheDir and cacheDir != "":
             options += ",%s" % (cacheDir)
+
+        # special case for Ath* releases
+        if homePackage.startswith('AthSimulation'):
+            _project, _release = self.getSplitHomePackage(homePackage)
+            options = options.replace("notest", "%s,notest" % (_project))
 
         # nightlies setup?
         if "rel_" in homePackage:
@@ -2134,9 +2183,7 @@ class ATLASExperiment(Experiment):
         # HLT on AFS
         if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
             try:
-                h = homePackage.split("/") # ['AtlasP1HLT', '18.1.0.1']
-                project = h[0]
-                patch = h[1]
+                project, patch = self.getSplitHomePackage(homePackage) # ('AtlasP1HLT', '18.1.0.1')
             except Exception, e:
                 tolog("!!WARNING!!1234!! Could not extract project and patch from %s" % (homePackage))
             else:
