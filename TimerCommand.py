@@ -64,6 +64,12 @@ class TimerCommand(object):
         else:
             returncode = 1
 
+        if returncode != 1 and 'Command time-out' in self.stdout:
+            returncode = 1
+
+        if returncode == None:
+            returncode = 0
+
         return returncode, self.stdout
 
     def runFunction(self, func, args, timeout=3600):

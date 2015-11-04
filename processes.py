@@ -232,7 +232,6 @@ def getMaxMemoryUsageFromCGroups():
 
     max_memory = None
 
-    # grep memory /proc/5409/cgroup
     # Get the CGroups max memory using the pilot pid
     pid = os.getpid()
     path = "/proc/%d/cgroup" % (pid)
@@ -249,21 +248,21 @@ def getMaxMemoryUsageFromCGroups():
                 path = out[pos:]
                 pUtil.tolog("Extracted path = %s" % (path))
 
-                if os.environ.has_key('ATLAS_CGROUPS_BASE'):
-                    pre = os.environ['ATLAS_CGROUPS_BASE']
-                else:
-                    pre = "/var/cgroups/memory"
+                pre = getCGROUPSBasePath()
+                if pre != "":
+                    path = pre + os.path.join(path, "memory.max_usage_in_bytes")
+                    pUtil.tolog("Path to CGROUPS memory info: %s" % (path))
 
-                path = pre + os.path.join(path, "memory.max_usage_in_bytes")
-                pUtil.tolog("Path to CGROUPS memory info: %s" % (path))
+                    try:
+                        f = open(path, 'r')
+                    except IOError, e:
+                        pUtil.tolog("!!WARNING!!2212!! Could not open file %s: %s" % (path, e))
+                    else:
+                        max_memory = f.read()
+                        f.close()
 
-                try:
-                    f = open(path, 'r')
-                except IOError, e:
-                    pUtil.tolog("!!WARNING!!2212!! Could not open file %s: %s" % (path, e))
                 else:
-                    max_memory = f.read()
-                    f.close()
+                    pUtil.tolog("CGROUPS base path could not be extracted - not a CGROUPS site")
             else:
                 pUtil.tolog("!!WARNING!!2211!! Invalid format: %s (expected ..:memory:[path])" % (out))
     else:
@@ -271,17 +270,25 @@ def getMaxMemoryUsageFromCGroups():
 
     return max_memory
 
+def getCGROUPSBasePath():
+    """ Return the base path for CGROUPS """
+
+    return commands.getoutput("grep \'^cgroup\' /proc/mounts|grep memory| awk \'{print $2}\'")
+
 def isCGROUPSSite():
     """ Return True if site is a CGROUPS site """
 
     status = False
 
+    if getCGROUPSBasePath() != "":
+        status = True
+
     # Make experiment specific?
-    if os.environ.has_key('ATLAS_CGROUPS_BASE'):
-        cgroups = os.environ['ATLAS_CGROUPS_BASE']
-        if cgroups != "":
-            pUtil.tolog("ATLAS_CGROUPS_BASE = %s" % (cgroups))
-            # if cgroups.lower() == "true":
-            status = True
+#    if os.environ.has_key('ATLAS_CGROUPS_BASE'):
+#        cgroups = os.environ['ATLAS_CGROUPS_BASE']
+#        if cgroups != "":
+#            pUtil.tolog("ATLAS_CGROUPS_BASE = %s" % (cgroups))
+#            # if cgroups.lower() == "true":
+#            status = True
 
     return status

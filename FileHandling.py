@@ -578,7 +578,7 @@ def discoverAdditionalOutputFiles(output_file_list, workdir, datasets_list, scop
             if _file != output_file_full_path:
 
                 # Create the search pattern
-                pattern = compile(r'(%s\_\d+)' % (output_file_full_path))
+                pattern = compile(r'(%s\.?\_\d+)' % (output_file_full_path))
                 found = findall(pattern, _file)
 
                 # Add the file name (not full path) of the found file, if found
@@ -594,6 +594,141 @@ def discoverAdditionalOutputFiles(output_file_list, workdir, datasets_list, scop
 
     return new_output_file_list, new_datasets_list, new_scope_list
 
+# WARNING: EXPERIMENT SPECIFIC AND ALSO DEFINED IN ERRORDIAGNOSIS
+def getJobReport(workDir):
+    """ Get the jobReport.json dictionary """
+
+    fileName = os.path.join(workDir, "jobReport.json")
+    if os.path.exists(fileName):
+        # the jobReport file exists, read it back                                                                                                                                                                                                          
+        try:
+            f = open(fileName, "r")
+        except Exception, e:
+            tolog("!!WARNING!!1001!! Could not open file: %s, %s" % (fileName, e))
+            jobReport_dictionary = {}
+        else:
+            from json import load
+            try:
+                # load the dictionary                                                                                                                                                                                                                                            
+                jobReport_dictionary = load(f)
+            except Exception, e:
+                tolog("!!WARNING!!1001!! Could not read back jobReport dictionary: %s" % (e))
+                jobReport_dictionary = {}
+
+            # done with the file
+            f.close()
+    else:
+        tolog("!!WARNING!!1111!! File %s does not exist" % (fileName))
+        jobReport_dictionary = {}
+
+    return jobReport_dictionary
+
+def extractOutputFilesFromJSON(workDir, allowNoOutput):
+    """ In case the trf has produced additional output files, extract all output files from the jobReport """
+    # Note: ignore files with nentries = 0
+
+    output_files = []
+    tolog("Extracting output files from jobReport")
+
+    jobReport_dictionary = getJobReport(workDir)
+    if jobReport_dictionary != {}:
+
+        if jobReport_dictionary.has_key('files'):
+            file_dictionary = jobReport_dictionary['files']
+            if file_dictionary.has_key('output'):
+                output_file_list = file_dictionary['output']
+                for f_dictionary in output_file_list:
+                    if f_dictionary.has_key('subFiles'):
+                        subFiles_list = f_dictionary['subFiles']
+                        for f_names_dictionary in subFiles_list:
+                            if f_names_dictionary.has_key('name') and f_names_dictionary.has_key('nentries'):
+                                # Only add the file is nentries > 0
+                                if type(f_names_dictionary['nentries']) == int and f_names_dictionary['nentries'] > 0:
+                                    output_files.append(f_names_dictionary['name'])
+                                else:
+                                    # Only ignore the file if it is allowed to be ignored
+                                    if not type(f_names_dictionary['nentries']) == int:
+                                        tolog("!!WARNING!!4542!! nentries is not a number: %s" % str(f_names_dictionary['nentries']))
+
+                                    # Special handling for origName._NNN
+                                    # origName._NNN are unmerged files dynamically produced by AthenaMP. Job definition doesn't
+                                    # explicitly specify those names but only the base names, thus allowNoOutput contains only base names
+                                    # in this case. We want to ignore origName._NNN when allowNoOutput=['origName']
+                                    from re import compile
+                                    allowNoOutputEx = [compile(s+'\.?_\d+$') for s in allowNoOutput]
+                                    if f_names_dictionary['name'] in allowNoOutput or any(patt.match(f_names_dictionary['name']) for patt in allowNoOutputEx):
+                                        tolog("Ignoring file %s since nentries=%s" % (f_names_dictionary['name'], str(f_names_dictionary['nentries'])))
+                                    else:
+                                        tolog("Will not ignore empty file %s since file is not in allowNoOutput list" % (f_names_dictionary['name']))
+                                        output_files.append(f_names_dictionary['name'])
+                            else:
+                                tolog("No such key: name/nentries")
+                    else:
+                        tolog("No such key: subFiles")
+            else:
+                tolog("No such key: output")
+        else:
+            tolog("No such key: files")
+
+        if len(output_files) == 0:
+            tolog("No output files found in jobReport")
+        else:
+            tolog("Output files found in jobReport: %s" % (output_files))
+
+    return output_files
+
+def getDestinationDBlockItems(filename, original_output_files, destinationDBlockToken, destinationDblock, scopeOut):
+    """ Return destinationDBlock items (destinationDBlockToken, destinationDblock) for given file """
+
+    # Note: in case of spill-over file, the file name will end with _NNN or ._NNN. This will be removed from the file name
+    # so that the destinationDBlockToken of the original output file will be used
+    filename = filterSpilloverFilename(filename)
+
+    # Which is the corresponding destinationDBlockToken for this file?
+    _destinationDBlockToken = getOutputFileItem(filename, destinationDBlockToken, original_output_files)
+
+    # Which is the corresponding destinationDblock for this file?
+    _destinationDblock = getOutputFileItem(filename, destinationDblock, original_output_files)
+
+    # Which is the corresponding scopeOut for this file?
+    _scopeOut = getOutputFileItem(filename, scopeOut, original_output_files)
+
+    return _destinationDBlockToken, _destinationDblock, _scopeOut
+
+def getOutputFileItem(filename, outputFileItem, original_output_files):
+    """ Which is the corresponding destinationDBlock item for this file? """
+
+    # Find the file number (all lists are ordered)
+    i = 0
+    if filename in original_output_files:
+        for f in original_output_files:
+            if f == filename:
+                break
+            i += 1
+
+        _outputFileItem = outputFileItem[i]
+    else:
+        tolog("!!WARNING!!4545!! File %s not found in original output file list (will use outputFileItem[0])" % (filename))
+        _outputFileItem = outputFileItem[0]
+
+    return _outputFileItem
+
+def filterSpilloverFilename(filename):
+    """ Remove any unwanted spill-over filename endings (i.e. _NNN or ._NNN) """
+
+    # Create the search pattern                                                                                                                                         
+    from re import compile, findall
+    pattern = compile(r'(\.?\_\d+)')
+    found = findall(pattern, filename)
+    if found:
+        # Make sure that the _NNN substring is at the end of the string
+        for f in found:
+            if filename.endswith(f):
+                # Do not use replace here since it might cut away something from inside the filename and not only at the end
+                filename = filename[:-len(f)]
+
+    return filename
+
 def getDirSize(d):
     """ Return the size of directory d using du -sk """
 
@@ -603,8 +738,8 @@ def getDirSize(d):
     size = 0
 
     # E.g., size_str = "900\t/scratch-local/nilsson/pilot3z"
-    try:
-        # Remove tab and path, and convert to int (and B)                                                                                                                                                
+    try: 
+       # Remove tab and path, and convert to int (and B)                                                                                                                                                
         size = int(size_str.split("\t")[0])*1024
     except Exception, e:
         tolog("!!WARNING!!4343!! Failed to convert to int: %s" % (e))
@@ -716,6 +851,45 @@ def getMaxWorkDirSize(path, jobId):
         tolog("!!WARNING!!4556!! No such file: %s" % (filename))
 
     return maxdirsize
+
+def getNumberOfEvents(workDir):
+    """ Extract the number of events from the job report """
+
+    Nevents = {} # FORMAT: { format : total_events, .. }
+
+    jobReport_dictionary = getJobReport(workDir)
+    if jobReport_dictionary != {}:
+
+        if jobReport_dictionary.has_key('resource'):
+            resource_dictionary = jobReport_dictionary['resource']
+            if resource_dictionary.has_key('executor'):
+                executor_dictionary = resource_dictionary['executor']
+                for format in executor_dictionary.keys(): # "RAWtoESD", ..
+                    if executor_dictionary[format].has_key('nevents'):
+                        if Nevents.has_key(format):
+                            print executor_dictionary[format]['nevents']
+                            Nevents[format] += executor_dictionary[format]['nevents']
+                        else:
+                            Nevents[format] = executor_dictionary[format]['nevents']
+                    else:
+                        tolog("Format %s has no such key: nevents" % (format))
+            else:
+                tolog("No such key: executor")
+        else:
+            tolog("No such key: resource")
+
+    # Now find the largest number of events among the different formats
+    if Nevents != {}:
+        try:
+            Nmax = max(Nevents.values())
+        except Exception, e:
+            tolog("!!WARNING!!2323!! Exception caught: %s" % (e))
+            Nmax = 0
+    else:
+        tolog("Did not find the number of events in the job report")
+        Nmax = 0
+
+    return Nmax
 
 # print findLatestTRFLogFile(os.getcwd())
 

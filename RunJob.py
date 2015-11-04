@@ -28,7 +28,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-from FileHandling import tail, getExtension, discoverAdditionalOutputFiles
+from FileHandling import tail, getExtension, extractOutputFilesFromJSON, getDestinationDBlockItems
 from EventRanges import downloadEventRanges
 
 # remove logguid, dq2url, debuglevel - not needed
@@ -1506,8 +1506,37 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # are there any additional output files created by the trf/payload?
-        job.outFiles, job.destinationDblock, job.scopeOut = discoverAdditionalOutputFiles(job.outFiles, job.workdir, job.destinationDblock, job.scopeOut)
-        tolog("outFiles = %s" % str(job.outFiles))
+        try:
+            output_files_json = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
+        except Exception, e:
+            tolog("!!WARNING!!2323!! Exception caught: %s" % (e))
+            output_files_json = []
+
+        if output_files_json != []:
+            tolog("Will update the output file lists since files were discovered in the job report")
+
+            new_destinationDBlockToken = []
+            new_destinationDblock = []
+            new_scopeOut = []
+            try:
+                for f in output_files_json:
+                    _destinationDBlockToken, _destinationDblock, _scopeOut = getDestinationDBlockItems(f, job.outFiles, job.destinationDBlockToken, job.destinationDblock, job.scopeOut)
+                    new_destinationDBlockToken.append(_destinationDBlockToken)
+                    new_destinationDblock.append(_destinationDblock)
+                    new_scopeOut.append(_scopeOut)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Exception caught: %s" % (e))
+            else:
+                # Finally replace the output file lists
+                job.outFiles = output_files_json
+                job.destinationDblock = new_destinationDblock
+                job.destinationDBlockToken = new_destinationDBlockToken
+                job.scopeOut = new_scopeOut
+
+                tolog("Updated: job.outFiles=%s" % str(output_files_json))
+                tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
+                tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
+                tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
 
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)

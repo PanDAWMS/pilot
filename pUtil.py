@@ -120,6 +120,8 @@ def tologNew(msg, tofile=True, label='INFO', essential=False):
     msg = msg.replace("`","'")
     msg = msg.replace('"','\\"')
 
+    import logging
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(asctime)s\t%(process)d\t%(levelname)s\t%(message)s')
     from Logger import Logger
     if essential:
         log = Logger(filename=essentialPilotlogFilename)
@@ -2751,9 +2753,6 @@ def getMaxInputSize(MB=False):
                 _maxinputsize = MAX_INPUT_FILESIZES_MB
             else:
                 _maxinputsize = MAX_INPUT_FILESIZES
-        else:
-            # 2 GB correction (ignoring that 2000 != 2048 MB..)
-            _maxinputsize -= 2000
     else:
         if MB:
             _maxinputsize = MAX_INPUT_FILESIZES_MB
