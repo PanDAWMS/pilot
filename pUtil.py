@@ -1,7 +1,7 @@
 import sys, os, signal, time, shutil, cgi
 import commands, re
 import urllib
-import json 
+import json
 
 from xml.dom import minidom
 from xml.dom.minidom import Document
@@ -145,7 +145,7 @@ def tologNew(msg, tofile=True, label='INFO', essential=False):
     else:
         print msg
 
-    # write any serious messages to stderr        
+    # write any serious messages to stderr
     if label == 'ERROR' or label == 'CRITICAL':
         print >> sys.stderr, msg # write any FAILED messages to stderr
 
@@ -1175,13 +1175,13 @@ def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml",
             pfn.setAttribute('name', sfn)
             physical.appendChild(pfn)
 
-            # forceLogical is set for TURL based PFCs. In this case, the LFN must not contain any __DQ2-parts
+            # forceLogical is set for TURL based PFCs. In this case, the LFN must not contain any legacy __DQ2-parts
             if forceLogical:
                 logical = doc.createElement('logical')
                 logical.setAttribute('name', os.path.basename(sfn))
                 _file.appendChild(logical)
 
-                # remove any __DQ2 substring from the LFN if necessary
+                # remove any legacy __DQ2 substring from the LFN if necessary
                 _lfn = getLFN(sfn, lfns) #os.path.basename(sfn)
                 if "__DQ2" in _lfn:
                     _lfn = stripDQ2FromLFN(_lfn)
@@ -3674,10 +3674,10 @@ def decode_string(encoded_string):
     return decoded_string
 
 def stripDQ2FromLFN(lfn):
-    """ Remove any __DQ2 part of an LFN """
+    """ Remove any legacy __DQ2 part of an LFN """
     # E.g. LFN = AOD.505307._000001.pool.root.9__DQ2-1315236060
     # -> AOD.505307._000001.pool.root.9
-    # This method assumes that the LFN contains the __DQ2-<nr> substring
+    # This method assumes that the LFN contains the legacy __DQ2-<nr> substring
 
     pattern = "(\s*)\_\_DQ2\-[0-9]+"
 
@@ -3686,7 +3686,7 @@ def stripDQ2FromLFN(lfn):
         try:
             __DQ2 = found.group(0)
         except Exception, e:
-            tolog("!!WARNING!!1112!! Failed to identify __DQ2 substring: %s" % (e))
+            tolog("!!WARNING!!1112!! Failed to identify legacy __DQ2 substring: %s" % (e))
         else:
             lfn = lfn.replace(__DQ2, "")
 
@@ -4579,7 +4579,7 @@ def isAGreaterOrEqualToB(A, B):
     # > b="2.2.2"
     # > e.isAGreaterThanB(a,b)
     # False
-    
+
     return splittedname(A) >= splittedname(B)
 
 def recursive_overwrite(src, dest, ignore=None):

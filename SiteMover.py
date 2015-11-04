@@ -26,7 +26,6 @@ class SiteMover(object):
     File movers move files between a storage element (of different kinds) and a local directory
     get_data: SE->local
     put_data: local->SE
-    check_space: available space in SE
     getMover: static function returning a SiteMover
 
     It furter provides functions useful for child classes (AAASiteMover):
@@ -52,7 +51,7 @@ class SiteMover(object):
     arch_type = ARCH_DEFAULT
     timeout = 5*3600
     useTracingService = True
-    filesInDQ2Dataset = {}
+    filesInRucioDataset = {}
 
     CONDPROJ = ['oflcond', 'comcond', 'cmccond', 'tbcond', 'tbmccond', 'testcond']
     PRODFTYPE = ['AOD', 'CBNT', 'ESD', 'EVNT', 'HIST', 'HITS', 'RDO', 'TAG', 'log', 'NTUP']
@@ -177,7 +176,7 @@ class SiteMover(object):
         timeout = pdict.get('timeout', 5*3600)
         experiment = pdict.get('experiment', "ATLAS")
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'sm', lfn, guid)
 
         # get the site information object
@@ -285,21 +284,21 @@ class SiteMover(object):
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
-    def getDQ2SEType(dq2sitename):
+    def getRSEType(rse):
         """ Return the corresponding setype for the site """
 
         setype = None
         try:
             from dq2.info import TiersOfATLAS
-            setype = TiersOfATLAS.getSEType(dq2sitename)
+            setype = TiersOfATLAS.getSEType(rse)
         except:
             tolog("WARNING: getSEType failed")
 
         return setype
-    getDQ2SEType = staticmethod(getDQ2SEType)
+    getRSEType = staticmethod(getRSEType)
 
-    def getDQ2SiteName(surl=None):
-        """ Return the DQ2 site name using the SURL """
+    def getRSE(surl=None):
+        """ Return the Rucio site name (RSE ... Rucio Storage Element) using the SURL """
 
         sitename = None
         if surl:
@@ -315,12 +314,12 @@ class SiteMover(object):
                         sitename = site
                         break
         return sitename
-    getDQ2SiteName = staticmethod(getDQ2SiteName)
+    getRSE = staticmethod(getRSE)
 
-    def getDefaultDQ2SiteName(self):
-        """ Return the DQ2 site name using the schedconfig.se info """
+    def getDefaultRSE(self):
+        """ Return the Rucio site name using the schedconfig.se info """
 
-        # Build a preliminary SURL using minimum information necessary for the getDQ2SiteName() method
+        # Build a preliminary SURL using minimum information necessary for the getRSE() method
         default_token, se = SiteMover.extractSE(readpar('se'))
         tolog("default_token=%s, se=%s" % (default_token, se))
 
@@ -342,8 +341,8 @@ class SiteMover(object):
         surl = se + destination
         tolog("surl=%s"%surl)
 
-        # Get the default DQ2 site name
-        return SiteMover.getDQ2SiteName(surl=surl)
+        # Get the default Rucio site name
+        return SiteMover.getRSE(surl=surl)
 
     def getTiersOfATLASAlternativeName(self, endpoint):
         """ Return the alternativeName from TiersOfATLAS for a given edpoint """
@@ -421,11 +420,11 @@ class SiteMover(object):
             # Found a groupdisk space token
             _token = token[len('dst:'):]
             tolog("token=%s"%_token)
-            tolog("sitename=%s"%self.getDefaultDQ2SiteName())
+            tolog("sitename=%s"%self.getDefaultRSE())
             # Get the corresponding alternative name and compare it to the alternative name of the site
             alternativeName_token = self.getTiersOfATLASAlternativeName(_token)
             tolog("alternativeName_token = %s" % (alternativeName_token))
-            alternativeName_site = self.getTiersOfATLASAlternativeName(self.getDefaultDQ2SiteName())
+            alternativeName_site = self.getTiersOfATLASAlternativeName(self.getDefaultRSE())
             tolog("alternativeName_site = %s" % (alternativeName_site))
 
             # Only proceed ith getting the groupdisk path if the alternativeName's are the same
@@ -480,7 +479,7 @@ class SiteMover(object):
         experiment = pdict.get('experiment', 'ATLAS')
         prodSourceLabel = pdict.get('prodSourceLabel', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'sm', lfn, guid)
 
         # get the checksum type
@@ -617,9 +616,9 @@ class SiteMover(object):
         #58f836d5-ff4b-441a-979b-c37094257b72_0.job.log.tgz
         # tolog("Native_lfc_path: %s" % (native_lfc_path))
 
-        # replace the default path /grid/atlas/dq2 with lfcpath if different
-        # (to_native_lfn returns a path begining with /grid/atlas/dq2)
-        default_lfcpath = '/grid/atlas/dq2' # to_native_lfn always returns this at the beginning of the string
+        # replace the default path /grid/atlas/rucio with lfcpath if different
+        # (to_native_lfn returns a path begining with /grid/atlas/rucio)
+        default_lfcpath = '/grid/atlas/rucio' # to_native_lfn always returns this at the beginning of the string
         if default_lfcpath != lfcpath:
             final_lfc_path = native_lfc_path.replace(default_lfcpath, lfcpath)
         else:
@@ -800,80 +799,6 @@ class SiteMover(object):
 
         return 0, "", dst_gpfn, lfcdir
 
-    def check_space(self, ub):
-        """Checking space availability
-
-        This is a wrapper for functions specific to the different movers:
-        1. check DQ space URL
-        2. invoke _check_space, specific for each SiteMover
-         (e.g. SiteMover's _check_space get storage path and check local space availability)
-
-        """
-        # http://bandicoot.uits.indiana.edu:8000/dq2/space/free
-        # http://bandicoot.uits.indiana.edu:8000/dq2/space/total
-        # http://bandicoot.uits.indiana.edu:8000/dq2/space/default For when space availability is not verifiable
-        tolog("check_space called for: %s" % (ub))
-        if ub == "" or ub == "None" or ub == None:
-            tolog("Using alternative check space function since URL method can not be applied (URL not set)")
-            retn = self._check_space(ub)
-        else:
-            try:
-                tolog("Attempting urlopen with: %s" % (ub + '/space/free'))
-                f = urlopen(ub + '/space/free')
-                ret = f.read()
-                tolog("ret: %s" % str(ret))
-                retn = int(ret)
-                if retn == 0:
-                    retn = 999995
-                    tolog(ub + '/space/free returned 0 space available, returning %d' % (retn))
-            except:
-                tolog("Using alternative check space function since URL method failed")
-                retn = self._check_space(ub)
-        return retn
-
-    def _check_space(self, ub):
-        """ Checking space of a local directory """
-
-        fail = 0
-        ret = ''
-        if ub == "" or ub == "None" or ub == None:
-            dst_loc_se = readpar('sepath')
-            if dst_loc_se == "":
-                tolog("WARNING: Can not perform alternative space check since sepath is not set")
-                return -1
-            else:
-                tolog("Space check using df is no longer performed - will be replaced with SRM based space check")
-                return -1
-        else:
-            try:
-                f = urlopen(ub + '/storages/default')
-            except Exception, e:
-                tolog('!!WARNING!!2999!! Fetching default storage failed: %s' % str(e))
-                return -1
-            else:
-                ret = f.read()
-
-        if ret.find('//') == -1:
-            tolog('!!WARNING!!2999!! Fetching default storage failed!')
-            fail = -1
-        else:
-            dst_se = ret.strip()
-            if (dst_se.find('SFN') != -1):  # srm://dcsrm.usatlas.bnl.gov:8443/srm/managerv1?SFN=/pnfs/usatlas.bnl.gov/
-                s = dst_se.split('SFN=')
-                dst_loc_se = s[1]
-            else:
-                _sentries = dst_se.split('/', 3)
-                dst_loc_se = '/'+ _sentries[3]
-
-            avail = self.check_space_df(dst_loc_se)
-            if avail == -1:
-                fail = -1
-
-        if fail != 0:
-            return fail
-        else:
-            return avail
-
     def check_space_df(self, dst_loc_se):
         """ Run df to check space availability """
 
@@ -944,7 +869,7 @@ class SiteMover(object):
             tolog("Tracing report sent")
 
     def prepareReport(self, state, report):
-        """ Prepare the DQ2 tracing report. Set the client exit state and finish """
+        """ Prepare the Rucio tracing report. Set the client exit state and finish """
 
         if report.has_key('timeStart'):
 
@@ -974,7 +899,7 @@ class SiteMover(object):
             tolog("!!WARNING!!3331!! No timeStart found in tracing report, cannot send")
 
     def sendReport(self, report):
-        """ Send DQ2 tracing report. Set the client exit state and finish """
+        """ Send Rucio tracing report. Set the client exit state and finish """
 
         if report.has_key('timeStart'):
             # finish instrumentation
@@ -1088,7 +1013,7 @@ class SiteMover(object):
         return status
 
     def getFileInDataset(self, dataset, guid):
-        """ Get the file info and if necessary populate the DQ2 dataset dictionary """
+        """ Get the file info and if necessary populate the Rucio dataset dictionary """
 
         fileInDataset = None
 
@@ -1097,15 +1022,15 @@ class SiteMover(object):
             return None
 
         # is the dataset info already available?
-        if self.filesInDQ2Dataset.has_key(dataset):
-            tolog("(already downloaded DQ2 file info)")
+        if self.filesInDataset.has_key(dataset):
+            tolog("(already downloaded Rucio file info)")
             # get the file info
             try:
-                fileInDataset = self.filesInDQ2Dataset[dataset][guid]
+                fileInDataset = self.filesInDataset[dataset][guid]
             except Exception, e:
-                tolog("!!WARNING!!1111!! GUID = %s not found in DQ2 dataset (%s): %s" % (guid, dataset, e))
+                tolog("!!WARNING!!1111!! GUID = %s not found in Rucio dataset (%s): %s" % (guid, dataset, e))
         else:
-            tolog("(will download DQ2 file info)")
+            tolog("(will download Rucio file info)")
             try:
                 from dq2.clientapi.DQ2 import DQ2
                 dq2 = DQ2()
@@ -1113,18 +1038,18 @@ class SiteMover(object):
             except: # listFilesInDataset is not a subclass of Exception, so only use an except without Exception here
                 import sys
                 excType, excValue = sys.exc_info()[:2] # skip the traceback info to avoid possible circular reference
-                tolog("!!WARNING!!1112!! Failed to get dataset = %s from DQ2" % (dataset))
+                tolog("!!WARNING!!1112!! Failed to get dataset = %s from Rucio" % (dataset))
                 tolog("excType=%s" % (excType))
                 tolog("excValue=%s" % (excValue))
             else:
                 # add the new dataset to the dictionary
-                self.filesInDQ2Dataset[dataset] = dataset_info
+                self.filesInDataset[dataset] = dataset_info
 
                 # finally get the file info
                 try:
-                    fileInDataset = self.filesInDQ2Dataset[dataset][guid]
+                    fileInDataset = self.filesInDataset[dataset][guid]
                 except Exception, e:
-                    tolog("!!WARNING!!1113!! GUID = %s not found in DQ2 dataset (%s): %s" % (guid, dataset, e))
+                    tolog("!!WARNING!!1113!! GUID = %s not found in Rucio dataset (%s): %s" % (guid, dataset, e))
 
         return fileInDataset
 
@@ -1167,8 +1092,8 @@ class SiteMover(object):
 
         return filesize, checksum
 
-    def getFileInfoFromDQ2(self, dataset, guid):
-        """ Get the file size and checksum from DQ2 """
+    def getFileInfoFromRucio(self, dataset, guid):
+        """ Get the file size and checksum from Rucio """
 
         filesize = ""
         checksum = ""
@@ -1184,13 +1109,13 @@ class SiteMover(object):
                 checksum = tmp[1]
                 filesize = str(fileInDataset["filesize"])
             except Exception, e:
-                tolog("!!WARNING!!1114!! Failed to get file info from DQ2 (using default LFC values for file size and checksum): %s" % (e))
+                tolog("!!WARNING!!1114!! Failed to get file info from Rucio (using default LFC values for file size and checksum): %s" % (e))
                 filesize = ""
                 checksum = ""
             else:
-                tolog("DQ2 file info for LFN = %s: file size = %s, checksum = %s (type: %s)" % (lfn, filesize, checksum, checksum_type))
+                tolog("Rucio file info for LFN = %s: file size = %s, checksum = %s (type: %s)" % (lfn, filesize, checksum, checksum_type))
         else:
-            tolog("!!WARNING!!1115!! Failed to get file info from DQ2 (using default LFC values for file size and checksum)")
+            tolog("!!WARNING!!1115!! Failed to get file info from Rucio (using default LFC values for file size and checksum)")
 
         return filesize, checksum
 
@@ -1472,7 +1397,7 @@ class SiteMover(object):
     # http://atlas-sw.cern.ch/cgi-bin/viewcvs-atlas.cgi/offline/DataManagement/DQ2/dq2.filecatalog.lfc/lib/dq2/filecatalog/lfc/lfcconventions.py?view=log
 
     # Code taken from same source as strip functions above
-    def to_native_lfn(dsn, lfn, prefix='dq2/'):
+    def to_native_lfn(dsn, lfn, prefix='rucio/'):
         """
         Return LFN with LFC hierarchical namespace.
         """
@@ -2209,9 +2134,9 @@ class SiteMover(object):
             #58f836d5-ff4b-441a-979b-c37094257b72_0.job.log.tgz
             tolog("Native_lfc_path: %s" % (native_lfc_path))
 
-            # replace the default path /grid/atlas/dq2 with lfcpath if different
-            # (to_native_lfn returns a path begining with /grid/atlas/dq2)
-            default_lfcpath = '/grid/atlas/dq2' # to_native_lfn always returns this at the beginning of the string
+            # replace the default path /grid/atlas/rucio with lfcpath if different
+            # (to_native_lfn returns a path begining with /grid/atlas/rucio)
+            default_lfcpath = '/grid/atlas/rucio' # to_native_lfn always returns this at the beginning of the string
             if default_lfcpath != lfcpath:
                 final_lfc_path = native_lfc_path.replace(default_lfcpath, lfcpath)
             else:

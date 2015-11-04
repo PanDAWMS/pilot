@@ -47,7 +47,7 @@ class AMSTaiwanSiteInformation(SiteInformation):
     def isTier1(self, sitename):
         """ Is the given site a Tier-1? """
         # E.g. on a Tier-1 site, the alternative stage-out algorithm should not be used
-        # Note: sitename is PanDA sitename, not DQ2 sitename
+        # Note: sitename is PanDA sitename, not Rucio sitename (RSE)
 
         status = False
 

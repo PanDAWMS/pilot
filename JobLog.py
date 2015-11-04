@@ -139,12 +139,10 @@ class JobLog:
 
         return status, job
 
-    def transferActualLogFile(self, job, site, dq2url=None, dest=None, jr=False, specialTransfer=False):
+    def transferActualLogFile(self, job, site, dest=None, jr=False, specialTransfer=False):
         """
         Save log tarball in DDM and register it to catalog, or copy it to 'dest'.
-        the job recovery will use the current site info known by the current
-        pilot and will override the old jobs' site.dq2url in case the dq2url
-        has been updated
+        the job recovery will use the current site info known by the current pilot
         """
 
         status = True
@@ -174,12 +172,6 @@ class JobLog:
 
         # see if it's an analysis job or not
         analyJob = isAnalysisJob(job.trf.split(",")[0])
-
-        # use the site.dq2url as dq2url unless dq2url has been explicitly set by the caller.
-        # the job recovery sets dq2url explicitly in the call to override any old urls that might
-        # be outdated
-        if not dq2url:
-            dq2url = site.dq2url
 
         # remove any lingering input files from the work dir
         if len(job.inFiles) > 0:
@@ -224,7 +216,6 @@ class JobLog:
                                                                   dsname,
                                                                   site.sitename,
                                                                   site.computingElement,
-                                                                  ub = dq2url,
                                                                   analysisJob = analyJob,
                                                                   scopeLog = job.scopeLog,
                                                                   testLevel = self.__env['testLevel'],
@@ -1126,7 +1117,7 @@ class JobLog:
             tolog("Work directory size dictionary not created (will create it now)")
             size = getDirSize(job.workdir)
 
-            # Store the measured disk space (the max value will later be sent with the job metrics)                                                                           
+            # Store the measured disk space (the max value will later be sent with the job metrics)
             jobDic = {}
             jobDic['prod'] = [0, job, 0]
             status = storeWorkDirSize(size, self.__env['pilot_initdir'], jobDic)

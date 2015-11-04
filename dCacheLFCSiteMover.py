@@ -23,7 +23,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
 
     def __init__(self, setup_path='', *args, **kwrds):
         self._setup = setup_path
-    
+
     def get_timeout(self):
         return self.timeout
 
@@ -46,7 +46,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         dsname = pdict.get('dsname', '')
         extradirs = pdict.get('extradirs', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'dCacheLFC', lfn, guid)
 
         if self._setup:
@@ -102,7 +102,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         else:
             _sentries = dst_se.split('/', 3)
             dst_serv = _sentries[0] + '//' + _sentries[2] # 'method://host:port' is it always a ftp server? can it be srm? something else?
-            dst_host = _sentries[2] #host and port            
+            dst_host = _sentries[2] #host and port
             dst_loc_se = '/' + _sentries[3]
             dst_prefix = dst_serv
 
@@ -111,7 +111,7 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         # Behavior as in BNL: user files have no dsname automatically added to dir name
         m = re.search('^user', filename)
         if m:
-             dsname = ''           
+             dsname = ''
 
         dst_loc_sedir = os.path.join(dst_loc_se, os.path.join(extradirs, dsname))
         copyprefix = readpar('copyprefix')
@@ -125,14 +125,14 @@ class dCacheLFCSiteMover(dCacheSiteMover.dCacheSiteMover):
         dst_loc_pfn = os.path.join(dst_loc_sedir, filename)
         dst_gpfn = dst_prefix + dst_loc_pfn
 
-        # get the DQ2 site name from ToA
+        # get the RSE from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=dst_gpfn)
+            _RSE = self.getRSE(surl=dst_gpfn)
         except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+            tolog("Warning: Failed to get RSE: %s (can not add this info to tracing report)" % str(e))
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         try:
             self.mkdirWperm(dst_loc_sedir)

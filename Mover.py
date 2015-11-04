@@ -22,7 +22,7 @@ from SysLog import sysLog, dumpSysLogTail
 # Note: DEFAULT_TIMEOUT and MAX_RETRY are reset in get_data()
 MAX_RETRY = 1
 MAX_NUMBER_OF_RETRIES = 3
-DEFAULT_TIMEOUT = 5*3600/MAX_RETRY # 1h40' if 3 retries # 5 hour total limit on dq2 get/put
+DEFAULT_TIMEOUT = 5*3600/MAX_RETRY # 1h40' if 3 retries # 5 hour total limit on rucio download/upload
 
 from PilotErrors import PilotErrors
 from futil import *
@@ -128,7 +128,7 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
 
         tolog("Calling get function with dsname=%s, dsdict=%s" % (dsname, str(dsdict)))
         rc, pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
-            mover_get_data(ins, job.workdir, jobSite.sitename, jobSite.computingElement, stageinTries, ub=jobSite.dq2url, dsname=dsname, sourceSite=job.sourceSite,\
+            mover_get_data(ins, job.workdir, jobSite.sitename, jobSite.computingElement, stageinTries, dsname=dsname, sourceSite=job.sourceSite,\
                            dsdict=dsdict, guids=job.inFilesGuids, analysisJob=analysisJob, usect=usect, pinitdir=pinitdir,\
                            proxycheck=proxycheck, spsetup=job.spsetup, tokens=job.dispatchDBlockToken, userid=job.prodUserID,\
                            access_dict=access_dict, inputDir=inputDir, jobId=job.jobId, DN=job.prodUserID, workDir=workDir,\
@@ -247,7 +247,7 @@ def getReplicasLFC(guids, lfchost):
     return ec, pilotErrorDiag, replica_list
 
 def getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, replicas_dict, host):
-    """ Return a replica dictionary from the LFC or via DQ2/Rucio methods """
+    """ Return a replica dictionary from the LFC or via Rucio methods """
 
     error = PilotErrors()
     ec = 0
@@ -315,7 +315,7 @@ def getFiletypeAndRSE(surl, surl_dictionary):
     try:
         d = surl_dictionary[surl]
         filetype = d['type'].upper() # the pilot will always assume upper case (either DISK or TAPE)
-        rse = d['rse'] # Coresponding DQ2 site name
+        rse = d['rse'] # Corresponding Rucio site name
     except Exception, e:
         tolog("!!WARNING!!2238!! Failed to extract filetype and rse from rucio_surl_dictionary: %s" % (e))
 
@@ -715,7 +715,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             # Get the filesize and checksum from the primary location (the dispatcher)
             _lfn = getLFN(gpfn, lfns) #os.path.basename(gpfn)
 
-            # Remove any __DQ2 substring from the LFN if necessary
+            # Remove any legacy __DQ2 substring from the LFN if necessary
             if "__DQ2" in _lfn:
                 _lfn = stripDQ2FromLFN(_lfn)
             fsize, fchecksum = getFileInfoFromDispatcher(_lfn, fileInfoDictionaryFromDispatcher)
@@ -846,14 +846,14 @@ def isDPMSite(pfn, sitemover):
     # pfn is the filename of the first file in the file list (enough to test with)
 
     status = False
-    # first get the DQ2 site name, then ask for its setype
+    # first get the RSE, then ask for its setype
     try:
-        _DQ2SiteName = sitemover.getDQ2SiteName(surl=pfn)
+        _RSE = sitemover.getRSE(surl=pfn)
     except:
         # Note: do not print the exception since it sometimes can not be converted to a string (as seen at Taiwan)
-        tolog("WARNING: Failed to get the DQ2 site name (assuming no DPM site)")
+        tolog("WARNING: Failed to get the RSE (assuming no DPM site)")
     else:
-        setype = sitemover.getDQ2SEType(_DQ2SiteName)
+        setype = sitemover.getRSEType(_RSE)
         if setype == "dpm":
             status = True
     return status
@@ -1884,7 +1884,7 @@ def createStandardPFC4TRF(createdPFCTURL, pfc_name_turl, pfc_name, guidfname):
     # note: the SURLs are actually TURLs if FAX was used as a primary site mover in combination with direct I/O
     if not createdPFC:
         # always write a PoolFileCatalog.xml independently from how many files were transferred succesfully
-        # No PFC only if no PFC was returned by DQ2
+        # No PFC only if no PFC was returned by Rucio
         createPFC4TRF(pfc_name, guidfname)
 
 def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict):
@@ -3804,16 +3804,8 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer)
     if not ddm_storage_path.startswith('http://'):
         useHTTP = False
 
-    if useHTTP and ub == "":
-        useHTTP = False
-
     if useHTTP:
         try:
-            if ub[-1] == "/":
-                # prevent a double slash
-                url = ub + 'storages/default'
-            else:
-                url = ub + '/storages/default'
             tolog("Trying urlopen with: %s" % (url))
             f = urllib.urlopen(url)
         except Exception, e:
@@ -4547,13 +4539,13 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         surl_filetype_dictionary = {} # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
         copytool_dictionary = {} # FORMAT: { sfn1: copytool, ..} (sfn = surl)
 
-        # Create the file dictionary 
+        # Create the file dictionary
         i = 0
         for lfn in lfns:
             surl = thisExperiment.buildFAXPath(lfn=lfn, scope=scope_dict[lfn], sourceSite=sourceSite, computingSite=computingSite)
             tolog("surl=%s"%(surl))
             guid = guids[i]
-            tolog("guid=%s"%(guid))            
+            tolog("guid=%s"%(guid))
             file_dict[guid] = surl
             surl_filetype_dictionary[surl] = "DISK" # assumed, cannot know unless server tells (since no catalog lookup in this case)
             copytool_dictionary[surl] = "fax"
@@ -4791,30 +4783,6 @@ def checkLocalSE(analyJob):
 
     return status
 
-def check_localSE_space(sitename, ub):
-    """ Returns the amount of available space on the SE """
-
-    # Select the correct mover
-    (copycmd, setup) = getCopytool()
-
-    tolog("Calling getSiteMover from check_localSE_space")
-    tolog("Copy command: %s" % (copycmd))
-    tolog("Setup: %s" % (setup))
-    sitemover = getSiteMover(copycmd, setup)
-    tolog("Got site mover: %s" % str(sitemover))
-    tolog("Checking SE space...")
-    try:
-        retval = int(sitemover.check_space(ub))
-        if retval == 0:
-            retval = 999995
-            tolog("0 available space reported, returning %d" % (retval))
-        else:
-            tolog("check_localSE_space will return %d" % (retval))
-    except:
-        retval = 999999
-        tolog("!!WARNING!!2999!! Exception (%s) in checking available space, returning %d" % (get_exc_short(), retval))
-    return retval
-
 def getSiteMover(sitemover, setup, *args, **kwrds):
     return SiteMoverFarm.getSiteMover(sitemover, setup, *args, **kwrds)
 
@@ -4936,7 +4904,7 @@ def sortReplicas(replicas, token):
             if token.lower() in _replica.sfn.lower():
                 _replicas_tape.append(_replica)
             else:
-                # look up the DQ2 site using the surl in case of obscured tape site
+                # look up the RSE using the surl in case of obscured tape site
                 if _replica.filetype == "TAPE":
                     _replicas_tape.append(_replica)
                 else:
@@ -4952,7 +4920,7 @@ def sortReplicas(replicas, token):
             elif "mcdisk" in _replica.sfn.lower() or "datadisk" in _replica.sfn.lower() or "bnlt0d1" in _replica.sfn.lower():
                 _replicas_mcdisk_datadisk.append(_replica)
             else:
-                # look up the DQ2 site using the surl in case of obscured tape site
+                # look up the RSE using the surl in case of obscured tape site
                 tolog("Replica: %s" % (_replica.sfn))
                 if _replica.filetype == "TAPE":
                     _replicas_tape.append(_replica)
@@ -5056,17 +5024,17 @@ def getFileScope(scope_dict, lfn):
     return file_scope
 
 def updateReport(report, gpfn, dsname, fsize, sitemover):
-    """ Update the tracing report with the DQ2 site name """
+    """ Update the tracing report with the RSE """
 
     # gpfn is the SURL
-    # get the DQ2 site name from ToA
+    # get the RSE from ToA
     try:
-        _dq2SiteName = sitemover.getDQ2SiteName(surl=gpfn)
+        _RSE = sitemover.getRSE(surl=gpfn)
     except Exception, e:
-        tolog("Warning: Failed to get the DQ2 site name: %s (tracing report will have the wrong site name)" % str(e))
+        tolog("Warning: Failed to get RSE: %s (tracing report will have the wrong site name)" % str(e))
     else:
-        report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-        tolog("DQ2 site name: %s" % (_dq2SiteName))
+        report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+        tolog("RSE: %s" % (_RSE))
 
     # update the tracing report with the correct dataset for this file
     report['dataset'] = dsname
@@ -5269,7 +5237,7 @@ def getRucioReplicaDictionary(cat, file_dictionary):
     # FORMAT: { guid1: {'surls': [surl1, ..], 'lfn':LFN, 'fsize':FSIZE, 'checksum':CHECKSUM}, .. }
     # surl_dictionary:
     # FORMAT: { surl1: {'type': type1, 'rse': rse1}, .. }
-    # where type = DISK/TAPE, rse corresponds to Rucio/DQ2 site name
+    # where type = DISK/TAPE, RSE ... Rucio Storage Element
     # file_dictionary:
     # FORMAT: { guid1: scope1:lfn1, .. }
 

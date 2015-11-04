@@ -1,5 +1,5 @@
 #HUSiteMover.py
-"""Base class of site 
+"""Base class of site
 """
 import os
 import shutil
@@ -34,7 +34,7 @@ class HUSiteMover(SiteMover.SiteMover):
 
     def __init__(self, setup_path='', *args, **kwrds):
         self._setup = setup_path
-    
+
     def get_timeout(self):
         return self.timeout
 
@@ -43,7 +43,7 @@ class HUSiteMover(SiteMover.SiteMover):
         There is no way at the moment to verify necp space availability (remote SE)
         """
         return 999999
-        
+
     def get_file_size(directory, filename):
         return 0
     get_file_size = staticmethod(get_file_size)
@@ -59,7 +59,7 @@ class HUSiteMover(SiteMover.SiteMover):
         error = PilotErrors()
         pilotErrorDiag = ""
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         try:
             report = pdict['report']
         except:
@@ -176,7 +176,7 @@ class HUSiteMover(SiteMover.SiteMover):
         except:
             guid = ""
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         try:
             report = pdict['report']
         except:
@@ -206,7 +206,7 @@ class HUSiteMover(SiteMover.SiteMover):
             ec, pilotErrorDiag, fsize, fmd5sum = self.getLocalFileInfo(source, csumtype="adler32")
             if ec != 0:
                 self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
-                return self.put_data_retfail(ec, pilotErrorDiag) 
+                return self.put_data_retfail(ec, pilotErrorDiag)
 
         # now that the file size is known, add it to the tracing report
         report['filesize'] = fsize
@@ -219,7 +219,7 @@ class HUSiteMover(SiteMover.SiteMover):
         else:
             _sentries = dst_se.split('/', 3)
             dst_serv = _sentries[0] + '//' + _sentries[2] # 'method://host:port' is it always a ftp server? can it be srm? something else?
-            dst_host = _sentries[2] #host and port            
+            dst_host = _sentries[2] #host and port
             dst_loc_se = '/' + _sentries[3]
             dst_prefix = dst_serv
         try:
@@ -227,10 +227,10 @@ class HUSiteMover(SiteMover.SiteMover):
         except:
             dsname = ''
 #        report['dataset'] = dsname
-            
+
         filename = os.path.basename(source)
 
-        #fcname = outputpoolfcstring.split(':', 1)[1]        
+        #fcname = outputpoolfcstring.split(':', 1)[1]
         try:
             dsname = pdict['dsname']
         except KeyError:
@@ -242,18 +242,18 @@ class HUSiteMover(SiteMover.SiteMover):
         dst_loc_sedir = os.path.join(dst_loc_se, os.path.join(extradirs, dsname))
 
         filename = os.path.basename(source)
-        
+
         dst_loc_pfn = os.path.join(dst_loc_sedir, filename)
         dst_gpfn = dst_prefix + dst_loc_pfn
 
-        # get the DQ2 site name from ToA
+        # get the RSE from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=dst_gpfn)
+            _RSE = self.getRSE(surl=dst_gpfn)
         except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+            tolog("Warning: Failed to get RSE: %s (can not add this info to tracing report)" % str(e))
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         # Directory not created: the copy command creates the direcrory if necessary,
         # all with the right permission
@@ -281,7 +281,7 @@ class HUSiteMover(SiteMover.SiteMover):
             tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
             # continue if file exist already (will compare sizes)
             # dCache cannot overwrite files. If file exist it returns: Server error message for [1]: "File is readOnly" (errno 1).
-            if o.find('File is readOnly') != -1: 
+            if o.find('File is readOnly') != -1:
                 tolog('!!WARNING!!2999!! File %s exists already in %s (ec: %s), trying to continue' % (filename, dst_loc_sedir, str(s)))
             else:
                 # fail permanently any SIGPIPE errors since they leave a zero length file in dCache
@@ -299,7 +299,7 @@ class HUSiteMover(SiteMover.SiteMover):
                 self.prepareReport('COPY_FAIL', report)
                 return self.put_data_retfail(fail, pilotErrorDiag, surl=dst_gpfn)
 
-        # Directory permission not set: it should be set correctly by necp 
+        # Directory permission not set: it should be set correctly by necp
 
         # Impossible to compare MD5sum or file size, trusting necp
 

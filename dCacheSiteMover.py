@@ -183,7 +183,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
         useCT = pdict.get('usect', True)
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'dCache', lfn, guid)
 
         # get a proper envsetup
@@ -270,7 +270,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
             print "DEBUG: s = ", s, type(s)
             print "DEBUG: telapsed = ", telapsed, type(telapsed)
             print "DEBUG: cout = ", cout, type(cout)
-            print "DEBUG: cerr = ", cerr, type(cerr) 
+            print "DEBUG: cerr = ", cerr, type(cerr)
             cout = self.filter_text(cout)
             cerr = self.filter_text(cerr)
             if not self.is_number(s):
@@ -355,7 +355,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
             tolog("Output: %s" % (o))
 
             # dccp can fail without setting a non-zero exit code;
-            # e.g. with output = 
+            # e.g. with output =
             # "Failed to create a control line
             # Failed open file in the dCache.
             # Can't open source file : Unable to connect to server
@@ -428,7 +428,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
         # compare remote and local file checksum
         if fchecksum and fchecksum != "0" and dstfchecksum != fchecksum and not self.isDummyChecksum(fchecksum):
             pilotErrorDiag = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" %\
-                             (csumtype, os.path.basename(dest_path), dstfchecksum, fchecksum) 
+                             (csumtype, os.path.basename(dest_path), dstfchecksum, fchecksum)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
 
             # remove the local file before any get retry is attempted
@@ -460,7 +460,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
         dsname = pdict.get('dsname', '')
         extradirs = pdict.get('extradirs', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'dCache', lfn, guid)
 
         if self._setup:
@@ -471,7 +471,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag = verifySetupCommand(error, _setup_str)
         if ec != 0:
             self.prepareReport('RFCP_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag) 
+            return self.put_data_retfail(ec, pilotErrorDiag)
 
         # preparing variables
         if fsize == 0 or fchecksum == 0:
@@ -492,7 +492,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
         else:
             _sentries = dst_se.split('/', 3)
             dst_serv = _sentries[0] + '//' + _sentries[2] # 'method://host:port' is it always a ftp server? can it be srm? something else?
-            # dst_host = _sentries[2] # host and port            
+            # dst_host = _sentries[2] # host and port
             dst_loc_se = '/' + _sentries[3]
             dst_prefix = dst_serv
 
@@ -502,21 +502,21 @@ class dCacheSiteMover(SiteMover.SiteMover):
         # Behavior as in BNL: user files have no dsname automatically added to dir name
         m = re.search('^user', filename)
         if m:
-            dsname = ''           
+            dsname = ''
 
         dst_loc_sedir = os.path.join(dst_loc_se, os.path.join(extradirs, dsname))
-        
+
         dst_loc_pfn = os.path.join(dst_loc_sedir, filename)
         dst_gpfn = dst_prefix + dst_loc_pfn
 
-        # get the DQ2 site name from ToA
+        # get the RSE from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=dst_gpfn)
+            _RSE = self.getRSE(surl=dst_gpfn)
         except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+            tolog("Warning: Failed to get RSE: %s (can not add this info to tracing report)" % str(e))
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         report['relativeStart'] = time()
         # create the destination dir
@@ -541,7 +541,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
             print "DEBUG: s = ", s, type(s)
             print "DEBUG: telapsed = ", telapsed, type(telapsed)
             print "DEBUG: cout = ", cout, type(cout)
-            print "DEBUG: cerr = ", cerr, type(cerr) 
+            print "DEBUG: cerr = ", cerr, type(cerr)
             cout = self.filter_text(cout)
             cerr = self.filter_text(cerr)
             if not self.is_number(s):
@@ -607,7 +607,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
                         pilotErrorDiag += " (failed to remove readOnly file: %s)" % (o)
                         tolog('!!WARNING!!2999!! Could not remove file: %s' % o)
                         fail = error.ERR_FAILEDRM
-                if s == 0:        
+                if s == 0:
                     tolog("Re-attempting copy command: %s" % (cmd))
                     s, o = commands.getstatusoutput(cmd)
                     if s != 0:
@@ -673,7 +673,7 @@ class dCacheSiteMover(SiteMover.SiteMover):
         else:
             # alternatively, test the file size
             try:
-                nufsize = self.getdCacheFileSize(dst_loc_sedir, filename)            
+                nufsize = self.getdCacheFileSize(dst_loc_sedir, filename)
             except OSError, e:
                 pilotErrorDiag = "Could not get file size: %s" % str(e)
                 tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
