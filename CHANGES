@@ -143,16 +143,27 @@ GROUPDISK updates:
 Added optional . in reg exp for discovery of additional output files, in discoverAdditionalOutputFiles() (FileHandling)
 Created extractOutputFilesFromJSON(), updateOutputFileLists(), getJobReport() (FileHandling)
 Now using extractOutputFilesFromJSON() instead of discoverAdditionalOutputFiles() in __main__() (RunJob)
-Not setting general error when dispatcher has not jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
 Removed the testImportLFCModule() and its call from specialChecks() (ATLASExperiment, NordugridATLASExperiment, AMSTaiwanExperiment)
-Corrected %f to %s in getOutputFileItem() (FileHandling)
-Now verifying that nentries is actually an integer (can aparently be 'null') in extractOutputFilesFromJSON() (FileHandling)
-Now using allowNoOutput list in extractOutputFilesFromJSON() to know when an empty file can be ignored (FileHandling)
-Now using FileHandling::getNumberOfEvents() in ATLASExperiment::getNumberOfEvents() (ATLASExperiment)
 Removed obsolete 2 GB subtraction from the maxinputsize in getMaxInputSize(), requested by Tadashi Maeno (pUtil)
+Not setting general error when dispatcher has not jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
+
+63.3.1:
+
+Now using FileHandling::getNumberOfEvents() in ATLASExperiment::getNumberOfEvents() (ATLASExperiment)
+
+63.3.2:
+
 Added try-statement around call to extractOutputFilesFromJSON() (RunJob)
+Corrected %f to %s in getOutputFileItem() (FileHandling)
 Only using extractOutputFilesFromJSON() for production jobs (Runjob)
 Corrected //rucio -> /rucio in getPreDestination() (SiteMover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+63.4:
+
+Now verifying that nentries is actually an integer (can aparently be 'null') in extractOutputFilesFromJSON() (FileHandling)
+Now using allowNoOutput list in extractOutputFilesFromJSON() to know when an empty file can be ignored (FileHandling)
 Added allowNoOutput to Job class, including handling (Job)
 Now sending job.allowNoOutput list to extractOutputFilesFromJSON() (RunJob)
 Overriding the input file guid for the TE input file list in __main__() (RunJobEvent)
@@ -165,6 +176,12 @@ Added support for AthSimulation* releases (e.g. for jobs with homePackage=AthSim
 Created getSiterootWithHomepackage(), used by getProperSiterootAndCmtconfig() and getProperASetup() (ATLASExperiment)
 Created getSplitHomePackage() used by getSiterootWithHomepackage(), getProperASetup() (ATLASExperiment)
 Now extracting output files from jobReport for user jobs as well in __main__() (RunJob)
+Avoiding adding cmt setup (getProdCmd2() call) for AthSimulation* releases in getJobExecutionCommand() (ATLASExperiment)
+Updated xml source string from "NG Panda server" to "aRC" in getPoolFileCatalogNG() (Mover)
+Renamed function getPoolFileCatalogNG() to getPoolFileCatalogND() (Mover)
+Updated getFiletypeFromDictionary() to handle ND properly (filetype DISK is implied) (Mover)
+Now setting copytool for ND in extractCopytoolForPFN() (Mover)
+Using readlink to unfold any soft linked file paths in put_data() (mvSiteMover)
 
 64.0
 
