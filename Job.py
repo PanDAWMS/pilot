@@ -134,11 +134,11 @@ class Job:
             _spsetup = "(not defined)"
         pUtil.tolog("\nPandaID=%s\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlocks=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\nscopeOut=%s\nscopeLog=%s" %\
                     (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlocks, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
-        pUtil.tolog("ddmEndPointIn=%s" % (self.ddmEndPointIn))
-        pUtil.tolog("ddmEndPointOut=%s" % (self.ddmEndPointOut))
-        pUtil.tolog("ddmEndPointLog=%s" % (self.ddmEndPointLog))
-        pUtil.tolog("cloneJob=%s" % (self.cloneJob))
-        pUtil.tolog("allowNoOutput=%s" % (self.allowNoOutput))
+        pUtil.tolog("ddmEndPointIn=%s" % self.ddmEndPointIn)
+        pUtil.tolog("ddmEndPointOut=%s" % self.ddmEndPointOut)
+        pUtil.tolog("ddmEndPointLog=%s" % self.ddmEndPointLog)
+        pUtil.tolog("cloneJob=%s" % self.cloneJob)
+        pUtil.tolog("allowNoOutput=%s" % self.allowNoOutput)
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -192,7 +192,7 @@ class Job:
         self.jobId = data.get('PandaID', '0')
         self.taskID = data.get('taskID', '')
 
-        self.outputFilesXML = "OutputFiles-%s.xml" % (self.jobId)
+        self.outputFilesXML = "OutputFiles-%s.xml" % self.jobId
 
         self.homePackage = data.get('homepackage', '')
         self.trf = data.get('transformation', '')
@@ -202,60 +202,35 @@ class Job:
         except:
             self.jobDefinitionID = ''
 
-        try:
-            self.cloud = data.get('cloud', '')
-        except:
-            self.cloud = ''
+        self.cloud = data.get('cloud', '')
 
         # get the input files
-        inFiles = data.get('inFiles', '')
-        self.inFiles = inFiles.split(",")
+        self.inFiles = data.get('inFiles', '').split(',')
+        self.realDatasetsIn = data.get('realDatasetsIn', '').split(',')
+        self.filesizeIn = data.get('fsize', '').split(',')
+        self.checksumIn = data.get('checksum', '').split(',')
 
-        realDatasetsIn = data.get('realDatasetsIn', '')
-        self.realDatasetsIn = realDatasetsIn.split(",")
+        self.dispatchDblock = data.get('dispatchDblock', '').split(',')
+        self.prodDBlocks = data.get('prodDBlocks', '').split(',')
 
-        filesizeIn = data.get('fsize', '')
-        self.filesizeIn = filesizeIn.split(",")
+        self.prodDBlockToken = data.get('prodDBlockToken', '').split(',')
+        self.prodDBlockTokenForOutput = data.get('prodDBlockTokenForOutput', '').split(',')
 
-        checksumIn = data.get('checksum', '')
-        self.checksumIn = checksumIn.split(",")
+        self.dispatchDBlockToken = data.get('dispatchDBlockToken', '').split(',')
+        self.dispatchDBlockTokenForOut = data.get('dispatchDBlockTokenForOut', '').split(',')
 
-        dispatchDblock = data.get('dispatchDblock', '')
-        self.dispatchDblock = dispatchDblock.split(",")
-
-        prodDBlocks = data.get('prodDBlocks', '')
-        self.prodDBlocks = prodDBlocks.split(",")
-
-        prodDBlockToken = data.get('prodDBlockToken', '')
-        self.prodDBlockToken = prodDBlockToken.split(",")
-
-        prodDBlockTokenForOutput = data.get('prodDBlockTokenForOutput', '')
-        self.prodDBlockTokenForOutput = prodDBlockTokenForOutput.split(",")
-
-        dispatchDBlockToken = data.get('dispatchDBlockToken', '')
-        self.dispatchDBlockToken = dispatchDBlockToken.split(",")
-
-        dispatchDBlockTokenForOut = data.get('dispatchDBlockTokenForOut', '')
-        self.dispatchDBlockTokenForOut = dispatchDBlockTokenForOut.split(",")
-
-        destinationDBlockToken = data.get('destinationDBlockToken', '')
-        self.destinationDBlockToken = destinationDBlockToken.split(",")
+        self.destinationDBlockToken = data.get('destinationDBlockToken', '').split(',')
 
         self.ddmEndPointIn = data.get('ddmEndPointIn', '').split(',') if data.get('ddmEndPointIn') else []
         self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
         self.allowNoOutput = data.get('allowNoOutput', '').split(',') if data.get('allowNoOutput') else []
 
         self.cloneJob = data.get('cloneJob', '')
-
-        logFile = data.get('logFile', '')
-        self.logFile = logFile
-
+        self.logFile = data.get('logFile', '')
         self.prodUserID = data.get('prodUserID', '')
 
         self.credname = data.get('credname', 'None')
         self.myproxy = data.get('myproxy', 'None')
-
-        outFiles = data.get('outFiles', '')
 
         self.attemptNr = int(data.get('attemptNr', -1))
 
@@ -272,21 +247,20 @@ class Job:
             pass
 
         # Event Service variables
-        if data.has_key('eventService'):
-            if data.get('eventService', '').lower() == "true":
-                self.eventService = True
-            else:
-                self.eventService = False
-            pUtil.tolog("eventService = %s" % str(self.eventService))
+        self.eventService = data.get('eventService', '').lower() == "true"
+
+        if self.eventService:
+            pUtil.tolog("eventService = %s" % self.eventService)
         else:
             pUtil.tolog("Normal job (not an eventService job)")
-        if data.has_key('eventRanges'):
-            self.eventRanges = data.get('eventRanges', None)
-        if data.has_key('jobsetID'):
-            self.jobsetID = data.get('jobsetID', None)
-            pUtil.tolog("jobsetID=%s" % (self.jobsetID))
+
+        self.eventRanges = data.get('eventRanges')
+        self.jobsetID = data.get('jobsetID')
+
+        pUtil.tolog("jobsetID=%s" % self.jobsetID)
+
         if not self.eventService and self.processingType == "evtest":
-            pUtil.tolog("Turning on Event Service for processing type = %s" % (self.processingType))
+            pUtil.tolog("Turning on Event Service for processing type = %s" % self.processingType)
             self.eventService = True
 
         # Event Service Merge variables
@@ -382,8 +356,6 @@ class Job:
 
         self.debug = data.get('debug', 'False')
         self.prodSourceLabel = data.get('prodSourceLabel', '')
-        destinationDblock = data.get('destinationDblock', '')
-
 
         # PN tmp
 #        skip = False
@@ -392,10 +364,13 @@ class Job:
 #                skip = True
 
         # figure out the real output files and log files and their destinationDblock right here
-        outfList = outFiles.split(",")
-        pUtil.tolog("outfList = %s" % (outfList))
-        outfdbList = destinationDblock.split(",")
-        pUtil.tolog("outfdbList = %s" % (outfdbList))
+
+        outfList = data.get('outFiles', '').split(',')
+        outfdbList = data.get('destinationDblock', '').split(',')
+
+        pUtil.tolog("outfList = %s" % outfList)
+        pUtil.tolog("outfdbList = %s" % outfdbList)
+
         outs = []
         outdb = []
         outddm = []
@@ -404,7 +379,7 @@ class Job:
         # keep track of log file index in the original file output list
         i_log = -1
         for i in range(len(outfList)):
-            if outfList[i] == logFile:
+            if outfList[i] == self.logFile:
                 logFileDblock = outfdbList[i]
                 logddm = [ self.ddmEndPointOut[i] ]
                 i_log = i
@@ -422,7 +397,7 @@ class Job:
             except Exception, e:
                 pUtil.tolog("!!WARNING!!2999!! Could not rearrange destinationDBlockToken list: %s" % str(e))
             else:
-                pUtil.tolog("destinationDBlockToken = %s" % (self.destinationDBlockToken))
+                pUtil.tolog("destinationDBlockToken = %s" % self.destinationDBlockToken)
         # put the chirp server info for the log file at the end of the list
         # note: any NULL value corresponding to a log file will automatically be handled
         if i_log != -1 and self.dispatchDBlockTokenForOut != None and self.dispatchDBlockTokenForOut != []:
@@ -433,19 +408,21 @@ class Job:
             except Exception, e:
                 pUtil.tolog("!!WARNING!!2999!! Could not rearrange dispatchDBlockTokenForOut list: %s" % str(e))
             else:
-                pUtil.tolog("dispatchDBlockTokenForOut = %s" % (self.dispatchDBlockTokenForOut))
+                pUtil.tolog("dispatchDBlockTokenForOut = %s" % self.dispatchDBlockTokenForOut)
 
-        pUtil.tolog("logFileDblock = %s" % (logFileDblock))
+        pUtil.tolog("logFileDblock = %s" % logFileDblock)
+
         self.outFiles = outs
         self.destinationDblock = outdb
         self.logDblock = logFileDblock
         self.ddmEndPointOut = outddm
         self.ddmEndPointLog = logddm
 
-        pUtil.tolog("Updated ddmEndPointOut=%s" % (self.ddmEndPointOut))
-        pUtil.tolog("Updated ddmEndPointLog=%s" % (self.ddmEndPointLog))
+        pUtil.tolog("Updated ddmEndPointOut=%s" % self.ddmEndPointOut)
+        pUtil.tolog("Updated ddmEndPointLog=%s" % self.ddmEndPointLog)
 
         self.jobPars = data.get('jobPars', '')
+
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
         # for jem testing: self.jobPars += ' --enable-jem --jem-config \"a=1;\"'
@@ -463,7 +440,7 @@ class Job:
                     pfnList = _pfnList.split(",")
 
                     # add the pfnList files to the input file list
-                    self.inFiles += _localInFiles.split(",")
+                    self.inFiles += _localInFiles.split(",") # broken code? _localInFiles is not defined above
                     pUtil.tolog("Added local files from pfnList to input file list")
 
                     # remove the pfnList directive from the job parameters
@@ -479,6 +456,7 @@ class Job:
         self.release = data.get('swRelease', '')
         self.destinationSE = data.get('destinationSE', '')
         self.fileDestinationSE = data.get('fileDestinationSE', '')
+
 
     def isAnalysisJob(self):
         """
