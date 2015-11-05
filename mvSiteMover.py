@@ -214,7 +214,7 @@ class mvSiteMover(SiteMover.SiteMover):
                 
         try:
             if testLevel == "0":
-                cmd = "mv %s %s" % (source, dst_loc_pfn)
+                cmd = "mv $(readlink -f %s) %s" % (source, dst_loc_pfn)
                 tolog("Executing command: %s" % (cmd))
                 ec, rv = commands.getstatusoutput(cmd)
                 if ec != 0:

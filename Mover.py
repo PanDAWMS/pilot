@@ -762,7 +762,10 @@ def extractCopytoolForPFN(pfn, copytool_dictionary):
     """ Extract the copytool for this PFN """
 
     try:
-        copytool = copytool_dictionary[pfn]
+        if os.environ.has_key('Nordugrid_pilot'):
+            copytool, dummy = getCopytool(mode="get")
+        else:
+            copytool = copytool_dictionary[pfn]
     except Exception, e:
         tolog("!!WARNING!!1212!! Caught exception: %s" % (e))
         tolog("!!WARNING!!2312!! Copytool could not be extracted from dictionary for surl=%s: %s" % (pfn, str(copytool_dictionary)))
@@ -774,10 +777,14 @@ def getFiletypeFromDictionary(gpfn, surl_filetype_dictionary):
     """ Get the filetype for this surl """
 
     filetype = 'UNKNOWN'
-    try:
-        filetype = surl_filetype_dictionary[gpfn]
-    except Exception, e:
-        tolog("!!WARNING!!2240!! Filetype not found for surl=%s: %s" % (gpfn, e))
+
+    if os.environ.has_key('Nordugrid_pilot'):
+        filetype = "DISK"
+    else:
+        try:
+            filetype = surl_filetype_dictionary[gpfn]
+        except Exception, e:
+            tolog("!!WARNING!!2240!! Filetype not found for surl=%s: %s" % (gpfn, e))
 
     return filetype
 
@@ -4604,7 +4611,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         # ..
 
     else:
-        tolog("!!WARNING!!3444!! Use case not implemented")
+        tolog("No replica lookup in any file catalog")
 
     # Create a pool file catalog
     tolog("Creating Pool File Catalog")
@@ -4616,7 +4623,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
 
     if os.environ.has_key('Nordugrid_pilot') or region == 'testregion':
         # Build a new PFC for NG
-        ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogNG(guids, lfns, pinitdir)
+        ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogND(guids, lfns, pinitdir)
 
     # As a last step, remove any multiple identical copies of the replicas (SURLs)
     final_replicas_dict = {}
@@ -4633,13 +4640,13 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             tolog("!!WARNING!!4444!! Caught exception: %s" % (e))
     return ec, pilotErrorDiag, xml_from_PFC, xml_source, final_replicas_dict, surl_filetype_dictionary, copytool_dictionary
 
-def getPoolFileCatalogNG(guids, lfns, pinitdir):
-    """ build a new PFC for NG """
+def getPoolFileCatalogND(guids, lfns, pinitdir):
+    """ build a new PFC for ND """
 
     xml_from_PFC = ""
     pilotErrorDiag = ""
     error = PilotErrors()
-    xml_source = "NG Panda server"
+    xml_source = "aRC"
     ec = 0
     if guids and lfns:
         file_dic = {}

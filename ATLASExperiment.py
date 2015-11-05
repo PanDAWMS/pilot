@@ -229,7 +229,7 @@ class ATLASExperiment(Experiment):
                     cmd1 = self.updateCmd1WithProject(cmd1, atlasProject)
 
                 # Get cmd2 for production jobs for set installDirs (not the case for unset homepackage strings)
-                if installDir != "":
+                if installDir != "" and not "AthSimulation" in job.homePackage:
                     cmd2, pilotErrorDiag = self.getProdCmd2(installDir, job.homePackage)
                     if pilotErrorDiag != "":
                         return self.__error.ERR_SETUPFAILURE, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
