@@ -4,16 +4,16 @@ import sys
 import os
 
 def set_environment():
-    
+
     env = Configuration()
-    
+
     # env['version'] = pUtil.getPilotVersion()
     env['pilot_version_tag'] = 'PR' # 'RC'
     env['force_devpilot'] = False
-    
+
     # get the python executable path, to be used by child job
     env['pyexe'] = sys.executable
-    
+
     # default job dispatcher web server
     env['pshttpurl'] = "pandaserver.cern.ch"   # Should be set with pilot option -w <url>
 
@@ -82,7 +82,7 @@ def set_environment():
     env['update_freq_server'] = 30*60          # Server update frequency, 30 minutes
     env['experiment'] = "ATLAS"                # Current experiment (can be set with pilot option -F <experiment>)
     env['getjobmaxtime'] = 3*60                # Maximum time the pilot will attempt to download a single job (seconds)
-    env['pandaJobDataFileName'] = "pandaJobData.out" # Job definition file name    
+    env['pandaJobDataFileName'] = "pandaJobData.out" # Job definition file name
     env['verifySoftwareDirectory'] = True      # Normally the softwre directory should be verified, but potentially not on an HPC system
     env['workerNode'] = None
     env['hasQueueData'] = None
@@ -104,12 +104,11 @@ def set_environment():
     # jobDic = {'prod/analy':[pid,job,os.getpgrp]}
     # (analysis label currently not used)
     env['jobDic'] = {}
-        
+
     # some default values
     env['sitename'] = "testsite"
     env['workdir'] = "/tmp"
     env['appdir'] = ""
-    env['dq2url'] = ""
     env['return_code'] = None
     env['return'] = 0
 

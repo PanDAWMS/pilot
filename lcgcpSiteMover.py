@@ -143,7 +143,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         useCT = pdict.get('usect', True)
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'lcg', lfn, guid)
 
         # get a proper envsetup
@@ -346,7 +346,7 @@ class lcgcpSiteMover(SiteMover.SiteMover):
 
         filename = pfn.split('/')[-1]
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'lcg', lfn, guid)
 
         # is the dataset defined?
@@ -409,15 +409,15 @@ class lcgcpSiteMover(SiteMover.SiteMover):
         tolog("putfile = %s" % (putfile))
         tolog("full_surl = %s" % (full_surl))
 
-        # get the DQ2 site name from ToA
+        # get the RSE from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=putfile)
+            _RSE = self.getRSE(surl=putfile)
         except:
             # WARNING: do not print the exception here since it can sometimes not be converted to a string! (problem seen at Taiwan)
-            tolog("Warning: Failed to get the DQ2 site name (can not add this info to tracing report)")
+            tolog("Warning: Failed to get RSE (can not add this info to tracing report)")
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         # get the absolute (full) path to the file
         fppfn = os.path.abspath(pfn)

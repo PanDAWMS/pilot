@@ -33,7 +33,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
         if top != "/":
             os.system("rm -rf %s" % (top))
     _deldirtree = staticmethod(_deldirtree)
-    
+
     def __init__(self, setup_path='', *args, **kwrds):
         self._setup = setup_path
 
@@ -73,7 +73,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
         error = PilotErrors()
         pilotErrorDiag = ""
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         try:
             report = pdict['report']
         except:
@@ -138,7 +138,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
             else:
                 csumtype = "default"
 
-            # get remote file size and checksum 
+            # get remote file size and checksum
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
             if ec != 0:
                 self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
@@ -185,7 +185,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
         except:
             guid = ""
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         try:
             report = pdict['report']
         except:
@@ -223,7 +223,7 @@ class GSIftpSiteMover(SiteMover.SiteMover):
             pilotErrorDiag = "Could not create dirs: %s" % (_tmpdir)
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             self.prepareReport('MKDIR_FAIL', report)
-            return self.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag) 
+            return self.put_data_retfail(error.ERR_MKDIR, pilotErrorDiag)
 
         _tmpfulldir = os.path.join(_tmpdir, os.path.join(extradirs, dsname))
         os.makedirs(_tmpfulldir)
@@ -234,14 +234,14 @@ class GSIftpSiteMover(SiteMover.SiteMover):
         fppfn = os.path.abspath(pfn)
         os.symlink(fppfn, _tmpfname)
 
-        # get the DQ2 site name from ToA
+        # get the RSE from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=dst_gpfn)
+            _RSE = self.getRSE(surl=dst_gpfn)
         except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+            tolog("Warning: Failed to get RSE: %s (can not add this info to tracing report)" % str(e))
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         # check local file size and checksum
         if fsize == 0 or fchecksum == 0:
@@ -261,11 +261,11 @@ class GSIftpSiteMover(SiteMover.SiteMover):
             _ftp_destination = destination
         _cmd_str = '%sglobus-url-copy -r file://%s/ %s/' % (_setup_str, _tmpdir, _ftp_destination)
         tolog("Copy [Tmptree: %s (%s->%s)] cmd: %s" % (_tmpdir, fppfn, _tmpfname, _cmd_str))
-        
+
         report['transferStart'] = time()
         s, o = commands.getstatusoutput(_cmd_str)
         report['validateStart'] = time()
-        
+
         GSIftpSiteMover._deldirtree(_tmpdir)
         if s != 0:
             check_syserr(s, o)

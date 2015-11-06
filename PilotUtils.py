@@ -31,14 +31,6 @@ except:
     baseURLSSL = 'https://voatlas57.cern.ch:25443/server/panda'
     #baseURLSSL = 'https://pandaserver.cern.ch:25443/server/panda'
 try:
-    baseURLDQ2 = os.environ['PANDA_URL_DQ2']
-except:
-    baseURLDQ2 = 'http://dms02.usatlas.bnl.gov:80/dq2'
-try:
-    baseURLDQ2LRC = os.environ['PANDA_URL_DQ2LRC']
-except:
-    baseURLDQ2LRC = 'http://dms02.usatlas.bnl.gov:8000/dq2/lrc'
-try:
     baseURLSUB = os.environ['PANDA_URL_SUB']
 except:
     baseURLSUB = 'https://gridui01.usatlas.bnl.gov:24443/dav/test'
@@ -145,7 +137,7 @@ class _Curl:
         #print com
         ret = commands.getstatusoutput(com)
         # remove temporary file
-        #os.remove(tmpName)        
+        #os.remove(tmpName)
         return ret
 
 
@@ -162,7 +154,7 @@ class _Curl:
         if self.sslKey != '':
             com += ' --key %s' % self.sslKey
         #com += ' --verbose'
-        # emulate PUT 
+        # emulate PUT
         for key in data.keys():
             com += ' -F "%s=@%s"' % (key,data[key])
         com += ' %s' % url
@@ -196,7 +188,7 @@ def toDispatcher(cmd, data):
             # parse response message
             outtxt = output.lower()
             if outtxt.find('<html>') > 0:
-                if outtxt.find('read timeout') > 0:                   
+                if outtxt.find('read timeout') > 0:
                     print "!!FAILED!!2999!!Timeout on dispatcher exchange"
                 else:
                     print "!!FAILED!!2999!!HTTP error on dispatcher exchange"
@@ -269,7 +261,7 @@ def updateJob(data):
         print "ERROR getJobStatus : %s %s" % (_type,value)
         return EC_Failed,None
 
-def timestamp(): 
+def timestamp():
     ''' return ISO-8601 compliant date/time format '''
     tmptz = time.timezone
     if tmptz>0:
@@ -291,7 +283,7 @@ def PFCxml(fname,lfns=[],fguids=[],pfns=[],fntag='lfn',alog=None,alogguid=None):
     flist=[]
     plist=[]
     glist=[]
-    
+
     if alog:
         flist.append(alog)
         plist.append('')

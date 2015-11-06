@@ -64,7 +64,7 @@ class Job:
         self.fileStateDictionary = None    # Dictionary for current file states (for definition, see JobRecovery class)
         self.outputFilesXML = "OutputFiles.xml" # XML metadata related to output files for NG / CERNVM
         self.transferType = None           # Brokerage may decide to have input files transferred with remote I/O (set to 'direct' in that case)
-        self.jobDefinitionID = None        # Job definition id forwarded to the DQ2 tracing server
+        self.jobDefinitionID = None        # Job definition id forwarded to the Rucio tracing server
         self.cloud = ""                    # The cloud the job belongs to
         self.credname = 'None'             #
         self.myproxy = 'None'              #

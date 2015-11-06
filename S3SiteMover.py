@@ -40,7 +40,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
         useCT = pdict.get('usect', True)
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'gfal-copy', lfn, guid)
 
         if path == '': path = './'
@@ -101,7 +101,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
             tolog("Treating PanDA Mover job as a production job during stage-out")
             analysisJob = False
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'gfal-copy', lfn, guid)
 
         filename = os.path.basename(source)

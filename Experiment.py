@@ -72,10 +72,10 @@ class Experiment(object):
     def willDoAlternativeFileLookups(self):
         """ Should file lookups be done using alternative methods? """
 
-        # E.g. in the migration period where LFC lookups are halted in favour of other methods in the DQ2/Rucio API
+        # E.g. in the migration period where LFC lookups are halted in favour of other methods in the Rucio API
         # (for ATLAS), this method could be useful. See the usage in Mover::getReplicaDictionary() which is called
         # after Experiment::willDoFileLookups() defined above. The motivation is that direct LFC calls are not to be
-        # used any longer by the pilot, and in the migration period the actual LFC calls will be done in the DQ2/Rucio
+        # used any longer by the pilot, and in the migration period the actual LFC calls will be done in the Rucio
         # API. Eventually this API will switch to alternative file lookups.
 
         return False
@@ -133,8 +133,8 @@ class Experiment(object):
                     "*.TMP",
                     "scratch",
                     ]
-    
-        for _dir in dir_list: 
+
+        for _dir in dir_list:
             files = glob(os.path.join(workdir, _dir))
             rc = remove(files)
             if not rc:
@@ -394,7 +394,7 @@ class Experiment(object):
                     # any accessmode set in jobPars should overrule schedconfig
                     tolog("Enforcing %s" % (_accessmode_dic[_mode][0]))
                     if _mode == "--accessmode=copy":
-                        # make sure direct access and file stager get turned off 
+                        # make sure direct access and file stager get turned off
                         usePFCTurl = False
                         accessmode_useCT = True
                         accessmode_directIn = False
@@ -654,7 +654,7 @@ class Experiment(object):
         #   appdir = application/software/release directory (e.g. /cvmfs/atlas.cern.ch/repo/sw)
         # Return:
         #   error code (0 for success)
-        
+
         return 0
 
     def interpretPayloadStdout(self, job, res, getstatusoutput_was_interrupted, current_job_number, runCommandList, failureCode):
@@ -728,7 +728,7 @@ class Experiment(object):
         tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
 
         if subprocessName == "RunJobEvent":
-            jobargs = [env['pyexe'], "RunJobEvent.py", 
+            jobargs = [env['pyexe'], "RunJobEvent.py",
                        "-a", env['thisSite'].appdir,
                        "-b", env['queuename'],
                        "-d", env['jobDic']["prod"][1].workdir,
@@ -757,7 +757,6 @@ class Experiment(object):
                        "-m", env['outputDir'],
                        "-o", env['thisSite'].workdir,
                        "-p", str(port),
-                       "-q", env['thisSite'].dq2url, # get rid of this one, then args for RunJob and RunJobEvent will be the same except for the module filename
                        "-s", env['thisSite'].sitename,
                        "-t", str(env['proxycheckFlag']),
                        "-x", str(env['stageinretry']),
@@ -915,9 +914,9 @@ class Experiment(object):
 
     # Optional
     def useTracingService(self):
-        """ Use the DQ2 Tracing Service """
-        # A service provided by the DQ2 system that allows for file transfer tracking; all file transfers
-        # are reported by the pilot to the DQ2 Tracing Service if this method returns True
+        """ Use the Rucio Tracing Service """
+        # A service provided by the Rucio system that allows for file transfer tracking; all file transfers
+        # are reported by the pilot to the Rucio Tracing Service if this method returns True
 
         return False
 
@@ -933,7 +932,7 @@ class Experiment(object):
 
     # Optional
     def shouldExecuteUtility(self):
-        """ Determine whether a special utility should be executed """ 
+        """ Determine whether a special utility should be executed """
 
         # The RunJob class has the possibility to execute a special utility, e.g. a memory monitor, that runs in parallel
         # to the payload (launched after the main payload process).
@@ -967,7 +966,7 @@ class Experiment(object):
     # Optional
     def getGUIDSourceFilename(self):
         """ Return the filename of the file containing the GUIDs for the output files """
-        
+
         # In the case of ATLAS, Athena produces an XML file containing the GUIDs of the output files. The name of this
         # file is PoolFileCatalog.xml. If this method returns an empty string (ie the default), the GUID generation will
         # be done by the pilot in RunJobUtilities::getOutFilesGuids()

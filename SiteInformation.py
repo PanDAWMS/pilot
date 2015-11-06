@@ -551,14 +551,6 @@ class SiteInformation(object):
             tolog('appdir: %s' % (scappdir))
             thisSite.appdir = scappdir
 
-        if thisSite.dq2url == "":
-            _dq2url = self.readpar('dq2url')
-            if _dq2url == "":
-                tolog('Note: dq2url not set')
-            else:
-                tolog('dq2url: %s' % (_dq2url))
-            thisSite.dq2url = _dq2url
-
         if thisSite.wntmpdir == "":
             _wntmpdir = self.readpar('wntmpdir')
             if _wntmpdir == "":

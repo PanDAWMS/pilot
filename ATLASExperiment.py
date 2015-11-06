@@ -14,7 +14,7 @@ from pUtil import grep                          # Grep function - reimplement us
 from pUtil import getCmtconfig                  # Get the cmtconfig from the job def or queuedata
 from pUtil import getCmtconfigAlternatives      # Get a list of locally available cmtconfigs
 from pUtil import verifyReleaseString           # To verify the release string (move to Experiment later)
-from pUtil import getProperTimeout              # 
+from pUtil import getProperTimeout              #
 from pUtil import timedCommand                  # Protect cmd with timed_command
 from pUtil import getSiteInformation            # Get the SiteInformation object corresponding to the given experiment
 from pUtil import isBuildJob                    # Is the current job a build job?
@@ -470,7 +470,7 @@ class ATLASExperiment(Experiment):
                            "parameters": job.jobPars }
                 else:
                     cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
-                
+
 
             # Set special_setup_cmd if necessary
             special_setup_cmd = self.getSpecialSetupCommand()
@@ -478,7 +478,7 @@ class ATLASExperiment(Experiment):
         # add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall"):
             cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
-        else: 
+        else:
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
 
         # Is JEM allowed to be used?
@@ -537,10 +537,10 @@ class ATLASExperiment(Experiment):
     def willDoAlternativeFileLookups(self):
         """ Should file lookups be done using alternative methods? """
 
-        # E.g. in the migration period where LFC lookups are halted in favour of other methods in the DQ2/Rucio API
+        # E.g. in the migration period where LFC lookups are halted in favour of other methods in the Rucio API
         # (for ATLAS), this method could be useful. See the usage in Mover::getReplicaDictionary() which is called
         # after Experiment::willDoFileLookups() defined above. The motivation is that direct LFC calls are not to be
-        # used any longer by the pilot, and in the migration period the actual LFC calls will be done in the DQ2/Rucio
+        # used any longer by the pilot, and in the migration period the actual LFC calls will be done in the Rucio
         # API. Eventually this API will switch to alternative file lookups.
 
         tolog("Using alternative file catalog lookups")
@@ -574,7 +574,7 @@ class ATLASExperiment(Experiment):
                     "AtlasTier0",
                     "buildJob*",
                     "CDRelease*",
-                    "csc*.log", 
+                    "csc*.log",
                     "DBRelease*",
                     "EvgenJobOptions",
                     "external",
@@ -624,7 +624,7 @@ class ATLASExperiment(Experiment):
         # note: these should be partitial file/dir names, not containing any wildcards
         exceptions_list = ["runargs", "runwrapper", "jobReport", "log."]
 
-        for _dir in dir_list: 
+        for _dir in dir_list:
             files = glob(os.path.join(workdir, _dir))
             exclude = []
 
@@ -633,7 +633,7 @@ class ATLASExperiment(Experiment):
                 for exc in exceptions_list:
                     for f in files:
                         if exc in f:
-                            exclude.append(f)		      
+                            exclude.append(f)
 
                 if exclude != []:
                     tolog('To be excluded from removal: %s' % (exclude))
@@ -986,12 +986,12 @@ class ATLASExperiment(Experiment):
         ec = 0
         pilotErrorDiag = ""
 
-        # do not proceed for unset homepackage strings (treat as release strings in the following function)                                                                         
+        # do not proceed for unset homepackage strings (treat as release strings in the following function)
         if verifyReleaseString(job.homePackage) == "NULL":
             return ec, pilotErrorDiag, siteroot, ""
 
-        # install the trf in the work dir if it is not installed on the site                                                                                                        
-        # special case for nightlies (rel_N already in siteroot path, so do not add it)                                                                                             
+        # install the trf in the work dir if it is not installed on the site
+        # special case for nightlies (rel_N already in siteroot path, so do not add it)
 
         if "rel_" in job.homePackage:
             installDir = siteroot
@@ -1113,7 +1113,7 @@ class ATLASExperiment(Experiment):
             return 0, pilotErrorDiag
 
         # Install pacman
-        status, pilotErrorDiag = self.installPacman() 
+        status, pilotErrorDiag = self.installPacman()
         if status:
             tolog("Pacman installed correctly")
         else:
@@ -1370,7 +1370,7 @@ class ATLASExperiment(Experiment):
         pilotErrorDiag = self.verifyCmtsiteCmd(exitcode, output)
         if pilotErrorDiag != "":
             return False, pilotErrorDiag, siteroot, "", ""
-        
+
         # Get cmtConfig
         re_cmtConfig = re.compile('CMTCONFIG=(.+)')
         _cmtConfig = re_cmtConfig.search(output)
@@ -1782,8 +1782,8 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1887!! RUCIO_APPID needs job.processingType but it is not set!")
         else:
             variables.append('export RUCIO_APPID=\"%s\";' % (processingType))
-        variables.append('export RUCIO_ACCOUNT=\"pilot\";')         
-        
+        variables.append('export RUCIO_ACCOUNT=\"pilot\";')
+
         return variables
 
     def isForceConfigCompatible(self, _dir, release, homePackage, cmtconfig, siteroot=None):
@@ -1855,7 +1855,7 @@ class ATLASExperiment(Experiment):
                 for d in dirs:
                     if d.startswith(name):
                         _dirs.append(d)
-                if _dirs != []: 
+                if _dirs != []:
                     # sort the directories
                     _dirs.sort()
                     # grab the directory with the highest version
@@ -2076,12 +2076,12 @@ class ATLASExperiment(Experiment):
                 # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
                 siteroot = os.path.join(swbase, cmtconfig)
                 siteroot = os.path.join(siteroot, release)
-                
+
         return siteroot
 
     def getProperASetup(self, swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=False, source=True, cacheVer=None, cacheDir=None):
         """ return a proper asetup.sh command """
-        
+
         # handle sites using builds area in a special way
         if swbase[-len('builds'):] == 'builds' or verifyReleaseString(atlasRelease) == "NULL":
             path = swbase
@@ -2280,13 +2280,12 @@ class ATLASExperiment(Experiment):
 
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
-        
+
         if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             status = True
         else:
             # Test CVMFS
             status = self.testCVMFS()
-        
         return status
 
     def checkSpecialEnvVars(self, sitename):
@@ -2353,12 +2352,12 @@ class ATLASExperiment(Experiment):
     def getMetadataForRegistration(self, guid):
         """ Return metadata (not known yet) for LFC registration """
 
-        # Use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)        
-        return '    <metadata att_name="surl" att_value="%s-surltobeset"/>\n' % (guid) 
+        # Use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)
+        return '    <metadata att_name="surl" att_value="%s-surltobeset"/>\n' % (guid)
 
     def getAttrForRegistration(self):
         """ Return the attribute of the metadata XML to be updated with surl value """
-        
+
         return 'surl'
 
     def getFileCatalog(self):
@@ -2368,28 +2367,6 @@ class ATLASExperiment(Experiment):
         # Return a dummy default to allow the existing host loop to remain in Mover
 
         fileCatalog = "<rucio default>"
-#        fileCatalog = ""
-#        try:
-#            ddm = readpar('ddm')
-#            # note that ddm can contain a comma separated list; if it does, get the first value
-#            if "," in ddm:
-#                ddm = ddm.split(',')[0]
-#            # Try to get the default file catalog from Rucio
-#            from dq2.info import TiersOfATLAS
-#            fileCatalog = TiersOfATLAS.getLocalCatalog(ddm)
-#        except:
-#            tolog("!!WARNING!!3333!! Failed to import TiersOfATLAS from dq2.info")
-#
-#        # This should not be necessary post-LFC
-#        if fileCatalog == "":
-#            tolog("Did not get a file catalog from dq2.info. Trying to construct one from lfchost")
-#            lfchost = readpar('lfchost')
-#            if not "lfc://" in lfchost:
-#                lfchost = "lfc://" + lfchost
-#            fileCatalog = lfchost + ":/grid/atlas"
-#
-#            # e.g. 'lfc://prod-lfc-atlas.cern.ch:/grid/atlas'
-
         tolog("Using file catalog: %s" % (fileCatalog))
 
         return fileCatalog
@@ -2398,21 +2375,6 @@ class ATLASExperiment(Experiment):
         """ Return a list of file catalog hosts """
 
         file_catalog_hosts = []
-
-#        # Get the catalogTopology dictionary
-#        try:
-#            from dq2.info import TiersOfATLAS
-#            catalogsTopology_dict = TiersOfATLAS.ToACache.catalogsTopology
-#
-#            # Extract all the LFC hosts from the catalogTopology dictionary
-#            file_catalog_hosts = catalogsTopology_dict.keys()
-#            tolog("catalogsTopology=%s" % str(file_catalog_hosts))
-#        except:
-#            import traceback
-#            tolog("!!WARNING!!3334!! Exception caught in Mover: %s" % str(traceback.format_exc()))
-#            tolog("!!WARNING!!1212!! catalogsTopology lookup failed")
-#        else:
-#            tolog("Extracted file catalog hosts: %s" % (file_catalog_hosts))
 
         return file_catalog_hosts
 
@@ -2426,7 +2388,7 @@ class ATLASExperiment(Experiment):
         #   appdir = application/software/release directory (e.g. /cvmfs/atlas.cern.ch/repo/sw)
         # Return:
         #   error code (0 for success)
-        
+
         ec = 0
 
         if not "|" in appdir and not "^" in appdir: # as can be the case at CERN
@@ -3059,9 +3021,9 @@ class ATLASExperiment(Experiment):
 
     # Optional
     def useTracingService(self):
-        """ Use the DQ2 Tracing Service """
-        # A service provided by the DQ2 system that allows for file transfer tracking; all file transfers
-        # are reported by the pilot to the DQ2 Tracing Service if this method returns True
+        """ Use the Rucio Tracing Service """
+        # A service provided by the Rucio system that allows for file transfer tracking; all file transfers
+        # are reported by the pilot to the Rucio Tracing Service if this method returns True
 
         return True
 
@@ -3115,7 +3077,7 @@ class ATLASExperiment(Experiment):
 
     # Optional
     def shouldExecuteUtility(self):
-        """ Determine where a memory utility monitor should be executed """ 
+        """ Determine where a memory utility monitor should be executed """
 
         # The RunJob class has the possibility to execute a memory utility monitor that can track the memory usage
         # of the payload. The monitor is executed if this method returns True. The monitor is expected to produce
@@ -3149,7 +3111,7 @@ class ATLASExperiment(Experiment):
         summary = self.getUtilityJSONFilename()
         workdir = argdict.get('workdir', '.')
         interval = 60
-        
+
         default_release = "20.1.5"
         default_patch_release = "20.1.5.2" #"20.1.4.1"
         default_cmtconfig = "x86_64-slc6-gcc48-opt"
@@ -3207,7 +3169,7 @@ class ATLASExperiment(Experiment):
     # Optional
     def getGUIDSourceFilename(self):
         """ Return the filename of the file containing the GUIDs for the output files """
-        
+
         # In the case of ATLAS, Athena produces an XML file containing the GUIDs of the output files. The name of this
         # file is PoolFileCatalog.xml. If this method returns an empty string (ie the default), the GUID generation will
         # be done by the pilot in RunJobUtilities::getOutFilesGuids()
@@ -3231,4 +3193,3 @@ if __name__ == "__main__":
 
     #    ts = TracingService()
     #    ts.send
-        

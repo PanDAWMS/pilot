@@ -9,7 +9,7 @@ Complete change log for PanDA Pilot version PICARD
 Added ddmEndPointIn, ddmEndPointOut, ddmEndPointLog to Job class, and handling in displayJob() and setJobDef() (Job)
 Moved exception handling for utility subprocess from executePayload() to getUtilitySubprocess() (RunJob)
 Making sure that the subprocess is still running in executePayload() (RunJob)
-Setting memory info = -1 in case of file reading trouble or if memory summary file was not updated in less than 120 s in getUtilityInfo(). Reqested by Rodney Walker (PandaServerClient) 
+Setting memory info = -1 in case of file reading trouble or if memory summary file was not updated in less than 120 s in getUtilityInfo(). Reqested by Rodney Walker (PandaServerClient)
 Added error code 1234, ERR_EXECUTEDCLONEJOB: "Already executed clone job" (PilotErrors)
 Now using event range functions to determine whether a cloned job should be executed in executePayload() and __main__() (RunJob)
 Moved extractEventRanges() from RunJobEvent to RunJob (RunJob, RunJobEvent)
@@ -266,8 +266,8 @@ Avoiding setting exit code 1008/65 when no jobs were downloaded in getJob(), req
 REMOVE OTHERSITEMOVER FROM DIST
 HUSITEMOVER?
 
-Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file 
-registrations using DQ2 functions test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
+Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file
+registrations using Rucio functions test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
 todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation

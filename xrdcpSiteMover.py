@@ -855,7 +855,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
         useCT = pdict.get('usect', True)
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'xrdcp', lfn, guid)
 
 
@@ -907,7 +907,7 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             tolog("Treating PanDA Mover job as a production job during stage-out")
             analysisJob = False
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'xrdcp', lfn, guid)
 
 
@@ -921,14 +921,14 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             self.prepareReport(reportState, report)
             return self.put_data_retfail(ec, pilotErrorDiag)
 
-        # get the DQ2 site name from ToA
+        # get the RSE from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=surl)
+            _RSE = self.getRSE(surl=surl)
         except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+            tolog("Warning: Failed to get RSE: %s (can not add this info to tracing report)" % str(e))
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         if testLevel == "1":
             source = "thisisjustatest"

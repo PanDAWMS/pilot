@@ -31,7 +31,7 @@ from shutil import copy2
 from FileHandling import tail, getExtension, extractOutputFilesFromJSON, getDestinationDBlockItems
 from EventRanges import downloadEventRanges
 
-# remove logguid, dq2url, debuglevel - not needed
+# remove logguid, debuglevel - not needed
 # relabelled -h, queuename to -b (debuglevel not used)
 
 
@@ -44,7 +44,6 @@ class RunJob(object):
 
 #    __appdir = "/usatlas/projects/OSG"   # Default software installation directory
 #    __debugLevel = 0                     # 0: debug info off, 1: display function name when called, 2: full debug info
-#    __dq2url = "" # REMOVE
     __failureCode = None                 # set by signal handler when user/batch system kills the job
     __globalPilotErrorDiag = ""          # global pilotErrorDiag used with signal handler (only)
     __globalErrorCode = 0                # global error code used with signal handler (only)
@@ -199,7 +198,6 @@ class RunJob(object):
 
         # Return variables
         appdir = None
-        dq2url = None # REMOVE
         queuename = None
         sitename = None
         workdir = None
@@ -231,8 +229,6 @@ class RunJob(object):
                           help="Pilot TCP server port (default: 88888)", metavar="PORT")
         parser.add_option("-t", "--proxycheckflag", dest="proxycheckFlag",
                           help="True (default): perform proxy validity checks, False: no check", metavar="PROXYCHECKFLAG")
-        parser.add_option("-q", "--dq2url", dest="dq2url",
-                          help="DQ2 URL TO BE RETIRED", metavar="DQ2URL")
         parser.add_option("-x", "--stageinretries", dest="stageinretry",
                           help="The number of stage-in retries", metavar="STAGEINRETRY")
         #parser.add_option("-B", "--filecatalogregistration", dest="fileCatalogRegistration",
@@ -255,9 +251,6 @@ class RunJob(object):
             if options.appdir:
 #                self.__appdir = options.appdir
                 appdir = options.appdir
-            if options.dq2url:
-#                self.__dq2url = options.dq2url
-                dq2url = options.dq2url
             if options.experiment:
                 self.__experiment = options.experiment
             if options.logguid:
@@ -306,7 +299,7 @@ class RunJob(object):
             if options.cache:
                 self.__cache = options.cache
 
-        return sitename, appdir, workdir, dq2url, queuename
+        return sitename, appdir, workdir, queuename
 
     def getRunJobFileName(self):
         """ Return the filename of the module """
@@ -1036,7 +1029,7 @@ class RunJob(object):
         tin_0 = os.times()
         try:
             rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
-                                             jobSite.computingElement, ub=jobSite.dq2url, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
+                                             jobSite.computingElement, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
                                              proxycheck=self.__proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
                                              userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
                                              outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\

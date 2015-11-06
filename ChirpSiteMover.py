@@ -10,7 +10,7 @@ from time import time
 
 class ChirpSiteMover(SiteMover.SiteMover):
     """ SiteMover for CHIRP copy commands etc """
-    
+
     copyCommand = "chirp"
     checksum_command = "adler32"
     __warningStr = '!!WARNING!!2995!! %s'
@@ -30,7 +30,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
         useCT = pdict.get('usect', True)
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         try:
             report = pdict['report']
         except:
@@ -46,7 +46,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
             report['guid'] = guid.replace('-','')
 
         if not path:
-            tolog('path is empty, using current directory')            
+            tolog('path is empty, using current directory')
             path = os.getcwd()
 
         # build setup string
@@ -96,7 +96,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
 
         execStr = self.__localget % (envsetup, _params, gpfn, os.path.join(path, lfn))
         tolog("Executing command: %s" % (execStr))
-        
+
         report['transferStart'] = time()
         try:
             status, telapsed, cout, cerr = timed_command(execStr, self.__timeout)
@@ -118,13 +118,13 @@ class ChirpSiteMover(SiteMover.SiteMover):
             # did the copy command time out?
             if is_timeout(status):
                 self.__pilotErrorDiag = "lsm-get failed: time out after %d seconds" % (telapsed)
-                tolog(self.__warningStr % self.__pilotErrorDiag)            
+                tolog(self.__warningStr % self.__pilotErrorDiag)
                 self.prepareReport('GET_TIMEOUT', report)
                 return self.__error.ERR_GETTIMEOUT, self.__pilotErrorDiag
 
             status = os.WEXITSTATUS(status)
             self.__pilotErrorDiag = 'lsm-get failed (%s): %s' % (status, output)
-            tolog(self.__warningStr % self.__pilotErrorDiag)            
+            tolog(self.__warningStr % self.__pilotErrorDiag)
             self.prepareReport('COPY_FAIL', report)
             return self.__error.ERR_STAGEINFAILED, self.__pilotErrorDiag
 
@@ -149,7 +149,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
         if sitename == "CERNVM" and dispatchDBlockTokenForOut == "":
             dispatchDBlockTokenForOut = "chirp^cvmappi50.cern.ch^/panda_test^-d chirp"
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         try:
             report = pdict['report']
         except:
@@ -196,13 +196,13 @@ class ChirpSiteMover(SiteMover.SiteMover):
        # Format should be like
        # 'chirp^etpgrid01.garching.physik.uni-muenchen.de^/tanyasandoval^-d chirp'
         dispatchDBlockTokenForOut = pdict.get('dispatchDBlockTokenForOut', '')
-        
+
         csplit = dispatchDBlockTokenForOut.split('^')
         if len(csplit) != 4:
           tolog("Wrong number of fields in chirp string: %s" %
                 (dispatchDBlockTokenForOut))
           self.__pilotErrorDiag = "Wrong number of fields in chirp string: %s" % (dispatchDBlockTokenForOut)
-          return self.put_data_retfail(self.__error.ERR_STAGEOUTFAILED, self.__pilotErrorDiag)        
+          return self.put_data_retfail(self.__error.ERR_STAGEOUTFAILED, self.__pilotErrorDiag)
 
        # Remove _sub part from dataset name
         re_sub=re.compile('(.*)_sub\d+')
@@ -211,7 +211,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
             dsname_strip=resub.group(1)
         else:
             dsname_strip=dsname
-        
+
         chirp_server = csplit[1]
         chirp_base = csplit[2]
         chirp_options = csplit[3]
@@ -229,7 +229,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
           chirpcom.write('mkdir '+dir_path+'\n')
        # and the cop command too
         chirpcom.write('put %s %s\n'%(source,chirp_path))
-        chirpcom.close()  
+        chirpcom.close()
         execStr = self.__chirp % (chirp_options, chirp_server, 'chirp.com')
         tolog("Executing command: %s" % (execStr))
         try:
@@ -251,7 +251,7 @@ class ChirpSiteMover(SiteMover.SiteMover):
             # did the copy command time out?
             if is_timeout(status):
                 self.__pilotErrorDiag = "chirp_put failed: time out after %d seconds" % (telapsed)
-                tolog(self.__warningStr % self.__pilotErrorDiag)            
+                tolog(self.__warningStr % self.__pilotErrorDiag)
                 self.prepareReport('PUT_TIMEOUT', report)
                 return self.put_data_retfail(self.__error.ERR_PUTTIMEOUT, self.__pilotErrorDiag, surl=chirp_path)
 

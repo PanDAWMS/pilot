@@ -51,7 +51,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
         workDir = pdict.get('workDir', '')
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'castorSVC', lfn, guid)
 
         # get a proper envsetup
@@ -74,7 +74,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
         # 4948eec6-0000-1000-8ca2-aba0529b4806    "ATLASDATADISK" "atlasStripInput"   "DURABLE"       "ALLOCATED"
         # 4948ee8e-0000-1000-9ac5-81bb9b34ba7b    "ATLASMCTAPE"   "atlasSimRaw"       "PERMANENT"     "ALLOCATED"
         # 4948ee71-0000-1000-b611-a0afad31f6c8    "ATLASDATATAPE" "atlasT0Raw"        "PERMANENT"     "ALLOCATED"
-        #                                         "ATLASHOTDISK"  "atlasHotDisk"      
+        #                                         "ATLASHOTDISK"  "atlasHotDisk"
         # In addition there is the "atlasFarm" class, which is used when data is staged back from tape
         castorConfig = {
             'setup' : {
@@ -156,8 +156,8 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
                     tolog("Normal file transfer")
 
         # Now need to find the service class associated with the file.
-        # If we find a clear indication of a space token in the file path 
-        # then this is easy. However, if we don't, then use stager_qry to 
+        # If we find a clear indication of a space token in the file path
+        # then this is easy. However, if we don't, then use stager_qry to
         # interrogate each possible service class. If this fails then use
         # atlasFarm in desperation.
         serviceClass = None
@@ -172,7 +172,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
         # For testing the fallback, then we need to hobble ourselves by unsetting serviceClass:
         #tolog('Automatic service class was: %s' % serviceClass)
         #tolog('Unsetting service class for fallback testing')
-        #serviceClass = None        
+        #serviceClass = None
         if serviceClass == None:
             tolog("Warning: Failed to find service class hint in SURL.")
 
@@ -271,7 +271,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
         else:
             csumtype = "default"
 
-        # get remote file size and checksum 
+        # get remote file size and checksum
         ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_file, csumtype=csumtype)
         if ec != 0:
             self.prepareReport('LOCAL_FILE_INFO_FAIL', report)
@@ -283,7 +283,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
 
             return ec, pilotErrorDiag
 
-        # get remote file size and checksum 
+        # get remote file size and checksum
         if dstfsize != fsize:
             pilotErrorDiag = "Remote and local file sizes do not match for %s (%s != %s)" %\
                              (os.path.basename(gpfn), str(dstfsize), str(fsize))
@@ -322,7 +322,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
     def put_data(self, source, ddm_storage, fsize=0, fchecksum=0, dsname='', **pdict):
         """ Data transfer using rfcp - generic version
         It's not advisable to use this right now because there's no
-        easy way to register the srm space token if the file is 
+        easy way to register the srm space token if the file is
         copied with rfcp """
 
         error = PilotErrors()
@@ -331,7 +331,7 @@ class castorSvcClassSiteMover(SiteMover.SiteMover):
         lfn = pdict.get('lfn', '')
         guid = pdict.get('guid', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'castorSVC', lfn, guid)
 
         pilotErrorDiag = "put_data does not work for this mover"
