@@ -28,10 +28,6 @@ class CastorSiteMover(SiteMover.SiteMover):
     def get_timeout(self):
         return self.timeout
 
-    def check_space(self, ub):
-        """ For when space availability is not verifiable """
-        return 999999
-    
     def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, **pdict):
         """ stage-in function """
 
@@ -45,7 +41,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         experiment = pdict.get('experiment', '')
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'castor', lfn, guid)
 
         # get a proper envsetup
@@ -77,7 +73,7 @@ class CastorSiteMover(SiteMover.SiteMover):
             self.prepareReport('NO_FILE', report)
             return error.ERR_STAGEINFAILED, pilotErrorDiag
 
-        # when the file has been copied we will rename it to the lfn (to remove the __DQ2-string on some files)
+        # when the file has been copied we will rename it to the lfn (to remove the legacy __DQ2-string on some files)
         dest_path = os.path.join(path, lfn)
 
         # should the root file be copied or read directly by athena?
@@ -147,7 +143,7 @@ class CastorSiteMover(SiteMover.SiteMover):
             else:
                 csumtype = "default"
 
-            # get remote file size and checksum 
+            # get remote file size and checksum
             ec, pilotErrorDiag, dstfsize, dstfchecksum = self.getLocalFileInfo(dest_path, csumtype=csumtype)
             tolog("File info: %d, %s, %s" % (ec, dstfsize, dstfchecksum))
             if ec != 0:
@@ -191,7 +187,7 @@ class CastorSiteMover(SiteMover.SiteMover):
                 else:
                     self.prepareReport('MD5_MISMATCH', report)
                     return error.ERR_GETMD5MISMATCH, pilotErrorDiag
-                
+
         updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
@@ -210,7 +206,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         analJob = pdict.get('analJob', False)
         experiment = pdict.get('experiment', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'castor', lfn, guid)
 
         # get a proper envsetup
@@ -219,7 +215,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         ec, pilotErrorDiag = verifySetupCommand(error, envsetup)
         if ec != 0:
             self.prepareReport('RFCP_FAIL', report)
-            return self.put_data_retfail(ec, pilotErrorDiag) 
+            return self.put_data_retfail(ec, pilotErrorDiag)
 
         # get the experiment object
         thisExperiment = getExperiment(experiment)
@@ -297,9 +293,9 @@ class CastorSiteMover(SiteMover.SiteMover):
             #58f836d5-ff4b-441a-979b-c37094257b72_0.job.log.tgz
             tolog("Native_lfc_path: %s" % (native_lfc_path))
 
-            # replace the default path /grid/atlas/dq2 with lfcpath if different
-            # (to_native_lfn returns a path begining with /grid/atlas/dq2)
-            default_lfcpath = '/grid/atlas/dq2' # to_native_lfn always returns this at the beginning of the string
+            # replace the default path /grid/atlas/rucio with lfcpath if different
+            # (to_native_lfn returns a path begining with /grid/atlas/rucio)
+            default_lfcpath = '/grid/atlas/rucio' # to_native_lfn always returns this at the beginning of the string
             if default_lfcpath != lfcpath:
                 final_lfc_path = native_lfc_path.replace(default_lfcpath, lfcpath)
             else:
@@ -329,14 +325,14 @@ class CastorSiteMover(SiteMover.SiteMover):
         tolog("dst_gpfn: %s" % (dst_gpfn))
         fppfn = os.path.abspath(pfn)
 
-        # get the DQ2 site name from ToA
+        # get the RSE from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=dst_gpfn)
+            _RSE = self.getRSE(surl=dst_gpfn)
         except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+            tolog("Warning: Failed to get RSE: %s (can not add this info to tracing report)" % str(e))
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         tolog("Getting local file size")
         try:
@@ -368,7 +364,7 @@ class CastorSiteMover(SiteMover.SiteMover):
         report['transferStart'] = time()
         s, o = commands.getstatusoutput(_cmd_str)
         report['catStart'] = time()
-        
+
         if s == 0:
             # register the file in LFC
             # Maybe be a comma list but take first always

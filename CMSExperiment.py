@@ -33,10 +33,10 @@ class PassThroughOptionParser(OptionParser):
     An unknown option pass-through implementation of OptionParser.
 
     When unknown arguments are encountered, bundle with largs and try again,
-    until rargs is depleted.  
+    until rargs is depleted.
 
     sys.exit(status) will still be called if a known argument is passed
-    incorrectly (e.g. missing arguments or bad argument types, etc.)        
+    incorrectly (e.g. missing arguments or bad argument types, etc.)
     """
     def _process_args(self, largs, rargs, values):
         while rargs:
@@ -111,7 +111,7 @@ class CMSExperiment(Experiment):
                           dest='par',\
                           type=ptype)
         (options,args) = parser.parse_args(cmdopt)
-        return options.par 
+        return options.par
 
 
     def getCMSRunCommand(self, job, jobSite, trfName):
@@ -258,7 +258,7 @@ class CMSExperiment(Experiment):
         return 0, pilotErrorDiag, cmd, special_setup_cmd, JEM, cmtconfig
 
     def getScramArchSetupCommand(self, job):
-        """ Looks for the scramArch option in the job.jobPars attribute and build 
+        """ Looks for the scramArch option in the job.jobPars attribute and build
             the command to export the SCRAMARCH env variable with the correct value """
 
         scramArch = self.extractJobPar(job, '--scramArch')
@@ -349,23 +349,23 @@ class CMSExperiment(Experiment):
         tolog("CMSExperiment - extractAppdir - nothing to do")
 
         return 0, ""
-   
+
 
     def getMetadataForRegistration(self, guid):
         # Return metadata (not known yet) for server LFC registration
-        # use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)        
+        # use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)
         xmlstring = ''
-        xmlstring += '    <metadata att_name="surl" att_value="%s-surltobeset"/>\n' % (guid) 
+        xmlstring += '    <metadata att_name="surl" att_value="%s-surltobeset"/>\n' % (guid)
         xmlstring += '    <metadata att_name="full_lfn" att_value="%s-surltobeset"/>\n' % (guid)
 
         return xmlstring
 
     def getAttrForRegistration(self):
         # Return the attribute of the PFCxml to be updated with surl value
-        
+
         attr = 'full_lfn'
 
-        return attr        
+        return attr
 
 
     def getExpSpecificMetadata(self, job, workdir):
@@ -592,9 +592,9 @@ class CMSExperiment(Experiment):
     # Optional
     # Optional
     def useTracingService(self):
-        """ Use the DQ2 Tracing Service """
-        # A service provided by the DQ2 system that allows for file transfer tracking; all file transfers
-        # are reported by the pilot to the DQ2 Tracing Service if this method returns True
+        """ Use the Rucio Tracing Service """
+        # A service provided by the Rucio system that allows for file transfer tracking; all file transfers
+        # are reported by the pilot to the Rucio Tracing Service if this method returns True
 
         return False
 
@@ -602,4 +602,3 @@ class CMSExperiment(Experiment):
 if __name__ == "__main__":
 
     print "Implement test cases here"
-    

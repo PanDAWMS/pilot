@@ -115,7 +115,7 @@ class PandaServerClient:
                     job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
                 except Exception, e:
                     tolog("ATHENA_PROC_NUMBER is not properly set: %s (will use existing job.coreCount value)" % (e))
-                    
+
             coreCount = job.coreCount
         else:
             try:
@@ -170,7 +170,7 @@ class PandaServerClient:
         if message != "":
             _jobMetrics = self.jobMetric(key="OS", value=message)
             tolog("Could have added: %s to job metrics" % (_jobMetrics))
-            
+
         # correct for potential initial and trailing space
         jobMetrics = jobMetrics.lstrip().rstrip()
 
@@ -353,7 +353,7 @@ class PandaServerClient:
                 tolog("Batch system type was not identified (will not be reported)")
                 node['pilotID'] = "%s|%s|%s" % (self.__pilotId, self.__pilot_version_tag, self.__pilot_version)
                 tolog("Will send pilotID: %s" % (node['pilotID']))
-            tolog("pilotId: %s" % str(self.__pilotId)) 
+            tolog("pilotId: %s" % str(self.__pilotId))
         if log and (job.result[0] == 'failed' or job.result[0] == 'holding' or "outbound connections" in log):
             node['pilotLog'] = log
 
@@ -482,9 +482,9 @@ class PandaServerClient:
         else:
             node['cpuConsumptionUnit'] = getCPUmodel()
 
-        if spaceReport and site.dq2space != -1: # non-empty string and the space check function runs well
-            node['remainingSpace'] = site.dq2space
-            node['messageLevel'] = site.dq2spmsg
+        if spaceReport and site.rsespace != -1: # non-empty string and the space check function runs well
+            node['remainingSpace'] = site.rsespace
+            node['messageLevel'] = site.rsespmsg
 
         # Add the utility info if it is available
         node = self.getUtilityInfo(node, job.experiment, job.workdir, purge=True)
@@ -689,14 +689,14 @@ class PandaServerClient:
 
         from re import split
         return tuple(self.tryint(x) for x in split('([0-9]+)', s))
-                        
+
     def isAGreaterOrEqualToB(self, A, B):
         """ Is numbered string A > B? """
         # > a="1.2.3"
         # > b="2.2.2"
         # > e.isAGreaterThanB(a,b)
         # False
-        
+
         return self.splittedname(A) >= self.splittedname(B)
 
     def getPayloadMetadataFilename(self, workdir, jobId, altloc=""):
@@ -761,7 +761,7 @@ class PandaServerClient:
         xmlstr is set in postJobTask for finished jobs (all files). Failed jobs will only send xml for log (created in this function)
         jr = job recovery mode
         """
-    
+
         tolog("Updating job status in updatePandaServer(): PandaId=%s, result=%s, time=%s" % (job.getState()))
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
@@ -1018,4 +1018,3 @@ class PandaServerClient:
             node['xml'] = _xml
 
         return ecode, node # ecode=0 : update OK, otherwise something wrong
-

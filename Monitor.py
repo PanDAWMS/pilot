@@ -35,25 +35,25 @@ def lineno():
 globalSite = None
 
 class Monitor:
-    
+
     __skip = False
     __localsizelimit_stdout = 2*1024**2   # size limit of payload stdout size during running. unit is in kB
-    
+
     def __init__(self, env):
-        self.__error = PilotErrors()               
-        self.__env = env 
-        
+        self.__error = PilotErrors()
+        self.__env = env
+
         #self.__env['pilot_startup'] = None
         self.__env['create_softlink'] = True
-        self.__env['return_code'] = None  
-        self.__env['curtime_sp'] = int(time.time())       
+        self.__env['return_code'] = None
+        self.__env['curtime_sp'] = int(time.time())
         self.__env['lastTimeFilesWereModified'] = {}
         self.__wdog = WatchDog()
         self.__runJob = None # Remember the RunJob instance
 
         # register cleanup function
         atexit.register(pUtil.cleanup, self.__wdog, self.__env['pilot_initdir'], self.__env['wrapperFlag'], self.__env['rmwkdir'])
-        
+
         signal.signal(signal.SIGTERM, pUtil.sig2exc)
         signal.signal(signal.SIGQUIT, pUtil.sig2exc)
         signal.signal(signal.SIGSEGV, pUtil.sig2exc)
@@ -97,8 +97,8 @@ class Monitor:
         return allow
 
     def __checkPayloadStdout(self):
-        """ Check the size of the payload stdout """    
-    
+        """ Check the size of the payload stdout """
+
         # loop over all parallel jobs
         # (after multitasking was removed from the pilot, there is actually only one job)
         for k in self.__env['jobDic'].keys():
@@ -111,7 +111,7 @@ class Monitor:
                 # get name of payload stdout file created by the pilot
                 _stdout = self.__env['jobDic'][k][1].stdout
                 if nJobs > 1:
-                    _stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))    
+                    _stdout = _stdout.replace(".txt", "_%d.txt" % (_i + 1))
                 filename = "%s/%s" % (self.__env['jobDic'][k][1].workdir, _stdout)
 
                 # add the primary stdout file to the fileList
@@ -119,7 +119,7 @@ class Monitor:
 
             # now loop over all files and check each individually (any large enough file will fail the job)
             for filename in fileList:
-           
+
                 if os.path.exists(filename):
                     try:
                         # get file size in bytes
@@ -144,7 +144,7 @@ class Monitor:
                             updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
 
                             # remove the payload stdout file after the log extracts have been created
-    
+
                             # remove any lingering input files from the work dir
                             if self.__env['jobDic'][k][1].inFiles:
                                 if len(self.__env['jobDic'][k][1].inFiles) > 0:
@@ -158,7 +158,7 @@ class Monitor:
         """
         Return the maximum allowed size of the work directory for user jobs
         """
-    
+
         try:
             maxwdirsize = int(pUtil.readpar('maxwdir'))*1024**2 # from MB to B, e.g. 16336 MB -> 17,129,537,536 B
         except:
@@ -168,17 +168,17 @@ class Monitor:
                   (maxwdirsize, maxInputSize, self.__env['localsizelimit_stdout']*1024))
         else:
             pUtil.tolog("Work directory size check will use %d B as a max limit (maxwdirsize)" % (maxwdirsize))
-    
+
         return maxwdirsize
 
     def __checkWorkDir(self):
         """
         Check the size of the work directory
         """
-        
+
         # get the limit of the workdir
         maxwdirsize = self.__getMaxAllowedWorkDirSize()
-    
+
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
             # get size of workDir
@@ -246,7 +246,7 @@ class Monitor:
                         ec = pUtil.removeFiles(self.__env['jobDic'][k][1].workdir, self.__env['jobDic'][k][1].inFiles)
         else:
             pUtil.tolog("Remaining local disk space: %d B" % (spaceleft))
-    
+
     def __check_remaining_space(self):
         """
         Every ten minutes, check the remaining disk space, the size of the workDir
@@ -265,11 +265,11 @@ class Monitor:
 
             # update the time for checking disk space
             self.__env['curtime_sp'] = int(time.time())
-            
+
     def __createSoftLink(self):
         """ create a soft link to the athena stdout in the site work dir """
         # create_softlink is mutable
-    
+
         # will only point to the first stdout file currently
         for k in self.__env['jobDic'].keys():
             # is this a multi-trf job?
@@ -296,7 +296,7 @@ class Monitor:
                         self.__env['create_softlink'] = False
                 else:
                     pUtil.tolog("(%s has not been created yet)" % (_stdout))
-    
+
     def create_softlink(self):
         """
         create a soft link in the site workdir to the payload stdout
@@ -307,12 +307,12 @@ class Monitor:
             except Exception, e:
                 pUtil.tolog("!!WARNING!!1999!! Caught an exception during soft link creation: %s" % str(e))
                 self.__env['create_softlink'] = False
-    
+
     def __failMaxTimeJob(self):
         """
         Reached maximum batch system time limit, fail the job
         """
-    
+
         pUtil.tolog("!!WARNING!!1999!! The pilot has decided to kill the job since there is less than 10 minutes of the allowed batch system running time")
         pilotErrorDiag = "Reached maximum batch system time limit"
         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
@@ -329,7 +329,7 @@ class Monitor:
 
             # store the error info
             updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
-    
+
     def __monitor_processes(self):
         # monitor the number of running processes and the pilot running time
         if (int(time.time()) - self.__env['curtime_proc']) > self.__env['update_freq_proc']:
@@ -340,7 +340,7 @@ class Monitor:
 
             # monitor the pilot running time (once every five minutes = update_freq_proc)
             time_passed_since_pilot_startup = int(time.time()) - self.__env['pilot_startup']
-            pUtil.tolog("Time passed since pilot startup = %d s (maximum allowed batch system time = %d s)" 
+            pUtil.tolog("Time passed since pilot startup = %d s (maximum allowed batch system time = %d s)"
                         % (time_passed_since_pilot_startup, self.__env['maxtime']))
             if (self.__env['maxtime'] - time_passed_since_pilot_startup) < 10*60 and not self.__env['stageout']:
                 # reached maximum batch system time limit
@@ -352,14 +352,14 @@ class Monitor:
 
             # update the time for checking processes
             self.__env['curtime_proc'] = int(time.time())
-            
+
     def __verifyOutputFileSizes(self):
         """ Verify output file sizes """
-    
+
         pilotErrorDiag = ""
         job_index = 0
         rc = 0
-    
+
         pUtil.tolog("Verifying output file sizes")
         for k in self.__env['jobDic'].keys():
             if len(self.__env['jobDic'][k][1].outFiles) > 0:
@@ -384,13 +384,13 @@ class Monitor:
                     if not findFlag and file_name != self.__env['jobDic'][k][1].logFile:
     #                if not findFlag and not ".log." in file_name:
                         pUtil.tolog("Could not access file %s: %s" % (file_name, out))
-    
+
         return rc, pilotErrorDiag, job_index
-            
+
     def __checkOutputFileSizes(self):
         """ check that the output file sizes are within the limit """
         # return True for too large files, to skip looping test and normal server update
-        
+
         # verify the file sizes
         rc, pilotErrorDiag, job_index = self.__verifyOutputFileSizes()
         if rc == 0:
@@ -405,7 +405,7 @@ class Monitor:
 
             # store the error info
             updatePilotErrorReport(self.__env['jobDic'][job_index][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
-            
+
     def __verify_output_sizes(self):
         # verify output file sizes every ten minutes
         if (int(time.time()) - self.__env['curtime_of']) > self.__env['update_freq_space']:
@@ -428,22 +428,22 @@ class Monitor:
 #
 #            # update the time for checking memory
 #            self.__env['curtime_mem'] = int(time.time())
-            
+
     def __killLoopingJob(self, job, pid, setStageout=False):
         """ kill the looping job """
-    
+
         # the child process is looping, kill it
         pilotErrorDiag = "Pilot has decided to kill looping job %s at %s" %\
                          (job.jobId, pUtil.timeStamp())
         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
-    
+
         cmd = 'ps -fwu %s' % (commands.getoutput("whoami"))
         pUtil.tolog("%s: %s" % (cmd + '\n', commands.getoutput(cmd)))
         cmd = 'ls -ltr %s' % (job.workdir)
         pUtil.tolog("%s: %s" % (cmd + '\n', commands.getoutput(cmd)))
         cmd = 'ps -o pid,ppid,sid,pgid,tpgid,stat,comm -u %s' % (commands.getoutput("whoami"))
         pUtil.tolog("%s: %s" % (cmd + '\n', commands.getoutput(cmd)))
-    
+
         killProcesses(pid, job.pgrp)
 
         if self.__env['stagein']:
@@ -474,16 +474,16 @@ class Monitor:
 
     def __updateJobs(self):
         """ Make final server update for all ended jobs"""
-    
+
         # get the stdout tails
         stdout_dictionary = pUtil.getStdoutDictionary(self.__env['jobDic'])
-                                  
+
         # loop over all parallel jobs, update server, kill job if necessary
         # (after multitasking was removed from the pilot, there is actually only one job)
         for k in self.__env['jobDic'].keys():
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp != "finished" and tmp != "failed" and tmp != "holding":
-    
+
                 # get the tail if possible
                 try:
                     self.__env['stdout_tail'] = stdout_dictionary[self.__env['jobDic'][k][1].jobId]
@@ -501,7 +501,7 @@ class Monitor:
                     pUtil.tolog("Successfully updated panda server at %s" % pUtil.timeStamp())
                 else:
                     pUtil.tolog("!!WARNING!!1999!! updatePandaServer returned a %d" % (ret))
-    
+
                 # kill a job if signaled from panda server
                 if "tobekilled" in self.__env['jobDic'][k][1].action:
                     pilotErrorDiag = "Pilot received a panda server signal to kill job %s at %s" %\
@@ -531,7 +531,7 @@ class Monitor:
                     self.__env['update_freq_server'] = 5*60
                     pUtil.tolog("Server update frequency lowered to %d s" % (self.__env['update_freq_server']))
                     self.__env['jobDic'][k][1].debug = "True"
-    
+
                 # did we receive a command to turn off debug mode?
                 if "debugoff" in self.__env['jobDic'][k][1].action.lower():
                     pUtil.tolog("Pilot received a command to turn off debug mode from the server")
@@ -539,42 +539,42 @@ class Monitor:
                     pUtil.tolog("Server update frequency increased to %d s" % (self.__env['update_freq_server']))
                     self.__env['jobDic'][k][1].debug = "False"
 
-            
+
     def __loopingJobKiller(self):
         """ Look for looping job """
-    
+
         pUtil.tolog("Checking for looping job")
         for k in self.__env['jobDic'].keys():
-    
+
             # if current run state is "stageout", just make sure that the stage out copy command is not hanging
             if self.__env['stageout']:
                 pUtil.tolog("Making sure that the stage out copy command is not hanging")
-    
+
                 if not self.__env['stageoutStartTime']:
                     pUtil.tolog("!!WARNING!!1700!! Stage-out start time not set")
                 else:
                     # how much time has passed since stage-out began?
                     time_passed = int(time.time()) - self.__env['stageoutStartTime']
-    
+
                     # find out the timeout limit for the relevant site mover
                     from SiteMoverFarm import getSiteMover
                     sitemover = getSiteMover(pUtil.readpar('copytool'), "")
                     timeout = sitemover.get_timeout()
-    
-                    pUtil.tolog("Stage-out with %s site mover began at %s (%d s ago, site mover time-out: %d s)" 
+
+                    pUtil.tolog("Stage-out with %s site mover began at %s (%d s ago, site mover time-out: %d s)"
                                 %(pUtil.readpar('copytool'), time.strftime("%H:%M:%S", time.gmtime(self.__env['stageoutStartTime'])), time_passed, timeout))
-    
+
                     grace_time = 5*60
                     if time_passed > timeout:
                         pUtil.tolog("Adding a grace time of %d s in case copy command has been aborted but file removal is not complete" % (grace_time))
                     if time_passed > timeout + grace_time:
                         self.__env['jobDic'][k][1] = self.__killLoopingJob(self.__env['jobDic'][k][1], self.__env['jobDic'][k][0], setStageout = True)
-    
+
             elif len(self.__env['jobDic'][k][1].outFiles) > 0: # only check for looping job for jobs with output files
-    
+
                 # loop over all job output files and find the one with the latest modification time
                 # note that some files might not have been created at this point (e.g. RDO built from HITS)
-    
+
                 # locate all files that were modified the last N minutes
                 cmd = "find %s -mmin -%d" % (self.__env['jobDic'][k][1].workdir, int(self.__env['loopingLimit']/60))
                 pUtil.tolog("Executing command: %s" % (cmd))
@@ -613,7 +613,7 @@ class Monitor:
                         pUtil.tolog("WARNING: found no recently updated files")
                 else:
                     pUtil.tolog("WARNING: Found no recently updated files")
-    
+
                 # check if the last modification time happened long ago
                 # (process is considered to be looping if it's files have not been modified within loopingLimit time)
                 pUtil.tolog("int(time.time())=%d"%int(time.time()))
@@ -622,7 +622,7 @@ class Monitor:
                 if (int(time.time()) - self.__env['lastTimeFilesWereModified'][k]) > self.__env['loopingLimit']:
                     self.__env['jobDic'][k][1] = self.__killLoopingJob(self.__env['jobDic'][k][1], self.__env['jobDic'][k][0])
 
-    def __check_looping_jobs(self):             
+    def __check_looping_jobs(self):
         # every 30 minutes, look for looping jobs
         if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip: # 30 minutes
             # check when the workdir files were last updated or that the stageout command is not hanging
@@ -634,22 +634,22 @@ class Monitor:
 
             # update the time for checking looping jobs
             self.__env['curtime'] = int(time.time())
-                        
+
     def __set_outputs(self):
         # all output will be written to the pilot log as well as to stdout [with the pUtil.tolog() function]
         pUtil.setPilotlogFilename("%s/pilotlog.txt" % (self.__env['thisSite'].workdir))
-    
+
         # redirect stderr
         pUtil.setPilotstderrFilename("%s/pilot.stderr" % (self.__env['thisSite'].workdir))
         sys.stderr = open(pUtil.getPilotstderrFilename(), 'w')
-        
+
     def __verify_permissions(self):
         # verify permissions
         cmd = "stat %s" % (self.__env['thisSite'].workdir)
         pUtil.tolog("(1b) Executing command: %s" % (cmd))
         rc, rs = commands.getstatusoutput(cmd)
-        pUtil.tolog("\n%s" % (rs))    
-        
+        pUtil.tolog("\n%s" % (rs))
+
     def __getsetWNMem(self):
         """ Get the memory limit from queuedata or from the -k pilot option and set it """
 
@@ -684,7 +684,7 @@ class Monitor:
 
         # Set the memory limit
         if maxmemory > 0:
-        
+
             # Convert MB to Bytes for the setrlimit function
             _maxmemory = maxmemory*1024**2
 
@@ -718,9 +718,9 @@ class Monitor:
 
     def __checkLocalDiskSpace(self, disk):
         """ Do we have enough local disk space left to run the job? """
-    
+
         ec = 0
-    
+
         # convert local space to B and compare with the space limit
         spaceleft = int(disk)*1024**2 # B (node.disk is in MB)
 
@@ -731,12 +731,12 @@ class Monitor:
             ec = self.__error.ERR_NOLOCALSPACE
         else:
             pUtil.tolog("Remaining local disk space: %d B" % (spaceleft))
-    
+
         return ec
 
     def __getLoopingLimit(self, maxCpuCount, jobPars, sitename):
         """ Get the looping time limit for the current job (in seconds) """
-    
+
         # start with the default looping time limit, use maxCpuCount if necessary
         if "ANALY_" in sitename:
             loopingLimit = self.__env['loopingLimitDefaultUser']
@@ -757,7 +757,7 @@ class Monitor:
                 loopingLimit = 2*loopingLimit
             pUtil.tolog("Using looping job limit: %d s" % (loopingLimit))
             pUtil.tolog("maxCpuCount: %d s" % (maxCpuCount))
-    
+
         return loopingLimit
 
     def __storePilotInitdir(self, targetdir, pilot_initdir):
@@ -804,12 +804,12 @@ class Monitor:
                 pUtil.tolog("File %s copied to workdir" % (_path))
 
             self.__storePilotInitdir(self.__env['job'].workdir, self.__env['pilot_initdir'])
-    
+
         return ec, job
-    
+
     def __throttleJob(self):
         """ short delay requested by the server """
-    
+
         # dictionary for throttling job startup (setting running state)
         throttleDic = {'CA':6, 'CERN':1.33, 'DE':6, 'ES':6, 'FR':6, 'IT':6, 'ND':0, 'NDGF':0, 'NL':6, 'TW':6, 'UK':6, 'US':6}
         if self.__env['nSent'] > 0:
@@ -829,10 +829,10 @@ class Monitor:
 
     def __backupJobDef(self):
         """ Backup job definition """
-    
+
         # note: the log messages here only appears in pilotlog.txt and not in the batch log since they are
         # written by the forked child process
-    
+
         if os.path.exists(self.__env['pandaJobDataFileName']):
             pUtil.tolog("Copying job definition (%s) to %s" % (self.__env['pandaJobDataFileName'], self.__env['jobDic']["prod"][1].workdir))
             try:
@@ -868,10 +868,10 @@ class Monitor:
                     pUtil.tolog("!!WARNING!!1999!! updatePandaServer failed: %s" % (traceback.format_exc()))
                 finally:
                     self.__env['jobDic'][k][1].result = jobResult
-            
+
     def __cleanUpEndedJobs(self):
         """ clean up the ended jobs (if there are any) """
-    
+
         # after multitasking was removed from the pilot, there is actually only one job
         first = True
         handled_jobs = 0
@@ -885,7 +885,7 @@ class Monitor:
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
                 handled_jobs += 1
                 pUtil.tolog("Clean up the ended job: %s" % str(self.__env['jobDic'][k]))
-    
+
                 # do not put the getStdoutDictionary() call outside the loop since cleanUpEndedJobs() is called every minute
                 # only call getStdoutDictionary() once
                 if first:
@@ -893,7 +893,7 @@ class Monitor:
                     pUtil.tolog("Refreshing tail stdout dictinary prior to finishing the job(s)")
                     stdout_dictionary = pUtil.getStdoutDictionary(self.__env['jobDic'])
                     first = False
-    
+
                 # refresh the stdout tail if necessary
                 # get the tail if possible
                 try:
@@ -903,14 +903,14 @@ class Monitor:
                 except:
                     self.__env['stdout_tail'] = "(stdout tail not available)"
                     self.__env['stdout_path'] = ""
-        
+
                 # cleanup the job workdir, save/send the job tarball to DDM, and update
                 # panda server with the final job state
-                pUtil.postJobTask(self.__env['jobDic'][k][1], self.__env['thisSite'], self.__env['workerNode'], 
+                pUtil.postJobTask(self.__env['jobDic'][k][1], self.__env['thisSite'], self.__env['workerNode'],
                                   self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
                 if k == "prod":
                     prodJobDone = True
-    
+
                 # for NG write the error code, if any
                 if os.environ.has_key('Nordugrid_pilot') and (perr != 0 or terr != 0):
                     if perr != 0:
@@ -922,12 +922,12 @@ class Monitor:
                 if k == "prod" or (self.__env['jobDic'][k][0] != self.__env['jobDic']['prod'][0]):
                     # move this job from env['jobDic'] to zombieJobList for later collection
                     self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
-    
+
                     # athena processes can loop indefinately (e.g. pool utils), so kill all subprocesses just in case
                     pUtil.tolog("Killing remaining subprocesses (if any)")
                     if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
                         killOrphans()
-                    #pUtil.tolog("Going to kill pid %d" %lineno()) 
+                    #pUtil.tolog("Going to kill pid %d" %lineno())
                     killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                     if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
                         killOrphans()
@@ -940,7 +940,7 @@ class Monitor:
                             pUtil.tolog("!!WARNING!!2999!! Could not remove process id file: %s" % str(e))
                         else:
                             pUtil.tolog("Process id file removed")
-    
+
                 # ready with this object, delete it
                 del self.__env['jobDic'][k]
 
@@ -1016,8 +1016,8 @@ class Monitor:
             multiJobTimeDelays = range(2, maxFailedMultiJobs+2) # [2,3,4]
             shuffle(multiJobTimeDelays)
             number_of_failed_jobs = 0
-            
-            self.__set_outputs()            
+
+            self.__set_outputs()
             self.__verify_permissions()
 
 
@@ -1028,7 +1028,7 @@ class Monitor:
             #self.__env['return'] = self.__error.ERR_NOTCPCONNECTION
             #return
 
-            
+
             # start the monitor and watchdog process
             monthread = PilotTCPServer(UpdateHandler)
             if not monthread.port:
@@ -1042,22 +1042,22 @@ class Monitor:
 
             # dump some pilot info, version id, etc (to the log file this time)
             pUtil.tolog("\n\nEntered multi-job loop. Current work dir: %s\n" % (os.getcwd()))
-            pUtil.dumpPilotInfo(self.__env['version'], self.__env['pilot_version_tag'], self.__env['pilotId'], 
+            pUtil.dumpPilotInfo(self.__env['version'], self.__env['pilot_version_tag'], self.__env['pilotId'],
                                 self.__env['jobSchedulerId'], self.__env['pilot_initdir'], tofile = True)
-            
+
             if self.__env['timefloor'] != 0:
                 pUtil.tolog("Entering main pilot loop: multi job enabled (number of processed jobs: %d)" % (self.__env['number_of_jobs']))
                 self.__env['hasMultiJob'] = True
             else:
                 pUtil.tolog("Entering main pilot loop: multi job disabled")
                 # do not reset hasMultiJob
-        
+
             # local checks begin here..................................................................................
-        
+
             # collect WN info again to avoid getting wrong disk info from gram dir which might differ from the payload workdir
             pUtil.tolog("Collecting WN info from: %s (again)" % (self.__env['thisSite'].workdir))
             self.__env['workerNode'].collectWNInfo(self.__env['thisSite'].workdir)
-        
+
             # overwrite mem since this should come from either pilot argument or queuedata
             self.__env['workerNode'].mem = self.__getsetWNMem()
 
@@ -1099,28 +1099,28 @@ class Monitor:
 
             # prod job start time counter
             tp_0 = os.times()
-        
+
             # reset stageout start time (used by looping job killer)
             self.__env['stageoutStartTime'] = None
             self.__env['stagein'] = False
             self.__env['stageout'] = False
-                
+
             tp_1 = os.times()
             self.__env['job'].timeGetJob = int(round(tp_1[4] - tp_0[4]))
-        
+
             # update the global used in the exception handler
             globalJob = self.__env['job']
-        
+
             # update job id list
             self.__env['jobIds'].append(self.__env['job'].jobId)
-        
+
             # does the application directory exist?
             ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(pUtil.readpar('appdir'),
-                                                                               self.__env['job'].processingType, 
+                                                                               self.__env['job'].processingType,
                                                                                self.__env['job'].homePackage)
 
-#            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(self.__env['thisSite'].appdir, 
-#                                                                               self.__env['job'].processingType, 
+#            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(self.__env['thisSite'].appdir,
+#                                                                               self.__env['job'].processingType,
 #                                                                               self.__env['job'].homePackage)
             if ec != 0:
                 self.__env['job'].result[0] = 'failed'
@@ -1130,16 +1130,16 @@ class Monitor:
                 pUtil.fastCleanup(self.__env['thisSite'].workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
                 self.__env['return'] = ec
                 return
-        
+
             # update the job state file
             JR = JobRecovery()
             self.__env['job'].jobState = "startup"
             _retjs = JR.updateJobStateTest(self.__env['job'], self.__env['thisSite'], self.__env['workerNode'], mode="test")
             if not _retjs:
                 pUtil.tolog("Could not update job state test file: %s" % str(_retjs))
-        
+
             # getJob() ends here.....................................................................................
-        
+
             # copy some supporting modules to the workdir for pilot job to run
             ec = pUtil.stageInPyModules(self.__env['pilot_initdir'], self.__env['thisSite'].workdir)
             if ec != 0:
@@ -1147,19 +1147,18 @@ class Monitor:
                 pUtil.fastCleanup(self.__env['thisSite'].workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
                 self.__env['return'] = ec
                 return
-        
+
             pUtil.tolog("Current time :%s" % (pUtil.timeStamp()))
             pUtil.tolog("The site this pilot runs on: %s" % (self.__env['thisSite'].sitename))
             pUtil.tolog("Pilot executing on host: %s" % (self.__env['workerNode'].nodename))
             pUtil.tolog("The workdir this pilot runs on:%s" % (self.__env['thisSite'].workdir))
-            pUtil.tolog("The dq2url for this site is: %s" % (self.__env['thisSite'].dq2url))
-            pUtil.tolog("The DQ2 SE has %d GB space left (NB: dCache is defaulted to 999999)" % (self.__env['thisSite'].dq2space))
+            pUtil.tolog("The RSE has %d GB space left (NB: dCache is defaulted to 999999)" % (self.__env['thisSite'].rsespace))
             pUtil.tolog("New job has prodSourceLabel: %s" % (self.__env['job'].prodSourceLabel))
-        
+
             # update the globals used in the exception handler
             globalSite = self.__env['thisSite']
             globalWorkNode = self.__env['workerNode']
-        
+
             # does the looping job limit need to be updated?
             pUtil.tolog("env = %s" % str(self.__env['job'].jobPars))
             self.__env['loopingLimit'] = self.__getLoopingLimit(self.__env['job'].maxCpuCount, self.__env['job'].jobPars, self.__env['thisSite'].sitename)
@@ -1169,18 +1168,18 @@ class Monitor:
 
             # figure out and set payload file names
             self.__env['job'].setPayloadName(thisExperiment.getPayloadName(self.__env['job']))
-        
+
             # update the global used in the exception handler
             globalJob = self.__env['job']
-        
+
             if self.__env['job'].prodUserID != "":
                 pUtil.tolog("Pilot executing job for user: %s" % (self.__env['job'].prodUserID))
-        
+
             # update job status and id
             self.__env['job'].result[0] = "starting"
             self.__env['job'].currentState = self.__env['job'].result[0]
             os.environ['PandaID'] = self.__env['job'].jobId
-        
+
             # create job workdir
             ec, self.__env['job'] = self.__createJobWorkdir(self.__env['job'], sys.stderr)
             if ec != 0:
@@ -1194,26 +1193,26 @@ class Monitor:
             thisExperiment.updateJobSetupScript(self.__env['job'].workdir, create=True, to_script=None)
 
             # create the initial file state dictionary
-            createFileStates(self.__env['thisSite'].workdir, 
-                             self.__env['job'].jobId, 
-                             outFiles = self.__env['job'].outFiles, 
-                             logFile = self.__env['job'].logFile, 
+            createFileStates(self.__env['thisSite'].workdir,
+                             self.__env['job'].jobId,
+                             outFiles = self.__env['job'].outFiles,
+                             logFile = self.__env['job'].logFile,
                              type="output")
-            
-            dumpFileStates(self.__env['thisSite'].workdir, 
-                           self.__env['job'].jobId, 
+
+            dumpFileStates(self.__env['thisSite'].workdir,
+                           self.__env['job'].jobId,
                            type = "output")
             if self.__env['job'].inFiles != ['']:
-                
-                createFileStates(self.__env['thisSite'].workdir, 
-                                 self.__env['job'].jobId, 
-                                 inFiles = self.__env['job'].inFiles, 
+
+                createFileStates(self.__env['thisSite'].workdir,
+                                 self.__env['job'].jobId,
+                                 inFiles = self.__env['job'].inFiles,
                                  type="input")
-                
-                dumpFileStates(self.__env['thisSite'].workdir, 
-                               self.__env['job'].jobId, 
+
+                dumpFileStates(self.__env['thisSite'].workdir,
+                               self.__env['job'].jobId,
                                type="input")
-        
+
             # are the output files within the allowed limit?
             # (keep the LFN verification at this point since the wrkdir is now created, needed for creating the log in case of failure)
             ec, self.__env['job'].pilotErrorDiag = pUtil.verifyLFNLength(self.__env['job'].outFiles)
@@ -1226,19 +1225,19 @@ class Monitor:
                 # store the error info
                 updatePilotErrorReport(self.__env['job'].result[2], self.__env['job'].pilotErrorDiag, "1",  self.__env['job'].jobId, self.__env['pilot_initdir'])
 
-                pUtil.postJobTask(self.__env['job'], self.__env['thisSite'], 
-                                  self.__env['workerNode'], self.__env['experiment'], 
+                pUtil.postJobTask(self.__env['job'], self.__env['thisSite'],
+                                  self.__env['workerNode'], self.__env['experiment'],
                                   jr=False)
                 pUtil.fastCleanup(self.__env['thisSite'].workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
-                self.__env['return'] = ec 
+                self.__env['return'] = ec
                 return
             else:
                 pUtil.tolog("LFN length(s) verified, within allowed limit")
-        
+
             # print job info
             self.__env['job'].displayJob()
             self.__env['jobDic']["prod"] = [None, self.__env['job'], None] # pid, job, os.getpgrp()
-        
+
             # send space report now, at the beginning of the job
             if self.__env['loggingMode'] == None:
                 ret, retNode = pUtil.updatePandaServer(self.__env['jobDic']["prod"][1], spaceReport = True)
@@ -1250,13 +1249,13 @@ class Monitor:
             else:
                 pUtil.tolog("!!WARNING!!1999!! updatePandaServer returned a %d" % (ret))
                 self.__env['isServerUpdated'] = False
-        
+
             # short delay requested by the server
             self.__throttleJob()
-        
+
             # maximum number of found processes
             self.__env['maxNProc'] = 0
-        
+
             # fork into two processes, one for the pilot main control loop, and one for RunJob
             pid_1 = os.fork()
             if pid_1: # parent process
@@ -1305,7 +1304,7 @@ class Monitor:
             self.__env['lastTimeFilesWereModified'] = {}
             for k in self.__env['jobDic'].keys(): # loop over production and possible analysis job
                 self.__env['lastTimeFilesWereModified'][k] = int(time.time())
-        
+
             # main monitoring loop
             iteration = 1
             self.__env['curtime'] = int(time.time())
@@ -1316,26 +1315,26 @@ class Monitor:
             self.__env['create_softlink'] = True
             while True:
 
-                pUtil.tolog("--- Main pilot monitoring loop (job id %s, state:%s (%s), iteration %d)" 
+                pUtil.tolog("--- Main pilot monitoring loop (job id %s, state:%s (%s), iteration %d)"
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
-                self.__check_remaining_space()        
+                self.__check_remaining_space()
                 self.create_softlink()
                 self.check_unmonitored_jobs()
                 self.__monitor_processes()
-                self.__verify_output_sizes()              
+                self.__verify_output_sizes()
                 #self.__verify_memory_limits()
                 self.__check_looping_jobs()
 
                 # check if any jobs are done by scanning the process list
                 # some jobs might have sent updates to the monitor thread about their final states at other times
                 self.__wdog.pollChildren()
-        
+
                 # clean up the ended jobs (if there are any)
                 self.__cleanUpEndedJobs()
-        
+
                 # collect all the zombie processes
                 self.__wdog.collectZombieJob(tn=10)
-        
+
                 # is there still a job in the self.__?
                 if len(self.__env['jobDic']) == 0: # no child jobs in self.__
                     pUtil.tolog("The job has finished")
@@ -1345,7 +1344,7 @@ class Monitor:
 
                 # rest a minute before next iteration
                 time.sleep(60)
-        
+
             # do not bother with saving the log file if it has already been transferred and registered
             try:
                 state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, type="output")
@@ -1357,21 +1356,21 @@ class Monitor:
                     pUtil.tolog("Will not remove log file at this point (possibly already removed)")
             except Exception, e:
                 pUtil.tolog("!!WARNING!!1111!! %s" % (e))
-        
+
             pUtil.tolog("--------------------------------------------------------------------------------")
             pUtil.tolog("Number of processed jobs              : %d" % (self.__env['number_of_jobs']))
             pUtil.tolog("Maximum number of monitored processes : %d" % (self.__env['maxNProc']))
             pUtil.tolog("Pilot executed last job in directory  : %s" % (self.__env['thisSite'].workdir))
             pUtil.tolog("Current time                          : %s" % (pUtil.timeStamp()))
-            pUtil.tolog("--------------------------------------------------------------------------------")                
-    
+            pUtil.tolog("--------------------------------------------------------------------------------")
+
             # a bit more cleanup
             self.__wdog.collectZombieJob()
-    
+
             # call the cleanup function (only needed for multi-jobs)
             if self.__env['hasMultiJob']:
                 pUtil.cleanup(self.__wdog, self.__env['pilot_initdir'], True, self.__env['rmwkdir'])
-    
+
             # is there still time to run another job?
             if os.path.exists(os.path.join(globalSite.workdir, "KILLED")):
                 pUtil.tolog("Aborting multi-job loop since a KILLED file was found")
@@ -1384,7 +1383,7 @@ class Monitor:
                 self.__env['return'] = 'break'
                 print 'break'
                 return
-            
+
             else:
                 time_since_multijob_startup = int(time.time()) - self.__env['multijob_startup']
                 pUtil.tolog("Time since multi-job startup: %d s" % (time_since_multijob_startup))
@@ -1394,21 +1393,21 @@ class Monitor:
                         number_of_failed_jobs += 1
                     if number_of_failed_jobs >= maxFailedMultiJobs:
                         pUtil.tolog("Passed max number of failed multi-jobs (%d), aborting multi-job mode" % (maxFailedMultiJobs))
-                        self.__env['return'] = 'break' 
+                        self.__env['return'] = 'break'
                         print 'break' #TODO: this is not in a loop. We shoould probably do a "return ERROR" or similar
                         return
-    
+
                     pUtil.tolog("Since time floor is set to %d s, there is time to run another job" % (self.__env['timefloor']))
-    
+
                     # need to re-download the queuedata since the previous job might have modified it
-                    ec, self.__env['thisSite'], self.__env['jobrec'], self.__env['hasQueuedata'] = pUtil.handleQueuedata(self.__env['queuename'], 
-                        self.__env['schedconfigURL'], self.__error, self.__env['thisSite'], self.__env['jobrec'], self.__env['experiment'], forceDownload = True, 
+                    ec, self.__env['thisSite'], self.__env['jobrec'], self.__env['hasQueuedata'] = pUtil.handleQueuedata(self.__env['queuename'],
+                        self.__env['schedconfigURL'], self.__error, self.__env['thisSite'], self.__env['jobrec'], self.__env['experiment'], forceDownload = True,
                         forceDevpilot = self.__env['force_devpilot'])
                     if ec != 0:
                         self.__env['return'] = 'break'
                         print 'break' #TODO: this is not in a loop. We shoould probably do a "return ERROR" or similar
                         return
-    
+
                     # do not continue immediately if the previous job failed due to an SE problem
                     if self.__env['job'].result[2] != 0:
                         _delay = 60 * multiJobTimeDelays[number_of_failed_jobs - 1]
@@ -1420,7 +1419,7 @@ class Monitor:
                             time.sleep(_delay)
                         else:
                             pUtil.tolog("Will not take a nap since previous job failed with a non stage-in/out error")
-    
+
                     self.__env['return'] = 'continue'
                     print 'continue' #TODO: this is not in a loop. We shoould probably do a "return ERROR" or similar
                     return
@@ -1428,23 +1427,23 @@ class Monitor:
                     pUtil.tolog("Since time floor is set to %d s, there is no time to run another job" % (self.__env['timefloor']))
                     self.__env['return'] = 'break'
                     print 'break' #TODO: this is not in a loop. We shoould probably do a "return ERROR" or similar
-                    return 
-            
+                    return
+
             # flush buffers
             sys.stdout.flush()
             sys.stderr.flush()
-    
+
             # multi-job loop ends here ..............................................................................
-            
+
         # catch any uncaught pilot exceptions
         except Exception, errorMsg:
-    
+
             error = PilotErrors()
             # can globalJob be added here?
-    
+
             if len(str(errorMsg)) == 0:
                 errorMsg = "(empty error string)"
-                                                                    
+
             import traceback
             if 'format_exc' in traceback.__all__:
                 pilotErrorDiag = "Exception caught: %s, %s" % (str(errorMsg), traceback.format_exc())
@@ -1452,11 +1451,11 @@ class Monitor:
                 pUtil.tolog("traceback.format_exc() not available in this python version")
                 pilotErrorDiag = "Exception caught: %s" % (str(errorMsg))
             pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
-    
+
             if self.__env['isJobDownloaded']:
                 if self.__env['isServerUpdated']:
                     pUtil.tolog("Do a full cleanup since job was downloaded and server updated")
-    
+
                     # was the process id added to env['jobDic']?
                     bPID = False
                     try:
@@ -1466,7 +1465,7 @@ class Monitor:
                         pUtil.tolog("Process id not added to env['jobDic']")
                     else:
                         bPID = True
-    
+
                     if bPID:
                         pUtil.tolog("Cleanup using env['jobDic']")
                         for k in self.__env['jobDic'].keys():
@@ -1477,7 +1476,7 @@ class Monitor:
                             if self.__env['jobDic'][k][1].pilotErrorDiag == "":
                                 self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                             if globalSite:
-                                pUtil.postJobTask(self.__env['jobDic'][k][1], globalSite, globalWorkNode, 
+                                pUtil.postJobTask(self.__env['jobDic'][k][1], globalSite, globalWorkNode,
                                                   self.__env['experiment'], jr=False)
                                 self.__env['logTransferred'] = True
                             pUtil.tolog("Killing process: %d from line %d" % (self.__env['jobDic'][k][0], lineno()))
@@ -1485,7 +1484,7 @@ class Monitor:
                             # move this job from env['jobDic'] to zombieJobList for later collection
                             self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
                             del self.__env['jobDic'][k]
-    
+
                         # collect all the zombie processes
                         self.__wdog.collectZombieJob(tn=10)
                     else:
@@ -1504,9 +1503,9 @@ class Monitor:
                 if globalSite:
                     pUtil.tolog("Do a fast cleanup since job was not downloaded (no log)")
                     pUtil.fastCleanup(globalSite.workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
-            self.__env['return'] = error.ERR_PILOTEXC 
+            self.__env['return'] = error.ERR_PILOTEXC
             return
-    
+
         # end of the pilot
         else:
             self.__env['return'] = 0
@@ -1609,8 +1608,7 @@ class Monitor:
             pUtil.tolog("The site this pilot runs on: %s" % (self.__env['thisSite'].sitename))
             pUtil.tolog("Pilot executing on host: %s" % (self.__env['workerNode'].nodename))
             pUtil.tolog("The workdir this pilot runs on:%s" % (self.__env['thisSite'].workdir))
-            pUtil.tolog("The dq2url for this site is: %s" % (self.__env['thisSite'].dq2url))
-            pUtil.tolog("The DQ2 SE has %d GB space left (NB: dCache is defaulted to 999999)" % (self.__env['thisSite'].dq2space))
+            pUtil.tolog("The RSE has %d GB space left (NB: dCache is defaulted to 999999)" % (self.__env['thisSite'].rsespace))
             pUtil.tolog("New job has prodSourceLabel: %s" % (self.__env['job'].prodSourceLabel))
 
             # does the looping job limit need to be updated?

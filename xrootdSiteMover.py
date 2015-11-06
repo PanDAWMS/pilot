@@ -94,7 +94,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
         workDir = pdict.get('workDir', '')
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'xrootd', lfn, guid)
 
         if self._setup:
@@ -292,7 +292,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
             tolog("Treating PanDA Mover job as a production job during stage-out")
             analyJob = False
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'xrootd', lfn, guid)
 
         if self._setup:
@@ -392,14 +392,14 @@ class xrootdSiteMover(SiteMover.SiteMover):
         tolog("Final destination path: %s" % (dst_loc_pfn))
         tolog("dst_gpfn: %s" % (dst_gpfn))
 
-        # get the DQ2 site name from ToA
+        # get the Rucio site name from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=dst_gpfn)
+            _RSE = self.getRSE(surl=dst_gpfn)
         except Exception, e:
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+            tolog("Warning: Failed to get RSE: %s (can not add this info to tracing report)" % str(e))
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         # determine which copy command to use
         cpt = self.getCopytool(_setup_str)
@@ -499,9 +499,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
         1. check DQ space URL
         2. get storage path and check local space availability
         """
-        # http://bandicoot.uits.indiana.edu:8000/dq2/space/free
-        # http://bandicoot.uits.indiana.edu:8000/dq2/space/total
-        # http://bandicoot.uits.indiana.edu:8000/dq2/space/default
+
         if ub == "" or ub == "None" or ub == None:
             tolog("Using alternative check space function since URL method can not be applied (URL not set)")
             retn = self._check_space(ub)

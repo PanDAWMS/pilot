@@ -749,7 +749,7 @@ class RunJobEvent(RunJob):
         if queuename == "":
             queuename = sitename
 
-        return sitename, appdir, workdir, "", queuename # get rid of the dq2url (, "") in this return list
+        return sitename, appdir, workdir, queuename
 
     def cleanup(self, rf=None):
         """ Cleanup function """
@@ -2412,7 +2412,7 @@ if __name__ == "__main__":
                     job.result[2] = error.ERR_ESATHENAMPDIED
                     tolog("!!WARNING!!2222!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
                     break
-                
+
                 # Make sure that the utility subprocess is still running
                 if utility_subprocess:
                     if not utility_subprocess.poll() is None:

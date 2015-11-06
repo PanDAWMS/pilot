@@ -50,7 +50,7 @@ class ATLASSiteInformation(SiteInformation):
     def isTier1(self, sitename):
         """ Is the given site a Tier-1? """
         # E.g. on a Tier-1 site, the alternative stage-out algorithm should not be used
-        # Note: sitename is PanDA sitename, not DQ2 sitename
+        # Note: sitename is PanDA sitename, not Rucio sitename (RSE)
 
         status = False
 
@@ -429,6 +429,12 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cs3.cern.ch:443//atlas_eventservice|logs^s3://cs3.cern.ch:443//atlas_logs")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
+
+#        if thisSite.sitename == "Lucille_CE":
+#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw/software")
+#            ec = self.replaceQueuedataField("copytoolin", "lcg-cp2")
+#            ec = self.replaceQueuedataField("copytool", "lcg-cp2")
+#            ec = self.replaceQueuedataField("envsetup", "export X509_USER_PROXY=/opt/rucio/tools/x509up;")
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")

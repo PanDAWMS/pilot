@@ -54,7 +54,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         tolog(errorLog)
 
     def getLocalROOTSetup(self, si):
-        """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """ 
+        """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
         return si.getLocalROOTSetup()
 
     def getSetup(self):
@@ -539,7 +539,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         outputRet["report"]["clientState"] = None
         outputRet["output"] = None
 
-        
+
         command = "%s xrdcp -h" % (self._setup)
         status_local, output_local = commands.getstatusoutput(command)
         tolog("Execute command(%s) to decide whether -adler or --cksum adler32 to be used." % command)
@@ -590,7 +590,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
             _ec, removeOutput = self.removeRemoteFile(destination)
             if not _ec :
                 self.log("Failed to remove file ") # i.e. do not retry stage-out
-           
+
             return status, output
         else:
             outputRet["output"] = o
@@ -847,7 +847,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         useCT = pdict.get('usect', True)
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'xrootdObjectstore', lfn, guid)
 
 
@@ -900,7 +900,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
             tolog("Treating PanDA Mover job as a production job during stage-out")
             analysisJob = False
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'xrootdObjectstore', lfn, guid)
 
 
@@ -911,14 +911,14 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         else:
             surl = os.path.join(destination, lfn)
 
-        # get the DQ2 site name from ToA
+        # get the RSE from ToA
         try:
-            _dq2SiteName = self.getDQ2SiteName(surl=surl)
-        except Exception, e: 
-            tolog("Warning: Failed to get the DQ2 site name: %s (can not add this info to tracing report)" % str(e))
+            _RSE = self.getRSE(surl=surl)
+        except Exception, e:
+            tolog("Warning: Failed to get RSE: %s (can not add this info to tracing report)" % str(e))
         else:
-            report['localSite'], report['remoteSite'] = (_dq2SiteName, _dq2SiteName)
-            tolog("DQ2 site name: %s" % (_dq2SiteName))
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+            tolog("RSE: %s" % (_RSE))
 
         if testLevel == "1":
             source = "thisisjustatest"

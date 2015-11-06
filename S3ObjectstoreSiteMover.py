@@ -240,7 +240,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             errLog = "Remote and local size mismatch"
             self.log(errLog)
             return PilotErrors.ERR_GETWRONGSIZE, errLog
-        
+
         self.log("Finished to verify staging")
         return 0, errLog
 
@@ -332,7 +332,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         useCT = pdict.get('usect', True)
         prodDBlockToken = pdict.get('access', '')
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
 
         if path == '': path = './'
@@ -387,7 +387,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             tolog("Treating PanDA Mover job as a production job during stage-out")
             analysisJob = False
 
-        # get the DQ2 tracing report
+        # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
 
         filename = os.path.basename(source)
@@ -409,7 +409,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def __sendReport(self, state, report):
         """
-        Send DQ2 tracing report. Set the client exit state and finish
+        Send Rucio tracing report. Set the client exit state and finish
         """
         if report.has_key('timeStart'):
             # finish instrumentation
@@ -533,4 +533,3 @@ class S3ObjctStore(object):
             return ret
         else:
             return self.s3StageOutFile(source, destination, sourceSize, sourceChecksum, token)
-

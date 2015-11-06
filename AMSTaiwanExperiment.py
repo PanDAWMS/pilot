@@ -14,7 +14,7 @@ from pUtil import grep                          # Grep function - reimplement us
 from pUtil import getCmtconfig                  # Get the cmtconfig from the job def or queuedata
 from pUtil import getCmtconfigAlternatives      # Get a list of locally available cmtconfigs
 from pUtil import verifyReleaseString           # To verify the release string (move to Experiment later)
-from pUtil import getProperTimeout              # 
+from pUtil import getProperTimeout              #
 from pUtil import timedCommand                  # Protect cmd with timed_command
 from pUtil import getSiteInformation            # Get the SiteInformation object corresponding to the given experiment
 from pUtil import isBuildJob                    # Is the current job a build job?
@@ -405,7 +405,7 @@ class AMSTaiwanExperiment(Experiment):
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
             elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
-                
+
                 if 'HPC_Titan' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": ("%s/%s" % (job.homePackage, job.trf)),
@@ -419,16 +419,16 @@ class AMSTaiwanExperiment(Experiment):
                            "parameters": job.jobPars }
                 else:
                     cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
-                
+
 
             # Set special_setup_cmd if necessary
             special_setup_cmd = self.getSpecialSetupCommand()
 
         # add FRONTIER debugging and RUCIO env variables
-        
+
         if 'HPC_Titan' in readpar("catchall"):
             cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename)
-        else: 
+        else:
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename)
 
         # Is JEM allowed to be used?
@@ -492,10 +492,10 @@ class AMSTaiwanExperiment(Experiment):
     def willDoAlternativeFileLookups(self):
         """ Should file lookups be done using alternative methods? """
 
-        # E.g. in the migration period where LFC lookups are halted in favour of other methods in the DQ2/Rucio API
+        # E.g. in the migration period where LFC lookups are halted in favour of other methods in the Rucio API
         # (for ATLAS), this method could be useful. See the usage in Mover::getReplicaDictionary() which is called
         # after Experiment::willDoFileLookups() defined above. The motivation is that direct LFC calls are not to be
-        # used any longer by the pilot, and in the migration period the actual LFC calls will be done in the DQ2/Rucio
+        # used any longer by the pilot, and in the migration period the actual LFC calls will be done in the Rucio
         # API. Eventually this API will switch to alternative file lookups.
 
         tolog("Using alternative file catalog lookups")
@@ -529,7 +529,7 @@ class AMSTaiwanExperiment(Experiment):
                     "AtlasTier0",
                     "buildJob*",
                     "CDRelease*",
-                    "csc*.log", 
+                    "csc*.log",
                     "DBRelease*",
                     "EvgenJobOptions",
                     "external",
@@ -574,7 +574,7 @@ class AMSTaiwanExperiment(Experiment):
         # note: these should be partitial file/dir names, not containing any wildcards
         exceptions_list = ["runargs", "runwrapper", "jobReport", "log."]
 
-        for _dir in dir_list: 
+        for _dir in dir_list:
             files = glob(os.path.join(workdir, _dir))
             exclude = []
 
@@ -583,7 +583,7 @@ class AMSTaiwanExperiment(Experiment):
                 for exc in exceptions_list:
                     for f in files:
                         if exc in f:
-                            exclude.append(f)		      
+                            exclude.append(f)
 
                 if exclude != []:
                     tolog('To be excluded from removal: %s' % (exclude))
@@ -926,12 +926,12 @@ class AMSTaiwanExperiment(Experiment):
         ec = 0
         pilotErrorDiag = ""
 
-        # do not proceed for unset homepackage strings (treat as release strings in the following function)                                                                         
+        # do not proceed for unset homepackage strings (treat as release strings in the following function)
         if verifyReleaseString(job.homePackage) == "NULL":
             return ec, pilotErrorDiag, siteroot, ""
 
-        # install the trf in the work dir if it is not installed on the site                                                                                                        
-        # special case for nightlies (rel_N already in siteroot path, so do not add it)                                                                                             
+        # install the trf in the work dir if it is not installed on the site
+        # special case for nightlies (rel_N already in siteroot path, so do not add it)
 
         if "rel_" in job.homePackage:
             installDir = siteroot
@@ -1053,7 +1053,7 @@ class AMSTaiwanExperiment(Experiment):
             return 0, pilotErrorDiag
 
         # Install pacman
-        status, pilotErrorDiag = self.installPacman() 
+        status, pilotErrorDiag = self.installPacman()
         if status:
             tolog("Pacman installed correctly")
         else:
@@ -1307,7 +1307,7 @@ class AMSTaiwanExperiment(Experiment):
         pilotErrorDiag = self.verifyCmtsiteCmd(exitcode, output)
         if pilotErrorDiag != "":
             return False, pilotErrorDiag, siteroot, "", ""
-        
+
         # Get cmtConfig
         re_cmtConfig = re.compile('CMTCONFIG=(.+)')
         _cmtConfig = re_cmtConfig.search(output)
@@ -1692,8 +1692,8 @@ class AMSTaiwanExperiment(Experiment):
             tolog("!!WARNING!!1887!! RUCIO_APPID needs job.processingType but it is not set!")
         else:
             variables.append('export RUCIO_APPID=\"%s\";' % (processingType))
-        variables.append('export RUCIO_ACCOUNT=\"pilot\";')         
-        
+        variables.append('export RUCIO_ACCOUNT=\"pilot\";')
+
         return variables
 
     def isForceConfigCompatible(self, _dir, release, homePackage, cmtconfig, siteroot=None):
@@ -1765,7 +1765,7 @@ class AMSTaiwanExperiment(Experiment):
                 for d in dirs:
                     if d.startswith(name):
                         _dirs.append(d)
-                if _dirs != []: 
+                if _dirs != []:
                     # sort the directories
                     _dirs.sort()
                     # grab the directory with the highest version
@@ -2028,7 +2028,7 @@ class AMSTaiwanExperiment(Experiment):
 
     def getProperASetup(self, swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=False, source=True, cacheVer=None, cacheDir=None):
         """ return a proper asetup.sh command """
-        
+
         # handle sites using builds area in a special way
         if swbase[-len('builds'):] == 'builds' or verifyReleaseString(atlasRelease) == "NULL":
             path = swbase
@@ -2182,7 +2182,7 @@ class AMSTaiwanExperiment(Experiment):
 
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
-        
+
         #if 'HPC_Titan' in readpar("catchall"):
         #    status = True
         #else:
@@ -2260,12 +2260,12 @@ class AMSTaiwanExperiment(Experiment):
     def getMetadataForRegistration(self, guid):
         """ Return metadata (not known yet) for LFC registration """
 
-        # Use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)        
-        return '    <metadata att_name="surl" att_value="%s-surltobeset"/>\n' % (guid) 
+        # Use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)
+        return '    <metadata att_name="surl" att_value="%s-surltobeset"/>\n' % (guid)
 
     def getAttrForRegistration(self):
         """ Return the attribute of the metadata XML to be updated with surl value """
-        
+
         return 'surl'
 
     def getFileCatalog(self):
@@ -2291,7 +2291,7 @@ class AMSTaiwanExperiment(Experiment):
         #   appdir = application/software/release directory (e.g. /cvmfs/atlas.cern.ch/repo/sw)
         # Return:
         #   error code (0 for success)
-        
+
         ec = 0
 
         if not "|" in appdir and not "^" in appdir: # as can be the case at CERN
@@ -2924,9 +2924,9 @@ class AMSTaiwanExperiment(Experiment):
 
     # Optional
     def useTracingService(self):
-        """ Use the DQ2 Tracing Service """
-        # A service provided by the DQ2 system that allows for file transfer tracking; all file transfers
-        # are reported by the pilot to the DQ2 Tracing Service if this method returns True
+        """ Use the Rucio Tracing Service """
+        # A service provided by the Rucio system that allows for file transfer tracking; all file transfers
+        # are reported by the pilot to the Rucio Tracing Service if this method returns True
 
         return True
 
@@ -2961,4 +2961,3 @@ if __name__ == "__main__":
 
     #    ts = TracingService()
     #    ts.send
-        
