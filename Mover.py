@@ -2848,7 +2848,7 @@ def mover_put_data_new(outputpoolfcstring,
     from movers.trace_report import TraceReport
 
     si = getSiteInformation(job.experiment)
-    #si.setQueueName(queuename) # may be used in other functions since its singleton???
+    si.setQueueName(queuename) # keep logic as is: but SiteInformation is singleton: may be used in other functions! FIX me later to proper implementation
 
     workDir = recoveryWorkDir or os.path.dirname(jobWorkDir)
 
@@ -3210,14 +3210,16 @@ def use_newmover(newfunc):
                 print ("INFO: Will try to use new SiteMover(s) implementation since queuedata.use_newmover=%s" % use_newmover)
                 try:
                     ret = newfunc(*args, **kwargs)
-                    if ret and ret[0]: # new function return NON success code => temporary failover to old implementation
-                        raise Exception("new SiteMover return NON success code=%s .. do failover to old implementation.. r=%s" % (ret[0], ret))
+                    #if ret and ret[0]: # new function return NON success code => temporary failover to old implementation
+                    #    raise Exception("new SiteMover return NON success code=%s .. do failover to old implementation.. r=%s" % (ret[0], ret))
                     return ret
                 except Exception, e:
-                    print ("INFO: Failed to execute new SiteMover(s): caught an exception: %s .. ignored. Continue execution using old implementation" % e)
+                    #print ("INFO: Failed to execute new SiteMover(s): caught an exception: %s .. ignored. Continue execution using old implementation" % e)
                     import traceback
                     tolog(traceback.format_exc())
-            return func(*args, **kwargs)
+                    raise # disable failover to old implementation
+
+            return func(*args, **kwargs) # failover to old implementation
 
         return wrapper
     return dec

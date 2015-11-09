@@ -146,14 +146,20 @@ class JobMover(object):
         if missing_ddms:
             self.ddmconf.update(self.si.resolveDDMConf(missing_ddms))
 
-        ddmprot = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(ddmendpoints, activity))
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        prot = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
+
+        # group by ddmendpoint
+        ddmprot = {}
+        for e in prot:
+            ddmprot.setdefault(e['ddm'], []).append(e)
 
         output = []
 
         for ddm in ddmendpoints:
             protocols = ddmprot.get(ddm)
             if not protocols:
-                self.log('Failed to resolve protocols data for ddmendpoint=%s .. skipped processing..' % ddm)
+                self.log('Failed to resolve protocols data for ddmendpoint=%s and activity=%s.. skipped processing..' % (ddm, activity))
                 continue
 
             success_transfers, failed_transfers = [], []
@@ -206,13 +212,15 @@ class JobMover(object):
         # get SURL for Panda calback registration
         # resolve from special protocol activity=SE # fix me later to proper name of activitiy=SURL (panda SURL, at the moment only 2-letter name is allowed on AGIS side)
 
-        surl_prot = [dict(se=e[0], se_path=e[2]) for e in sorted(self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
+        surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
 
         if not surl_prot:
             self.log('FAILED to resolve default SURL path for ddmendpoint=%s' % ddmendpoint)
             return [], []
 
         surl_prot = surl_prot[0] # take first
+        self.log("SURL protocol to be used: %s" % surl_prot)
+
 
         self.trace_report.update(localSite=ddmendpoint, remoteSite=ddmendpoint)
 
@@ -221,8 +229,7 @@ class JobMover(object):
 
         for dat in protocols:
 
-            copytool = dat.get('copytool') or 'xrdcp' # quick stub : to be implemented later
-            copysetup = dat.get('copysetup') or '/cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' # quick stub : to be implemented later
+            copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
             try:
                 sitemover = getSiteMover(copytool)(copysetup)
@@ -237,7 +244,7 @@ class JobMover(object):
             self.trace_report.update(protocol=copytool)
             sitemover.trace_report = self.trace_report
 
-            se, se_path = dat.get('se', ''), dat.get('se_path', '')
+            se, se_path = dat.get('se', ''), dat.get('path', '')
 
             self.log("Found N=%s files to be transferred: %s" % (len(files), [e.get('pfn') for e in files]))
 
@@ -245,7 +252,7 @@ class JobMover(object):
                 scope, lfn, pfn = fdata.get('scope', ''), fdata.get('lfn'), fdata.get('pfn')
                 guid = fdata.get('guid', '')
 
-                surl = sitemover.getSURL(surl_prot.get('se'), surl_prot.get('se_path'), scope, lfn, self.job) # job is passing here for possible JOB specific processing
+                surl = sitemover.getSURL(surl_prot.get('se'), surl_prot.get('path'), scope, lfn, self.job) # job is passing here for possible JOB specific processing
                 turl = sitemover.getSURL(se, se_path, scope, lfn, self.job) # job is passing here for possible JOB specific processing
 
                 self.trace_report.update(scope=scope, dataset=fdata.get('dsname_report'), url=surl)
