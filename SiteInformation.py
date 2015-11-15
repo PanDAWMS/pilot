@@ -1390,7 +1390,7 @@ class SiteInformation(object):
         ddmconf_sources = {'CVMFS': {'url': '/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmendpoints.json',
                                      'nretry': 1,
                                      'fname': os.path.join(base_dir, 'agis_ddmendpoints.cvmfs.json')},
-                           'AGIS':  {'url':'http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&preset=dict&ddmendpoint=%s' % ','.join(ddmendpoints),
+                           'AGIS':  {'url':'http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&preset=dict&ddmendpoint=%s' % ','.join(ddmendpoints),
                                      'nretry':3,
                                      'fname': os.path.join(base_dir, 'agis_ddmendpoints.agis.%s.json' % ('_'.join(sorted(ddmendpoints)) or 'ALL'))},
                            'PANDA' : None
@@ -1419,8 +1419,8 @@ class SiteInformation(object):
 
     def resolveDDMConf(self, ddmendpoints):
 
-        if not ddmendpoints:
-            return {}
+        #if not ddmendpoints:
+        #    return {}
 
         self.ddmconf = self.loadDDMConfData(ddmendpoints, cache_time=6000) or {} # quick stub: fix me later: ddmconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
 

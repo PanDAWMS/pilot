@@ -98,6 +98,152 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
 
     return dsname, dsdict, rucio_dataset_dictionary
 
+
+# new mover implementation:
+# keep the list of input arguments as is for smooth migration
+def get_data_new(job,
+                 jobSite,
+                 ins,              # ignored, not used anymore, use job.inData instead
+                 stageinTries,
+                 analysisJob=False, # ignored, not used anymore (use job.isAnalysisJob instead)
+                 usect=True,       # ignored, not used anymore
+                 pinitdir="",
+                 proxycheck=True,  # TODO
+                 inputDir="",      # for mv mover??
+                 workDir="",
+                 pfc_name="PoolFileCatalog.xml"
+                 ):
+
+    """
+    call the mover and stage-in input files
+    :backward compatible return:  (ec, pilotErrorDiag, None (statusPFCTurl), FAX_dictionary)
+    """
+
+    tolog("Mover get data started")
+
+    # new implementation
+    from PilotErrors import PilotException
+
+    from movers import JobMover
+    from movers.trace_report import TraceReport
+
+    si = getSiteInformation(job.experiment)
+    si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
+
+    mover = JobMover(job, si, workDir=workDir, stageinretry=stageinTries)
+
+    eventType = "get_sm"
+    if job.isAnalysisJob():
+        eventType += "_a"
+
+    mover.trace_report = TraceReport(localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
+    mover.trace_report.init(job)
+
+    try:
+        output = mover.stagein()
+    except PilotException, e:
+        return e.code, str(e), None, {}
+    except Exception, e:
+        return PilotError.ERR_STAGEINFAILED, 'STAGEIN FAILED, exception=%s' % str(e), None, {}
+
+    tolog("Mover get data finished")
+    job.print_infiles()
+
+
+    # prepare compatible output
+    tfiles = [e for e in self.job.inData if e.status == 'transferred']
+
+    FAX_dictionary = dict(N_filesWithFAX=0, bytesWithFAX=0, usedFAXandDirectIO=False)
+    FAX_dictionary['bytesWithoutFAX'] = reduce(lambda x, y: x + y.filesize, tfiles, 0)
+    FAX_dictionary['N_filesWithoutFAX'] = len(tfiles)
+
+    return 0, "", None, FAX_dictionary
+
+
+    # cleaned old logic
+
+    pilotErrorDiag = ""
+    ec = 0
+
+    # The relevant FAX variables will be stored in a dictionary, to be returned by this function
+    FAX_dictionary = {}
+
+    # if mover_get_data() fails to create a TURL based PFC, the returned statusPFCTurl will be False, True if succeeded and None if not used
+    statusPFCTurl = None
+
+    # create the local access and scope dictionaries
+    access_dict = createZippedDictionary(job.inFiles, job.prodDBlockToken)
+    scope_dict = createZippedDictionary(job.inFiles, job.scopeIn)
+
+    try:
+        # get all proper dataset names
+        dsname, dsdict, rucio_dataset_dictionary = getProperDatasetNames(job.realDatasetsIn, job.prodDBlocks, job.inFiles)
+
+        # define the Pool File Catalog name, which can be different for event service jobs (PFC.xml vs PoolFileCatalog.xml)
+        inputpoolfcstring = "xmlcatalog_file:%s" % pfc_name
+
+        tolog("Calling get function with dsname=%s, dsdict=%s" % (dsname, dsdict))
+
+        rc, pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
+            _mover_get_data_new(ins, job.workdir, jobSite.sitename, jobSite.computingElement, stageinTries, dsname=dsname, sourceSite=job.sourceSite,\
+                           dsdict=dsdict, guids=job.inFilesGuids, analysisJob=job.isAnalysisJob(), usect=usect, pinitdir=pinitdir,\
+                           proxycheck=proxycheck, spsetup=job.spsetup, tokens=job.dispatchDBlockToken, userid=job.prodUserID,\
+                           access_dict=access_dict, inputDir=inputDir, jobId=job.jobId, DN=job.prodUserID, workDir=workDir,\
+                           scope_dict=scope_dict, jobDefId=job.jobDefinitionID, dbh=None, jobPars=job.jobPars, cmtconfig=job.cmtconfig,\
+                           filesizeIn=job.filesizeIn, checksumIn=job.checksumIn, transferType=job.transferType, experiment=job.experiment,\
+                           eventService=job.eventService, inputpoolfcstring=inputpoolfcstring, rucio_dataset_dictionary=rucio_dataset_dictionary, job=job, jobSite=jobSite)
+
+        tolog("Get function finished with exit code %d" % rc)
+
+    except SystemError, e:
+        pilotErrorDiag = "Get function for input files is interrupted by SystemError: %s" % e
+        tolog("!!FAILED!!3000!! Exception caught: %s" % pilotErrorDiag)
+        ec = PilotErrors.ERR_KILLSIGNAL
+
+    except Exception, e:
+        pilotErrorDiag = "Get function can not be called for staging input files: %s" % e
+        tolog("!!FAILED!!3000!! Exception caught: %s" % pilotErrorDiag)
+        if str(e).find("No space left on device") >= 0:
+            tolog("!!FAILED!!3000!! Get error: No space left on local disk (%s)" % pinitdir)
+            ec = PilotErrors.ERR_NOLOCALSPACE
+        else:
+            ec = PilotErrors.ERR_GETDATAEXC
+
+        # write traceback info to stderr
+        import traceback
+        exc, msg, tb = sys.exc_info()
+        traceback.print_tb(tb)
+
+    else:
+        if pilotErrorDiag != "": # tail error message??
+            pilotErrorDiag = "Get error: " + pilotErrorDiag[-256-len("Get error: "):]
+
+        if rc: # get failed, non-zero return code
+            # this error is currently not being sent from Mover (see next error code)
+            if rc == PilotErrors.ERR_FILEONTAPE:
+                tolog("!!WARNING!!3000!! Get error: Input file is on tape (will be skipped for analysis job)")
+                if job.isAnalysisJob():
+                    tolog("Skipping input file")
+                    ec = 0
+                else:
+                    pass # a prod job should not generate this error
+            else:
+                ec = rc
+                if pilotErrorDiag == "":
+                    pilotErrorDiag = PilotErrors.getPilotErrorDiag(ec)
+                tolog("!!FAILED!!3000!! %s" % pilotErrorDiag)
+
+            if ec:
+                tolog("!!FAILED!!3000!! Get returned a non-zero exit code (%d), will now update local pilot TCP server" % ec)
+        else: # get_data finished correctly, print input files
+
+            job.print_infiles()
+
+
+    return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
+
+
+@use_newmover(get_data_new)
 def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pinitdir="", proxycheck=True, inputDir="", workDir="", pfc_name="PoolFileCatalog.xml"):
     """ call the mover and stage-in input files """
 
@@ -1559,7 +1705,7 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
 
     return status
 
-def getDBReleaseVersion(dbh, jobPars):
+def getDBReleaseVersion(dbh, jobPars): # extra-wrapper function, to be deprecated?
     """ Get the DBRelease version from the job parameters """
 
     return dbh.getDBReleaseVersion(jobPars=jobPars)
@@ -1572,22 +1718,25 @@ def isDBReleaseFile(dbh, lfn):
     else:
         return False
 
-def isDBReleaseAvailable(dbh, version, lfns, jobPars):
+def isDBReleaseAvailable(dbh, version, lfns, jobPars=None):
     """ Check if the DBRelease file is available locally """
 
-    DBReleaseIsAvailable = False
-    if version == "":
-        tolog("Job parameters did not specify a DBRelease version (can not verify local availability)")
-    else:
-        for lfn in lfns:
-            if isDBReleaseFile(dbh, lfn):
-                tolog("Found a DBRelease file in the input file list (will check local availability)")
+    if not dbh:
+        return False
 
-                # is the requested DBRelease file available locally?
-                if dbh.isDBReleaseAvailable(version):
-                    tolog("%s is available locally (will not be staged-in)" % (lfn))
-                    DBReleaseIsAvailable = True
-                    break
+    if not version:
+        tolog("Job parameters did not specify a DBRelease version (can not verify local availability)")
+        return False
+
+    DBReleaseIsAvailable = False
+    for lfn in lfns:
+        if dbh.extractVersion(lfn):
+            tolog("Found a DBRelease file in the input file list (will check local availability)")
+
+            if dbh.isDBReleaseAvailable(version): # is the requested DBRelease file available locally?
+                tolog("%s is available locally (will not be staged-in)" % lfn)
+                DBReleaseIsAvailable = True
+                break # check remaining lfns ???
 
     return DBReleaseIsAvailable
 
@@ -1609,19 +1758,34 @@ def handleDBRelease(dbh, lfns, jobPars, path):
     """ Check if the DBRelease file is locally available, if so, create the skeleton file """
 
     # get the DBRelease version from the job parameters
-    version = getDBReleaseVersion(dbh, jobPars)
-    if version != "":
-        tolog("DBRelease version from job parameters: %s" % (version))
-    else:
+    version = dbh.getDBReleaseVersion(jobPars)
+
+    if not version:
         tolog("No DBRelease info found in job parameters")
+
+    return False
+
+    tolog("DBRelease version from job parameters: %s" % version)
 
     # is the DBRelease locally available?
     DBReleaseIsAvailable = isDBReleaseAvailable(dbh, version, lfns, jobPars)
 
+
+    DBReleaseIsAvailable = False
+    for lfn in lfns:
+        if dbh.extractVersion(lfn):
+            tolog("Found a DBRelease file in the input file list (will check local availability)")
+
+            if dbh.isDBReleaseAvailable(version): # is the requested DBRelease file available locally?
+                tolog("%s is available locally (will not be staged-in)" % lfn)
+                DBReleaseIsAvailable = True
+                break # check remaining lfns ???
+
+
     # create the skeleton DBRelease file in the work directory
     if DBReleaseIsAvailable:
         for lfn in lfns:
-            if isDBReleaseFile(dbh, lfn):
+            if dbh.extractVersion(lfn):
                 if createdSkeletonDBRelease(dbh, version, path):
                     break
                 else:
@@ -1964,6 +2128,395 @@ def getSurlTokenDictionary(lfns, tokens):
         tolog("!!WARNING!!2233!! Cannot create dictionary from lists of different lengths: %s, %s" % (str(lfns), str(tokens)))
 
     return dictionary
+
+
+#
+def _mover_get_data_new(lfns,                       #  use job.inData instead
+                        path,                       # --> job.workdir instead
+                        sitename,                   # --> jobSite.sitename
+                        queuename,                  # --> jobSite.computingElement
+                        stageinTries,
+                        inputpoolfcstring="xmlcatalog_file:PoolFileCatalog.xml",
+                        ub="outdated", # to be removed
+                        dsname="",
+                        dsdict={},
+                        rucio_dataset_dictionary={},
+                        guids=[],                   # --> job.inFilesGuids
+                        analysisJob=False,          # --> job.isAnalysisJob()
+                        usect=True,
+                        pinitdir="",
+                        proxycheck=True,
+                        spsetup="",                 # --> job.spsetup
+                        tokens=[],                  # --> job.dispatchDBlockToken
+                        userid="",                  # --> job.prodUserID
+                        inputDir="",
+                        jobId=None,                 # --> job.jobId
+                        jobDefId="",                # --> job.jobDefinitionID
+                        access_dict=None,
+                        scope_dict=None,
+                        workDir="",
+                        DN=None,                   # --> job.prodUserID
+                        dbh=None, # not used
+                        jobPars="",                # --> job.jobPars
+                        cmtconfig="",              # --> job.cmtconfig
+                        filesizeIn=[],             # --> job.filesizeIn
+                        checksumIn=[],             # --> job.checksumIn
+                        transferType=None,         # --> job.transferType
+                        experiment="",             # --> job.experiment
+                        eventService=False,        # --> job.eventService
+                        sourceSite="",             # --> job.sourceSite
+                        job={},
+                        jobSite={}):
+    """
+    This method is called by a job to get the required input data.
+    The parameters passed are a list of LFNs, working directory path, site name,
+    and a connection string to the poolfile catalog to fill with
+    input data (if none given the default is xmlcatalog_file:PoolFileCatalog.xml).
+    The local destination directory (working directory path) should already exist,
+    or the copy will fail.
+
+    The program stops at the first failed transfer (after retries) and the PFC
+    contains the files that were transferred correctly, an error message is returned.
+
+    :backward compatible return: (ec, pilotErrorDiag, None (statusPFCTurl), FAX_dictionary)
+    """
+
+    # cleaned old logic is below
+
+    # quick stub variables: FIX ME later
+    lfns = [e.lfn for e in job.inData]
+    path = job.workdir
+    experiment = job.experiment
+
+    # Is the DBRelease file available locally?
+    # create the handler for the potential DBRelease file (the DBRelease file will not be transferred on CVMFS)
+    from DBReleaseHandler import DBReleaseHandler
+    dbh = DBReleaseHandler(workdir=job.workdir)
+    DBReleaseIsAvailable = handleDBRelease(dbh, lfns, job.jobPars, path)
+
+    # Should stage-in be aborted? (if there are only locally available DBRelease files in the stage-in list)
+    if abortStageIn(dbh, lfns, DBReleaseIsAvailable):
+        return 0, "", None, {}
+
+
+    # FAX_dictionary (FAX counters) (will be reported in jobMetrics; only relevant when FAX has been activated after a stage-in failure)
+    FAX_dictionary = dict(N_filesWithoutFAX=0, N_filesWithFAX=0, bytesWithoutFAX=0L, bytesWithFAX=0L)
+    FAX_dictionary['usedFAXandDirectIO'] = False # FAX control variable, if FAX is used as primary site mover in combination with direct I/O
+
+    from movers.trace_report import TraceReport
+
+    eventType = "get_sm"
+    if analysisJob:
+        eventType += "_a"
+
+    trace_report = TraceReport(localSite=sitename, remoteSite=sitename, dataset=dsname, eventType=eventType)
+    trace_report.init(job)
+
+    # Setup the dictionary necessary for all instrumentation
+    report = getInitialTracingReport(userid, sitename, dsname, "get_sm", analysisJob, jobId, jobDefId, DN)
+
+    get_RETRY = stageinTries or MAX_RETRY
+    get_RETRY = min(get_RETRY, MAX_NUMBER_OF_RETRIES)
+    get_TIMEOUT = 5*3600/get_RETRY
+
+    # Select the correct mover
+    copycmd, setup = getCopytool(mode="get")
+
+    # Get the sitemover object corresponding to the default copy command
+    sitemover = getSiteMover(copycmd, setup) # to be patched: job args should be passed here
+    sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
+
+    # Get the name for the PFC file
+    pfc_path = path
+    if eventService: # eventservice case (create the PFC in one level above the payload workdir)
+        pfc_path = os.path.abspath(os.path.join(path, '..'))
+    pfc_name = getPFCName(pfc_path, inputpoolfcstring)
+
+    # Build the file info dictionary (use the filesize and checksum from the dispatcher if possible) and create the PFC
+    # Format: fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, copytool)
+    #         replicas_dic[guid1] = [ replica1, .. ] where replicaN is an object of class replica
+    ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source = \
+        getFileInfo(readpar('region'), ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, PilotErrors(), path, dbh, DBReleaseIsAvailable,\
+                    scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=getExperiment(job.experiment),\
+                        computingSite=sitename, sourceSite=sourceSite, ddmEndPointIn=job.ddmEndPointIn)
+    if ec: # failed
+        return ec, pilotErrorDiag, None, {}
+
+    # Until the Mover PFC file is no longer needed, call the TURL based PFC "PoolFileCatalogTURL.xml"
+    pfc_name_turl = pfc_name.replace(".xml", "TURL.xml")
+
+    # Create a TURL based PFC if necessary/requested (i.e. if copy tool should not be used [useCT=False] and
+    # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
+    if xml_source != "FAX":
+        tokens_dictionary = getSurlTokenDictionary(lfns, tokens) # Create a SURL to space token dictionary
+        ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict)
+        if ec: # error
+            return ec, pilotErrorDiag, None, {}
+    else:
+        tolog("(Skipping PFC4TURL call since it is not necessary in FAX mode)")
+        createdPFCTURL = True
+
+    # Correct the total file size for the DBRelease file if necessary
+    totalFileSize = correctTotalFileSize(totalFileSize, fileInfoDic, lfns, dbh, DBReleaseIsAvailable)
+
+    if usect: # apply file size checks, # Only bother with the size checks if the copy tool is to be used (non-direct access mode)
+
+        _maxinputsize = getMaxInputSize() # Get a proper maxinputsize from schedconfig/default
+
+        # verify total input file size
+        if _maxinputsize and totalFileSize > _maxinputsize:
+            pilotErrorDiag = "Too many/too large input files. Total file size %d B > %d B" % (totalFileSize, _maxinputsize)
+            tolog("Mover get_data finished (failed): error=%s" % pilotErrorDiag)
+            return PilotError.ERR_SIZETOOLARGE, pilotErrorDiag, None, {}
+
+        tolog("Total input file size=%d B within allowed limit=%d B (zero value means unlimited)" % (totalFileSize, _maxinputsize))
+
+        # Do we have enough local space to stage in all data and run the job?
+        ec, pilotErrorDiag = verifyAvailableSpace(sitemover, totalFileSize, path, PilotErrors())
+        if ec:
+            return ec, pilotErrorDiag, None, {}
+
+    # Get the replica dictionary from file (used when the primary replica can not be staged due to some temporary error)
+    replica_dictionary = getReplicaDictionaryFile(path)
+
+    # file counters
+    N_files_on_tape = 0
+    N_root_files = 0
+    N_non_root_files = 0
+
+    # If FAX is used as a primary site mover then set the default FAX mode to true, otherwise to false (normal mode)
+    usedFAXMode = (copycmd == "fax")
+
+    fail = 0
+    guidfname = {}
+
+    # transfer files
+
+    tolog("Files will be transferred one by one")
+
+    # Loop over all files in the file info dictionary
+    number_of_files = len(fileInfoDic)
+    tolog("Will process %d file(s)" % number_of_files)
+
+    for nr in range(number_of_files):
+
+        # Extract the file info from the dictionary
+        guid, gpfn, lfn, fsize, fchecksum, filetype, copytool = extractInputFileInfo(fileInfoDic[nr], lfns)
+
+        # Has the copycmd/copytool changed? (E.g. due to FAX) If so, update the sitemover object
+        if copytool != copycmd:
+            copycmd = copytool
+            # Get the sitemover object corresponding to the new copy command
+            sitemover = getSiteMover(copycmd, setup) # to be patched: job args should be passed here
+            sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
+
+            tolog("Site mover object updated since copytool has changed")
+
+        # Update the dataset name
+        dsname = getDataset(lfn, dsdict)
+        scope = getFileScope(scope_dict, lfn)
+
+        # Update the tracing report with the proper container/dataset name
+        proper_dsname = getDataset(lfn, rucio_dataset_dictionary)
+        report = updateReport(report, gpfn, proper_dsname, fsize, sitemover)
+        report['scope'] = scope
+
+        # The DBRelease file might already have been handled, go to next file
+        if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
+            updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", type="input")
+            guidfname[guid] = lfn # needed for verification below
+            continue
+        else:
+            tolog("(Not a DBRelease file)")
+
+        tolog("Mover is preparing to copy file %d/%d (lfn: %s guid: %s dsname: %s)" % (nr+1, number_of_files, lfn, guid, dsname))
+        tolog('Copying %s to %s (file catalog checksum: \"%s\", fsize: %s) using %s (%s)' % (gpfn, path, fchecksum, fsize, sitemover.getID(), sitemover.getSetup()))
+
+        # Get the number of replica retries
+        get_RETRY_replicas = getNumberOfReplicaRetries(createdPFCTURL, replica_dictionary, guid)
+
+        file_access = getFileAccess(access_dict, lfn)
+
+        # Loop over get function to allow for multiple get attempts for a file
+        will_use_direct_io = False
+        get_attempt = 0
+
+        #get_RETRY = 1 #2 #PN
+        while get_attempt < get_RETRY:
+            if get_attempt > 0:
+                _rest = 5*60
+                tolog("(Waiting %d seconds before next stage-in attempt)" % (_rest))
+                sleep(_rest)
+            tolog("Get attempt %d/%d" % (get_attempt + 1, get_RETRY))
+            replica_number = 0
+            replica_transferred = False
+            s = 1
+
+            # Loop over replicas
+            while s != 0 and replica_number < get_RETRY_replicas:
+
+                # Grab the gpfn from the replicas dictionary in case alternative replica stage-in is allowed
+                gpfn = getAlternativeReplica(gpfn, guid, replica_number, createdPFCTURL, replica_dictionary)
+
+                # Perform stage-in using the sitemover wrapper method
+                s, pErrorText, N_files_on_tape, N_root_files, N_non_root_files, replica_transferred, will_use_direct_io = sitemover_get_data(sitemover, PilotErrors(),\
+                                                                                                                         get_RETRY, get_RETRY_replicas, get_attempt,\
+                                                                                                                         replica_number, N_files_on_tape, N_root_files,\
+                                                                                                                         N_non_root_files, gpfn, lfn, path,\
+                                                                                                                         fsize=fsize, spsetup=spsetup, fchecksum=fchecksum,\
+                                                                                                                         guid=guid, analysisJob=analysisJob, usect=usect,\
+                                                                                                                         pinitdir=pinitdir, proxycheck=proxycheck,\
+                                                                                                                         sitename=sitename, token=None, timeout=get_TIMEOUT,\
+                                                                                                                         dsname=dsname, userid=userid, report=report,\
+                                                                                                                         access=file_access, inputDir=inputDir, jobId=jobId,\
+                                                                                                                         workDir=workDir, cmtconfig=cmtconfig,\
+                                                                                                                         experiment=experiment, scope_dict=scope_dict,\
+                                                                                                                         sourceSite=sourceSite)
+                # Get out of the multiple replica loop
+                if replica_transferred:
+                    break
+
+                # Increase the replica attempt counter in case the previous replica could not be transferred
+                replica_number += 1
+
+            # Get out of the multiple get attempt loop
+            if replica_transferred:
+                break
+
+            # Increase the get attempt counter in case of failure to transfer the file
+            get_attempt += 1
+
+        # Increase the successful file transfer counter (used only when reporting FAX transfers)
+        if s == 0: # note the special case if FAX is the primary site mover (normally FAX is the fallback)
+            if sitemover.copyCommand == "fax":
+                FAX_dictionary['N_filesWithFAX'] += 1
+                FAX_dictionary['bytesWithFAX'] += long(fsize)
+            else: # Normal case
+                FAX_dictionary['N_filesWithoutFAX'] += 1
+                FAX_dictionary['bytesWithoutFAX'] += long(fsize)
+
+        if s != 0:
+            # Normal stage-in failed, now try with FAX if possible
+            if PilotErrors.isPilotFAXErrorCode(s):
+                if isFAXAllowed(filetype, gpfn) and transferType != "fax" and sitemover.copyCommand != "fax": # no point in trying to fallback to fax if the fax transfer above failed
+                    tolog("Normal stage-in failed, will attempt to use FAX")
+                    usedFAXMode = True
+
+                    # Get the FAX site mover
+                    old_sitemover = sitemover
+                    sitemover = getSiteMover("fax", "") # to be patched: job args should be passed here
+                    sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
+
+                    # Perform stage-in using the sitemover wrapper method
+                    s, pErrorText, N_files_on_tape, N_root_files, N_non_root_files, replica_transferred, will_use_direct_io = sitemover_get_data(sitemover, PilotErrors(),\
+                                                                                                                             get_RETRY, get_RETRY_replicas, get_attempt, replica_number,\
+                                                                                                                             N_files_on_tape, N_root_files, N_non_root_files,\
+                                                                                                                             gpfn, lfn, path,\
+                                                                                                                             fsize=fsize, spsetup=spsetup, fchecksum=fchecksum,\
+                                                                                                                             guid=guid, analysisJob=analysisJob, usect=usect,\
+                                                                                                                             pinitdir=pinitdir, proxycheck=proxycheck,\
+                                                                                                                             sitename=sitename, token=None, timeout=get_TIMEOUT,\
+                                                                                                                             dsname=dsname, userid=userid, report=report,\
+                                                                                                                             access=file_access, inputDir=inputDir, jobId=jobId,\
+                                                                                                                             workDir=workDir, cmtconfig=cmtconfig, experiment=experiment,\
+                                                                                                                             scope_dict=scope_dict, sourceSite=sourceSite)
+                    if replica_transferred:
+                        tolog("FAX site mover managed to transfer file from remote site (resetting error code to zero)")
+                        pilotErrorDiag = ""
+                        s = 0
+
+                        # Increase the successful FAX transfer counter
+                        FAX_dictionary['N_filesWithFAX'] += 1
+                        FAX_dictionary['bytesWithFAX'] += long(fsize)
+                    else:
+                        tolog("FAX site mover also failed to transfer file from remote site, giving up")
+
+                    # restore the old sitemover
+                    del sitemover
+                    sitemover = old_sitemover
+            else:
+                tolog("(Not an error code eligible for FAX fail-over)")
+
+        if s != 0:
+            tolog('!!FAILED!!2999!! Failed to transfer %s: %s (%s)' % (os.path.basename(gpfn), s, error.getErrorStr(s)))
+            tolog("Exit code: %s" % (s))
+
+            # report corrupt file to consistency server if needed
+            if s in [PilotErrors.ERR_GETADMISMATCH, PilotErrors.ERR_GETMD5MISMATCH, PilotErrors.ERR_GETWRONGSIZE, PilotErrors.ERR_NOSUCHFILE]:
+                reportFileCorruption(gpfn, sitemover)
+
+            # exception for object stores
+            if (gpfn.startswith("s3:") or 'objectstore' in gpfn) and '.log.tgz' in gpfn:
+                tolog("!!FAILED!!2999!! Failed to transfer a log file from S3 objectstore. Will skip it and continue the job.")
+            else:
+                fail = s
+                break
+
+        # Build the dictionary used to create the PFC for the TRF
+        # In the case of FAX, use the global paths if direct access is to be used for the particlar file
+        if usedFAXMode and will_use_direct_io:
+            # The site mover needed here is the FAX site mover since the global file path methods are defined there only
+            old_sitemover = sitemover
+            sitemover = getSiteMover("fax", "") # to be patched: job args should be passed here
+            sitemover.init_data(job) # quick hack to avoid nested passing arguments via ALL execution stack: TO BE fixed and properly implemented later in constructor
+            guidfname[guid] = sitemover.findGlobalFilePath(lfn, scope, dsname, sitename, sourceSite)
+
+            # Restore the old sitemover
+            del sitemover
+            sitemover = old_sitemover
+
+            # If FAX is used as a primary site mover, in combination with direct access, set the usedFAXandDirectIO flag
+            # this will later be used to update the run command (e.g. --lfcHost is not needed etc)
+            if copycmd == "fax":
+                FAX_dictionary['usedFAXandDirectIO'] = True
+        else:
+            guidfname[guid] = lfn # local_file_name
+
+    if fail == 0:
+        # Make sure the PFC has the correct number of files
+        fail, pilotErrorDiag = verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, PilotErrors())
+
+    # Now that the Mover PFC file is no longer needed, back it up and rename the TURL based PFC if it exists
+    # (the original PFC is no longer needed. Move it away, and then create the PFC for the trf/runAthena)
+    # backupPFC4Mover(pfc_name)
+
+    # Create a standard PFC with SURLs if needed (basically this is default)
+    # note: if FAX was used as a primary site mover in combination with direct I/O, then the SURLs will actually be TURLs
+    # but there is no need to use the special TURL creation method PFC4TURL used above (FAX will have returned the TURLs instead)
+    createStandardPFC4TRF(createdPFCTURL, pfc_name_turl, pfc_name, guidfname)
+
+    tolog("Number of identified root files     : %d" % (N_root_files))
+    tolog("Number of transferred non-root files: %d" % (N_non_root_files))
+
+    if usedFAXMode:
+        tolog("Number of files without FAX         : %d (normal transfers)" % FAX_dictionary('N_filesWithoutFAX'))
+        tolog("Number of files with FAX            : %d (successful FAX transfers)" % FAX_dictionary.get('N_filesWithFAX'))
+        tolog("Bytes without FAX                   : %d (normal transfers)" % FAX_dictionary.get('bytesWithoutFAX'))
+        tolog("Bytes with FAX                      : %d (successful FAX transfers)" % FAX_dictionary.get('bytesWithFAX'))
+
+    if N_files_on_tape > 0:
+        tolog("!!WARNING!!2999!! Number of skipped files: %d (not staged)" % (N_files_on_tape))
+        if N_root_files == 0:
+            # This should only happen for user jobs
+            tolog("Mover get_data failed since no root files could be transferred")
+            fail = PilotErrors.ERR_NOSTAGEDFILES
+        else:
+            tolog("Mover get_data finished (partial)")
+    else:
+        if fail == 0:
+            tolog("Get successful")
+            tolog("Mover get_data finished")
+        else:
+            tolog("Mover get_data finished (failed)")
+
+    tolog("Will return exit code = %d, pilotErrorDiag = %s" % (fail, pilotErrorDiag))
+
+
+    statusPFCTurl = None # is None always in old logic
+
+    return fail, pilotErrorDiag, statusPFCTurl, FAX_dictionary
+
+#
 
 def mover_get_data(lfns,
                    path,
