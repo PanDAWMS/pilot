@@ -343,10 +343,10 @@ class ATLASSiteInformation(SiteInformation):
 
         # Get the LFC path
         lfcpath, pilotErrorDiag = sitemover.getLFCPath(analyJob, alt=alt)
-        if lfcpath == "":
-            tracer_error = 'LFC_PATH_EMPTY'
-            ec = error.ERR_STAGEOUTFAILED
-            return ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl
+#        if lfcpath == "":
+#            tracer_error = 'LFC_PATH_EMPTY'
+#            ec = error.ERR_STAGEOUTFAILED
+#            return ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl
 
         tolog("LFC path = %s" % (lfcpath))
         # /grid/atlas/users/pathena

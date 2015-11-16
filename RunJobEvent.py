@@ -963,8 +963,7 @@ class RunJobEvent(RunJob):
                 tolog("...exitMsg=%s" % (exitMsg))
 
                 # Ignore special trf error for now
-                if (exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL") or (exitCode == 68 and exitAcronym == "TRF_EXEC_LOGERROR") or (exitCode == 66 and exitAcronym == "TRF_EXEC_VALIDATION_FAIL") or \
-                        (exitCode == 11 and exitAcronym == "TRF_OUTPUT_FILE_ERROR"):
+                if (exitCode == 65 and exitAcronym == "TRF_EXEC_FAIL") or (exitCode == 68 and exitAcronym == "TRF_EXEC_LOGERROR") or (exitCode == 66 and exitAcronym == "TRF_EXEC_VALIDATION_FAIL") or (exitCode == 11 and exitAcronym == "TRF_OUTPUT_FILE_ERROR"):
                     exitCode = 0
                     exitAcronym = ""
                     exitMsg = ""
@@ -2263,16 +2262,18 @@ if __name__ == "__main__":
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
 
         # Tell AthenaMP the name of the yampl channel
-        if runJob.useTokenExtractor():
-            if not "--preExec" in runCommandList[0]:
-                runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
-            else:
-                if "import jobproperties as jps" in runCommandList[0]:
-                    runCommandList[0] = runCommandList[0].replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
-                else:
-                    runCommandList[0] = runCommandList[0].replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+        if not "--preExec" in runCommandList[0]:
+            runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
         else:
-            runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";\'" % (runJob.getYamplChannelName())
+            if "import jobproperties as jps" in runCommandList[0]:
+                runCommandList[0] = runCommandList[0].replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+            else:
+                if "--preExec \'" in runCommandList[0]:
+                    runCommandList[0] = runCommandList[0].replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+                elif '--preExec \"' in runCommandList[0]:
+                    runCommandList[0] = runCommandList[0].replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";' % (runJob.getYamplChannelName()))
+                else:
+                    tolog("!!WARNING!!43431! --preExec has an unknown format - expected \'--preExec \"\' or \"--preExec \'\", got: %s" % (runCommandList[0]))
 
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 
@@ -2369,7 +2370,7 @@ if __name__ == "__main__":
                             if not utility_subprocess.poll() is None:
                                 # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                                 tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                                utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                                utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
 
                         # Make sure that the token extractor is still running
                         if runJob.useTokenExtractor():
@@ -2418,7 +2419,7 @@ if __name__ == "__main__":
                     if not utility_subprocess.poll() is None:
                         # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                        utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                        utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
 
                 # Make sure that the token extractor is still running
                 if runJob.useTokenExtractor():

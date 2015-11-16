@@ -522,17 +522,7 @@ class ATLASExperiment(Experiment):
     def willDoFileLookups(self):
         """ Should (LFC) file lookups be done by the pilot or not? """
 
-        status = False
-
-        if readpar('lfchost') != "" and self.getFileLookups():
-            status = True
-
-        if status:
-            tolog("File lookups from %s" % (readpar('lfchost')))
-        else:
-            tolog("Will not do any file lookups")
-
-        return status
+        return self.getFileLookups()
 
     def willDoAlternativeFileLookups(self):
         """ Should file lookups be done using alternative methods? """

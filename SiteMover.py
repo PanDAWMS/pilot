@@ -356,7 +356,10 @@ class SiteMover(object):
         else:
             # Now get the alternativeName
             tolog("endpoint=%s"%endpoint)
-            alternativeName = TiersOfATLAS.getSiteProperty(endpoint, 'alternateName')[0]
+            try:
+                alternativeName = TiersOfATLAS.getSiteProperty(endpoint, 'alternateName')[0]
+            except:
+                tolog("!!WARNING!!5656!! TiersOfATLAS.getSiteProperty() failed to find alternativeName for %s" % (endpoint))
 
         return alternativeName
 
@@ -727,9 +730,10 @@ class SiteMover(object):
             _field3 = subdirs[2]   # '0915151927'
             prefixdir = os.path.join(_user, _username, _field3)
             destination = os.path.join(destination, prefixdir)
-            lfcdir = os.path.join(lfcpath, prefixdir, dsname)
+            if lfcpath != "":
+                lfcdir = os.path.join(lfcpath, prefixdir, dsname)
+                tolog("LFC dir: %s" % (lfcdir))
             tolog("SE destination: %s" % (destination))
-            tolog("LFC dir: %s" % (lfcdir))
         else:
             error = PilotErrors()
             ec = error.ERR_STAGEOUTFAILED
@@ -2115,146 +2119,6 @@ class SiteMover(object):
         return True
     isProd = staticmethod(isProd)
 
-    def getLFCDir(analyJob, destination, dsname, lfn):
-        """ setup the lfc path """
-
-        lfcpath, pilotErrorDiag = SiteMover.getLFCPath(analyJob)
-        if lfcpath == "":
-            return lfcpath, pilotErrorDiag
-
-        tolog("Got lfcpath: %s" % (lfcpath))
-
-        # set up paths differently for analysis and production jobs
-        # use conventional LFC paths or production jobs
-        # use OSG style for analysis jobs (for the time being)
-        if not analyJob:
-            # return full lfc file path (beginning lfcpath might need to be replaced)
-            native_lfc_path = SiteMover.to_native_lfn(dsname, lfn)
-            # /grid/atlas/dq2/testpanda/testpanda.destDB.b7cd4b56-1b5e-465a-a5d7-38d5e2609724_sub01000457/
-            #58f836d5-ff4b-441a-979b-c37094257b72_0.job.log.tgz
-            tolog("Native_lfc_path: %s" % (native_lfc_path))
-
-            # replace the default path /grid/atlas/rucio with lfcpath if different
-            # (to_native_lfn returns a path begining with /grid/atlas/rucio)
-            default_lfcpath = '/grid/atlas/rucio' # to_native_lfn always returns this at the beginning of the string
-            if default_lfcpath != lfcpath:
-                final_lfc_path = native_lfc_path.replace(default_lfcpath, lfcpath)
-            else:
-                final_lfc_path = native_lfc_path
-
-            stripped_lfcpath = os.path.dirname(native_lfc_path[len(default_lfcpath):]) # the rest (to be added to the 'destination' variable)
-            # /testpanda/testpanda.destDB.b7cd4b56-1b5e-465a-a5d7-38d5e2609724_sub01000457/58f836d5-ff4b-441a-979b-c37094257b72_0.job.log.tgz
-            # tolog("stripped_lfcpath: %s" % (stripped_lfcpath))
-
-            # full file path for disk
-            if stripped_lfcpath[0] == "/":
-                stripped_lfcpath = stripped_lfcpath[1:]
-            destination = os.path.join(destination, stripped_lfcpath)
-            # /pnfs/tier2.hep.manchester.ac.uk/data/atlas/dq2/testpanda/testpanda.destDB.fcaf8da5-ffb6-4a63-9963-f31e768b82ef_sub01000345
-            # tolog("Updated SE destination: %s" % (destination))
-
-            # name of dir to be created in LFC
-            lfcdir = os.path.dirname(final_lfc_path)
-            # /grid/atlas/dq2/testpanda/testpanda.destDB.dfb45803-1251-43bb-8e7a-6ad2b6f205be_sub01000492
-            # LFC LFN = /grid/atlas/dq2/testpanda/testpanda.destDB.dfb45803-1251-43bb-8e7a-6ad2b6f205be_sub01000492/
-            #364aeb74-8b62-4c8f-af43-47b447192ced_0.job.log.tgz
-            # lfclfn = '%s/%s' % ( lfcdir, lfn )
-
-        else: # for analysis jobs
-
-            ec, pilotErrorDiag, destination, lfcdir = SiteMover.getUserLFCDir(destination, lfcpath, dsname)
-            if ec != 0:
-                return lfcdir, pilotErrorDiag
-
-#            pat = re.compile('([^\.]+\.[^\.]+)\..*')
-#            mat = pat.match(dsname)
-#            if mat:
-#                prefixdir = mat.group(1)
-#                destination = os.path.join(destination, prefixdir)
-#            else:
-#                pilotErrorDiag = "getLFCDir encountered unexpected dataset name format: %s" % (dsname)
-#                tolog('!!WARNING!!2990!! %s' % (pilotErrorDiag))
-#                return lfcdir, pilotErrorDiag
-#            tolog("SE destination: %s" % (destination))
-#
-#            lfcdir = '%s/%s/%s' % ( lfcpath, prefixdir, dsname )
-
-
-        return lfcdir, pilotErrorDiag
-
-    getLFCDir = staticmethod(getLFCDir)
-
-    def lfc_mkdir(lfcdir, fake=False):
-        """ create the lfc dir """
-
-        error = PilotErrors()
-        pilotErrorDiag = ""
-        ec = 0
-
-        cmd = 'echo "LFC_HOST=$LFC_HOST"; lfc-mkdir -m 0775 -p %s' % (lfcdir)
-        tolog("Executing command: %s" % (cmd))
-        try:
-            if fake:
-                raise Exception("fake exception in lfc-mkdir")
-            _ec, telapsed, cout, cerr = timed_command(cmd, 600)
-            tolog("_ec: %s" % _ec)
-            tolog("telapsed: %s" % telapsed)
-            tolog("cout: %s" % cout)
-            tolog("cerr: %s" % cerr)
-        except Exception, e:
-            pilotErrorDiag = "lfc-mkdir threw an exception: %s" % str(e)
-            tolog('!!FAILED!!2999!! %s' % (pilotErrorDiag))
-            ec = error.ERR_STAGEOUTFAILED
-        else:
-            rs = cout + cerr
-            if _ec != 0:
-                if is_timeout(_ec):
-                    pilotErrorDiag = "lfc-mkdir get was timed out after %d seconds" % (telapsed)
-                    ec = error.ERR_PUTTIMEOUT
-                elif rs == 'File exists':
-                    tolog("Ignore existing lfc dir error")
-                    ec = 0
-                elif rs == "Could not establish context":
-                    pilotErrorDiag = "Could not establish context: Proxy / VO extension of proxy has probably expired"
-                    tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-                    ec = error.ERR_NOPROXY
-                else:
-                    pilotErrorDiag = "lfc-mkdir failed: %s" % (rs)
-                    tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-                    ec = error.ERR_STAGEOUTFAILED
-            else:
-                tolog("Command output: %s" % (rs))
-
-        return ec, pilotErrorDiag
-    lfc_mkdir = staticmethod(lfc_mkdir)
-
-    def lcg_rf(lfclfn, r_gpfn):
-        """ register file in lfc using CLI """
-
-        error = PilotErrors()
-        pilotErrorDiag = ""
-        ec = 0
-
-        cmd = 'echo "LFC_HOST=$LFC_HOST"; lcg-rf --vo atlas -l lfn:%s %s' % (lfclfn, r_gpfn)
-        tolog("Executing command: %s" % (cmd))
-        try:
-            _ec, rs = commands.getstatusoutput(cmd)
-        except Exception, e:
-            pilotErrorDiag = "lcg-rf threw an exception: %s" % str(e)
-            tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-            ec = error.ERR_FAILEDLCGREG
-        else:
-            if _ec != 0:
-                pilotErrorDiag = "lcg-rf failed: %s" % (rs)
-                tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
-                ec = error.ERR_FAILEDLCGREG
-            else:
-                tolog("Command output: %s" % (rs))
-                tolog("LFC registration succeeded")
-
-        return ec, pilotErrorDiag
-    lcg_rf = staticmethod(lcg_rf)
-
     def getLFCPath(analyJob, alt=False):
         """ return the proper schedconfig lfcpath """
 
@@ -2272,7 +2136,7 @@ class SiteMover(object):
 
         if lfcpath == "":
             pilotErrorDiag = "lfc[prod]path is not set"
-            tolog('!!WARNING!!2990!! %s' % (pilotErrorDiag))
+            tolog('WARNING: %s' % (pilotErrorDiag))
 
         return lfcpath, pilotErrorDiag
     getLFCPath = staticmethod(getLFCPath)

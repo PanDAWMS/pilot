@@ -4,162 +4,6 @@ Complete change log for PanDA Pilot version PICARD
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-63.0
-
-Added ddmEndPointIn, ddmEndPointOut, ddmEndPointLog to Job class, and handling in displayJob() and setJobDef() (Job)
-Moved exception handling for utility subprocess from executePayload() to getUtilitySubprocess() (RunJob)
-Making sure that the subprocess is still running in executePayload() (RunJob)
-Setting memory info = -1 in case of file reading trouble or if memory summary file was not updated in less than 120 s in getUtilityInfo(). Reqested by Rodney Walker (PandaServerClient)
-Added error code 1234, ERR_EXECUTEDCLONEJOB: "Already executed clone job" (PilotErrors)
-Now using event range functions to determine whether a cloned job should be executed in executePayload() and __main__() (RunJob)
-Moved extractEventRanges() from RunJobEvent to RunJob (RunJob, RunJobEvent)
-Setting ATHENA_PROC_NUMBER to 1 on single code nodes in __main__() (RunJobEvent)
-Removed test method updatePilotErrorReport() and renamed updatePilotErrorReportTMP() to updatePilotErrorReport() (FileHandling)
-Now recognizing a cvmfs time out in getProperSiterootAndCmtconfig() (ATLASExperiment)
-Using updatePilotErrorReport to set the error priority in getJobExecutionCommand() (ATLASExperiment)
-Created optional getGUIDSourceFilename() (Experiment, ATLASExperiment)
-Added experiment argument to getOutFilesGuids() (RunJobUtilities)
-Now sending experiment name to getOutFilesGuids() in createFileMetadata() (RunJob)
-Importing getExperiment, getGUID (RunJobUtilities)
-Created shouldExecuteBenchmark() and executeBenchmark() (SiteInformation, ATLASSiteInformation)
-Moved getSiteInformation() to collect WN info section in runMain() (pilot)
-Created getBenchmarkDictionary() (Node)
-Now getting the benchmark dictionary in runMain() (pilot)
-Now setting job to failed in __killLoopingJob() for stuck stage-outs (Monitor)
-Added optional ddmEndPointIn argument to getPoolFileCatalog() (Mover)
-Created buildFAXPath() (Experiment)
-Sending optional computingSite and sourceSite to getFileInfo() from mover_get_data() (Mover)
-Added optional computingSite and sourceSite arguments to getFileInfo(), getPoolFileCatalog() (Mover)
-Sending optional computingSite and sourceSite to getPoolFileCatalog() from getFileInfo() (Mover)
-Created FAXTools module
-Moved _getFAXRedirectors() and getFAXRedirectors() from FAXSiteMover to FAXTools
-Moved updateRedirector() from FAXSiteMover to FAXTools
-Sending ddmEndPointIn to getPoolFileCatalog() from getFileInfo() (Mover)
-Added optional argument ddmEndPointIn to getPoolFileCatalog() (Mover)
-Sending ddmEndPointIn to getFileInfo() from mover_get_data() (Mover)
-Added optional argument ddmEndPointIn to getPoolFileCatalog() (RunJobEvent)
-Sending ddmEndPointIn to Mover::getPoolFileCatalog() from RunJobEvent::getPoolFileCatalog() (RunJobEvent)
-Added argument ddmEndPointIn to createPoolFileCatalog() (RunJobEvent)
-Sending ddmEndPointIn to Mover::getPoolFileCatalog() from RunJobEvent::createPoolFileCatalog() (RunJobEvent)
-Sending job.ddmEndPointIn to createPoolFileCatalog() from __main__() (RunJobEvent)
-Sending ddmEndPointIn to getPoolFileCatalog() from createPoolFileCatalogFromMessage() (RunJobEvent)
-Updated findGlobalFilePath() and getGlobalFilePaths() to accept already defined FAX paths (i.e. taken from PFC) (FAXSiteMover)
-Renamed file_list to file_dictionary in createPoolFileCatalog() (pUtil)
-Created storeWorkDirSize(), used by __checkWorkDir() (FileHandling, Monitor)
-Created getMaxWorkDirSize(), used by addToJobMetrics() (FileHandling, Node)
-Created getWorkDirSizeFilename() used by getMaxWorkDirSize() and storeWorkDirSize() (FileHandling)
-Added restart of utility subprocess and aborting job if token extractor has crashed at the end of the event range loop in __main__() (RunJobEvent)
-Aborting immediately if Token Extractor has died instead of waiting for AthenaMP to finish, in __main__() (RunJobEvent)
-Changed waiting time from 600 to 30, in __main__() (RunJobEvent)
-Removed outdated usages of dsname in getGlobalFilePaths() and replaced with scope which replaces dsname as an argument (FAXSiteMover)
-Sending scope instead of dsname to getGlobalFilePaths() from findGlobalFilePath() (FAXSiteMover, SiteMover)
-Added scope argument to findGlobalFilePath() (FAXSiteMover, SiteMover)
-Sending scope to findGlobalFilePath() from get_data() (FAXSiteMover)
-Extracting scope in get_data() (FAXSiteMover, aria2cSiteMover)
-Changed scope_dict to scope and sending scope_dict[lfn] instead of scope_dict to get_data(), in sitemover_get_data() (Mover)
-Removed outdated scope extraction from get_data() (aria2cSiteMover)
-Sending scope instead of dataset to getGlobalFilePaths() from convertSURLtoTURLUsingDataset() (Mover)
-Renamed convertSURLtoTURLUsingDataset() to convertSURLtoTURLUsingScope() (Mover)
-Sending scope instead of dataset to convertSURLtoTURLUsingScope() (also renamed, see previous comment) from convertSURLtoTURL() (Mover)
-Added scope argument to convertSURLtoTURL() (Mover)
-Sending scope to convertSURLtoTURL() from getTURLs() (Mover)
-Sending scope_dict to PFC4TURLs() from mover_get_data() (Mover)
-Added scope_dict argument to PFC4TURLs() (Mover)
-Sending scope_dict to createPFC4TURLs() from PFC4TURLs() (Mover)
-Added scope_dict argument to createPFC4TURLs() (Mover)
-Sending lfns and scope_dict to getTURLs() from createPFC4TURLs() (Mover)
-Added lfns and scope_dict arguments to getTURLs() (Mover)
-Created getMatchingLFN() used by getTURLs() (Mover)
-Sending scope_dict to PFC4TURLs() from getPoolFileCatalog() (RunJobEvent)
-Corrected 'Failed' -> 'failed' message sent with updateEventRange() in listener() (RunJobEvent)
-[Out-commented call for now] Moved discoverAdditionalOutputFiles() from RunJob to FileHandling, added import and removed a comment
-Sending scope to findGlobalFilePath() from mover_get_data() (Mover)
-Renamed __getMaxWorkDirSize() to __getMaxAllowedWorkDirSize(), used by __checkWorkDir() (Monitor)
-Using getDirSize(), getWorkDirSizeFilename() and storeWorkDirSize() in createLogFile() (JobLog)
-Now returning xml_source from getFileInfo(), received in mover_get_data() (Mover)
-Skipping call to PFC4TURLs() in mover_get_data() in FAX mode (Mover)
-Renamed athenamp_std*.txt to athena_std*.txt in __main__() (RunJobEvent)
-
-Code merge with Alexey Anisenkov
-- Added new movers sub directory with new site mover (xrdcp) and mover module
-
-Update info from Edward Karavakis:
-- Patch for chmod problem seen at BNL
-
-Update info from Wen Guan:
-- Added exceptions for ptest uflag in getProdSourceLabel() (pilot)
-
-Non-ATLAS related changes:
-- Now generating output file GUIDs in getOutFilesGuids() in case PoolFileCatalog.xml is not to be used (e.g. for AMS) (RunJobUtilities)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-63.1:
-
-Added missing scope_dict and sourceSite in call to sitemover_get_data() in mover_get_data() (Mover)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-63.2
-
-Updated the default event index url from ific to cern, in getEventIndexURL() (EventService)
-Sending jobReport.json with the metaData field also for event service jobs, in updatePandaServer() (PandaServerClient)
-Created _useDirectAccess(), useDirectAccessLAN(), useDirectAccessWAN() (Mover)
-Sending hasInput to updateRunCommandList() from __main__() (RunJob, RunJobEvent)
-Added hasInput argument to updateRunCommandList() (RunJobUtilities)
-Removing --createTAGFileForES instruction from runCommandList in updateRunCommandList() (RunJobUtilities)
-Updated setUseEventIndex() to set __useEventIndex variable depending on jobPars (RunJobEvent)
-Sending jobPars to setUseEventIndex() from __main__(), and moved the call to setUseEventIndex() until job object is defined (RunJobEvent)
-Added a waiting loop in listener() for send event range to finish (RunJobEvent)
-Added new variables __sending_event_range, __current_event_range and corresponding getters and setters (RunJobEvent)
-Now setting __sending_event_range using setSendingEventRange(), and __current_event_range using setCurrentEventRange() in event range loop in __main__() (RunJobEvent)
-Added memory_monitor to exclusion list for looping job killer in __loopingJobKiller() (Monitor)
-
-Corrected self -> runJob in __main__() in event range check (RunJob)
-Corrected self -> runJob in __main__() in calls to getUtilitySubprocess() (RunJobEvent)
-Protection added against no Popen process in executePayload() (RunJob)
-
-Time-out changes:
-- verifyCmtsiteCmd() was updated for new timer command output (ATLASExperiment)
-- Updated timer command output (TimerCommand)
-- Protection added against no Popen process in run() (TimerCommand)
-- Converting exitcode to string in case it is not an integer in getProperSiterootAndCmtconfig() (ATLASExperiment)
-- Corrected bad variable name in TimerCommand::run() [timeoutout -> timeout] (TimerCommand)
-
-NG changes:
-- Removed obsolete import of timed_command in pUtil
-- Updated timedCommand() to use TimerCommand instead of timed_command (pUtil)
-- Moved tryint(), splittedname() and isAGreaterOrEqualToB() from PandaServerClient to pUtil
-- Now using isAGreaterOrEqualToB() in getUtilityCommand() for the MemoryMonitor setup (ATLASExperiment)
-
-GROUPDISK updates:
-- stageOutFile() updated (GFAL2SiteMover, LocalSiteMover)
-- put_data() updated (lcgcpSiteMover, lcgcp2SiteMover, curlSiteMover)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-63.3:
-
-Added optional . in reg exp for discovery of additional output files, in discoverAdditionalOutputFiles() (FileHandling)
-Created extractOutputFilesFromJSON(), updateOutputFileLists(), getJobReport() (FileHandling)
-Now using extractOutputFilesFromJSON() instead of discoverAdditionalOutputFiles() in __main__() (RunJob)
-Removed the testImportLFCModule() and its call from specialChecks() (ATLASExperiment, NordugridATLASExperiment, AMSTaiwanExperiment)
-Removed obsolete 2 GB subtraction from the maxinputsize in getMaxInputSize(), requested by Tadashi Maeno (pUtil)
-Not setting general error when dispatcher has not jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
-
-63.3.1:
-
-Now using FileHandling::getNumberOfEvents() in ATLASExperiment::getNumberOfEvents() (ATLASExperiment)
-
-63.3.2:
-
-Added try-statement around call to extractOutputFilesFromJSON() (RunJob)
-Corrected %f to %s in getOutputFileItem() (FileHandling)
-Only using extractOutputFilesFromJSON() for production jobs (Runjob)
-Corrected //rucio -> /rucio in getPreDestination() (SiteMover)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 63.4:
 
 Now verifying that nentries is actually an integer (can aparently be 'null') in extractOutputFilesFromJSON() (FileHandling)
@@ -183,16 +27,31 @@ Updated getFiletypeFromDictionary() to handle ND properly (filetype DISK is impl
 Now setting copytool for ND in extractCopytoolForPFN() (Mover)
 Using readlink to unfold any soft linked file paths in put_data() (mvSiteMover)
 
+63.4.1:
+
+Avoiding extracting output files from jobReport.json for user jobs in __main__() (RunJob)
+
+63.4.2:
+
+Added exit code 11 and error acronym TRF_OUTPUT_FILE_ERROR to ignore list in __main__() (RunJobEvent)
+Sending job.taskID to downloadEventRanges() from executePayload() and __main__() (RunJob, RunJobEvent)
+Added taskID argument to downloadEventRanges() (EventRanges)
+Now sending taskID with GETEVENTRANGES server request in downloadEventRanges(); requested by Tadashi Maeno (EventRanges)
+Now sending taskID with GETEVENTRANGES server request in getJobEventRanges(); requested by Tadashi Maeno (RunJobHpcEvent)
+Now importing isAGreaterOrEqualToB() (RunJobEvent)
+Created useTokenExtractor(), setUseTokenExtractor() (RunJobEvent)
+Now using useTokenExtractor in several places in __main__() (RunJobEvent)
+Corrected preExec setting in __main__() (RunJobEvent)
+Added protection for failure to find alternativeName in getTiersOfATLASAlternativeName() (SiteMover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 64.0
 
 Replaced useFileStager and directIn with _dummy strings in getPrefices() and shouldPFC4TURLsBeCreated() since they are not used in these functions (Mover)
 Now getting the value of directIn from useDirectAccessLAN() instead of from getFileAccessInfo() in shouldPFC4TURLsBeCreated() (Mover)
 Replaced useFileStager and directIn with _dummy in stageIn() since they are not used (RunJob)
 Removed import of getFileAccessInfo() since it is not used (RunJobEvent)
-Sending job.taskID to downloadEventRanges() from executePayload() and __main__() (RunJob, RunJobEvent)
-Added taskID argument to downloadEventRanges() (EventRanges)
-Now sending taskID with GETEVENTRANGES server request in downloadEventRanges(); requested by Tadashi Maeno (EventRanges)
-Now sending taskID with GETEVENTRANGES server request in getEventRanges(); requested by Tadashi Maeno (RunJobHpcEvent)
 Created getDirectAccess(), used by shouldPFC4TURLsBeCreated() (Mover)
 Simplified getFileAccessInfo() (pUtil)
 Updated return values from getFileAccessInfo() in getPrefices() and shouldPFC4TURLsBeCreated() (Mover)
@@ -211,15 +70,18 @@ Created new global essentialPilotlogFilename (pUtil)
 Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
 Updated the tolog() function to use the new Logger module (pUtil)
 Added arguments label and essential to tolog() (pUtil)
-Now importing isAGreaterOrEqualToB() (RunJobEvent)
-Created useTokenExtractor(), setUseTokenExtractor() (RunJobEvent)
-Now using useTokenExtractor in several places in __main__() (RunJobEvent)
-Added exit code 11 and exit acronym TRF_OUTPUT_FILE_ERROR to ignore list in __main__() (RunJobEvent)
+Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
+Removed outdated getPoolFileCatalogDQ2() (Mover)
+Simplified willDoFileLookups() (ATLASExperiment)
 
 Note: useAtlasSetup() is always returning True (ATLASExperiment)
 
 (Still using old tolog function)
 
+LFC cleanup:
+- Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
+- Ignoring empty lFC paths from getLFCPath() call in getProperPaths()
+- Protecting against empty lfcpaths in getUserLFCDir() (SiteMover)
 Time-out changes:
 - Removed useless is_timeout variable (TimerCommand)
 - Protected against exitcode None being sent in run() (TimerCommand)
