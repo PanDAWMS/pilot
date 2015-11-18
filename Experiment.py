@@ -950,6 +950,16 @@ class Experiment(object):
         return "utility_summary.json"
 
     # Optional
+    def getUtilityInfo(self, workdir):
+        """ Add the utility info to the node structure if available """
+
+        # Extract the relevant information from the utility tool output and add it to the dictionary
+        # returned by this method. The dictionary will be merged with the node dictionary in 
+        # PandaServerClient::getNodeStructure() and sent to the PanDA server
+
+        return {}
+
+    # Optional
     def getUtilityCommand(self, **argdict):
         """ Prepare a utility command string """
 

@@ -5,7 +5,7 @@ from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile
+from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
 from JobState import JobState
 from FileState import FileState
 from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames, getHighestPriorityError
@@ -235,96 +235,6 @@ class PandaServerClient:
 
         return message
 
-    def getUtilityInfo(self, node, experiment, workdir, purge=False):
-        """ Add the utility info to the node structure if available """
-
-        # Get the experiment object and check if the special utility (e.g. a memory monitor) was used
-        thisExperiment = getExperiment(experiment)
-        if thisExperiment.shouldExecuteUtility():
-
-            # Try to get the memory monitor info from the workdir first
-            path = os.path.join(workdir, thisExperiment.getUtilityJSONFilename())
-            init_path = os.path.join(self.__pilot_initdir, thisExperiment.getUtilityJSONFilename())
-            primary_location = False
-            if not os.path.exists(path):
-                tolog("File does not exist: %s" % (path))
-                if os.path.exists(init_path):
-                    path = init_path
-                else:
-                    path = ""
-                primary_location = False
-            else:
-                primary_location = True
-
-            if path != "":
-                tolog("Reading memory monitoring info from: %s" % (path))
-
-                # If the file is the primary one (ie the one in the workdir and not the initdir, then also check the modification time)
-                read_from_file = True
-                if primary_location:
-                    # Get the modification time
-                    mod_time = None
-                    max_time = 120
-                    try:
-                        file_modification_time = os.path.getmtime(path)
-                        current_time = int(time())
-                        mod_time = current_time - file_modification_time
-                        tolog("File %s was modified %d seconds ago" % (mod_time))
-                    except:
-                        tolog("!!WARNING!!2323!! Could not read the modification time of %s" % (path))
-                        tolog("!!WARNING!!2324!! Will add -1 values for the memory info")
-                        node['maxRSS'] = -1
-                        node['maxVMEM'] = -1
-                        node['maxSWAP'] = -1
-                        node['maxPSS'] = -1
-                        node['avgRSS'] = -1
-                        node['avgVMEM'] = -1
-                        node['avgSWAP'] = -1
-                        node['avgPSS'] = -1
-                        read_from_file = False
-                    else:
-                        if mod_time > max_time:
-                            tolog("!!WARNING!!2325!! File %s was modified over %d s ago, will add -1 values for the memory info" % (path, max_time))
-                            node['maxRSS'] = -1
-                            node['maxVMEM'] = -1
-                            node['maxSWAP'] = -1
-                            node['maxPSS'] = -1
-                            node['avgRSS'] = -1
-                            node['avgVMEM'] = -1
-                            node['avgSWAP'] = -1
-                            node['avgPSS'] = -1
-                            read_from_file = False
-
-                if read_from_file:
-                    # Get the dictionary
-                    d = getJSONDictionary(path)
-                    if d and d != {}:
-                        try:
-                            # Move to experiment class?
-                            node['maxRSS'] = d['Max']['maxRSS']
-                            node['maxVMEM'] = d['Max']['maxVMEM']
-                            node['maxSWAP'] = d['Max']['maxSwap']
-                            node['maxPSS'] = d['Max']['maxPSS']
-                            node['avgRSS'] = d['Avg']['avgRSS']
-                            node['avgVMEM'] = d['Avg']['avgVMEM']
-                            node['avgSWAP'] = d['Avg']['avgSwap']
-                            node['avgPSS'] = d['Avg']['avgPSS']
-                        except Exception, e:
-                            tolog("!!WARNING!!54541! Exception caught while parsing memory monitor JSON: %s" % (e))
-                        else:
-                            tolog("Extracted info from memory monitor JSON")
-
-            # Done with the memory monitor for this job (if the file is read from the pilots' init dir), remove the file in case there are other jobs to be run
-            if os.path.exists(init_path) and purge:
-                try:
-                    os.system("rm -rf %s" % (init_path))
-                except Exception, e:
-                    tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (init_path), e)
-                else:
-                    tolog("Removed %s" % (init_path))
-
-        return node
-
     def getNodeStructure(self, job, site, workerNode, spaceReport=False, log=None):
         """ define the node structure expected by the server """
 
@@ -482,12 +392,11 @@ class PandaServerClient:
         else:
             node['cpuConsumptionUnit'] = getCPUmodel()
 
-        if spaceReport and site.rsespace != -1: # non-empty string and the space check function runs well
-            node['remainingSpace'] = site.rsespace
-            node['messageLevel'] = site.rsespmsg
-
         # Add the utility info if it is available
-        node = self.getUtilityInfo(node, job.experiment, job.workdir, purge=True)
+        thisExperiment = getExperiment(job.experiment)
+        if thisExperiment.shouldExecuteUtility():
+            utility_node = thisExperiment.getUtilityInfo(job.workdir)
+            node = merge_dictionaries(node, utility_node)
 
         return node
 

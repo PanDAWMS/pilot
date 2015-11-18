@@ -13,8 +13,6 @@ class Site:
         self.appdir = t1[1]              # APPDIR
         self.wntmpdir = t1[2]            # tmp dir
         self.workdir = self.getWorkDir() # site workdir
-        self.rsespace = 999999           # default to 1PB
-        self.rsespmsg = "info"           # default message
         self.computingElement = t1[3]    # queuename
 
     def getWorkDir(self):

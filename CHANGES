@@ -73,10 +73,24 @@ Added arguments label and essential to tolog() (pUtil)
 Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
 Removed outdated getPoolFileCatalogDQ2() (Mover)
 Simplified willDoFileLookups() (ATLASExperiment)
+Created a new getJobExecutionCommand(), renamed old function to getJobExecutionCommandOld() (ATLASExperiment)
+Corrected new method processCanBeKilled() (missing self; also in its call in __updateJobs()) (Monitor)
+Removed usages of rsespace variable in monitor_job() and monitor_recovery_job() (Monitor)
+Removed rsespace and rsespmsg from setSiteInfo() (Site)
+Removed usages of rsespace and rsespmsg, and sending remainingSpace and messageLevel to server from getNodeStructure() (PandaServerClient)
 
 Note: useAtlasSetup() is always returning True (ATLASExperiment)
 
 (Still using old tolog function)
+
+Memory monitoring updates:
+- Calling __check_memory_usage() in monitoring loop, in monitor_job() (Monitor)
+- Created merge_dictionaries() (pUtil)
+- Now importing merge_dictionaries (PandaServerClient)
+- Moved getUtilityInfo() from PandaServerClient to ATLASExperiment
+- Created empty getUtilityInfo() (Experiment)
+- Updated call to getUtilityInfo() in getNodeStructure() (PandaServerClient)
+- Now importing getJSONDictionary in ATLASExperiment
 
 LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
