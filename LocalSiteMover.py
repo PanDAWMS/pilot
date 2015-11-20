@@ -883,7 +883,7 @@ class LocalSiteMover(SiteMover.SiteMover):
                     #self.prepareReport('GET_TIMEOUT', report)
                     outputRet["report"]["clientState"] = 'GET_TIMEOUT'
                     outputRet["errorLog"] = pilotErrorDiag
-                    return PilotErrors.ERR_GETTIMEOUT, pilotErrorDiag
+                    return PilotErrors.ERR_GETTIMEOUT, outputRet
                 else:
                     #self.prepareReport('CP_TIMEOUT', report)
                     outputRet["report"]["clientState"] = 'CP_TIMEOUT'

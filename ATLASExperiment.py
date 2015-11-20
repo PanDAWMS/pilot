@@ -3253,27 +3253,27 @@ class ATLASExperiment(Experiment):
         return "memory_monitor_summary.json"
 
     # Optional
-    def getUtilityInfo(self, workdir):
+    def getUtilityInfo(self, workdir, pilot_initdir):
         """ Add the utility info to the node structure if available """
 
         node = {}
 
         # Try to get the memory monitor info from the workdir first
         path = os.path.join(workdir, self.getUtilityJSONFilename())
-        init_path = os.path.join(self.__pilot_initdir, self.getUtilityJSONFilename())
+        init_path = os.path.join(pilot_initdir, self.getUtilityJSONFilename())
         primary_location = False
         if not os.path.exists(path):
             tolog("File does not exist: %s" % (path))
             if os.path.exists(init_path):
                 path = init_path
             else:
-                tolog("File does not exist either: %s" % (path))
+                tolog("File does not exist either: %s" % (init_path))
                 path = ""
             primary_location = False
         else:
             primary_location = True
 
-        if path != "":
+        if path != "" and os.path.exists(path):
             tolog("Reading memory monitoring info from: %s" % (path))
 
             # If the file is the primary one (ie the one in the workdir and not the initdir, then also check the modification time)
@@ -3283,12 +3283,15 @@ class ATLASExperiment(Experiment):
                 mod_time = None
                 max_time = 120
                 try:
+                    cmd = "ls -l %s" % (path)
+                    out = commands.getoutput(cmd)
+                    tolog("%s:\n%s" % (cmd, out))
                     file_modification_time = os.path.getmtime(path)
-                    current_time = int(time())
+                    current_time = int(time.time())
                     mod_time = current_time - file_modification_time
-                    tolog("File %s was modified %d seconds ago" % (mod_time))
-                except:
-                    tolog("!!WARNING!!2323!! Could not read the modification time of %s" % (path))
+                    tolog("File %s was modified %d seconds ago" % (path, mod_time))
+                except Exception, e:
+                    tolog("!!WARNING!!2323!! Could not read the modification time of %s: %s" % (path, e))
                     tolog("!!WARNING!!2324!! Will add -1 values for the memory info")
                     node['maxRSS'] = -1
                     node['maxVMEM'] = -1

@@ -395,7 +395,7 @@ class PandaServerClient:
         # Add the utility info if it is available
         thisExperiment = getExperiment(job.experiment)
         if thisExperiment.shouldExecuteUtility():
-            utility_node = thisExperiment.getUtilityInfo(job.workdir)
+            utility_node = thisExperiment.getUtilityInfo(job.workdir, self.__pilot_initdir)
             node = merge_dictionaries(node, utility_node)
 
         return node

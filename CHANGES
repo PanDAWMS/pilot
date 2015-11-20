@@ -78,6 +78,10 @@ Corrected new method processCanBeKilled() (missing self; also in its call in __u
 Removed usages of rsespace variable in monitor_job() and monitor_recovery_job() (Monitor)
 Removed rsespace and rsespmsg from setSiteInfo() (Site)
 Removed usages of rsespace and rsespmsg, and sending remainingSpace and messageLevel to server from getNodeStructure() (PandaServerClient)
+Improved reading of memory_monitor_summary.json in getUtilityInfo() (ATLASExperiment)
+Corrected time() -> time.time() in getUtilityInfo() (ATLASExperiment)
+Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
+to get the wrong error label (LocalSiteMover)
 
 Note: useAtlasSetup() is always returning True (ATLASExperiment)
 
