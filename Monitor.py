@@ -263,35 +263,36 @@ class Monitor:
                 utility_node = thisExperiment.getUtilityInfo(self.__env['job'].workdir, self.__env['pilot_initdir'])
                 pUtil.tolog("utility_node=%s"%str(utility_node))
                 # Only proceed if values are set
-                maxrss = pUtil.readpar('maxrss')
-                if maxrss:
-                    try:
-                        maxrss_int = int(maxrss)
-                    except Exception, e:
-                        pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxrss: %s" % (e))
-                    else:
-                        # Compare with maxpss from memory monitor
+                if utility_node != {}:
+                    maxrss = pUtil.readpar('maxrss')
+                    if maxrss:
                         try:
-                            maxpss_int = int(utility_node["maxPSS"])
+                            maxrss_int = int(maxrss)
                         except Exception, e:
-                            pUtil.tolog("!!WARNING!!9901!! Unexpected value for maxPSS: %s" % (e))
+                            pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxrss: %s" % (e))
                         else:
-                            # Compare values
-                            if maxrss_int > 0:
-                                if maxpss_int > 0:
-                                    if maxpss_int > maxrss:
-                                        pUtil.tolog("!!WARNING!!9902!! maxPSS from MemoryMonitor is larger than schedconfig.maxrss: %d B > %d B" % (maxpss_int, maxrss))
-                                        pUtil.tolog("!!WARNING!!9902!! Job has exceeded the memory limit")
-                                        # Kill the job
+                            # Compare with maxpss from memory monitor
+                            try:
+                                maxpss_int = int(utility_node["maxPSS"])
+                            except Exception, e:
+                                pUtil.tolog("!!WARNING!!9901!! Unexpected value for maxPSS: %s" % (e))
+                            else:
+                                # Compare values
+                                if maxrss_int > 0:
+                                    if maxpss_int > 0:
+                                        if maxpss_int > maxrss:
+                                            pUtil.tolog("!!WARNING!!9902!! maxPSS from MemoryMonitor is larger than schedconfig.maxrss: %d B > %d B" % (maxpss_int, maxrss_int))
+                                            pUtil.tolog("!!WARNING!!9902!! Job has exceeded the memory limit")
+                                            # Kill the job
+                                        else:
+                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxrss=%d B)" % (maxpss_int, maxrss_int))
                                     else:
-                                        pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxrss=%d B)" % (maxpss_int, maxrss))
-                                else:
-                                     pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxpss_int))
-                else:
-                    if maxrss == 0:
-                        pUtil.tolog("schedconfig.maxrss set to 0 (no memory checks will be done)")
+                                        pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxpss_int))
                     else:
-                        pUtil.tolog("!!WARNING!!9904!! schedconfig.maxrss is not set")
+                        if maxrss == 0:
+                            pUtil.tolog("schedconfig.maxrss set to 0 (no memory checks will be done)")
+                        else:
+                            pUtil.tolog("!!WARNING!!9904!! schedconfig.maxrss is not set")
 
             # update the time for checking memory
             self.__env['curtime_mem'] = int(time.time())
