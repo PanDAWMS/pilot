@@ -1506,7 +1506,7 @@ if __name__ == "__main__":
                 tolog("Will not extract output files from jobReport for user job")
                 output_files_json = []
         except Exception, e:
-            tolog("!!WARNING!!2323!! Exception caught: %s" % (e))
+            tolog("!!WARNING!!2327!! Exception caught: %s" % (e))
             output_files_json = []
 
         if output_files_json != []:
