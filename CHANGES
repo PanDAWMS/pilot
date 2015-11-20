@@ -82,6 +82,7 @@ Improved reading of memory_monitor_summary.json in getUtilityInfo() (ATLASExperi
 Corrected time() -> time.time() in getUtilityInfo() (ATLASExperiment)
 Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
 to get the wrong error label (LocalSiteMover)
+Created new error code ERR_PAYLOADEXCEEDMAXMEM, 1235, "Payload exceeded maximum allowed memory" (PilotErrors)
 
 Note: useAtlasSetup() is always returning True (ATLASExperiment)
 
