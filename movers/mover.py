@@ -56,7 +56,6 @@ class JobMover(object):
 
         self.stageoutretry = kwargs.get('stageoutretry', self._stageoutretry)
         self.stageinretry = kwargs.get('stageinretry', self._stageinretry)
-
         self.protocols = {}
         self.ddmconf = {}
         self.trace_report = {}
@@ -89,7 +88,7 @@ class JobMover(object):
         return self._stageinretry
 
 
-    @stageoutretry.setter
+    @stageinretry.setter
     def stageinretry(self, value):
         if value >= self.MAX_STAGEIN_RETRY or value < 1:
             ival = value
@@ -101,13 +100,11 @@ class JobMover(object):
     @classmethod
     def _prepare_input_ddm(self, ddm, localddms):
         """
-            Sort and filter localddms for given preferred ddm endtry
+            Sort and filter localddms for given preferred ddm entry
             :return: list of ordered ddmendpoint names
         """
         # set preferred ddm as first source
         # move is_tape ddm to the end
-
-        ret = [ ddm['name'] ]
 
         ddms, tapes = [], []
         for e in localddms:
@@ -163,7 +160,7 @@ class JobMover(object):
         except Exception, e:
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
-        files_lfn = dict(((e.lfn, e.scope), e) for e in files)
+        files_lfn = dict(((e.scope, e.lfn), e) for e in files)
 
         for r in replicas:
             k = r['scope'], r['name']
@@ -174,7 +171,8 @@ class JobMover(object):
             for ddm in fdat.inputddms:
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
-                fdat.replicas.append((ddm, r['rses'][ddm]))
+                ddm_se = self.ddmconf[ddm].get('se', '')
+                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se))
 
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
@@ -182,6 +180,7 @@ class JobMover(object):
             cc_md = 'md:%s' % r['md5']
             if fdat.checksum not in [cc_ad, cc_md]:
                 self.log("WARNING: checksum value of input file=%s mismatched with info got from Rucio replica:  job.indata.checksum=%s, replica.checksum=%s, fdat=%s" % (fdat.lfn, fdat.filesize, (cc_ad, cc_md), fdat))
+
             # update filesize & checksum info from Rucio?
             # TODO
 
@@ -210,7 +209,7 @@ class JobMover(object):
             copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
             try:
-                sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workDir)
+                sitemover = getSiteMover(copytool)(copysetup, workDir=self.workDir)
                 sitemover.trace_report = self.trace_report
                 sitemover.protocol = dat # ##
                 sitemover.setup()
@@ -224,7 +223,7 @@ class JobMover(object):
             ddmendpoint = dat.get('ddm')
             self.trace_report.update(protocol=copytool, localSite=ddmendpoint, remoteSite=ddmendpoint)
 
-            self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024., [e.lfn for e in files]))
+            self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
 
             # verify file sizes and available space for stagein
             sitemover.check_availablespace(maxinputsize, files)
@@ -236,26 +235,26 @@ class JobMover(object):
 
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", type="input")
 
-                if fdat.is_directaccess(): # direct access mode, no transfer required
+                if fdata.is_directaccess(): # direct access mode, no transfer required
                     fdata.status = 'direct_access'
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
                     continue
 
                 self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
-                self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlocks)
+                self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlock)
 
                 self.log("Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
 
                 dumpFileStates(self.workDir, self.job.jobId)
 
                 # loop over multple stage-in attempts
-                for _attempt in xrange(1, self.stageintretry + 1):
+                for _attempt in xrange(1, self.stageinretry + 1):
 
                     if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
                         self.log(" -- Waiting %s seconds before next stage-in attempt for file=%s --" % (self.stagein_sleeptime, fdata.lfn))
                         time.sleep(self.stagein_sleeptime)
 
-                    self.log("Put attempt %s/%s for filename=%s" % (_attempt, self.stageintretry, fdata.lfn))
+                    self.log("Get attempt %s/%s for filename=%s" % (_attempt, self.stageinretry, fdata.lfn))
 
                     try:
                         result = sitemover.get_data(fdata)
@@ -264,10 +263,14 @@ class JobMover(object):
                         break # transferred successfully
                     except PilotException, e:
                         result = e
+                        import traceback
+                        self.log(traceback.format_exc())
                     except Exception, e:
                         result = PilotException("stageIn failed with error=%s" % e, code=PilotErrors.ERR_STAGEINFAILED)
+                        import traceback
+                        self.log(traceback.format_exc())
 
-                    self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageintretry, result))
+                    self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageinretry, result))
 
                 if not isinstance(result, Exception): # transferred successfully
 
@@ -547,9 +550,8 @@ class JobMover(object):
 
         # Get a proper maxinputsize from schedconfig/default
         # quick stab: old implementation, fix me later
-
-        from SiteMover import SiteMover
-        return SiteMover.getMaxInputSize()
+        from pUtil import getMaxInputSize
+        return getMaxInputSize()
 
 
     def sendTrace(self, report):

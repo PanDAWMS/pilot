@@ -616,6 +616,7 @@ class FileSpec(object):
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
 
         self.filesize = int(getattr(self, 'filesize', 0) or 0)
+        self.replicas = []
 
     def __repr__(self):
         obj = dict((name, getattr(self, name)) for name in sorted(dir(self)) if not name.startswith('_') and not callable(getattr(self, name)))

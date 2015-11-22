@@ -91,7 +91,7 @@ class xrdcpSiteMover(BaseSiteMover):
 
         if rcode:
             self.log('WARNING: [is_stagein=%s] Stage file command (%s) failed: Status=%s Output=%s' % (is_stagein, cmd, rcode, output.replace("\n"," ")))
-            error = self.resolveStageOutError(output, source)
+            error = self.resolveStageErrorFromOutput(output, source, is_stagein=is_stagein)
 
             #if rcode != PilotErrors.ERR_FILEEXIST:
             #    # check if file was partially transferred, if so, remove it

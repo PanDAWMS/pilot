@@ -119,7 +119,7 @@ def get_data_new(job,
     :backward compatible return:  (ec, pilotErrorDiag, None (statusPFCTurl), FAX_dictionary)
     """
 
-    tolog("Mover get data started")
+    tolog("Mover get data started [new implementation]")
 
     # new implementation
     from PilotErrors import PilotException
@@ -144,14 +144,21 @@ def get_data_new(job,
     except PilotException, e:
         return e.code, str(e), None, {}
     except Exception, e:
-        return PilotError.ERR_STAGEINFAILED, 'STAGEIN FAILED, exception=%s' % str(e), None, {}
+        tolog("ERROR: Mover get data failed [stagein]: exception caught: %s" % e)
+        import traceback
+        tolog(traceback.format_exc())
+
+        return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED, exception=%s' % e, None, {}
 
     tolog("Mover get data finished")
     job.print_infiles()
 
-
     # prepare compatible output
-    tfiles = [e for e in self.job.inData if e.status == 'transferred']
+    tfiles = [e for e in job.inData if e.status == 'transferred']
+
+    not_transferred = [e for e in job.inData if e.status not in ['transferred', 'direct_access']]
+    if not_transferred:
+        return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED: not all input files have been copied: remain=%s' % '\n'.join(not_transferred), None, {}
 
     FAX_dictionary = dict(N_filesWithFAX=0, bytesWithFAX=0, usedFAXandDirectIO=False)
     FAX_dictionary['bytesWithoutFAX'] = reduce(lambda x, y: x + y.filesize, tfiles, 0)
@@ -241,6 +248,33 @@ def get_data_new(job,
 
 
     return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
+
+
+import functools
+
+# new Movers integration
+def use_newmover(newfunc):
+    def dec(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            use_newmover = False#readpar('use_newmover', version=1)
+            if use_newmover:
+                print ("INFO: Will try to use new SiteMover(s) implementation since queuedata.use_newmover=%s" % use_newmover)
+                try:
+                    ret = newfunc(*args, **kwargs)
+                    #if ret and ret[0]: # new function return NON success code => temporary failover to old implementation
+                    #    raise Exception("new SiteMover return NON success code=%s .. do failover to old implementation.. r=%s" % (ret[0], ret))
+                    return ret
+                except Exception, e:
+                    #print ("INFO: Failed to execute new SiteMover(s): caught an exception: %s .. ignored. Continue execution using old implementation" % e)
+                    import traceback
+                    tolog(traceback.format_exc())
+                    raise # disable failover to old implementation
+
+            return func(*args, **kwargs) # failover to old implementation
+
+        return wrapper
+    return dec
 
 
 @use_newmover(get_data_new)
@@ -2267,7 +2301,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
         if _maxinputsize and totalFileSize > _maxinputsize:
             pilotErrorDiag = "Too many/too large input files. Total file size %d B > %d B" % (totalFileSize, _maxinputsize)
             tolog("Mover get_data finished (failed): error=%s" % pilotErrorDiag)
-            return PilotError.ERR_SIZETOOLARGE, pilotErrorDiag, None, {}
+            return PilotErrors.ERR_SIZETOOLARGE, pilotErrorDiag, None, {}
 
         tolog("Total input file size=%d B within allowed limit=%d B (zero value means unlimited)" % (totalFileSize, _maxinputsize))
 
@@ -3749,33 +3783,6 @@ def mover_put_data_new(outputpoolfcstring,
     tolog("Put successful")
 
     return 0, pilotErrorDiag, fields, '1', N_filesNormalStageOut, N_filesAltStageOut
-
-
-import functools
-
-# new Movers integration
-def use_newmover(newfunc):
-    def dec(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            use_newmover = readpar('use_newmover', version=1)
-            if use_newmover:
-                print ("INFO: Will try to use new SiteMover(s) implementation since queuedata.use_newmover=%s" % use_newmover)
-                try:
-                    ret = newfunc(*args, **kwargs)
-                    #if ret and ret[0]: # new function return NON success code => temporary failover to old implementation
-                    #    raise Exception("new SiteMover return NON success code=%s .. do failover to old implementation.. r=%s" % (ret[0], ret))
-                    return ret
-                except Exception, e:
-                    #print ("INFO: Failed to execute new SiteMover(s): caught an exception: %s .. ignored. Continue execution using old implementation" % e)
-                    import traceback
-                    tolog(traceback.format_exc())
-                    raise # disable failover to old implementation
-
-            return func(*args, **kwargs) # failover to old implementation
-
-        return wrapper
-    return dec
 
 
 @use_newmover(mover_put_data_new)

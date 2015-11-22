@@ -158,7 +158,7 @@ class BaseSiteMover(object):
         # verify total filesize
         if maxinputsize and totalsize > maxinputsize:
             error = "Too many/too large input files (%s). Total file size=%s B > maxinputsize=%s B" % (len(files), totalsize, maxinputsize)
-            raise PilotException(error, code=PilotError.ERR_SIZETOOLARGE)
+            raise PilotException(error, code=PilotErrors.ERR_SIZETOOLARGE)
 
         self.log("Total input file size=%s B within allowed limit=%s B (zero value means unlimited)" % (totalsize, maxinputsize))
 
@@ -173,7 +173,7 @@ class BaseSiteMover(object):
         # are we wihin the limit?
         if totalsize > available_space:
             error = "Not enough local space for staging input files and run the job (need %d B, but only have %d B)" % (totalsize, available_space)
-            raise PilotException(error, code=PilotError.ERR_NOLOCALSPACE)
+            raise PilotException(error, code=PilotErrors.ERR_NOLOCALSPACE)
 
 
     def getRemoteFileChecksum(self, filename):
@@ -215,13 +215,24 @@ class BaseSiteMover(object):
         if not scheme:
             raise Exception('Failed to resolve copytool scheme to be used, se field is corrupted?: protocol=%s' % protocol)
 
-        replica = None
+        replica = None # find first matched replica
         surl = None
-        for ddmendpoint, replicas in fspec.replicas:
+        ignore_rucio_replicas = True
+        for ddmendpoint, replicas, ddm_se in fspec.replicas:
             if not replicas:
                 continue
             surl = replicas[0]
+            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s" % (surl, ddmendpoint, ddm_se))
+
+
             for r in replicas:
+
+                # match Rucio replica by default protocol se
+                if ignore_rucio_replicas and r.startswith(ddm_se): # manually form pfn based of protocol.se
+                    replica = protocol.get('se') + r.replace(ddm_se, '')
+                    self.log("[stage-in] ignore_rucio_replicas=True: found replica=%s matched ddm.se=%s .. will use TURL=%s" % (surl, ddm_se, replica))
+                    break
+                # use exact pfn from Rucio replicas
                 if not replica and r.startswith("%s://" % scheme):
                     replica = r
             if replica:
@@ -238,7 +249,7 @@ class BaseSiteMover(object):
         dst = os.path.join(self.workDir, fspec.lfn)
         self.stageIn(replica, dst, fspec)
 
-        return {'surl':'surl', 'ddmendpoint':'ddmendpoint', 'pfn':replica}
+        return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
 
 
     def stageIn(self, source, destination, fspec):
@@ -431,13 +442,13 @@ class BaseSiteMover(object):
         raise Exception('NOT IMPLEMENTED')
 
 
-    def resolveStageOutError(self, output, filename=None):
+    def resolveStageErrorFromOutput(self, output, filename=None, is_stagein=False):
         """
             resolve error code, client state and defined error mesage from the output
             :return: dict {'rcode', 'state, 'error'}
         """
 
-        ret = {'rcode': PilotErrors.ERR_STAGEOUTFAILED, 'state': 'COPY_ERROR', 'error': 'StageOut operation failed: %s' % output}
+        ret = {'rcode': PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED, 'state': 'COPY_ERROR', 'error': 'Copy operation failed [is_stagein=%s]: %s' % (is_stagein, output)}
 
         if "Could not establish context" in output:
             ret['rcode'] = PilotErrors.ERR_NOPROXY
