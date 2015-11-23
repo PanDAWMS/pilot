@@ -229,14 +229,7 @@ class ATLASExperiment(Experiment):
                 cacheVer = None
             else:
                 # normal production jobs; e.g. homePackage = "AtlasProduction/20.1.5"
-                if "/" in job.homePackage:
-                    hp = job.homePackage.split("/")
-                    cacheDir = hp[0]
-                    cacheVer = hp[1]
-                else:
-                    tolog("!!WARNING!!5421!! Don't know how to handle this homePackage=%s" % (job.homePackage))
-                    cacheDir = None
-                    cacheVer = None
+                cacheDir, cacheVer = self.getSplitHomePackage(job.homePackage)
 
             # Define the setup for asetup, i.e. including full path to asetup and setting of ATLAS_LOCAL_ROOT_BASE
             asetup_path = self.getModernASetup()
@@ -3357,24 +3350,18 @@ class ATLASExperiment(Experiment):
         return node
 
     # Optional
-    def parseUtilityOutput(self):
-        """ """
-
-        maxPSS = self.findMaxPSS()
-        tolog("Found maxPSS=%d B" % (maxPSS))
-
-    # Optional
-    def findMaxPSS(self):
+    def findMaxPSS(self, workdir):
         """ Find the maxPSS in the utility output text file """
 
         filename = self.getUtilityOutputFilename()
+        
         maxPSS = -1
-
-        if os.path.exists(filename):
+        path = os.path.join(workdir, filename)
+        if os.path.exists(path):
 
             # Loop over the output file, line by line, and look for the maximum PSS value
             first = True
-            with open(filename) as f:
+            with open(path) as f:
                 for line in f:
                     # Skip the first line
                     if first:
@@ -3397,7 +3384,7 @@ class ATLASExperiment(Experiment):
                                     maxPSS = PSS_int
             f.close()
         else:
-            tolog("!!WARNING!!4540!! File does not exist: %s" % (filename))
+            tolog("!!WARNING!!4540!! File does not exist: %s" % (path))
 
         return maxPSS
 

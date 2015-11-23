@@ -85,6 +85,7 @@ to get the wrong error label (LocalSiteMover)
 Changed useAtlasSetup() to always return True for all releases (ATLASExperiment)
 Created parseUtilityOutput() and findMaxPSS() (ATLASExperiment)
 Updated getSplitHomePackage() to handle AnalysisTransforms-AtlasP1HLT_* correctly (ATLASexperiment)
+Now using getSplitHomePackage() in getJobExecutionCommand() (ATLASExperiment)
 
 (Still using old tolog function)
 
@@ -104,8 +105,8 @@ LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
 - Ignoring empty lFC paths from getLFCPath() call in getProperPaths()
 - Protecting against empty lfcpaths in getUserLFCDir() (SiteMover)
+
 Time-out changes:
-- Removed useless is_timeout variable (TimerCommand)
 - Protected against exitcode None being sent in run() (TimerCommand)
 
 Logging changes:

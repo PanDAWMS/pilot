@@ -263,41 +263,39 @@ class Monitor:
 
                 for k in self.__env['jobDic'].keys():
 
-                    utility_node = thisExperiment.getUtilityInfo(self.__env['jobDic'][k][1].workdir, self.__env['pilot_initdir'])
+                    # Get the maxPSS value from the memor monitor
+                    maxPSS_int = thisExperiment.findMaxPSS(self.__env['jobDic'][k][1].workdir)
+                    pUtil.tolog("maxPSS = %d" % (maxPSS_int))
 
                     # Only proceed if values are set
-                    if utility_node != {}:
-                        maxrss = pUtil.readpar('maxrss')
-                        if maxrss:
+                    if maxPSS_int != -1:
+                        maxRSS = pUtil.readpar('maxrss') # string
+                        if maxRSS:
                             try:
-                                maxrss_int = int(maxrss)
+                                maxRSS_int = int(maxRSS)
                             except Exception, e:
-                                pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxrss: %s" % (e))
+                                pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:
-                                # Compare with maxpss from memory monitor
-                                try:
-                                    maxpss_int = int(utility_node["maxPSS"])
-                                except Exception, e:
-                                    pUtil.tolog("!!WARNING!!9901!! Unexpected value for maxPSS: %s" % (e))
-                                else:
-                                    # Compare values
-                                    if maxrss_int > 0:
-                                        if maxpss_int > 0:
-                                            if maxpss_int > maxrss_int:
-                                                pilotErrorDiag = "Job has exceeded the memory limit %d B > %d B (schedconfig.maxrss)" % (maxpss_int, maxrss_int)
-                                                pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
-                                                # Kill the job
-                                                killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                                                self.__env['jobDic'][k][1].result[0] = "failed"
-                                                self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
-                                                self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
-                                                self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
-                                            else:
-                                                pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxrss=%d B)" % (maxpss_int, maxrss_int))
+                                pUtil.tolog("maxRSS = %d" % (maxRSS_int))
+
+                                # Compare the maxRSS with the maxPSS from memory monitor
+                                if maxRSS_int > 0:
+                                    if maxPSS_int > 0:
+                                        if maxPSS_int > maxRSS_int:
+                                            pilotErrorDiag = "Job has exceeded the memory limit %d B > %d B (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
+                                            pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
+                                            # Kill the job
+                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            self.__env['jobDic'][k][1].result[0] = "failed"
+                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
-                                            pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxpss_int))
+                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
+                                    else:
+                                        pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
                         else:
-                            if maxrss == 0:
+                            if maxRSS == 0 or maxRSS == "0":
                                 pUtil.tolog("schedconfig.maxrss set to 0 (no memory checks will be done)")
                             else:
                                 pUtil.tolog("!!WARNING!!9904!! schedconfig.maxrss is not set")
