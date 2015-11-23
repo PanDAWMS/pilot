@@ -22,6 +22,7 @@ from pUtil import remove                        # Used to remove redundant file 
 from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
 from pUtil import isAGreaterOrEqualToB          #
+from pUtil import convert_unicode_string        # Needed to avoid unicode strings in the memory output text file
 from PilotErrors import PilotErrors             # Error codes
 from FileHandling import readFile, writeFile    # File handling methods
 from FileHandling import updatePilotErrorReport # Used to set the priority of an error
@@ -3347,6 +3348,50 @@ class ATLASExperiment(Experiment):
                 tolog("Removed %s" % (init_path))
 
         return node
+
+    # Optional
+    def parseUtilityOutput(self):
+        """ """
+
+        maxPSS = findMaxPSS()
+        tolog("Found maxPSS=%d B" % (maxPSS))
+
+    # Optional
+    def findMaxPSS(self):
+    """ Find the maxPSS in the utility output text file """
+
+    maxPSS = -1
+    filename = self.getUtilityOutputFilename())
+    if os.path.exists(filename):
+
+        # Loop over the output file, line by line, and look for the maximum PSS value
+        first = True
+        with open(filename) as f:
+            for line in f:
+                # Skip the first line
+                if first:
+                    first = False
+                    continue
+                line = convert_unicode_string(line)
+                if line != "":
+                    try:
+                        Time, VMEM, PSS, RSS, Swap = line.split("\t")
+                    except Exception, e:
+                        tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
+                    else:
+                        # Convert to int
+                        try:
+                            PSS_int = int(PSS)
+                        except Exception, e:
+                            tolog("!!WARNING!!4543!! Exception caught: %s" % (e))
+                        else:
+                            if PSS_int > maxPSS:
+                                maxPSS = PSS_int
+        f.close()
+    else:
+        tolog("!!WARNING!!4540!! File does not exist: %s" % (filename))
+
+    return maxPSS
 
     # Optional
     def getUtilityCommand(self, **argdict):
