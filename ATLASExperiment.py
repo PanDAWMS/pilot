@@ -2188,14 +2188,21 @@ class ATLASExperiment(Experiment):
     def getSplitHomePackage(self, homePackage):
         """ Split the homePackage if it has a project/release format """
         # E.g. homePackage = AthSimulationBase/1.0.3 -> AthSimulationBase, 1.0.3
+        # homePackage = AnalysisTransforms-AtlasP1HLT_20.2.3.6 -> 'AtlasP1HLT', '20.2.3.6'
 
         if "/" in homePackage:
             s = homePackage.split('/')
             project = s[0]
             release = s[1]
         else:
-            project = homePackage
-            release = ""
+            if "AnalysisTransforms" in homePackage and ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
+                homePackage = homePackage.replace("AnalysisTransforms-", "")
+                s = homePackage.split('_')
+                project = s[0]
+                release = s[1]
+            else:
+                project = homePackage
+                release = ""
 
         return project, release
 
@@ -2328,7 +2335,7 @@ class ATLASExperiment(Experiment):
             cmd = ""
 
         # HLT on AFS
-        if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
+        if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
             try:
                 project, patch = self.getSplitHomePackage(homePackage) # ('AtlasP1HLT', '18.1.0.1')
             except Exception, e:

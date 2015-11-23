@@ -84,6 +84,7 @@ Corrected bad return (function returned pilotErrorDiag string, but should have r
 to get the wrong error label (LocalSiteMover)
 Changed useAtlasSetup() to always return True for all releases (ATLASExperiment)
 Created parseUtilityOutput() and findMaxPSS() (ATLASExperiment)
+Updated getSplitHomePackage() to handle AnalysisTransforms-AtlasP1HLT_* correctly (ATLASexperiment)
 
 (Still using old tolog function)
 
