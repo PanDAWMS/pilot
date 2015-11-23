@@ -2369,10 +2369,14 @@ if __name__ == "__main__":
                         if utility_subprocess:
                             if not utility_subprocess.poll() is None:
                                 # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
-                                tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                                utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+                                # Unless it was killed by the Monitor along with all other subprocesses
+                                if not os.path.exists(os.path.join(job.workdir, "MEMORYEXCEEDED")):
+                                    tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                                    utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+                                else:
+                                    tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
 
-                        # Make sure that the token extractor is still running
+                       # Make sure that the token extractor is still running
                         if runJob.useTokenExtractor():
                             if not tokenExtractorProcess.poll() is None:
                                 max_wait = 0

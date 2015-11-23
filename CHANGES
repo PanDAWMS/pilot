@@ -86,6 +86,8 @@ Changed useAtlasSetup() to always return True for all releases (ATLASExperiment)
 Created parseUtilityOutput() and findMaxPSS() (ATLASExperiment)
 Updated getSplitHomePackage() to handle AnalysisTransforms-AtlasP1HLT_* correctly (ATLASexperiment)
 Now using getSplitHomePackage() in getJobExecutionCommand() (ATLASExperiment)
+Creating a lockfile in __check_memory_usage() to prevent the MemoryMonitor to restart after it has been killed (Monitor)
+Avoiding restart of memory monitor in __main__() if lockfile MEMORYEXCEEDED is found (RunJob, RunJobEvent)
 
 (Still using old tolog function)
 
