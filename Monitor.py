@@ -259,13 +259,10 @@ class Monitor:
             # get the experiment object and check if the memory utility should be used
             thisExperiment = pUtil.getExperiment(self.__env['experiment'])
             if thisExperiment.shouldExecuteUtility():
-                pUtil.tolog("Checking memory usage..")
-
                 for k in self.__env['jobDic'].keys():
 
                     # Get the maxPSS value from the memor monitor
                     maxPSS_int = thisExperiment.findMaxPSS(self.__env['jobDic'][k][1].workdir)
-                    pUtil.tolog("maxPSS = %d" % (maxPSS_int))
 
                     # Only proceed if values are set
                     if maxPSS_int != -1:
@@ -276,8 +273,6 @@ class Monitor:
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:
-                                pUtil.tolog("maxRSS = %d" % (maxRSS_int))
-
                                 # Compare the maxRSS with the maxPSS from memory monitor
                                 if maxRSS_int > 0:
                                     if maxPSS_int > 0:

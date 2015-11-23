@@ -3351,7 +3351,12 @@ class ATLASExperiment(Experiment):
 
     # Optional
     def findMaxPSS(self, workdir):
-        """ Find the maxPSS in the utility output text file """
+        """ Find the maxPSS in the utility output """
+
+        # NOTE: AS OF NOVEMBER 2015 THE MEMORY MONITOR DOES NOT PRODUCE THE SUMMARY JSON UNTIL THE END OF THE PAYLOAD
+        # WHICH MEANS THAT THE OUTPUT TEXT FILE WILL BE USED INSTEAD. A LATER VERSION OF THE MEMORY MONITOR WILL PRODUCE
+        # AND UPDATE THE SUMMARY JSON FILE DURING RUNNING. AT THAT TIME THIS METHOD NEEDS TO BE UPDATE TO FIRST LOOK
+        # FOR THE JSON FILE AND ONLY FALLBACK TO THE OUTPUT TEXT FILE OTHERWISE.
 
         filename = self.getUtilityOutputFilename()
         
