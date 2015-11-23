@@ -3353,8 +3353,46 @@ class ATLASExperiment(Experiment):
     def parseUtilityOutput(self):
         """ """
 
-        maxPSS = findMaxPSS()
+        maxPSS = self.findMaxPSS()
         tolog("Found maxPSS=%d B" % (maxPSS))
+
+    # Optional
+    def findMaxPSS(self):
+        """ Find the maxPSS in the utility output text file """
+
+        filename = self.getUtilityOutputFilename()
+        maxPSS = -1
+
+        if os.path.exists(filename):
+
+            # Loop over the output file, line by line, and look for the maximum PSS value
+            first = True
+            with open(filename) as f:
+                for line in f:
+                    # Skip the first line
+                    if first:
+                        first = False
+                        continue
+                    line = convert_unicode_string(line)
+                    if line != "":
+                        try:
+                            Time, VMEM, PSS, RSS, Swap = line.split("\t")
+                        except Exception, e:
+                            tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
+                        else:
+                            # Convert to int
+                            try:
+                                PSS_int = int(PSS)
+                            except Exception, e:
+                                tolog("!!WARNING!!4543!! Exception caught: %s" % (e))
+                            else:
+                                if PSS_int > maxPSS:
+                                    maxPSS = PSS_int
+            f.close()
+        else:
+            tolog("!!WARNING!!4540!! File does not exist: %s" % (filename))
+
+        return maxPSS
 
     # Optional
     def getUtilityCommand(self, **argdict):
