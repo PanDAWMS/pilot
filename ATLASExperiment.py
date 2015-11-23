@@ -2179,22 +2179,10 @@ class ATLASExperiment(Experiment):
         return status, path
 
     def useAtlasSetup(self, swbase, release, homePackage, cmtconfig):
-        """ determine whether AtlasSetup is to be used """
+        """ Determine whether AtlasSetup is to be used """
 
-        #PN
+        # Previously this method returned False for older releases than 16.1.0. Since pilot release 64.0, this method returns True [i.e. use asetup for all ATLAS releases]
         return True
-
-        status = False
-
-        # are we using at least release 16.1.0?
-        if release >= "16.1.0":
-            # the actual path is not needed in this method
-            status, _path = self.getVerifiedAtlasSetupPath(swbase, release, homePackage, cmtconfig)
-        else:
-            pass
-            # tolog("Release %s is too old for AtlasSetup (need at least 16.1.0)" % (release))
-
-        return status
 
     def getSplitHomePackage(self, homePackage):
         """ Split the homePackage if it has a project/release format """
@@ -3242,8 +3230,23 @@ class ATLASExperiment(Experiment):
         # a summary JSON file whose name is defined by the getMemoryMonitorJSONFilename() method. The contents of
         # this file (ie. the full JSON dictionary) will be added to the jobMetrics at the end of the job (see
         # PandaServerClient class).
+        #
+        # Example of summary JSON file:
+        #   {"Max":{"maxVMEM":40058624,"maxPSS":10340177,"maxRSS":16342012,"maxSwap":16235568},
+        #    "Avg":{"avgVMEM":19384236,"avgPSS":5023500,"avgRSS":6501489,"avgSwap":5964997}}
+        #
+        # While running, the MemoryMonitor also produces a regularly updated text file with the following format: (tab separated)
+        #   Time          VMEM        PSS        RSS        Swap         (first line in file)
+        #   1447960494    16099644    3971809    6578312    1978060
 
         return True
+
+    # Optional
+    def getUtilityOutputFilename(self):
+        """ Return the filename of the memory monitor JSON file """
+
+        # For explanation, see shouldExecuteUtility()
+        return "memory_monitor_output.txt"
 
     # Optional
     def getUtilityJSONFilename(self):
@@ -3412,7 +3415,7 @@ class ATLASExperiment(Experiment):
                     cmd = standard_setup
 
         # Now add the MemoryMonitor command
-        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
+        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, self.getUtilityOutputFilename(), summary, interval)
         cmd = "cd " + workdir + ";" + cmd
 
         return cmd
