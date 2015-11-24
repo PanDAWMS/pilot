@@ -5179,8 +5179,11 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
     xml_from_PFC = createPoolFileCatalog(file_dict, lfns, pfc_name=pfc_name)
 
     if xml_from_PFC == '' and not os.environ.has_key('Nordugrid_pilot'):
-        # Fetch the input file xml from the dq2 server
-        xml_from_PFC, xml_source = getPoolFileCatalogDQ2(ub, guids)
+        ec = error.NOPFC
+        pilotErrorDiag = "Could not create a Pool File Catalog"
+        tolog("!!WARNING!!4343!! %s" % (pilotErrorDiag))
+        return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary, copytool_dictionary
+
 
     if os.environ.has_key('Nordugrid_pilot') or region == 'testregion':
         # Build a new PFC for NG
@@ -5230,85 +5233,6 @@ def getPoolFileCatalogND(guids, lfns, pinitdir):
         ec = error.ERR_NOPFC
 
     return ec, pilotErrorDiag, xml_from_PFC, xml_source
-
-def getPoolFileCatalogDQ2(baseURL, guids):
-    """
-    Returns a PoolFileCatalog XML file.
-    If the connection to the DQ2 server (LRC http wrapper) fails or
-    the server returns a malformed output, an error message is printed
-    and and empty PFC is returned
-    If some files are missing, a PFC with the other files is
-    returned and no error is printed or risen (this is coherent with
-    the LRC wrapper behavior).
-    This list list should be checked by the caller to see if some
-    of the LFNs are missing
-    baseURL - URL of the LRC http wrapper
-    guids - list of the desired GUIDs
-
-    This function is actually writing on disk and then removing a file
-    called PoolFileCatalog.xml
-    Beware, existing files with that name may be removed and interfere
-    with this function output.
-    """
-
-    xml_source = "DQ2"
-
-    # get PoolFileCatalog
-    iGUID = 0
-    xml_from_PFC =''
-
-    # In LCG land use dq2_poolFCjobO
-    region = readpar('region')
-    if region != 'US' and not os.environ.has_key('Nordugrid_pilot'):
-        tolog("!!FAILED!!2999!! Can not get PFC with LRC method for region %s" % (region))
-        return '', xml_source
-
-    strGUIDs = 'guids='
-    # if no site service
-    if baseURL == '':
-        tolog('!!FAILED!!2999!! DQ2 URL not set')
-        return xml_from_PFC, xml_source
-    tolog("Number of GUIDs: %d" % len(guids))
-    for guid in guids:
-        iGUID += 1
-        # make argument
-        strGUIDs += '%s+' % guid
-        if iGUID % 40 == 0 or iGUID == len(guids):
-            # get PoolFileCatalog
-            strGUIDs = strGUIDs[:-1]
-            try:
-                f = urllib.urlopen( baseURL+'/lrc/PoolFileCatalog?'+strGUIDs )
-            except:
-                tolog('!!FAILED!!2999!! Error opening DDM URL (%s)' % (get_exc_short()))
-                return xml_from_PFC, xml_source
-            ret = f.read()
-            if ret.find('POOLFILECATALOG') == -1:
-                tolog('!!FAILED!!2999!! Getting POOL FileCatalog failed: could not find the file/s in LRC!')
-                tolog('Error returned from LRC: %s' % (ret))
-                continue
-            # append
-            xml_from_PFC += ret
-            strGUIDs = 'guids='
-    # remove redundant trailer and header
-    th = \
-"""
-</POOLFILECATALOG>
-<\?xml version="1.0" encoding="UTF-8" standalone="no" \?>
-<!-- Edited By POOL -->
-<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">
-<POOLFILECATALOG>
-
-\s*<META name="fsize" type="string"/>
-
-\s*<META name="md5sum" type="string"/>
-
-\s*<META name="lastmodified" type="string"/>
-
-\s*<META name="archival" type="string"/>
-"""
-    xml_from_PFC = re.sub(th, '', xml_from_PFC)
-    # return XML
-    return xml_from_PFC, xml_source
 
 def checkLocalSE(analyJob):
     """ Make sure that the local SE is responding """

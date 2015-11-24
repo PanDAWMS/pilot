@@ -343,10 +343,10 @@ class ATLASSiteInformation(SiteInformation):
 
         # Get the LFC path
         lfcpath, pilotErrorDiag = sitemover.getLFCPath(analyJob, alt=alt)
-        if lfcpath == "":
-            tracer_error = 'LFC_PATH_EMPTY'
-            ec = error.ERR_STAGEOUTFAILED
-            return ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl
+#        if lfcpath == "":
+#            tracer_error = 'LFC_PATH_EMPTY'
+#            ec = error.ERR_STAGEOUTFAILED
+#            return ec, pilotErrorDiag, tracer_error, dst_gpfn, lfcdir, surl
 
         tolog("LFC path = %s" % (lfcpath))
         # /grid/atlas/users/pathena
@@ -424,6 +424,8 @@ class ATLASSiteInformation(SiteInformation):
 
 #        ec = self.replaceQueuedataField("timefloor", "0")
 
+#        if thisSite.sitename == "CERN-PROD":
+#            ec = self.replaceQueuedataField("maxrss", "1000")
 #        if thisSite.sitename == "CERN-PROD_MCORE":
 #            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
@@ -438,6 +440,7 @@ class ATLASSiteInformation(SiteInformation):
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
+#            ec = self.replaceQueuedataField("maxrss", "10000")
             ec = self.replaceQueuedataField("direct_access_lan", "True")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")

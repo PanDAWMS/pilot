@@ -479,7 +479,7 @@ def updatePilotErrorReport(pilotErrorCode, pilotErrorDiag, priority, jobID, work
 
     filename = getPilotErrorReportFilename(workdir)
     if os.path.exists(filename):
-        # The file already exists, read it back
+        # The file already exists, read it back (with unicode to utf-8 conversion)
         dictionary = getJSONDictionary(filename)
     else:
         dictionary = {}
@@ -516,7 +516,7 @@ def getHighestPriorityError(jobId, workdir):
 
     filename = getPilotErrorReportFilename(workdir)
     if os.path.exists(filename):
-        # The file already exists, read it back
+        # The file already exists, read it back (with unicode to utf-8 conversion)
         dictionary = getJSONDictionary(filename)
         if dictionary.has_key(jobId):
 
@@ -596,6 +596,22 @@ def discoverAdditionalOutputFiles(output_file_list, workdir, datasets_list, scop
 
 # WARNING: EXPERIMENT SPECIFIC AND ALSO DEFINED IN ERRORDIAGNOSIS
 def getJobReport(workDir):
+    """ Get the jobReport.json dictionary """
+    # Note: always return at least an empty dictionary
+
+    dictionary = {}
+    fileName = os.path.join(workDir, "jobReport.json")
+    if os.path.exists(fileName):
+        # the jobReport file exists, read it back (with unicode to utf-8 conversion)
+        dictionary = getJSONDictionary(filename)
+        if not dictionary: # getJSONDictionary() can return None
+            dictionary = {}
+    else:
+        tolog("!!WARNING!!1111!! File %s does not exist" % (fileName))
+
+    return dictionary
+
+def getJobReportOld(workDir):
     """ Get the jobReport.json dictionary """
 
     fileName = os.path.join(workDir, "jobReport.json")

@@ -4605,3 +4605,15 @@ def chunks(l, n):
     """
     for i in xrange(0, len(l), n):
         yield l[i:i+n]
+
+def merge_dictionaries(*dict_args):
+    """
+    Given any number of dicts, shallow copy and merge into a new dict.
+    precedence goes to key value pairs in latter dicts
+    """
+
+    result = {}
+    for dictionary in dict_args:
+        result.update(dictionary)
+
+    return result

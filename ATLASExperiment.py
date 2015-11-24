@@ -22,9 +22,11 @@ from pUtil import remove                        # Used to remove redundant file 
 from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
 from pUtil import isAGreaterOrEqualToB          #
+from pUtil import convert_unicode_string        # Needed to avoid unicode strings in the memory output text file
 from PilotErrors import PilotErrors             # Error codes
 from FileHandling import readFile, writeFile    # File handling methods
 from FileHandling import updatePilotErrorReport # Used to set the priority of an error
+from FileHandling import getJSONDictionary      # Used by getUtilityInfo()
 from RunJobUtilities import dumpOutput          # ASCII dump
 from RunJobUtilities import getStdoutFilename   #
 from RunJobUtilities import findVmPeaks         #
@@ -116,6 +118,167 @@ class ATLASExperiment(Experiment):
         return cmd2
 
     def getJobExecutionCommand(self, job, jobSite, pilot_initdir):
+        """ Define and test the command(s) that will be used to execute the payload """
+
+        pilotErrorDiag = ""
+        cmd = ""
+        special_setup_cmd = ""
+        pysiteroot = ""
+        siteroot = ""
+        JEM = "NO"
+
+        # homePackage variants:
+        #   user jobs
+        #     1. AnalysisTransforms (using asetup)
+        #        Setup example buildJob: (the local/setup comes from copysetup; ignore the cmtsite in the path, this will go away with the new setup procedure)
+        #          old setup:
+        #            cmd = export PANDA_RESOURCE="ANALY_PIC_SL6";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2674166005]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="panda-client-0.5.56-jedi-athena";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc47-opt/19.2.0/cmtsite/asetup.sh 19.2.0,notest --cmtconfig x86_64-slc6-gcc47-opt ;export MAKEFLAGS="j1 QUICK=1 -l1";source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh;export X509_USER_PROXY=<path>;./buildJob-00-00-03 ..
+        #          new setup:
+        #            cmd =
+        #        Setup example runAthena:
+        #          old setup:
+        #            cmd = export PANDA_RESOURCE="ANALY_BNL_LONG";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2674156736]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="panda-client-0.5.56-jedi-athena";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc47-opt/19.2.0/cmtsite/asetup.sh 19.2.0,notest --cmtconfig x86_64-slc6-gcc47-opt ;export MAKEFLAGS="j1 QUICK=1 -l1";export X509_USER_PROXY=<path>;./runAthena-00-00-12 .. 
+        #          new setup:
+        #            cmd =
+        #        Setup example buildGen:
+        #          old setup:
+        #            cmd = export PANDA_RESOURCE=\"ANALY_DESY-HH\";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID=\"[2674275586]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"panda-client-0.5.56-jedi-run\";export RUCIO_ACCOUNT=\"pilot\";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.3.11/cmtsite/asetup.sh 17.3.11,notest --cmtconfig i686-slc5-gcc43-opt ;export MAKEFLAGS=\"j1 QUICK=1 -l1\";export X509_USER_PROXY=<path>;./buildGen-00-00-01 ..
+        #          new setup:
+        #            cmd =
+        #     2. AnalysisTransforms-<project>_<cache>, e.g. project=AthAnalysisBase,AtlasDerivation,AtlasProduction,MCProd,TrigMC; cache=20.1.6.2,..
+        #        Setup example
+        #          old setup:
+        #            cmd = 
+        #     3. AnalysisTransforms-<project>_rel_<N>, e.g. project=AtlasOffline; N=0,1,2,..
+        #        Setup example
+        #          old setup:
+        #            cmd = 
+        #     4. [homaPackage not set]
+        #        Setup example runGen:
+        #          old setup:
+        #            cmd = export PANDA_RESOURCE="ANALY_LPC";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2673995173]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="gangarobot-rctest";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;export X509_USER_PROXY=<path>;./runGen-00-00-02 .. 
+        #          new setup:
+        #            cmd =
+        #        Setup example buildGen:
+        #          old setup:
+        #            cmd = export PANDA_RESOURCE=\"ANALY_TRIUMF\";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID=\"[2674133638]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"panda-client-0.5.56-jedi-run\";export RUCIO_ACCOUNT=\"pilot\";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh;export X509_USER_PROXY=<path>;./buildGen-00-00-01 
+        #          new setup:
+        #            cmd =
+        #
+        #   production jobs
+        #     1. <project>/<cache>, e.g. AtlasDerivation/20.1.6.2, AtlasProd1/20.1.5.10.1
+        #        Setup example
+        #          old setup:
+        #            cmd = export PANDA_RESOURCE=\"FZK-LCG2\";export FRONTIER_ID=\"[2674134772]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"merge\";export RUCIO_ACCOUNT=\"pilot\";source /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.1/cmtsite/asetup.sh 17.2.1,notest --cmtconfig i686-slc5-gcc43-opt ;unset CMTPATH;cd /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.1/TrigMC/17.2.1.4.3/TrigMCRunTime/cmt;source ./setup.sh;cd -;export AtlasVersion=17.2.1.4.3;export AtlasPatchVersion=17.2.1.4.3;Merging_trf.py
+        #          new setup:
+        #            cmd =
+        #     2. <project>,rel_<N>[,devval], e.g. AtlasProduction,rel_4,devval
+        #
+        # Tested
+        #   AtlasG4_tf.py:
+        #     PandaID=2675460595
+        #     Release=17.7.3
+        #     homePackage=MCProd/17.7.3.9.6
+        #   Sim_tf.py:
+        #     PandaID=2675460792
+        #     Release=1.0.3
+        #     homePackage=AthSimulationBase/1.0.3
+        #   Sim_tf.py, event service:
+        #     PandaID=2676267339
+        #     Release=Atlas-20.3.3
+        #     homePackage=AtlasProduction/20.3.3.2
+        #   Reco_tf.py:
+        #     PandaID=2675925382
+        #     Release=20.1.5
+        #     homePackage=AtlasProduction/20.1.5.10
+
+
+        # Is it a user job or not?
+        analysisJob = isAnalysisJob(job.trf)
+
+        # Get the cmtconfig value
+        cmtconfig = getCmtconfig(job.cmtconfig)
+
+        # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...') USE OLD FUNCTION FOR USER JOBS FOR NOW
+        if not self.__atlasEnv or analysisJob:
+            return self.getJobExecutionCommandOld(job, jobSite, pilot_initdir)
+
+            # Set the INDS env variable (used by runAthena)
+#            self.setINDS(job.realDatasetsIn)
+
+            # Try to download the trf
+#            status, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
+#            if status != 0:
+#                return status, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+
+#        # Command used to download runAthena or runGen
+#        wgetCommand = 'wget'
+
+        else:
+
+            # Normal setup (production and user jobs)
+
+            # Extract the project (cacheDir) and cache version, if any
+            m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage) # User jobs
+            if m_cacheDirVer != None:
+                # user jobs
+                cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, job.release)
+            elif "," in job.homePackage or "rel_" in job.homePackage:
+                # nightlies; e.g. homePackage = "AtlasProduction,rel_0"
+                cacheDir = job.homePackage
+                cacheVer = None
+            else:
+                # normal production jobs; e.g. homePackage = "AtlasProduction/20.1.5"
+                cacheDir, cacheVer = self.getSplitHomePackage(job.homePackage)
+
+            # Define the setup for asetup, i.e. including full path to asetup and setting of ATLAS_LOCAL_ROOT_BASE
+            asetup_path = self.getModernASetup()
+
+            # Add the appropriate options (release/patch/project/cache)
+            asetup_options = " "
+            if cacheDir:
+                asetup_options += cacheDir
+            if cacheVer:
+                if asetup_options == " ":
+                    asetup_options += cacheVer
+                else:
+                    asetup_options += "," + cacheVer
+            asetup_options += " --cmtconfig " + cmtconfig
+
+            cmd = asetup_path + asetup_options
+
+        # Add the transform and the job parameters
+        cmd += ";%s %s" % (job.trf, job.jobPars)
+
+        # Add FRONTIER debugging and RUCIO env variables
+        if 'HPC_' in readpar("catchall"):
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
+        else:
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
+
+        # Is JEM allowed to be used?
+        if self.isJEMAllowed():
+            metaOut = {}
+            try:
+                import sys
+                from JEMstub import updateRunCommand4JEM
+                # If JEM should be used, the command will get updated by the JEMstub automatically.
+                cmd = updateRunCommand4JEM(cmd, job, jobSite, tolog, metaOut=metaOut)
+            except:
+                # On failure, cmd stays the same
+                tolog("Failed to update run command for JEM - will run unmonitored.")
+
+            # Is JEM to be used?
+            if metaOut.has_key("JEMactive"):
+                JEM = metaOut["JEMactive"]
+
+            tolog("Use JEM: %s (dictionary = %s)" % (JEM, str(metaOut)))
+
+        tolog("\nCommand to run the job is: \n%s" % (cmd))
+
+        return 0, pilotErrorDiag, cmd, special_setup_cmd, JEM, cmtconfig
+
+    def getJobExecutionCommandOld(self, job, jobSite, pilot_initdir):
         """ Define and test the command(s) that will be used to execute the payload """
 
         # Input tuple: (method is called from RunJob*)
@@ -471,7 +634,6 @@ class ATLASExperiment(Experiment):
                 else:
                     cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
 
-
             # Set special_setup_cmd if necessary
             special_setup_cmd = self.getSpecialSetupCommand()
 
@@ -522,17 +684,7 @@ class ATLASExperiment(Experiment):
     def willDoFileLookups(self):
         """ Should (LFC) file lookups be done by the pilot or not? """
 
-        status = False
-
-        if readpar('lfchost') != "" and self.getFileLookups():
-            status = True
-
-        if status:
-            tolog("File lookups from %s" % (readpar('lfchost')))
-        else:
-            tolog("Will not do any file lookups")
-
-        return status
+        return self.getFileLookups()
 
     def willDoAlternativeFileLookups(self):
         """ Should file lookups be done using alternative methods? """
@@ -2021,34 +2173,29 @@ class ATLASExperiment(Experiment):
         return status, path
 
     def useAtlasSetup(self, swbase, release, homePackage, cmtconfig):
-        """ determine whether AtlasSetup is to be used """
+        """ Determine whether AtlasSetup is to be used """
 
-        #PN
+        # Previously this method returned False for older releases than 16.1.0. Since pilot release 64.0, this method returns True [i.e. use asetup for all ATLAS releases]
         return True
-
-        status = False
-
-        # are we using at least release 16.1.0?
-        if release >= "16.1.0":
-            # the actual path is not needed in this method
-            status, _path = self.getVerifiedAtlasSetupPath(swbase, release, homePackage, cmtconfig)
-        else:
-            pass
-            # tolog("Release %s is too old for AtlasSetup (need at least 16.1.0)" % (release))
-
-        return status
 
     def getSplitHomePackage(self, homePackage):
         """ Split the homePackage if it has a project/release format """
         # E.g. homePackage = AthSimulationBase/1.0.3 -> AthSimulationBase, 1.0.3
+        # homePackage = AnalysisTransforms-AtlasP1HLT_20.2.3.6 -> 'AtlasP1HLT', '20.2.3.6'
 
         if "/" in homePackage:
             s = homePackage.split('/')
             project = s[0]
             release = s[1]
         else:
-            project = homePackage
-            release = ""
+            if "AnalysisTransforms" in homePackage and ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
+                homePackage = homePackage.replace("AnalysisTransforms-", "")
+                s = homePackage.split('_')
+                project = s[0]
+                release = s[1]
+            else:
+                project = homePackage
+                release = ""
 
         return project, release
 
@@ -2181,7 +2328,7 @@ class ATLASExperiment(Experiment):
             cmd = ""
 
         # HLT on AFS
-        if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
+        if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
             try:
                 project, patch = self.getSplitHomePackage(homePackage) # ('AtlasP1HLT', '18.1.0.1')
             except Exception, e:
@@ -3084,8 +3231,23 @@ class ATLASExperiment(Experiment):
         # a summary JSON file whose name is defined by the getMemoryMonitorJSONFilename() method. The contents of
         # this file (ie. the full JSON dictionary) will be added to the jobMetrics at the end of the job (see
         # PandaServerClient class).
+        #
+        # Example of summary JSON file:
+        #   {"Max":{"maxVMEM":40058624,"maxPSS":10340177,"maxRSS":16342012,"maxSwap":16235568},
+        #    "Avg":{"avgVMEM":19384236,"avgPSS":5023500,"avgRSS":6501489,"avgSwap":5964997}}
+        #
+        # While running, the MemoryMonitor also produces a regularly updated text file with the following format: (tab separated)
+        #   Time          VMEM        PSS        RSS        Swap         (first line in file)
+        #   1447960494    16099644    3971809    6578312    1978060
 
         return True
+
+    # Optional
+    def getUtilityOutputFilename(self):
+        """ Return the filename of the memory monitor JSON file """
+
+        # For explanation, see shouldExecuteUtility()
+        return "memory_monitor_output.txt"
 
     # Optional
     def getUtilityJSONFilename(self):
@@ -3093,6 +3255,143 @@ class ATLASExperiment(Experiment):
 
         # For explanation, see shouldExecuteUtility()
         return "memory_monitor_summary.json"
+
+    # Optional
+    def getUtilityInfo(self, workdir, pilot_initdir):
+        """ Add the utility info to the node structure if available """
+
+        node = {}
+
+        # Try to get the memory monitor info from the workdir first
+        path = os.path.join(workdir, self.getUtilityJSONFilename())
+        init_path = os.path.join(pilot_initdir, self.getUtilityJSONFilename())
+        primary_location = False
+        if not os.path.exists(path):
+            tolog("File does not exist: %s" % (path))
+            if os.path.exists(init_path):
+                path = init_path
+            else:
+                tolog("File does not exist either: %s" % (init_path))
+                path = ""
+            primary_location = False
+        else:
+            primary_location = True
+
+        if path != "" and os.path.exists(path):
+            tolog("Reading memory monitoring info from: %s" % (path))
+
+            # If the file is the primary one (ie the one in the workdir and not the initdir, then also check the modification time)
+            read_from_file = True
+            if primary_location:
+                # Get the modification time
+                mod_time = None
+                max_time = 120
+                try:
+                    cmd = "ls -l %s" % (path)
+                    out = commands.getoutput(cmd)
+                    tolog("%s:\n%s" % (cmd, out))
+                    file_modification_time = os.path.getmtime(path)
+                    current_time = int(time.time())
+                    mod_time = current_time - file_modification_time
+                    tolog("File %s was modified %d seconds ago" % (path, mod_time))
+                except Exception, e:
+                    tolog("!!WARNING!!2323!! Could not read the modification time of %s: %s" % (path, e))
+                    tolog("!!WARNING!!2324!! Will add -1 values for the memory info")
+                    node['maxRSS'] = -1
+                    node['maxVMEM'] = -1
+                    node['maxSWAP'] = -1
+                    node['maxPSS'] = -1
+                    node['avgRSS'] = -1
+                    node['avgVMEM'] = -1
+                    node['avgSWAP'] = -1
+                    node['avgPSS'] = -1
+                    read_from_file = False
+                else:
+                    if mod_time > max_time:
+                        tolog("!!WARNING!!2325!! File %s was modified over %d s ago, will add -1 values for the memory info" % (path, max_time))
+                        node['maxRSS'] = -1
+                        node['maxVMEM'] = -1
+                        node['maxSWAP'] = -1
+                        node['maxPSS'] = -1
+                        node['avgRSS'] = -1
+                        node['avgVMEM'] = -1
+                        node['avgSWAP'] = -1
+                        node['avgPSS'] = -1
+                        read_from_file = False
+
+            if read_from_file:
+                # Get the dictionary
+                d = getJSONDictionary(path)
+                if d and d != {}:
+                    try:
+                        # Move to experiment class?
+                        node['maxRSS'] = d['Max']['maxRSS']
+                        node['maxVMEM'] = d['Max']['maxVMEM']
+                        node['maxSWAP'] = d['Max']['maxSwap']
+                        node['maxPSS'] = d['Max']['maxPSS']
+                        node['avgRSS'] = d['Avg']['avgRSS']
+                        node['avgVMEM'] = d['Avg']['avgVMEM']
+                        node['avgSWAP'] = d['Avg']['avgSwap']
+                        node['avgPSS'] = d['Avg']['avgPSS']
+                    except Exception, e:
+                        tolog("!!WARNING!!54541! Exception caught while parsing memory monitor JSON: %s" % (e))
+                    else:
+                        tolog("Extracted info from memory monitor JSON")
+
+        # Done with the memory monitor for this job (if the file is read from the pilots' init dir), remove the file in case there are other jobs to be run
+        if os.path.exists(init_path):
+            try:
+                os.system("rm -rf %s" % (init_path))
+            except Exception, e:
+                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (init_path), e)
+            else:
+                tolog("Removed %s" % (init_path))
+
+        return node
+
+    # Optional
+    def findMaxPSS(self, workdir):
+        """ Find the maxPSS in the utility output """
+
+        # NOTE: AS OF NOVEMBER 2015 THE MEMORY MONITOR DOES NOT PRODUCE THE SUMMARY JSON UNTIL THE END OF THE PAYLOAD
+        # WHICH MEANS THAT THE OUTPUT TEXT FILE WILL BE USED INSTEAD. A LATER VERSION OF THE MEMORY MONITOR WILL PRODUCE
+        # AND UPDATE THE SUMMARY JSON FILE DURING RUNNING. AT THAT TIME THIS METHOD NEEDS TO BE UPDATE TO FIRST LOOK
+        # FOR THE JSON FILE AND ONLY FALLBACK TO THE OUTPUT TEXT FILE OTHERWISE.
+
+        filename = self.getUtilityOutputFilename()
+        
+        maxPSS = -1
+        path = os.path.join(workdir, filename)
+        if os.path.exists(path):
+
+            # Loop over the output file, line by line, and look for the maximum PSS value
+            first = True
+            with open(path) as f:
+                for line in f:
+                    # Skip the first line
+                    if first:
+                        first = False
+                        continue
+                    line = convert_unicode_string(line)
+                    if line != "":
+                        try:
+                            Time, VMEM, PSS, RSS, Swap = line.split("\t")
+                        except Exception, e:
+                            tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
+                        else:
+                            # Convert to int
+                            try:
+                                PSS_int = int(PSS)
+                            except Exception, e:
+                                tolog("!!WARNING!!4543!! Exception caught: %s" % (e))
+                            else:
+                                if PSS_int > maxPSS:
+                                    maxPSS = PSS_int
+            f.close()
+        else:
+            tolog("!!WARNING!!4540!! File does not exist: %s" % (path))
+
+        return maxPSS
 
     # Optional
     def getUtilityCommand(self, **argdict):
@@ -3161,7 +3460,7 @@ class ATLASExperiment(Experiment):
                     cmd = standard_setup
 
         # Now add the MemoryMonitor command
-        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
+        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, self.getUtilityOutputFilename(), summary, interval)
         cmd = "cd " + workdir + ";" + cmd
 
         return cmd

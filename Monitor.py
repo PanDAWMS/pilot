@@ -247,6 +247,57 @@ class Monitor:
         else:
             pUtil.tolog("Remaining local disk space: %d B" % (spaceleft))
 
+    def __check_memory_usage(self):
+        """
+        Every ten minutes check the memory usage of the payload
+        Note: requires that the memory monitoring tool is executed (as specified in Experiment::shouldExecuteUtility())
+        """
+
+        if (int(time.time()) - self.__env['curtime_mem']) > 60: #self.__env['update_freq_space']:
+            # Check the memory from the utility every ten minutes
+
+            # get the experiment object and check if the memory utility should be used
+            thisExperiment = pUtil.getExperiment(self.__env['experiment'])
+            if thisExperiment.shouldExecuteUtility():
+                for k in self.__env['jobDic'].keys():
+
+                    # Get the maxPSS value from the memor monitor
+                    maxPSS_int = thisExperiment.findMaxPSS(self.__env['jobDic'][k][1].workdir)
+
+                    # Only proceed if values are set
+                    if maxPSS_int != -1:
+                        maxRSS = pUtil.readpar('maxrss') # string
+                        if maxRSS:
+                            try:
+                                maxRSS_int = int(maxRSS)
+                            except Exception, e:
+                                pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
+                            else:
+                                # Compare the maxRSS with the maxPSS from memory monitor
+                                if maxRSS_int > 0:
+                                    if maxPSS_int > 0:
+                                        if maxPSS_int > maxRSS_int:
+                                            pilotErrorDiag = "Job has exceeded the memory limit %d B > %d B (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
+                                            pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
+                                            # Kill the job
+                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            self.__env['jobDic'][k][1].result[0] = "failed"
+                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                                        else:
+                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
+                                    else:
+                                        pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
+                        else:
+                            if maxRSS == 0 or maxRSS == "0":
+                                pUtil.tolog("schedconfig.maxrss set to 0 (no memory checks will be done)")
+                            else:
+                                pUtil.tolog("!!WARNING!!9904!! schedconfig.maxrss is not set")
+
+            # update the time for checking memory
+            self.__env['curtime_mem'] = int(time.time())
+
     def __check_remaining_space(self):
         """
         Every ten minutes, check the remaining disk space, the size of the workDir
@@ -507,7 +558,7 @@ class Monitor:
                     pilotErrorDiag = "Pilot received a panda server signal to kill job %s at %s" %\
                                      (self.__env['jobDic'][k][1].jobId, pUtil.timeStamp())
                     pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
-                    if not processCanBeKilled(self.__env['jobDic'][k][0]):
+                    if not self.processCanBeKilled(self.__env['jobDic'][k][0]):
                         pUtil.tolog("Process %s cannot be killed. It's shared by other panda job" % self.__env['jobDic'][k][0])
                         continue
                     if self.__env['jobrec']:
@@ -998,8 +1049,8 @@ class Monitor:
                 pUtil.tolog("Failed to load unmonitored job %s: %s" % (jobId, traceback.format_exc()))
 
 
-    def processCanBeKilled(processId):
-        # to check whether the process is shared be other panda job
+    def processCanBeKilled(self, processId):
+        """ To check whether the process is shared be other panda job """
         # for multi-job Yoda, this is the case.
         for jobId in self.__env['jobDic']:
             if self.__env['jobDic'][jobId][0] == processId and not ("tobekilled" in self.__env['jobDic'][jobId][1].action):
@@ -1118,10 +1169,6 @@ class Monitor:
             ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(pUtil.readpar('appdir'),
                                                                                self.__env['job'].processingType,
                                                                                self.__env['job'].homePackage)
-
-#            ec, self.__env['thisSite'].appdir = self.__env['si'].extractAppdir(self.__env['thisSite'].appdir,
-#                                                                               self.__env['job'].processingType,
-#                                                                               self.__env['job'].homePackage)
             if ec != 0:
                 self.__env['job'].result[0] = 'failed'
                 self.__env['job'].currentState = self.__env['job'].result[0]
@@ -1152,7 +1199,6 @@ class Monitor:
             pUtil.tolog("The site this pilot runs on: %s" % (self.__env['thisSite'].sitename))
             pUtil.tolog("Pilot executing on host: %s" % (self.__env['workerNode'].nodename))
             pUtil.tolog("The workdir this pilot runs on:%s" % (self.__env['thisSite'].workdir))
-            pUtil.tolog("The RSE has %d GB space left (NB: dCache is defaulted to 999999)" % (self.__env['thisSite'].rsespace))
             pUtil.tolog("New job has prodSourceLabel: %s" % (self.__env['job'].prodSourceLabel))
 
             # update the globals used in the exception handler
@@ -1311,12 +1357,13 @@ class Monitor:
             self.__env['curtime_sp'] = self.__env['curtime']
             self.__env['curtime_of'] = self.__env['curtime']
             self.__env['curtime_proc'] = self.__env['curtime']
-            #self.__env['curtime_mem'] = self.__env['curtime']
+            self.__env['curtime_mem'] = self.__env['curtime']
             self.__env['create_softlink'] = True
             while True:
 
                 pUtil.tolog("--- Main pilot monitoring loop (job id %s, state:%s (%s), iteration %d)"
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
+                self.__check_memory_usage()
                 self.__check_remaining_space()
                 self.create_softlink()
                 self.check_unmonitored_jobs()
@@ -1608,7 +1655,6 @@ class Monitor:
             pUtil.tolog("The site this pilot runs on: %s" % (self.__env['thisSite'].sitename))
             pUtil.tolog("Pilot executing on host: %s" % (self.__env['workerNode'].nodename))
             pUtil.tolog("The workdir this pilot runs on:%s" % (self.__env['thisSite'].workdir))
-            pUtil.tolog("The RSE has %d GB space left (NB: dCache is defaulted to 999999)" % (self.__env['thisSite'].rsespace))
             pUtil.tolog("New job has prodSourceLabel: %s" % (self.__env['job'].prodSourceLabel))
 
             # does the looping job limit need to be updated?
@@ -1677,6 +1723,7 @@ class Monitor:
 
                 pUtil.tolog("--- Main pilot monitoring loop (job id %s, state:%s (%s), iteration %d)"
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
+                self.__check_memory_usage()
                 self.__check_remaining_space()
                 self.create_softlink()
                 self.check_unmonitored_jobs()
