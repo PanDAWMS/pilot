@@ -258,6 +258,8 @@ class xrdcpSiteMover(SiteMover.SiteMover):
             output["report"]['relativeStart'] = None
             output["report"]['transferStart'] = None
 
+            tolog("getStageInMode:() directIn=True")
+
             return PilotErrors.ERR_DIRECTIOFILE, output
 
         return 0, output

@@ -129,6 +129,9 @@ class Job:
         self.outData = [] # structured data of output files (similar to inData)
         self.logData = [] # structured data of log files (similar to inData)
 
+        self.accessmode = "" # accessmode=direct,copy: Should direct i/o be used for input files of this job
+
+
     def displayJob(self):
         """ dump job specifics """
 
@@ -430,6 +433,12 @@ class Job:
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
+        self.accessmode = ""
+        if '--accessmode=direct' in self.jobPars: # fix me later
+            self.accessmode = 'direct'
+        if '--accessmode=copy' in self.jobPars:   # fix me later
+            self.accessmode = 'copy'
+
         # for jem testing: self.jobPars += ' --enable-jem --jem-config \"a=1;\"'
         if "--pfnList" in self.jobPars:
             import re
@@ -543,7 +552,6 @@ class Job:
             ref_dat.append(finfo)
 
 
-
     def isAnalysisJob(self):
         """
             Determine whether the job is an analysis job or not
@@ -607,7 +615,7 @@ class FileSpec(object):
                     'prodDBlockTokenForOutput', # exposed only for eventservice related job
                     ]
 
-    _local_keys = ['type', 'status', 'replicas']
+    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl']
 
     def __init__(self, **kwargs):
 
@@ -624,19 +632,17 @@ class FileSpec(object):
 
     def get_checksum(self):
         """
-        :return: checksum_type, checksum
+        :return: checksum, checksum_type
         """
 
-        cc = (self.checksum or '').stplit(':')
+        cc = (self.checksum or '').split(':')
         if len(cc) != 2:
-            return None, self.checksum
+            return self.checksum, None
         checksum_type, checksum = cc
-        if checksum_type == 'ad':
-            checksum_type = 'adler32'
-        elif checksum_type == 'md':
-            checksum_type = 'md5'
+        cmap = {'ad':'adler32', 'md':'md5'}
+        checksum_type = cmap.get(checksum_type, checksum_type)
 
-        return checksum_type, checksum
+        return checksum, checksum_type
 
     def is_directaccess(self):
 
@@ -651,4 +657,4 @@ class FileSpec(object):
         if not is_rootfile:
             return False
 
-        return self.prodDBlockToken == 'local' and is_rootfile
+        return self.prodDBlockToken != 'local' and is_rootfile

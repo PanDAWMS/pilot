@@ -173,7 +173,6 @@ class JobMover(object):
                     continue
                 ddm_se = self.ddmconf[ddm].get('se', '')
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se))
-
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
             cc_ad = 'ad:%s' % r['adler32']
@@ -186,6 +185,13 @@ class JobMover(object):
 
         return files
 
+    def is_directaccess(self):
+        """
+            check if direct access I/O is allowed
+            quick workaround: should be properly implemented in SiteInformation
+        """
+        from Mover import getDirectAccess
+        return getDirectAccess()[0]
 
     def stagein(self):
 
@@ -193,6 +199,7 @@ class JobMover(object):
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
+        self.log("stagein: protocols=%s" % protocols)
 
         files = self.job.inData
 
@@ -204,12 +211,14 @@ class JobMover(object):
         transferred_files = []
         failed_transfers = []
 
+        self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
+
         for dat in protocols:
 
             copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
             try:
-                sitemover = getSiteMover(copytool)(copysetup, workDir=self.workDir)
+                sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
                 sitemover.trace_report = self.trace_report
                 sitemover.protocol = dat # ##
                 sitemover.setup()
@@ -217,35 +226,60 @@ class JobMover(object):
                 self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
                 continue
 
+            remain_files = [e for e in files if e.status not in ['direct_access', 'transferred']]
+            if not remain_files:
+                self.log('INFO: all input files have been successfully processed')
+                break
+
             self.log("Copy command [stagein]: %s, sitemover=%s" % (copytool, sitemover))
             self.log("Copy setup   [stagein]: %s" % copysetup)
 
             ddmendpoint = dat.get('ddm')
             self.trace_report.update(protocol=copytool, localSite=ddmendpoint, remoteSite=ddmendpoint)
 
-            self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
-
             # verify file sizes and available space for stagein
-            sitemover.check_availablespace(maxinputsize, files)
+            sitemover.check_availablespace(maxinputsize, remain_files)
 
-            for fdata in files:
+            for fdata in remain_files:
 
-                if fdata.status == 'transferred': # already transferred
-                    continue
+                #if fdata.status == 'transferred': # already transferred, skip
+                #    continue
 
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", type="input")
 
-                if fdata.is_directaccess(): # direct access mode, no transfer required
+                self.log("[stage-in] Prepare to get_data: protocol=%s, fspec=%s" % (dat, fdata))
+
+                r = sitemover.resolve_replica(fdata)
+
+                # quick stub: propagate changes to FileSpec
+                if r.get('surl'):
+                    fdata.surl = r['surl'] # TO BE CLARIFIED if it's still used and need
+                if r.get('pfn'):
+                    fdata.turl = r['pfn']
+                if r.get('ddmendpoint'):
+                    fdata.ddmendpoint = r['ddmendpoint']
+
+                self.log("[stage-in] found replica to be used: ddmendpoint=%s, pfn=%s" % (fdata.ddmendpoint, fdata.turl))
+                self.log("fdata.is_directaccess()=%s, job.accessmode=%s, mover.is_directaccess()=%s" % (fdata.is_directaccess(), self.job.accessmode, self.is_directaccess()))
+                is_directaccess = self.is_directaccess()
+                if self.job.accessmode == 'copy':
+                    is_directaccess = False
+                elif self.job.accessmode == 'direct':
+                    is_directaccess = True
+                if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", type="input")
+
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
                     continue
 
+                self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
                 self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
                 self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlock)
 
-                self.log("Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
+                self.log("[stagein] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
 
-                dumpFileStates(self.workDir, self.job.jobId)
+                #dumpFileStates(self.workDir, self.job.jobId)
 
                 # loop over multple stage-in attempts
                 for _attempt in xrange(1, self.stageinretry + 1):
@@ -258,8 +292,17 @@ class JobMover(object):
 
                     try:
                         result = sitemover.get_data(fdata)
-                        self.trace_report.update(url=result.get('surl')) ###
                         fdata.status = 'transferred' # mark as successful
+                        if result.get('ddmendpoint'):
+                            fdata.ddmendpoint = result.get('ddmendpoint')
+                        if result.get('surl'):
+                            fdata.surl = result.get('surl')
+                        if result.get('pfn'):
+                            fdata.turl = result.get('pfn')
+
+                        #self.trace_report.update(url=fdata.surl) ###
+                        self.trace_report.update(url=fdata.turl) ###
+
                         break # transferred successfully
                     except PilotException, e:
                         result = e

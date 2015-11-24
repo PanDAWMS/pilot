@@ -196,7 +196,7 @@ class BaseSiteMover(object):
 
         return None
 
-    def get_data(self, fspec):
+    def resolve_replica(self, fspec):
         """
             fspec is FileSpec object
             :return: input file replica details: {'surl':'', 'ddmendpoint':'', 'pfn':''}
@@ -204,9 +204,11 @@ class BaseSiteMover(object):
         """
 
         # resolve proper surl and find related replica
-        # update url field in trace report
-        # do real stageinfile
 
+        ignore_rucio_replicas = True # quick stab until protocols are properly populated in Rucio: CHANGE ME LATER
+        #if '.root' in fspec.lfn:
+        #    ignore_rucio_replicas = False
+        
         protocol = self.protocol
 
         self.log("[stage-in] Prepare to get_data: protocol=%s, fspec=%s" % (protocol, fspec))
@@ -215,19 +217,17 @@ class BaseSiteMover(object):
         if not scheme:
             raise Exception('Failed to resolve copytool scheme to be used, se field is corrupted?: protocol=%s' % protocol)
 
-        replica = None # find first matched replica
+        replica = None # find first matched to protocol spec replica
         surl = None
-        ignore_rucio_replicas = True
+
         for ddmendpoint, replicas, ddm_se in fspec.replicas:
             if not replicas:
                 continue
-            surl = replicas[0]
+            surl = replicas[0] # assume srm protocol is first entry
             self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s" % (surl, ddmendpoint, ddm_se))
 
-
             for r in replicas:
-
-                # match Rucio replica by default protocol se
+                # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
                 if ignore_rucio_replicas and r.startswith(ddm_se): # manually form pfn based of protocol.se
                     replica = protocol.get('se') + r.replace(ddm_se, '')
                     self.log("[stage-in] ignore_rucio_replicas=True: found replica=%s matched ddm.se=%s .. will use TURL=%s" % (surl, ddm_se, replica))
@@ -238,18 +238,25 @@ class BaseSiteMover(object):
             if replica:
                 break
 
-        self.trace_report.update(localSite=ddmendpoint, remoteSite=ddmendpoint)
-
         if not replica: # replica not found
             error = 'Failed to find replica for input file, protocol=%s, fspec=%s' % (protocol, fspec)
             raise PilotException(error, code=PilotErrors.ERR_REPNOTFOUND)
 
-        self.log("[stage-in] found replica to be used: ddmendpoint=%s, pfn=%s" % (ddmendpoint, replica))
+        return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
+
+
+    def get_data(self, fspec):
+        """
+            fspec is FileSpec object
+            :return: input file replica details: {'surl':'', 'ddmendpoint':'', 'pfn':''}
+            :raise: PilotException in case of controlled error
+        """
+
+        # resolve proper surl and find related replica
 
         dst = os.path.join(self.workDir, fspec.lfn)
-        self.stageIn(replica, dst, fspec)
 
-        return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
+        return self.stageIn(fspec.turl, dst, fspec)
 
 
     def stageIn(self, source, destination, fspec):
@@ -308,7 +315,7 @@ class BaseSiteMover(object):
                         rcode = PilotErrors.ERR_GETMD5MISMATCH
                     raise PilotException(error, code=rcode, state=state)
 
-                self.log("verifying stagein done. [by checksum]")
+                self.log("verifying stagein done. [by checksum] [%s]" % source)
                 self.trace_report.update(clientState="DONE")
                 return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':dst_fsize}
 
@@ -332,7 +339,7 @@ class BaseSiteMover(object):
                 self.log(error)
                 raise PilotException(error, code=PilotErrors.ERR_GETWRONGSIZE, state='FS_MISMATCH')
 
-            self.log("verifying stagein done. [by filesize]")
+            self.log("verifying stagein done. [by filesize] [%s]" % source)
             self.trace_report.update(clientState="DONE")
             return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':dst_fsize}
 

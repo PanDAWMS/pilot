@@ -23,17 +23,13 @@ class xrdcpSiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "xrdadler32"
 
+    def __init__(self, *args, **kwargs):
 
-    def _stagefile(self, source, destination, filesize, is_stagein):
-        """
-            Stage the file
-            mode is stagein or stageout
-            :return: destination file details (checksum, checksum_type) in case of success, throw exception in case of failure
-            :raise: PilotException in case of controlled error
-        """
+        super(xrdcpSiteMover, self).__init__(*args, **kwargs)
 
-        if self.checksum_type not in ['adler32']: # exclude md5
-            raise PilotException("Failed to stage file: internal error: unsupported checksum_type=%s .. " % self.checksum_type, code=PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED, state='BAD_CSUMTYPE')
+        self.coption = self._resolve_checksum_option()
+
+    def _resolve_checksum_option(self):
 
         cmd = "%s -h" % self.copy_command
         setup = self.getSetup()
@@ -64,7 +60,20 @@ class xrdcpSiteMover(BaseSiteMover):
         else:
             self.log("Cannot find neither -adler nor --cksum. will not use checksum")
 
-        cmd = '%s -np -f %s %s %s' % (self.copy_command, coption, source, destination)
+        return coption
+
+    def _stagefile(self, source, destination, filesize, is_stagein):
+        """
+            Stage the file
+            mode is stagein or stageout
+            :return: destination file details (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
+        """
+
+        if self.checksum_type not in ['adler32']: # exclude md5
+            raise PilotException("Failed to stage file: internal error: unsupported checksum_type=%s .. " % self.checksum_type, code=PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED, state='BAD_CSUMTYPE')
+
+        cmd = '%s -np -f %s %s %s' % (self.copy_command, self.coption, source, destination)
         setup = self.getSetup()
         if setup:
             cmd = "%s; %s" % (setup, cmd)

@@ -110,7 +110,7 @@ def get_data_new(job,
                  pinitdir="",
                  proxycheck=True,  # TODO
                  inputDir="",      # for mv mover??
-                 workDir="",
+                 workDir="",       # pilot work dir used to check/update file states
                  pfc_name="PoolFileCatalog.xml"
                  ):
 
@@ -154,18 +154,27 @@ def get_data_new(job,
     job.print_infiles()
 
     # prepare compatible output
-    tfiles = [e for e in job.inData if e.status == 'transferred']
 
-    not_transferred = [e for e in job.inData if e.status not in ['transferred', 'direct_access']]
+    not_transferred = [e.lfn for e in job.inData if e.status not in ['transferred', 'direct_access']]
     if not_transferred:
         return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED: not all input files have been copied: remain=%s' % '\n'.join(not_transferred), None, {}
+
+    tfiles = [e for e in job.inData if e.status == 'transferred']
 
     FAX_dictionary = dict(N_filesWithFAX=0, bytesWithFAX=0, usedFAXandDirectIO=False)
     FAX_dictionary['bytesWithoutFAX'] = reduce(lambda x, y: x + y.filesize, tfiles, 0)
     FAX_dictionary['N_filesWithoutFAX'] = len(tfiles)
 
-    return 0, "", None, FAX_dictionary
+    # create PoolFileCatalog.xml
+    files, lfns = {}, []
+    for fspec in job.inData:
+        files[fspec.guid] = fspec.turl or ''
+        lfns.append(fspec.lfn)
 
+    tolog(".. creating PFC with name=%s" % pfc_name)
+    createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
+
+    return 0, "", None, FAX_dictionary
 
     # cleaned old logic
 
@@ -257,7 +266,7 @@ def use_newmover(newfunc):
     def dec(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            use_newmover = False#readpar('use_newmover', version=1)
+            use_newmover = readpar('use_newmover', version=1)
             if use_newmover:
                 print ("INFO: Will try to use new SiteMover(s) implementation since queuedata.use_newmover=%s" % use_newmover)
                 try:
