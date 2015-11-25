@@ -89,7 +89,10 @@ Now using getSplitHomePackage() in getJobExecutionCommand() (ATLASExperiment)
 Creating a lockfile in __check_memory_usage() to prevent the MemoryMonitor to restart after it has been killed (Monitor)
 Avoiding restart of memory monitor in __main__() if lockfile MEMORYEXCEEDED is found (RunJob, RunJobEvent)
 
-(Still using old tolog function)
+WARNING: using export ALRB_asetupVersion=testing in ATLASExpweriment5
+
+TODO: update pUtil::getStdoutDictionary() to support the tail of the last updated AthenaMP log file; also update PandaServerClient::updatePandaServer() to
+take the latest log file and send it to the text indexer in debug mode (see Rod's mail on Nov. 24)
 
 Memory monitoring updates:
 - Calling __check_memory_usage() in monitoring loop, in monitor_job() (Monitor)

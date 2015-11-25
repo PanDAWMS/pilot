@@ -249,12 +249,12 @@ class Monitor:
 
     def __check_memory_usage(self):
         """
-        Every ten minutes check the memory usage of the payload
+        Every minute check the memory usage of the payload
         Note: requires that the memory monitoring tool is executed (as specified in Experiment::shouldExecuteUtility())
         """
 
-        if (int(time.time()) - self.__env['curtime_mem']) > 60: #self.__env['update_freq_space']:
-            # Check the memory from the utility every ten minutes
+        if (int(time.time()) - self.__env['curtime_mem']) > 60:
+            # Check the memory from the utility every minute
 
             # get the experiment object and check if the memory utility should be used
             thisExperiment = pUtil.getExperiment(self.__env['experiment'])
