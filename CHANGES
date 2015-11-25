@@ -48,51 +48,35 @@ Added protection for failure to find alternativeName in getTiersOfATLASAlternati
 
 64.0
 
-Replaced useFileStager and directIn with _dummy strings in getPrefices() and shouldPFC4TURLsBeCreated() since they are not used in these functions (Mover)
-Now getting the value of directIn from useDirectAccessLAN() instead of from getFileAccessInfo() in shouldPFC4TURLsBeCreated() (Mover)
-Replaced useFileStager and directIn with _dummy in stageIn() since they are not used (RunJob)
-Removed import of getFileAccessInfo() since it is not used (RunJobEvent)
-Created getDirectAccess(), used by shouldPFC4TURLsBeCreated() (Mover)
-Simplified getFileAccessInfo() (pUtil)
-Updated return values from getFileAccessInfo() in getPrefices() and shouldPFC4TURLsBeCreated() (Mover)
-Updated return values from getFileAccessInfo() in stageIn() (RunJob)
-Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
-Removed obsolete function getLFCChecksumType() (SiteMover)
-Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMover, rfcpLFCSiteMover)
-Added Logger module (copy of HPC/Logger - move later)
-Added purge argument to getUtilityInfo() (PandaServerClient)
-Now sending purge=True to getUtilityInfo() from getNodeStructure() (PandaServerClient)
-Sending workdir to getUtilityCommand() from getUtilitySubprocess() (RunJob)
-Extracting argument workdir in getUtilityCommand() (ATLASExperiment)
-Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
-Change default log file name from pilotlog.out to pilotlog.txt (pUtil)
-Created new global essentialPilotlogFilename (pUtil)
-Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
-Updated the tolog() function to use the new Logger module (pUtil)
-Added arguments label and essential to tolog() (pUtil)
-Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
-Removed outdated getPoolFileCatalogDQ2() (Mover)
-Simplified willDoFileLookups() (ATLASExperiment)
-Created a new getJobExecutionCommand(), renamed old function to getJobExecutionCommandOld() (ATLASExperiment)
-Corrected new method processCanBeKilled() (missing self; also in its call in __updateJobs()) (Monitor)
-Removed usages of rsespace variable in monitor_job() and monitor_recovery_job() (Monitor)
-Removed rsespace and rsespmsg from setSiteInfo() (Site)
-Removed usages of rsespace and rsespmsg, and sending remainingSpace and messageLevel to server from getNodeStructure() (PandaServerClient)
-Improved reading of memory_monitor_summary.json in getUtilityInfo() (ATLASExperiment)
-Corrected time() -> time.time() in getUtilityInfo() (ATLASExperiment)
-Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
-to get the wrong error label (LocalSiteMover)
-Changed useAtlasSetup() to always return True for all releases (ATLASExperiment)
-Created parseUtilityOutput() and findMaxPSS() (ATLASExperiment)
-Updated getSplitHomePackage() to handle AnalysisTransforms-AtlasP1HLT_* correctly (ATLASexperiment)
-Now using getSplitHomePackage() in getJobExecutionCommand() (ATLASExperiment)
-Creating a lockfile in __check_memory_usage() to prevent the MemoryMonitor to restart after it has been killed (Monitor)
-Avoiding restart of memory monitor in __main__() if lockfile MEMORYEXCEEDED is found (RunJob, RunJobEvent)
-
 WARNING: using export ALRB_asetupVersion=testing in ATLASExpweriment5
 
 TODO: update pUtil::getStdoutDictionary() to support the tail of the last updated AthenaMP log file; also update PandaServerClient::updatePandaServer() to
 take the latest log file and send it to the text indexer in debug mode (see Rod's mail on Nov. 24)
+
+
+General changes:
+- Replaced useFileStager and directIn with _dummy strings in getPrefices() and shouldPFC4TURLsBeCreated() since they are not used in these functions (Mover)
+- Now getting the value of directIn from useDirectAccessLAN() instead of from getFileAccessInfo() in shouldPFC4TURLsBeCreated() (Mover)
+- Replaced useFileStager and directIn with _dummy in stageIn() since they are not used (RunJob)
+- Removed import of getFileAccessInfo() since it is not used (RunJobEvent)
+- Created getDirectAccess(), used by shouldPFC4TURLsBeCreated() (Mover)
+- Simplified getFileAccessInfo() (pUtil)
+- Updated return values from getFileAccessInfo() in getPrefices() and shouldPFC4TURLsBeCreated() (Mover)
+- Updated return values from getFileAccessInfo() in stageIn() (RunJob)
+- Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
+- Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
+- Simplified willDoFileLookups() (ATLASExperiment)
+
+General bug fixes:
+- Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
+to get the wrong error label (LocalSiteMover)
+- Corrected usage of new method processCanBeKilled() (missing self; also in its call in __updateJobs()) (Monitor)
+
+Setup of ATLAS Release changes
+- Created a new getJobExecutionCommand(), renamed old function to getJobExecutionCommandOld() (ATLASExperiment)
+- Changed useAtlasSetup() to always return True for all releases (ATLASExperiment)
+- Updated getSplitHomePackage() to handle AnalysisTransforms-AtlasP1HLT_* correctly (ATLASexperiment)
+- Now using getSplitHomePackage() in getJobExecutionCommand() (ATLASExperiment)
 
 Memory monitoring updates:
 - Calling __check_memory_usage() in monitoring loop, in monitor_job() (Monitor)
@@ -105,17 +89,39 @@ Memory monitoring updates:
 - Created getUtilityOutputFilename() used by getUtilityCommand() (ATLASExperiment)
 - Created new error code ERR_PAYLOADEXCEEDMAXMEM, 1235, "Payload exceeded maximum allowed memory" (PilotErrors)
 - Now using getJSONDictionary() in getJobReport() to avoid problems with unicode seen in test jobs (FileHandling)
+- Created parseUtilityOutput() and findMaxPSS() (ATLASExperiment)
+- Creating a lockfile in __check_memory_usage() to prevent the MemoryMonitor to restart after it has been killed (Monitor)
+- Avoiding restart of memory monitor in __main__() if lockfile MEMORYEXCEEDED is found (RunJob, RunJobEvent)
+- Added purge argument to getUtilityInfo() (PandaServerClient)
+- Now sending purge=True to getUtilityInfo() from getNodeStructure() (PandaServerClient)
+- Sending workdir to getUtilityCommand() from getUtilitySubprocess() (RunJob)
+- Extracting argument workdir in getUtilityCommand() (ATLASExperiment)
+- Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
+- Improved reading of memory_monitor_summary.json in getUtilityInfo() (ATLASExperiment)
+- Corrected time() -> time.time() in getUtilityInfo() (ATLASExperiment)
 
 LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
 - Ignoring empty lFC paths from getLFCPath() call in getProperPaths()
 - Protecting against empty lfcpaths in getUserLFCDir() (SiteMover)
+- Removed obsolete function getLFCChecksumType() (SiteMover)
+- Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMover, rfcpLFCSiteMover)
 
 Time-out changes:
 - Protected against exitcode None being sent in run() (TimerCommand)
 
-Logging changes:
+Logging changes: (mainly invisible changes in this version)
+- Change default log file name from pilotlog.out to pilotlog.txt (pUtil)
 - Added new logging module to distribution: Logger.py with code constributions from Wen Guan (logging) and Jose Caballero (formatting)
+- Created new global essentialPilotlogFilename (pUtil)
+- Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
+- Added arguments label and essential to tolog() (pUtil)
+
+Code cleanup: (apart from Mario's cleanup)
+- Removed outdated getPoolFileCatalogDQ2() (Mover)
+- Removed usages of rsespace variable in monitor_job() and monitor_recovery_job() (Monitor)
+- Removed rsespace and rsespmsg from setSiteInfo() (Site)
+- Removed usages of rsespace and rsespmsg, and sending remainingSpace and messageLevel to server from getNodeStructure() (PandaServerClient)
 
 Update from Danila Oleynik, Taylor Childers:
 - New modules: ArgoJob, RunJobArgo, BalsamJob, MessageInterface
@@ -137,8 +143,10 @@ Merged with Wen's version:
 - Update monitor module to monitor multi-jobs, terminate multi-jobs, handle multi-jobs logs and recover HPC jobs
 - Restored is_secure variable which got lost in the merging process (S3ObjectstoreSiteMover)
 
+Merged with Mario Lassnig's version:
+- Code cleanup in various pilot modules
+
 REMOVE RunJobMira.py FROM DISTRIBUTION
-ADD TO DISTRIBUTION: ArgoJob, RunJobArgo, BalsamJob
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
