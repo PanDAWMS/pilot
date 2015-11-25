@@ -434,6 +434,10 @@ class Job:
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
         self.accessmode = ""
+        if self.transferType == 'direct': # enable direct access mode
+            self.accessmode = 'direct'
+
+        # job input options overwrite any Job settings
         if '--accessmode=direct' in self.jobPars: # fix me later
             self.accessmode = 'direct'
         if '--accessmode=copy' in self.jobPars:   # fix me later
