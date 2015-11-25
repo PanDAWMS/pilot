@@ -540,6 +540,46 @@ class RunJob(object):
 
         return ec, runCommandList, job, multi_trf
 
+
+    def stageIn_new(self,
+                    job,
+                    jobSite,
+                    analysisJob=None,  # not used: job.isAnalysisJob() should be used instead
+                    pfc_name="PoolFileCatalog.xml"):
+        """
+            Perform the stage-in
+            Do transfer input files
+            new site movers based implementation workflow
+        """
+
+        tolog("Preparing for get command [stageIn_new]")
+
+        infiles = [e.lfn for e in job.inData]
+
+        tolog("Input file(s): (%s in total)" % len(infiles))
+        for ind, lfn in enumerate(infiles, 1):
+            tolog("%s. %s" % (ind, lfn))
+
+        if not infiles:
+            tolog("No input files for this job .. skip stage-in")
+            return job, infiles, None, False
+
+        t0 = os.times()
+
+        job.result[2], job.pilotErrorDiag, _dummy, FAX_dictionary = mover.get_data_new(job, jobSite, stageinTries=self.__stageinretry, proxycheck=False, workDir=self.__pworkdir, pfc_name=pfc_name)
+
+        t1 = os.times()
+
+        job.timeStageIn = int(round(t1[4] - t0[4]))
+
+        usedFAXandDirectIO = FAX_dictionary.get('usedFAXandDirectIO', False)
+
+        statusPFCTurl = None
+
+        return job, infiles, statusPFCTurl, usedFAXandDirectIO
+
+
+    @mover.use_newmover(stageIn_new)
     def stageIn(self, job, jobSite, analysisJob, pfc_name="PoolFileCatalog.xml"):
         """ Perform the stage-in """
 

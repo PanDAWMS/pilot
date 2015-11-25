@@ -23,17 +23,13 @@ class xrdcpSiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "xrdadler32"
 
+    def __init__(self, *args, **kwargs):
 
-    def stageOutFile(self, source, destination):
-        """
-            Stage out the file
-            Should be implementated by different site mover
-            :return: remote file (checksum, checksum_type) in case of success, throw exception in case of failure
-            :raise: PilotException in case of controlled error
-        """
+        super(xrdcpSiteMover, self).__init__(*args, **kwargs)
 
-        if self.checksum_type not in ['adler32']: # exclude md5
-            raise PilotException("Failed to stageOutFile(): internal error: unsupported checksum_type=%s .. " % self.checksum_type, code=PilotErrors.ERR_STAGEOUTFAILED, state='BAD_CSUMTYPE')
+        self.coption = self._resolve_checksum_option()
+
+    def _resolve_checksum_option(self):
 
         cmd = "%s -h" % self.copy_command
         setup = self.getSetup()
@@ -64,12 +60,25 @@ class xrdcpSiteMover(BaseSiteMover):
         else:
             self.log("Cannot find neither -adler nor --cksum. will not use checksum")
 
-        cmd = '%s -np -f %s %s %s' % (self.copy_command, coption, source, destination)
+        return coption
+
+    def _stagefile(self, source, destination, filesize, is_stagein):
+        """
+            Stage the file
+            mode is stagein or stageout
+            :return: destination file details (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
+        """
+
+        if self.checksum_type not in ['adler32']: # exclude md5
+            raise PilotException("Failed to stage file: internal error: unsupported checksum_type=%s .. " % self.checksum_type, code=PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED, state='BAD_CSUMTYPE')
+
+        cmd = '%s -np -f %s %s %s' % (self.copy_command, self.coption, source, destination)
         setup = self.getSetup()
         if setup:
             cmd = "%s; %s" % (setup, cmd)
 
-        timeout = self.getTimeOut(os.path.getsize(source))
+        timeout = self.getTimeOut(filesize)
         self.log("Executing command: %s, timeout=%s" % (cmd, timeout))
 
         t0 = datetime.now()
@@ -87,11 +96,11 @@ class xrdcpSiteMover(BaseSiteMover):
         self.log("is_timeout=%s, rcode = %s, output = %s" % (is_timeout, rcode, output.replace("\n", " ")))
 
         if is_timeout:
-            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, self.timeout, output), code=PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
+            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, self.timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
 
         if rcode:
-            self.log('WARNING: Stage Out command (%s) failed: Status=%s Output=%s' % (cmd, rcode, output.replace("\n"," ")))
-            error = self.resolveStageOutError(output, source)
+            self.log('WARNING: [is_stagein=%s] Stage file command (%s) failed: Status=%s Output=%s' % (is_stagein, cmd, rcode, output.replace("\n"," ")))
+            error = self.resolveStageErrorFromOutput(output, source, is_stagein=is_stagein)
 
             #if rcode != PilotErrors.ERR_FILEEXIST:
             #    # check if file was partially transferred, if so, remove it
@@ -99,14 +108,43 @@ class xrdcpSiteMover(BaseSiteMover):
             #    #if not _ec :
             #    #    self.log("Failed to remove file %s" % destination)
             #    #return rcode, outputRet
+            rcode = error.get('rcode')
+            if not rcode:
+                rcode = PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED
+            state = error.get('state')
+            if not state:
+                state = 'COPY_FAIL' #'STAGEIN_FAILED' if is_stagein else 'STAGEOUT_FAILED'
 
-            raise PilotException(error.get('error'), code=error.get('rcode', PilotErrors.ERR_STAGEOUTFAILED), state=error.get('state', 'STAGEOUT_FAILED'))
+            raise PilotException(error.get('error'), code=rcode, state=state)
 
-        # extract remote filesize and checksum values from output
+        # extract filesize and checksum values from output
 
         checksum, checksum_type = self.getRemoteFileChecksumFromOutput(output)
 
         return checksum, checksum_type
+
+
+    def stageOutFile(self, source, destination):
+        """
+            Stage out the file
+            Should be implementated by different site mover
+            :return: remote file (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
+        """
+
+        filesize = os.path.getsize(source)
+        return self._stagefile(source, destination, filesize, is_stagein=False)
+
+    def stageInFile(self, source, destination, fspec):
+        """
+            Stage out the file
+            Should be implementated by different site mover
+            :return: remote file (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
+        """
+
+
+        return self._stagefile(source, destination, fspec.filesize, is_stagein=True)
 
 
     def getRemoteFileChecksum(self, filename):

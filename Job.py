@@ -2,6 +2,8 @@ import os
 import time
 import pUtil
 
+from subprocess import Popen, PIPE, STDOUT
+
 class Job:
     """ Job definition """
 
@@ -126,6 +128,9 @@ class Job:
         self.inData = []  # validated structured data of input files ( aggregated inFiles, ddmEndPointIn, scopeIn, filesizeIn and others...)
         self.outData = [] # structured data of output files (similar to inData)
         self.logData = [] # structured data of log files (similar to inData)
+
+        self.accessmode = "" # accessmode=direct,copy: Should direct i/o be used for input files of this job
+
 
     def displayJob(self):
         """ dump job specifics """
@@ -428,6 +433,16 @@ class Job:
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
+        self.accessmode = ""
+        if self.transferType == 'direct': # enable direct access mode
+            self.accessmode = 'direct'
+
+        # job input options overwrite any Job settings
+        if '--accessmode=direct' in self.jobPars: # fix me later
+            self.accessmode = 'direct'
+        if '--accessmode=copy' in self.jobPars:   # fix me later
+            self.accessmode = 'copy'
+
         # for jem testing: self.jobPars += ' --enable-jem --jem-config \"a=1;\"'
         if "--pfnList" in self.jobPars:
             import re
@@ -541,7 +556,6 @@ class Job:
             ref_dat.append(finfo)
 
 
-
     def isAnalysisJob(self):
         """
             Determine whether the job is an analysis job or not
@@ -552,10 +566,13 @@ class Job:
         #return pUtil.isAnalysisJob(self.trf)
         #copied from pUtil.isAnalysisJob to isolate the logic amd move outside pUtil
 
-        #trf = self.trf.split(',')[0] # ???  used like this in few places: it will affect result only if the trf starts with ','
-        is_analysis = self.trf.startswith('https://') or self.trf.startswith('http://')
+        is_analysis = False
 
-        if self.prodSourceLabel == "software": # logic extracted from the sources
+        trf = self.trf.split(',') if self.trf else [] # properly convert to list (normally should be done in setJobDef())
+        if trf and trf[0] and (trf[0].startswith('https://') or trf[0].startswith('http://')): # check 1st entry
+            is_analysis = True
+
+        if self.prodSourceLabel == "software": # logic extracted from the sources, to be verified
             is_analysis = False
 
         # apply addons checks later if need
@@ -573,6 +590,16 @@ class Job:
 
         return '\n'.join(ret)
 
+
+    def print_infiles(self): # quick stub to be checked later
+
+        infiles = [os.path.join(self.workdir or '', e.lfn) for e in self.inData]
+        pUtil.tolog("Input file(s): %s" % infiles)
+        cmd = 'ls -la %s' % ' '.join(infiles)
+        pUtil.tolog("do EXEC cmd=%s" % cmd)
+        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+        output = c.communicate()[0]
+        pUtil.tolog(output)
 
 class FileSpec(object):
 
@@ -592,12 +619,46 @@ class FileSpec(object):
                     'prodDBlockTokenForOutput', # exposed only for eventservice related job
                     ]
 
+    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl']
+
     def __init__(self, **kwargs):
 
-        attributes = self._infile_keys + self._outfile_keys + ['type']
+        attributes = self._infile_keys + self._outfile_keys + self._local_keys
         for k in attributes:
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
+
+        self.filesize = int(getattr(self, 'filesize', 0) or 0)
+        self.replicas = []
 
     def __repr__(self):
         obj = dict((name, getattr(self, name)) for name in sorted(dir(self)) if not name.startswith('_') and not callable(getattr(self, name)))
         return "%s" % obj
+
+    def get_checksum(self):
+        """
+        :return: checksum, checksum_type
+        """
+
+        cc = (self.checksum or '').split(':')
+        if len(cc) != 2:
+            return self.checksum, None
+        checksum_type, checksum = cc
+        cmap = {'ad':'adler32', 'md':'md5'}
+        checksum_type = cmap.get(checksum_type, checksum_type)
+
+        return checksum, checksum_type
+
+    def is_directaccess(self):
+
+        is_rootfile = '.root' in self.lfn
+
+        exclude_pattern = ['.tar.gz', '.lib.tgz', '.raw.']
+        for e in exclude_pattern:
+            if e in self.lfn:
+                is_rootfile = False
+                break
+
+        if not is_rootfile:
+            return False
+
+        return self.prodDBlockToken != 'local' and is_rootfile
