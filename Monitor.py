@@ -269,7 +269,7 @@ class Monitor:
                         maxRSS = pUtil.readpar('maxrss') # string
                         if maxRSS:
                             try:
-                                maxRSS_int = int(maxRSS)
+                                maxRSS_int = int(maxRSS)*1024 # Convert to int and B
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:

@@ -8,7 +8,7 @@ def set_environment():
     env = Configuration()
 
     # env['version'] = pUtil.getPilotVersion()
-    env['pilot_version_tag'] = 'PR' # 'RC'
+    env['pilot_version_tag'] = 'RC' #'PR' # 'RC'
     env['force_devpilot'] = False
 
     # get the python executable path, to be used by child job
@@ -35,7 +35,7 @@ def set_environment():
     env['outputlimit'] = 500*1024**3           # Maximum allowed size of an output file. unit is B
     env['pilotId'] = 'xtestP001'               # Pilot id
     env['jobSchedulerId'] = 'xtestJS001'       # Scheduler id
-    env['heartbeatPeriod'] = 30*60             # 30 minutes limit for checking job state file
+    env['heartbeatPeriod'] = 5*30 # 30*60             # 30 minutes limit for checking job state file
     env['maxjobrecDefault'] = 20               # Default maximum number of job recoveries
     env['maxjobrec'] = env['maxjobrecDefault'] # Maximum number of job recoveries
     env['zombieJobList'] = []                  # Zombie list
