@@ -3244,7 +3244,7 @@ class ATLASExperiment(Experiment):
 
     # Optional
     def getUtilityOutputFilename(self):
-        """ Return the filename of the memory monitor JSON file """
+        """ Return the filename of the memory monitor text output file """
 
         # For explanation, see shouldExecuteUtility()
         return "memory_monitor_output.txt"
@@ -3256,13 +3256,14 @@ class ATLASExperiment(Experiment):
         # For explanation, see shouldExecuteUtility()
         return "memory_monitor_summary.json"
 
-    # Optional
-    def getUtilityInfo(self, workdir, pilot_initdir):
-        """ Add the utility info to the node structure if available """
+    def getUtilityInfoPath(self, workdir, pilot_initdir, allowTxtFile=False):
+        """ Find the proper path to the utility info file """
+        # Priority order:
+        #   1. JSON summary file from workdir
+        #   2. JSON summary file from pilot initdir
+        #   3. Text output file from workdir (if allowTxtFile is True)
+        # Return a primary_location boolean as well (True if path is priority 1 as above)
 
-        node = {}
-
-        # Try to get the memory monitor info from the workdir first
         path = os.path.join(workdir, self.getUtilityJSONFilename())
         init_path = os.path.join(pilot_initdir, self.getUtilityJSONFilename())
         primary_location = False
@@ -3274,9 +3275,24 @@ class ATLASExperiment(Experiment):
                 tolog("File does not exist either: %s" % (init_path))
                 path = ""
             primary_location = False
+
+            if path == "" and allowTxtFile:
+                path = os.path.join(workdir, self.getUtilityOutputFilename())
+                if not os.path.exists(path):
+                    tolog("File does not exist either: %s" % (path))
         else:
             primary_location = True
 
+        return path, primary_location
+
+    # Optional
+    def getUtilityInfo(self, workdir, pilot_initdir):
+        """ Add the utility info to the node structure if available """
+
+        node = {}
+
+        # Try to get the memory monitor info from the workdir first
+        path, primary_location = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=False)
         if path != "" and os.path.exists(path):
             tolog("Reading memory monitoring info from: %s" % (path))
 
@@ -3287,9 +3303,6 @@ class ATLASExperiment(Experiment):
                 mod_time = None
                 max_time = 120
                 try:
-                    cmd = "ls -l %s" % (path)
-                    out = commands.getoutput(cmd)
-                    tolog("%s:\n%s" % (cmd, out))
                     file_modification_time = os.path.getmtime(path)
                     current_time = int(time.time())
                     mod_time = current_time - file_modification_time

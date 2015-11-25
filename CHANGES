@@ -86,7 +86,7 @@ Memory monitoring updates:
 - Created empty getUtilityInfo() (Experiment)
 - Updated call to getUtilityInfo() in getNodeStructure() (PandaServerClient)
 - Now importing getJSONDictionary in ATLASExperiment
-- Created getUtilityOutputFilename() used by getUtilityCommand() (ATLASExperiment)
+- Created getUtilityOutputFilename() used by getUtilityCommand() (ATLASExperiment, Experiment)
 - Created new error code ERR_PAYLOADEXCEEDMAXMEM, 1235, "Payload exceeded maximum allowed memory" (PilotErrors)
 - Now using getJSONDictionary() in getJobReport() to avoid problems with unicode seen in test jobs (FileHandling)
 - Created parseUtilityOutput() and findMaxPSS() (ATLASExperiment)
@@ -99,6 +99,7 @@ Memory monitoring updates:
 - Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
 - Improved reading of memory_monitor_summary.json in getUtilityInfo() (ATLASExperiment)
 - Corrected time() -> time.time() in getUtilityInfo() (ATLASExperiment)
+- Created getUtilityInfoPath() used by getUtilityInfo() and ... (ATLASExperiment)
 
 LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
