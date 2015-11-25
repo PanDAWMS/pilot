@@ -249,12 +249,12 @@ class Monitor:
 
     def __check_memory_usage(self):
         """
-        Every ten minutes check the memory usage of the payload
+        Every minute check the memory usage of the payload
         Note: requires that the memory monitoring tool is executed (as specified in Experiment::shouldExecuteUtility())
         """
 
-        if (int(time.time()) - self.__env['curtime_mem']) > 60: #self.__env['update_freq_space']:
-            # Check the memory from the utility every ten minutes
+        if (int(time.time()) - self.__env['curtime_mem']) > 60:
+            # Check the memory from the utility every minute
 
             # get the experiment object and check if the memory utility should be used
             thisExperiment = pUtil.getExperiment(self.__env['experiment'])
@@ -269,7 +269,7 @@ class Monitor:
                         maxRSS = pUtil.readpar('maxrss') # string
                         if maxRSS:
                             try:
-                                maxRSS_int = int(maxRSS)
+                                maxRSS_int = int(maxRSS)*1024 # Convert to int and B
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:
@@ -279,6 +279,10 @@ class Monitor:
                                         if maxPSS_int > maxRSS_int:
                                             pilotErrorDiag = "Job has exceeded the memory limit %d B > %d B (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
                                             pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
+
+                                            # Create a lockfile to let RunJob know that it should not restart the memory monitor after it has been killed
+                                            pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORYEXCEEDED")
+
                                             # Kill the job
                                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                                             self.__env['jobDic'][k][1].result[0] = "failed"
