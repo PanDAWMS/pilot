@@ -103,13 +103,13 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
 # keep the list of input arguments as is for smooth migration
 def get_data_new(job,
                  jobSite,
-                 ins,              # ignored, not used anymore, use job.inData instead
-                 stageinTries,
+                 ins=None,              # ignored, not used anymore, use job.inData instead
+                 stageinTries=2,
                  analysisJob=False, # ignored, not used anymore (use job.isAnalysisJob instead)
                  usect=True,       # ignored, not used anymore
-                 pinitdir="",
+                 pinitdir="",       # not used??
                  proxycheck=True,  # TODO
-                 inputDir="",      # for mv mover??
+                 inputDir="",      # for mv mover?? not used??
                  workDir="",       # pilot work dir used to check/update file states
                  pfc_name="PoolFileCatalog.xml"
                  ):
@@ -161,9 +161,23 @@ def get_data_new(job,
 
     tfiles = [e for e in job.inData if e.status == 'transferred']
 
-    FAX_dictionary = dict(N_filesWithFAX=0, bytesWithFAX=0, usedFAXandDirectIO=False)
-    FAX_dictionary['bytesWithoutFAX'] = reduce(lambda x, y: x + y.filesize, tfiles, 0)
-    FAX_dictionary['N_filesWithoutFAX'] = len(tfiles)
+    job.bytesWithoutFAX = reduce(lambda x, y: x + y.filesize, tfiles, 0)
+    job.filesWithoutFAX = len(tfiles)
+
+    job.filesWithFAX = 0
+    job.bytesWithFAX = 0
+
+    # backward compatible dict
+    FAX_dictionary = dict(N_filesWithFAX=job.filesWithFAX, bytesWithFAX=job.bytesWithFAX,
+                          N_filesWithoutFAX=job.filesWithoutFAX, bytesWithoutFAX=job.bytesWithoutFAX)
+
+    #FAX_dictionary['usedFAXandDirectIO'] = False
+
+    ### reuse usedFAXandDirectIO variable as special meaning attribute to form command option list later
+    ### FIX ME LATER
+    FAX_dictionary['usedFAXandDirectIO'] = 'newmover'
+    if mover.is_directaccess():
+        FAX_dictionary['usedFAXandDirectIO'] = 'newmover-directaccess'
 
     # create PoolFileCatalog.xml
     files, lfns = {}, []
@@ -173,6 +187,7 @@ def get_data_new(job,
 
     tolog(".. creating PFC with name=%s" % pfc_name)
     createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
+
 
     return 0, "", None, FAX_dictionary
 

@@ -208,10 +208,8 @@ class BaseSiteMover(object):
         ignore_rucio_replicas = True # quick stab until protocols are properly populated in Rucio: CHANGE ME LATER
         #if '.root' in fspec.lfn:
         #    ignore_rucio_replicas = False
-        
-        protocol = self.protocol
 
-        self.log("[stage-in] Prepare to get_data: protocol=%s, fspec=%s" % (protocol, fspec))
+        protocol = self.protocol
 
         scheme = protocol.get('se', '').split(':')[0]
         if not scheme:
