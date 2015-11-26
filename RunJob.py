@@ -64,6 +64,9 @@ class RunJob(object):
 #    __workdir = "/tmp" # NOT USED
     __cache = ""                         # Cache URL, e.g. used by LSST
 
+    __recovery = False
+    __jobStateFile = None
+
     # Getter and setter methods
 
     def getExperiment(self):
@@ -237,6 +240,10 @@ class RunJob(object):
                           help="The number of stage-out retries", metavar="STAGEOUTRETRY")
         parser.add_option("-F", "--experiment", dest="experiment",
                           help="Current experiment (default: ATLAS)", metavar="EXPERIMENT")
+        parser.add_option("-R", "--recovery", dest="recovery",
+                          help="Run in recovery mode", metavar="RECOVERY")
+        parser.add_option("-S", "--jobStateFile", dest="jobStateFile",
+                          help="Job State File", metavar="JOBSTATEFILE")
         parser.add_option("-H", "--cache", dest="cache",
                           help="Cache URL", metavar="CACHE")
 
@@ -298,6 +305,9 @@ class RunJob(object):
                 workdir = options.workdir
             if options.cache:
                 self.__cache = options.cache
+
+            self.__recovery = options.recovery
+            self.__jobStateFile = options.jobStateFile
 
         return sitename, appdir, workdir, queuename
 

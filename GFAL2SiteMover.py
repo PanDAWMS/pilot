@@ -542,6 +542,12 @@ class GFAL2SiteMover(SiteMover.SiteMover):
                         tolog(o)
                         os.remove(outputFile + ".gfalcmdfinished")
                         break
+                    if os.path.exists(outputFile + ".gfalcmdfailed"):
+                        ec = 0
+                        o = "Remote finished transfer"
+                        tolog(o)
+                        os.remove(outputFile + ".gfalcmdfailed")
+                        break
         else:
             tolog("Executing command: %s" % (_cmd_str))
             outputRet["report"]['relativeStart'] = time()

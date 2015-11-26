@@ -1,6 +1,7 @@
 import inspect
 import commands
 import os
+import re
 import signal
 import sys
 import time
@@ -81,6 +82,10 @@ class EventServerJobManager():
         self.__numOutputs = 0
         self.initSignalHandler()
 
+        self.__childRetStatus = 0
+        self.__retry = 0
+        self.__errEvent = False
+
     def handler(self, signal, frame):
         self.__log.debug("!!FAILED!!3000!! Signal %s is caught" % signal)
         self.terminate()
@@ -142,6 +147,7 @@ class EventServerJobManager():
             self.terminate()
 
     def init(self, socketname='EventService_EventRanges', context='local', athenaMPCmd=None, tokenExtractorCmd=None):
+        self.__childRetStatus = 0
         child_pid = os.fork()
         if child_pid == 0:
             # child process
@@ -298,12 +304,17 @@ class EventServerJobManager():
         except OSError, e:
             self.__log.debug("Rank %s: Exception when checking child process %s: %s" % (self.__rank, self.__child_pid, e))
             if "No child processes" in str(e):
+                self.__childRetStatus = 0
                 return True
         else:
             if pid: # finished
                 self.__log.debug("Rank %s: Child process %s finished with status: %s" % (self.__rank, pid, status%255))
+                self.__childRetStatus = status%255
                 return True
         return False
+
+    def getChildRetStatus(self):
+        return self.__childRetStatus
 
     def isReady(self):
         #return self.__athenaMP_isReady and self.__athenaMPProcess.poll() is None
@@ -377,11 +388,11 @@ class EventServerJobManager():
                     error_diagnostics = found[0][2]
                 except Exception, e:
                     self.__log.error("!!WARNING!!2211!! Failed to extract AthenaMP message: %s" % (e))
-                    error_acronym = "EXTRACTION_FAILURE"
+                    error_acronym = "ERR_EXTRACTION_FAILURE"
                     error_diagnostics = e
             else:
                 self.__log.error("!!WARNING!!2212!! Failed to extract AthenaMP message")
-                error_acronym = "EXTRACTION_FAILURE"
+                error_acronym = "ERR_EXTRACTION_FAILURE"
                 error_diagnostics = msg
 
         return error_acronym, event_range_id, error_diagnostics
@@ -413,13 +424,13 @@ class EventServerJobManager():
                     self.__log.warning("Rank %s: %s" % (self.__rank, str(e)))
             elif message.startswith('ERR'):
                 self.__log.error("Rank %s: Received an error message: %s" % (self.__rank, message))
-                error_acronym, event_range_id, error_diagnostics = self.extractErrorMessage(message)
+                error_acronym, eventRangeID, error_diagnostics = self.extractErrorMessage(message)
                 if event_range_id != "":
                     try:
                         self.__log.error("Rank %s: !!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (self.__rank, error_acronym, error_diagnostics, event_range_id))
                         self.__eventRangesStatus[eventRangeID]['status'] = 'failed'
                         self.__eventRangesStatus[eventRangeID]['output'] = message
-                        self.__outputMessage.append((event_range_id, 'failed', message))
+                        self.__outputMessage.append((eventRangeID, error_acronym, message))
                     except Exception, e:
                         self.__log.warning("Rank %s: output message format is not recognized: %s " % (self.__rank, message))
                         self.__log.warning("Rank %s: %s" % (self.__rank, str(e)))

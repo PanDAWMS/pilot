@@ -108,6 +108,13 @@ def argParser(argv):
     else:
         env['pilotId'] = gtag
         print "pilot ID = %s" % env['pilotId']
+    try:
+        eventService_ArcID = os.environ["EventService_ArcID"]
+    except:
+        pass
+    else:
+        env['EventService_ArcID'] = eventService_ArcID
+        print "EventService_ArcID = %s" % env['EventService_ArcID']
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
@@ -589,10 +596,13 @@ def testExternalDir(recoveryDir):
 
     return status
 
-def createAtomicLockFile(file_path):
+def createAtomicLockFile(file_path, lockname=None):
     """ Create an atomic lockfile while probing this dir to avoid a possible race-condition """
 
-    lockfile_name = os.path.join(os.path.dirname(file_path), "ATOMIC_LOCKFILE")
+    if lockname:
+        lockfile_name = os.path.join(os.path.dirname(file_path), lockname)
+    else:
+        lockfile_name = os.path.join(os.path.dirname(file_path), "ATOMIC_LOCKFILE")
     try:
         # acquire the lock
         fd = os.open(lockfile_name, os.O_EXCL|os.O_CREAT)
@@ -2489,6 +2499,26 @@ def runMain(runpars):
         if ec != 0:
             return pUtil.shellExitCode(ec)
 
+        if 'EventService_ArcID' in env.keys():
+            if os.environ.has_key('RANK_NUM'):
+                pUtil.tolog("RANK %s" % os.environ['RANK_NUM'])
+                if str(os.environ['RANK_NUM']) == '0':
+                    pUtil.tolog("Event Service ARC on RANK 0, pilot will continue")
+                else:
+                    pUtil.tolog("Event Service ARC not on RANK 0, pilot will exit")
+                    return pUtil.shellExitCode(0)
+            else:
+                pUtil.tolog("Event Service ARC: RANK_NUM is not defined, will use lock files")
+                lockname = 'ATOMIC_LOCKFILE_%s' % env['EventService_ArcID']
+                fd, lockfile_name = createAtomicLockFile(env['thisSite'].workdir, lockname)
+                if fd is None:
+                    pUtil.tolog("EventService ARC file %s is locked, only locked pilot will run, other pilots will exit" % lockfile_name)
+                    return pUtil.shellExitCode(0)
+                else:
+                    pUtil.tolog("EventService ARC file %s is not locked, pilot will lock it and run" % lockfile_name)
+                    env['EventService_ArcLockFD'] = fd
+                    env['EventService_ArcLockFile'] = lockfile_name
+
         # create the watch dog
         wdog = WatchDog()
 
@@ -2672,6 +2702,10 @@ def runMain(runpars):
 
         pUtil.tolog("No more jobs to execute")
 
+        if 'EventService_ArcLockFD' in env.keys() and 'EventService_ArcLockFile' in env.keys():
+            pUtil.tolog("Release EventService ARC lock file %s" % env['EventService_ArcLockFile'])
+            releaseAtomicLockFile(env['EventService_ArcLockFD'], env['EventService_ArcLockFile'])
+
         # wait for the stdout to catch up (otherwise the full log is cut off in the batch stdout dump)
         time.sleep(10)
         pUtil.tolog("End of the pilot")
@@ -2682,6 +2716,10 @@ def runMain(runpars):
 
     # catch any uncaught pilot exceptions
     except Exception, errorMsg:
+
+        if 'EventService_ArcLockFD' in env.keys() and 'EventService_ArcLockFile' in env.keys():
+            pUtil.tolog("Release EventService ARC lock file %s" % env['EventService_ArcLockFile'])
+            releaseAtomicLockFile(env['EventService_ArcLockFD'], env['EventService_ArcLockFile'])
 
         error = PilotErrors()
 

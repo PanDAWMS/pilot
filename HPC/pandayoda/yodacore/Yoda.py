@@ -47,6 +47,7 @@ class Yoda:
         self.readyJobsEventRanges = {}
         self.runningJobsEventRanges = {}
         self.finishedJobsEventRanges = {}
+        self.stagedOutJobsEventRanges = {}
 
         self.updateEventRangesToDBTime = None
 
@@ -199,6 +200,7 @@ class Yoda:
             for jobId in self.readyJobsEventRanges:
                 self.runningJobsEventRanges[jobId] = {}
                 self.finishedJobsEventRanges[jobId] = []
+                self.stagedOutJobsEventRanges[jobId] = []
             return True,None
         except:
             self.tmpLog.debug("Rank %s: %s" % (self.rank, traceback.format_exc()))
@@ -247,6 +249,24 @@ class Yoda:
             errMsg = 'failed to inject more event range to table with {0}:{1}'.format(errtype.__name__,errvalue)
             return False,errMsg
 
+    def rescheduleJobRanks(self):
+        try:
+            numEvents = {}
+            for jobId in self.readyJobsEventRanges:
+                no = len(self.readyJobsEventRanges[jobId])
+                if no not in numEvents:
+                    numEvents[len] = []
+                numEvents.append(jobId)
+            keys = numEvents.keys()
+            keys.sort(reverse=True)
+            for key in keys:
+                for jobId in numEvents[key]:
+                    for i in range(key/100):
+                        self.jobRanks.append(jobId)
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errMsg = 'failed to reschedule job ranks with {0}:{1}'.format(errtype.__name__,errvalue)
+            return False,errMsg
 
     # get job
     def getJob(self,params):
@@ -255,6 +275,12 @@ class Yoda:
         if len(self.jobRanks):
             jobId = self.jobRanks.pop(0)
             job = self.jobs[jobId]
+        else:
+            self.rescheduleJobRanks()
+            if len(self.jobRanks):
+                jobId = self.jobRanks.pop(0)
+                job = self.jobs[jobId]
+
         res = {'StatusCode':0,
                'job': job}
         self.tmpLog.debug('res={0}'.format(str(res)))
@@ -385,7 +411,10 @@ class Yoda:
         if eventRangeID in self.runningJobsEventRanges[jobId]:
             # eventRange = self.runningEventRanges[eventRangeID]
             del self.runningJobsEventRanges[jobId][eventRangeID]
-        self.finishedJobsEventRanges[jobId].append((eventRangeID, eventStatus, output))
+        if eventStatus == 'stagedOut':
+            self.stagedOutJobsEventRanges[jobId].append((eventRangeID, eventStatus, output))
+        else:
+            self.finishedJobsEventRanges[jobId].append((eventRangeID, eventStatus, output))
 
         # make response
         res = {'StatusCode':0}
@@ -407,7 +436,10 @@ class Yoda:
             if eventRangeID in self.runningJobsEventRanges[jobId]:
                 # eventRange = self.runningEventRanges[eventRangeID]
                 del self.runningJobsEventRanges[jobId][eventRangeID]
-            self.finishedJobsEventRanges[jobId].append((eventRangeID, eventStatus, output))
+            if eventStatus == 'stagedOut':
+                self.stagedOutJobsEventRanges[jobId].append((eventRangeID, eventStatus, output))
+            else:
+                self.finishedJobsEventRanges[jobId].append((eventRangeID, eventStatus, output))
 
         # make response
         res = {'StatusCode':0}
@@ -440,9 +472,9 @@ class Yoda:
         except Exception as e:
             self.tmpLog.debug('updateRunningEventRangesToDB failed: %s, %s' % (str(e), traceback.format_exc()))
 
-    def dumpUpdates(self, jobId, outputs):
+    def dumpUpdates(self, jobId, outputs, type=''):
         timeNow = datetime.datetime.utcnow()
-        outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump'
+        outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
         outFileName = os.path.join(self.globalWorkingDir, outFileName)
         outFile = open(outFileName,'w')
         for eventRangeID,status,output in outputs:
@@ -452,6 +484,15 @@ class Yoda:
     def updateFinishedEventRangesToDB(self):
         try:
             self.tmpLog.debug('start to updateFinishedEventRangesToDB')
+
+            for jobId in self.stagedOutJobsEventRanges:
+                if len(self.stagedOutJobsEventRanges[jobId]):
+                    self.dumpUpdates(jobId, self.stagedOutJobsEventRanges[jobId], type='.stagedOut')
+                    #self.db.updateEventRanges(self.finishedEventRanges)
+                    for i in self.stagedOutJobsEventRanges[jobId]:
+                        self.stagedOutJobsEventRanges[jobId].remove(i)
+                    self.stagedOutJobsEventRanges[jobId] = []
+
             for jobId in self.finishedJobsEventRanges:
                 if len(self.finishedJobsEventRanges[jobId]):
                     self.dumpUpdates(jobId, self.finishedJobsEventRanges[jobId])
