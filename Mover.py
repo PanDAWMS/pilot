@@ -282,7 +282,7 @@ def use_newmover(newfunc):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             use_newmover = readpar('use_newmover')
-            if use_newmover:
+            if str(use_newmover).lower() in ["1", "true"]:
                 print ("INFO: Will try to use new SiteMover(s) implementation since queuedata.use_newmover=%s" % use_newmover)
                 try:
                     ret = newfunc(*args, **kwargs)
