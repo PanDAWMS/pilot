@@ -262,7 +262,12 @@ class Monitor:
                 for k in self.__env['jobDic'].keys():
 
                     # Get the maxPSS value from the memor monitor
-                    maxPSS_int = thisExperiment.findMaxPSS(self.__env['jobDic'][k][1].workdir)
+                    summary_dictionary = thisExperiment.getMemoryValues(self.__env['jobDic'][k][1].workdir, self.__env['pilot_initdir'])
+                    try:
+                        maxPSS_int = summary_dictionary['Max']['maxPSS']
+                    except KeyError, e:
+                        pUtil.tolog("!!WARNING!!3434!! Could not extract maxPSS value from: %s" % str(summary_dictionary))
+                        maxPSS_int = -1
 
                     # Only proceed if values are set
                     if maxPSS_int != -1:

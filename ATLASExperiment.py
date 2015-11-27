@@ -3271,10 +3271,11 @@ class ATLASExperiment(Experiment):
             tolog("File does not exist: %s" % (path))
             if os.path.exists(init_path):
                 path = init_path
+                primary_location = None # Note: the None value is used in getUtilityInfo()
             else:
                 tolog("File does not exist either: %s" % (init_path))
                 path = ""
-            primary_location = False
+                primary_location = False
 
             if path == "" and allowTxtFile:
                 path = os.path.join(workdir, self.getUtilityOutputFilename())
@@ -3286,13 +3287,13 @@ class ATLASExperiment(Experiment):
         return path, primary_location
 
     # Optional
-    def getUtilityInfo(self, workdir, pilot_initdir):
+    def getUtilityInfo(self, workdir, pilot_initdir, allowTxtFile=False):
         """ Add the utility info to the node structure if available """
 
         node = {}
 
         # Try to get the memory monitor info from the workdir first
-        path, primary_location = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=False)
+        path, primary_location = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=allowTxtFile)
         if path != "" and os.path.exists(path):
             tolog("Reading memory monitoring info from: %s" % (path))
 
@@ -3352,59 +3353,111 @@ class ATLASExperiment(Experiment):
                         tolog("Extracted info from memory monitor JSON")
 
         # Done with the memory monitor for this job (if the file is read from the pilots' init dir), remove the file in case there are other jobs to be run
-        if os.path.exists(init_path):
+        if os.path.exists(path) and primary_location == None:
             try:
-                os.system("rm -rf %s" % (init_path))
+                os.system("rm -rf %s" % (path))
             except Exception, e:
-                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (init_path), e)
+                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (path), e)
             else:
-                tolog("Removed %s" % (init_path))
+                tolog("Removed %s" % (path))
 
         return node
 
-    # Optional
-    def findMaxPSS(self, workdir):
-        """ Find the maxPSS in the utility output """
+    def getMaxUtilityValue(self, value, maxValue, totalValue):
+        """ Return the max and total value (used by memory monitoring) """
+        # Return an error code, 1, in case of value error
 
-        # NOTE: AS OF NOVEMBER 2015 THE MEMORY MONITOR DOES NOT PRODUCE THE SUMMARY JSON UNTIL THE END OF THE PAYLOAD
-        # WHICH MEANS THAT THE OUTPUT TEXT FILE WILL BE USED INSTEAD. A LATER VERSION OF THE MEMORY MONITOR WILL PRODUCE
-        # AND UPDATE THE SUMMARY JSON FILE DURING RUNNING. AT THAT TIME THIS METHOD NEEDS TO BE UPDATE TO FIRST LOOK
-        # FOR THE JSON FILE AND ONLY FALLBACK TO THE OUTPUT TEXT FILE OTHERWISE.
+        ec = 0
+        try:
+            value_int = int(value)
+        except Exception, e:
+            tolog("!!WARNING!!4543!! Exception caught: %s" % (e))
+            ec = 1
+        else:
+            totalValue += value_int
+            if value_int > maxValue:
+                maxValue = value_int
 
-        filename = self.getUtilityOutputFilename()
-        
+        return ec, maxValue, totalValue
+
+    def getMemoryValues(self, workdir, pilot_initdir):
+        """ Find the values in the utility output file """
+
+        # In case the summary JSON file has not yet been produced, create a summary dictionary with the same format
+        # using the output text file (produced by the memory monitor and which is updated once per minute)
+        #
+        # FORMAT:
+        #   {"Max":{"maxVMEM":40058624,"maxPSS":10340177,"maxRSS":16342012,"maxSwap":16235568},
+        #    "Avg":{"avgVMEM":19384236,"avgPSS":5023500,"avgRSS":6501489,"avgSwap":5964997}}
+
+        maxVMEM = -1
+        maxRSS = -1
         maxPSS = -1
-        path = os.path.join(workdir, filename)
+        maxSwap = -1
+        avgVMEM = 0
+        avgRSS = 0
+        avgPSS = 0
+        avgSwap = 0
+        totalVMEM = 0
+        totalRSS = 0
+        totalPSS = 0
+        totalSwap = 0
+        N = 0
+        summary_dictionary = {}
+
+        # Get the path to the proper memory info file (priority ordered)
+        path, dummy = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=True)
         if os.path.exists(path):
 
-            # Loop over the output file, line by line, and look for the maximum PSS value
-            first = True
-            with open(path) as f:
-                for line in f:
-                    # Skip the first line
-                    if first:
-                        first = False
-                        continue
-                    line = convert_unicode_string(line)
-                    if line != "":
-                        try:
-                            Time, VMEM, PSS, RSS, Swap = line.split("\t")
-                        except Exception, e:
-                            tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
-                        else:
-                            # Convert to int
-                            try:
-                                PSS_int = int(PSS)
-                            except Exception, e:
-                                tolog("!!WARNING!!4543!! Exception caught: %s" % (e))
-                            else:
-                                if PSS_int > maxPSS:
-                                    maxPSS = PSS_int
-            f.close()
-        else:
-            tolog("!!WARNING!!4540!! File does not exist: %s" % (path))
+            tolog("Using path: %s" % (path))
 
-        return maxPSS
+            # Does a JSON summary file exist? If so, there's no need to calculate maximums and averages in the pilot
+            if path.lower().endswith('json'):
+                # Read the dictionary from the JSON file
+                summary_dictionary = getJSONDictionary(path)
+            else:
+                # Loop over the output file, line by line, and look for the maximum PSS value
+                first = True
+                with open(path) as f:
+                    for line in f:
+                        # Skip the first line
+                        if first:
+                            first = False
+                            continue
+                        line = convert_unicode_string(line)
+                        if line != "":
+                            try:
+                                Time, VMEM, PSS, RSS, Swap = line.split("\t")
+                            except Exception, e:
+                                tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
+                            else:
+                                # Convert to int
+                                ec1, maxVMEM, totalVMEM = self.getMaxUtilityValue(VMEM, maxVMEM, totalVMEM) 
+                                ec2, maxPSS, totalPSS = self.getMaxUtilityValue(PSS, maxPSS, totalPSS) 
+                                ec3, maxRSS, totalRSS = self.getMaxUtilityValue(RSS, maxRSS, totalRSS) 
+                                ec4, maxSwap, totalSwap = self.getMaxUtilityValue(Swap, maxSwap, totalSwap) 
+                                if ec1 or ec2 or ec3 or ec4:
+                                    tolog("Will skip this row of numbers due to value exception: %s" % (line))
+                                else:
+                                    N += 1
+                    # Calculate averages and store all values
+                    summary_dictionary = { "Max": {}, "Avg": {} }
+                    summary_dictionary["Max"] = { "maxVMEM":maxVMEM, "maxPSS":maxPSS, "maxRSS":maxRSS, "maxSwap":maxSwap }
+                    if N > 0:
+                        avgVMEM = int(float(totalVMEM)/float(N))
+                        avgPSS = int(float(totalPSS)/float(N))
+                        avgRSS = int(float(totalRSS)/float(N))
+                        avgSwap = int(float(totalSwap)/float(N))
+                    summary_dictionary["Avg"] = { "avgVMEM":avgVMEM, "avgPSS":avgPSS, "avgRSS":avgRSS, "avgSwap":avgSwap }
+                    tolog("summary_dictionary=%s"%str(summary_dictionary))
+                f.close()
+        else:
+            if path == "":
+                tolog("!!WARNING!!4541!! Filename not set for utility output")
+            else:
+                tolog("!!WARNING!!4540!! File does not exist: %s" % (path))
+
+        return summary_dictionary
 
     # Optional
     def getUtilityCommand(self, **argdict):

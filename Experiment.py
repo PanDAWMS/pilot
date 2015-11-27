@@ -965,7 +965,7 @@ class Experiment(object):
         return "utility_summary.json"
 
     # Optional
-    def getUtilityInfo(self, workdir):
+    def getUtilityInfo(self, workdir, pilot_initdir, allowTxtFile=False):
         """ Add the utility info to the node structure if available """
 
         # Extract the relevant information from the utility tool output and add it to the dictionary

@@ -3146,21 +3146,6 @@ def getFilenamesAndGuid(thisfile):
 
     pfn = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
     filename = os.path.basename(pfn)
-def getFilenamesAndGuid(thisfile):
-    """ Get the file name and guid """
-
-    pfn = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
-    filename = os.path.basename(pfn)
-
-    pfn = os.path.abspath(pfn)
-    lfn = ''
-    if (thisfile.getElementsByTagName("lfn") != []):
-        lfn = str(thisfile.getElementsByTagName("lfn")[0].getAttribute("name"))
-    else:
-        lfn = str(filename) # Eddie: eliminate the possibility of finding a unicode string in the filename
-    guid = str(thisfile.getAttribute("ID"))
-
-    return filename, lfn, pfn, guid
 
     pfn = os.path.abspath(pfn)
     lfn = ''

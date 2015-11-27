@@ -71,6 +71,7 @@ General bug fixes:
 - Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
 to get the wrong error label (LocalSiteMover)
 - Corrected usage of new method processCanBeKilled() (missing self; also in its call in __updateJobs()) (Monitor)
+- Removed half-implemented getFilenamesAndGuid() (Mover)
 
 Setup of ATLAS Release changes
 - Created a new getJobExecutionCommand(), renamed old function to getJobExecutionCommandOld() (ATLASExperiment)
@@ -89,7 +90,7 @@ Memory monitoring updates:
 - Created getUtilityOutputFilename() used by getUtilityCommand() (ATLASExperiment, Experiment)
 - Created new error code ERR_PAYLOADEXCEEDMAXMEM, 1235, "Payload exceeded maximum allowed memory" (PilotErrors)
 - Now using getJSONDictionary() in getJobReport() to avoid problems with unicode seen in test jobs (FileHandling)
-- Created parseUtilityOutput() and findMaxPSS() (ATLASExperiment)
+- Created parseUtilityOutput() (ATLASExperiment)
 - Creating a lockfile in __check_memory_usage() to prevent the MemoryMonitor to restart after it has been killed (Monitor)
 - Avoiding restart of memory monitor in __main__() if lockfile MEMORYEXCEEDED is found (RunJob, RunJobEvent)
 - Added purge argument to getUtilityInfo() (PandaServerClient)
@@ -99,7 +100,12 @@ Memory monitoring updates:
 - Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
 - Improved reading of memory_monitor_summary.json in getUtilityInfo() (ATLASExperiment)
 - Corrected time() -> time.time() in getUtilityInfo() (ATLASExperiment)
-- Created getUtilityInfoPath() used by getUtilityInfo() and ... (ATLASExperiment)
+- Created getMemoryValues() and getMaxUtilityValue() (ATLASExperiment)
+- Created getUtilityInfoPath() used by getUtilityInfo() and getMemoryValues() (ATLASExperiment)
+- __check_memory_usage() now using getMemoryValues() (Monitor)
+- Added allowTxtFile option to getUtilityInfo() (ATLASExperiment)
+- Added pilot_initdir, allowTxtFile arguments to getUtilityInfo() (Experiment)
+- Added allowTxtFile argument to getUtilityInfo() (ATLASExperiment)
 
 LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
@@ -129,7 +135,7 @@ Update from Danila Oleynik, Taylor Childers:
 - Updated RunJobFactory; replaced Mira with Argo
 - Added functions to serialize ARGO messages: serialize(), deserialize(), convert_unicode_string() (pUtil)
 
-Merged with Wen's version:
+Update from Wen Guan:
 - Added EventStager module for HPC Nersc
 - Added GetJob module for getting multiple jobs
 - Update EventServerManager to let it run in a sub-process. Before it was running in the current process, in this case it cannot be switched to another job which is needed by multi-jobs Yoda.
@@ -144,8 +150,18 @@ Merged with Wen's version:
 - Update monitor module to monitor multi-jobs, terminate multi-jobs, handle multi-jobs logs and recover HPC jobs
 - Restored is_secure variable which got lost in the merging process (S3ObjectstoreSiteMover)
 
-Merged with Mario Lassnig's version:
+Update from Mario Lassnig Mario Lassnig:
 - Code cleanup in various pilot modules
+
+Update from Alexey Anisenkon:
+- Job stage-in base workflow implemented:
+- . direct access support
+- . no FAX for stagein
+- . no DBReleases (as special input case) support
+- . FileSpec object integration for stagein
+- . xrdcp mover: get functionality implemented
+- . Job object updates
+- . other mover related updates
 
 REMOVE RunJobMira.py FROM DISTRIBUTION
 

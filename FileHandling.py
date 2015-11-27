@@ -600,14 +600,14 @@ def getJobReport(workDir):
     # Note: always return at least an empty dictionary
 
     dictionary = {}
-    fileName = os.path.join(workDir, "jobReport.json")
-    if os.path.exists(fileName):
+    filename = os.path.join(workDir, "jobReport.json")
+    if os.path.exists(filename):
         # the jobReport file exists, read it back (with unicode to utf-8 conversion)
         dictionary = getJSONDictionary(filename)
         if not dictionary: # getJSONDictionary() can return None
             dictionary = {}
     else:
-        tolog("!!WARNING!!1111!! File %s does not exist" % (fileName))
+        tolog("!!WARNING!!1111!! File %s does not exist" % (filename))
 
     return dictionary
 
