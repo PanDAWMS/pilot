@@ -170,7 +170,7 @@ def argParser(argv):
             env['queuename'] = a
 
         elif o == "-i":
-            if a == "PR" or a == "RC":
+            if a == "PR" or (a and a.startswith("RC")):
                 env['pilot_version_tag'] = a
             else:
                 print "Unknown pilot version tag: %s" % (a)
@@ -1879,7 +1879,7 @@ def getProdSourceLabel():
         prodSourceLabel = 'test'
 
     # override for release candidate pilots
-    if env['pilot_version_tag'] == "RC" and env['uflag'] != 'ptest':
+    if env['pilot_version_tag'] and env['pilot_version_tag'].startswith("RC") and env['uflag'] != 'ptest':
         prodSourceLabel = "rc_test"
     if env['pilot_version_tag'] == "DDM" and env['uflag'] != 'ptest':
         prodSourceLabel = "ddm"
