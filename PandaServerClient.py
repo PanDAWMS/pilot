@@ -690,8 +690,6 @@ class PandaServerClient:
             tolog("(fake server update)")
             return 0, node
 
-        tolog("xmlstr = %s" % (xmlstr))
-
         # get the xml
         node['xml'] = self.getXML(job, site.sitename, site.workdir, xmlstr=xmlstr, jr=jr)
 
@@ -925,5 +923,14 @@ class PandaServerClient:
         # reset xml in case it was overwritten above for failed log transfers
         if final and node.has_key('xml'):
             node['xml'] = _xml
+
+        # if final update, now it's safe to remove any lingering memory output files from the init dir
+        if final:
+            try:
+                filename = os.path.join(self.__pilot_initdir, "memory_monitor*")
+                tolog("Will remove any lingering %s files from the init directory" % (filename))
+                os.system("rm -rf %s" % (filename))
+            except Exception, e:
+                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (filename), e)
 
         return ecode, node # ecode=0 : update OK, otherwise something wrong

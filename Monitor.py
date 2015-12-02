@@ -266,7 +266,11 @@ class Monitor:
                     try:
                         maxPSS_int = summary_dictionary['Max']['maxPSS']
                     except KeyError, e:
-                        pUtil.tolog("!!WARNING!!3434!! Could not extract maxPSS value from: %s" % str(summary_dictionary))
+                        if summary_dictionary != {}:
+                            pUtil.tolog("!!WARNING!!3434!! Could not extract maxPSS value from: %s" % str(summary_dictionary))
+                        else:
+                            # Normally this means that the memory output file has not been produced yet, so skip it
+                            pass 
                         maxPSS_int = -1
 
                     # Only proceed if values are set
