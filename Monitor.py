@@ -293,11 +293,12 @@ class Monitor:
                                             pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORYEXCEEDED")
 
                                             # Kill the job
-                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                                            self.__env['jobDic'][k][1].result[0] = "failed"
-                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
-                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
-                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                                            pUtil.tolog("!!WARNING!!9903!! Could have killed the job")
+                                            #killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            #self.__env['jobDic'][k][1].result[0] = "failed"
+                                            #self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            #self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            #self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
                                             pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
                                     else:

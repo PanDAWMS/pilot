@@ -3314,15 +3314,7 @@ class ATLASExperiment(Experiment):
             else:
                 tolog("Extracted info from memory monitor")
         else:
-            tolog("!!WARNING!!5456!! Will add -1 values for the memory info")
-            node['maxRSS'] = -1
-            node['maxVMEM'] = -1
-            node['maxSWAP'] = -1
-            node['maxPSS'] = -1
-            node['avgRSS'] = -1
-            node['avgVMEM'] = -1
-            node['avgSWAP'] = -1
-            node['avgPSS'] = -1
+            tolog("Memory summary dictionary not yet available")
 
         return node
 
