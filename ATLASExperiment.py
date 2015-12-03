@@ -3109,7 +3109,7 @@ class ATLASExperiment(Experiment):
         #    path = path.replace("/cvmfs", self.getCVMFSPath())
         #else:
         #    path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        cmd = "export ALRB_asetupVersion=testing;export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
+        cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
         cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
         cmd += "source $AtlasSetup/scripts/asetup.sh"
 
