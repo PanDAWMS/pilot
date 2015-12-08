@@ -73,7 +73,7 @@ class slurm(Plugin):
 
         return res
 
-    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None):
+    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None):
         submit_script = "#!/bin/bash -l" + "\n"
         submit_script += "#SBATCH -p " + queue + "\n"
         if repo:
@@ -81,7 +81,7 @@ class slurm(Plugin):
         submit_script += "#SBATCH -n " + str(mppwidth) + "\n"
         submit_script += "#SBATCH -t " + walltime + "\n"
         submit_script += "#SBATCH --ntasks-per-node=1\n"
-        submit_script += "#SBATCH --cpus-per-task=32\n"
+        submit_script += "#SBATCH --cpus-per-task=" + str(cpuPerNode) + "\n"
         submit_script += "#SBATCH -J ES_job" + "\n"
         submit_script += "#SBATCH -o athena_stdout.txt" + "\n"
         submit_script += "#SBATCH -e athena_stderr.txt" + "\n"
@@ -122,7 +122,7 @@ class slurm(Plugin):
         cmd = "scontrol show job " + jobid
         self.__log.info("polling HPC job: %s" % cmd)
         status, output = commands.getstatusoutput(cmd)
-        #self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
+        self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
         if status == 0:
             self.__failedPollTimes = 0
             state = None
@@ -139,6 +139,8 @@ class slurm(Plugin):
                 return "Running"
             if state == "PENDING":
                 return "Queue"
+            if state == "FAILED":
+                return "Failed"
         else:
             self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
             if 'Invalid job id specified' in output:
@@ -150,3 +152,9 @@ class slurm(Plugin):
                     return "Failed"
                 else:
                     return 'Unknown'
+
+    def delete(self, jobid):
+        command = "scancel " + jobid
+        status, output = commands.getstatusoutput(command)
+        self.__log.debug("Run Command: %s " % command)
+        self.__log.debug("Status: %s, Output: %s" % (status, output))

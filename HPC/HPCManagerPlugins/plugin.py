@@ -10,3 +10,9 @@ class Plugin:
 
     def submitJob(self):
         pass
+
+    def poll(self, jobid):
+        pass
+
+    def delete(self, jobid):
+        pass

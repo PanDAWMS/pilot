@@ -251,10 +251,12 @@ class ATLASExperiment(Experiment):
         cmd += ";%s %s" % (job.trf, job.jobPars)
 
         # Add FRONTIER debugging and RUCIO env variables
-        if 'HPC_' in readpar("catchall"):
+        if 'HPC_' in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
             cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
         else:
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
+        if 'HPC_HPC' in readpar("catchall"):
+            cmd = 'export JOB_RELEASE=%s;export JOB_HOMEPACKAGE=%s;JOB_CACHEVERSION=%s;JOB_CMTCONFIG=%s;%s' % (job.release, job.homePackage, cacheVer, cmtconfig, cmd)
 
         # Is JEM allowed to be used?
         if self.isJEMAllowed():
@@ -3103,17 +3105,29 @@ class ATLASExperiment(Experiment):
 
         # Handle nightlies correctly, since these releases will have different initial paths
         path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        #if swbase:
-        #    path = getInitialDirs(swbase, 3) # path = "/cvmfs/atlas-nightlies.cern.ch/repo"
-        #    # correct for a possible change of the root directory (/cvmfs)
-        #    path = path.replace("/cvmfs", self.getCVMFSPath())
-        #else:
-        #    path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        cmd = "export ALRB_asetupVersion=testing;export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
-        cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
-        cmd += "source $AtlasSetup/scripts/asetup.sh"
+        if os.path.exists(path):
+            # Handle nightlies correctly, since these releases will have different initial paths
+            path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
+            #if swbase:
+            #    path = getInitialDirs(swbase, 3) # path = "/cvmfs/atlas-nightlies.cern.ch/repo"
+            #    # correct for a possible change of the root directory (/cvmfs)
+            #    path = path.replace("/cvmfs", self.getCVMFSPath())
+            #else:
+            #    path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
+            cmd = "export ALRB_asetupVersion=testing;export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
+            cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
+            cmd += "source $AtlasSetup/scripts/asetup.sh"
 
-        return cmd
+            return cmd
+        else:
+            appdir = readpar('appdir')
+            if appdir == "":
+                if os.environ.has_key('VO_ATLAS_SW_DIR'):
+                    appdir = os.environ['VO_ATLAS_SW_DIR']
+            if appdir != "":
+                cmd = "source %s/scripts/asetup.sh" % appdir
+                return cmd
+        return ''
 
     def verifySetupCommand(self, _setup_str):
         """ Make sure the setup command exists """

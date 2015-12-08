@@ -72,7 +72,7 @@ class pbs(Plugin):
 
         return res
 
-    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None):
+    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None):
         submit_script = "#!/bin/bash -l" + "\n"
         submit_script += "#PBS -q " + queue + "\n"
         if repo:
@@ -150,3 +150,10 @@ class pbs(Plugin):
                     return "Failed"
                 else:
                     return 'Unknown'
+
+    def delete(self, jobid):
+        command = "qdel " + jobid
+        status, output = commands.getstatusoutput(command)
+        self.__log.debug("Run Command: %s " % command)
+        self.__log.debug("Status: %s, Output: %s" % (status, output))
+

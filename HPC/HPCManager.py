@@ -297,7 +297,7 @@ class HPCManager:
 
     def submit(self):
         for i in range(5):
-            status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__globalYodaDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes, localSetup=self.__localSetup)
+            status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__globalYodaDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes, localSetup=self.__localSetup, cpuPerNode=self.__cpuPerNode)
             if status != 0:
                 self.__log.info("Failed to submit this job to HPC. will sleep one minute and retry")
                 time.sleep(60)
@@ -367,11 +367,8 @@ class HPCManager:
         return self.__isFinished
 
     def finishJob(self):
-        if self.__jobid:
-            command = "qdel " + self.__jobid
-            status, output = commands.getstatusoutput(command)
-            self.__log.debug("Run Command: %s " % command)
-            self.__log.debug("Status: %s, Output: %s" % (status, output))
+        if self.__jobid and self.__plugin:
+            self.__plugin.delete(self.__jobid)
 
     def flushOutputs(self):
         try:

@@ -1721,7 +1721,7 @@ class Monitor:
             self.__env['curtime_sp'] = self.__env['curtime']
             self.__env['curtime_of'] = self.__env['curtime']
             self.__env['curtime_proc'] = self.__env['curtime']
-            #self.__env['curtime_mem'] = self.__env['curtime']
+            self.__env['curtime_mem'] = self.__env['curtime']
             self.__env['create_softlink'] = True
             while True:
 

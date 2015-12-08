@@ -63,6 +63,7 @@ class EventServerJobManager():
         self.__messageQueue = multiprocessing.Queue()
         self.__messageInQueue = multiprocessing.Queue()
         self.__messageThread = None
+        self.__TokenExtractorCmd = None
         self.__TokenExtractorProcess = None
         self.__athenaMPProcess = None
         self.__athenaMP_isReady = False
@@ -125,11 +126,16 @@ class EventServerJobManager():
     def initTokenExtractorProcess(self, cmd):
         self.__log.debug("Rank %s: initTokenExtractorProcess: %s, workdir: %s" % (self.__rank, cmd, os.getcwd()))
         try:
-            self.__TokenExtractorProcess = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stdout, shell=True)
-            # self.__TokenExtractorProcess = subprocess.Popen(cmd, shell=True)
-            if self.__TokenExtractorProcess.poll() is not None:
-                self.__log.warning("Rank %s: Failed to initTokenExtractorProcess, poll is not None: %s" % (self.__rank, self.__TokenExtractorProcess.poll()))
-                self.terminate()
+            self.__TokenExtractorCmd = cmd
+            if cmd:
+                self.__TokenExtractorProcess = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stdout, shell=True)
+                # self.__TokenExtractorProcess = subprocess.Popen(cmd, shell=True)
+                if self.__TokenExtractorProcess.poll() is not None:
+                    self.__log.warning("Rank %s: Failed to initTokenExtractorProcess, poll is not None: %s" % (self.__rank, self.__TokenExtractorProcess.poll()))
+                    self.terminate()
+            else:
+                self.__log.debug("Rank %s: TokenExtractor cmd(%s) is None, will not use it" % (self.__rank, cmd))
+                self.__TokenExtractorProcess = None
         except:
             self.__log.warning("Rank %s: Failed to initTokenExtractorProcess: %s" % (self.__rank, str(traceback.format_exc())))
             self.terminate()
@@ -284,7 +290,7 @@ class EventServerJobManager():
         # if self.__TokenExtractorProcess is None or self.__TokenExtractorProcess.poll() is not None or self.__athenaMPProcess is None or self.__athenaMPProcess.poll() is not None or not self.__messageThread.is_alive():
         # if self.__TokenExtractorProcess is None or self.__athenaMPProcess is None or self.__athenaMPProcess.poll() is not None or not self.__messageThread.is_alive(): 
         #     return True
-        if self.__TokenExtractorProcess is None or self.__athenaMPProcess is None:
+        if (self.__TokenExtractorCmd is not None and self.__TokenExtractorProcess is None) or self.__athenaMPProcess is None:
             self.__log.debug("Rank %s: TokenExtractorProcess: %s, athenaMPProcess: %s" % (self.__rank, self.__TokenExtractorProcess, self.__athenaMPProcess))
             return True
         if self.__athenaMPProcess.poll() is not None:
