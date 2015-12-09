@@ -246,14 +246,13 @@ class BaseSiteMover(object):
     def get_data(self, fspec):
         """
             fspec is FileSpec object
-            :return: input file replica details: {'surl':'', 'ddmendpoint':'', 'pfn':''}
+            :return: file details: {'checksum': '', 'checksum_type':'', 'filesize':''}
             :raise: PilotException in case of controlled error
         """
 
         # resolve proper surl and find related replica
 
         dst = os.path.join(self.workDir, fspec.lfn)
-
         return self.stageIn(fspec.turl, dst, fspec)
 
 
@@ -353,24 +352,37 @@ class BaseSiteMover(object):
         """
             Stage in the file.
             Should be implemented by different site mover
-            :return: dst_checksum, dst_checksum_type
+            :return: destination file details (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
         """
 
         raise Exception('NOT IMPLEMENTED')
 
 
-    def stageOut(self, source, destination):
+    def put_data(self, fspec):
+        """
+            fspec is FileSpec object
+            :return: remote file details: {'checksum': '', 'checksum_type':'', 'filesize':''}
+            stageout workflow could be overwritten by specific Mover
+            :raise: PilotException in case of controlled error
+        """
+
+        src = os.path.join(self.workDir, fspec.lfn)
+        return self.stageOut(src, fspec.turl, fspec)
+
+
+    def stageOut(self, source, destination, fspec):
         """
             Stage out the source file: do stageout file + verify remote file output
             :return: remote file details: {'checksum': '', 'checksum_type':'', 'filesize':''}
             :raise: PilotException in case of controlled error
         """
 
+        src_fsize = fspec.filesize or os.path.getsize(source)
+        src_checksum, src_checksum_type = fspec.get_checksum()
+
         # do stageOutFile
-        src_fsize = os.path.getsize(source)
-
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
-
         dst_checksum, dst_checksum_type = self.stageOutFile(source, destination)
 
         # verify stageout by checksum
@@ -384,7 +396,8 @@ class BaseSiteMover(object):
 
         try:
             if dst_checksum and dst_checksum_type: # verify against source
-                src_checksum, src_checksum_type = self.calc_file_checksum(source)
+                if not src_checksum: # fspec has no checksum data defined try to calculate from the source
+                    src_checksum, src_checksum_type = self.calc_file_checksum(source)
 
                 is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
 
@@ -442,6 +455,8 @@ class BaseSiteMover(object):
         """
             Stage out the file.
             Should be implemented by different site mover
+            :return: destination file details (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
         """
 
         raise Exception('NOT IMPLEMENTED')

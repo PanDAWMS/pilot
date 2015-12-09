@@ -99,6 +99,74 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
     return dsname, dsdict, rucio_dataset_dictionary
 
 
+
+# new mover implementation
+def put_data_new(job, jobSite, stageoutTries):
+    """
+        :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
+    """
+
+    tolog("Mover put data started [new implementation]")
+
+
+    from PilotErrors import PilotException
+    from movers import JobMover
+    from movers.trace_report import TraceReport
+
+    si = getSiteInformation(job.experiment)
+    si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
+
+    workDir = os.path.dirname(job.workdir)
+
+    mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
+
+    eventType = "put_sm"
+    if job.isAnalysisJob():
+        eventType += "_a"
+
+    mover.trace_report = TraceReport(localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
+    mover.trace_report.init(job)
+
+    try:
+        transferred_files, failed_transfers = mover.stageout_outfiles()
+    except PilotException, e:
+        return e.code, str(e), [], "", 0, 0
+    except Exception, e:
+        tolog("ERROR: Mover put data failed [stageout]: exception caught: %s" % e)
+        import traceback
+        tolog(traceback.format_exc())
+
+        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED, exception=%s' % e, [], "", 0, 0
+
+    tolog("Mover put data finished")
+    job.print_outfiles()
+
+    # prepare compatible output
+    # keep track of which files have been copied
+
+    fields = [''] * 7 # file info field used by job recovery in OLD compatible format
+
+    #errors = []
+    #for is_success, success_transfers, failed_transfers, exception in output:
+    #    for fdata in success_transfers: # keep track of which files have been copied
+    #        for i,v in enumerate(['surl', 'lfn', 'guid', 'filesize', 'checksum', 'farch', 'pfn']): # farch is not used
+    #            value = fdata.get(v, '')
+    #            if fields[i]:
+    #                fields[i] += '+'
+    #            fields[i] += '%s' % str(value)
+    #    if exception:
+    #        errors.append(str(exception))
+    #    for err in failed_transfers:
+    #        errors.append(str(err))
+
+    not_transferred = [e.lfn for e in job.outData if e.status not in ['transferred']]
+    if not_transferred:
+        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED: not all input files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join(failed_transfers)), "", 0, 0
+
+
+    return 0, "", fields, '', len(transferred_files), 0
+
+
 # new mover implementation:
 # keep the list of input arguments as is for smooth migration
 def get_data_new(job,
@@ -3299,39 +3367,42 @@ def isLogTransfer(logPath):
 
 # keep full list of input arguments for backward compatibility as is# clean up and isolation required
 # keep logic as is
-def mover_put_data_new(outputpoolfcstring,
-                        pdsname,
-                        sitename,
-                        queuename,
-                        ub="outdated", # to be removed
-                        analysisJob=False,
-                        testLevel="0",
-                        pinitdir="",
-                        proxycheck=True,
-                        spsetup="",
-                        token=[],
-                        userid="",
-                        prodSourceLabel="",
-                        datasetDict=None,
-                        outputDir="",
-                        jobId=None,
-                        jobDefId="",
-                        jobWorkDir=None,
-                        DN=None,
-                        outputFileInfo=None,
-                        dispatchDBlockTokenForOut=None,
-                        jobCloud="",
-                        logFile="",
-                        cmtconfig="",
-                        recoveryWorkDir=None,
-                        experiment="ATLAS",
-                        stageoutTries=2,
-                        scopeOut=None,
-                        scopeLog=None,
-                        fileDestinationSE=None,
-                        logPath="",
-                        eventService=False,
-                        job={}):
+def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output files list to be copied
+                        pdsname,                ## default dataset name: dsname, datasetDict = RunJob.getDatasets() ~ default dsn=job.destinationDblock[0], normally it should be per file: filespec.destinationDblock
+                                                ## for log transfers: dsname = job.logDblock
+                        sitename,                         # --> jobSite.sitename
+                        queuename,                        # --> jobSite.computingElement
+                        ub="outdated",          # to be removed
+                        analysisJob=False,                # --> use job.isAnalysisJob() instead
+                        testLevel="0",          # not used ?
+                        pinitdir="",            # + pilot_initdir ? not used
+                        proxycheck=True,        # + to be implemented ??
+                        spsetup="",                       # --> job.spsetup
+                        token=[],                         # --> job.destinationDBlockToken
+                        userid="",                        # * not set or --> job.prodUserID
+                        prodSourceLabel="",               # --> job.prodSourceLabel
+                        datasetDict=None,       # could be null, if None than default pdsname above will be used as destinationDblock/logDblock
+                        outputDir="",           # + output dir
+                        jobId=None,                       # --> job.jobId
+                        jobDefId="",                      # * not set or --> job.jobDefinitionID
+                        jobWorkDir=None,                  # --> job.workdir
+                        DN=None,                          # --> job.prodUserID
+                        outputFileInfo=None,    # {'lfn':(fsize, checksum) of output files}
+                        dispatchDBlockTokenForOut=None,   # --> job.dispatchDBlockTokenForOut
+                        jobCloud="",                      # --> job.cloud
+                        logFile="",                       # --> job.logFile
+                        cmtconfig="",                ## --> pUtil.getCmtconfig(job.cmtconfig) ? not used? cmtconfig is DEPRECATED in AGIS schedconfig?
+                        recoveryWorkDir=None,        ## not set or --> jobSite.workdir
+                        experiment="ATLAS",               # --> job.experiment
+                        stageoutTries=2,       # + input
+                        scopeOut=None,                    # * not set or job.scopeOut
+                        scopeLog=None,                    # * not set or job.scopeLog
+                        fileDestinationSE=None,           # --> job.fileDestinationSE
+                        logPath="",            ### if set then it's special Log transfer to ObjectStores (transferActualLogFile)
+                        eventService=False,    # executed from RunJobEvent: --- workflow to be checked?? --> job.eventService ??
+                        job={},                            # Job object
+                        jobSite = {}  # to be added        # jobsite object
+                        ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
     No DS registration in the central catalog is made. pdsname is used only to define the relative path
@@ -3430,8 +3501,8 @@ def mover_put_data_new(outputpoolfcstring,
             dat['scope'] = scopeOut[file_nr] if file_nr < len(scopeOut) else ""
             outfiles.append(dat)
 
-    tolog("EXtracted data: outfiles=%s" % outfiles)
-    tolog("EXtracted data: logfiles=%s" % logfiles)
+    tolog("Extracted data: outfiles=%s" % outfiles)
+    tolog("Extracted data: logfiles=%s" % logfiles)
 
     if not outfiles and not logfiles:
         raise Exception("Empty Both outputfiles and logfiles data: nothing to do... processing of other cases is not implemented yet for new SiteMover")
@@ -3453,7 +3524,7 @@ def mover_put_data_new(outputpoolfcstring,
 
     # setup the TraceReport dictionary necessary for all instrumentation
     eventType = "put_sm"
-    if analysisJob:
+    if job.isAnalysisJob():
         eventType += "_a"
 
     # process both out & log files
