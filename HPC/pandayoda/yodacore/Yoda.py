@@ -475,11 +475,29 @@ class Yoda:
     def dumpUpdates(self, jobId, outputs, type=''):
         timeNow = datetime.datetime.utcnow()
         outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
+        etadataFileName = 'metadata-' + outFileName.split('.dump')[0] + '.xml'
         outFileName = os.path.join(self.globalWorkingDir, outFileName)
+        metadataFileName = os.path.join(self.globalWorkingDir, etadataFileName)
         outFile = open(outFileName,'w')
+
+        metafd = open(metadataFileName, "w")
+        metafd.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
+        metafd.write("<!-- Edited By POOL -->\n")
+        metafd.write('<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">\n')
+        metafd.write("<POOLFILECATALOG>\n")
+
         for eventRangeID,status,output in outputs:
             outFile.write('{0} {1} {2} {3}\n'.format(jobId, eventRangeID,status,output))
+
+            metafd.write('  <File EventRangeID="%s">\n' % (eventRangeID))
+            metafd.write("    <physical>\n")
+            metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (output))
+            metafd.write("    </physical>\n")
+            metafd.write("  </File>\n")
+
         outFile.close()
+        metafd.write("</POOLFILECATALOG>\n")
+        metafd.close()
 
     def updateFinishedEventRangesToDB(self):
         try:

@@ -560,7 +560,7 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
 
         if thisSite.sitename == "NERSC_Cori":
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,PandaProxy,proxyCache=atlpilo1:pilot,plugin=slurm,yoda_to_os,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=1000,min_nodes=50,max_nodes=1001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=2,mppnppn=1,ATHENA_PROC_NUMBER=2,stageout_threads=20,copy_input_files=false,parallel_jobs=3")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,PandaProxy,proxyCache=atlpilo1:pilot,plugin=slurm,yoda_to_os,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=1001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=2,mppnppn=1,ATHENA_PROC_NUMBER=2,stageout_threads=20,copy_input_files=false,parallel_jobs=3")
 
 #        if  thisSite.sitename == "NERSC_Hopper":
 #            ec = self.replaceQueuedataField("copytool", "gfal-copy")
