@@ -378,8 +378,11 @@ class BaseSiteMover(object):
             :raise: PilotException in case of controlled error
         """
 
-        src_fsize = fspec.filesize or os.path.getsize(source)
-        src_checksum, src_checksum_type = fspec.get_checksum()
+        src_checksum, src_checksum_type = None, None
+        src_fsize = fspec and fspec.filesize or os.path.getsize(source)
+
+        if fspec:
+            src_checksum, src_checksum_type = fspec.get_checksum()
 
         # do stageOutFile
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())

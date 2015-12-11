@@ -225,8 +225,8 @@ class JobMover(object):
                 self.log('INFO: all input files have been successfully processed')
                 break
 
-            self.log("Copy command [stagein]: %s, sitemover=%s" % (copytool, sitemover))
-            self.log("Copy setup   [stagein]: %s" % copysetup)
+            self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
+            self.log("Copy setup   [stage-in]: %s" % copysetup)
 
             ddmendpoint = dat.get('ddm')
             self.trace_report.update(protocol=copytool, localSite=ddmendpoint, remoteSite=ddmendpoint)
@@ -271,9 +271,9 @@ class JobMover(object):
                 self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
                 self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlock)
 
-                self.log("[stagein] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
+                self.log("[stage-in] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
 
-                #dumpFileStates(self.workDir, self.job.jobId)
+                #dumpFileStates(self.workDir, self.job.jobId, type="input")
 
                 # loop over multple stage-in attempts
                 for _attempt in xrange(1, self.stageinretry + 1):
@@ -314,7 +314,7 @@ class JobMover(object):
                     self.sendTrace(self.trace_report)
 
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", type="input")
-                    dumpFileStates(self.workDir, self.job.jobId)
+                    dumpFileStates(self.workDir, self.job.jobId, type="input")
 
                     ## self.updateSURLDictionary(guid, surl, self.workDir, self.job.jobId) # FIX ME LATER
 
@@ -324,7 +324,7 @@ class JobMover(object):
                 else:
                     failed_transfers.append(result)
 
-        dumpFileStates(self.workDir, self.job.jobId)
+        dumpFileStates(self.workDir, self.job.jobId, type="input")
 
         #self.log('transferred_files= %s' % transferred_files)
         self.log('Summary of transferred files:')
@@ -364,6 +364,16 @@ class JobMover(object):
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
 
         self.log("Mover.stageout() [new implementation] started for activity=%s, files=%s, protocols=%s" % (activity, files, protocols))
+        # check if file exists before actual processing
+        # populate filesize if need
+
+        for fspec in files:
+            pfn = os.path.join(self.job.workdir, fspec.lfn)
+            if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
+                error = "Erron: input pfn file is not exist: %s" % pfn
+                self.log(error)
+                raise PilotException(error, code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="FILE_INFO_FAIL")
+            fspec.filesize = os.path.getsize(pfn)
 
         totalsize = reduce(lambda x, y: x + y.filesize, files, 0)
 
@@ -383,7 +393,7 @@ class JobMover(object):
         if unknown_ddms:
             raise PilotException("Failed to put files: no protocols defined for output ddmendpoints=%s .. check aprotocols schedconfig settings for activity=%s, " % (unknown_ddms, activity), code=PilotErrors.ERR_NOSTORAGE)
 
-        self.log("[stageout] [%s] filtered protocols to be used to transfer files: protocols=%s" % (activity, ddmprotocols))
+        self.log("[stage-out] [%s] filtered protocols to be used to transfer files: protocols=%s" % (activity, ddmprotocols))
 
         # try to use each protocol of same ddmendpoint until sucessfull transfer
         for ddmendpoint, iprotocols in ddmprotocols.iteritems():
@@ -407,8 +417,8 @@ class JobMover(object):
                     # stop checking other protocols of ddmendpoint
                     break
 
-                self.log("Copy command [stageout]: %s, sitemover=%s" % (copytool, sitemover))
-                self.log("Copy setup   [stageout]: %s" % copysetup)
+                self.log("Copy command [stage-out]: %s, sitemover=%s" % (copytool, sitemover))
+                self.log("Copy setup   [stage-out]: %s" % copysetup)
 
                 self.trace_report.update(protocol=copytool, localSite=ddmendpoint, remoteSite=ddmendpoint)
 
@@ -420,15 +430,15 @@ class JobMover(object):
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", type="output")
 
                     fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
-                    self.log("[stageout] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.turl, fdata.lfn, fdata.ddmendpoint))
+                    self.log("[stage-out] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.turl, fdata.lfn, fdata.ddmendpoint))
 
-                    self.log("[stageout] Prepare to put_data: ddmendpoint=%s, protocol=%s, fspec=%s" % (ddmendpoint, dat, fdata))
+                    self.log("[stage-out] Prepare to put_data: ddmendpoint=%s, protocol=%s, fspec=%s" % (ddmendpoint, dat, fdata))
 
                     self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
                     self.trace_report.update(scope=fdata.scope, dataset=fdata.destinationDblock, url=fdata.turl)
 
-                    self.log("[stageout] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
-                    #dumpFileStates(self.workDir, self.job.jobId)
+                    self.log("[stage-out] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
+                    #dumpFileStates(self.workDir, self.job.jobId, type="output")
 
                     # loop over multple stage-out attempts
                     for _attempt in xrange(1, self.stageoutretry + 1):
@@ -465,10 +475,10 @@ class JobMover(object):
                         self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
                         self.sendTrace(self.trace_report)
 
-                        updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", type="input")
-                        dumpFileStates(self.workDir, self.job.jobId)
+                        updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", type="output")
+                        dumpFileStates(self.workDir, self.job.jobId, type="output")
 
-                        ## self.updateSURLDictionary(guid, surl, self.workDir, self.job.jobId) # FIX ME LATER
+                        ## self.updateSURLDictionary(guid, surl, self.workDir, self.job.jobId) # FIX ME LATER ??
 
                         fdat = result.copy()
                         #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
@@ -476,7 +486,7 @@ class JobMover(object):
                     else:
                         failed_transfers.append(result)
 
-        dumpFileStates(self.workDir, self.job.jobId)
+        dumpFileStates(self.workDir, self.job.jobId, type="output")
 
         self.log('Summary of transferred files:')
         for e in transferred_files:
@@ -620,8 +630,7 @@ class JobMover(object):
 
         self.trace_report.update(localSite=ddmendpoint, remoteSite=ddmendpoint)
 
-        transferred_files = []
-        failed_transfers = []
+        transferred_files, failed_transfers = [], []
 
         for dat in protocols:
 
@@ -679,7 +688,7 @@ class JobMover(object):
                     self.log("Put attempt %d/%d for filename=%s" % (_attempt, self.stageoutretry, filename))
 
                     try:
-                        result = sitemover.stageOut(pfn, turl)
+                        result = sitemover.stageOut(pfn, turl, None)
                         break # transferred successfully
                     except PilotException, e:
                         result = e

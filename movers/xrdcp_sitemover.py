@@ -41,7 +41,7 @@ class xrdcpSiteMover(BaseSiteMover):
         c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
         output = c.communicate()[0]
 
-        self.log("status: %s, output: %s" % (c.returncode, output))
+        self.log("return code: %s" % c.returncode)
 
         coption = ""
 
@@ -58,7 +58,7 @@ class xrdcpSiteMover(BaseSiteMover):
         if coption:
             self.log("Use %s option to get the checksum" % coption)
         else:
-            self.log("Cannot find neither -adler nor --cksum. will not use checksum")
+            self.log("Cannot find neither -adler nor --cksum. will not use checksum .. command output=%s" % output)
 
         return coption
 
