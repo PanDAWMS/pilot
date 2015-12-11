@@ -790,13 +790,13 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
                 cmd = removePattern(cmd, pattern)
                 tolog("(Removed --newPrefix pattern)")
 
-            if "--usePFCTurl" not in cmd:
+            if "--usePFCTurl" not in cmd and analysisJob:
                 cmd += " --usePFCTurl"
                 tolog("(Added --usePFCTurl)")
 
             # add --directIn if need
             if usedFAXandDirectIO == 'newmover-directaccess':
-                if "--directIn" not in cmd:
+                if "--directIn" not in cmd and analysisJob:
                     cmd += " --directIn"
                     tolog("(Added --directIn)")
 

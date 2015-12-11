@@ -244,7 +244,8 @@ def get_data_new(job,
     ### reuse usedFAXandDirectIO variable as special meaning attribute to form command option list later
     ### FIX ME LATER
     FAX_dictionary['usedFAXandDirectIO'] = 'newmover'
-    if mover.is_directaccess():
+    used_direct_access = [e for e in job.inData if e.status == 'direct_access']
+    if used_direct_access:
         FAX_dictionary['usedFAXandDirectIO'] = 'newmover-directaccess'
 
     # create PoolFileCatalog.xml
