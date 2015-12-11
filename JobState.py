@@ -166,11 +166,15 @@ class JobState:
         """
         status = True
 
+        # # Experiencing problems with that code
         # get the file extension
-        extension = getExtension()
+        # extension = getExtension()
+        #
+        # fileNameOld = "%s/jobState-%s.%s" % (site.workdir, job.jobId, extension)
+        # fileNameNew = "%s/jobState-%s.%s.MAXEDOUT" % (site.workdir, job.jobId, extension)
 
-        fileNameOld = "%s/jobState-%s.%s" % (site.workdir, job.jobId, extension)
-        fileNameNew = "%s/jobState-%s.%s.MAXEDOUT" % (site.workdir, job.jobId, extension)
+        fileNameOld = self.getFilename(site.workdir,job.jobId)
+        fileNameNew = "%s.MAXEDOUT" % fileNameOld
         if os.path.isfile(fileNameOld):
             # rename the job state file
             try:
