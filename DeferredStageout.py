@@ -359,11 +359,11 @@ def TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file,
 
 
 def lognfalse(_str):
-    return lognret(False,_str, stack_num=3)
+    return lognret(False,_str)
 
 
-def lognret(ret,_str, stack_num=2):
-    pUtil.tolog(_str, stack_num=stack_num)
+def lognret(ret,_str):
+    pUtil.tolog(_str)
     return ret
 
 
