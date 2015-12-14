@@ -26,6 +26,7 @@ from Configuration import Configuration
 from WatchDog import WatchDog
 from Monitor import Monitor
 import subprocess
+import DeferredStageout
 
 try:
     from rucio.client import Client
@@ -538,7 +539,7 @@ def runJobRecovery(thisSite, _psport, extradir):
         recoveryDir = pUtil.verifyRecoveryDir(recoveryDir)
 
     # run job recovery
-    dirs = [ "" ]
+    dirs = [DeferredStageout.GetDefaultDeferredStageoutDir(thisSite=thisSite)]
     if recoveryDir != "":
         dirs.append(recoveryDir)
         pUtil.tolog("Job recovery will scan both local disk and external disk")
@@ -547,24 +548,26 @@ def runJobRecovery(thisSite, _psport, extradir):
             dirs.append(extradir)
             pUtil.tolog("Job recovery will also scan extradir (%s)" % (extradir))
 
-    dircounter = 0
-    for _dir in dirs:
-        dircounter += 1
-        pUtil.tolog("Scanning for lost jobs [pass %d/%d]" % (dircounter, len(dirs)))
+    recovered = DeferredStageout.DeferredStageout(dirs, env['maxjobrec'])
 
-        try:
-            lostPandaIDs = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
-        except:
-            pUtil.tolog("!!WARNING!!1999!! Failed during search for lost HPCEvent jobs: %s" % str(e))
-        else:
-            pUtil.tolog("Recovered/Updated lost HPCEvent jobs(%s)" % (lostPandaIDs))
-
-        try:
-            found_lost_jobs = RecoverLostJobs(_dir, thisSite, _psport)
-        except Exception, e:
-            pUtil.tolog("!!WARNING!!1999!! Failed during search for lost jobs: %s" % str(e))
-        else:
-            pUtil.tolog("Recovered/Updated %d lost job(s)" % (found_lost_jobs))
+    #dircounter = 0
+    # for _dir in dirs:
+    #     dircounter += 1
+    #     pUtil.tolog("Scanning for lost jobs [pass %d/%d]" % (dircounter, len(dirs)))
+    #
+    #     try:
+    #         lostPandaIDs = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
+    #     except:
+    #         pUtil.tolog("!!WARNING!!1999!! Failed during search for lost HPCEvent jobs: %s" % str(e))
+    #     else:
+    #         pUtil.tolog("Recovered/Updated lost HPCEvent jobs(%s)" % (lostPandaIDs))
+    #
+    #     try:
+    #        found_lost_jobs = RecoverLostJobs(_dir, thisSite, _psport)
+    #     except Exception, e:
+    #         pUtil.tolog("!!WARNING!!1999!! Failed during search for lost jobs: %s" % str(e))
+    #     else:
+    #         pUtil.tolog("Recovered/Updated %d lost job(s)" % (found_lost_jobs))
     pUtil.chdir(tmpdir)
 
 def testExternalDir(recoveryDir):
@@ -648,7 +651,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
     else:
         JS = JobState()
         # grab all job state files in all work directories
-        job_state_files = glob(dir_path + "/Panda_Pilot_*/jobState-*.pickle")
+        job_state_files = glob(dir_path + "/Panda_Pilot_*/jobState-*.*")
 
         # purge any test job state files (testing for new job rec algorithm)
         job_state_files = pUtil.removeTestFiles(job_state_files, mode="default")
