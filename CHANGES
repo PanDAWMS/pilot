@@ -1,4 +1,4 @@
-	Complete change log for PanDA Pilot version PICARD
+Complete change log for PanDA Pilot version PICARD
 --------------------------------------------------
 
 
@@ -48,11 +48,7 @@ Added protection for failure to find alternativeName in getTiersOfATLASAlternati
 
 64.0
 
-
-
-
-
-WARNING: using export ALRB_asetupVersion=testing in ATLASExpweriment5
+LOCAL SITE MOVER XXX
 
 TODO: update pUtil::getStdoutDictionary() to support the tail of the last updated AthenaMP log file; also update PandaServerClient::updatePandaServer() to
 take the latest log file and send it to the text indexer in debug mode (see Rod's mail on Nov. 24)
@@ -115,6 +111,7 @@ Memory monitoring updates:
 - Added allowTxtFile option to getUtilityInfo() (ATLASExperiment)
 - Added pilot_initdir, allowTxtFile arguments to getUtilityInfo() (Experiment)
 - Added allowTxtFile argument to getUtilityInfo() (ATLASExperiment)
+- Removed getTracingReportFilename, writeJSON from import list (xrdcpSiteMover)
 
 LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
