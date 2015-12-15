@@ -23,6 +23,7 @@ import Site
 import Job
 import Node
 import traceback
+import commands
 
 import environment
 environment.set_environment()
@@ -386,7 +387,7 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
         if job_state.job.result[0] == "finished":
             pUtil.tolog("Stageout will now remove the job, it is in finished state and can be removed")
-            job_state.cleanup()
+            cleanup(job_state)
 
         return True
     except:
@@ -462,11 +463,19 @@ def DorE(dictionary, key):
 
 def cleanup(job_state):
     pUtil.tolog("Cleanup job directory called")
-    if not job_state.rename(job_state.site, job_state.job):
-        return lognfalse("Failed to rename (Fate of job state file left for next pilot)")
-    else:
-        if not job_state.cleanup():
-            return lognfalse("!!WARNING!!1110!! Failed to cleanup")
+
+    cmd = cmd = "rm -rf"
+    if os.path.isdir(job_state.job.newDirNM):
+        cmd += (" %s" % job_state.job.newDirNM)
+    if os.path.isdir(job_state.job.datadir):
+        cmd += (" %s" % job_state.job.datadir)
+    if os.path.isdir(job_state.site.workdir):
+        cmd += (" %s" % job_state.job.workdir)
+    pUtil.tolog("Executing command: %s" % (cmd))
+    try:
+        ec, rs = commands.getstatusoutput(cmd)
+    except Exception, e:
+        pUtil.tolog("FAILURE: JobState cleanup failed to cleanup: %s " % str(e))
 
 
 def PrepareJobForDeferredStageout(job_state, **kwargs):
