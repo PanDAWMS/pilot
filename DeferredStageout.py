@@ -15,7 +15,6 @@ import pUtil
 import time
 from JobState import JobState
 from JobLog import JobLog
-from pilot import createAtomicLockFile, releaseAtomicLockFile, updatePandaServer
 from Configuration import Configuration
 from PilotErrors import PilotErrors
 import Mover
@@ -715,4 +714,53 @@ def TransferFiles(job_state, datadir, files, **kwargs):
 
     return _state
 
+def createAtomicLockFile(file_path):
+    """ Create an atomic lockfile while probing this dir to avoid a possible race-condition """
 
+    lockfile_name = os.path.join(os.path.dirname(file_path), "ATOMIC_LOCKFILE")
+    try:
+        # acquire the lock
+        fd = os.open(lockfile_name, os.O_EXCL|os.O_CREAT)
+    except OSError:
+        # work dir is locked, so exit                                                                                                                                                                                                                            
+        pUtil.tolog("Found lock file: %s (skip this dir)" % (lockfile_name))
+        fd = None
+    else:
+        pUtil.tolog("Created lock file: %s" % (lockfile_name))
+    return fd, lockfile_name
+
+def releaseAtomicLockFile(fd, lockfile_name):
+    """ Release the atomic lock file """
+
+    try:
+        os.close(fd)
+        os.unlink(lockfile_name)
+    except Exception, e:
+        if "Bad file descriptor" in e:
+            pUtil.tolog("Lock file already released")
+        else:
+            pUtil.tolog("WARNING: Could not release lock file: %s" % (e))
+    else:
+        pUtil.tolog("Released lock file: %s" % (lockfile_name))
+
+def updatePandaServer(job, site, port, xmlstr = None, spaceReport = False,
+                      log = None, ra = 0, jr = False, schedulerID = None, pilotID = None,
+                      updateServer = True, stdout_tail = ""):
+    """ Update the panda server with the latest job info """
+
+    # create and instantiate the client object                                                                                                                                                                                                                    
+    from PandaServerClient import PandaServerClient
+    client = PandaServerClient(pilot_version = env['version'],
+                               pilot_version_tag = env['pilot_version_tag'],
+                               pilot_initdir = env['pilot_initdir'],
+                               jobSchedulerId = schedulerID,
+                               pilotId = pilotID,
+                               updateServer = env['updateServerFlag'],
+                               jobrec = env['jobrec'],
+                               pshttpurl = env['pshttpurl'])
+
+    # update the panda server                                                                                                                                                                                                                                     
+    return client.updatePandaServer(job, site, env['workerNode'], port, xmlstr = xmlstr,
+                                    spaceReport = spaceReport, log = log, ra = ra,
+                                    jr = jr, useCoPilot = env['useCoPilot'],
+                                    stdout_tail = stdout_tail)
