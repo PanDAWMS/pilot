@@ -182,6 +182,9 @@ class JobMover(object):
             quick workaround: should be properly implemented in SiteInformation
         """
         from Mover import getDirectAccess
+        from Mover import useDirectAccessLAN
+        return useDirectAccessLAN()
+
         return getDirectAccess()[0]
 
     def stagein(self):
