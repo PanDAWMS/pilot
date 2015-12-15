@@ -833,8 +833,8 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype, copytool)
         #         replicas_dic[guid1] = [replica1, ..]
 
-        espath = si.getObjectstorePath("eventservice") #getFilePathForObjectStore(filetype="eventservice")
-        logpath = si.getObjectstorePath("logs") #getFilePathForObjectStore(filetype="logs")
+        espath = si.getObjectstorePath("eventservice")
+        logpath = si.getObjectstorePath("logs")
 
         i = 0
         try:
@@ -1885,7 +1885,7 @@ def finishTracingReport(sitemover, surl, errordiagnostics):
         # Send the tracing report
         sitemover.sendReport(report)
     else:
-        tolog("!!WARNING!!2990!! Failed to read back tracing report from file %s" % (_filename))
+        tolog("!!WARNING!!2990!! Failed to read back tracing report from file %s (cwd=%s)" % (_filename, os.getcwd()))
 
 def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_attempt, replica_number, N_files_on_tape, N_root_files, N_non_root_files,\
                        gpfn, lfn, path, fsize=None, spsetup=None, fchecksum=None, guid=None, analysisJob=None, usect=None, pinitdir=None, proxycheck=None,\
@@ -4358,7 +4358,7 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer)
             mode = "logs"
         else:
             mode = "eventservice"
-        _path = si.getObjectstorePath(mode) #getFilePathForObjectStore(filetype=mode)
+        _path = si.getObjectstorePath(mode)
         if _path == "":
             pilotErrorDiag = "No path to object store"
         return _path, pilotErrorDiag

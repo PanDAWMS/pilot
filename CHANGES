@@ -48,10 +48,14 @@ Added protection for failure to find alternativeName in getTiersOfATLASAlternati
 
 64.0
 
-WARNING: using export ALRB_asetupVersion=testing in ATLASExpweriment5
+LOCAL SITE MOVER XXX
 
 TODO: update pUtil::getStdoutDictionary() to support the tail of the last updated AthenaMP log file; also update PandaServerClient::updatePandaServer() to
 take the latest log file and send it to the text indexer in debug mode (see Rod's mail on Nov. 24)
+
+
+
+
 
 
 General changes:
@@ -66,6 +70,7 @@ General changes:
 - Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
 - Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
 - Simplified willDoFileLookups() (ATLASExperiment)
+- Avoiding None value while getting number of events in processMetadata() (ATLASExperiment)
 
 General bug fixes:
 - Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
@@ -106,6 +111,7 @@ Memory monitoring updates:
 - Added allowTxtFile option to getUtilityInfo() (ATLASExperiment)
 - Added pilot_initdir, allowTxtFile arguments to getUtilityInfo() (Experiment)
 - Added allowTxtFile argument to getUtilityInfo() (ATLASExperiment)
+- Removed getTracingReportFilename, writeJSON from import list (xrdcpSiteMover)
 
 LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
@@ -139,9 +145,9 @@ Update from Wen Guan:
 - Added EventStager module for HPC Nersc
 - Added GetJob module for getting multiple jobs
 - Update EventServerManager to let it run in a sub-process. Before it was running in the current process, in this case it cannot be switched to another job which is needed by multi-jobs Yoda.
-- In EventServerManager add functions to handle AthenMP error messages.
+- In EventServerManager add functions to handle AthenaMP error messages.
 - Update to use bulk event ranges updates to panda server
-- Fix cases that all ranks of Yoda were killed when one rank finished.
+- Fix cases where all ranks of Yoda were killed when one rank finished.
 - Update HPCManager to handle multi-jobs.
 - Update Yoda database function to fix the bottleneck which was slow to update db changes
 - Update Yoda Interaction module to fix the messages delay

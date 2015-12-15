@@ -890,7 +890,7 @@ class SiteMover(object):
             filename = getTracingReportFilename()
             status = writeJSON(filename, report)
             if status:
-                tolog("Wrote tracing report to file %s" % (filename))
+                tolog("Wrote tracing report to file %s (cwd=%s)" % (filename, os.getcwd()))
             else:
                 tolog("!!WARNING!!3333!! Failed to write tracing report to file")
 

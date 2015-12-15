@@ -22,10 +22,6 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, getSiteInformation, extractFilePaths, getExperiment
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
-from FileHandling import getTracingReportFilename, writeJSON
-
-# placing the import lfc here breaks compilation on non-lcg sites
-# import lfc
 
 class xrdcpSiteMover(SiteMover.SiteMover):
     """ SiteMover that uses xrdcp for both get and put """
