@@ -18,9 +18,11 @@ from JobLog import JobLog
 from Configuration import Configuration
 from PilotErrors import PilotErrors
 import Mover
+from Monitor import Monitor
 import Site
 import Job
 import Node
+import traceback
 
 import environment
 environment.set_environment()
@@ -30,6 +32,9 @@ globalSite = None
 acceptedJobStatesFromFile = ['holding', 'lostheartbeat', 'failed']
 finalJobStates = ['transferring', 'failed', 'notfound', 'finished']
 pilotLogFileInNewWD="pilotlog.txt"
+
+jobState_file_wildcart = "jobState-*"
+hpc_jobState_file_wildcart = "HPCManagerState.json"
 
 
 class ReturnCode:
@@ -125,12 +130,25 @@ def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0,
     stageout_jobs = 0
     d = dict(kwargs)
 
-    job_state_files = glob(deferred_stageout_dir + "/*/jobState-*")
-
+    job_state_files = glob(deferred_stageout_dir + "/*/" + jobState_file_wildcart)
     job_state_files = pUtil.removeTestFiles(job_state_files, mode=kwargs.get("job_state_mode", "default"))
 
+    hpc_job_state_dirs = map(os.path.dirname, glob(deferred_stageout_dir + "/*/" + hpc_jobState_file_wildcart))
+
+    job_state_files = filter(lambda jsf: os.path.dirname(jsf) not in hpc_job_state_dirs, job_state_files)
+
+    for hpc_job_state_dir in hpc_job_state_dirs:
+        # increment in two steps, because maybe I'll return some other params
+        was_stageout = DeferredStageoutHPCJob(hpc_job_state_dir, **kwargs)
+
+        if was_stageout:
+            stageout_jobs += 1
+
+        if stageout_jobs >= max_stageout_jobs > 0:
+            return stageout_jobs
+
     for job_state_file in job_state_files:
-        # increment in two steps, because maybe I'll send some other params
+        # increment in two steps, because maybe I'll return some other params
         d.update({'job_state_file': job_state_file})
         was_stageout = DeferredStageoutJob(os.path.dirname(job_state_file),
                                            **kwargs)
@@ -142,6 +160,79 @@ def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0,
             return stageout_jobs
 
     return stageout_jobs
+
+
+def DeferredStageoutHPCJob(job_dir, **kwargs):
+    """
+    Performs stageing out preparation for the HPC job in specified directory.
+
+    :param job_dir:     (string)    directory with a job.
+                        mandatory parameter
+
+    Other parameters are passed into other functions
+
+    :return: (bool) the fact of stageout being performed
+    """
+    pUtil.tolog("Deferred stageout from HPC job directory \"%s\"" % job_dir)
+
+    file_path=job_dir+"/"+hpc_jobState_file_wildcart
+    current_dir = os.getcwd()
+    pUtil.tolog("Working on %s" % file_path)
+    pUtil.tolog("Chdir from current dir %s to %s" % (current_dir, job_dir))
+    pUtil.chdir(job_dir)
+    fd, lockfile_name = createAtomicLockFile(file_path)
+    if not fd:
+        return False
+
+    try:
+        from json import load
+        with open(file_path) as data_file:
+            HPC_state = load(data_file)
+        job_state_file = HPC_state['JobStateFile']
+        job_command = HPC_state['JobCommand']
+        # global_work_dir = HPC_state['GlobalWorkingDir']
+        JS = JobState()
+        JS.get(job_state_file)
+        _job, _site, _node, _recoveryAttempt = JS.decode()
+        jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(_job.jobId, DorE(kwargs,'pshttpurl'),
+                                                                    DorE(kwargs,'psport'), DorE(kwargs,'pilot_initdir'))
+        # recover this job?
+        if jobStatusCode == 20:
+            pUtil.tolog("Received general error code from dispatcher call (leave job for later pilot)")
+            # release the atomic lockfile and go to the next directory
+            releaseAtomicLockFile(fd, lockfile_name)
+            return False
+        elif jobStatus in finalJobStates or "tobekilled" in _job.action:
+            pUtil.tolog("Job %s is currently in state \'%s\' with attemptNr = %d (according to server - will not"
+                        " perform staging out)" % (_job.jobId, jobStatus, jobAttemptNr))
+            releaseAtomicLockFile(fd, lockfile_name)
+            return False
+
+        # update job state file at this point to prevent a parallel pilot from doing a simultaneous recovery
+        _retjs = pUtil.updateJobState(_job, _site, _node, _recoveryAttempt)
+        releaseAtomicLockFile(fd, lockfile_name)
+
+        monitor = Monitor(env)
+        monitor.monitor_recovery_job(_job, _site, _node, job_command, job_state_file, recover_dir=job_dir)
+
+        pUtil.tolog("Chdir back to %s" % current_dir)
+        pUtil.chdir(current_dir)
+
+        panda_jobs = glob(job_dir + "/PandaJob_*_*")
+        panda_logs = glob(job_dir + "/*.log.tgz.*")
+        if panda_jobs or panda_logs:
+            pUtil.tolog("Number of founded panda jobs: %d, number of panda log tar file %d, will not remove job dir"
+                        % (len(panda_jobs), len(panda_logs)))
+        else:
+            pUtil.tolog("Number of founded panda jobs: %d, number of panda log tar file %d, will remove job dir"
+                        % (len(panda_jobs), len(panda_logs)))
+            pUtil.tolog("Remove job dir %s" % job_dir)
+            os.system("rm -rf %s" % job_dir)
+        return True
+    except:
+        pUtil.tolog("Failed to start deferred stage out for HPC job: %s" % traceback.format_exc())
+        releaseAtomicLockFile(fd, lockfile_name)
+        return False
 
 
 def DeferredStageoutJob(job_dir, job_state_file="",
@@ -164,7 +255,7 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
     if job_state_file == "":
         try:
-            job_state_file = glob(job_dir + "/jobState-*")[0]
+            job_state_file = glob(job_dir + "/" + jobState_file_wildcart)[0]
         except:
             pUtil.tolog("There is no job state file in the provided directory, exiting")
             return False
