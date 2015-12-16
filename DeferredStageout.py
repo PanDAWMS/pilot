@@ -23,6 +23,7 @@ import Site
 import Job
 import Node
 import traceback
+import commands
 
 import environment
 environment.set_environment()
@@ -346,9 +347,7 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
         pUtil.tolog("Stageout will now update the server with new status")
 
-        rt, retNode = updatePandaServer(job_state.job, job_state.site, DorE(kwargs, 'psport'), xmlstr=XMLStr,
-                                        ra=job_state.recoveryAttempt, schedulerID=DorE(kwargs, 'jobSchedulerId'),
-                                        pilotID=DorE(kwargs, 'pilotId'))
+        rt, retNode = updatePandaServer(job_state, xmlstr=XMLStr, **kwargs)
 
         if rt == 0:
             pUtil.tolog("Job %s updated (exit code %d)" % (job_state.job.jobId, job_state.job.result[2]))
@@ -379,7 +378,8 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
         if job_state.job.result[0] in finalJobStates:
             pUtil.postJobTask(job_state.job, job_state.site,
-                              DorE(kwargs, 'workerNode'), DorE(kwargs, 'experiment'), jr=True, ra=job_state.recoveryAttempt)
+                              DorE(kwargs, 'workerNode'), DorE(kwargs, 'experiment'), jr=True,
+                              ra=job_state.recoveryAttempt)
 
         pUtil.chdir(currentdir)
 
@@ -387,7 +387,7 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
         if job_state.job.result[0] == "finished":
             pUtil.tolog("Stageout will now remove the job, it is in finished state and can be removed")
-            job_state.cleanup()
+            cleanup(job_state)
 
         return True
     except:
@@ -463,11 +463,19 @@ def DorE(dictionary, key):
 
 def cleanup(job_state):
     pUtil.tolog("Cleanup job directory called")
-    if not job_state.rename(job_state.site, job_state.job):
-        return lognfalse("Failed to rename (Fate of job state file left for next pilot)")
-    else:
-        if not job_state.cleanup():
-            return lognfalse("!!WARNING!!1110!! Failed to cleanup")
+
+    cmd = cmd = "rm -rf"
+    if os.path.isdir(job_state.job.newDirNM):
+        cmd += (" %s" % job_state.job.newDirNM)
+    if os.path.isdir(job_state.job.datadir):
+        cmd += (" %s" % job_state.job.datadir)
+    if os.path.isdir(job_state.site.workdir):
+        cmd += (" %s" % job_state.job.workdir)
+    pUtil.tolog("Executing command: %s" % (cmd))
+    try:
+        ec, rs = commands.getstatusoutput(cmd)
+    except Exception, e:
+        pUtil.tolog("FAILURE: JobState cleanup failed to cleanup: %s " % str(e))
 
 
 def PrepareJobForDeferredStageout(job_state, **kwargs):
@@ -508,11 +516,7 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
         pUtil.tolog("!!WARNING!!1100!! Max number of recovery attempts exceeded: %d" %
                     (env['maxNumberOfRecoveryAttempts']))
         job_state.job.setState(['failed', job_state.job.result[1], PilotErrors().ERR_LOSTJOBMAXEDOUT])
-        rt, retNode = updatePandaServer(job_state.job, job_state.site,
-                                        DorE(kwargs, 'psport'),
-                                        ra=job_state.recoveryAttempt,
-                                        schedulerID=DorE(kwargs, 'jobSchedulerId'),
-                                        pilotID=DorE(kwargs, 'pilotId'))
+        rt, retNode = updatePandaServer(job_state, **kwargs)
         if rt == 0:
             pUtil.tolog("Job %s updated (exit code %d)" % (job_state.job.jobId, job_state.job.result[2]))
 
@@ -591,10 +595,8 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
                 strXML = pUtil.getMetadata(job_state.site.workdir, job_state.job.jobId)
 
                 # update the server
-                rt, retNode = updatePandaServer(job_state.job, job_state.site, DorE(kwargs, 'psport'),
-                                                xmlstr=strXML, ra=job_state.recoveryAttempt,
-                                                schedulerID=DorE(kwargs, 'jobSchedulerId'),
-                                                pilotID=DorE(kwargs, 'pilotId'))
+                rt, retNode = updatePandaServer(job_state, xmlstr=strXML, **kwargs)
+
                 if rt == 0:
                     return lognret(ReturnCode.Cleanup, "Lost job %s updated (exit code %d)" % (job_state.job.jobId,
                                                                                                job_state.job.result[2]))
@@ -805,6 +807,7 @@ def TransferFiles(job_state, datadir, files, **kwargs):
 
     return _state
 
+
 def createAtomicLockFile(file_path):
     """ Create an atomic lockfile while probing this dir to avoid a possible race-condition """
 
@@ -820,6 +823,7 @@ def createAtomicLockFile(file_path):
         pUtil.tolog("Created lock file: %s" % (lockfile_name))
     return fd, lockfile_name
 
+
 def releaseAtomicLockFile(fd, lockfile_name):
     """ Release the atomic lock file """
 
@@ -834,24 +838,24 @@ def releaseAtomicLockFile(fd, lockfile_name):
     else:
         pUtil.tolog("Released lock file: %s" % (lockfile_name))
 
-def updatePandaServer(job, site, port, xmlstr = None, spaceReport = False,
-                      log = None, ra = 0, jr = False, schedulerID = None, pilotID = None,
-                      updateServer = True, stdout_tail = ""):
+
+def updatePandaServer(job_state, xmlstr=None, spaceReport=False,
+                      log=None, jr=False, stdout_tail="", **kwargs):
     """ Update the panda server with the latest job info """
 
-    # create and instantiate the client object                                                                                                                                                                                                                    
     from PandaServerClient import PandaServerClient
-    client = PandaServerClient(pilot_version = env['version'],
-                               pilot_version_tag = env['pilot_version_tag'],
-                               pilot_initdir = env['pilot_initdir'],
-                               jobSchedulerId = schedulerID,
-                               pilotId = pilotID,
-                               updateServer = env['updateServerFlag'],
-                               jobrec = env['jobrec'],
-                               pshttpurl = env['pshttpurl'])
+    client = PandaServerClient(pilot_version=DorE(kwargs, 'version'),
+                               pilot_version_tag=DorE(kwargs, 'pilot_version_tag'),
+                               pilot_initdir=DorE(kwargs, 'pilot_initdir'),
+                               jobSchedulerId=DorE(kwargs, 'jobSchedulerId'),
+                               pilotId=DorE(kwargs, 'pilotId'),
+                               updateServer=DorE(kwargs, 'updateServerFlag'),
+                               jobrec=DorE(kwargs, 'jobrec'),
+                               pshttpurl=DorE(kwargs, 'pshttpurl'))
 
-    # update the panda server                                                                                                                                                                                                                                     
-    return client.updatePandaServer(job, site, env['workerNode'], port, xmlstr = xmlstr,
-                                    spaceReport = spaceReport, log = log, ra = ra,
-                                    jr = jr, useCoPilot = env['useCoPilot'],
-                                    stdout_tail = stdout_tail)
+    # update the panda server
+    return client.updatePandaServer(job_state.job, job_state.site, DorE(kwargs, 'workerNode'),
+                                           DorE(kwargs, 'psport'), xmlstr=xmlstr,
+                                           spaceReport=spaceReport, log=log, ra=job_state.recoveryAttempt,
+                                           jr=jr, useCoPilot=DorE(kwargs, 'useCoPilot'),
+                                           stdout_tail=stdout_tail)
