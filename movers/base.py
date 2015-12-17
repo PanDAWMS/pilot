@@ -362,7 +362,7 @@ class BaseSiteMover(object):
     def put_data(self, fspec):
         """
             fspec is FileSpec object
-            :return: remote file details: {'checksum': '', 'checksum_type':'', 'filesize':''}
+            :return: remote file details: {'checksum': '', 'checksum_type':'', 'filesize':'', 'surl':''}
             stageout workflow could be overwritten by specific Mover
             :raise: PilotException in case of controlled error
         """

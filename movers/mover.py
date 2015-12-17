@@ -196,7 +196,11 @@ class JobMover(object):
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
+
         self.log("stagein: protocols=%s" % protocols)
+
+        if not protocols:
+            raise PilotException("Failed to get files: no protocols defined for input. check aprotocols schedconfig settings for activity=%s, " % activity, code=PilotErrors.ERR_NOSTORAGE)
 
         files = self.job.inData
 
@@ -455,13 +459,27 @@ class JobMover(object):
                         try:
                             result = sitemover.put_data(fdata)
                             fdata.status = 'transferred' # mark as successful
-                            #if result.get('surl'):
-                            #    fdata.surl = result.get('surl')
+                            if result.get('surl'):
+                                fdata.surl = result.get('surl')
                             #if result.get('pfn'):
                             #    fdata.turl = result.get('pfn')
 
                             #self.trace_report.update(url=fdata.surl) ###
                             self.trace_report.update(url=fdata.turl) ###
+
+                            # finalize and send trace report
+                            self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
+                            self.sendTrace(self.trace_report)
+
+                            updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", type="output")
+                            dumpFileStates(self.workDir, self.job.jobId, type="output")
+
+                            self.updateSURLDictionary(fdata.guid, fdata.surl or fdata.turl, self.workDir, self.job.jobId) # FIXME LATER
+
+                            fdat = result.copy()
+                            #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
+                            transferred_files.append(fdat)
+
                             break # transferred successfully
                         except PilotException, e:
                             result = e
@@ -472,21 +490,7 @@ class JobMover(object):
 
                         self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageoutretry, result))
 
-                    if not isinstance(result, Exception): # transferred successfully
-
-                        # finalize and send trace report
-                        self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
-                        self.sendTrace(self.trace_report)
-
-                        updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", type="output")
-                        dumpFileStates(self.workDir, self.job.jobId, type="output")
-
-                        ## self.updateSURLDictionary(guid, surl, self.workDir, self.job.jobId) # FIX ME LATER ??
-
-                        fdat = result.copy()
-                        #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
-                        transferred_files.append(fdat)
-                    else:
+                    if isinstance(result, Exception): # failure transfer
                         failed_transfers.append(result)
 
         dumpFileStates(self.workDir, self.job.jobId, type="output")
