@@ -256,7 +256,7 @@ def get_data_new(job,
 
     tolog(".. creating PFC with name=%s" % pfc_name)
     createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
-
+    #createPFC4TRF(pfc_name, guidfname)
 
     return 0, "", None, FAX_dictionary
 
