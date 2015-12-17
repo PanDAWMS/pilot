@@ -402,7 +402,25 @@ class JobMover(object):
 
         self.log("[stage-out] [%s] filtered protocols to be used to transfer files: protocols=%s" % (activity, ddmprotocols))
 
-        # try to use each protocol of same ddmendpoint until sucessfull transfer
+        # get SURL endpoint for Panda callback registration
+        # resolve from special protocol activity=SE # fix me later to proper name of activitiy=SURL (panda SURL, at the moment only 2-letter name is allowed on AGIS side)
+
+        self.ddmconf.update(self.si.resolveDDMConf(set(ddmfiles)))
+        surl_protocols, no_surl_ddms = {}, set()
+
+        for fspec in files:
+            if not fspec.surl: # initilize only if not already set
+                surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
+                if surl_prot:
+                    surl_protocols.setdefault(fspec.ddmendpoint, surl_prot[0])
+                else:
+                    no_surl_ddms.add(fspec.ddmednpoint)
+
+        if no_surl_ddms: # failed to resolve SURLs
+            self.log('FAILED to resolve default SURL path for ddmendpoints=%s' % list(no_surl_ddms))
+            raise PilotException("Failed to put files: no SE/SURL protocols defined for output ddmendpoints=%s .. check ddmendpoints aprotocols settings for activity=SE, " % list(no_surl_ddms), code=PilotErrors.ERR_NOSTORAGE)
+
+        # try to use each protocol of same ddmendpoint until successfull transfer
         for ddmendpoint, iprotocols in ddmprotocols.iteritems():
 
             for dat in iprotocols:
@@ -434,9 +452,14 @@ class JobMover(object):
 
                 for fdata in remain_files:
 
+                    if not fdata.surl:
+                        fdata.surl = sitemover.getSURL(surl_protocols[fdata.ddmendpoint].get('se'), surl_protocols[fdata.ddmendpoint].get('path'), fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
+
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", type="output")
 
                     fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
+                    self.log("[stage-out] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.surl, fdata.lfn, fdata.ddmendpoint))
+
                     self.log("[stage-out] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.turl, fdata.lfn, fdata.ddmendpoint))
 
                     self.log("[stage-out] Prepare to put_data: ddmendpoint=%s, protocol=%s, fspec=%s" % (ddmendpoint, dat, fdata))
@@ -474,7 +497,7 @@ class JobMover(object):
                             updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", type="output")
                             dumpFileStates(self.workDir, self.job.jobId, type="output")
 
-                            self.updateSURLDictionary(fdata.guid, fdata.surl or fdata.turl, self.workDir, self.job.jobId) # FIXME LATER
+                            self.updateSURLDictionary(fdata.guid, fdata.surl, self.workDir, self.job.jobId) # FIXME LATER: isolate later
 
                             fdat = result.copy()
                             #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
