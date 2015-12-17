@@ -961,7 +961,7 @@ class ATLASExperiment(Experiment):
                     for i in range(len(lrc_metadata_dom)):
                         _key = str(_file.getElementsByTagName("metadata")[i].getAttribute("att_name"))
                         _value = str(_file.getElementsByTagName("metadata")[i].getAttribute("att_value"))
-                        if _key == "events":
+                        if _key == "events" and _value:
                             try:
                                 N = int(_value)
                             except Exception, e:
@@ -3109,7 +3109,7 @@ class ATLASExperiment(Experiment):
         #    path = path.replace("/cvmfs", self.getCVMFSPath())
         #else:
         #    path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        cmd = "export ALRB_asetupVersion=testing;export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
+        cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
         cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
         cmd += "source $AtlasSetup/scripts/asetup.sh"
 
@@ -3262,29 +3262,23 @@ class ATLASExperiment(Experiment):
         #   1. JSON summary file from workdir
         #   2. JSON summary file from pilot initdir
         #   3. Text output file from workdir (if allowTxtFile is True)
-        # Return a primary_location boolean as well (True if path is priority 1 as above)
 
         path = os.path.join(workdir, self.getUtilityJSONFilename())
         init_path = os.path.join(pilot_initdir, self.getUtilityJSONFilename())
-        primary_location = False
         if not os.path.exists(path):
             tolog("File does not exist: %s" % (path))
             if os.path.exists(init_path):
                 path = init_path
-                primary_location = None # Note: the None value is used in getUtilityInfo()
             else:
                 tolog("File does not exist either: %s" % (init_path))
                 path = ""
-                primary_location = False
 
             if path == "" and allowTxtFile:
                 path = os.path.join(workdir, self.getUtilityOutputFilename())
                 if not os.path.exists(path):
                     tolog("File does not exist either: %s" % (path))
-        else:
-            primary_location = True
 
-        return path, primary_location
+        return path
 
     # Optional
     def getUtilityInfo(self, workdir, pilot_initdir, allowTxtFile=False):
@@ -3292,74 +3286,35 @@ class ATLASExperiment(Experiment):
 
         node = {}
 
-        # Try to get the memory monitor info from the workdir first
-        path, primary_location = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=allowTxtFile)
-        if path != "" and os.path.exists(path):
-            tolog("Reading memory monitoring info from: %s" % (path))
+        # Get the values from the memory monitor file
+        summary_dictionary = self.getMemoryValues(workdir, pilot_initdir)
 
-            # If the file is the primary one (ie the one in the workdir and not the initdir, then also check the modification time)
-            read_from_file = True
-            if primary_location:
-                # Get the modification time
-                mod_time = None
-                max_time = 120
-                try:
-                    file_modification_time = os.path.getmtime(path)
-                    current_time = int(time.time())
-                    mod_time = current_time - file_modification_time
-                    tolog("File %s was modified %d seconds ago" % (path, mod_time))
-                except Exception, e:
-                    tolog("!!WARNING!!2323!! Could not read the modification time of %s: %s" % (path, e))
-                    tolog("!!WARNING!!2324!! Will add -1 values for the memory info")
-                    node['maxRSS'] = -1
-                    node['maxVMEM'] = -1
-                    node['maxSWAP'] = -1
-                    node['maxPSS'] = -1
-                    node['avgRSS'] = -1
-                    node['avgVMEM'] = -1
-                    node['avgSWAP'] = -1
-                    node['avgPSS'] = -1
-                    read_from_file = False
-                else:
-                    if mod_time > max_time:
-                        tolog("!!WARNING!!2325!! File %s was modified over %d s ago, will add -1 values for the memory info" % (path, max_time))
-                        node['maxRSS'] = -1
-                        node['maxVMEM'] = -1
-                        node['maxSWAP'] = -1
-                        node['maxPSS'] = -1
-                        node['avgRSS'] = -1
-                        node['avgVMEM'] = -1
-                        node['avgSWAP'] = -1
-                        node['avgPSS'] = -1
-                        read_from_file = False
-
-            if read_from_file:
-                # Get the dictionary
-                d = getJSONDictionary(path)
-                if d and d != {}:
-                    try:
-                        # Move to experiment class?
-                        node['maxRSS'] = d['Max']['maxRSS']
-                        node['maxVMEM'] = d['Max']['maxVMEM']
-                        node['maxSWAP'] = d['Max']['maxSwap']
-                        node['maxPSS'] = d['Max']['maxPSS']
-                        node['avgRSS'] = d['Avg']['avgRSS']
-                        node['avgVMEM'] = d['Avg']['avgVMEM']
-                        node['avgSWAP'] = d['Avg']['avgSwap']
-                        node['avgPSS'] = d['Avg']['avgPSS']
-                    except Exception, e:
-                        tolog("!!WARNING!!54541! Exception caught while parsing memory monitor JSON: %s" % (e))
-                    else:
-                        tolog("Extracted info from memory monitor JSON")
-
-        # Done with the memory monitor for this job (if the file is read from the pilots' init dir), remove the file in case there are other jobs to be run
-        if os.path.exists(path) and primary_location == None:
+        # Fill the node dictionary
+        if summary_dictionary and summary_dictionary != {}:
             try:
-                os.system("rm -rf %s" % (path))
+                node['maxRSS'] = summary_dictionary['Max']['maxRSS']
+                node['maxVMEM'] = summary_dictionary['Max']['maxVMEM']
+                node['maxSWAP'] = summary_dictionary['Max']['maxSwap']
+                node['maxPSS'] = summary_dictionary['Max']['maxPSS']
+                node['avgRSS'] = summary_dictionary['Avg']['avgRSS']
+                node['avgVMEM'] = summary_dictionary['Avg']['avgVMEM']
+                node['avgSWAP'] = summary_dictionary['Avg']['avgSwap']
+                node['avgPSS'] = summary_dictionary['Avg']['avgPSS']
             except Exception, e:
-                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (path), e)
+                tolog("!!WARNING!!54541! Exception caught while parsing memory monitor file: %s" % (e))
+                tolog("!!WARNING!!5455!! Will add -1 values for the memory info")
+                node['maxRSS'] = -1
+                node['maxVMEM'] = -1
+                node['maxSWAP'] = -1
+                node['maxPSS'] = -1
+                node['avgRSS'] = -1
+                node['avgVMEM'] = -1
+                node['avgSWAP'] = -1
+                node['avgPSS'] = -1
             else:
-                tolog("Removed %s" % (path))
+                tolog("Extracted info from memory monitor")
+        else:
+            tolog("Memory summary dictionary not yet available")
 
         return node
 
@@ -3406,7 +3361,7 @@ class ATLASExperiment(Experiment):
         summary_dictionary = {}
 
         # Get the path to the proper memory info file (priority ordered)
-        path, dummy = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=True)
+        path = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=True)
         if os.path.exists(path):
 
             tolog("Using path: %s" % (path))
@@ -3455,7 +3410,9 @@ class ATLASExperiment(Experiment):
             if path == "":
                 tolog("!!WARNING!!4541!! Filename not set for utility output")
             else:
-                tolog("!!WARNING!!4540!! File does not exist: %s" % (path))
+                # Normally this means that the memory output file has not been produced yet
+                pass
+                # tolog("File does not exist: %s" % (path))
 
         return summary_dictionary
 

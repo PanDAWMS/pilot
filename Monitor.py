@@ -266,7 +266,11 @@ class Monitor:
                     try:
                         maxPSS_int = summary_dictionary['Max']['maxPSS']
                     except KeyError, e:
-                        pUtil.tolog("!!WARNING!!3434!! Could not extract maxPSS value from: %s" % str(summary_dictionary))
+                        if summary_dictionary != {}:
+                            pUtil.tolog("!!WARNING!!3434!! Could not extract maxPSS value from: %s" % str(summary_dictionary))
+                        else:
+                            # Normally this means that the memory output file has not been produced yet, so skip it
+                            pass 
                         maxPSS_int = -1
 
                     # Only proceed if values are set
@@ -289,11 +293,12 @@ class Monitor:
                                             pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORYEXCEEDED")
 
                                             # Kill the job
-                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                                            self.__env['jobDic'][k][1].result[0] = "failed"
-                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
-                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
-                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                                            pUtil.tolog("!!WARNING!!9903!! Could have killed the job")
+                                            #killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            #self.__env['jobDic'][k][1].result[0] = "failed"
+                                            #self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            #self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            #self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
                                             pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
                                     else:
