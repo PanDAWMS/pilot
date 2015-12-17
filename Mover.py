@@ -251,7 +251,10 @@ def get_data_new(job,
     # create PoolFileCatalog.xml
     files, lfns = {}, []
     for fspec in job.inData:
-        files[fspec.guid] = fspec.turl or ''
+        pfn = fspec.lfn
+        if fspec.status == 'direct_access':
+            pfn = fspec.turl
+        files[fspec.guid] = pfn or ''
         lfns.append(fspec.lfn)
 
     tolog(".. creating PFC with name=%s" % pfc_name)
