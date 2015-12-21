@@ -171,7 +171,7 @@ def argParser(argv):
             env['queuename'] = a
 
         elif o == "-i":
-            if a == "PR" or a == "RC":
+            if a == "PR" or (a and a.startswith("RC")):
                 env['pilot_version_tag'] = a
             else:
                 print "Unknown pilot version tag: %s" % (a)
@@ -325,11 +325,11 @@ def argParser(argv):
 
     # force user jobs for ANALY sites
     if env['sitename'].startswith('ANALY_'):
-        if env['uflag'] != 'user' and env['uflag'] != 'self' and env['uflag'] != 'ptest' and env['uflag'] != 'rucio_test':
+        if env['uflag'] not in ['user', 'self', 'ptest', 'rucio_test']:
             env['uflag'] = 'user'
-            pUtil.tolog("Pilot user flag has been reset for analysis site (to value: %s)" % (env['uflag']))
+            pUtil.tolog("Pilot user flag has been reset for analysis site (to value: %s)" % env['uflag'])
         else:
-            pUtil.tolog("Pilot user flag: %s" % str(env['uflag']))
+            pUtil.tolog("Pilot user flag: %s" % env['uflag'])
 
 def moveLostOutputFiles(job, thisSite, remaining_files):
     """
@@ -1882,10 +1882,15 @@ def getProdSourceLabel():
         prodSourceLabel = 'test'
 
     # override for release candidate pilots
-    if env['pilot_version_tag'] == "RC" and env['uflag'] != 'ptest':
-        prodSourceLabel = "rc_test"
-    if env['pilot_version_tag'] == "DDM" and env['uflag'] != 'ptest':
-        prodSourceLabel = "ddm"
+    if env['uflag'] != 'ptest' and env['pilot_version_tag']:
+        if env['pilot_version_tag'].startswith("RC"):
+            prodSourceLabel = "rc_test"
+            if env['pilot_version_tag'] == 'RCM':
+                prodSourceLabel = "rcm_test"
+            elif env['pilot_version_tag'] == 'RCMA': # RC Mover for ANALY site: temporary fix
+                prodSourceLabel = "user"
+        elif env['pilot_version_tag'] == "DDM":
+            prodSourceLabel = "ddm"
 
     return prodSourceLabel
 

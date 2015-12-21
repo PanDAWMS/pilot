@@ -1041,6 +1041,80 @@ class RunJob(object):
 
         return dsname, datasetDict
 
+
+    def stageOut_new(self,
+                     job,
+                     jobSite,
+                     outs,            # somehow prepared validated output files list (logfiles not included)
+                     analysisJob,     # not used, --> job.isAnalysisJob() should be used instead
+                     dsname,          # default dataset name to be used if file.destinationDblock is not set
+                     datasetDict,     # validated dict to resolve dataset name: datasetDict = dict(zip(outputFiles, destinationDblock)) + (logFile, logFileDblock)
+                     outputFileInfo   # validated dict: outputFileInfo = dict(zip(job.outFiles, zip(_fsize, _checksum)))
+                                      # can be calculated in Mover directly while transferring??
+                     ):
+        """
+            perform the stage-out
+            :return: (rcode, job, rf, latereg=False) # latereg is always False
+            note: returning `job` is useless since reference passing
+        """
+
+        # warning: in main workflow if jobReport is used as source for output file it completely overwtites job.outFiles ==> suppose it's wrong behaviour .. do extend outFiles instead.
+        # extend job.outData from job.outFiles (consider extra files extractOutputFilesFromJSON in the main workflow)
+
+        #  populate guid and dataset values for job.outData
+        # copy all extra files from job.outFiles into structured job.outData
+
+        job._sync_outdata() # temporary work-around, reuse old workflow that populates job.outFilesGuids
+
+        try:
+            t0 = os.times()
+            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry)
+            t1 = os.times()
+
+            job.timeStageOut = int(round(t1[4] - t0[4]))
+
+        except Exception, e:
+            t1 = os.times()
+            job.timeStageOut = int(round(t1[4] - t0[4]))
+
+            error = "Put function can not be called for staging out: %s, trace=%s" % (e, traceback.format_exc())
+            tolog(error)
+
+            rc = PilotErrors.ERR_PUTFUNCNOCALL
+            job.setState(["holding", job.result[1], rc])
+
+            return rc, job, None, False
+
+        tolog("Put function returned code: %s" % rc)
+
+        if rc:
+
+            if job.pilotErrorDiag:
+                job.pilotErrorDiag = job.pilotErrorDiag[-256:]
+
+            # check if the job is recoverable?
+            _state, _msg = "failed", "FAILED"
+            if PilotErrors.isRecoverableErrorCode(rc) and '(unrecoverable)' not in job.pilotErrorDiag:
+                _state, _msg = "holding", "WARNING"
+
+            job.setState([_state, job.result[1], rc])
+
+            tolog("!!%s!!1212!! %s" % (_msg, PilotErrors.getErrorStr(rc)))
+        else:
+
+            job.setState(["finished", 0, 0])
+
+            # create a weak lockfile meaning that file transfer worked
+            # (useful for job recovery if activated) in the job workdir
+            createLockFile(True, jobSite.workdir, lockfile="ALLFILESTRANSFERRED")
+            # create another lockfile in the site workdir since a transfer failure can still occur during the log transfer
+            # and a later recovery attempt will fail (job workdir will not exist at that time)
+            createLockFile(True, self.__pworkdir, lockfile="ALLFILESTRANSFERRED")
+
+        return rc, job, rf, False
+
+
+    @mover.use_newmover(stageOut_new)
     def stageOut(self, job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo):
         """ perform the stage-out """
 
