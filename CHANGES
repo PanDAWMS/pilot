@@ -169,7 +169,7 @@ Update from Alexey Anisenkon:
 - . Job object updates
 - . other mover related updates
 
-Update from Daniil:
+Update from Daniil Drizhuk:
 - New job recovery algorithm implemented (DeferredStageout module)
 
 REMOVE RunJobMira.py FROM DISTRIBUTION
