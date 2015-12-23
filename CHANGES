@@ -71,6 +71,7 @@ General changes:
 - Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
 - Simplified willDoFileLookups() (ATLASExperiment)
 - Avoiding None value while getting number of events in processMetadata() (ATLASExperiment)
+- Ignoring test mode in updateJobStateTest() (JobRecovery)
 
 General bug fixes:
 - Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
