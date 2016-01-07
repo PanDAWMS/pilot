@@ -109,7 +109,7 @@ def DeferredStageoutLocal(**kwargs):
     return DeferredStageoutDir('.', **kwargs)
 
 
-def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0,
+def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0, remove_empty_dir=False,
                         **kwargs):
     """
     The procedure loops through the directory and performs staging out on each job.
@@ -122,6 +122,9 @@ def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0,
                                 defaults to zero
     :param job_state_mode:  ("default"|"test")  Mode of job state file
                             defaults to "default"
+
+    :param remove_empty_dir:  (bool)    Remove the directory or not
+                            defaults to False
 
     Other parameters are passed into DeferredStageoutJob
 
@@ -159,6 +162,17 @@ def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0,
 
         if stageout_jobs >= max_stageout_jobs > 0:
             return stageout_jobs
+
+    # if not all dirs were processed, don't remove
+    # remove only if there is no dir unprocessed
+
+    if remove_empty_dir:
+        dirs = filter(os.path.isdir, glob(deferred_stageout_dir + "/*"))
+
+        if len(dirs) < 1:
+            o,e = commands.getstatusoutput("rm -rf "+deferred_stageout_dir)
+
+
 
     return stageout_jobs
 
