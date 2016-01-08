@@ -11,7 +11,7 @@ import urllib2
 from datetime import datetime, timedelta
 from pUtil import tolog, replace, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
-from FileHandling import getExtension, readJSON, writeJSON
+from FileHandling import getExtension, readJSON, writeJSON, getJSONDictionary
 from PilotErrors import PilotErrors
 
 try:
@@ -1080,6 +1080,14 @@ class SiteInformation(object):
 
         return ""
 
+    # Optional
+    def getFullQueuedataFilePath(self):
+        """ Location of full schedconfig info """
+
+        # E.g. the full queuedata can be located on cvmfs. Queuedata is assumed to be in json format.
+        # The full queuedata should contain a complete list of schedconfig info for all sites
+        return ""
+
     # Required if a local ROOT setup is necessary from e.g. a site mover (FAXSiteMover, objectstoreSiteMover, ..)
     def getLocalROOTSetup(self):
         """ Prepare the local ROOT setup script """
@@ -1536,6 +1544,117 @@ class SiteInformation(object):
         # See example implementation in ATLASExperiment
 
         return None
+
+    def copyFullQueuedata(self, destination=None):
+        """ Copy the full queuedata file from a location specified in SiteInformation """
+
+        # Get the path to the full queuedata json file
+        path = self.getFullQueuedataFilePath()
+        if destination:
+            dest = destination
+        else:
+            dest = os.getcwd()
+        try:
+            if os.path.exists(path):
+                tolog("File already exists, will not copy again: %s" % (path))
+            else:
+                from shutil import copy2
+                copy2(path, dest)
+                tolog("Copied %s to %s" % (path, dest))
+        except IOError, e:
+            tolog("!!WARNING!!4444!! Failed to copy file %s: %s" % (path, e))
+
+    def getFullQueuedataDictionary(self):
+        """ Return the full queuedata JSON dictionary """
+        # Note: this dictionary is very heavy since it contains all the info for all the queues
+
+        return getJSONDictionary(self.getFullQueuedataFilePath())
+
+    def findOSEnabledQueuesInFullQueuedata(self):
+        """ Create a list with all queues that have object stores defined """
+
+        queuename_list = []
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    queuename_list.append(queuename)
+
+        return queuename_list
+
+    def findAllObjectStores(self, os_bucket_name):
+        """ Find all Object Store names corresponding to a particular bucket name """
+        # E.g. os_bucket_name = http - only return Object Stores that has the http bucket defined
+        os_info = {}
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    # dictionary[queuename]["objectstores"] =
+                    # [{'os_secret_key': 'CERN_ObjectStoreKey', 'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 41, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_id': 17172, 'os_bucket_name': 'eventservice', 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_eventservice', 'os_endpoint': 's3://cs3.cern.ch:443/'}, {'os_secret_key': 'CERN_ObjectStoreKey', 'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 42, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_id': 17172, 'os_bucket_name': 'logs', 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_logs', 'os_endpoint': 's3://cs3.cern.ch:443/'}]
+
+                    l = dictionary[queuename]["objectstores"]
+                    for i in range(len(l)):
+                        os_name = l[i]["os_name"] # e.g. CERN_OS_1
+
+                        # l[0] = {'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 41, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_eventservice', 'os_secret_key': 'CERN_ObjectStoreKey', 'os_id': 17172, 'os_bucket_name': 'eventservice', 'os_endpoint': 's3://cs3.cern.ch:443/'}
+               # l[1] = {'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 42, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_logs', 'os_secret_key': 'CERN_ObjectStoreKey', 'os_id': 17172, 'os_bucket_name': 'logs', 'os_endpoint': 's3://cs3.cern.ch:443/'}
+
+                        if os_name in os_info.keys() and os_info[os_name]['os_bucket_name'] == os_bucket_name:
+                            continue
+                        else:
+                            if l[i]['os_bucket_name'] == os_bucket_name:
+                                os_info[os_name] = l[i]
+                            else:
+                                continue
+
+        return os_info
+
+    def getAlternativeOS(self, os_bucket_name, preferredOS="", currentOS=""):
+        """ Get the dictionary of alternative Objectstores """
+        # Only the preferred OS will be returned in preferredOS is set.
+        # In case preferredOS is not set, currentOS has to be set; and in this case the subsequent OS will be returned
+
+        alt_os_info_dictionary = {}
+
+        # First copy all the queuedata
+        self.copyFullQueuedata()
+
+        # Get the list of alternative OS dictionaries
+        # OS info: os_info[i], e.g. = {'os_secret_key': '', 'os_access_key': '', 'os_name': 'BNL_OS_0', 'os_bucket_id': 1, 'os_state': 'ACTIVE', 'os_is_secure': False, 'os_id': 17114, 'os_bucket_name': 'http', 'os_flavour': 'AWS-HTTP', 'os_bucket_endpoint': '/atlas_logs', 'os_endpoint': 'http://cephgw.usatlas.bnl.gov:8443/'}
+        os_info = self.findAllObjectStores(os_bucket_name)
+        tolog("Found objectstores: %s" % str(os_info.keys()))
+
+        # Select a proper alternative OS - if there's a preferred OS, then select that one
+        if preferredOS != "":
+            for os_name in os_info.keys():
+                if os_name == preferredOS:
+                    alt_os_info_dictionary = os_info[os_name]
+                    break
+
+        if alt_os_info_dictionary == {}:
+            if currentOS != "":
+                # First find the current OS
+                i = 0
+                j = -1
+                for os_name in os_info.keys():
+                    if os_name == currentOS:
+                        j = i+1
+                        if j == len(os_info.keys()):
+                            j = 0
+                            break
+                    else:
+                        i += 1
+                if j != -1:
+                    os_name = os_info.keys()[j]
+                    alt_os_info_dictionary = os_info[os_name]
+
+        return alt_os_info_dictionary
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

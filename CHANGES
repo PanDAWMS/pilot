@@ -1,3 +1,13 @@
+
+make sure MAKEFLAGS is set in the new setup function!!!
+
+Test failover to alt OS at UTA. code implemented. fake initial failure in S3 site mover
+
+
+
+
+
+
 Complete change log for PanDA Pilot version PICARD
 --------------------------------------------------
 
@@ -72,18 +82,24 @@ General changes:
 - Simplified willDoFileLookups() (ATLASExperiment)
 - Avoiding None value while getting number of events in processMetadata() (ATLASExperiment)
 - Ignoring test mode in updateJobStateTest() (JobRecovery)
+- Removing archive files if present prior to log file creation; requested by Emmanouil Vamvakopoulos et al (ATLASExperiment)
 
 General bug fixes:
 - Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
 to get the wrong error label (LocalSiteMover)
 - Corrected usage of new method processCanBeKilled() (missing self; also in its call in __updateJobs()) (Monitor)
 - Removed half-implemented getFilenamesAndGuid() (Mover)
+- Changed 'eventservice' to 'logs' in transferLogFile() before adding info to OS transfer dictionary (JobLog)
+- Added missing MAKEFLAGS for ND jobs, in setupNordugridTrf() (NordugridATLASExperiment)
 
 Setup of ATLAS Release changes
 - Created a new getJobExecutionCommand(), renamed old function to getJobExecutionCommandOld() (ATLASExperiment)
 - Changed useAtlasSetup() to always return True for all releases (ATLASExperiment)
 - Updated getSplitHomePackage() to handle AnalysisTransforms-AtlasP1HLT_* correctly (ATLASexperiment)
 - Now using getSplitHomePackage() in getJobExecutionCommand() (ATLASExperiment)
+
+Added fail-over to alternative OS
+- Created copyFullQueuedata(), getFullQueuedataDictionary(), findOSEnabledQueuesInFullQueuedata(), findAllObjectStores(), getAlternativeOS(), getFullQueuedataFilePath() (SiteInformation, ATLASSiteInformation)
 
 Memory monitoring updates:
 - Calling __check_memory_usage() in monitoring loop, in monitor_job() (Monitor)

@@ -117,7 +117,7 @@ class JobLog:
             else:
                 # Update the OS transfer dictionary
                 # Get the OS name identifier and bucket endpoint
-                os_name = si.getObjectstoreName("eventservice")
+                os_name = si.getObjectstoreName("logs")
                 os_bucket_endpoint = si.getObjectstoreBucketEndpoint("logs")
 
                 # Add the transferred file to the OS transfer file
@@ -201,7 +201,7 @@ class JobLog:
         _msg = ""
         latereg = False
 
-        # determine the file path for special log transfers
+        # determine the file path for special log transfers (can be overwritten in mover_put_data() in case of failure in transfer to primary OS)
         if specialTransfer:
             logPath = self.getLogPath(job.jobId, job.logFile, job.experiment)
             if logPath == "":

@@ -773,6 +773,19 @@ class ATLASExperiment(Experiment):
         except Exception, e:
             tolog("!!WARNING!!2341!! Failed to execure cleanupAthenaMP(): %s" % (e))
 
+        # explicitly remove any soft linked archives (.a files) since they will be dereferenced by the tar command (--dereference option)
+        matches = []
+        for root, dirnames, filenames in os.walk(workdir):
+            for filename in fnmatch.filter(filenames, '*.a'):
+                matches.append(os.path.join(root, filename))
+        if matches != []:
+            tolog("!!WARNING!!4990!! Encountered %d archive files - will be purged" % len(matches))
+            rc = remove(matches)
+            if not rc:
+                tolog("WARNING: Failed to remove redundant files")
+        else:
+            tolog("Found no archive files")
+
         # note: these should be partitial file/dir names, not containing any wildcards
         exceptions_list = ["runargs", "runwrapper", "jobReport", "log."]
 

@@ -730,6 +730,11 @@ class ATLASSiteInformation(SiteInformation):
 
         return os.environ.get('ATLAS_SW_BASE', '/cvmfs')
 
+    def getFullQueuedataFilePath(self):
+        """ Location of full AGIS/schedconfig info """
+
+        return "%s/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json" % (self.getFileSystemRootPath())
+
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
 

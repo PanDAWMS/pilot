@@ -4035,6 +4035,11 @@ def mover_put_data(outputpoolfcstring,
                 tolog("(Waiting %d seconds before next stage-out attempt)" % (_rest))
                 sleep(_rest)
 
+                # in case of file transfer to OS, update file paths
+                if logPath != "":
+                    tolog("Updating the logPath")
+                    logPath = getNewLogPath(si)
+
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
             # perform the normal stage-out, unless we want to force alternative stage-out
@@ -4222,6 +4227,35 @@ def mover_put_data(outputpoolfcstring,
 
     tolog("Put successful")
     return 0, pilotErrorDiag, fields, '1', N_filesNormalStageOut, N_filesAltStageOut
+
+def getNewLogPath(si):
+    """ Get a logPath for an alternative OS """
+
+    logPath = ""
+
+    # Which is the current OS?
+    os_name = si.getObjectstoreName("logs")
+    tolog("Current Objectstore: %s" % (os_name))
+
+    # Get an alternative OS
+    alt_os_info_dictionary = si.getAlternativeOS("logs", currentOS=os_name)
+
+    # Get the corresponding log path
+    if alt_os_info_dictionary != {}:
+        tolog("Alternative Objectstore = %s" % str(alt_os_info_dictionary))
+        os_endpoint = alt_os_info_dictionary['os_endpoint']
+        os_bucket_endpoint = alt_os_info_dictionary['os_bucket_endpoint']
+
+        if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
+            if not os_endpoint.endswith('/'):
+                os_endpoint += '/'
+            logPath = os_endpoint + os_bucket_endpoint
+        else:
+            logPath = ""
+    else:
+        tolog("!!WARNING!!4343!! Found no alternative Objectstore")
+
+    return logPath
 
 def getSpaceTokenList(token, listSEs, jobCloud, analysisJob, fileListLength, si, alt=False):
     """ Get the list of space tokens """
