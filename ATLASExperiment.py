@@ -779,6 +779,7 @@ class ATLASExperiment(Experiment):
 
         # explicitly remove any soft linked archives (.a files) since they will be dereferenced by the tar command (--dereference option)
         matches = []
+        import fnmatch
         for root, dirnames, filenames in os.walk(workdir):
             for filename in fnmatch.filter(filenames, '*.a'):
                 matches.append(os.path.join(root, filename))
