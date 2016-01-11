@@ -156,50 +156,52 @@ class ATLASSiteInformation(SiteInformation):
 
         return ec
 
-    def getTier1Queue(self, cloud):
+    def getCorrespondingCloud(self, ddm):
+        """ Find the cloud where ddm exists """
+
+        cloud = ""
+
+        # Scan the enture unlimited set of queuedata previously downloaded
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+            for queuename in dictionary.keys():
+                if ddm in dictionary[queuename]['ddm']:
+                    cloud = dictionary[queuename]['cloud']
+                    tolog("Found cloud=%s for ddm=%s at queuename=%s" % (cloud, ddm, queuename))
+                    break
+
+        return cloud
+
+    def getTier1Queue(self, cloud, spacetoken=None):
         """ Download the queuedata for the Tier-1 in the corresponding cloud and get the queue name """
 
-        # Download the entire set of queuedata
+        # Download the set of [limited] queuedata
         all_queuedata_dict = self.getAllQueuedata()
+
+        # Is it the WORLD cloud?
+        if cloud == "WORLD" and spacetoken:
+            # We need to find the corresponding cloud in the queuedata that has the spacetoken in the ddm;
+            # e.g. spacetoken = "dst:IN2P3-CC_DATADISK" -> scan for "IN2P3-CC_DATADISK" in the ddm fields and then grab
+            # the cloud from that queue
+            if "dst:" in spacetoken:
+                ddm = spacetoken.replace("dst:", "")
+
+                # First copy all the queuedata [unlimited, i.e. not the same file as above]
+                self.copyFullQueuedata()
+
+                # Find the cloud where this ddm exists (from any queue)
+                cloud = self.getCorrespondingCloud(ddm)
+            else:
+                tolog("!!WARNING!!4545!! No dst: found in spacetoken string, WORLD cloud processing will fail")
+                ddm = ""
+                cloud = ""
 
         # Get the name of the Tier 1 for the relevant cloud, e.g. "BNL_PROD"
         pandaSiteID = self.getTier1Name(cloud)
 
         # Return the name of corresponding Tier 1 queue, e.g. "BNL_PROD-condor"
         return self.getTier1Queuename(pandaSiteID, all_queuedata_dict)
-
-    def getTier1Queue2(self, cloud):
-        """ Download the queuedata for the Tier-1 in the corresponding cloud and get the queue name """
-
-        queuename = ""
-
-        path = self.getTier1InfoFilename()
-        ec = self.downloadTier1Info()
-        if ec == 0:
-            # Process the downloaded T-1 info
-            f = open(path, 'r')
-            if getExtension() == "json":
-                from json import loads
-                data = loads(f.read())
-            else:
-                from pickle import load
-                data = load(f)
-            f.close()
-
-            # Extract the relevant queue info for the given cloud
-            T1_info = [x for x in data if x['cloud']==cloud]
-
-            # finally get the queue name
-            if T1_info != []:
-                info = T1_info[0]
-                if info.has_key('PanDAQueue'):
-                    queuename = info['PanDAQueue']
-                else:
-                    tolog("!!WARNING!!1222!! Returned Tier-1 info object does not have key PanDAQueue: %s" % str(info))
-            else:
-                tolog("!!WARNING!!1223!! Found no Tier-1 info for cloud %s" % (cloud))
-
-        return queuename
 
     def getAllQueuedataFilename(self):
         """ Get the file name for the entire schedconfig dump """
@@ -297,7 +299,6 @@ class ATLASSiteInformation(SiteInformation):
         # See allowAlternativeStageOut()
         # For ATLAS, flag=isAnalysisJob(). Alt stage-out is currently disabled for user jobs, so do not allow alt stage-out to be forced.
 
-        tolog("ATLAS")
         if "force_alt_stageout" in readpar('catchall') and not flag:
             status = True
         else:

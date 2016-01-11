@@ -3159,7 +3159,7 @@ def chirp_put_data(pfn, ddm_storage, dsname="", sitename="", analysisJob=True, t
 
     return ec, pilotErrorDiag
 
-def prepareAlternativeStageOut(sitemover, si, sitename, jobCloud):
+def prepareAlternativeStageOut(sitemover, si, sitename, jobCloud, token):
     """ Prepare for a stage-out to an alternative SE (Tier-1); download new queuedata, return a corresponding sitemover object """
 
     alternativeSitemover = None
@@ -3167,7 +3167,7 @@ def prepareAlternativeStageOut(sitemover, si, sitename, jobCloud):
     # only proceed if we are on a Tier-2 site
     if si.isTier2(sitename):
         # get the corresponding Tier-1 site (where we want to stage-out to)
-        queuename = si.getTier1Queue(jobCloud)
+        queuename = si.getTier1Queue(jobCloud, token)
 
         if queuename:
             tolog("Will attempt stage-out to %s" % (queuename))
@@ -3367,7 +3367,6 @@ def isLogTransfer(logPath):
     else:
         status = False
     return status
-
 
 # keep full list of input arguments for backward compatibility as is# clean up and isolation required
 # keep logic as is
@@ -3653,6 +3652,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     # loop over all files to be staged in
     for file_nr, thisfile in enumerate(file_list):
 
+        alt_transferred = False
+
         # get the file names and guid
         # note: pfn is the source
         filename, lfn, pfn, guid = getFilenamesAndGuid(thisfile) # parse XML .. refactoring required
@@ -3729,7 +3730,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                 if forceAltStageOut:
                     tolog("Forcing alternative stage-out")
                     useAlternativeStageOut = True
-                    _attempt = 2 #????? why
+                    _attempt = 2 # Skip further transfer attempts
                 else:
                     tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (_attempt, s, pilotErrorDiag))
 
@@ -3750,7 +3751,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                     tolog("Attempting alternative stage-out (to the Tier-1 of the cloud the job belongs to)")
 
                     # download new queuedata and return the corresponding sitemover object
-                    alternativeSitemover = prepareAlternativeStageOut(sitemover, si, sitename, jobCloud)
+                    alternativeSitemover = prepareAlternativeStageOut(sitemover, si, sitename, jobCloud, _token_file)
 
                     if alternativeSitemover:
 
@@ -3789,6 +3790,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
 
                             # increase alternative stage-out counter
                             N_filesAltStageOut += 1
+                            alt_transferred = True
 
                     if "failed to remove file" in pilotErrorDiag:
                         tolog("Aborting further stage-out retries since file could not be removed from storage/catalog")
@@ -3845,19 +3847,19 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
 
         if not fail:
             # update the current file state since the transfer was ok
-            updateFileState(filename, workDir, jobId, mode="file_state", state="transferred")
+            if alt_transferred:
+                _state = "alt_transferred"
+            else:
+                _state = "transferred"
+            updateFileState(filename, workDir, jobId, mode="file_state", state=_state)
+            dumpFileStates(workDir, jobId)
 
             # should the file be registered in a file catalog?
             if readpar('lfcregister') == "":
                 # Removed capability of pilot file registration (May 13, 2015, v 62a)
                 tolog("!!WARNING!!2323!! File catalog registration not possible by pilot - should be done by server")
             else:
-                # update the current file states
-                if readpar("copytool") != "chirp":
-                    updateFileState(filename, workDir, jobId, mode="reg_state", state="registered")
                 tolog("No file catalog registration by the pilot")
-
-            dumpFileStates(workDir, jobId)
 
     fields = map(lambda x: x.rstrip('+'), fields) # remove the trailing '+'-sign in each field
 
@@ -3984,6 +3986,7 @@ def mover_put_data(outputpoolfcstring,
     file_nr = -1
     for thisfile in file_list:
         file_nr += 1
+        alt_transferred = False
 
         # get the file names and guid
         # note: pfn is the source
@@ -4093,7 +4096,7 @@ def mover_put_data(outputpoolfcstring,
                     tolog("Attempting alternative stage-out (to the Tier-1 of the cloud the job belongs to)")
 
                     # download new queuedata and return the corresponding sitemover object
-                    alternativeSitemover = prepareAlternativeStageOut(sitemover, si, sitename, jobCloud)
+                    alternativeSitemover = prepareAlternativeStageOut(sitemover, si, sitename, jobCloud, _token_file)
 
                     if alternativeSitemover:
 
@@ -4132,6 +4135,7 @@ def mover_put_data(outputpoolfcstring,
 
                             # increase alternative stage-out counter
                             N_filesAltStageOut += 1
+                            alt_transferred = True
 
                     if "failed to remove file" in pilotErrorDiag:
                         tolog("Aborting further stage-out retries since file could not be removed from storage/catalog")
@@ -4196,22 +4200,19 @@ def mover_put_data(outputpoolfcstring,
         fields[6] += '%s+' % pfn
 
         if fail == 0:
-            # should the file be registered in a file catalog?
-            _copytool = readpar("copytool")
-            _lfcregister = readpar('lfcregister')
-            if _lfcregister == "":
-                # update the current file state since the transfer was ok
-                updateFileState(filename, workDir, jobId, mode="file_state", state="transferred")
-                dumpFileStates(workDir, jobId)
+            # update the current file states
+            if alt_transferred:
+                _state = "alt_transferred"
+            else:
+                _state = "transferred"
+            updateFileState(filename, workDir, jobId, mode="file_state", state=_state)
+            dumpFileStates(workDir, jobId)
 
+            # should the file be registered in a file catalog?
+            if readpar('lfcregister') == "":
                 # Removed capability of pilot file registration (May 13, 2015, v 62a)
                 tolog("!!WARNING!!2323!! File catalog registration not possible by pilot - should be done by server")
             else:
-                # update the current file states
-                updateFileState(filename, workDir, jobId, mode="file_state", state="transferred")
-                if _copytool != "chirp":
-                    updateFileState(filename, workDir, jobId, mode="reg_state", state="registered")
-                dumpFileStates(workDir, jobId)
                 tolog("No file catalog registration by the pilot")
 
     if fail != 0:

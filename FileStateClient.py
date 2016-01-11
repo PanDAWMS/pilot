@@ -55,6 +55,20 @@ def dumpFileStates(workDir, jobId, type="output"):
     # cleanup
     del FS
 
+def getFilesOfState(workDir, jobId, state="transferred"):
+    """ Return a comma-separated list of files in a given state"""
+
+    # create a temporary file state object
+    FS = FileState(workDir=workDir, jobId=jobId, type="input")
+
+    # get the list
+    filenames = FS.getFilesOfState(state=state)
+
+    # cleanup
+    del FS
+
+    return filenames
+
 def hasOnlyCopyToScratch(workDir, jobId):
     """ Check if there are only copy_to_scratch tranfer modes in the file dictionary """
     # goal: remove --directIn in cmd3 if there are only transfer mode "copy_to_scratch" files

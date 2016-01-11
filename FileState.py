@@ -18,6 +18,7 @@ class FileState:
       "not_transferred" : file has not been transferred
       "transferred"     : file has already been transferred (no further action)
       "missing"         : file was never created, the job failed (e.g. output file of a failed job; a log should never be missing)
+      "alt_transferred" : file was transferred to an alternative SE (T-1)
 
     "file_state" can assume the following values for "input" files:
       "not_transferred" : file has not been transferred (can remain in this state for FileStager and directIO modes)
@@ -215,6 +216,27 @@ class FileState:
                 status = False
                 break
         return status
+
+    def getFilesOfState(self, state="transferred"):
+        """ Return a comma-separated list of files for a given transfer type """
+
+        file_names = []
+
+        # loop over all files
+        for filename in self.fileStateDictionary.keys():
+            # get the file states
+            states = self.fileStateDictionary[filename]
+            tolog("filename=%s states=%s"%(filename,str(states)))
+            if states[0] == state:
+                file_names.append(filename)
+
+        # Create the comma-separated list
+        filenames = ""
+        for f in file_names:
+            filenames += f + ","
+        if filenames.endswith(","):
+            filenames = filenames[:-1]
+        return filenames
 
     def dumpFileStates(self, type="output"):
         """ Print all the files and their states """

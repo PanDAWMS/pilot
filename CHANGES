@@ -1,9 +1,6 @@
 
-make sure MAKEFLAGS is set in the new setup function!!!
-
 Test failover to alt OS at UTA. code implemented. fake initial failure in S3 site mover
-
-
+check that jobMetrics is updated correctly
 
 
 
@@ -83,6 +80,17 @@ General changes:
 - Avoiding None value while getting number of events in processMetadata() (ATLASExperiment)
 - Ignoring test mode in updateJobStateTest() (JobRecovery)
 - Removing archive files if present prior to log file creation; requested by Emmanouil Vamvakopoulos et al (ATLASExperiment)
+- Cleaned up reporting of transferred file state in mover_put_data_new() and mover_put_data() (Mover)
+
+Updates to alternative stage-out mechanism (related to WORLD cloud and jobMetrics reporting)
+- Updated getTier1Queue() to handle WORLD cloud for alternative stage-out (ATLASSiteInformation)
+- Removed unused getTier1Queue2() (ATLASSiteInformation, AMSTaiwanSiteInformation)
+- Now sending token to prepareAlternativeStageOut() from mover_put_data() (Mover)
+- Added token argument to prepareAlternativeStageOut() (Mover)
+- Sending token to getTier1Queue() from prepareAlternativeStageOut() (Mover)
+- Reporting alt_transferred file state in mover_put_data_new() and mover_put_data() (Mover)
+- Created getFilesOfState() (FileState, FileStateClient)
+- Using getFilesOfState() in getJobMetrics() (PandaServerClient)
 
 General bug fixes:
 - Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL

@@ -7,7 +7,7 @@ from shutil import copy2
 from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
 from JobState import JobState
-from FileState import FileState
+from FileStateClient import getFilesOfState
 from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames, getHighestPriorityError
 
 class PandaServerClient:
@@ -152,6 +152,13 @@ class PandaServerClient:
             _jobMetrics += " filesAltStageOut=%d" % (job.filesAltStageOut)
             _jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
             tolog("Could have reported: %s" % (_jobMetrics))
+
+            # Report which output files were moved to an alternative SE
+            _jobMetrics = ""
+            filenames = getFilesOfState(job.workdir, job.jobId, state="alt_transferred")
+            if filesnames != "":
+                _jobMetrics += " altTransferred=%s" % (filenames)
+                tolog("Could have reported: %s" % (_jobMetrics))
 
         # only add the JEM bit if explicitly set to YES, otherwise assumed to be NO
         if job.JEM == "YES":
