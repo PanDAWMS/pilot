@@ -257,7 +257,7 @@ class ATLASExperiment(Experiment):
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
 
         # Correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
-        cmd2 = self.addMAKEFLAGS(job.coreCount, cmd2)
+        cmd2 = self.addMAKEFLAGS(job.coreCount, "")
         cmd = cmd2 + cmd
 
         # Is JEM allowed to be used?
