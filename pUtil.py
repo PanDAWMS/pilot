@@ -2924,7 +2924,6 @@ def updateJobState(job, site, workNode, recoveryAttempt=0):
 def chdir(dir):
     """ keep track of where we are... """
 
-    tolog("chdir to: %s" % (dir))
     os.chdir(dir)
     tolog("current dir: %s" % (os.getcwd()))
 

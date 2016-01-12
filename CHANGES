@@ -53,7 +53,7 @@ LOCAL SITE MOVER XXX
 TODO: update pUtil::getStdoutDictionary() to support the tail of the last updated AthenaMP log file; also update PandaServerClient::updatePandaServer() to
 take the latest log file and send it to the text indexer in debug mode (see Rod's mail on Nov. 24)
 
-
+DO NOT KILL JOBS THAT EXCEEDED MAX MEMORY!!!
 
 
 
@@ -71,6 +71,7 @@ General changes:
 - Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
 - Simplified willDoFileLookups() (ATLASExperiment)
 - Avoiding None value while getting number of events in processMetadata() (ATLASExperiment)
+- Ignoring test mode in updateJobStateTest() (JobRecovery)
 
 General bug fixes:
 - Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
@@ -168,6 +169,9 @@ Update from Alexey Anisenkon:
 - . xrdcp mover: get functionality implemented
 - . Job object updates
 - . other mover related updates
+
+Update from Daniil Drizhuk:
+- New job recovery algorithm implemented (DeferredStageout module)
 
 REMOVE RunJobMira.py FROM DISTRIBUTION
 

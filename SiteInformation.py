@@ -1136,6 +1136,7 @@ class SiteInformation(object):
 
         return objectstores
 
+    # WARNING: ATLAS SPECIFIC - CONSIDER THIS METHOD AS AN EXAMPLE IMPLEMENTATION, CODE BELOW WILL BE MOVED TO ATLASSITEINFORMATION ASAP
     def getNewQueuedata(self, queuename, overwrite=True, version=1):
         """ Download the queuedata primarily from CVMFS and secondarily from the AGIS server """
 
