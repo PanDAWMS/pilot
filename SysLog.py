@@ -1,4 +1,9 @@
-import syslog
+try:
+    import syslog
+except:
+    import syslog_win as syslog
+    pass
+
 from commands import getoutput
 
 from pUtil import tolog
@@ -37,7 +42,7 @@ def dumpSysLogTail():
     """ Dump the syslog tail to the pilot log """
 
     tolog("syslog tail:\n%s" % (getSysLogTail()))
-    
+
 if __name__ == "__main__":
 
     message = "hi"
