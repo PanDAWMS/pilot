@@ -1,8 +1,9 @@
 import os
 
-from pUtil import tolog
+from PilotErrors import PilotErrors
+from pUtil import tolog, readpar
 
-class DBReleaseHandler(object):
+class DBReleaseHandler:
     """
     Methods for handling the DBRelease file and possibly skip it in the input file list
     In the presence of $[VO_ATLAS_SW_DIR|OSG_APP]/database, the pilot will use these methods to:
@@ -15,32 +16,20 @@ class DBReleaseHandler(object):
     7. Remove the DBRelease file from the input file list if all previous steps finished correctly
     """
 
+    # private data members
+    __error = PilotErrors() # PilotErrors object
     __version = ""
     __DBReleaseDir = ""
     __filename = "DBRelease-%s.tar.gz"
     __setupFilename = "setup.py"
-    #__workdir = ""  # never used
+    __workdir = ""
 
-    def __init__(self, workdir="", jobPars=None):
+    def __init__(self, workdir=""):
         """ Default initialization """
 
-        # self.getDBReleaseDir() # extract and set self.__DBReleaseDir from environment
-        #self.__workdir = workdir
+        _path = self.getDBReleaseDir() # _path is a dummy variable
+        self.__workdir = workdir
 
-        path = self.extractDBReleaseDir()
-        if os.path.exists(path):
-            tolog("Local DBRelease path verified: %s (will attempt to skip DBRelease stage-in)" % path)
-        else:
-            tolog("Note: Local DBRelease path does not exist: %s (will not attempt to skip DBRelease stage-in)" % path)
-            path = ""
-
-        self.__DBReleaseDir = path
-
-
-        self.version = self.extractVersion()
-
-
-    @classmethod
     def removeDBRelease(self, inputFiles, inFilesGuids, realDatasetsIn, dispatchDblock, dispatchDBlockToken, prodDBlockToken):
         """ remove the given DBRelease files from the input file list """
         # will only remove the DBRelease files that are already available locally
@@ -96,7 +85,6 @@ class DBReleaseHandler(object):
 
         return inputFiles, inFilesGuids, realDatasetsIn, dispatchDblock, dispatchDBlockToken, prodDBlockToken
 
-    @classmethod
     def extractVersion(self, name):
         """ Try to extract the version from the string name """
 
@@ -129,20 +117,7 @@ class DBReleaseHandler(object):
 
         return version
 
-    @classmethod
-    def extractDBReleaseDir(self):
-        """ Return the proper DBRelease directory read from environment"""
-
-        if os.environ.has_key('VO_ATLAS_SW_DIR'):
-            path = os.path.expandvars('$VO_ATLAS_SW_DIR/database/DBRelease')
-        else:
-            path = os.path.expandvars('$OSG_APP/database/DBRelease')
-
-        if not path or path.startswith('OSG_APP'):
-            tolog("Note: The DBRelease database directory is not available (will not attempt to skip DBRelease stage-in), path=%s" % path)
-        return path
-
-    def getDBReleaseDir(self): # to be deprecated: initialization migrated into
+    def getDBReleaseDir(self):
         """ Return the proper DBRelease directory """
 
         if os.environ.has_key('VO_ATLAS_SW_DIR'):
@@ -218,31 +193,35 @@ class DBReleaseHandler(object):
                 status = True
         return status
 
-    @classmethod
     def mkdirs(self, path, d):
         """ Create directory d in path """
+
+        status = False
 
         try:
             _dir = os.path.join(path, d)
             os.makedirs(_dir)
-            return True
         except OSError, e:
             tolog("!!WARNING!!1990!! Failed to create directories %s: %s" % (_dir, str(e)))
+        else:
+            status = True
 
-        return False
+        return status
 
-    @classmethod
     def rmdirs(self, path):
         """ Remove directory in path """
+
+        status = False
 
         try:
             from shutil import rmtree
             rmtree(path)
-            return True
         except OSError, e:
             tolog("!!WARNING!!1990!! Failed to remove directories %s: %s" % (path, str(e)))
+        else:
+            status = True
 
-        return False
+        return status
 
     def createDBRelease(self, version, path):
         """ Create the DBRelease file only containing a setup file """
@@ -250,7 +229,7 @@ class DBReleaseHandler(object):
         status = False
 
         # create the DBRelease and version directories
-        DBRelease_path = os.path.join(path, 'DBRelease')
+        DBRelease_path = os.path.join(path, 'DBRelease')        
         if self.mkdirs(DBRelease_path, version):
 
             # create the setup file in the DBRelease directory
@@ -301,50 +280,10 @@ class DBReleaseHandler(object):
 
         return status
 
-
-# keeps new implementation separated (until well tested and migrated) to avoid unexpected production failure
-
-class DBReleaseManager(object):
-    """
-    Methods for handling the DBRelease file and possibly skip it in the input file list
-    In the presence of $[VO_ATLAS_SW_DIR|OSG_APP]/database, the pilot will use these methods to:
-    1. Extract the requested DBRelease version from the job parameters string, if present
-    2. Scan the $[VO_ATLAS_SW_DIR|OSG_APP]/database dir for available DBRelease files
-    3. If the requested DBRelease file is available, continue [else, abort at this point]
-    4. Create a DBRelease setup file containing necessary environment variables
-    5. Create a new DBRelease file only containing the setup file in the input file directory
-    6. Update the job state file
-    7. Remove the DBRelease file from the input file list if all previous steps finished correctly
-    """
-
-    version = ""
-    DBReleaseDir = ""
-    __filename = "DBRelease-%s.tar.gz"
-    __setupFilename = "setup.py"
-    #__workdir = ""  # never used
-
-    def __init__(self, workdir="", jobPars=None):
-        """ Default initialization """
-
-        # self.getDBReleaseDir() # extract and set self.__DBReleaseDir from environment
-        #self.__workdir = workdir
-
-        path = self.extractDBReleaseDir()
-        if os.path.exists(path):
-            tolog("Local DBRelease path verified: %s (will attempt to skip DBRelease stage-in)" % path)
-        else:
-            tolog("Note: Local DBRelease path does not exist: %s (will not attempt to skip DBRelease stage-in)" % path)
-            path = ""
-
-        self.__DBReleaseDir = path
-
-
-        self.version = self.extractVersion()
-
 if __name__ == "__main__":
 
     h = DBReleaseHandler()
-
+    
     jobPars="jobParametersInputEvgenFile=EVNT.162766._000363.pool.root.1 OutputHitsFile=6daee77d-1d29-4901-a04e-d532a5e1812f_1.HITS.pool.root MaxEvents=2 SkipEvents=0 RandomSeed=164832 GeometryVersion=ATLAS-GEO-16-00-00 PhysicsList=QGSP_BERT JobConfig=VertexFromCondDB.py,jobConfig.LooperKiller.py,CalHits.py,jobConfig.LucidOn.py DBRelease=DBRelease-12.2.1.tar.gz ConditionsTag=OFLCOND-SDR-BS7T-02 IgnoreConfigError=False AMITag=s932"
 
     version = h.getDBReleaseVersion(jobPars=jobPars)
