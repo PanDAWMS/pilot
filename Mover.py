@@ -161,7 +161,7 @@ def put_data_new(job, jobSite, stageoutTries):
 
     not_transferred = [e.lfn for e in job.outData if e.status not in ['transferred']]
     if not_transferred:
-        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED: not all input files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join(failed_transfers)), "", 0, 0
+        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED: not all input files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers])), "", 0, 0
 
 
     return 0, "", fields, '', len(transferred_files), 0

@@ -197,7 +197,7 @@ class JobMover(object):
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
 
-        self.log("stagein: protocols=%s" % protocols)
+        self.log("stage-in: protocols=%s" % protocols)
 
         if not protocols:
             raise PilotException("Failed to get files: no protocols defined for input. check aprotocols schedconfig settings for activity=%s, " % activity, code=PilotErrors.ERR_NOSTORAGE)
@@ -209,8 +209,7 @@ class JobMover(object):
         maxinputsize = self.getMaxInputSize()
         totalsize = reduce(lambda x, y: x + y.filesize, files, 0)
 
-        transferred_files = []
-        failed_transfers = []
+        transferred_files, failed_transfers = [], []
 
         self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
 
@@ -261,8 +260,19 @@ class JobMover(object):
                     fdata.ddmendpoint = r['ddmendpoint']
 
                 self.log("[stage-in] found replica to be used: ddmendpoint=%s, pfn=%s" % (fdata.ddmendpoint, fdata.turl))
-                self.log("fdata.is_directaccess()=%s, job.accessmode=%s, mover.is_directaccess()=%s" % (fdata.is_directaccess(), self.job.accessmode, self.is_directaccess()))
+
+                # check if protocol and found replica belong to same site
+                #
+                protocol_site = self.ddmconf.get(dat.get('ddm'), {}).get('site')
+                replica_site = self.ddmconf.get(fdata.ddmendpoint, {}).get('site')
+
+                if protocol_site != replica_site:
+                    self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
+                    continue
+
                 # check direct access
+                self.log("fdata.is_directaccess()=%s, job.accessmode=%s, mover.is_directaccess()=%s" % (fdata.is_directaccess(), self.job.accessmode, self.is_directaccess()))
+
                 is_directaccess = self.is_directaccess()
                 if self.job.accessmode == 'copy':
                     is_directaccess = False
@@ -280,12 +290,13 @@ class JobMover(object):
                     is_stagein_allowed = sitemover.is_stagein_allowed(fdata, self.job)
                     if not is_stagein_allowed:
                         reason = 'SiteMover does not allowed stage-in operation for the job'
-                except Exception, e:
+                except PilotException, e:
                     is_stagein_allowed = False
                     reason = e
-
+                except Exception:
+                    raise
                 if not is_stagein_allowed:
-                    self.log("WARNING: sitemover=%s does not allow stage-in transfer for this job, lfn=%s with reason=%s.. skip transfer the file" % (sitemover.getID(), lfn, reason))
+                    self.log("WARNING: sitemover=%s does not allow stage-in transfer for this job, lfn=%s with reason=%s.. skip transfer the file" % (sitemover.getID(), fdata.lfn, reason))
                     failed_transfers.append(reason)
 
                     continue
@@ -430,7 +441,7 @@ class JobMover(object):
                 if surl_prot:
                     surl_protocols.setdefault(fspec.ddmendpoint, surl_prot[0])
                 else:
-                    no_surl_ddms.add(fspec.ddmednpoint)
+                    no_surl_ddms.add(fspec.ddmendpoint)
 
         if no_surl_ddms: # failed to resolve SURLs
             self.log('FAILED to resolve default SURL path for ddmendpoints=%s' % list(no_surl_ddms))

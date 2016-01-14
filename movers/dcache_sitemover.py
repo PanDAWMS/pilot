@@ -47,7 +47,7 @@ class dcacheSiteMover(BaseSiteMover):
 
         is_staged = True # assume file is staged by default
 
-        cmd = '%s -P -t -1 %s %s' % (self.copy_command, fspec.turl)
+        cmd = '%s -P -t -1 %s' % (self.copy_command, fspec.turl)
         setup = self.getSetup()
         if setup:
             cmd = "%s; %s" % (setup, cmd)
@@ -67,7 +67,7 @@ class dcacheSiteMover(BaseSiteMover):
 
         dt = datetime.now() - t0
         self.log("Command execution time: %s" % dt)
-        self.log("is_timeout=%s, rcode = %s, output = %s" % (is_timeout, rcode, output.replace("\n", " ")))
+        self.log("is_timeout=%s, rcode=%s, output=%s" % (is_timeout, rcode, output.replace("\n", " ")))
 
         if is_timeout:
             self.log("isFileStaged command self timed out after %s, timeout=%s, output=%s" % (dt, self.timeout, output))
@@ -77,12 +77,12 @@ class dcacheSiteMover(BaseSiteMover):
             self.log('skip isFileStaged() test..')
         elif not rcode: # zero code => file is online
             is_staged = True
-            self.log("isFileStaged: is_staged=True, successfully verified file stage status for lfn=" % fspec.lfn)
+            self.log("isFileStaged: is_staged=True, successfully verified file stage status for lfn=%s" % fspec.lfn)
         else:
             is_staged = False
-            self.log("isFileStaged: is_staged=False, successfully verified OFFLINE file stage status for lfn=" % fspec.lfn)
+            self.log("isFileStaged: is_staged=False, successfully verified OFFLINE file stage status for lfn=%s" % fspec.lfn)
 
-        self.log("result: is_staged=" % is_staged)
+        self.log("result: is_staged=%s" % is_staged)
 
         return is_staged
 
