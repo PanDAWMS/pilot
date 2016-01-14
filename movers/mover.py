@@ -262,6 +262,7 @@ class JobMover(object):
 
                 self.log("[stage-in] found replica to be used: ddmendpoint=%s, pfn=%s" % (fdata.ddmendpoint, fdata.turl))
                 self.log("fdata.is_directaccess()=%s, job.accessmode=%s, mover.is_directaccess()=%s" % (fdata.is_directaccess(), self.job.accessmode, self.is_directaccess()))
+                # check direct access
                 is_directaccess = self.is_directaccess()
                 if self.job.accessmode == 'copy':
                     is_directaccess = False
@@ -272,6 +273,21 @@ class JobMover(object):
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", type="input")
 
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
+                    continue
+
+                # apply site-mover custom job-specific checks for stage-in
+                try:
+                    is_stagein_allowed = sitemover.is_stagein_allowed(fdata, self.job)
+                    if not is_stagein_allowed:
+                        reason = 'SiteMover does not allowed stage-in operation for the job'
+                except Exception, e:
+                    is_stagein_allowed = False
+                    reason = e
+
+                if not is_stagein_allowed:
+                    self.log("WARNING: sitemover=%s does not allow stage-in transfer for this job, lfn=%s with reason=%s.. skip transfer the file" % (sitemover.getID(), lfn, reason))
+                    failed_transfers.append(reason)
+
                     continue
 
                 self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)

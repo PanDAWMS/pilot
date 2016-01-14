@@ -242,6 +242,16 @@ class BaseSiteMover(object):
 
         return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
 
+    def is_stagein_allowed(self, fspec, job):
+        """
+            check if stage-in operation is allowed for the mover
+            apply additional job specific checks here if need
+            Should be overwritten by custom sitemover
+            :return: True in case stage-in transfer is allowed
+            :raise: PilotException in case of controlled error
+        """
+
+        return True
 
     def get_data(self, fspec):
         """
@@ -572,3 +582,23 @@ class BaseSiteMover(object):
             raise Exception(output)
 
         return output.split()[0] # return final checksum
+
+    @classmethod
+    def removeLocal(self, filename):
+        """
+            Remove the local file in case of failure to prevent problem with get retry attempt
+        :return: True in case of physical file removal
+        """
+
+        if not os.path.exists(filename): # nothing to remove
+            return False
+
+        try:
+            os.remove(filename)
+            self.log("Successfully removed local file=%s" % filename)
+            is_removed = True
+        except Exception, e:
+            self.log("Could not remove the local file=%s .. skipped, error=%s" % (filename, e))
+            is_removed = False
+
+        return is_removed
