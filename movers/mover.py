@@ -748,9 +748,9 @@ class JobMover(object):
                     self.log("[do_put_files] Put attempt %d/%d for filename=%s" % (_attempt, self.stageoutretry, filename))
 
                     try:
-                        # quick workaround
-                        stub_fspec = object()
-                        stub_fspec.ddmendpoint = ddmendpoint
+                        # quick work around
+                        from Job import FileSpec
+                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint)
                         result = sitemover.stageOut(pfn, turl, stub_fspec)
                         break # transferred successfully
                     except PilotException, e:
