@@ -3371,6 +3371,7 @@ def isLogTransfer(logPath):
 
 # keep full list of input arguments for backward compatibility as is# clean up and isolation required
 # keep logic as is
+# TOBE deprecated: use new Mover.put_data_new() wrapper instead
 def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output files list to be copied
                         pdsname,                ## default dataset name: dsname, datasetDict = RunJob.getDatasets() ~ default dsn=job.destinationDblock[0], normally it should be per file: filespec.destinationDblock
                                                 ## for log transfers: dsname = job.logDblock

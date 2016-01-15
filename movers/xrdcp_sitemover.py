@@ -127,7 +127,7 @@ class xrdcpSiteMover(BaseSiteMover):
         return checksum, checksum_type
 
 
-    def stageOutFile(self, source, destination):
+    def stageOutFile(self, source, destination, fspec):
         """
             Stage out the file
             Should be implementated by different site mover
