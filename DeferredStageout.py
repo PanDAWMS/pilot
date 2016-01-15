@@ -166,11 +166,22 @@ def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0, remove_empty
     # if not all dirs were processed, don't remove
     # remove only if there is no dir unprocessed
 
+    pUtil.tolog("Finished processing directory \"%s\"." % deferred_stageout_dir)
+
     if remove_empty_dir:
+        pUtil.tolog("Directory \"%s\" is to be removed." % deferred_stageout_dir)
+        pUtil.tolog("Contents:")
+        o, e = commands.getstatusoutput("ls -la "+deferred_stageout_dir)
+        pUtil.tolog("%s" % o)
         dirs = filter(os.path.isdir, glob(deferred_stageout_dir + "/*"))
 
         if len(dirs) < 1:
-            o,e = commands.getstatusoutput("rm -rf "+deferred_stageout_dir)
+            pUtil.tolog("It is OK to remove it, proceeding." % deferred_stageout_dir)
+            o, e = commands.getstatusoutput("rm -rf "+deferred_stageout_dir)
+        else:
+            pUtil.tolog("There are subdirs in this dir, can not remove.")
+            pUtil.tolog("Remaining subdirs: %s" % dirs)
+
 
 
 
