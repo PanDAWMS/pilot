@@ -1,9 +1,7 @@
 
 Test failover to alt OS at UTA. code implemented. fake initial failure in S3 site mover
-check that jobMetrics is updated correctly
 
-OS failover: should use same alt stageout mechanism as on normal SEs, ie be switch on with the same catchall constant.
-Should report which os_id was used.
+Is MEM kill removed?
 
 
 Complete change log for PanDA Pilot version PICARD
@@ -144,6 +142,16 @@ Objectstore updates
     - Sending os_id to getNewQueuedata() from getObjectstoresList() (SiteInformation)
     - Added os_id argument to getNewQueuedata() (SiteInformation)
     - getNewQueuedata() can now find queuedata matching a given os_id (SiteInformation)
+    - Now returning os_id from mover_put_data() and mover_put_data_new() (Mover)
+    - Receiving os_id from mover_put_data() call in transferActualLogFile() and transferAdditionalFile() (JobLog)
+    - Receiving	os_id from mover_put_data() call in TransferFiles() (DeferredStageout)
+    - Receiving	os_id from mover_put_data() call in stageOut() (RunJob, RunJobEvent)
+    - Receiving	os_id from mover_put_data() call in moveLostOutputFiles() (pilot)
+    - Returning os_id from stageOut() and receiving it in transferToObjectStore() (RunJobEvent)
+    - Returning os_id from transferToObjectStore(), received in asynchronousOutputStager() (RunJobEvent)
+    - Sending os_id from asynchronousOutputStager() to updateEventRange() (RunJobEvent)
+    - Added os_id argument to updateEventRange() (EventRange)
+    - Sending objstoreID=os_id with updateEventRange call in updateEventRange() (EventRange)
   General changes
     - Minor cleanup; removed usage of alt, prodSourceLabel, testLevel, analysisJob, extradirs, proxyCheck in put_data(), removed proxyCheck in get_data() (S3ObjectstoreSiteMover)
     - Removed unnecessary cleanupOS() and shouldCleanupOS() (RunJob)

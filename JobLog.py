@@ -200,7 +200,6 @@ class JobLog:
         _state = ""
         _msg = ""
         latereg = False
-        os_id = -1
 
         # determine the file path for special log transfers (can be overwritten in mover_put_data() in case of failure in transfer to primary OS)
         if specialTransfer:
@@ -211,9 +210,9 @@ class JobLog:
             tolog("Special log transfer: %s" % (logPath))
         else:
             logPath = ""
-
+            os_id = -1
         try:
-            rc, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (WDTxml),
+            rc, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut, os_id = mover.mover_put_data("xmlcatalog_file:%s" % (WDTxml),
                                                                   dsname,
                                                                   site.sitename,
                                                                   site.computingElement,
@@ -1031,7 +1030,7 @@ class JobLog:
             _state = ""
             _msg = ""
             try:
-                ec, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (filename_xml),
+                ec, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut, os_id = mover.mover_put_data("xmlcatalog_file:%s" % (filename_xml),
                                                                   dsname, site.sitename, site.computingElement, analysisJob = analyJob,
                                                                   testLevel = self.__env['testLevel'],
                                                                   proxycheck = self.__env['proxycheckFlag'],

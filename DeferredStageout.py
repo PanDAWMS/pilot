@@ -770,7 +770,7 @@ def TransferFiles(job_state, datadir, files, **kwargs):
     ec = -1
     try:
         # Note: alt stage-out numbers are not saved in recovery mode (job object not returned from this function)
-        rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = Mover.mover_put_data(
+        rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_id = Mover.mover_put_data(
             "xmlcatalog_file:%s" % outPFC, dsname,
             thisSite.sitename, thisSite.computingElement, analysisJob=pUtil.isAnalysisJob(job.trf.split(",")[0]),
             proxycheck=DorE(kwargs, 'proxycheckFlag'), spsetup=job.spsetup, scopeOut=job.scopeOut,

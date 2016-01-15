@@ -3567,10 +3567,10 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
 
         if not n_success: # number of processed DDMs
             # skip the rest of processing
-            return PilotErrors.ERR_STAGEOUTFAILED, ";".join(errors), [''] * 7, None, 0, 0
+            return PilotErrors.ERR_STAGEOUTFAILED, ";".join(errors), [''] * 7, None, 0, 0, os_id
 
 
-    return 0, "", fields, '1', len(fields), 0
+    return 0, "", fields, '1', len(fields), 0, os_id
 
 
 
@@ -3626,7 +3626,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, readpar('region'), None, objectstore, isLogTransfer, os_id)
 
     if pilotErrorDiag:
-        return PilotErrors.ERR_NOSTORAGE, pilotErrorDiag, [''] * 7, None, 0, 0
+        return PilotErrors.ERR_NOSTORAGE, pilotErrorDiag, [''] * 7, None, 0, 0, os_id
 
     # Get the site mover
     sitemover = getSiteMover(copycmd, setup) # to be patched: job arg should be passed here
@@ -3869,11 +3869,11 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     fields = map(lambda x: x.rstrip('+'), fields) # remove the trailing '+'-sign in each field
 
     if fail: # failed status
-        return fail, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
+        return fail, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_id
 
     tolog("Put successful")
 
-    return 0, pilotErrorDiag, fields, '1', N_filesNormalStageOut, N_filesAltStageOut
+    return 0, pilotErrorDiag, fields, '1', N_filesNormalStageOut, N_filesAltStageOut, os_id
 
 
 @use_newmover(mover_put_data_new)
@@ -3965,7 +3965,7 @@ def mover_put_data(outputpoolfcstring,
     # Note: if os_id is set (as it will be for an OS transfer), then info from the corresponding OS will be returned [new queuedata]
     ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_id)
     if pilotErrorDiag != "":
-        return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
+        return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_id
 
     # Get the site mover
     sitemover = getSiteMover(copycmd, setup) # to be patched: job args should be passed here
@@ -4034,7 +4034,6 @@ def mover_put_data(outputpoolfcstring,
             tolog("!!WARNING!!1888!! Unreasonable number of stage-out tries: %d (reset to default)" % (stageoutTries))
             put_RETRY = 2
         tolog("Number of stage-out tries: %d" % (stageoutTries))
-        os_id = -1
 
         # loop over put_data() to allow for multple stage-out attempts
         while s != 0 and _attempt < put_RETRY:
@@ -4064,7 +4063,7 @@ def mover_put_data(outputpoolfcstring,
                 # in case of file transfer to OS, also update the ddm_storage_path
                 ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_id)
                 if pilotErrorDiag != "":
-                    return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
+                    return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_id
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
@@ -4245,7 +4244,7 @@ def mover_put_data(outputpoolfcstring,
                 tolog("No file catalog registration by the pilot")
 
     if fail != 0:
-        return fail, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
+        return fail, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_id
 
     # remove the trailing '+'-sign in each field
     fields[0] = fields[0][:-1]
@@ -4256,7 +4255,7 @@ def mover_put_data(outputpoolfcstring,
     fields[5] = fields[5][:-1]
 
     tolog("Put successful")
-    return 0, pilotErrorDiag, fields, '1', N_filesNormalStageOut, N_filesAltStageOut
+    return 0, pilotErrorDiag, fields, '1', N_filesNormalStageOut, N_filesAltStageOut, os_id
 
 def getNewOSStoragePath(si, mode="logs"):
     """ Get a storage path for an alternative OS """
