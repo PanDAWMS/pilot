@@ -748,7 +748,7 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
                 tolog("(Removed --newPrefix pattern)")
 
             # add the --usePFCTurl if not there already
-            if not "--usePFCTurl" in cmd:
+            if not "--usePFCTurl" in cmd and analysisJob:
                 cmd += " --usePFCTurl"
                 tolog("(Added --usePFCTurl)")
 

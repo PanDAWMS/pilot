@@ -3,3 +3,4 @@
 """
 
 from .xrdcp_sitemover import xrdcpSiteMover
+from .rucio_sitemover import rucioSiteMover
