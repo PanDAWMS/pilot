@@ -110,6 +110,9 @@ class Droid:
                 if not os.path.exists(self.__jobWorkingDir):
                     os.makedirs(self.__jobWorkingDir)
                 os.chdir(self.__jobWorkingDir)
+                logFile = os.path.join(self.__jobWorkingDir, 'Droid.log')
+                logging.basicConfig(filename=logFile, level=logging.DEBUG)
+                self.__tmpLog = Logger.Logger()
 
             if self.__copyInputFiles and self.__inputFiles is not None and self.__poolFileCatalog is not None:
                 for inputFile in self.__inputFiles:

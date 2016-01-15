@@ -87,10 +87,26 @@ class RunJobHpcarcEvent(RunJobHpcEvent):
         hpcManager.saveState()
         self.__hpcManager = hpcManager
 
+    def getRankNum():
+        if os.environ.has_key('RANK_NUM'):
+            tolog("RANK %s" % os.environ['RANK_NUM'])
+            return int(os.environ['RANK_NUM'])
+        elif os.environ.has_key('SLURM_NODEID'):
+            tolog("RANK %s" % os.environ['SLURM_NODEID'])
+            return int(os.environ['SLURM_NODEID'])
+        return None
 
 if __name__ == "__main__":
 
     tolog("Starting RunJobHpcarcEvent")
+
+    rank_num = None
+    if os.environ.has_key('RANK_NUM'):
+        tolog("RANK_NUM(PBS) is %s" % os.environ['RANK_NUM'])
+        rank_num = int(os.environ['RANK_NUM'])
+    elif os.environ.has_key('SLURM_NODEID'):
+        tolog("RANK_NUM(SLURM) %s" % os.environ['SLURM_NODEID'])
+        rank_num = int(os.environ['SLURM_NODEID'])
 
     if not os.environ.has_key('PilotHomeDir'):
         os.environ['PilotHomeDir'] = os.getcwd()
@@ -98,11 +114,15 @@ if __name__ == "__main__":
     if True:
         runJob = RunJobHpcarcEvent()
         try:
-            runJob.setupHPCEvent()
-            runJob.setupHPCManager()
-            runJob.getHPCEventJobs()
-            runJob.stageInHPCJobs()
-            runJob.startHPCJobs()
+            runJob.setupHPCEvent(rank_num)
+            tolog("RANK_NUM %s" % rank_num)
+            if rank_num is None or rank_num == 0:
+                runJob.setupHPCManager()
+                runJob.getHPCEventJobs()
+                runJob.stageInHPCJobs()
+                runJob.startHPCJobs()
+            else:
+                runJob.startHPCSlaveJobs()
         except:
             tolog("RunJobHpcEventException")
             tolog(traceback.format_exc())

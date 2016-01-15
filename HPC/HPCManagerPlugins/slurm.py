@@ -78,7 +78,8 @@ class slurm(Plugin):
         submit_script += "#SBATCH -p " + queue + "\n"
         if repo:
             submit_script += "#SBATCH -A " + repo + "\n"
-        submit_script += "#SBATCH -n " + str(mppwidth) + "\n"
+        # submit_script += "#SBATCH -n " + str(mppwidth) + "\n"
+        submit_script += "#SBATCH -N " + str(nodes) + "\n"
         submit_script += "#SBATCH -t " + walltime + "\n"
         submit_script += "#SBATCH --ntasks-per-node=1\n"
         submit_script += "#SBATCH --cpus-per-task=" + str(cpuPerNode) + "\n"
@@ -98,8 +99,11 @@ class slurm(Plugin):
         submit_script += "export X509_USER_PROXY=/global/homes/w/wguan/x509up_u23959" + "\n"
         submit_script += "export X509_CERT_DIR=/project/projectdirs/atlas/pilot/grid_env/external/grid-security/certificates" + "\n"
         submit_script += "env" + "\n"
+        # submit_script += "module avail" + "\n"
+        # submit_script += "module list" + "\n"
 
-        submit_script += "srun -n " + str(nodes) + " -N " + str(mppnppn) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
+        #submit_script += "srun -n " + str(nodes) + " -N " + str(mppnppn) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
+        submit_script += "srun -N " + str(nodes) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
         ###cmd = "mpiexec -n 2 python " + os.path.join(self.__globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+self.__globalWorkingDir+" --localWorkingDir="+self.__localWorkingDir+"&"
         self.__submit_file = os.path.join(globalYodaDir, 'submit_script')
         handle = open(self.__submit_file, 'w')
@@ -122,7 +126,7 @@ class slurm(Plugin):
         cmd = "scontrol show job " + jobid
         self.__log.info("polling HPC job: %s" % cmd)
         status, output = commands.getstatusoutput(cmd)
-        self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
+        # self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
         if status == 0:
             self.__failedPollTimes = 0
             state = None

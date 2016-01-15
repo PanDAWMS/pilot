@@ -2499,26 +2499,6 @@ def runMain(runpars):
         if ec != 0:
             return pUtil.shellExitCode(ec)
 
-        if 'EventService_ArcID' in env.keys():
-            if os.environ.has_key('RANK_NUM'):
-                pUtil.tolog("RANK %s" % os.environ['RANK_NUM'])
-                if str(os.environ['RANK_NUM']) == '0':
-                    pUtil.tolog("Event Service ARC on RANK 0, pilot will continue")
-                else:
-                    pUtil.tolog("Event Service ARC not on RANK 0, pilot will exit")
-                    return pUtil.shellExitCode(0)
-            else:
-                pUtil.tolog("Event Service ARC: RANK_NUM is not defined, will use lock files")
-                lockname = 'ATOMIC_LOCKFILE_%s' % env['EventService_ArcID']
-                fd, lockfile_name = createAtomicLockFile(env['thisSite'].workdir, lockname)
-                if fd is None:
-                    pUtil.tolog("EventService ARC file %s is locked, only locked pilot will run, other pilots will exit" % lockfile_name)
-                    return pUtil.shellExitCode(0)
-                else:
-                    pUtil.tolog("EventService ARC file %s is not locked, pilot will lock it and run" % lockfile_name)
-                    env['EventService_ArcLockFD'] = fd
-                    env['EventService_ArcLockFile'] = lockfile_name
-
         # create the watch dog
         wdog = WatchDog()
 

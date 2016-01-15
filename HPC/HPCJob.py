@@ -3,7 +3,6 @@ import argparse
 import os
 import sys
 import traceback
-from mpi4py import MPI
 
 
 def main(globalWorkDir, localWorkDir):
@@ -21,6 +20,9 @@ def main(globalWorkDir, localWorkDir):
         os.makedirs (wkdir)
     os.chdir (wkdir)
 
+    print "GlobalWorkDir: %s" % globalWorkDir
+    print "LocalWorkDir: %s" % localWorkDir
+    print "RANK: %s" % mpirank
     if mpirank==0:
         try:
             from pandayoda.yodacore import Yoda
@@ -71,11 +73,14 @@ Commands:
 
     rank = None
     try:
+        print "Start HPCJob"
+        from mpi4py import MPI
         rank = main(args.globalWorkingDir, args.localWorkingDir)
         print "Rank %s: HPCJob-Yoda success" % rank
         #sys.exit(0)
     except Exception as e:
         print "Rank %s: HPCJob-Yoda failed" % rank
         print(e)
+        print(traceback.format_exc())
         #sys.exit(0)
     #os._exit(0)

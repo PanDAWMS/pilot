@@ -114,7 +114,7 @@ class RunJobHpcEvent(RunJob):
 
         return False
         
-    def setupHPCEvent(self):
+    def setupHPCEvent(self, rank=None):
         self.__jobSite = Site.Site()
         self.__jobSite.setSiteInfo(self.argumentParser())
         self.__logguid = None
@@ -127,7 +127,11 @@ class RunJobHpcEvent(RunJob):
 
         tolog("runJobHPCEvent.getPilotLogFilename=%s"% self.getPilotLogFilename())
         if self.getPilotLogFilename() != "":
-            pUtil.setPilotlogFilename(self.getPilotLogFilename())
+            pilotLogFilename = self.getPilotLogFilename()
+            if rank:
+                pilotLogFilename = '%s.%s' % (pilotLogFilename, rank)
+            tolog("runJobHPCEvent.setPilotLogFilename=%s"% pilotLogFilename)
+            pUtil.setPilotlogFilename(pilotLogFilename)
 
         # set node info
         self.__node = Node.Node()
@@ -804,13 +808,14 @@ class RunJobHpcEvent(RunJob):
         # 5. check if release-compact.tgz exists. If it exists, use it.
         preSetup = None
         postRun = None
-        yoda_setup_command = 'export USING_COMPACT=1; %s' % source_setup
+        # yoda_setup_command = 'export USING_COMPACT=1; %s' % source_setup
 
         # 6. AthenaMP command
         runCommandList_0 = self.__jobs[job.jobId]['runCommandList'][0]
-        if yoda_setup_command:
-            runCommandList_0 = self.__jobs[job.jobId]['runCommandList'][0]
-            runCommandList_0 = runCommandList_0.replace(source_setup, yoda_setup_command)
+        runCommandList_0 = 'export USING_COMPACT=1; %s' % runCommandList_0
+        # if yoda_setup_command:
+        #     runCommandList_0 = self.__jobs[job.jobId]['runCommandList'][0]
+        #     runCommandList_0 = runCommandList_0.replace(source_setup, yoda_setup_command)
         if not self.__copyInputFiles:
             jobInputFileList = None
             jobInputFileList = inputFilesGlobal[0]
@@ -987,13 +992,22 @@ class RunJobHpcEvent(RunJob):
         for jobId in self.__jobs:
             self.__jobs[jobId]['job'].coreCount = avgCores
 
+        tolog("Submit HPC job")
         hpcManager.submit()
-        
+        tolog("Submitted HPC job")
+
         hpcManager.setPandaJobStateFile(self.__jobStateFile)
         #self.__stageout_threads = defRes['stageout_threads']
         hpcManager.setStageoutThreads(self.__stageout_threads)
         hpcManager.saveState()
         self.__hpcManager = hpcManager
+
+    def startHPCSlaveJobs(self):
+        tolog("Setup HPC Manager")
+        hpcManager = HPCManager(globalWorkingDir=self.__pilotWorkingDir)
+        tolog("Submit HPC job")
+        hpcManager.submit()
+        tolog("Submitted HPC job")
 
     def runHPCEvent(self):
         tolog("runHPCEvent")
@@ -1141,6 +1155,10 @@ class RunJobHpcEvent(RunJob):
         try:
             old_state = None
             time_start = time.time()
+            state = hpcManager.poll()
+            self.__hpcStatue = state
+            self.updateAllJobsState('starting', self.__hpcStatue, updatePanda=True)
+
             while not hpcManager.isFinished():
                 state = hpcManager.poll()
                 self.__hpcStatue = state
@@ -1150,8 +1168,6 @@ class RunJobHpcEvent(RunJob):
                     tolog("HPCManager Job stat: %s" % state)
                     if state and state == 'Running':
                         self.updateAllJobsState('running', self.__hpcStatue, updatePanda=True)
-                    else:
-                        self.updateAllJobsState('starting', self.__hpcStatue)
 
                 if state and state == 'Complete':
                     break

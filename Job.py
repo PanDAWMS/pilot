@@ -103,6 +103,7 @@ class Job:
         self.eventServiceMerge = False     # True for event service merge jobs
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
+        self.pandaProxySecretKey = None    # pandaproxy secret key
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
 #        self.lastEvent = None              # Set for event service jobs
@@ -261,6 +262,8 @@ class Job:
         self.jobsetID = data.get('jobsetID')
 
         pUtil.tolog("jobsetID=%s" % self.jobsetID)
+
+        self.pandaProxySecretKey = data.get('pandaProxySecretKey')
 
         if not self.eventService and self.processingType == "evtest":
             pUtil.tolog("Turning on Event Service for processing type = %s" % self.processingType)
