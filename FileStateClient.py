@@ -55,11 +55,11 @@ def dumpFileStates(workDir, jobId, type="output"):
     # cleanup
     del FS
 
-def getFilesOfState(workDir, jobId, state="transferred"):
+def getFilesOfState(workDir, jobId, ftype="output", state="transferred"):
     """ Return a comma-separated list of files in a given state"""
 
     # create a temporary file state object
-    FS = FileState(workDir=workDir, jobId=jobId, type="input")
+    FS = FileState(workDir=workDir, jobId=jobId, type=ftype)
 
     # get the list
     filenames = FS.getFilesOfState(state=state)

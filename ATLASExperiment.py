@@ -256,10 +256,6 @@ class ATLASExperiment(Experiment):
         else:
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
 
-        # Correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
-        cmd2 = self.addMAKEFLAGS(job.coreCount, "")
-        cmd = cmd2 + cmd
-
         # Is JEM allowed to be used?
         if self.isJEMAllowed():
             metaOut = {}
@@ -2961,9 +2957,12 @@ class ATLASExperiment(Experiment):
         if limit == None:
             limit = 48
 
+        tolog("envsetup=%s"%(envsetup))
         from SiteMover import SiteMover
         if envsetup == "":
             envsetup = SiteMover.getEnvsetup()
+        tolog("envsetup=%s"%(envsetup))
+        envsetup = envsetup.strip()
 
         # add setup for arcproxy if it exists
         arcproxy_setup = "%s/atlas.cern.ch/repo/sw/arc/client/latest/slc6/x86_64/setup.sh" % (self.getCVMFSPath())
@@ -2983,6 +2982,8 @@ class ATLASExperiment(Experiment):
 
             _envsetup += ". %s;" % (arcproxy_setup)
 
+        tolog("envsetup=%s"%(envsetup))
+
         # first try to use arcproxy since voms-proxy-info is not working properly on SL6 (memory issues on queues with limited memory)
         # cmd = "%sarcproxy -I |grep 'AC:'|awk '{sum=$5*3600+$7*60+$9; print sum}'" % (envsetup)
         cmd = "%sarcproxy -i vomsACvalidityLeft" % (_envsetup)
@@ -3001,6 +3002,9 @@ class ATLASExperiment(Experiment):
                 tolog("Will try voms-proxy-info instead")
 
         # -valid HH:MM is broken
+        if "; ;" in envsetup:
+            envsetup = envsetup.replace('; ;', ';')
+            tolog("Removed a double ; from envsetup")
         cmd = "%svoms-proxy-info -actimeleft --file $X509_USER_PROXY" % (envsetup)
         tolog("Executing command: %s" % (cmd))
         exitcode, output = commands.getstatusoutput(cmd)

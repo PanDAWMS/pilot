@@ -7,7 +7,7 @@ from shutil import copy2, rmtree
 
 import Mover as mover
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, getGUID
+from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, getGUID, timedCommand
 from FileHandling import addToOSTransferDictionary, getWorkDirSizeFilename, getDirSize, storeWorkDirSize
 from JobState import JobState
 from FileState import FileState
@@ -200,10 +200,11 @@ class JobLog:
         _state = ""
         _msg = ""
         latereg = False
+        os_id = -1
 
         # determine the file path for special log transfers (can be overwritten in mover_put_data() in case of failure in transfer to primary OS)
         if specialTransfer:
-            logPath = self.getLogPath(job.jobId, job.logFile, job.experiment)
+            logPath, os_id = self.getLogPath(job.jobId, job.logFile, job.experiment)
             if logPath == "":
                 tolog("!!WARNING!!4444!! Can not continue with special transfer since logPath is not set")
                 return False, job
@@ -237,7 +238,9 @@ class JobLog:
                                                                   recoveryWorkDir = site.workdir,
                                                                   experiment = job.experiment,
                                                                   fileDestinationSE = job.fileDestinationSE,
-                                                                  logPath = logPath, job=job) ##
+                                                                  logPath = logPath,
+                                                                  os_id = os_id,
+                                                                  job = job)
         except Exception, e:
             rmflag = 0 # don't remove the tarball
             status = False
@@ -1131,20 +1134,17 @@ class JobLog:
         except OSError:
             tolog("!!WARNING!!1400!! Could not move job workdir %s to %s" % (job.workdir, job.newDirNM))
         else:
-            try:
-                cmd = "pwd;tar cvf %s %s --dereference" % (tarballNM, job.newDirNM)
-                tolog("Executing command: %s" % (cmd))
-                os.system(cmd)
-            except OSError:
-                tolog("!!WARNING!!1400!! Could not create tarball %s" % tarballNM)
+            timeout = 55*60
+            cmd = "pwd;tar cvf %s %s --dereference" % (tarballNM, job.newDirNM)
+            exitcode, output = timedCommand(cmd, timeout=timeout)
+            if exitcode != 0:
+                tolog("!!WARNING!!4343!! Log file creation failed: %d, %s" % (exitcode, output))
             else:
                 tolog("Tarball created: %s" % (tarballNM))
-                try:
-                    cmd = "gzip -f %s" % (tarballNM)
-                    tolog("Executing command: %s" % (cmd))
-                    os.system(cmd)
-                except OSError:
-                    tolog("!!WARNING!!1400!! Could not gzip tarball")
+                cmd = "gzip -f %s" % (tarballNM)
+                exitcode, output = timedCommand(cmd, timeout=timeout)
+                if exitcode != 0:
+                    tolog("!!WARNING!!4343!! Log file zip failed: %d, %s" % (exitcode, output))
                 else:
                     try:
                         os.rename("%s.gz" % (tarballNM), job.logFile)
@@ -1208,16 +1208,19 @@ class JobLog:
         # The host and base path is read from schedconfig, and can be a ,-separated list.
         # If the "primary"-boolean is True, the first location will be selected. False means the second location, if any
         # In case there is only one host defined in the schedconfig.logPath, primary=False is meaningless (abort).
+        # In case of objectstores, also the os_id will be returned (otherwise set to -1)
 
         # Standard path
         # logPaths = readpar('logPath')
         # logPaths = "root://eos.cern.ch/atlas/logs,dav://bnldav.cern.ch/atlas/logs"
         # logPaths = "root://eosatlas.cern.ch/atlas/logs"
 
+        os_id = -1
+
         # Get the site information object
         si = getSiteInformation(experiment)
         #logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
-        logPaths = si.getObjectstorePath("logs") #mover.getFilePathForObjectStore(filetype="logs")
+        logPaths, os_id = si.getObjectstorePath("logs") #mover.getFilePathForObjectStore(filetype="logs")
 
         # Handle multiple paths (primary and secondary log paths)
         if "," in logPaths:
@@ -1244,4 +1247,4 @@ class JobLog:
         else:
             logPath = ""
 
-        return logPath
+        return logPath, os_id

@@ -2384,6 +2384,17 @@ class SiteMover(object):
                 tolog("Warning: lcg-get-checksum failed: %d, %s" % (ec, output))
             else:
                 tolog(output)
+
+                # are there any warnings we could ignore..?
+                if output.startswith('Error'):
+                    tolog("Will try to remove the Error line in case it is only a warning")
+                    try:
+                        output = output.split('\n')[-1]
+                    except Exception, e:
+                        tolog("Failed to remove the error line: %s" % (e))
+                    else:
+                        tolog("Updated output: %s" % (output))
+
                 try:
                     remote_checksum = output[:8]
                 except:
@@ -2631,10 +2642,21 @@ class SiteMover(object):
         else:
             # extract file size
             try:
+                # are there any warnings we could ignore..?
+                if output.startswith('Error'):
+                    tolog("Will try to remove the Error line in case it is only a warning (is the file size in the second line?)")
+                    try:
+                        output = output.split('\n')[1] # assuming file size in second line
+                    except Exception, e:
+                        tolog("Failed to remove the error line: %s" % (e))
+                    else:
+                        tolog("Updated output: %s" % (_output))
+
                 # remove extra spaces
                 while "  " in output:
                     output = output.replace("  ", " ")
                 _output = output.split(" ")
+
                 remote_fsize = _output[4]
             except Exception, e:
                 pilotErrorDiag = "_getRemoteFileSizeLCGLS caught an exception: %s" % str(e)

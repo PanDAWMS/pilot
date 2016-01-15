@@ -1373,37 +1373,6 @@ class RunJob(object):
 
         return event_ranges
 
-    def shouldCleanupOS(self, job):
-        """ Should the OS be cleaned up? """
-
-        status = False
-
-        # Only clean up the OS if the merge job finished correctly and if it an event service merge job
-        if job.eventServiceMerge and job.result[1] == 0 and job.result[2] == 0:
-            status = True
-
-        return status
-
-    def cleanupOS(self, inFiles, si):
-        """ Removed merged files from the object store """
-
-        status = False
-
-        # Generate a proper file list
-        for filename in inFiles:
-            # Is this a log file or a pre-merged event service file? Determine the bucket accordingly
-            if ".log." in filename:
-                mode = "logs"
-            else:
-                mode = "eventservice"
-
-            # Generate a proper bucket endpoint
-            path = si.getObjectstorePath(mode)
-            from FileHandling import getHashedBucketEndpoint
-            hashed_endpoint = getHashedBucketEndpoint(path, file_name)
-
-        return status
-
 # main process starts here
 if __name__ == "__main__":
 
@@ -1732,17 +1701,6 @@ if __name__ == "__main__":
                 runJob.sysExit(job, rf)
 
         # (Stage-out ends here) .......................................................................
-
-        # Object store cleanups .......................................................................
-
-        # Only execute this step for merge jobs and if the order is given
-        if runJob.shouldCleanupOS(job):
-
-            # Go ahead and clean up the OS
-            # status = runJob.cleanupOS(job.inFiles, si)
-            pass
-
-        # (Object store cleanups end here) ............................................................
 
         job.setState(["finished", 0, 0])
         if not finalUpdateDone:

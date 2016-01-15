@@ -12,7 +12,7 @@ from time import time, sleep
 from timed_command import timed_command
 
 from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems, getFileAccessInfo,\
-     hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, tailPilotErrorDiag, getCopysetup,\
+     hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, headPilotErrorDiag, getCopysetup,\
      getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile
 from FileHandling import getExtension, getTracingReportFilename, readJSON, getHashedBucketEndpoint
 from FileStateClient import updateFileState, dumpFileStates
@@ -437,7 +437,7 @@ def get_data(job, jobSite, ins, stageinTries, analysisJob=False, usect=True, pin
         if pilotErrorDiag != "":
             # pilotErrorDiag = 'abcdefghijklmnopqrstuvwxyz0123456789'
             # -> 'Get error: lmnopqrstuvwxyz0123456789'
-            pilotErrorDiag = "Get error: " + tailPilotErrorDiag(pilotErrorDiag, size=256-len("Get error: "))
+            pilotErrorDiag = "Get error: " + headPilotErrorDiag(pilotErrorDiag, size=256-len("Get error: "))
 
         if rc: # get failed, non-zero return code
             # this error is currently not being sent from Mover (see next error code)
@@ -905,8 +905,8 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype, copytool)
         #         replicas_dic[guid1] = [replica1, ..]
 
-        espath = si.getObjectstorePath("eventservice")
-        logpath = si.getObjectstorePath("logs")
+        espath, os_id = si.getObjectstorePath("eventservice")
+        logpath, os_id = si.getObjectstorePath("logs")
 
         i = 0
         try:
@@ -3202,6 +3202,8 @@ def prepareAlternativeStageOut(sitemover, si, sitename, jobCloud, token):
                     tolog("Aborting since Tier-1 lfcregister=\"%s\" and Tier-2 lfcregister=\"%s\" (both must be set to \"server\")" % (readpar('server', alt=True), readpar('server')))
         else:
             tolog("Did not get a queuename for the Tier-1 (aborting)")
+    else:
+        tolog("!!WARNING!!3434!! Alternative stage-out should only be used on Tier-2's")
 
     return alternativeSitemover
 
@@ -3404,6 +3406,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                         logPath="",            ### if set then it's special Log transfer to ObjectStores (transferActualLogFile)
                         eventService=False,    # executed from RunJobEvent: --- workflow to be checked?? --> job.eventService ??
                         job={},                            # Job object
+                        os_id=-1,                          # Objectstore id
                         jobSite = {}  # to be added        # jobsite object
                         ):
     """
@@ -3619,8 +3622,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     #ddm_storage_path, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, readpar('region'), jobId, objectstore, isLogTransfer)
     # JobId is not used in this funct
 
-    # for normal ( not objectstore) non US and non NDGF jobs this ddm_storage_path="" from this function
-    ddm_storage_path, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, readpar('region'), None, objectstore, isLogTransfer)
+    # for normal (not objectstore) non US and non NDGF jobs this ddm_storage_path="" from this function
+    ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, readpar('region'), None, objectstore, isLogTransfer, os_id)
 
     if pilotErrorDiag:
         return PilotErrors.ERR_NOSTORAGE, pilotErrorDiag, [''] * 7, None, 0, 0
@@ -3791,6 +3794,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                             # increase alternative stage-out counter
                             N_filesAltStageOut += 1
                             alt_transferred = True
+                        else:
+                            s = _s
 
                     if "failed to remove file" in pilotErrorDiag:
                         tolog("Aborting further stage-out retries since file could not be removed from storage/catalog")
@@ -3904,6 +3909,7 @@ def mover_put_data(outputpoolfcstring,
                    fileDestinationSE=None,
                    logPath="",
                    eventService=False,
+                   os_id=-1,
                    job={}):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
@@ -3956,7 +3962,8 @@ def mover_put_data(outputpoolfcstring,
     # ddm_storage_path = srm://uct2-dc1.uchicago.edu:8443/srm/managerv2?SFN=/pnfs/uchicago.edu/atlasuserdisk
     # Note: this ends up in the 'destination' variable inside the site mover's put_data() - which is mostly not used
     # It can be used for special purposes, like for the object store path which can be predetermined
-    ddm_storage_path, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath))
+    # Note: if os_id is set (as it will be for an OS transfer), then info from the corresponding OS will be returned [new queuedata]
+    ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_id)
     if pilotErrorDiag != "":
         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
 
@@ -4027,10 +4034,15 @@ def mover_put_data(outputpoolfcstring,
             tolog("!!WARNING!!1888!! Unreasonable number of stage-out tries: %d (reset to default)" % (stageoutTries))
             put_RETRY = 2
         tolog("Number of stage-out tries: %d" % (stageoutTries))
+        os_id = -1
 
         # loop over put_data() to allow for multple stage-out attempts
         while s != 0 and _attempt < put_RETRY:
             _attempt += 1
+
+            # to clean up: note the similarity between logPath and ddm_storage_path
+            # logPath=s3://cephgw.usatlas.bnl.gov:8443//atlas_logs/953cde21-6c6d-4fd2-b64f-0f2184bc0274_0.job.log.tgz
+            # ddm_storage_path=s3://cephgw.usatlas.bnl.gov:8443//atlas_logs
 
             # if not first stage-out attempt, take a nap before next attempt
             if _attempt > 1:
@@ -4039,9 +4051,20 @@ def mover_put_data(outputpoolfcstring,
                 sleep(_rest)
 
                 # in case of file transfer to OS, update file paths
+                _path, os_id = getNewOSStoragePath(si)
                 if logPath != "":
                     tolog("Updating the logPath")
-                    logPath = getNewLogPath(si)
+                    # this function can decide to use a new OS, so update the os_id
+                    logPath = _path
+                    tolog("Using os_id=%d" % (os_id))
+
+                # for normal OS file transfers, the logPath will not be set and thus an alternative OS has to be found separately (otherwise found by getNewLogPath())
+                ddm_storage_path = os.path.dirname(_path)
+
+                # in case of file transfer to OS, also update the ddm_storage_path
+                ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_id)
+                if pilotErrorDiag != "":
+                    return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
@@ -4136,6 +4159,10 @@ def mover_put_data(outputpoolfcstring,
                             # increase alternative stage-out counter
                             N_filesAltStageOut += 1
                             alt_transferred = True
+                        else:
+                            s = _s
+                    else:
+                        tolog("Failed to prepare the alternative site mover")
 
                     if "failed to remove file" in pilotErrorDiag:
                         tolog("Aborting further stage-out retries since file could not be removed from storage/catalog")
@@ -4178,6 +4205,8 @@ def mover_put_data(outputpoolfcstring,
                 else:
                     tolog("dispatchDBlockTokenForOut not set (no chirp transfer)")
 
+            if s == 1:
+                s = error.ERR_STAGEOUTFAILED
             tolog("Return code: %d" % (s))
 
         if logPath != "":
@@ -4229,34 +4258,37 @@ def mover_put_data(outputpoolfcstring,
     tolog("Put successful")
     return 0, pilotErrorDiag, fields, '1', N_filesNormalStageOut, N_filesAltStageOut
 
-def getNewLogPath(si):
-    """ Get a logPath for an alternative OS """
+def getNewOSStoragePath(si, mode="logs"):
+    """ Get a storage path for an alternative OS """
+    # Note: also return the os_id so we remember which OS the logPath belongs to
 
-    logPath = ""
+    path = ""
 
     # Which is the current OS?
-    os_name = si.getObjectstoreName("logs")
+    os_name = si.getObjectstoreName(mode)
     tolog("Current Objectstore: %s" % (os_name))
 
     # Get an alternative OS
-    alt_os_info_dictionary = si.getAlternativeOS("logs", currentOS=os_name)
+    alt_os_info_dictionary = si.getAlternativeOS(mode, currentOS=os_name)
 
     # Get the corresponding log path
     if alt_os_info_dictionary != {}:
         tolog("Alternative Objectstore = %s" % str(alt_os_info_dictionary))
         os_endpoint = alt_os_info_dictionary['os_endpoint']
         os_bucket_endpoint = alt_os_info_dictionary['os_bucket_endpoint']
+        os_id = alt_os_info_dictionary['os_id']
 
         if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
             if not os_endpoint.endswith('/'):
                 os_endpoint += '/'
-            logPath = os_endpoint + os_bucket_endpoint
+            path = os_endpoint + os_bucket_endpoint
         else:
-            logPath = ""
+            path = ""
+            os_id = -1
     else:
         tolog("!!WARNING!!4343!! Found no alternative Objectstore")
 
-    return logPath
+    return path, os_id
 
 def getSpaceTokenList(token, listSEs, jobCloud, analysisJob, fileListLength, si, alt=False):
     """ Get the list of space tokens """
@@ -4455,7 +4487,7 @@ def getFilePathForObjectStore(filetype="logs"):
 
     return basepath
 
-def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer):
+def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer, os_id):
     """ return the DDM storage (http version) """
 
     pilotErrorDiag = ""
@@ -4468,14 +4500,16 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer)
             mode = "logs"
         else:
             mode = "eventservice"
-        _path = si.getObjectstorePath(mode)
+        # get the path for objectstore id os_id
+        # (send os_id to specify exactly which OS we want the info from)
+        _path, os_id = si.getObjectstorePath(mode, os_id=os_id)
         if _path == "":
             pilotErrorDiag = "No path to object store"
-        return _path, pilotErrorDiag
+        return _path, os_id, pilotErrorDiag
 
     # skip this function unless we are running in the US or on NG
     if not (region == 'US' or os.environ.has_key('Nordugrid_pilot')):
-        return ddm_storage_path, pilotErrorDiag
+        return ddm_storage_path, os_id, pilotErrorDiag
 
     # get the storage paths
     try:
@@ -4483,7 +4517,7 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer)
     except Exception, e:
         pilotErrorDiag = "Exception thrown in put function: %s" % str(e)
         tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-        return "", pilotErrorDiag
+        return "", os_id, pilotErrorDiag
     else:
         tolog("Got ddm_storage_path from queuedata file: %s" % (ddm_storage_path))
 
@@ -4499,7 +4533,7 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer)
         except Exception, e:
             pilotErrorDiag = "Connection to DDM http server failed (%s)" % (get_exc_short())
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            return "", pilotErrorDiag
+            return "", os_id, pilotErrorDiag
         else:
             ret = f.read()
             if ret.find('HTML') >= 0:
@@ -4507,7 +4541,7 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer)
                 # ret should be on the form srm://iut2-dc1.iu.edu/pnfs/iu.edu/data/ddm1/ or similar (other protocol)
                 pilotErrorDiag = "Fetching default storage failed: %s" % (ret)
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-                return "", pilotErrorDiag
+                return "", os_id, pilotErrorDiag
             else:
                 tolog('Fetched default storage (%d bytes) from url: %s' % (len(ret), url))
 
@@ -4516,7 +4550,7 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer)
 
     tolog("Put function using storage: %s" % (ddm_storage_path))
 
-    return ddm_storage_path, pilotErrorDiag
+    return ddm_storage_path, os_id, pilotErrorDiag
 
 def getDestinationDDMStorage(analysisJob):
     """ return the DDM storage, i.e. the storage destination path """

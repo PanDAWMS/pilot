@@ -406,6 +406,8 @@ class ATLASSiteInformation(SiteInformation):
         if 'pandadev' in pshttpurl or force_devpilot or thisSite.sitename == "CERNVM":
             ec = self.replaceQueuedataField("status", "online")
 
+#        ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
+
 #        if thisSite.sitename == "RAL-LCG2_SL6":
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_logs")
@@ -415,6 +417,7 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
 
 #        if thisSite.sitename == "GoeGrid":
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
 #            ec = self.replaceQueuedataField("catchall", "allow_alt_stageout")
 #            ec = self.replaceQueuedataField("catchall", "force_alt_stageout allow_alt_stageout")
 
@@ -426,6 +429,8 @@ class ATLASSiteInformation(SiteInformation):
 #        ec = self.replaceQueuedataField("timefloor", "0")
 
 #        if thisSite.sitename == "CERN-PROD":
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
+
 #            ec = self.replaceQueuedataField("maxrss", "1000")
 #        if thisSite.sitename == "CERN-PROD_MCORE":
 #            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
@@ -449,7 +454,8 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
             ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
-            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
+            ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://atlas-objectstore.cern.ch//atlas/logs|https^https://atlas-objectstore.cern.ch:1094//atlas/logs")
 #            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
@@ -475,6 +481,7 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("copytoolin", os.environ.get("COPYTOOLIN"))
 
 #        if thisSite.sitename == "MWT2_SL6":
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^https://cephgw01.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 #            ec = self.replaceQueuedataField("timefloor", "0")
 
@@ -751,7 +758,7 @@ class ATLASSiteInformation(SiteInformation):
 
         cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
         cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
-        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalEmiSetup.sh --force'
+        cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalEmiSetup.sh --force --quiet'
         #cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/x86_64/emi/current/setup.sh'
 
         return cmd

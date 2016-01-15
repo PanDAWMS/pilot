@@ -172,7 +172,8 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         return status, output
 
     def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token, outputDir=None, timeout=3600):
-        """StageIn the file. should be implementated by different site mover."""
+        """ Stage-out the file. should be implementated by different site mover """
+
         status = -1
         output = 'not defined'
         if outputDir and outputDir.endswith("PilotMVOutputDir"):
@@ -326,7 +327,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
         experiment = pdict.get('experiment', '')
-        proxycheck = pdict.get('proxycheck', False)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)
@@ -360,20 +360,13 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         error = PilotErrors()
         pilotErrorDiag = ""
 
-
         # Get input parameters from pdict
-        alt = pdict.get('alt', False)
         lfn = pdict.get('lfn', '')
         guid = pdict.get('guid', '')
         token = pdict.get('token', '')
         scope = pdict.get('scope', '')
         dsname = pdict.get('dsname', '')
-        analysisJob = pdict.get('analJob', False)
-        testLevel = pdict.get('testLevel', '0')
-        extradirs = pdict.get('extradirs', '')
         experiment = pdict.get('experiment', '')
-        proxycheck = pdict.get('proxycheck', False)
-        prodSourceLabel = pdict.get('prodSourceLabel', '')
         outputDir = pdict.get('outputDir', '')
         timeout = pdict.get('timeout', None)
         if not timeout:
@@ -381,11 +374,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         # get the site information object
         si = getSiteInformation(experiment)
-
-        tolog("put_data received prodSourceLabel=%s" % (prodSourceLabel))
-        if prodSourceLabel == 'ddm' and analysisJob:
-            tolog("Treating PanDA Mover job as a production job during stage-out")
-            analysisJob = False
 
         # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)

@@ -2727,12 +2727,19 @@ def getChecksumCommand():
     return sitemover.getChecksumCommand()
 
 def tailPilotErrorDiag(pilotErrorDiag, size=256):
-    """ Return the last 256 characters of pilotErrorDiag """
+    """ Return the last n characters of pilotErrorDiag """
 
     try:
         return pilotErrorDiag[-size:]
-    except Exception, e:
-        tolog("Warning: tailPilotErrorDiag caught exception: %s" % e)
+    except:
+        return pilotErrorDiag
+
+def headPilotErrorDiag(pilotErrorDiag, size=256):
+    """ Return the first n characters of pilotErrorDiag """
+
+    try:
+        return pilotErrorDiag[:size]
+    except:
         return pilotErrorDiag
 
 def getMaxInputSize(MB=False):
@@ -3153,10 +3160,8 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
         else:
             tolog(". Length pilot error diag   : %d" % (lenPilotErrorDiag))
         if job.pilotErrorDiag != "":
-            if lenPilotErrorDiag > 80:
-                tolog(". Pilot error diag [:80]    : %s" % (job.pilotErrorDiag[:80]))
-            else:
-                tolog(". Pilot error diag          : %s" % (job.pilotErrorDiag))
+            l = 100
+            tolog(". Pilot error diag [%d:]    : %s" % (l, headPilotErrorDiag(job.pilotErrorDiag, size=l)))
         else:
             tolog(". Pilot error diag          : Empty")
     else:

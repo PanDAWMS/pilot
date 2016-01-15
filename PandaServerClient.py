@@ -98,7 +98,7 @@ class PandaServerClient:
 
         return jobMetric
 
-    def getJobMetrics(self, job, workerNode):
+    def getJobMetrics(self, job, site, workerNode):
         """ Return a properly formatted job metrics string """
 
         # style: Number of events read | Number of events written | vmPeak maximum | vmPeak average | RSS average | JEM activation
@@ -154,11 +154,9 @@ class PandaServerClient:
             tolog("Could have reported: %s" % (_jobMetrics))
 
             # Report which output files were moved to an alternative SE
-            _jobMetrics = ""
-            filenames = getFilesOfState(job.workdir, job.jobId, state="alt_transferred")
-            if filesnames != "":
-                _jobMetrics += " altTransferred=%s" % (filenames)
-                tolog("Could have reported: %s" % (_jobMetrics))
+            filenames = getFilesOfState(site.workdir, job.jobId, state="alt_transferred")
+            if filenames != "":
+                jobMetrics += self.jobMetric(key="altTransferred", value=filenames)
 
         # only add the JEM bit if explicitly set to YES, otherwise assumed to be NO
         if job.JEM == "YES":
@@ -282,7 +280,7 @@ class PandaServerClient:
             node['startTime'] = startTime
 
         # build the jobMetrics
-        node['jobMetrics'] = self.getJobMetrics(job, workerNode)
+        node['jobMetrics'] = self.getJobMetrics(job, site, workerNode)
 
         # for hpc status
         if job.hpcStatus:

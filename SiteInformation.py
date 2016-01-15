@@ -1117,27 +1117,20 @@ class SiteInformation(object):
 
         return {"publicKey": publicKey, "privateKey": privateKey}
 
-    def getObjectstoresList(self):
+    def getObjectstoresList(self, os_id=-1):
         """ Get the objectstores list from the proper queuedata for the relevant queue """
         # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
+        # If os_id is set (!= -1) then get the info from the corresponding OS
 
         objectstores = None
 
-        # First try to get the objectstores field from the normal queuedata
-        try:
-            _objectstores = self.readpar('objectstores', version=0)
-        except:
-            #tolog("Field \'objectstores\' not yet available in queuedata")
-            _objectstores = None
-
         # Get the field from AGIS
-        if not _objectstores:
-            s = True
-            # Download the new queuedata in case it has not been downloaded already
-            if not os.path.exists(self.getQueuedataFileName(version=1, check=False)):
-                s = self.getNewQueuedata(self.__queuename)
-            if s:
-                _objectstores = self.getField('objectstores')
+        s = True
+        # Download the new queuedata in case it has not been downloaded already
+        if not os.path.exists(self.getQueuedataFileName(version=1, check=False)):
+            s = self.getNewQueuedata(self.__queuename, os_id=os_id)
+        if s:
+            _objectstores = self.getField('objectstores')
 
         if _objectstores:
             objectstores = _objectstores
@@ -1145,7 +1138,7 @@ class SiteInformation(object):
         return objectstores
 
     # WARNING: ATLAS SPECIFIC - CONSIDER THIS METHOD AS AN EXAMPLE IMPLEMENTATION, CODE BELOW WILL BE MOVED TO ATLASSITEINFORMATION ASAP
-    def getNewQueuedata(self, queuename, overwrite=True, version=1):
+    def getNewQueuedata(self, queuename, overwrite=True, version=1, os_id=-1):
         """ Download the queuedata primarily from CVMFS and secondarily from the AGIS server """
 
         filename = self.getQueuedataFileName(version=version, check=False)
@@ -1171,6 +1164,14 @@ class SiteInformation(object):
             # Load the dictionary
             dictionary = readJSON(_filename)
             if dictionary != {}:
+                # in case os_id is set, we are only interested in objectstore info so find the corresponding queuename
+                if os_id != -1:
+                    tolog("os_id=%d - will find a corresponding queuename (only interested in OS info)" % (os_id))
+                    _queuename = self.getQueuenameFromOSID(os_id)
+                    if _queuename != queuename:
+                        tolog("WARNING: queuedata for %s is only valid for OS info (proper queuename=%s)" % (_queuename, queuename))
+                        queuename = _queuename
+
                 # Get the entry for queuename
                 try:
                     _d = dictionary[queuename]
@@ -1207,38 +1208,6 @@ class SiteInformation(object):
 
         return status
 
-    def getNewQueuedataXXX(self, queuename, overwrite=True, version=1):
-        """ Download the queuedata primarily from the AGIS server and secondarily from CVMFS """
-
-        filename = self.getQueuedataFileName(version=version, check=False)
-        status = False
-
-        # If overwrite is not required, return True if the queuedata already exists
-        if not overwrite:
-            if os.path.exists(filename):
-                tolog("AGIS queuedata already exist")
-                status = True
-                return status
-
-        # Get the queuedata from AGIS
-        tries = 2
-        for trial in range(tries):
-            tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-            cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&vo_name=atlas&panda_queue=%s\" >%s" % (queuename, filename)
-            tolog("Executing command: %s" % (cmd))
-            ret, output = commands.getstatusoutput(cmd)
-
-            # Verify queuedata
-            value = self.getField('copysetup')
-            if value:
-                status = True
-                break
-
-        # AGIS download failed, default to CVMFS (full version which needs to be trimmed)
-        # ..
-
-        return status
-
     def getField(self, field, version=1):
         """ Get the value for entry 'field' in the queuedata """
 
@@ -1268,13 +1237,14 @@ class SiteInformation(object):
 
         return value
 
-    def getObjectstoresField(self, field, mode):
+    def getObjectstoresField(self, field, mode, os_id=-1):
         """ Return the objectorestores field from the objectstores list for the relevant mode """
         # mode: eventservice, logs, http
+        # If os_id is set (!= -1) then get the info from the corresponding OS
         value = None
 
         # Get the objectstores list
-        objectstores_list = self.getObjectstoresList()
+        objectstores_list = self.getObjectstoresList(os_id=os_id)
 
         if objectstores_list:
             for d in objectstores_list:
@@ -1288,14 +1258,16 @@ class SiteInformation(object):
 
         return value
 
-    def getObjectstorePath(self, mode):
-        """ Return the path to the objectstore """
+    def getObjectstorePath(self, mode, os_id=-1):
+        """ Return the path to the objectstore (and also the corresponding os_id) """
         # mode: https, eventservice, logs
         # Note: a hash based on the file name should be added to the os_bucket_endpoint (ie the end of the path returned from this function - when it is known)
         # since the number of buckets is rather limited ~O(1k)
         # Read the endpoint info from the queuedata
-        os_endpoint = self.getObjectstoresField('os_endpoint', mode)
-        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode)
+        # If os_id is set (!= -1), get the info from objectstore id = os_id
+        os_endpoint = self.getObjectstoresField('os_endpoint', mode, os_id=os_id)
+        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, os_id=os_id)
+        #os_id = self.getObjectstoresField('os_id', mode)
 
         if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
             if not os_endpoint.endswith('/'):
@@ -1304,7 +1276,7 @@ class SiteInformation(object):
         else:
             path = ""
 
-        return path
+        return path, os_id
 
     def getObjectstoreName(self, mode):
         """ Return the objectstore name identifier """
@@ -1655,6 +1627,50 @@ class SiteInformation(object):
                     alt_os_info_dictionary = os_info[os_name]
 
         return alt_os_info_dictionary
+
+    def getOSIDFromName(self, os_name, os_bucket_name):
+        """ Return the corresponding Objectstore ID for a given OS name and bucket """
+
+        os_id = -1
+
+        # Get the OS dictionary
+        os_info = self.findAllObjectStores(os_bucket_name)
+
+        if os_info.has_key(os_name):
+            try:
+                os_id = os_info[os_name]['os_id']
+            except Exception, e:
+                tolog("!!WARNING!!4554!! Exception caught: %s" % (e))
+        else:
+            tolog("!!WARNING!!4555!! No such OS name: %s (%s)" % (os_name, str(os_info.keys())))
+
+        return os_id
+
+    def getQueuenameFromOSID(self, os_id):
+        """ Return the name of a queue that has the given os_id """
+
+        _queuename = ""
+
+        # First copy all the queuedata
+        self.copyFullQueuedata()
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    l = dictionary[queuename]["objectstores"]
+                    for i in l:
+                        if i['os_id'] == os_id:
+                            tolog("Queuename %s has os_id=%d" % (queuename, os_id))
+                            _queuename = queuename
+                            break
+                if _queuename != "":
+                    break
+        else:
+            tolog("Full queuedata not available")
+
+        return _queuename
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation
