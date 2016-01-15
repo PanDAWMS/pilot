@@ -438,11 +438,19 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cs3.cern.ch:443//atlas_eventservice|logs^s3://cs3.cern.ch:443//atlas_logs")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore")
 
-#        if thisSite.sitename == "Lucille_CE":
-#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw/software")
-#            ec = self.replaceQueuedataField("copytoolin", "lcg-cp2")
-#            ec = self.replaceQueuedataField("copytool", "lcg-cp2")
-#            ec = self.replaceQueuedataField("envsetup", "export X509_USER_PROXY=/opt/rucio/tools/x509up;")
+        #if thisSite.sitename == "Lucille_CE":
+        #    ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw/software")
+        #    ec = self.replaceQueuedataField("envsetup", "export X509_USER_PROXY=/opt/rucio/tools/x509up;")
+        #    ec = self.replaceQueuedataField("copytool", "lcg-cp2")
+        #    ec = self.replaceQueuedataField("copytoolin", "lcg-cp2")
+
+        #if thisSite.sitename == "HEPHY-UIBK":
+        #    ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw/software")
+        #    ec = self.replaceQueuedataField("envsetup", "export X509_USER_PROXY=/opt/rucio/tools/x509up;")
+        #    ec = self.replaceQueuedataField("use_newmover", "true")
+        #    ec = self.replaceQueuedataField("direct_access_lan", "false")
+        #    ec = self.replaceQueuedataField("direct_access_wan", "false")
+        #    ec = self.replaceQueuedataField("allow_fax", "false")
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
