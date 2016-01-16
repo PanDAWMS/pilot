@@ -1278,11 +1278,11 @@ class SiteInformation(object):
 
         return path, os_id
 
-    def getObjectstoreName(self, mode):
+    def getObjectstoreName(self, mode, os_id=-1):
         """ Return the objectstore name identifier """
         # E.g. CERN_OS_0
 
-        return self.getObjectstoresField('os_name', mode)
+        return self.getObjectstoresField('os_name', mode, os_id)
 
     def getObjectstoreBucketEndpoint(self, mode):
         """ Return the objectstore bucket endpoint for the relevant mode """
