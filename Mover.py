@@ -4050,20 +4050,22 @@ def mover_put_data(outputpoolfcstring,
                 sleep(_rest)
 
                 # in case of file transfer to OS, update file paths
-                _path, os_id = getNewOSStoragePath(si)
-                if logPath != "":
-                    tolog("Updating the logPath")
-                    # this function can decide to use a new OS, so update the os_id
-                    logPath = _path
-                    tolog("Using os_id=%d" % (os_id))
+                objectstore = "objectstore" in copycmd # Is this a transfer to an object store?
+                if objectstore:
+                    _path, os_id = getNewOSStoragePath(si)
+                    if logPath != "":
+                        tolog("Updating the logPath")
+                        # this function can decide to use a new OS, so update the os_id
+                        logPath = _path
+                        tolog("Using os_id=%d" % (os_id))
 
-                # for normal OS file transfers, the logPath will not be set and thus an alternative OS has to be found separately (otherwise found by getNewLogPath())
-                ddm_storage_path = os.path.dirname(_path)
+                    # for normal OS file transfers, the logPath will not be set and thus an alternative OS has to be found separately (otherwise found by getNewLogPath())
+                    ddm_storage_path = os.path.dirname(_path)
 
-                # in case of file transfer to OS, also update the ddm_storage_path
-                ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_id)
-                if pilotErrorDiag != "":
-                    return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_id
+                    # in case of file transfer to OS, also update the ddm_storage_path
+                    ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_id)
+                    if pilotErrorDiag != "":
+                        return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_id
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
@@ -4262,30 +4264,35 @@ def getNewOSStoragePath(si, mode="logs"):
     # Note: also return the os_id so we remember which OS the logPath belongs to
 
     path = ""
+    os_id = -1
 
     # Which is the current OS?
     os_name = si.getObjectstoreName(mode)
-    tolog("Current Objectstore: %s" % (os_name))
 
-    # Get an alternative OS
-    alt_os_info_dictionary = si.getAlternativeOS(mode, currentOS=os_name)
+    if os_name:
+        tolog("Current Objectstore: %s" % (os_name))
 
-    # Get the corresponding log path
-    if alt_os_info_dictionary != {}:
-        tolog("Alternative Objectstore = %s" % str(alt_os_info_dictionary))
-        os_endpoint = alt_os_info_dictionary['os_endpoint']
-        os_bucket_endpoint = alt_os_info_dictionary['os_bucket_endpoint']
-        os_id = alt_os_info_dictionary['os_id']
+        # Get an alternative OS
+        alt_os_info_dictionary = si.getAlternativeOS(mode, currentOS=os_name)
 
-        if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
-            if not os_endpoint.endswith('/'):
-                os_endpoint += '/'
-            path = os_endpoint + os_bucket_endpoint
+        # Get the corresponding log path
+        if alt_os_info_dictionary != {}:
+            tolog("Alternative Objectstore = %s" % str(alt_os_info_dictionary))
+            os_endpoint = alt_os_info_dictionary['os_endpoint']
+            os_bucket_endpoint = alt_os_info_dictionary['os_bucket_endpoint']
+            os_id = alt_os_info_dictionary['os_id']
+
+            if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
+                if not os_endpoint.endswith('/'):
+                    os_endpoint += '/'
+                path = os_endpoint + os_bucket_endpoint
+            else:
+                path = ""
+                os_id = -1
         else:
-            path = ""
-            os_id = -1
+            tolog("!!WARNING!!4343!! Found no alternative Objectstore")
     else:
-        tolog("!!WARNING!!4343!! Found no alternative Objectstore")
+        tolog("No current objectstore defined")
 
     return path, os_id
 

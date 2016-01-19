@@ -34,7 +34,7 @@ class LocalSiteMover(SiteMover.SiteMover):
     __spacetoken = '-t %s' # space token descriptor
     __localget = '%s lsm-get %s %s %s' # environment, options, lfn, target directory
     __localput = '%s lsm-put %s %s %s' # environment, space token (optional), source directory, destination
-    __localputBAD = '%s lsm-putXXX %s %s %s' # environment, space token (optional), source directory, destination
+    __localputBAD = '%s lsm-put %s %s %s' # environment, space token (optional), source directory, destination
     __localspace = '%s lsm-df %s %s' # environment, space token (optional), storage end-point
     __par_filesize = ' --size %s' # filesize in bytes
     __par_checksum = ' --checksum %s' # checksum string: "adler32:NNN", "md5:NNN", default is assumed MD5
