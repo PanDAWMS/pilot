@@ -153,6 +153,7 @@ Objectstore updates
     - Added os_id argument to updateEventRange() (EventRange)
     - Sending objstoreID=os_id with updateEventRange call in updateEventRange() (EventRange)
     - Added os_id argument to getObjectstoreName() (SiteInformation)
+    - Added os_id argument to getObjectstoreBucketEndpoint() (SiteInformation)
   General changes
     - Minor cleanup; removed usage of alt, prodSourceLabel, testLevel, analysisJob, extradirs, proxyCheck in put_data(), removed proxyCheck in get_data() (S3ObjectstoreSiteMover)
     - Removed unnecessary cleanupOS() and shouldCleanupOS() (RunJob)

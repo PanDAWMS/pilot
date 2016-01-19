@@ -1284,11 +1284,11 @@ class SiteInformation(object):
 
         return self.getObjectstoresField('os_name', mode, os_id)
 
-    def getObjectstoreBucketEndpoint(self, mode):
+    def getObjectstoreBucketEndpoint(self, mode, os_id=-1):
         """ Return the objectstore bucket endpoint for the relevant mode """
         # E.g. atlas_logs (for mode='logs')
 
-        return self.getObjectstoresField('os_bucket_endpoint', mode)
+        return self.getObjectstoresField('os_bucket_endpoint', mode, os_id=os_id)
 
     @classmethod
     def isFileExpired(self, fname, cache_time=0): ## should be isolated later
