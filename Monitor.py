@@ -261,11 +261,11 @@ class Monitor:
             if thisExperiment.shouldExecuteUtility():
                 for k in self.__env['jobDic'].keys():
 
-                    # Get the maxPSS value from the memor monitor
+                    # Get the maxPSS value from the memory monitor
                     summary_dictionary = thisExperiment.getMemoryValues(self.__env['jobDic'][k][1].workdir, self.__env['pilot_initdir'])
                     try:
                         maxPSS_int = summary_dictionary['Max']['maxPSS']
-                    except KeyError, e:
+                    except Exception, e:
                         if summary_dictionary != {}:
                             pUtil.tolog("!!WARNING!!3434!! Could not extract maxPSS value from: %s" % str(summary_dictionary))
                         else:

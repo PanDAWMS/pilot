@@ -1265,9 +1265,11 @@ class SiteInformation(object):
         # since the number of buckets is rather limited ~O(1k)
         # Read the endpoint info from the queuedata
         # If os_id is set (!= -1), get the info from objectstore id = os_id
+        # If os_id is not set, then find it for the default OS
+        if os_id == -1:
+            os_id = self.getObjectstoresField('os_id', mode)
         os_endpoint = self.getObjectstoresField('os_endpoint', mode, os_id=os_id)
         os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, os_id=os_id)
-        #os_id = self.getObjectstoresField('os_id', mode)
 
         if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
             if not os_endpoint.endswith('/'):

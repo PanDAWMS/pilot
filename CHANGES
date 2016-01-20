@@ -187,6 +187,7 @@ Memory monitoring updates:
 - Added pilot_initdir, allowTxtFile arguments to getUtilityInfo() (Experiment)
 - Added allowTxtFile argument to getUtilityInfo() (ATLASExperiment)
 - Removed getTracingReportFilename, writeJSON from import list (xrdcpSiteMover)
+- Now catching general Exception instead of KeyError in __check_memory_usage() to avoid problem with empty JSON (Monitor)
 
 LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)

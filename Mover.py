@@ -3964,6 +3964,7 @@ def mover_put_data(outputpoolfcstring,
     # It can be used for special purposes, like for the object store path which can be predetermined
     # Note: if os_id is set (as it will be for an OS transfer), then info from the corresponding OS will be returned [new queuedata]
     ddm_storage_path, os_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_id)
+    tolog("1. os_id=%d" % (os_id))
     if pilotErrorDiag != "":
         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_id
 
@@ -4507,7 +4508,7 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer,
         else:
             mode = "eventservice"
         # get the path for objectstore id os_id
-        # (send os_id to specify exactly which OS we want the info from)
+        # (send os_id to specify exactly which OS we want the info from; if default value, -1, then find the proper os_id for the default OS and return it)
         _path, os_id = si.getObjectstorePath(mode, os_id=os_id)
         if _path == "":
             pilotErrorDiag = "No path to object store"

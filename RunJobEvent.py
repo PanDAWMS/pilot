@@ -1268,13 +1268,9 @@ class RunJobEvent(RunJob):
             ec, pilotErrorDiag, os_id = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
             if ec == 0:
                 # Get the OS name identifier and bucket endpoint using the returned os_id
-
-                tolog("Files were transferred to objectstore %d" % (os_id))
-
                 os_name = si.getObjectstoreName("eventservice", os_id=os_id)
                 os_bucket_endpoint = si.getObjectstoreBucketEndpoint("eventservice", os_id=os_id)
-
-                tolog("os_id=%d corresponds to os_name=%s and has os_bucket_endpoint=%s" % (os_id, os_name, os_bucket_endpoint))
+                tolog("Files were transferred to objectstore with os_id=%d (os_name=%s, os_bucket_endpoint=%s)" % (os_id, os_name, os_bucket_endpoint))
 
                 # Add the transferred file to the OS transfer file
                 addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_name, os_bucket_endpoint)
