@@ -1604,6 +1604,20 @@ class SiteInformation(object):
         os_info = self.findAllObjectStores(os_bucket_name)
         tolog("Found objectstores: %s" % str(os_info.keys()))
 
+        # Pre-determine the fallback OS for now
+        if preferredOS == "":
+            if not "BNL" in currentOS:
+                # Get a BNL OS from the dictionary
+                for os_name in os_info.keys():
+                    if "BNL" in os_name:
+                        preferredOS = os_name
+                        break
+            else:
+                # For the BNL OS, fallback to CERN
+                for os_name in os_info.keys():
+                    if "CERN" in os_name:
+                        preferredOS = os_name
+
         # Select a proper alternative OS - if there's a preferred OS, then select that one
         if preferredOS != "":
             for os_name in os_info.keys():
@@ -1612,23 +1626,118 @@ class SiteInformation(object):
                     break
 
         if alt_os_info_dictionary == {}:
+            # Never fallback to AMAZON OS
+            avoidObjectstores = ['AMAZON'] # pattern, not exact names
+
             if currentOS != "":
-                # First find the current OS
+                # Create a valid OS list
+                valid = []
+                for os_name in os_info.keys():
+                    found_not_valid = False
+                    for not_valid in avoidObjectstores:
+                        if not_valid in os_name and not_valid not in currentOS:
+                            found_not_valid = True
+                    if not found_not_valid:
+                        valid.append(os_name)
+
+                # Find the current OS
                 i = 0
                 j = -1
-                for os_name in os_info.keys():
+                for os_name in valid:
                     if os_name == currentOS:
                         j = i+1
-                        if j == len(os_info.keys()):
+                        if j == len(valid):
                             j = 0
-                            break
+                        break
                     else:
                         i += 1
                 if j != -1:
-                    os_name = os_info.keys()[j]
-                    alt_os_info_dictionary = os_info[os_name]
+                    alt_os_info_dictionary = os_info[valid[j]]
 
         return alt_os_info_dictionary
+
+    def getOSInfoFromBucketID(self, os_bucket_id):
+        """ Return the OS ID and name for a given bucket id """
+
+        os_id = -1
+        os_name = ""
+
+        # Get the OS dictionary
+        os_info = self.findObjectStore(os_bucket_id)
+
+        for _os_name in os_info.keys():
+            try:
+                os_id = os_info[_os_name]['os_id']
+            except Exception, e:
+                tolog("!!WARNING!!5655!! Exception caught: %s" % (e))
+            else:
+                os_name = _os_name
+                break
+
+        return os_name, os_id
+
+    def getBucketID(self, os_id, os_bucket_name):
+        """ Return the unique bucket id for a given OS and bucket name """
+
+        os_bucket_id = -1
+
+        # Get the OS dictionary
+        os_info = self.findAllObjectStores(os_bucket_name)
+
+        for os_name in os_info.keys():
+            try:
+                _os_id = os_info[os_name]['os_id']
+                _os_bucket_name = os_info[os_name]['os_bucket_name']
+            except Exception, e:
+                tolog("!!WARNING!!4554!! Exception caught: %s" % (e))
+            else:
+                if _os_bucket_name == os_bucket_name and _os_id == os_id:
+                    try:
+                        os_bucket_id = os_info[os_name]['os_bucket_id']
+                    except Exception, e:
+                        tolog("!!WARNING!!4554!! Exception caught: %s" % (e))
+                    else:
+                        tolog("OS ID=%s has bucket id=%d for bucket name=%s" % (os_name, os_bucket_id, os_bucket_name))
+                        break
+
+        return os_bucket_id
+
+    def findObjectStore(self, os_bucket_id):
+        """ Find the Object Store corresponding to the unique bucket id """
+
+        os_info = {}
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    # dictionary[queuename]["objectstores"] =
+                    # [{'os_secret_key': 'CERN_ObjectStoreKey', 'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 41, 'os_state': 'ACTIVE', 
+                    #   'os_is_secure': True, 'os_id': 17172, 'os_bucket_name': 'eventservice', 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_eventservice', 
+                    #   'os_endpoint': 's3://cs3.cern.ch:443/'}, {'os_secret_key': 'CERN_ObjectStoreKey', 'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 
+                    #   'os_bucket_id': 42, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_id': 17172, 'os_bucket_name': 'logs', 'os_flavour': 'AWS-S3', 
+                    #   'os_bucket_endpoint': '/atlas_logs', 'os_endpoint': 's3://cs3.cern.ch:443/'}]
+
+                    l = dictionary[queuename]["objectstores"]
+                    for i in range(len(l)):
+                        os_name = l[i]["os_name"] # e.g. CERN_OS_1
+
+                        # l[0] = {'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 41, 'os_state': 'ACTIVE', 'os_is_secure': True, 
+                        #         'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_eventservice', 'os_secret_key': 'CERN_ObjectStoreKey', 'os_id': 17172, 
+                        #         'os_bucket_name': 'eventservice', 'os_endpoint': 's3://cs3.cern.ch:443/'}
+                        # l[1] = {'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 42, 'os_state': 'ACTIVE', 'os_is_secure': True, 
+                        #         'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_logs', 'os_secret_key': 'CERN_ObjectStoreKey', 'os_id': 17172, 'os_bucket_name': 'logs', 
+                        # 'os_endpoint': 's3://cs3.cern.ch:443/'}
+
+                        if l[i]['os_bucket_id'] == os_bucket_id:
+                            os_info[os_name] = l[i]
+                            break
+                        else:
+                            continue
+
+        return os_info
 
     def getOSIDFromName(self, os_name, os_bucket_name):
         """ Return the corresponding Objectstore ID for a given OS name and bucket """

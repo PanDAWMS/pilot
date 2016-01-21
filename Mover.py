@@ -4043,6 +4043,7 @@ def mover_put_data(outputpoolfcstring,
             # to clean up: note the similarity between logPath and ddm_storage_path
             # logPath=s3://cephgw.usatlas.bnl.gov:8443//atlas_logs/953cde21-6c6d-4fd2-b64f-0f2184bc0274_0.job.log.tgz
             # ddm_storage_path=s3://cephgw.usatlas.bnl.gov:8443//atlas_logs
+            objectstore = "objectstore" in copycmd # Is this a transfer to an object store?
 
             # if not first stage-out attempt, take a nap before next attempt
             if _attempt > 1:
@@ -4051,7 +4052,6 @@ def mover_put_data(outputpoolfcstring,
                 sleep(_rest)
 
                 # in case of file transfer to OS, update file paths
-                objectstore = "objectstore" in copycmd # Is this a transfer to an object store?
                 if objectstore:
                     _path, os_id = getNewOSStoragePath(si)
                     if logPath != "":
@@ -4072,7 +4072,16 @@ def mover_put_data(outputpoolfcstring,
 
             # perform the normal stage-out, unless we want to force alternative stage-out
             if not si.forceAlternativeStageOut(flag=analysisJob):
-                s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage_path, dsname,\
+                if _attempt == 1 and objectstore:
+                    tolog("Faking a transfer error")
+                    s = 1
+                    pilotErrorDiag = "Faking a transfer error"
+                    r_gpfn = "bad"
+                    r_fsize = ""
+                    r_fchecksum = ""
+                    r_farch = ""
+                else:
+                    s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage_path, dsname,\
                                                                                                   sitename, analysisJob, testLevel, pinitdir, proxycheck,\
                                                                                                   _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                   prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
@@ -4098,7 +4107,7 @@ def mover_put_data(outputpoolfcstring,
                 sysLog("PanDA job %s failed to stage-out output file: %s" % (jobId, pilotErrorDiag))
                 #dumpSysLogTail()
 
-                if forceAltStageOut:
+                if forceAltStageOut and not objectstore:
                     tolog("Forcing alternative stage-out")
                     useAlternativeStageOut = True
                     _attempt = 2
@@ -4120,9 +4129,8 @@ def mover_put_data(outputpoolfcstring,
                 if useAlternativeStageOut and _attempt > 1:
                     tolog("Attempting alternative stage-out (to the Tier-1 of the cloud the job belongs to)")
 
-                    # download new queuedata and return the corresponding sitemover object
+                    # download new queuedata and return the corresponding sitemover object (for non-objectstore transfers)
                     alternativeSitemover = prepareAlternativeStageOut(sitemover, si, sitename, jobCloud, _token_file)
-
                     if alternativeSitemover:
 
                         # init ddmEndPointOut???

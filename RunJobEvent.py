@@ -1270,7 +1270,8 @@ class RunJobEvent(RunJob):
                 # Get the OS name identifier and bucket endpoint using the returned os_id
                 os_name = si.getObjectstoreName("eventservice", os_id=os_id)
                 os_bucket_endpoint = si.getObjectstoreBucketEndpoint("eventservice", os_id=os_id)
-                tolog("Files were transferred to objectstore with os_id=%d (os_name=%s, os_bucket_endpoint=%s)" % (os_id, os_name, os_bucket_endpoint))
+                os_bucket_id = si.getBucketID(os_id, "eventservice")
+                tolog("Files were transferred to objectstore with os_id=%d and os_bucket_id=%d (os_name=%s, os_bucket_endpoint=%s)" % (os_id, os_bucket_id, os_name, os_bucket_endpoint))
 
                 # Add the transferred file to the OS transfer file
                 addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_name, os_bucket_endpoint)
@@ -1279,7 +1280,7 @@ class RunJobEvent(RunJob):
             tolog("Restoring queuedata fields")
             _ec = si.replaceQueuedataField("copytool", copytool_org)
 
-        return ec, pilotErrorDiag, os_id
+        return ec, pilotErrorDiag, os_bucket_id
 
     def startMessageThread(self):
         """ Start the message thread """
@@ -1331,7 +1332,7 @@ class RunJobEvent(RunJob):
                         ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
                         if ec == 0:
                             try:
-                                ec, pilotErrorDiag, os_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
+                                ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
                             except Exception, e:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
                             else:
@@ -1351,7 +1352,7 @@ class RunJobEvent(RunJob):
                                     # Note: the rec pilot must update the server appropriately
 
                                 # Time to update the server
-                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status, os_id=os_id)
+                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status, os_bucket_id=os_bucket_id)
 
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
