@@ -4053,7 +4053,7 @@ def mover_put_data(outputpoolfcstring,
 
                 # in case of file transfer to OS, update file paths
                 if objectstore:
-                    _path, os_id = getNewOSStoragePath(si)
+                    _path, os_id = getNewOSStoragePath(si, eventService)
                     if logPath != "":
                         tolog("Updating the logPath")
                         # this function can decide to use a new OS, so update the os_id
@@ -4072,7 +4072,7 @@ def mover_put_data(outputpoolfcstring,
 
             # perform the normal stage-out, unless we want to force alternative stage-out
             if not si.forceAlternativeStageOut(flag=analysisJob):
-                if _attempt == 1 and objectstore:
+                if _attempt == 1 and objectstore and False:
                     tolog("Faking a transfer error")
                     s = 1
                     pilotErrorDiag = "Faking a transfer error"
@@ -4268,12 +4268,17 @@ def mover_put_data(outputpoolfcstring,
     tolog("Put successful")
     return 0, pilotErrorDiag, fields, '1', N_filesNormalStageOut, N_filesAltStageOut, os_id
 
-def getNewOSStoragePath(si, mode="logs"):
+def getNewOSStoragePath(si, eventService=True):
     """ Get a storage path for an alternative OS """
     # Note: also return the os_id so we remember which OS the logPath belongs to
 
     path = ""
     os_id = -1
+
+    if eventService:
+        mode = "eventservice"
+    else:
+        mode = "logs"
 
     # Which is the current OS?
     os_name = si.getObjectstoreName(mode)
