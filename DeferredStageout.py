@@ -201,7 +201,7 @@ def DeferredStageoutHPCJob(job_dir, **kwargs):
     """
     pUtil.tolog("Deferred stageout from HPC job directory \"%s\"" % job_dir)
 
-    file_path=job_dir+"/"+hpc_jobState_file_wildcart
+    file_path = job_dir+"/"+hpc_jobState_file_wildcart
     current_dir = os.getcwd()
     pUtil.tolog("Working on %s" % file_path)
     pUtil.tolog("Chdir from current dir %s to %s" % (current_dir, job_dir))
@@ -489,7 +489,7 @@ def DorE(dictionary, key):
 def cleanup(job_state):
     pUtil.tolog("Cleanup job directory called")
 
-    cmd = cmd = "rm -rf"
+    cmd = cmd = "rm -rf %s" % os.path.dirname(job_state.filename)
     if os.path.isdir(job_state.job.newDirNM):
         cmd += (" %s" % job_state.job.newDirNM)
     if os.path.isdir(job_state.job.datadir):
