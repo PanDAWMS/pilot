@@ -158,6 +158,10 @@ class PandaServerClient:
             if filenames != "":
                 jobMetrics += self.jobMetric(key="altTransferred", value=filenames)
 
+        # report on which OS bucket the log was written to, if any
+        if job.logBucketID != -1:
+            jobMetrics += self.jobMetric(key="logBucketID", value=job.logBucketID)
+
         # only add the JEM bit if explicitly set to YES, otherwise assumed to be NO
         if job.JEM == "YES":
             jobMetrics += self.jobMetric(key="JEM", value=1)

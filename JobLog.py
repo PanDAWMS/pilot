@@ -119,6 +119,7 @@ class JobLog:
                 # Get the OS name identifier and bucket endpoint
                 os_name = si.getObjectstoreName("logs")
                 os_bucket_endpoint = si.getObjectstoreBucketEndpoint("logs")
+                os_bucket_id = job.logBucketID
 
                 # Add the transferred file to the OS transfer file
                 addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_name, os_bucket_endpoint)
@@ -290,6 +291,11 @@ class JobLog:
                 # create a weak lock file for the log transfer (but not for any special transfer, ie the log transfer to the special/secondary log area)
                 if not specialTransfer:
                     createLockFile(self.__env['jobrec'], site.workdir, lockfile="LOGFILECOPIED_%s" % job.jobId)
+
+                # to which OS bucket id was the file transferred to?
+                if os_id != -1:
+                    job.logBucketID = si.getBucketID(os_id, "logs")
+                    tolog("Stored log bucket ID: %d" % (job.logBucketID)) 
 
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
             if job.result[2] == 0:

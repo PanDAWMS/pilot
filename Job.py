@@ -99,6 +99,7 @@ class Job:
         self.ddmEndPointLog = []           #
         self.cloneJob = ""                 # Is the job cloned? Allowed values: 'runonce', 'storeonce'
         self.allowNoOutput = []            # Used to disregard empty files from jobReport
+        self.logBucketID = -1              # To keep track of which OS bucket the log was stored in
 
         # event service objects
         self.eventService = False          # True for event service jobs
