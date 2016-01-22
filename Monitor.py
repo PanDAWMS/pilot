@@ -1261,7 +1261,7 @@ class Monitor:
 
             dumpFileStates(self.__env['thisSite'].workdir,
                            self.__env['job'].jobId,
-                           type = "output")
+                           ftype = "output")
             if self.__env['job'].inFiles != ['']:
 
                 createFileStates(self.__env['thisSite'].workdir,
@@ -1271,7 +1271,7 @@ class Monitor:
 
                 dumpFileStates(self.__env['thisSite'].workdir,
                                self.__env['job'].jobId,
-                               type="input")
+                               ftype="input")
 
             # are the output files within the allowed limit?
             # (keep the LFN verification at this point since the wrkdir is now created, needed for creating the log in case of failure)
@@ -1408,7 +1408,7 @@ class Monitor:
 
             # do not bother with saving the log file if it has already been transferred and registered
             try:
-                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, type="output")
+                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, ftype="output")
                 pUtil.tolog("Current log file state: %s" % str(state))
                 if os.path.exists(os.path.join(self.__env['thisSite'].workdir, self.__env['job'].logFile)) and state[0] == "transferred" and state[1] == "registered":
                     pUtil.tolog("Safe to remove the log file")

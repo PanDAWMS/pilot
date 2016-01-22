@@ -1479,55 +1479,6 @@ def removeSRMInfo(f0):
 
     return fields0
 
-def lateRegistration(ub, job, type="unknown"):
-    """ late registration used by the job recovery """
-
-    # function will return True if late registration has been performed, False if it failed
-    # and None if there is nothing to do
-    status = False
-    latereg = False
-    fields = None
-
-    # protect against old jobState files which may not have the new variables
-    try:
-        tolog("type: %s" % (type))
-        if type == "output":
-            if job.output_latereg == "False":
-                latereg = False
-            else:
-                latereg = True
-            fields = job.output_fields
-        elif type == "log":
-            if job.log_latereg == "False":
-                latereg = False
-            else:
-                latereg = True
-            fields = job.log_field
-        else:
-            tolog("!!WARNING!!4000!! Unknown id type for registration: %s" % (type))
-            tolog("!!WARNING!!4000!! Skipping late registration step")
-            pass
-    except Exception, e:
-        tolog("!!WARNING!!4000!! Late registration has come upon an old jobState file - can not perform this step: %s" % e)
-        pass
-    else:
-        tolog("latereg: %s" % str(latereg))
-        tolog("fields: %s" % str(fields))
-        # should late registration be performed?
-#        if latereg:
-#            ec, ret = registerFiles(fields, ub=ub)
-#            if ec == 0:
-#                tolog("registerFiles done")
-#                status = True
-#            else:
-#                tolog("!!WARNING!!4000!! File registration returned: (%d, %s)" % (ec, ret))
-
-    if not latereg:
-        tolog("Nothing to register (%s)" % (type))
-        return None
-    else:
-        return status
-
 def isAnalysisJob(trf):
     """ Determine whether the job is an analysis job or not """
 
