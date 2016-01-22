@@ -2953,7 +2953,7 @@ class SiteMover(object):
             if useCT:
                 directIn = False
                 tolog("Direct access mode is switched off (file will be transferred with the copy tool)")
-                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
             else:
                 # determine if the file is a root file according to its name
                 rootFile = self.isRootFileName(lfn)
@@ -2961,13 +2961,13 @@ class SiteMover(object):
                 if prodDBlockToken == 'local' or not rootFile:
                     directIn = False
                     tolog("Direct access mode has been switched off for this file (will be transferred with the copy tool)")
-                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
                 elif rootFile:
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     if useFileStager:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", ftype="input")
                     else:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", ftype="input")
                 else:
                     tolog("Normal file transfer")
         else:

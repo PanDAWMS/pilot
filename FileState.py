@@ -45,15 +45,15 @@ class FileState:
     transfer mode).
     """
 
-    def __init__(self, workDir, jobId="0", mode="", type="output", fileName=""):
+    def __init__(self, workDir, jobId="0", mode="", ftype="output", fileName=""):
         """ Default init """
 
         self.fileStateDictionary = {} # file dictionary holding all objects
         self.mode = mode              # test mode
 
         # use default filename unless specified by initiator
-        if fileName == "" and type != "": # assume output files
-            self.filename = os.path.join(workDir, "fileState-%s-%s.pickle" % (type, jobId))
+        if fileName == "" and ftype != "": # assume output files
+            self.filename = os.path.join(workDir, "fileState-%s-%s.pickle" % (ftype, jobId))
         else:
             self.filename = os.path.join(workDir, fileName)
 
@@ -184,7 +184,7 @@ class FileState:
 
         return status
 
-    def resetStates(self, file_list, type="output"):
+    def resetStates(self, file_list, ftype="output"):
         """ Set all states in file list to not_created, not_registered """
         # note: file state will be reset completely
 
@@ -192,7 +192,7 @@ class FileState:
 
         # initialize file state dictionary
         self.fileStateDictionary = {}
-        if type == "output":
+        if ftype == "output":
             for filename in file_list:
                 self.fileStateDictionary[filename] = ['not_created', 'not_registered']
         else: # input
@@ -238,10 +238,10 @@ class FileState:
             filenames = filenames[:-1]
         return filenames
 
-    def dumpFileStates(self, type="output"):
+    def dumpFileStates(self, ftype="output"):
         """ Print all the files and their states """
 
-        if type == "output":
+        if ftype == "output":
             tolog("File name  /  File state  /  Registration state")
         else:
             tolog("File name  /  File state  /  Transfer mode")

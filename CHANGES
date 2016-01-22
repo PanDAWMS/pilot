@@ -83,6 +83,7 @@ General changes:
 - Changed headPilotErrorDiag() to headPilotErrorDiag() to avoid annoying tailed error diagnostics, in get_data() and changed import (Mover)
 - Created headPilotErrorDiag() (pUtil)
 - Now using headPilotErrorDiag in makeJobReport() (pUtil)
+- Replaced all usages of type as a variable and replaced it with ftype (FileState, FileStateClient, all site movers, Monitor, RunJob*, mover)
 
 To avoid creating dark data in case the server has already failed the job before the pilot has finished
 The problem can happen if the server times out the job before tar+zip of huge log files have not finished within two hours

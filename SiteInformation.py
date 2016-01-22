@@ -1044,7 +1044,6 @@ class SiteInformation(object):
             if useCT:
                 directIn = False
                 tolog("Direct access mode is switched off (file will be transferred with the copy tool)")
-                #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
                 transfer_mode = "copy_to_scratch"
             else:
                 # determine if the file is a root file according to its name
@@ -1053,15 +1052,12 @@ class SiteInformation(object):
                 if prodDBlockToken == 'local' or not rootFile:
                     directIn = False
                     tolog("Direct access mode has been switched off for this file (will be transferred with the copy tool)")
-                    #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
                     transfer_mode = "copy_to_scratch"
                 elif rootFile:
                     tolog("Found root file according to file name (will not be transferred in direct reading mode)")
                     if useFileStager:
-                        #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
                         transfer_mode = "file_stager"
                     else:
-                        #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", type="input")
                         transfer_mode = "remote_io"
                 else:
                     tolog("Normal file transfer")

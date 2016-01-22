@@ -109,7 +109,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
             if useCT:
                 directIn = False
                 tolog("Direct access mode is switched off (file will be transferred with the copy tool)")
-                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
             else:
                 # determine if the file is a root file according to its name
                 rootFile = self.isRootFileName(lfn)
@@ -117,16 +117,16 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                 if prodDBlockToken == 'local' or not rootFile:
                     directIn = False
                     tolog("Direct access mode has been switched off for this file (will be transferred with the copy tool)")
-                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
                 elif rootFile:
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
                     self.prepareReport('FOUND_ROOT', report)
                     if useFileStager:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", ftype="input")
                     else:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", ftype="input")
                     return error.ERR_DIRECTIOFILE, pilotErrorDiag
                 else:
                     tolog("Normal file transfer")
@@ -281,7 +281,7 @@ class BNLdCacheSiteMover(dCacheSiteMover.dCacheSiteMover):
                 self.prepareReport('MD5_MISMATCH', report)
                 return error.ERR_GETMD5MISMATCH, pilotErrorDiag
 
-        updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
+        updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 

@@ -31,7 +31,7 @@ import pUtil
 import RunJobUtilities
 import Mover as mover
 from JobRecovery import JobRecovery
-from FileStateClient import updateFileStates, dumpFileStates
+from FileStateClient import dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread

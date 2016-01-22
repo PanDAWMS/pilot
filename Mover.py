@@ -2453,7 +2453,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
 
         # The DBRelease file might already have been handled, go to next file
         if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
-            updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", type="input")
+            updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", ftype="input")
             guidfname[guid] = lfn # needed for verification below
             continue
         else:
@@ -2874,7 +2874,7 @@ def mover_get_data(lfns,
 
             # The DBRelease file might already have been handled, go to next file
             if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
-                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", type="input")
+                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", ftype="input")
                 guidfname[guid] = lfn # needed for verification below
                 continue
             else:

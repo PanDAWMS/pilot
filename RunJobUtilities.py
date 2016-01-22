@@ -677,7 +677,7 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
     # the method is using the file state dictionary
 
     # remove later
-    dumpFileStates(pworkdir, jobId, type="input")
+    dumpFileStates(pworkdir, jobId, ftype="input")
 
     # remove any instruction regarding tag file creation for event service jobs
     _runCommandList = []
@@ -807,7 +807,7 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
         _runCommandList = _runCommandList2
 
     tolog("Dumping final input file states")
-    dumpFileStates(pworkdir, jobId, type="input")
+    dumpFileStates(pworkdir, jobId, ftype="input")
 
     return _runCommandList
 

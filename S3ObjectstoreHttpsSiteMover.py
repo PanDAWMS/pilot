@@ -404,7 +404,7 @@ class S3ObjectstoreHttpsSiteMover(SiteMover.SiteMover):
         status, output = self.stageIn(jobId, lfn, jobSetID, pandaProxySecretKey, fullname, fsize, fchecksum, experiment)
 
         if status == 0:
-            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
+            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
             state = "DONE"
         else:
             errors = PilotErrors()

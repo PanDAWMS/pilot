@@ -1257,7 +1257,7 @@ class Monitor:
                              self.__env['job'].jobId,
                              outFiles = self.__env['job'].outFiles,
                              logFile = self.__env['job'].logFile,
-                             type="output")
+                             ftype="output")
 
             dumpFileStates(self.__env['thisSite'].workdir,
                            self.__env['job'].jobId,
@@ -1267,7 +1267,7 @@ class Monitor:
                 createFileStates(self.__env['thisSite'].workdir,
                                  self.__env['job'].jobId,
                                  inFiles = self.__env['job'].inFiles,
-                                 type="input")
+                                 ftype="input")
 
                 dumpFileStates(self.__env['thisSite'].workdir,
                                self.__env['job'].jobId,
@@ -1768,7 +1768,7 @@ class Monitor:
 
             # do not bother with saving the log file if it has already been transferred and registered
             try:
-                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, type="output")
+                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, ftype="output")
                 pUtil.tolog("Current log file state: %s" % str(state))
                 if os.path.exists(os.path.join(self.__env['thisSite'].workdir, self.__env['job'].logFile)) and state[0] == "transferred" and state[1] == "registered":
                     pUtil.tolog("Safe to remove the log file")
