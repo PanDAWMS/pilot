@@ -110,7 +110,7 @@ class JobLog:
 
             # do log transfer
             tolog("Attempting log file transfer to special SE")
-            ret, job = self.transferActualLogFile(job, site, dest=dest, jr=jr, specialTransfer=True)
+            ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr, specialTransfer=True)
             if not ret:
                 tolog("!!WARNING!!1600!! Could not transfer log file to special SE")
                 #status = False
@@ -133,14 +133,14 @@ class JobLog:
 
         # register/copy log file
         tolog("Attempting log file transfer to primary SE")
-        ret, job = self.transferActualLogFile(job, site, dest=dest, jr=jr)
+        ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr)
         if not ret:
             tolog("!!%s!!1600!! Could not transfer log file to primary SE" % (self.__env['errorLabel']))
             status = False
 
         return status, job
 
-    def transferActualLogFile(self, job, site, dest=None, jr=False, specialTransfer=False):
+    def transferActualLogFile(self, job, site, experiment, dest=None, jr=False, specialTransfer=False):
         """
         Save log tarball in DDM and register it to catalog, or copy it to 'dest'.
         the job recovery will use the current site info known by the current pilot
@@ -294,6 +294,8 @@ class JobLog:
 
                 # to which OS bucket id was the file transferred to?
                 if os_id != -1:
+                    # get the site information object
+                    si = getSiteInformation(experiment)
                     job.logBucketID = si.getBucketID(os_id, "logs")
                     tolog("Stored log bucket ID: %d" % (job.logBucketID)) 
 

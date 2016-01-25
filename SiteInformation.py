@@ -1652,6 +1652,24 @@ class SiteInformation(object):
 
         return alt_os_info_dictionary
 
+    def hasOSBucketIDs(self, prodDBlockToken):
+        """ Does the prodDBlockToken contain OS bucket IDs? """
+        # The prodDBlockToken is considered to contain bucket IDs if it's a list of string integers
+
+        status = False
+
+        try:
+            # Can the list of string integers be converted to a list of integers?
+            dummy = map(int, prodDBlockToken)
+        except:
+            # Will throw a ValueError in case of present non-integers
+            tolog("prodDBlockToken does not contain OS bucket IDs (prodDBlockToken=%s)" % str(prodDBlockToken))
+        else:
+            tolog("prodDBlockToken contains OS bucket IDs (prodDBlockToken=%s)" % str(prodDBlockToken))
+            status = True
+
+        return status
+
     def getOSInfoFromBucketID(self, os_bucket_id):
         """ Return the OS ID and name for a given bucket id """
 

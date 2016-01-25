@@ -159,6 +159,8 @@ Objectstore updates
     - Created findObjectStore(), getOSInfoFromBucketID(), getBucketID() (SiteInformation)
     - Created logBucketID variable (Job)
     - Reporting which OS bucket the log was written to, if any, in getJobMetrics() (PandaServerClient)
+    - Added experiment argument to transferActualLogFile() and sending it from transferLogFile() (JobLog)
+    - Created hasOSBucketIDs() to be used for merge jobs to identify prodDBlockTokens containing OS bucket IDs (SiteInformation)
   General changes
     - Minor cleanup; removed usage of alt, prodSourceLabel, testLevel, analysisJob, extradirs, proxyCheck in put_data(), removed proxyCheck in get_data() (S3ObjectstoreSiteMover)
     - Removed unnecessary cleanupOS() and shouldCleanupOS() (RunJob)
