@@ -243,7 +243,6 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         siteInformation = SiteInformation()
         directIn, transfer_mode = siteInformation.getDirectInAccessMode(prodDBlockToken, isRootFileName)
         if transfer_mode:
-            #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=transfer_mode, type="input")
             output["transfer_mode"] = transfer_mode
         if directIn:
             output["report"]["clientState"] = 'FOUND_ROOT'
@@ -796,7 +795,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
         status, output = self.getStageInMode(lfn, prodDBlockToken)
         if output["transfer_mode"]:
-            updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], type="input")
+            updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], ftype="input")
         if status !=0:
             self.prepareReport(output["report"], report)
             return status, output["errorLog"]
@@ -807,7 +806,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment)
 
         if status == 0:
-            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
+            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
 
         self.prepareReport(output["report"], report)
         return status, output["errorLog"]

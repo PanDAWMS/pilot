@@ -18,6 +18,7 @@ class FileState:
       "not_transferred" : file has not been transferred
       "transferred"     : file has already been transferred (no further action)
       "missing"         : file was never created, the job failed (e.g. output file of a failed job; a log should never be missing)
+      "alt_transferred" : file was transferred to an alternative SE (T-1)
 
     "file_state" can assume the following values for "input" files:
       "not_transferred" : file has not been transferred (can remain in this state for FileStager and directIO modes)
@@ -44,15 +45,15 @@ class FileState:
     transfer mode).
     """
 
-    def __init__(self, workDir, jobId="0", mode="", type="output", fileName=""):
+    def __init__(self, workDir, jobId="0", mode="", ftype="output", fileName=""):
         """ Default init """
 
         self.fileStateDictionary = {} # file dictionary holding all objects
         self.mode = mode              # test mode
 
         # use default filename unless specified by initiator
-        if fileName == "" and type != "": # assume output files
-            self.filename = os.path.join(workDir, "fileState-%s-%s.pickle" % (type, jobId))
+        if fileName == "" and ftype != "": # assume output files
+            self.filename = os.path.join(workDir, "fileState-%s-%s.pickle" % (ftype, jobId))
         else:
             self.filename = os.path.join(workDir, fileName)
 
@@ -183,7 +184,7 @@ class FileState:
 
         return status
 
-    def resetStates(self, file_list, type="output"):
+    def resetStates(self, file_list, ftype="output"):
         """ Set all states in file list to not_created, not_registered """
         # note: file state will be reset completely
 
@@ -191,7 +192,7 @@ class FileState:
 
         # initialize file state dictionary
         self.fileStateDictionary = {}
-        if type == "output":
+        if ftype == "output":
             for filename in file_list:
                 self.fileStateDictionary[filename] = ['not_created', 'not_registered']
         else: # input
@@ -216,10 +217,31 @@ class FileState:
                 break
         return status
 
-    def dumpFileStates(self, type="output"):
+    def getFilesOfState(self, state="transferred"):
+        """ Return a comma-separated list of files for a given transfer type """
+
+        file_names = []
+
+        # loop over all files
+        for filename in self.fileStateDictionary.keys():
+            # get the file states
+            states = self.fileStateDictionary[filename]
+            tolog("filename=%s states=%s"%(filename,str(states)))
+            if states[0] == state:
+                file_names.append(filename)
+
+        # Create the comma-separated list
+        filenames = ""
+        for f in file_names:
+            filenames += f + ","
+        if filenames.endswith(","):
+            filenames = filenames[:-1]
+        return filenames
+
+    def dumpFileStates(self, ftype="output"):
         """ Print all the files and their states """
 
-        if type == "output":
+        if ftype == "output":
             tolog("File name  /  File state  /  Registration state")
         else:
             tolog("File name  /  File state  /  Transfer mode")

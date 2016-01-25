@@ -35,7 +35,7 @@ def downloadEventRanges(jobId, jobsetID, taskID):
 
     return message
 
-def updateEventRange(event_range_id, eventRangeList, status='finished'):
+def updateEventRange(event_range_id, eventRangeList, status='finished', os_bucket_id=-1):
     """ Update an event range on the Event Server """
 
     tolog("Updating an event range..")
@@ -45,6 +45,8 @@ def updateEventRange(event_range_id, eventRangeList, status='finished'):
     node = {}
     node['eventRangeID'] = event_range_id
 
+    if os_bucket_id != -1:
+        node['objstoreID'] = os_bucket_id
     if eventRangeList != []:
         pass
         # node['cpu'] =  eventRangeList[1]

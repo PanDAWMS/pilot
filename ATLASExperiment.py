@@ -773,6 +773,20 @@ class ATLASExperiment(Experiment):
         except Exception, e:
             tolog("!!WARNING!!2341!! Failed to execure cleanupAthenaMP(): %s" % (e))
 
+        # explicitly remove any soft linked archives (.a files) since they will be dereferenced by the tar command (--dereference option)
+        matches = []
+        import fnmatch
+        for root, dirnames, filenames in os.walk(workdir):
+            for filename in fnmatch.filter(filenames, '*.a'):
+                matches.append(os.path.join(root, filename))
+        if matches != []:
+            tolog("!!WARNING!!4990!! Encountered %d archive files - will be purged" % len(matches))
+            rc = remove(matches)
+            if not rc:
+                tolog("WARNING: Failed to remove redundant files")
+        else:
+            tolog("Found no archive files")
+
         # note: these should be partitial file/dir names, not containing any wildcards
         exceptions_list = ["runargs", "runwrapper", "jobReport", "log."]
 
@@ -2943,9 +2957,12 @@ class ATLASExperiment(Experiment):
         if limit == None:
             limit = 48
 
+        tolog("envsetup=%s"%(envsetup))
         from SiteMover import SiteMover
         if envsetup == "":
             envsetup = SiteMover.getEnvsetup()
+        tolog("envsetup=%s"%(envsetup))
+        envsetup = envsetup.strip()
 
         # add setup for arcproxy if it exists
         arcproxy_setup = "%s/atlas.cern.ch/repo/sw/arc/client/latest/slc6/x86_64/setup.sh" % (self.getCVMFSPath())
@@ -2965,6 +2982,8 @@ class ATLASExperiment(Experiment):
 
             _envsetup += ". %s;" % (arcproxy_setup)
 
+        tolog("envsetup=%s"%(envsetup))
+
         # first try to use arcproxy since voms-proxy-info is not working properly on SL6 (memory issues on queues with limited memory)
         # cmd = "%sarcproxy -I |grep 'AC:'|awk '{sum=$5*3600+$7*60+$9; print sum}'" % (envsetup)
         cmd = "%sarcproxy -i vomsACvalidityLeft" % (_envsetup)
@@ -2983,6 +3002,9 @@ class ATLASExperiment(Experiment):
                 tolog("Will try voms-proxy-info instead")
 
         # -valid HH:MM is broken
+        if "; ;" in envsetup:
+            envsetup = envsetup.replace('; ;', ';')
+            tolog("Removed a double ; from envsetup")
         cmd = "%svoms-proxy-info -actimeleft --file $X509_USER_PROXY" % (envsetup)
         tolog("Executing command: %s" % (cmd))
         exitcode, output = commands.getstatusoutput(cmd)

@@ -7,7 +7,7 @@ from shutil import copy2
 from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
 from JobState import JobState
-from FileState import FileState
+from FileStateClient import getFilesOfState
 from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames, getHighestPriorityError
 
 class PandaServerClient:
@@ -98,7 +98,7 @@ class PandaServerClient:
 
         return jobMetric
 
-    def getJobMetrics(self, job, workerNode):
+    def getJobMetrics(self, job, site, workerNode):
         """ Return a properly formatted job metrics string """
 
         # style: Number of events read | Number of events written | vmPeak maximum | vmPeak average | RSS average | JEM activation
@@ -152,6 +152,15 @@ class PandaServerClient:
             _jobMetrics += " filesAltStageOut=%d" % (job.filesAltStageOut)
             _jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
             tolog("Could have reported: %s" % (_jobMetrics))
+
+            # Report which output files were moved to an alternative SE
+            filenames = getFilesOfState(site.workdir, job.jobId, state="alt_transferred")
+            if filenames != "":
+                jobMetrics += self.jobMetric(key="altTransferred", value=filenames)
+
+        # report on which OS bucket the log was written to, if any
+        if job.logBucketID != -1:
+            jobMetrics += self.jobMetric(key="logBucketID", value=job.logBucketID)
 
         # only add the JEM bit if explicitly set to YES, otherwise assumed to be NO
         if job.JEM == "YES":
@@ -275,7 +284,7 @@ class PandaServerClient:
             node['startTime'] = startTime
 
         # build the jobMetrics
-        node['jobMetrics'] = self.getJobMetrics(job, workerNode)
+        node['jobMetrics'] = self.getJobMetrics(job, site, workerNode)
 
         # for hpc status
         if job.hpcStatus:

@@ -3,7 +3,7 @@
 import os
 import time
 
-from pUtil import tolog, convert
+from pUtil import tolog, convert, getSiteInformation
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """
@@ -907,5 +907,5 @@ def getNumberOfEvents(workDir):
 
     return Nmax
 
-# print findLatestTRFLogFile(os.getcwd())
+
 

@@ -246,7 +246,7 @@ class JobMover(object):
                 #if fdata.status == 'transferred': # already transferred, skip
                 #    continue
 
-                updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", type="input")
+                updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="input")
 
                 self.log("[stage-in] Prepare to get_data: protocol=%s, fspec=%s" % (dat, fdata))
 
@@ -281,7 +281,7 @@ class JobMover(object):
                     is_directaccess = True
                 if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", type="input")
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
 
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
                     continue
@@ -308,7 +308,7 @@ class JobMover(object):
 
                 self.log("[stage-in] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
 
-                #dumpFileStates(self.workDir, self.job.jobId, type="input")
+                #dumpFileStates(self.workDir, self.job.jobId, ftype="input")
 
                 # loop over multple stage-in attempts
                 for _attempt in xrange(1, self.stageinretry + 1):
@@ -348,8 +348,8 @@ class JobMover(object):
                     self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
                     self.sendTrace(self.trace_report)
 
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", type="input")
-                    dumpFileStates(self.workDir, self.job.jobId, type="input")
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", ftype="input")
+                    dumpFileStates(self.workDir, self.job.jobId, ftype="input")
 
                     ## self.updateSURLDictionary(guid, surl, self.workDir, self.job.jobId) # FIX ME LATER
 
@@ -359,7 +359,7 @@ class JobMover(object):
                 else:
                     failed_transfers.append(result)
 
-        dumpFileStates(self.workDir, self.job.jobId, type="input")
+        dumpFileStates(self.workDir, self.job.jobId, ftype="input")
 
         #self.log('transferred_files= %s' % transferred_files)
         self.log('Summary of transferred files:')
@@ -484,7 +484,7 @@ class JobMover(object):
                     if not fdata.surl:
                         fdata.surl = sitemover.getSURL(surl_protocols[fdata.ddmendpoint].get('se'), surl_protocols[fdata.ddmendpoint].get('path'), fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
 
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", type="output")
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="output")
 
                     fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
                     self.log("[stage-out] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.surl, fdata.lfn, fdata.ddmendpoint))
@@ -497,7 +497,7 @@ class JobMover(object):
                     self.trace_report.update(scope=fdata.scope, dataset=fdata.destinationDblock, url=fdata.turl)
 
                     self.log("[stage-out] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
-                    #dumpFileStates(self.workDir, self.job.jobId, type="output")
+                    #dumpFileStates(self.workDir, self.job.jobId, ftype="output")
 
                     # loop over multple stage-out attempts
                     for _attempt in xrange(1, self.stageoutretry + 1):
@@ -523,8 +523,8 @@ class JobMover(object):
                             self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
                             self.sendTrace(self.trace_report)
 
-                            updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", type="output")
-                            dumpFileStates(self.workDir, self.job.jobId, type="output")
+                            updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", ftype="output")
+                            dumpFileStates(self.workDir, self.job.jobId, ftype="output")
 
                             self.updateSURLDictionary(fdata.guid, fdata.surl, self.workDir, self.job.jobId) # FIXME LATER: isolate later
 
@@ -545,7 +545,7 @@ class JobMover(object):
                     if isinstance(result, Exception): # failure transfer
                         failed_transfers.append(result)
 
-        dumpFileStates(self.workDir, self.job.jobId, type="output")
+        dumpFileStates(self.workDir, self.job.jobId, ftype="output")
 
         self.log('Summary of transferred files:')
         for e in transferred_files:
