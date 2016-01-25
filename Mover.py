@@ -905,6 +905,10 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype, copytool)
         #         replicas_dic[guid1] = [replica1, ..]
 
+        # Convert the OS bucket ID:s to os_id:s
+#        OSIDs = si.
+
+        # (the last prodDBlockToken is for the log, which we do not care about here
         espath, os_id = si.getObjectstorePath("eventservice")
         logpath, os_id = si.getObjectstorePath("logs")
 
