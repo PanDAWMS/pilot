@@ -1657,10 +1657,11 @@ class SiteInformation(object):
         # The prodDBlockToken is considered to contain bucket IDs if it's a list of string integers
 
         status = False
+        prodDBlockTokenInts = []
 
         try:
             # Can the list of string integers be converted to a list of integers?
-            dummy = map(int, prodDBlockToken)
+            prodDBlockTokenInts = map(int, prodDBlockToken)
         except:
             # Will throw a ValueError in case of present non-integers
             tolog("prodDBlockToken does not contain OS bucket IDs (prodDBlockToken=%s)" % str(prodDBlockToken))
@@ -1668,7 +1669,35 @@ class SiteInformation(object):
             tolog("prodDBlockToken contains OS bucket IDs (prodDBlockToken=%s)" % str(prodDBlockToken))
             status = True
 
-        return status
+        return status, prodDBlockTokenInts
+
+    def convertBucketIDsToOSIDs(self, prodDBlockToken):
+        """ Convert the bucket IDs in prodDBlockToken to OS IDs """
+
+        os_ids = []
+
+        # Convert to a list of integers
+        status, prodDBlockToken = self.hasOSBucketIDs(prodDBlockToken)
+
+        if status:
+            # Create a lookup dictionary
+            # FORMAT: { os_bucket_id1 : os_id1, .. }
+            lookup = {}
+
+            for os_bucket_id in prodDBlockToken:
+                if lookup.has_key(os_bucket_id):
+                    os_id = lookup[os_bucket_id]
+                else:
+                    os_name, os_id = self.getOSInfoFromBucketID(os_bucket_id) # os_name is not of interest here
+                if type(os_id) == int:
+                    # Add the info to the lookup dictionary so we don't have to scan for this info again
+                    if not lookup.has_key(os_bucket_id):
+                        lookup[os_bucket_id] = os_id
+                    os_ids.append(os_id)
+                else:
+                    tolog("!!WARNING!!4343!! Encountered a non-integer OS ID: %s (type=%s)" % (os_id, type(os_id)))
+
+        return os_ids
 
     def getOSInfoFromBucketID(self, os_bucket_id):
         """ Return the OS ID and name for a given bucket id """

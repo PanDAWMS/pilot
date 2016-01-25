@@ -879,7 +879,7 @@ def getFileInfoDictionaryFromXML(xml_file):
     return file_info_dictionary
 
 def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, workdir, dbh, DBReleaseIsAvailable, \
-                scope_dict, computingSite="", sourceSite="", pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None, ddmEndPointIn=None):
+                scope_dict, prodDBlockToken, computingSite="", sourceSite="", pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None, ddmEndPointIn=None):
     """ Build the file info dictionary """
 
     fileInfoDic = {} # FORMAT: fileInfoDic[file_nr] = (guid, pfn, size, checksum, filetype, copytool) - note: copytool not necessarily the same for all file (e.g. FAX case)
@@ -904,16 +904,20 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype, copytool)
         #         replicas_dic[guid1] = [replica1, ..]
 
-        espath, os_id = si.getObjectstorePath("eventservice")
-        logpath, os_id = si.getObjectstorePath("logs")
+        # Convert the OS bucket ID:s to os_id:s
+        os_ids = si.convertBucketIDsToOSIDs(prodDBlockToken)
 
         i = 0
         try:
             for lfn in lfns:
                 if ".log." in lfn:
-                    fullpath = os.path.join(logpath, lfns[i])
+                    path, os_id  = si.getObjectstorePath("logs", os_id=os_ids[i]) # Should be the last item
+                    fullpath = os.path.join(path, lfns[i])
+                    tolog("Log path = %s" % (fullpath))
                 else:
-                    fullpath = os.path.join(espath, lfns[i])
+                    path, os_id = si.getObjectstorePath("eventservice", os_id=os_ids[i])
+                    fullpath = os.path.join(path, lfns[i])
+                    tolog("ES path = %s" % (fullpath))
                 fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i], 'DISK', copytool) # filetype is always DISK on objectstores
                 replicas_dic[guids[i]] = [fullpath]
                 surl_filetype_dictionary[fullpath] = 'DISK' # filetype is always DISK on objectstores
@@ -2366,7 +2370,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
     #         replicas_dic[guid1] = [ replica1, .. ] where replicaN is an object of class replica
     ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source = \
         getFileInfo(readpar('region'), ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, PilotErrors(), path, dbh, DBReleaseIsAvailable,\
-                    scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=getExperiment(job.experiment),\
+                    scope_dict, job.prodDBlockToken, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=getExperiment(job.experiment),\
                         computingSite=sitename, sourceSite=sourceSite, ddmEndPointIn=job.ddmEndPointIn)
     if ec: # failed
         return ec, pilotErrorDiag, None, {}
@@ -2761,7 +2765,7 @@ def mover_get_data(lfns,
     #         replicas_dic[guid1] = [ replica1, .. ] where replicaN is an object of class replica
     ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source = \
         getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, analysisJob, tokens, DN, sitemover, error, path, dbh, DBReleaseIsAvailable,\
-                    scope_dict, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment,\
+                    scope_dict, job.prodDBlockToken, pfc_name=pfc_name, filesizeIn=filesizeIn, checksumIn=checksumIn, thisExperiment=thisExperiment,\
                         computingSite=sitename, sourceSite=sourceSite, ddmEndPointIn=job.ddmEndPointIn)
     if ec != 0:
         return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
