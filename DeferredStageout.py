@@ -422,7 +422,7 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
 
 def TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file,
-                                           test_mtime=True, test_lockfile="", lockfile_logic=True, min_time=0,
+                                           test_mtime=True, test_lockfile="", lockfile_logic=True, minimum_death_time=0,
                                            **kwargs):
     """
     Tests, whether a directory and a state file provided are in right condition to perform staging out
@@ -440,8 +440,8 @@ def TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file,
                             defaults to ""
     :param lockfile_logic:  (bool)  defines the condition of lockfile for staging out procedure to perform staging out
                             defaults to True
-    :param min_time:    (integer)   minimum time for job to be untouched to perform deferred stageout. If is less then
-                                    or equal to zero, default value is used
+    :param minimum_death_time:    (integer) minimum time for job to be untouched to perform deferred stageout. If is
+                                            less then or equal to zero, default value is used
                         defaults to 2*heartbeatPeriod
     :param heartbeatPeriod: (integer)   used to calculate min_time default value
                             defaults to env['heartbeatPeriod']
@@ -466,9 +466,9 @@ def TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file,
             return lognfalse("Couldn't get modification time for job state file, maybe better to run the code without"
                              " this test?")
 
-        if min_time <= 0:
-            min_time = number_of_lost_heartbeats_for_pilot_to_be_dead*DorE(kwargs, 'heartbeatPeriod')
-        if (current_time - file_modification_time) <= min_time:
+        if minimum_death_time <= 0:
+            minimum_death_time = number_of_lost_heartbeats_for_pilot_to_be_dead*DorE(kwargs, 'heartbeatPeriod')
+        if (current_time - file_modification_time) <= minimum_death_time:
             return lognfalse("File was modified not so long ago, skipping.")
 
         lognfalse("File was not modified for a number of heartbeats. Supposing the pilot to be dead.")
