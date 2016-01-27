@@ -53,6 +53,7 @@ class BaseSiteMover(object):
 
         self.trace_report = {}
 
+    @classmethod
     def log(self, value): # quick stub
         #print value
         tolog(value)
