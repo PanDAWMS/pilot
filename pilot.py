@@ -548,7 +548,7 @@ def runJobRecovery(thisSite, _psport, extradir):
             dirs.append(extradir)
             pUtil.tolog("Job recovery will also scan extradir (%s)" % (extradir))
 
-    recovered = DeferredStageout.DeferredStageout(dirs, env['maxjobrec'], remove_empty_dir=True)
+    recovered = DeferredStageout.DeferredStageout(dirs, env['maxjobrec'])
 
     #dircounter = 0
     # for _dir in dirs:

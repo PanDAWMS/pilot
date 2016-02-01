@@ -36,6 +36,7 @@ pilotLogFileInNewWD="pilotlog.txt"
 
 jobState_file_wildcart = "jobState-*"
 hpc_jobState_file_wildcart = "HPCManagerState.json"
+number_of_lost_heartbeats_for_pilot_to_be_dead = 20
 
 
 class ReturnCode:
@@ -201,7 +202,7 @@ def DeferredStageoutHPCJob(job_dir, **kwargs):
     """
     pUtil.tolog("Deferred stageout from HPC job directory \"%s\"" % job_dir)
 
-    file_path=job_dir+"/"+hpc_jobState_file_wildcart
+    file_path = job_dir+"/"+hpc_jobState_file_wildcart
     current_dir = os.getcwd()
     pUtil.tolog("Working on %s" % file_path)
     pUtil.tolog("Chdir from current dir %s to %s" % (current_dir, job_dir))
@@ -421,7 +422,7 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
 
 def TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file,
-                                           test_mtime=True, test_lockfile="", lockfile_logic=True, min_time=0,
+                                           test_mtime=True, test_lockfile="", lockfile_logic=True, minimum_death_time=0,
                                            **kwargs):
     """
     Tests, whether a directory and a state file provided are in right condition to perform staging out
@@ -439,8 +440,8 @@ def TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file,
                             defaults to ""
     :param lockfile_logic:  (bool)  defines the condition of lockfile for staging out procedure to perform staging out
                             defaults to True
-    :param min_time:    (integer)   minimum time for job to be untouched to perform deferred stageout. If is less then
-                                    or equal to zero, default value is used
+    :param minimum_death_time:    (integer) minimum time for job to be untouched to perform deferred stageout. If is
+                                            less then or equal to zero, default value is used
                         defaults to 2*heartbeatPeriod
     :param heartbeatPeriod: (integer)   used to calculate min_time default value
                             defaults to env['heartbeatPeriod']
@@ -465,19 +466,20 @@ def TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file,
             return lognfalse("Couldn't get modification time for job state file, maybe better to run the code without"
                              " this test?")
 
-        if min_time <= 0:
-            min_time = 2*DorE(kwargs, 'heartbeatPeriod')
-        if (current_time - file_modification_time) <= min_time:
+        if minimum_death_time <= 0:
+            minimum_death_time = number_of_lost_heartbeats_for_pilot_to_be_dead*DorE(kwargs, 'heartbeatPeriod')
+        if (current_time - file_modification_time) <= minimum_death_time:
             return lognfalse("File was modified not so long ago, skipping.")
 
-    return True
+        lognfalse("File was not modified for a number of heartbeats. Supposing the pilot to be dead.")
+    return lognret(True, "Job state file is tested and is OK to run stageout.")
 
 
 def lognfalse(_str):
-    return lognret(False,_str)
+    return lognret(False, _str)
 
 
-def lognret(ret,_str):
+def lognret(ret, _str):
     pUtil.tolog(_str)
     return ret
 
@@ -489,7 +491,7 @@ def DorE(dictionary, key):
 def cleanup(job_state):
     pUtil.tolog("Cleanup job directory called")
 
-    cmd = cmd = "rm -rf"
+    cmd = "rm -rf %s" % os.path.dirname(job_state.filename)
     if os.path.isdir(job_state.job.newDirNM):
         cmd += (" %s" % job_state.job.newDirNM)
     if os.path.isdir(job_state.job.datadir):
@@ -555,7 +557,7 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
 
     # There can be unclear state, consult the server
     if jobStatus not in acceptedJobStatesFromFile:
-        pUtil.tolog("Job state is unclear (%s), checking with the server" % jobStatus)
+        pUtil.tolog("Job state may be unclear (found state %s), checking with the server" % jobStatus)
         jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(job_state.job.jobId,
                                                                     DorE(kwargs, 'pshttpurl'),
                                                                     DorE(kwargs, 'psport'),
@@ -570,7 +572,14 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
     if job_state.job.attemptNr != jobAttemptNr or\
                      jobStatus in finalJobStates or\
                      "tobekilled" in job_state.job.action:
-        return lognret(ReturnCode.Cleanup, "Further recovery attempts will be prevented for this job")
+        if job_state.job.attemptNr != jobAttemptNr:
+            return lognret(ReturnCode.Cleanup, "Further recovery attempts will be prevented for this job. It has a "
+                                               "mismatch in the attempt number record.")
+        if "tobekilled" in job_state.job.action:
+            return lognret(ReturnCode.Cleanup, "Further recovery attempts will be prevented for this job. It was"
+                                               " marked to be killed.")
+        return lognret(ReturnCode.Cleanup, "Further recovery attempts will be prevented for this job, it is in final "
+                                           "state: %s." % jobStatus)
 
     if jobStatus != 'holding':
         # is the attemptNr defined?
