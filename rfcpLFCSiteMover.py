@@ -118,12 +118,7 @@ class rfcpLFCSiteMover(SiteMover.SiteMover):
                     tolog("Normal file transfer")
 
         dest_path = os.path.join(path, lfn)
-        #PN
         _cmd_str = '%srfcp %s %s' % (_setup_str, loc_pfn, dest_path)
-#        if ".lib." in loc_pfn:
-#            _cmd_str = '%srfcp %s %s' % (_setup_str, loc_pfn, dest_path)
-#        else:
-#            _cmd_str = '%srfcpXXX %s %s' % (_setup_str, loc_pfn, dest_path)
         tolog("Executing command: %s" % (_cmd_str))
         report['transferStart'] = time()
 

@@ -1160,12 +1160,12 @@ class RunJobEvent(RunJob):
 
         ec = 0
         pilotErrorDiag = ""
-        os_id = -1
+        os_bucket_id = -1
 
         rs = "" # return string from put_data with filename in case of transfer error
         tin_0 = os.times()
         try:
-            ec, pilotErrorDiag, rf, rs, self.__job.filesNormalStageOut, self.__job.filesAltStageOut, os_id = mover.mover_put_data("xmlcatalog_file:%s" %\
+            ec, pilotErrorDiag, rf, rs, self.__job.filesNormalStageOut, self.__job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" %\
                                          (metadata_fname), dsname, self.__jobSite.sitename, self.__jobSite.computingElement,\
                                          analysisJob=self.__analysisJob, pinitdir=self.__pilot_initdir, scopeOut=self.__job.scopeOut,\
                                          proxycheck=self.__proxycheckFlag, spsetup=self.__job.spsetup, token=self.__job.destinationDBlockToken,\
@@ -1213,7 +1213,7 @@ class RunJobEvent(RunJob):
                 # set the internal error, to be picked up at the end of the job
                 self.setErrorCode(ec)
 
-        return ec, pilotErrorDiag, os_id
+        return ec, pilotErrorDiag, os_bucket_id
 
     def getEventRangeID(self, filename):
         """ Return the event range id for the corresponding output file """
@@ -1234,7 +1234,7 @@ class RunJobEvent(RunJob):
 
         ec = 0
         pilotErrorDiag = ""
-        os_id = -1
+        os_bucket_id = -1
 
         # Get the site information object
         si = getSiteInformation(self.__experiment)
@@ -1265,16 +1265,16 @@ class RunJobEvent(RunJob):
             dsname, datasetDict = self.getDatasets()
 
             # Transfer the file
-            ec, pilotErrorDiag, os_id = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
+            ec, pilotErrorDiag, os_bucket_id = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
             if ec == 0:
-                # Get the OS name identifier and bucket endpoint using the returned os_id
-                os_name = si.getObjectstoreName("eventservice", os_id=os_id)
-                os_bucket_endpoint = si.getObjectstoreBucketEndpoint("eventservice", os_id=os_id)
-                os_bucket_id = si.getBucketID(os_id, "eventservice")
-                tolog("Files were transferred to objectstore with os_id=%d and os_bucket_id=%d (os_name=%s, os_bucket_endpoint=%s)" % (os_id, os_bucket_id, os_name, os_bucket_endpoint))
+                # Get the OS name identifier and bucket endpoint using the returned os_bucket_id
+                os_name = si.getObjectstoreName("eventservice", os_bucket_id=os_bucket_id)
+                os_bucket_endpoint = si.getObjectstoreBucketEndpoint("eventservice", os_bucket_id=os_bucket_id)
+                #os_bucket_id = si.getBucketID(os_id, "eventservice")
+                tolog("Files were transferred to objectstore with os_bucket_id=%d (os_name=%s, os_bucket_endpoint=%s)" % (os_bucket_id, os_name, os_bucket_endpoint))
 
                 # Add the transferred file to the OS transfer file
-                addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_name, os_bucket_endpoint)
+                addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_bucket_id, os_bucket_endpoint)
 
             # Finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
@@ -1335,6 +1335,8 @@ class RunJobEvent(RunJob):
                                 ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
                             except Exception, e:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
+                                tolog("Removing %s from stage-out queue to prevent endless loop" % (f))
+                                self.__stageout_queue.remove(f)
                             else:
                                 tolog("Removing %s from stage-out queue" % (f))
                                 self.__stageout_queue.remove(f)

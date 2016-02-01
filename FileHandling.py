@@ -214,142 +214,6 @@ def getExtension(alternative='pickle'):
 
     return extension
 
-def getNewQueuedataFilename():
-    """ Return the name of the queuedata file """
-
-    return "new_queuedata.json"
-
-def getNewQueuedataXXX(queuename):
-    """ Download the queuedata primarily from the AGIS server and secondarily from CVMFS """
-
-    filename = getNewQueuedataFilename()
-
-    status = False
-    tries = 2
-    for trial in range(tries):
-        tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-        cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&vo_name=atlas&panda_queue=%s\" >%s" % (queuename, filename)
-        tolog("Executing command: %s" % (cmd))
-        from commands import getstatusoutput
-        ret, output = getstatusoutput(cmd)
-
-        # Verify queuedata
-        value = getField('copysetup')
-        if value:
-            status = True
-            break
-
-    return status
-
-def getField(field):
-    """ Get the value for entry 'field' in the queuedata """
-
-    value = None
-    filename = getNewQueuedataFilename()    
-    if os.path.exists(filename):
-
-        # Load the dictionary
-        dictionary = readJSON(filename)
-        if dictionary != {}:
-            # Get the entry for queuename
-            try:
-                _queuename = dictionary.keys()[0]
-                _d = dictionary[_queuename]
-            except Exception, e:
-                tolog("!!WARNING!!2323!! Caught exception: %s" % (e))
-            else:
-                # Get the field value
-                try:
-                    value = _d[field]
-                except Exception, e:
-                    tolog("!!WARNING!!2112!! Queuedata problem: %s" % (e))
-        else:
-            tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
-    else:
-        tolog("!!WARNING!!3434!! File does not exist: %s" % (filename))
-
-    return value
-
-def getObjectstoresFieldXXX(field, mode, queuename):
-    """ Return the objectorestores field from the objectstores list for the relevant mode """
-    # mode: eventservice, logs, http
-
-    value = None
-
-    # Get the objectstores list
-    objectstores_list = getObjectstoresList(queuename)
-
-    if objectstores_list:
-        for d in objectstores_list:
-            try:
-                os_bucket_name = d['os_bucket_name']
-                if os_bucket_name == mode:
-                    value = d[field]
-                    break
-            except Exception, e:
-                tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
-    return value
-
-def getObjectstorePathXXX(filename, mode, queuename):
-    """ Get the proper path to a file in the OS """
-
-    path = ""
-
-    # Get the objectstores list
-    objectstores_list = getObjectstoresList(queuename)
-
-    if objectstores_list:
-        # Get the relevant fields
-        for d in objectstores_list:
-            try:
-                os_bucket_name = d['os_bucket_name']
-                if os_bucket_name == mode:
-                    os_endpoint = d['os_endpoint']
-                    os_bucket_endpoint = d['os_bucket_endpoint']
-
-                    if os_endpoint.endswith('/'):
-                        os_endpoint = os_endpoint[:-1]
-                    if not os_bucket_endpoint.startswith('//'):
-                        if os_bucket_endpoint.startswith('/'):
-                            os_bucket_endpoint = "/" + os_bucket_endpoint
-                        else:
-                            os_bucket_endpoint = "//" + os_bucket_endpoint
-
-                    path = os.path.join(os_endpoint + os_bucket_endpoint, filename)
-                    break
-            except Exception, e:
-                tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
-
-    return path
-
-def getObjectstoresListXXX(queuename):
-    """ Get the objectstores list from the proper queuedata for the relevant queue """
-    # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
-
-    objectstores = None
-
-    # First try to get the objectstores field from the normal queuedata
-    try:
-        from pUtil import readpar
-        _objectstores = readpar('objectstores')
-    except:
-        #tolog("Field \'objectstores\' not yet available in queuedata")
-        _objectstores = None
-
-    # Get the field from AGIS
-    if not _objectstores:
-        s = True
-        # Download the new queuedata in case it has not been downloaded already
-        if not os.path.exists(getNewQueuedataFilename()):
-            s = getNewQueuedata(queuename)
-        if s:
-            _objectstores = getField('objectstores')
-
-    if _objectstores:
-        objectstores = _objectstores
-
-    return objectstores
-
 def getHash(s, length):
     """ Return a hash from string s """
 
@@ -367,15 +231,15 @@ def getHashedBucketEndpoint(endpoint, file_name):
 #    return endpoint + "_" + getHash(file_name, 2)
     return endpoint
 
-def addToOSTransferDictionary(file_name, workdir, os_name, os_bucket_endpoint):
+def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_bucket_endpoint):
     """ Add the transferred file to the OS transfer file """
     # Note: we don't want to store the file name since potentially there can be a large number of files
     # We only store a file number count
     # We still need to know the file name in order to figure out which bucket it belongs to (using a hash of the file name)
     # The has will be added to the os_bucket_endpoint (e.g. 'atlas_logs' -> 'atlas_logs_E2')
 
-    # Only proceed if os_name and os_bucket_endpoint have values
-    if os_name and os_name != "" and os_bucket_endpoint and os_bucket_endpoint != "":
+    # Only proceed if os_bucket_id and os_bucket_endpoint have values
+    if os_bucket_id and os_bucket_id != "" and os_bucket_endpoint and os_bucket_endpoint != "":
 
         # Get the name and path of the objectstore transfer dictionary file 
         os_tr_path = os.path.join(workdir, getOSTransferDictionaryFilename())
@@ -396,16 +260,16 @@ def addToOSTransferDictionary(file_name, workdir, os_name, os_bucket_endpoint):
             tolog("New OS transfer dictionary created: %s" % (os_tr_path))
 
         # Populate the dictionary
-        if dictionary.has_key(os_name):
-            if dictionary[os_name].has_key(_endpoint):
+        if dictionary.has_key(os_bucket_id):
+            if dictionary[os_bucket_id].has_key(_endpoint):
                 # Increase the file count
-                dictionary[os_name][_endpoint] += 1
+                dictionary[os_bucket_id][_endpoint] += 1
             else:
                 # One file has been stored in this endpoint
-                dictionary[os_name][_endpoint] = 1
+                dictionary[os_bucket_id][_endpoint] = 1
         else:
             # One file has been stored in this endpoint
-            dictionary[os_name] = {_endpoint: 1}
+            dictionary[os_bucket_id] = {_endpoint: 1}
 
         # Store the dictionary
         if writeJSON(os_tr_path, dictionary):
@@ -416,45 +280,45 @@ def addToOSTransferDictionary(file_name, workdir, os_name, os_bucket_endpoint):
     else:
         tolog("Cannot add to OS transfer dictionary due to unset values (os_name/os_bucket_endpoint)")
 
-def getOSNames(filename):
-    """ Get the dictionary of objectstore os_names with populated buckets from the OS transfer dictionary """
-    # Note: will return a dictionary of os_names identifiers to which files were actually transferred, along
+def getOSTransferDictionary(filename):
+    """ Get the dictionary of objectstore os_bucket_ids with populated buckets from the OS transfer dictionary """
+    # Note: will return a dictionary of os_bucket_ids identifiers to which files were actually transferred, along
     # with the names of the buckets where the files were transferred to
     # This function is used to generate the jobMetrics OS message (only the OS and bucket endpoints are of interest)
 
-    # os_names_dictionary
-    # FORMAT: { 'os_name': ['os_bucket_endpoint', ''], .. }
+    # os_bucket_ids_dictionary
+    # FORMAT: { 'os_bucket_id': ['os_bucket_endpoint', ''], .. }
     # OS transfer dictionary
-    # FORMAT: { 'os_name': { 'os_bucket_endpoint': <number of transferred files>, .. }, .. }
+    # FORMAT: { 'os_bucket_id': { 'os_bucket_endpoint': <number of transferred files>, .. }, .. }
 
-    os_names_dictionary = {}
+    os_bucket_ids_dictionary = {}
 
     if os.path.exists(filename):
         # Get the OS transfer dictionary
         dictionary = readJSON(filename)
         if dictionary != {}:
-            tmp_os_names_list = dictionary.keys()
+            tmp_os_bucket_ids_list = dictionary.keys()
 
-            # Only report the os_name if there were files transferred to it
-            for os_name in tmp_os_names_list:
+            # Only report the os_bucket_id if there were files transferred to it
+            for os_bucket_id in tmp_os_bucket_ids_list:
 
                 # Get the os_bucket_endpoint list and populate the final dictionary
-                os_bucket_endpoint_list = dictionary[os_name].keys()
+                os_bucket_endpoint_list = dictionary[os_bucket_id].keys()
                 for os_bucket_endpoint in os_bucket_endpoint_list:
-                    n = dictionary[os_name][os_bucket_endpoint]
+                    n = dictionary[os_bucket_id][os_bucket_endpoint]
 
-                    tolog("%s: %d file(s) transferred to bucket %s" % (os_name, n, os_bucket_endpoint))
+                    tolog("OS bucket id %s: %d file(s) transferred to bucket %s" % (os_bucket_id, n, os_bucket_endpoint))
                     if n > 0:
-                        if os_names_dictionary.has_key(os_name):
-                            os_names_dictionary[os_name].append(os_bucket_endpoint)
+                        if os_bucket_ids_dictionary.has_key(os_bucket_id):
+                            os_bucket_ids_dictionary[os_bucket_id].append(os_bucket_endpoint)
                         else:
-                            os_names_dictionary[os_name] = [os_bucket_endpoint]
+                            os_bucket_ids_dictionary[os_bucket_id] = [os_bucket_endpoint]
         else:
             tolog("!!WARNING!!3334!! OS transfer dictionary is empty")
     else:
         tolog("!!WARNING!!3333!! OS transfer dictionary does not exist at: %s" % (filename))
 
-    return os_names_dictionary
+    return os_bucket_ids_dictionary
 
 def getPilotErrorReportFilename(workdir):
     """ Return the filename for the pilot error report """

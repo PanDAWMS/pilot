@@ -8,7 +8,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
 from JobState import JobState
 from FileStateClient import getFilesOfState
-from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames, getHighestPriorityError
+from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
 
 class PandaServerClient:
     """
@@ -175,10 +175,10 @@ class PandaServerClient:
         _jobMetrics = ""
 
         # report any OS transfers
-        message = self.getOSJobMetrics()
-        if message != "":
-            _jobMetrics = self.jobMetric(key="OS", value=message)
-            tolog("Could have added: %s to job metrics" % (_jobMetrics))
+        #message = self.getOSJobMetrics()
+        #if message != "":
+        #    _jobMetrics = self.jobMetric(key="OS", value=message)
+        #    tolog("Could have added: %s to job metrics" % (_jobMetrics))
 
         # correct for potential initial and trailing space
         jobMetrics = jobMetrics.lstrip().rstrip()
@@ -216,7 +216,7 @@ class PandaServerClient:
         path = os.path.join(self.__pilot_initdir, filename)
         if os.path.exists(path):
             # Which OS's were used?
-            os_names_dictionary = getOSNames(path)
+            os_names_dictionary = getOSTransferDictionary(path)
             if os_names_dictionary != {}:
                 message = ""
 

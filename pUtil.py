@@ -1533,13 +1533,13 @@ def stringToFields(jobFields):
 
     return fields
 
-def readpar(parameter, alt=False, version=0):
+def readpar(parameter, alt=False, version=0, queuename=None):
     """ Read 'parameter' from queuedata via SiteInformation class """
 
     from SiteInformation import SiteInformation
     si = SiteInformation()
 
-    return si.readpar(parameter, alt=alt, version=version)
+    return si.readpar(parameter, alt=alt, version=version, queuename=queuename)
 
 def getBatchSystemJobID():
     """ return the batch system job id (will be reported to the server) """

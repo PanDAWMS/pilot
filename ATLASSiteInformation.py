@@ -406,6 +406,8 @@ class ATLASSiteInformation(SiteInformation):
         if 'pandadev' in pshttpurl or force_devpilot or thisSite.sitename == "CERNVM":
             ec = self.replaceQueuedataField("status", "online")
 
+        ec = self.replaceQueuedataField("retry", "false")
+
 #        ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
 
 #        if thisSite.sitename == "RAL-LCG2_SL6":

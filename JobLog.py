@@ -122,7 +122,7 @@ class JobLog:
                 os_bucket_id = job.logBucketID
 
                 # Add the transferred file to the OS transfer file
-                addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_name, os_bucket_endpoint)
+                addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_bucket_id, os_bucket_endpoint)
 
             # finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
@@ -204,16 +204,16 @@ class JobLog:
 
         # determine the file path for special log transfers (can be overwritten in mover_put_data() in case of failure in transfer to primary OS)
         if specialTransfer:
-            logPath, os_id = self.getLogPath(job.jobId, job.logFile, job.experiment)
+            logPath, os_bucket_id = self.getLogPath(job.jobId, job.logFile, job.experiment)
             if logPath == "":
                 tolog("!!WARNING!!4444!! Can not continue with special transfer since logPath is not set")
                 return False, job
             tolog("Special log transfer: %s" % (logPath))
         else:
             logPath = ""
-            os_id = -1
+            os_bucket_id = -1
         try:
-            rc, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut, os_id = mover.mover_put_data("xmlcatalog_file:%s" % (WDTxml),
+            rc, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (WDTxml),
                                                                   dsname,
                                                                   site.sitename,
                                                                   site.computingElement,
@@ -239,7 +239,7 @@ class JobLog:
                                                                   experiment = job.experiment,
                                                                   fileDestinationSE = job.fileDestinationSE,
                                                                   logPath = logPath,
-                                                                  os_id = os_id,
+                                                                  os_bucket_id = os_bucket_id,
                                                                   job = job)
         except Exception, e:
             rmflag = 0 # don't remove the tarball
@@ -293,10 +293,10 @@ class JobLog:
                     createLockFile(self.__env['jobrec'], site.workdir, lockfile="LOGFILECOPIED_%s" % job.jobId)
 
                 # to which OS bucket id was the file transferred to?
-                if os_id != -1:
+                if os_bucket_id != -1:
                     # get the site information object
-                    si = getSiteInformation(experiment)
-                    job.logBucketID = si.getBucketID(os_id, "logs")
+                    #si = getSiteInformation(experiment)
+                    job.logBucketID = os_bucket_id #si.getBucketID(os_id, "logs")
                     tolog("Stored log bucket ID: %d" % (job.logBucketID)) 
 
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
@@ -1038,7 +1038,7 @@ class JobLog:
             _state = ""
             _msg = ""
             try:
-                ec, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut, os_id = mover.mover_put_data("xmlcatalog_file:%s" % (filename_xml),
+                ec, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (filename_xml),
                                                                   dsname, site.sitename, site.computingElement, analysisJob = analyJob,
                                                                   testLevel = self.__env['testLevel'],
                                                                   proxycheck = self.__env['proxycheckFlag'],
@@ -1215,19 +1215,19 @@ class JobLog:
         # The host and base path is read from schedconfig, and can be a ,-separated list.
         # If the "primary"-boolean is True, the first location will be selected. False means the second location, if any
         # In case there is only one host defined in the schedconfig.logPath, primary=False is meaningless (abort).
-        # In case of objectstores, also the os_id will be returned (otherwise set to -1)
+        # In case of objectstores, also the os_bucket_id will be returned (otherwise set to -1)
 
         # Standard path
-        # logPaths = readpar('logPath')
+        # logPaths = readpar('copytoollogPath')
         # logPaths = "root://eos.cern.ch/atlas/logs,dav://bnldav.cern.ch/atlas/logs"
         # logPaths = "root://eosatlas.cern.ch/atlas/logs"
 
-        os_id = -1
+        os_bucket_id = -1
 
         # Get the site information object
         si = getSiteInformation(experiment)
         #logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
-        logPaths, os_id = si.getObjectstorePath("logs") #mover.getFilePathForObjectStore(filetype="logs")
+        logPaths, os_bucket_id = si.getObjectstorePath("logs", queuename=self.__env['queuename']) #mover.getFilePathForObjectStore(filetype="logs")
 
         # Handle multiple paths (primary and secondary log paths)
         if "," in logPaths:
@@ -1254,4 +1254,4 @@ class JobLog:
         else:
             logPath = ""
 
-        return logPath, os_id
+        return logPath, os_bucket_id
