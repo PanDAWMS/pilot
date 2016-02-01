@@ -4058,6 +4058,7 @@ def mover_put_data(outputpoolfcstring,
                 # in case of file transfer to OS, update file paths
                 if objectstore:
                     _path, os_bucket_id = getNewOSStoragePath(si, eventService)
+                    _path = os.path.join(_path, lfn)
                     if logPath != "":
                         tolog("Updating the logPath (replacing \'%s\' with \'%s\')" % (logPath, _path))
                         # this function can decide to use a new OS, so update the os_bucket_id

@@ -136,7 +136,7 @@ class SiteInformation(object):
             extension = "alt." + extension
 
         if version == 1:
-            if queuename:
+            if queuename and False: # skip this for now (in case of alt stage-out to OS, e.g. JobLog won't know which is the queuename)
                 filename = "queuedata-%s.%s" % (queuename, extension)
             else:
                 filename = "new_queuedata.%s" % (extension)
@@ -1145,7 +1145,8 @@ class SiteInformation(object):
 
         # If overwrite is not required, return True if the queuedata already exists
         if not overwrite:
-            if os.path.exists(filename):
+            tolog("Overwrite is currently required")
+            if os.path.exists(filename) and False:
                 tolog("AGIS queuedata already exist")
                 status = True
                 return status
@@ -1272,8 +1273,8 @@ class SiteInformation(object):
         # If os_bucket_id is not set, then find it for the default OS for this mode
         if os_bucket_id == -1:
             os_bucket_id = self.getObjectstoresField('os_bucket_id', mode, queuename=queuename)
-        os_endpoint = self.getObjectstoresField('os_endpoint', mode, os_bucket_id=os_bucket_id)
-        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, os_bucket_id=os_bucket_id)
+        os_endpoint = self.getObjectstoresField('os_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
+        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
 
         if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
             if not os_endpoint.endswith('/'):

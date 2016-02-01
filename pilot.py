@@ -521,7 +521,7 @@ def FinishedJob(job):
 
     return state
 
-def runJobRecovery(thisSite, _psport, extradir):
+def runJobRecoveryNew(thisSite, _psport, extradir):
     """
     run the lost job recovery algorithm
     """
@@ -568,6 +568,53 @@ def runJobRecovery(thisSite, _psport, extradir):
     #         pUtil.tolog("!!WARNING!!1999!! Failed during search for lost jobs: %s" % str(e))
     #     else:
     #         pUtil.tolog("Recovered/Updated %d lost job(s)" % (found_lost_jobs))
+    pUtil.chdir(tmpdir)
+
+def runJobRecovery(thisSite, _psport, extradir):
+    """
+    run the lost job recovery algorithm
+    """
+
+    tmpdir = os.getcwd()
+
+    # check queuedata for external recovery directory
+    recoveryDir = "" # an empty recoveryDir means that recovery should search local WN disk for lost jobs
+    try:
+        recoveryDir = pUtil.readpar('recoverdir')
+    except:
+        pass
+    else:
+        # make sure the recovery directory actually exists (will not be added to dir list if empty)
+        recoveryDir = pUtil.verifyRecoveryDir(recoveryDir)
+
+    # run job recovery
+    dirs = [ "" ]
+    if recoveryDir != "":
+        dirs.append(recoveryDir)
+        pUtil.tolog("Job recovery will scan both local disk and external disk")
+    if extradir != "":
+        if extradir not in dirs:
+            dirs.append(extradir)
+            pUtil.tolog("Job recovery will also scan extradir (%s)" % (extradir))
+
+    dircounter = 0
+    for _dir in dirs:
+        dircounter += 1
+        pUtil.tolog("Scanning for lost jobs [pass %d/%d]" % (dircounter, len(dirs)))
+    
+        try:
+            lostPandaIDs = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
+        except:
+            pUtil.tolog("!!WARNING!!1999!! Failed during search for lost HPCEvent jobs: %s" % str(e))
+        else:
+            pUtil.tolog("Recovered/Updated lost HPCEvent jobs(%s)" % (lostPandaIDs))
+    
+        try:
+            found_lost_jobs = RecoverLostJobs(_dir, thisSite, _psport)
+        except Exception, e:
+            pUtil.tolog("!!WARNING!!1999!! Failed during search for lost jobs: %s" % str(e))
+        else:
+            pUtil.tolog("Recovered/Updated %d lost job(s)" % (found_lost_jobs))
     pUtil.chdir(tmpdir)
 
 def testExternalDir(recoveryDir):

@@ -183,6 +183,9 @@ Objectstore updates
     - Sending queuename to getQueuedataFileName() from getObjectstoresList(), getNewQueuedata(), getField(), readpar() (SiteInformation)
     - Sending queuename to getField() from getObjectstoresList(), getNewQueuedata() (SiteInformation)
     - Added queuename parameter to readpar() and sending it forward to si.readpar() (pUtil)
+    - Sending queuename to getObjectstoresField() from getObjectstorePath() (SiteInformation)
+    - Added queuename argument to getObjectstoreName() (SiteInformation)
+    - Sending queuename to getObjectstoresField() from getObjectstoreName() (SiteInformation)
   General changes
     - Minor cleanup; removed usage of alt, prodSourceLabel, testLevel, analysisJob, extradirs, proxyCheck in put_data(), removed proxyCheck in get_data() (S3ObjectstoreSiteMover)
     - Removed unnecessary cleanupOS() and shouldCleanupOS() (RunJob)
