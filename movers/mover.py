@@ -197,20 +197,19 @@ class JobMover(object):
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
 
-        self.log("stagein: protocols=%s" % protocols)
+        self.log("stage-in: protocols=%s" % protocols)
 
         if not protocols:
             raise PilotException("Failed to get files: no protocols defined for input. check aprotocols schedconfig settings for activity=%s, " % activity, code=PilotErrors.ERR_NOSTORAGE)
 
         files = self.job.inData
 
-        self.resolve_replicas(files, protocols)
+        self.resolve_replicas(files, protocols) # populates also self.ddmconf=self.si.resolveDDMConf([])
 
         maxinputsize = self.getMaxInputSize()
         totalsize = reduce(lambda x, y: x + y.filesize, files, 0)
 
-        transferred_files = []
-        failed_transfers = []
+        transferred_files, failed_transfers = [], []
 
         self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
 
@@ -222,6 +221,7 @@ class JobMover(object):
                 sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
                 sitemover.trace_report = self.trace_report
                 sitemover.protocol = dat # ##
+                sitemover.ddmconf = self.ddmconf # self.si.resolveDDMConf([]) # quick workaround  ###
                 sitemover.setup()
             except Exception, e:
                 self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
@@ -261,7 +261,19 @@ class JobMover(object):
                     fdata.ddmendpoint = r['ddmendpoint']
 
                 self.log("[stage-in] found replica to be used: ddmendpoint=%s, pfn=%s" % (fdata.ddmendpoint, fdata.turl))
+
+                # check if protocol and found replica belong to same site
+                #
+                protocol_site = self.ddmconf.get(dat.get('ddm'), {}).get('site')
+                replica_site = self.ddmconf.get(fdata.ddmendpoint, {}).get('site')
+
+                if protocol_site != replica_site:
+                    self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
+                    continue
+
+                # check direct access
                 self.log("fdata.is_directaccess()=%s, job.accessmode=%s, mover.is_directaccess()=%s" % (fdata.is_directaccess(), self.job.accessmode, self.is_directaccess()))
+
                 is_directaccess = self.is_directaccess()
                 if self.job.accessmode == 'copy':
                     is_directaccess = False
@@ -272,6 +284,22 @@ class JobMover(object):
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
 
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
+                    continue
+
+                # apply site-mover custom job-specific checks for stage-in
+                try:
+                    is_stagein_allowed = sitemover.is_stagein_allowed(fdata, self.job)
+                    if not is_stagein_allowed:
+                        reason = 'SiteMover does not allowed stage-in operation for the job'
+                except PilotException, e:
+                    is_stagein_allowed = False
+                    reason = e
+                except Exception:
+                    raise
+                if not is_stagein_allowed:
+                    self.log("WARNING: sitemover=%s does not allow stage-in transfer for this job, lfn=%s with reason=%s.. skip transfer the file" % (sitemover.getID(), fdata.lfn, reason))
+                    failed_transfers.append(reason)
+
                     continue
 
                 self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
@@ -414,7 +442,7 @@ class JobMover(object):
                 if surl_prot:
                     surl_protocols.setdefault(fspec.ddmendpoint, surl_prot[0])
                 else:
-                    no_surl_ddms.add(fspec.ddmednpoint)
+                    no_surl_ddms.add(fspec.ddmendpoint)
 
         if no_surl_ddms: # failed to resolve SURLs
             self.log('FAILED to resolve default SURL path for ddmendpoints=%s' % list(no_surl_ddms))
@@ -431,6 +459,7 @@ class JobMover(object):
                     sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
                     sitemover.trace_report = self.trace_report
                     sitemover.protocol = dat # ##
+                    sitemover.ddmconf = self.ddmconf # quick workaround  ###
                     sitemover.setup()
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
@@ -532,7 +561,7 @@ class JobMover(object):
         return transferred_files, failed_transfers
 
 
-    def put_outfiles(self, files):
+    def put_outfiles(self, files): # old function : TO BE DEPRECATED ...
         """
         Copy output files to dest SE
         :files: list of files to be moved
@@ -548,7 +577,7 @@ class JobMover(object):
         return self.put_files(ddms, activity, files)
 
 
-    def put_logfiles(self, files):
+    def put_logfiles(self, files): # old function : TO BE DEPRECATED ...
         """
         Copy log files to dest SE
         :files: list of files to be moved
@@ -563,7 +592,7 @@ class JobMover(object):
         return self.put_files(ddms, activity, files)
 
 
-    def put_files(self, ddmendpoints, activity, files):
+    def put_files(self, ddmendpoints, activity, files): # old function : TO BE DEPRECATED ...
         """
         Copy files to dest SE:
            main control function, it should care about alternative stageout and retry-policy for diffrent ddmenndpoints
@@ -634,7 +663,7 @@ class JobMover(object):
         return output
 
 
-    def do_put_files(self, ddmendpoint, protocols, files):
+    def do_put_files(self, ddmendpoint, protocols, files): # old function : TO BE DEPRECATED ...
         """
         Copy files to dest SE
         :ddmendpoint: DDMEndpoint name used to store files
@@ -642,8 +671,8 @@ class JobMover(object):
         :raise: PilotException in case of error
         """
 
-        self.log('Prepare to copy files=%s to ddmendpoint=%s using protocols data=%s' % (files, ddmendpoint, protocols))
-        self.log("Number of stage-out tries: %s" % self.stageoutretry)
+        self.log('[deprecated do_put_files()]Prepare to copy files=%s to ddmendpoint=%s using protocols data=%s' % (files, ddmendpoint, protocols))
+        self.log("[deprecated do_put_files()]Number of stage-out tries: %s" % self.stageoutretry)
 
         # get SURL for Panda calback registration
         # resolve from special protocol activity=SE # fix me later to proper name of activitiy=SURL (panda SURL, at the moment only 2-letter name is allowed on AGIS side)
@@ -655,8 +684,7 @@ class JobMover(object):
             return [], []
 
         surl_prot = surl_prot[0] # take first
-        self.log("SURL protocol to be used: %s" % surl_prot)
-
+        self.log("[do_put_files] SURL protocol to be used: %s" % surl_prot)
 
         self.trace_report.update(localSite=ddmendpoint, remoteSite=ddmendpoint)
 
@@ -667,21 +695,23 @@ class JobMover(object):
             copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
             try:
-                sitemover = getSiteMover(copytool)(copysetup)
+                sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
+                sitemover.trace_report = self.trace_report
+                sitemover.protocol = dat # ##
+                sitemover.ddmconf = self.ddmconf # quick workaround  ###
                 sitemover.setup()
             except Exception, e:
-                self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
+                self.log('[do_put_files] WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
                 continue
 
-            self.log("Copy command: %s, sitemover=%s" % (copytool, sitemover))
-            self.log("Copy setup: %s" % copysetup)
+            self.log("[do_put_files] Copy command: %s, sitemover=%s" % (copytool, sitemover))
+            self.log("[do_put_files] Copy setup: %s" % copysetup)
 
             self.trace_report.update(protocol=copytool)
-            sitemover.trace_report = self.trace_report
 
             se, se_path = dat.get('se', ''), dat.get('path', '')
 
-            self.log("Found N=%s files to be transferred: %s" % (len(files), [e.get('pfn') for e in files]))
+            self.log("[do_put_files] Found N=%s files to be transferred: %s" % (len(files), [e.get('pfn') for e in files]))
 
             for fdata in files:
                 scope, lfn, pfn = fdata.get('scope', ''), fdata.get('lfn'), fdata.get('pfn')
@@ -693,9 +723,9 @@ class JobMover(object):
                 self.trace_report.update(scope=scope, dataset=fdata.get('dsname_report'), url=surl)
                 self.trace_report.update(catStart=time.time(), filename=lfn, guid=guid.replace('-', ''))
 
-                self.log("Preparing copy for pfn=%s to ddmendpoint=%s using copytool=%s: mover=%s" % (pfn, ddmendpoint, copytool, sitemover))
-                self.log("lfn=%s: SURL=%s" % (lfn, surl))
-                self.log("TURL=%s" % turl)
+                self.log("[do_put_files] Preparing copy for pfn=%s to ddmendpoint=%s using copytool=%s: mover=%s" % (pfn, ddmendpoint, copytool, sitemover))
+                self.log("[do_put_files] lfn=%s: SURL=%s" % (lfn, surl))
+                self.log("[do_put_files] TURL=%s" % turl)
 
                 if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
                     error = "Erron: input pfn file is not exist: %s" % pfn
@@ -715,17 +745,23 @@ class JobMover(object):
                         self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (self.stageout_sleeptime, filename))
                         time.sleep(self.stageout_sleeptime)
 
-                    self.log("Put attempt %d/%d for filename=%s" % (_attempt, self.stageoutretry, filename))
+                    self.log("[do_put_files] Put attempt %d/%d for filename=%s" % (_attempt, self.stageoutretry, filename))
 
                     try:
-                        result = sitemover.stageOut(pfn, turl, None)
+                        # quick work around
+                        from Job import FileSpec
+                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint)
+                        result = sitemover.stageOut(pfn, turl, stub_fspec)
                         break # transferred successfully
                     except PilotException, e:
                         result = e
+                        self.log(traceback.format_exc())
+
                     except Exception, e:
+                        self.log(traceback.format_exc())
                         result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED)
 
-                    self.log('WARNING: Error in copying file (attempt %s): %s' % (_attempt, result))
+                    self.log('WARNING [do_put_files]: Error in copying file (attempt %s): %s' % (_attempt, result))
 
                 if not isinstance(result, Exception): # transferred successfully
 

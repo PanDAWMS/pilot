@@ -33,6 +33,8 @@ class BaseSiteMover(object):
     checksum_type = "adler32"     # algorithm name of checksum calculation
     checksum_command = "adler32"  # command to be executed to get checksum, e.g. md5sum (adler32 is internal default implementation)
 
+    ddmconf = {}                  # DDMEndpoints configuration from AGIS
+
     #has_mkdir = True
     #has_df = True
     #has_getsize = True
@@ -44,12 +46,14 @@ class BaseSiteMover(object):
 
         self.copysetup = setup_path
         self.timeout = kwargs.get('timeout', self.timeout)
+        self.ddmconf = kwargs.get('ddmconf', self.ddmconf)
         self.workDir = kwargs.get('workDir', '')
 
         #self.setup_command = self.getSetup()
 
         self.trace_report = {}
 
+    @classmethod
     def log(self, value): # quick stub
         #print value
         tolog(value)
@@ -61,10 +65,9 @@ class BaseSiteMover(object):
     @copysetup.setter
     def copysetup(self, value):
         value = os.path.expandvars(value.strip())
-        if not os.access(value, os.R_OK):
+        if value and not os.access(value, os.R_OK):
             self.log("WARNING: copysetup=%s is invalid: file is not readdable" % value)
-            raise Exception("Failed to set copysetup: passed invalid file name=%s" % value)
-            # PilotErrors.ERR_NOSUCHFILE, state="RFCP_FAIL"
+            raise PilotException("Failed to set copysetup: passed invalid file name=%s" % value, code=PilotErrors.ERR_NOSUCHFILE, state="RFCP_FAIL")
         self._setup = value
 
     @classmethod
@@ -123,7 +126,8 @@ class BaseSiteMover(object):
             return full setup command to be executed
             Can be customized by different site mover
         """
-
+        if not self.copysetup:
+            return ''
         return 'source %s' % self.copysetup
 
     def setup(self):
@@ -242,6 +246,16 @@ class BaseSiteMover(object):
 
         return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
 
+    def is_stagein_allowed(self, fspec, job):
+        """
+            check if stage-in operation is allowed for the mover
+            apply additional job specific checks here if need
+            Should be overwritten by custom sitemover
+            :return: True in case stage-in transfer is allowed
+            :raise: PilotException in case of controlled error
+        """
+
+        return True
 
     def get_data(self, fspec):
         """
@@ -386,7 +400,7 @@ class BaseSiteMover(object):
 
         # do stageOutFile
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
-        dst_checksum, dst_checksum_type = self.stageOutFile(source, destination)
+        dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
 
         # verify stageout by checksum
         self.trace_report.update(validateStart=time.time())
@@ -395,7 +409,9 @@ class BaseSiteMover(object):
             if not dst_checksum:
                 dst_checksum, dst_checksum_type = self.getRemoteFileChecksum(destination)
         except Exception, e:
-            self.log("verify StageOut: caught exception while getting remote file checksum: %s .. skipped" % e)
+            self.log("verify StageOut: caught exception while getting remote file checksum.. skipped, error=%s" % e)
+            import traceback
+            self.log(traceback.format_exc())
 
         try:
             if dst_checksum and dst_checksum_type: # verify against source
@@ -454,7 +470,7 @@ class BaseSiteMover(object):
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
-    def stageOutFile(source, destination):
+    def stageOutFile(source, destination, fspec):
         """
             Stage out the file.
             Should be implemented by different site mover
@@ -568,7 +584,27 @@ class BaseSiteMover(object):
         c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
         output = c.communicate()[0]
         if c.returncode:
-            self.log('FAILED to calc_md5_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (flename, cmd, c.returncode, output))
+            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (flename, cmd, c.returncode, output))
             raise Exception(output)
 
         return output.split()[0] # return final checksum
+
+    @classmethod
+    def removeLocal(self, filename):
+        """
+            Remove the local file in case of failure to prevent problem with get retry attempt
+        :return: True in case of physical file removal
+        """
+
+        if not os.path.exists(filename): # nothing to remove
+            return False
+
+        try:
+            os.remove(filename)
+            self.log("Successfully removed local file=%s" % filename)
+            is_removed = True
+        except Exception, e:
+            self.log("Could not remove the local file=%s .. skipped, error=%s" % (filename, e))
+            is_removed = False
+
+        return is_removed
