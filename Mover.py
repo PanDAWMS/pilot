@@ -2865,7 +2865,7 @@ def mover_get_data(lfns,
             if os_bucket_id != -1:
                 # Get the site information object
                 si = getSiteInformation(experiment)
-                dummy, dummy = si.getObjectstorePath(mode, os_bucket_id=os_bucket_id, queuename=queuename)
+                dummy, dummy = si.getObjectstorePath("eventservice", os_bucket_id=os_bucket_id, queuename=queuename)
                 tolog("Queuedata should now be updated for an OS transfer")
 
             # Has the copycmd/copytool changed? (E.g. due to FAX) If so, update the sitemover object
@@ -4088,16 +4088,7 @@ def mover_put_data(outputpoolfcstring,
 
             # perform the normal stage-out, unless we want to force alternative stage-out
             if not si.forceAlternativeStageOut(flag=analysisJob):
-                if _attempt == 1 and objectstore: # and False:
-                    tolog("Faking a transfer error")
-                    s = 1
-                    pilotErrorDiag = "Faking a transfer error"
-                    r_gpfn = "bad"
-                    r_fsize = ""
-                    r_fchecksum = ""
-                    r_farch = ""
-                else:
-                    s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage_path, dsname,\
+                s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage_path, dsname,\
                                                                                                   sitename, analysisJob, testLevel, pinitdir, proxycheck,\
                                                                                                   _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                   prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
