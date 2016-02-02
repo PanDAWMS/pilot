@@ -186,6 +186,10 @@ Objectstore updates
     - Sending queuename to getObjectstoresField() from getObjectstorePath() (SiteInformation)
     - Added queuename argument to getObjectstoreName() (SiteInformation)
     - Sending queuename to getObjectstoresField() from getObjectstoreName() (SiteInformation)
+    - Added os_bucket_id to fileInfoDic in getFileInfo() (Mover)
+    - Extracting os_bucket_id in extractInputFileInfo() (Mover)
+    - Receiving os_bucket_id in _mover_get_data_new(), mover_get_data() from extractInputFileInfo() (Mover)
+    - Now using getObjectstorePath() in mover_get_data() to trigger a proper queuedata JSON download/copy (Mover)
   General changes
     - Minor cleanup; removed usage of alt, prodSourceLabel, testLevel, analysisJob, extradirs, proxyCheck in put_data(), removed proxyCheck in get_data() (S3ObjectstoreSiteMover)
     - Removed unnecessary cleanupOS() and shouldCleanupOS() (RunJob)

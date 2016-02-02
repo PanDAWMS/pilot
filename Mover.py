@@ -882,7 +882,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
                 scope_dict, prodDBlockToken, computingSite="", sourceSite="", pfc_name="PoolFileCatalog.xml", filesizeIn=[], checksumIn=[], thisExperiment=None, ddmEndPointIn=None):
     """ Build the file info dictionary """
 
-    fileInfoDic = {} # FORMAT: fileInfoDic[file_nr] = (guid, pfn, size, checksum, filetype, copytool) - note: copytool not necessarily the same for all file (e.g. FAX case)
+    fileInfoDic = {} # FORMAT: fileInfoDic[file_nr] = (guid, pfn, size, checksum, filetype, copytool, os_bucket_id) - note: copytool not necessarily the same for all file (e.g. FAX case)
     replicas_dic = {} # FORMAT: { guid1: [replica1, .. ], .. } where replica1 is of type replica
     surl_filetype_dictionary = {} # FORMAT: { sfn1: filetype1, .. } (sfn = surl, filetype = DISK/TAPE)
     copytool_dictionary = {} # FORMAT: { surl1: copytool1, .. }
@@ -901,7 +901,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
     if "objectstore" in copytool:
         tolog("Objectstore stage-in: cutting a few corners")
 
-        # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype, copytool)
+        # Format: fileInfoDic[file_nr] = (guid, gpfn, size, checksum, filetype, copytool, os_bucket_id)
         #         replicas_dic[guid1] = [replica1, ..]
 
         # Convert the OS bucket ID:s to integers
@@ -918,7 +918,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
                     path, os_bucket_id = si.getObjectstorePath("eventservice", os_bucket_id=os_bucket_ids[i])
                     fullpath = os.path.join(path, lfns[i])
                     tolog("ES path = %s" % (fullpath))
-                fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i], 'DISK', copytool) # filetype is always DISK on objectstores
+                fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i], 'DISK', copytool, os_bucket_id) # filetype is always DISK on objectstores
                 replicas_dic[guids[i]] = [fullpath]
                 surl_filetype_dictionary[fullpath] = 'DISK' # filetype is always DISK on objectstores
                 i += 1
@@ -953,7 +953,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
                 return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source
 
             # Fill the dictionaries
-            fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum, 'DISK', copytool) # no tape on T3s, so filetype is always DISK
+            fileInfoDic[file_nr] = (guids[file_nr], se_path, fsize, fchecksum, 'DISK', copytool, -1) # no tape on T3s, so filetype is always DISK; set os_bucketId=-1 for non-OS files
             surl_filetype_dictionary[fullpath] = 'DISK' # filetype is always DISK on T3s
 
             # Check total file sizes to avoid filling up the working dir, add current file size
@@ -1027,7 +1027,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             _copytool = extractCopytoolForPFN(gpfn, copytool_dictionary)
 
             # Store in the file info dictionary
-            fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, _copytool)
+            fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, _copytool, -1) # set os_bucketId=-1 for non-OS files 
 
             # Check total file sizes to avoid filling up the working dir, add current file size
             try:
@@ -2225,7 +2225,8 @@ def extractInputFileInfo(fileInfoList_nr, lfns):
     checksum = fileInfoList_nr[3]
     filetype = fileInfoList_nr[4]
     copytool = fileInfoList_nr[5]
-    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool) = (%s, %s, %s, %s, %s, %s)" % (guid, gpfn, str(size), checksum, filetype, copytool))
+    os_bucket_id = fileInfoList_nr[6]
+    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool, os_bucket_id) = (%s, %s, %s, %s, %s, %s, %d)" % (guid, gpfn, str(size), checksum, filetype, copytool, os_bucket_id))
 
     # get the corresponding lfn
     lfn = getLFN(gpfn, lfns)
@@ -2235,7 +2236,7 @@ def extractInputFileInfo(fileInfoList_nr, lfns):
     if size == "":
         size = 0
 
-    return guid, gpfn, lfn, size, checksum, filetype, copytool
+    return guid, gpfn, lfn, size, checksum, filetype, copytool, os_bucket_id
 
 def getAlternativeReplica(gpfn, guid, replica_number, createdPFCTURL, replica_dictionary):
     """ Grab the gpfn from the replicas dictionary in case alternative replica stage-in is allowed """
@@ -2434,7 +2435,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
     for nr in range(number_of_files):
 
         # Extract the file info from the dictionary
-        guid, gpfn, lfn, fsize, fchecksum, filetype, copytool = extractInputFileInfo(fileInfoDic[nr], lfns)
+        guid, gpfn, lfn, fsize, fchecksum, filetype, copytool, os_bucket_id = extractInputFileInfo(fileInfoDic[nr], lfns)
 
         # Has the copycmd/copytool changed? (E.g. due to FAX) If so, update the sitemover object
         if copytool != copycmd:
@@ -2827,7 +2828,7 @@ def mover_get_data(lfns,
         tolog("All files will be transferred at once")
 
         # Extract the file info for the first file in the dictionary
-        guid, gpfn, lfn, fsize, fchecksum, filetype, copytool = extractInputFileInfo(fileInfoDic[0], lfns)
+        guid, gpfn, lfn, fsize, fchecksum, filetype, copytool, os_bucket_id = extractInputFileInfo(fileInfoDic[0], lfns)
         file_access = getFileAccess(access_dict, lfn)
         dsname = getDataset(lfn, dsdict)
 
@@ -2855,7 +2856,17 @@ def mover_get_data(lfns,
         tolog("Will process %d file(s)" % (number_of_files))
         for nr in range(number_of_files):
             # Extract the file info from the dictionary
-            guid, gpfn, lfn, fsize, fchecksum, filetype, copytool = extractInputFileInfo(fileInfoDic[nr], lfns)
+            guid, gpfn, lfn, fsize, fchecksum, filetype, copytool, os_bucket_id = extractInputFileInfo(fileInfoDic[nr], lfns)
+
+            # If os_bucket_id != -1 we are staging in a file from an OS. This means that we also have to make sure we have the proper
+            # OS info in the queuedata JSON since files can potentially be spread to different buckets and objectstores
+            # Calling si.getObjectstorePath() will trigger a fresh download/copy of the proper queuedata for the corresponding OS
+            # (there is no need to use the returned variables)
+            if os_bucket_id != -1:
+                # Get the site information object
+                si = getSiteInformation(experiment)
+                dummy, dummy = si.getObjectstorePath(mode, os_bucket_id=os_bucket_id, queuename=queuename)
+                tolog("Queuedata should now be updated for an OS transfer")
 
             # Has the copycmd/copytool changed? (E.g. due to FAX) If so, update the sitemover object
             if copytool != copycmd:
@@ -4077,7 +4088,7 @@ def mover_put_data(outputpoolfcstring,
 
             # perform the normal stage-out, unless we want to force alternative stage-out
             if not si.forceAlternativeStageOut(flag=analysisJob):
-                if _attempt == 1 and objectstore:
+                if _attempt == 1 and objectstore: # and False:
                     tolog("Faking a transfer error")
                     s = 1
                     pilotErrorDiag = "Faking a transfer error"
