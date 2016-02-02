@@ -304,13 +304,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             self.log("Failed to get local file(%s) info." % destination)
             return status, output, None, None
 
-        self.log("source %s" % (source))
-        self.log("destination %s" % (destination))
-        self.log("localSize %s" % (localSize))
-        self.log("localChecksum %s" % (localChecksum))
-        self.log("token %s" % (token))
-        self.log("outputDir %s" % (outputDir))
-        self.log("timeout %s" % (timeout))
         status, output = self.stageOutFile(source, destination, localSize, localChecksum, token, outputDir=outputDir, timeout=timeout)
         self.log("stageOutFile status: %s, output: %s" % (status, output))
         if status:
@@ -497,15 +490,12 @@ class S3ObjctStore(object):
 
     def s3StageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
         try:
-            tolog("Getting key")
             key = self.get_key(destination, create=True)
             if key is None:
                 return -1, "Failed to create S3 key on destionation(%s)" % destination
-#            tolog("Got key %s" % str(key))
             key.set_metadata("md5", sourceChecksum)
-            tolog("Set md5 %s" % (sourceChecksum))
             size = key.set_contents_from_filename(source)
-            tolog("Set contents %s" % (source))
+
             # if key.md5 != key.etag.strip('"').strip("'"):
             #     return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
             if sourceSize and str(sourceSize) != str(key.size):

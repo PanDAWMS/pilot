@@ -248,6 +248,7 @@ Code cleanup: (apart from Mario's cleanup)
 - Removed usages of rsespace variable in monitor_job() and monitor_recovery_job() (Monitor)
 - Removed rsespace and rsespmsg from setSiteInfo() (Site)
 - Removed usages of rsespace and rsespmsg, and sending remainingSpace and messageLevel to server from getNodeStructure() (PandaServerClient)
+- Code cleanup in various pilot modules
 
 Update from Danila Oleynik, Taylor Childers:
 - New modules: ArgoJob, RunJobArgo, BalsamJob, MessageInterface
@@ -268,9 +269,6 @@ Update from Wen Guan:
 - Add Signal_block module in Yoda to make Yoda soft termination
 - Update monitor module to monitor multi-jobs, terminate multi-jobs, handle multi-jobs logs and recover HPC jobs
 - Restored is_secure variable which got lost in the merging process (S3ObjectstoreSiteMover)
-
-Update from Mario Lassnig Mario Lassnig:
-- Code cleanup in various pilot modules
 
 Update from Alexey Anisenkon:
 - Job stage-in base workflow implemented:
