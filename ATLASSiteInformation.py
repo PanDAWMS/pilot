@@ -7,8 +7,10 @@
 
 # import relevant python/pilot modules
 import os
+import ssl
 import sys, httplib, cgi, urllib
 import commands
+import requests
 import SiteMover
 from SiteInformation import SiteInformation  # Main site information class
 from pUtil import tolog                      # Logging method that sends text to the pilot log
@@ -794,19 +796,28 @@ class ATLASSiteInformation(SiteInformation):
                 host = 'pandaserver.cern.ch:25443'
                 path = '/server/panda/getKeyPair'
 
-                conn = httplib.HTTPSConnection(host, key_file=sslKey, cert_file=sslCert, timeout=120)
-                conn.request('POST', path, urllib.urlencode(node))
+                tolog("Cert file %s" % sslCert)
 
-                resp = conn.getresponse()
-                data = resp.read()
-                conn.close()
-                dic = cgi.parse_qs(data)
-                if dic["StatusCode"][0] == "0":
-                    self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
-                    return self.__securityKeys[keyName]
-                else:
-                   tolog("!!WARNING!!4444!! Failed to get key from PanDA server:")
-                   tolog("data = %s" % str(data))
+                # conn = httplib.HTTPSConnection(host, key_file=sslKey, cert_file=sslCert, timeout=120)
+                # conn.request('POST', path, urllib.urlencode(node))
+
+                # resp = conn.getresponse()
+                # data = resp.read()
+                # conn.close()
+                r = requests.post('https://%s%s' % (host, path),
+                                  verify=False,
+                                  cert=(sslCert, sslKey),
+                                  data=urllib.urlencode(node),
+                                  timeout=120)
+                if r and r.status_code == 200:
+                    dic = cgi.parse_qs(r.text)
+                    if dic["StatusCode"][0] == "0":
+                        self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
+                        return self.__securityKeys[keyName]
+
+                tolog("!!WARNING!!4444!! Failed to get key from PanDA server:")
+                tolog("data = %s" % r.text if r else r)
+
             except:
                 _type, value, traceBack = sys.exc_info()
                 tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))

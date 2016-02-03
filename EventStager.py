@@ -14,6 +14,7 @@ import pUtil
 from ThreadPool import ThreadPool
 from TimerCommand import TimerCommand
 from objectstoreSiteMover import objectstoreSiteMover
+from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
 from Mover import getInitialTracingReport
 
 logging.basicConfig(stream=sys.stdout,
@@ -29,7 +30,7 @@ class EventStager(object):
             os.makedirs(self.__updateEventRangesDir)
         self.__logFile = os.path.join(workDir, 'EventStager.log')
         self.__setup = setup
-        self.__siteMover = objectstoreSiteMover(setup, useTimerCommand=False)
+        self.__siteMover = S3ObjectstoreSiteMover(setup, useTimerCommand=False)
         self.__esPath = esPath
         self.__token = token
         self.__experiment = experiment
@@ -65,6 +66,8 @@ class EventStager(object):
 
         self.__process = process
         self.__totalProcess = totalProcess
+
+        self.__siteMover.setup(experiment)
 
         self.__threadpool = ThreadPool(self.__threads)
         logging.info("Init EventStager workDir %s setup %s esPath %s token %s experiment %s userid %s sitename %s threads %s outputDir %s isDaemond %s" % (self.__workDir, self.__setup, self.__esPath, self.__token, self.__experiment, self.__userid, self.__sitename, self.__threads, self.__outputDir, self.__isDaemon))
@@ -165,7 +168,7 @@ class EventStager(object):
                         del self.__eventRanges[filename][eventRangeID]
                         return
 
-                ret_status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(output, self.__esPath, lfn=os.path.basename(output), report=self.__report, token=self.__token, experiment=self.__experiment)
+                ret_status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(output, os.path.join(self.__esPath, os.path.basename(output)), lfn=os.path.basename(output), report=self.__report, token=self.__token, experiment=self.__experiment)
                 if ret_status == 0:
                     try:
                         self.__eventRanges_staged[filename].append((jobId, eventRangeID, status, output))
@@ -443,7 +446,7 @@ class EventStager(object):
             handle.close()
             source, destination = cmd.split(" ")
             logging.info("S3 stage out from %s to %s" % (source, destination))
-            ret_status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(source, os.path.dirname(destination), lfn=os.path.basename(destination), report=self.__report, token=self.__token, experiment=self.__experiment, timeout=300)
+            ret_status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(source, destination, lfn=os.path.basename(destination), report=self.__report, token=self.__token, experiment=self.__experiment, timeout=300)
             logging.info("Status %s output %s" % (ret_status, pilotErrorDiag))
             if ret_status == 0:
                 os.rename(s3File + "copying", s3File + "finished")

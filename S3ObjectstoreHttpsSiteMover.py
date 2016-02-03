@@ -78,7 +78,7 @@ class S3ObjectstoreHttpsSiteMover(SiteMover.SiteMover):
     def __init__(self, setup_path, useTimerCommand=True, *args, **kwrds):
         self.setup_path = setup_path
         self.os_name = None
-        self.os_bucket_name = None
+        self.os_bucket_endpoint = None
         self.public_key = None
         self.private_key = None
         self.pandaProxy = 'http://aipanda084.cern.ch:25064/proxy/panda'
@@ -104,10 +104,10 @@ class S3ObjectstoreHttpsSiteMover(SiteMover.SiteMover):
 
         si = getSiteInformation(experiment)
         self.os_name = si.getObjectstoresField("os_name", "eventservice")
-        self.os_bucket_name = si.getObjectstoresField("os_bucket_endpoint", "eventservice")
+        self.os_bucket_endpoint = si.getObjectstoresField("os_bucket_endpoint", "eventservice")
         self.public_key = si.getObjectstoresField("os_access_key", "eventservice")
         self.private_key = si.getObjectstoresField("os_secret_key", "eventservice")
-        if not (self.os_name and self.os_name != "" and self.os_bucket_name and self.os_bucket_name != ""):
+        if not (self.os_name and self.os_name != "" and self.os_bucket_endpoint and self.os_bucket_endpoint != ""):
             tolog("Failed to get S3 objectstore name")
             return PilotErrors.ERR_GETKEYPAIR, "Failed to get S3 objectstore name"
 
@@ -123,7 +123,7 @@ class S3ObjectstoreHttpsSiteMover(SiteMover.SiteMover):
                     'secretKey': pandaProxySecretKey,
                     'publicKey': 'publicKey:%s' % self.public_key,
                     'privateKey': 'privateKey:%s' % self.private_key,
-                    'url':'http://cephgw.usatlas.bnl.gov:8443/%s/%s/%s' % (self.os_bucket_name, jobSetID, filename)}
+                    'url':'http://cephgw.usatlas.bnl.gov:8443/%s/%s/%s' % (self.os_bucket_endpoint, jobSetID, filename)}
 
             if stageIn:
                 data['method'] = 'GET'
@@ -148,7 +148,7 @@ class S3ObjectstoreHttpsSiteMover(SiteMover.SiteMover):
                     'secretKey': pandaProxySecretKey,
                     'publicKey': 'publicKey:%s' % self.public_key,
                     'privateKey': 'privateKey:%s' % self.private_key,
-                    'url':'http://cephgw.usatlas.bnl.gov:8443/%s/%s/%s' % (self.os_bucket_name, jobSetID, filename)}
+                    'url':'http://cephgw.usatlas.bnl.gov:8443/%s/%s/%s' % (self.os_bucket_endpoint, jobSetID, filename)}
 
             res = requests.post(self.pandaProxy+'/getFileInfo',data=data)
             if res.status_code == 200:

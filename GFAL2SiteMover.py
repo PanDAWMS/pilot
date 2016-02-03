@@ -226,6 +226,10 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
                 # add port number from se to getfile if necessary
                 path = self.addPortToPath(se, path)
+
+        siteInformation = SiteInformation()
+        path = siteInformation.getCopyPrefixPath(path, stageIn=True)
+
         return path
 
     def getStageInMode(self, lfn, prodDBlockToken):

@@ -2,6 +2,7 @@ import os, re, sys
 import commands
 from time import time, sleep
 import urlparse
+import traceback
 
 from TimerCommand import TimerCommand
 import SiteMover
@@ -71,8 +72,8 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":
             keyPair = si.getSecurityKey(os_secret_key, os_access_key)
         else:
-            tolog("Failed to get the keyPair for S3 objectstore")
-            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
+            tolog("Failed to get the keyPair name for S3 objectstore")
+            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair name for S3 objectstore"
 
         os_is_secure = si.getObjectstoresField("os_is_secure", "eventservice")
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure, self._useTimerCommand)
@@ -206,7 +207,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             try:
                 status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token, timeout=timeout)
             except:
-                tolog("Failed to stage out file: %s" % (sys.exc_info()[1]))
+                tolog("Failed to stage out file: %s" % (traceback.format_exc()))
                 return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
         return status, output
 
