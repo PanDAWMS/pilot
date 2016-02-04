@@ -10,7 +10,7 @@ Also I had too much time to spend it on writing all of these comments
 
 from glob import glob
 
-import os
+import os, sys
 import pUtil
 import time
 from JobState import JobState
@@ -24,6 +24,9 @@ import Job
 import Node
 import traceback
 import commands
+from Logger import Logger
+
+from pUtil import tologNew as log
 
 import environment
 environment.set_environment()
@@ -32,11 +35,79 @@ globalSite = None
 
 acceptedJobStatesFromFile = ['holding', 'lostheartbeat', 'failed']
 finalJobStates = ['transferring', 'failed', 'notfound', 'finished']
-pilotLogFileInNewWD="pilotlog.txt"
+pilotLogFileInNewWD = "pilotlog.txt"
 
 jobState_file_wildcart = "jobState-*"
 hpc_jobState_file_wildcart = "HPCManagerState.json"
 number_of_lost_heartbeats_for_pilot_to_be_dead = 20
+
+log_useful = False
+deferredStageoutLogFileTpl = "pilotlog-deferredstageout-{jobid}.txt"
+
+
+class LogWrapper(object):
+
+    def __init__(self, name):
+        self.__name = name
+        self.__old_name = ''
+        self.useful = False
+        self.same = False
+
+    def __enter__(self):
+        global log_useful
+        log("Staging up log file, new log file is %s" % self.__name)
+        self.__old_name = pUtil.getPilotlogFilename()
+
+        if not self.__name or self.__name == self.__old_name:
+            self.same = True
+        else:
+            self.__global_old = os.path.abspath(self.__old_name)
+            self.__global = os.path.abspath(self.__name)
+            pUtil.setPilotlogFilename(self.__global)
+
+            self.__old_useful = log_useful
+            log_useful = False
+
+        return self
+
+    def __exit__(self, *args):
+        global log_useful
+
+        log("Staging down log file")
+
+        if not self.same:
+            self.useful = self.useful and log_useful
+            log_useful = self.__old_useful
+
+            os.chdir(os.path.dirname(self.__global_old))
+            pUtil.setPilotlogFilename(self.__old_name)
+
+            if not self.useful:
+                os.remove(self.__global)
+
+
+class LockFileWrapper(object):
+
+    def __init__(self, file_path):
+        self.__name = os.path.join(os.path.dirname(file_path), "ATOMIC_LOCKFILE")
+
+    def __enter__(self):
+        # acquire the lock
+        self.__fd = os.open(self.__name, os.O_EXCL|os.O_CREAT)
+
+        return True
+
+    def __exit__(self, *args):
+        try:
+            os.close(self.__fd)
+            os.unlink(self.__name)
+        except Exception, e:
+            if "Bad file descriptor" in e:
+                log("Lock file already released")
+            else:
+                log("WARNING: Could not release lock file: %s" % (e))
+        else:
+            log("Released lock file: %s" % (self.__name))
 
 
 class ReturnCode:
@@ -74,7 +145,7 @@ def DeferredStageout(deferred_stageout_dirs, max_stageout_jobs=0,
 
     :return: (integer) number of staged out jobs
     """
-    pUtil.tolog("Starting deferred stageout procedure. This procedure will scan directories for any left job files"
+    log("Starting deferred stageout procedure. This procedure will scan directories for any left job files"
                 " and try to preform stageout for each file that haven't been sent.")
     stageout_jobs = 0
     d = dict(kwargs)
@@ -103,7 +174,7 @@ def DeferredStageoutLocal(**kwargs):
 
     :return: (integer) number of staged out jobs
     """
-    pUtil.tolog("Starting deferred stageout procedure. This procedure will scan current dir for any left job files"
+    log("Starting deferred stageout procedure. This procedure will scan current dir for any left job files"
                 " and try to preform stageout for each file that haven't been sent.")
 
     kwargs.setdefault('lockfile_name', "LOCKFILE")
@@ -131,7 +202,7 @@ def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0, remove_empty
 
     :return: (integer) number of staged out jobs
     """
-    pUtil.tolog("Scanning directory \"%s\" for deferred stageout jobs." % deferred_stageout_dir)
+    log("Scanning directory \"%s\" for deferred stageout jobs." % deferred_stageout_dir)
     stageout_jobs = 0
     d = dict(kwargs)
 
@@ -167,24 +238,21 @@ def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0, remove_empty
     # if not all dirs were processed, don't remove
     # remove only if there is no dir unprocessed
 
-    pUtil.tolog("Finished processing directory \"%s\"." % deferred_stageout_dir)
+    log("Finished processing directory \"%s\"." % deferred_stageout_dir)
 
     if remove_empty_dir:
-        pUtil.tolog("Directory \"%s\" is to be removed." % deferred_stageout_dir)
-        pUtil.tolog("Contents:")
+        log("Directory \"%s\" is to be removed." % deferred_stageout_dir)
+        log("Contents:")
         o, e = commands.getstatusoutput("ls -la "+deferred_stageout_dir)
-        pUtil.tolog("%s" % o)
+        log("%s" % o)
         dirs = filter(os.path.isdir, glob(deferred_stageout_dir + "/*"))
 
         if len(dirs) < 1:
-            pUtil.tolog("It is OK to remove it, proceeding." % deferred_stageout_dir)
+            log("It is OK to remove it, proceeding." % deferred_stageout_dir)
             o, e = commands.getstatusoutput("rm -rf "+deferred_stageout_dir)
         else:
-            pUtil.tolog("There are subdirs in this dir, can not remove.")
-            pUtil.tolog("Remaining subdirs: %s" % dirs)
-
-
-
+            log("There are subdirs in this dir, can not remove.")
+            log("Remaining subdirs: %s" % dirs)
 
     return stageout_jobs
 
@@ -200,65 +268,68 @@ def DeferredStageoutHPCJob(job_dir, **kwargs):
 
     :return: (bool) the fact of stageout being performed
     """
-    pUtil.tolog("Deferred stageout from HPC job directory \"%s\"" % job_dir)
+    log("Deferred stageout from HPC job directory \"%s\"" % job_dir)
 
     file_path = job_dir+"/"+hpc_jobState_file_wildcart
     current_dir = os.getcwd()
-    pUtil.tolog("Working on %s" % file_path)
-    pUtil.tolog("Chdir from current dir %s to %s" % (current_dir, job_dir))
+    log("Working on %s" % file_path)
+    log("Chdir from current dir %s to %s" % (current_dir, job_dir))
     pUtil.chdir(job_dir)
-    fd, lockfile_name = createAtomicLockFile(file_path)
-    if not fd:
-        return False
 
     try:
-        from json import load
-        with open(file_path) as data_file:
-            HPC_state = load(data_file)
-        job_state_file = HPC_state['JobStateFile']
-        job_command = HPC_state['JobCommand']
-        # global_work_dir = HPC_state['GlobalWorkingDir']
-        JS = JobState()
-        JS.get(job_state_file)
-        _job, _site, _node, _recoveryAttempt = JS.decode()
-        jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(_job.jobId, DorE(kwargs,'pshttpurl'),
-                                                                    DorE(kwargs,'psport'), DorE(kwargs,'pilot_initdir'))
-        # recover this job?
-        if jobStatusCode == 20:
-            pUtil.tolog("Received general error code from dispatcher call (leave job for later pilot)")
-            # release the atomic lockfile and go to the next directory
-            releaseAtomicLockFile(fd, lockfile_name)
-            return False
-        elif jobStatus in finalJobStates or "tobekilled" in _job.action:
-            pUtil.tolog("Job %s is currently in state \'%s\' with attemptNr = %d (according to server - will not"
-                        " perform staging out)" % (_job.jobId, jobStatus, jobAttemptNr))
-            releaseAtomicLockFile(fd, lockfile_name)
-            return False
+        with LockFileWrapper(file_path) as is_locked:
+            if not is_locked:
+                return False
 
-        # update job state file at this point to prevent a parallel pilot from doing a simultaneous recovery
-        _retjs = pUtil.updateJobState(_job, _site, _node, _recoveryAttempt)
-        releaseAtomicLockFile(fd, lockfile_name)
+            from json import load
+            with open(file_path) as data_file:
+                HPC_state = load(data_file)
+            job_state_file = HPC_state['JobStateFile']
+            job_command = HPC_state['JobCommand']
+            # global_work_dir = HPC_state['GlobalWorkingDir']
+            JS = JobState()
+            JS.get(job_state_file)
+            _job, _site, _node, _recoveryAttempt = JS.decode()
+
+            with LogWrapper(deferredStageoutLogFileTpl.format(jobid=_job.jobId)) as logger:
+                jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(_job.jobId, DorE(kwargs,'pshttpurl'),
+                                                                            DorE(kwargs,'psport'),
+                                                                            DorE(kwargs,'pilot_initdir'))
+                # recover this job?
+                if jobStatusCode == 20:
+                    log("Received general error code from dispatcher call (leave job for later pilot)")
+                    # release the atomic lockfile and go to the next directory
+                    # releaseAtomicLockFile(fd, lockfile_name)
+                    return False
+                elif jobStatus in finalJobStates or "tobekilled" in _job.action:
+                    log("Job %s is currently in state \'%s\' with attemptNr = %d (according to server - will not"
+                                " perform staging out)" % (_job.jobId, jobStatus, jobAttemptNr))
+                    # releaseAtomicLockFile(fd, lockfile_name)
+                    return False
+
+                # update job state file at this point to prevent a parallel pilot from doing a simultaneous recovery
+                _retjs = pUtil.updateJobState(_job, _site, _node, _recoveryAttempt)
+                # releaseAtomicLockFile(fd, lockfile_name)
 
         monitor = Monitor(env)
         monitor.monitor_recovery_job(_job, _site, _node, job_command, job_state_file, recover_dir=job_dir)
 
-        pUtil.tolog("Chdir back to %s" % current_dir)
+        log("Chdir back to %s" % current_dir)
         pUtil.chdir(current_dir)
 
         panda_jobs = glob(job_dir + "/PandaJob_*_*")
         panda_logs = glob(job_dir + "/*.log.tgz.*")
         if panda_jobs or panda_logs:
-            pUtil.tolog("Number of founded panda jobs: %d, number of panda log tar file %d, will not remove job dir"
+            log("Number of founded panda jobs: %d, number of panda log tar file %d, will not remove job dir"
                         % (len(panda_jobs), len(panda_logs)))
         else:
-            pUtil.tolog("Number of founded panda jobs: %d, number of panda log tar file %d, will remove job dir"
+            log("Number of founded panda jobs: %d, number of panda log tar file %d, will remove job dir"
                         % (len(panda_jobs), len(panda_logs)))
-            pUtil.tolog("Remove job dir %s" % job_dir)
+            log("Remove job dir %s" % job_dir)
             os.system("rm -rf %s" % job_dir)
         return True
     except:
-        pUtil.tolog("Failed to start deferred stage out for HPC job: %s" % traceback.format_exc())
-        releaseAtomicLockFile(fd, lockfile_name)
+        log("Failed to start deferred stage out for HPC job: %s" % traceback.format_exc())
         return False
 
 
@@ -277,148 +348,149 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
     :return: (bool) the fact of stageout being performed
     """
-    pUtil.tolog("Deferred stageout from job directory \"%s\"" % job_dir)
+    log("Deferred stageout from job directory \"%s\"" % job_dir)
+
     job_state = JobState()
 
     if job_state_file == "":
         try:
             job_state_file = glob(job_dir + "/" + jobState_file_wildcart)[0]
         except:
-            pUtil.tolog("There is no job state file in the provided directory, exiting")
+            log("There is no job state file in the provided directory, exiting")
             return False
 
-    pUtil.tolog("Job state file is %s"%job_state_file)
+    log("Job state file is %s"%job_state_file)
 
-    lockfd, lockfn = createAtomicLockFile(job_dir)
+    # lockfd, lockfn = createAtomicLockFile(job_dir)
 
-    try:
+    with LockFileWrapper(job_dir):
         if not TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file, **kwargs):
-            pUtil.tolog("Job \"%s\" does not need deferred stageout procedure (yet)" % job_dir)
-            releaseAtomicLockFile(lockfd, lockfn)
+            log("Job \"%s\" does not need deferred stageout procedure (yet)" % job_dir)
+            # releaseAtomicLockFile(lockfd, lockfn)
             return False
 
         if not job_state.get(job_state_file):
-            pUtil.tolog("Job state file reading failed, exiting")
-            releaseAtomicLockFile(lockfd, lockfn)
+            log("Job state file reading failed, exiting")
+            # releaseAtomicLockFile(lockfd, lockfn)
             return False
 
-        pUtil.tolog("Working with job in \"%s\"" % job_dir)
+        log("Working with job in \"%s\"" % job_dir)
         _job, _site, _node, _recoveryAttempt = job_state.decode()
 
         if not (_job and _site and _node):
-            pUtil.tolog("Can not decode jobState file, exiting")
-            releaseAtomicLockFile(lockfd, lockfn)
+            log("Can not decode jobState file, exiting")
+            # releaseAtomicLockFile(lockfd, lockfn)
             return False
 
-        rc = PrepareJobForDeferredStageout(job_state, **kwargs)
+        with LogWrapper(deferredStageoutLogFileTpl.format(jobid=_job.jobId)) as logger:
 
-        if rc == ReturnCode.PostJobOnly:
-            pUtil.postJobTask(job_state.job, job_state.site, DorE(kwargs, 'workerNode'), DorE(kwargs, 'experiment'),
-                              jr=True, ra=job_state.recoveryAttempt)
-            releaseAtomicLockFile(lockfd, lockfn)
-            return True
+            rc = PrepareJobForDeferredStageout(job_state, **kwargs)
 
-        if rc > 0:
-            pUtil.tolog("Job is not prepared for stageout, exiting")
-            if rc == ReturnCode.Cleanup:
-                cleanup(job_state)
-            releaseAtomicLockFile(lockfd, lockfn)
-            return False
+            if rc == ReturnCode.PostJobOnly:
+                pUtil.postJobTask(job_state.job, job_state.site, DorE(kwargs, 'workerNode'), DorE(kwargs, 'experiment'),
+                                  jr=True, ra=job_state.recoveryAttempt)
+                # releaseAtomicLockFile(lockfd, lockfn)
+                return True
 
-        rc, logfile, datadir, filelist = CreateTransferFileList(job_state, **kwargs)
+            if rc > 0:
+                log("Job is not prepared for stageout, exiting")
+                if rc == ReturnCode.Cleanup:
+                    cleanup(job_state)
+                # releaseAtomicLockFile(lockfd, lockfn)
+                return False
 
-        XMLStr = ''
-        if datadir == "":
-            try:
-                XMLStr = job_state.node['xml']
-            except:
-                pass
+            rc, logfile, datadir, filelist = CreateTransferFileList(job_state, **kwargs)
 
-        if XMLStr == '':
-            XMLStr = pUtil.getMetadata(job_state.site.workdir, job_state.job.jobId)
+            XMLStr = ''
+            if datadir == "":
+                try:
+                    XMLStr = job_state.node['xml']
+                except:
+                    pass
 
-        currentdir = os.getcwd()
-        pUtil.chdir(job_state.site.workdir)
+            if XMLStr == '':
+                XMLStr = pUtil.getMetadata(job_state.site.workdir, job_state.job.jobId)
 
-        if len(filelist):
-            pUtil.tolog("Stageout will now transfer the files")
-            rc = TransferFiles(job_state, datadir, filelist, **kwargs)
+            currentdir = os.getcwd()
+            pUtil.chdir(job_state.site.workdir)
 
-            if rc == ReturnCode.Holding:
-                job_state.job.result[0] = "holding"
-            if rc == ReturnCode.FailedJob:
-                job_state.job.result[0] = "failed"
+            if len(filelist):
+                log("Stageout will now transfer the files")
+                rc = TransferFiles(job_state, datadir, filelist, **kwargs)
 
-            job_state.job.setState(job_state.job.result)
+                if rc == ReturnCode.Holding:
+                    job_state.job.result[0] = "holding"
+                if rc == ReturnCode.FailedJob:
+                    job_state.job.result[0] = "failed"
 
-        pUtil.chdir(job_state.site.workdir)
-        ret = True
-        if logfile != "" and not pUtil.isLogfileCopied(job_state.site.workdir):
-            pUtil.tolog("Stageout will now transfer the log")
-            log = JobLog()
-            ret, _ = log.transferLogFile(job_state.job, job_state.site, DorE(kwargs, 'experiment'), dest=None, jr=True)
+                job_state.job.setState(job_state.job.result)
 
-        if not ret:
-            rc = ReturnCode.Holding  # We need to transfer log file regardless the files
+            pUtil.chdir(job_state.site.workdir)
+            ret = True
+            if logfile != "" and not pUtil.isLogfileCopied(job_state.site.workdir):
+                log("Stageout will now transfer the log")
+                _log = JobLog()
+                ret, _ = _log.transferLogFile(job_state.job, job_state.site, DorE(kwargs, 'experiment'), dest=None,
+                                              jr=True)
 
-        if rc == ReturnCode.OK:
-            if pUtil.verifyTransfer(job_state.site.workdir):
-                job_state.job.result[0] = "finished"
+            if not ret:
+                rc = ReturnCode.Holding  # We need to transfer log file regardless the files
+
+            if rc == ReturnCode.OK:
+                if pUtil.verifyTransfer(job_state.site.workdir):
+                    job_state.job.result[0] = "finished"
+                else:
+                    job_state.job.result[0] = "failed"
+                job_state.job.setState(job_state.job.result)
+
+            if job_state.job.result[0] in finalJobStates:
+                job_state.job.final_state = job_state.job.result[0]
+
+            log("Stageout will now update the server with new status")
+
+            rt, retNode = updatePandaServer(job_state, xmlstr=XMLStr, **kwargs)
+
+            if rt == 0:
+                log("Job %s updated (exit code %d)" % (job_state.job.jobId, job_state.job.result[2]))
+
+                # did the server send back a command?
+                if "tobekilled" in job_state.job.action:
+                    log("!!WARNING!!1120!! Panda server returned a \'tobekilled\' command")
+                    job_state.job.result[0] = "failed"
+
+                # further recovery attempt unnecessary, but keep the work dir for debugging
+                if job_state.job.result[0] == "failed":
+                    log("Further recovery attempts will be prevented for failed job (will leave work dir)")
+                    if not job_state.rename(job_state.site, job_state.job):
+                        log("(Fate of job state file left for next pilot)")
+
             else:
-                job_state.job.result[0] = "failed"
-            job_state.job.setState(job_state.job.result)
+                log("!!WARNING!!1120!! Panda server returned a %d" % (rt))
 
-        if job_state.job.result[0] in finalJobStates:
-            job_state.job.final_state = job_state.job.result[0]
+                # store the final state so that the next pilot will know
 
-        pUtil.tolog("Stageout will now update the server with new status")
+                # store the metadata xml
+                retNode['xml'] = XMLStr
 
-        rt, retNode = updatePandaServer(job_state, xmlstr=XMLStr, **kwargs)
+                # update the job state file with the new state information
+                _retjs = pUtil.updateJobState(job_state.job, job_state.site, retNode, job_state.recoveryAttempt)
 
-        if rt == 0:
-            pUtil.tolog("Job %s updated (exit code %d)" % (job_state.job.jobId, job_state.job.result[2]))
+            log("Stageout will now proceed to post-job actions")
 
-            # did the server send back a command?
-            if "tobekilled" in job_state.job.action:
-                pUtil.tolog("!!WARNING!!1120!! Panda server returned a \'tobekilled\' command")
-                job_state.job.result[0] = "failed"
+            if job_state.job.result[0] in finalJobStates:
+                pUtil.postJobTask(job_state.job, job_state.site,
+                                  DorE(kwargs, 'workerNode'), DorE(kwargs, 'experiment'), jr=True,
+                                  ra=job_state.recoveryAttempt)
 
-            # further recovery attempt unnecessary, but keep the work dir for debugging
-            if job_state.job.result[0] == "failed":
-                pUtil.tolog("Further recovery attempts will be prevented for failed job (will leave work dir)")
-                if not job_state.rename(job_state.site, job_state.job):
-                    pUtil.tolog("(Fate of job state file left for next pilot)")
+            pUtil.chdir(currentdir)
 
-        else:
-            pUtil.tolog("!!WARNING!!1120!! Panda server returned a %d" % (rt))
+            # releaseAtomicLockFile(lockfd, lockfn)
 
-            # store the final state so that the next pilot will know
+            if job_state.job.result[0] == "finished":
+                log("Stageout will now remove the job, it is in finished state and can be removed")
+                cleanup(job_state)
 
-            # store the metadata xml
-            retNode['xml'] = XMLStr
-
-            # update the job state file with the new state information
-            _retjs = pUtil.updateJobState(job_state.job, job_state.site, retNode, job_state.recoveryAttempt)
-
-        pUtil.tolog("Stageout will now proceed to post-job actions")
-
-        if job_state.job.result[0] in finalJobStates:
-            pUtil.postJobTask(job_state.job, job_state.site,
-                              DorE(kwargs, 'workerNode'), DorE(kwargs, 'experiment'), jr=True,
-                              ra=job_state.recoveryAttempt)
-
-        pUtil.chdir(currentdir)
-
-        releaseAtomicLockFile(lockfd, lockfn)
-
-        if job_state.job.result[0] == "finished":
-            pUtil.tolog("Stageout will now remove the job, it is in finished state and can be removed")
-            cleanup(job_state)
-
-        return True
-    except:
-        releaseAtomicLockFile(lockfd, lockfn)
-        raise
+            return True
 
 
 def TestJobDirForDeferredStageoutNecessity(job_dir, job_state_file,
@@ -480,7 +552,7 @@ def lognfalse(_str):
 
 
 def lognret(ret, _str):
-    pUtil.tolog(_str)
+    log(_str)
     return ret
 
 
@@ -489,7 +561,7 @@ def DorE(dictionary, key):
 
 
 def cleanup(job_state):
-    pUtil.tolog("Cleanup job directory called")
+    log("Cleanup job directory called")
 
     cmd = "rm -rf %s" % os.path.dirname(job_state.filename)
     if os.path.isdir(job_state.job.newDirNM):
@@ -498,11 +570,11 @@ def cleanup(job_state):
         cmd += (" %s" % job_state.job.datadir)
     if os.path.isdir(job_state.site.workdir):
         cmd += (" %s" % job_state.job.workdir)
-    pUtil.tolog("Executing command: %s" % (cmd))
+    log("Executing command: %s" % (cmd))
     try:
         ec, rs = commands.getstatusoutput(cmd)
     except Exception, e:
-        pUtil.tolog("FAILURE: JobState cleanup failed to cleanup: %s " % str(e))
+        log("FAILURE: JobState cleanup failed to cleanup: %s " % str(e))
 
 
 def PrepareJobForDeferredStageout(job_state, **kwargs):
@@ -540,15 +612,15 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
     # This test ensures that the number of recovery attempts did not exceeded and if exceeded, updates the server and
     # the state file
     if job_state.recoveryAttempt >= DorE(kwargs, 'maxNumberOfRecoveryAttempts'):
-        pUtil.tolog("!!WARNING!!1100!! Max number of recovery attempts exceeded: %d" %
+        log("!!WARNING!!1100!! Max number of recovery attempts exceeded: %d" %
                     (env['maxNumberOfRecoveryAttempts']))
         job_state.job.setState(['failed', job_state.job.result[1], PilotErrors().ERR_LOSTJOBMAXEDOUT])
         rt, retNode = updatePandaServer(job_state, **kwargs)
         if rt == 0:
-            pUtil.tolog("Job %s updated (exit code %d)" % (job_state.job.jobId, job_state.job.result[2]))
+            log("Job %s updated (exit code %d)" % (job_state.job.jobId, job_state.job.result[2]))
 
         else:
-            pUtil.tolog("Panda server returned a %d" % (rt))
+            log("Panda server returned a %d" % (rt))
             return lognret(ReturnCode.SkipJob, "(Failed to update panda server - leave for next pilot)")
 
     jobStatus = job_state.job.result[0]
@@ -557,7 +629,7 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
 
     # There can be unclear state, consult the server
     if jobStatus not in acceptedJobStatesFromFile:
-        pUtil.tolog("Job state may be unclear (found state %s), checking with the server" % jobStatus)
+        log("Job state may be unclear (found state %s), checking with the server" % jobStatus)
         jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(job_state.job.jobId,
                                                                     DorE(kwargs, 'pshttpurl'),
                                                                     DorE(kwargs, 'psport'),
@@ -566,7 +638,7 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
             return lognret(ReturnCode.SkipJob, "Received general error code from dispatcher call (leave job for later"
                                                 " pilot)")
         else:
-            pUtil.tolog("Job state is %s" % jobStatus)
+            log("Job state is %s" % jobStatus)
 
     # If any inconvenience occurs or job is finalised, cleanup
     if job_state.job.attemptNr != jobAttemptNr or\
@@ -586,21 +658,21 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
         try:
             attemptNr = job_state.job.attemptNr
         except Exception, e:
-            pUtil.tolog("!!WARNING!!1100!! Attempt number not defined [ignore]: %s" % str(e))
+            log("!!WARNING!!1100!! Attempt number not defined [ignore]: %s" % str(e))
         else:
             # check if the attemptNr (set during initial getJob command) is the same
             # as the current jobAttemptNr from the server (protection against failed lost
             # heartbeat jobs due to reassigned panda job id numbers)
             if attemptNr != jobAttemptNr:
-                pUtil.tolog("!!WARNING!!1100!! Attempt number mismatch for job %s (according to server - will not be"
+                log("!!WARNING!!1100!! Attempt number mismatch for job %s (according to server - will not be"
                             " recovered)" % job_state.job.jobId)
-                pUtil.tolog("....Initial attempt number: %d" % attemptNr)
-                pUtil.tolog("....Current attempt number: %d" % jobAttemptNr)
-                pUtil.tolog("....Job status (server)   : %s" % jobStatus)
-                pUtil.tolog("....Job status (state)    : %s" % job_state.job.result[0])
+                log("....Initial attempt number: %d" % attemptNr)
+                log("....Current attempt number: %d" % jobAttemptNr)
+                log("....Job status (server)   : %s" % jobStatus)
+                log("....Job status (state)    : %s" % job_state.job.result[0])
                 return lognret(ReturnCode.Cleanup, "Further recovery attempts will be prevented for this job")
             else:
-                pUtil.tolog("Attempt numbers from server and job state file agree: %d" % attemptNr)
+                log("Attempt numbers from server and job state file agree: %d" % attemptNr)
 
     job_state.recoveryAttempt += 1
 
@@ -622,7 +694,7 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
             # We search an error code, if not found, we get it from the server
             if ec == -1:
                 job_state.job.setState(['failed', 0, PilotErrors().ERR_LOSTJOBNOTFINISHED])
-                pUtil.tolog("Exit code not found")
+                log("Exit code not found")
 
                 # get the metadata
                 # this metadata does not contain the metadata for the log
@@ -635,7 +707,7 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
                     return lognret(ReturnCode.Cleanup, "Lost job %s updated (exit code %d)" % (job_state.job.jobId,
                                                                                                job_state.job.result[2]))
                 else:
-                    pUtil.tolog("!!WARNING!!1130!! Panda server returned a %d" % (rt))
+                    log("!!WARNING!!1130!! Panda server returned a %d" % (rt))
 
                     # store the final state so that the next pilot will know
                     # store the metadata xml
@@ -648,7 +720,7 @@ def PrepareJobForDeferredStageout(job_state, **kwargs):
     # # I think, this is useless and wrong piece of code. Maybe will be removed, or changed in the future.
     # # Copied from previous jobrec.
     # if ec != 0 and not os.path.isfile(logfile):
-    #     pUtil.tolog("ec: %s, log: %s" % (ec, logfile))
+    #     log("ec: %s, log: %s" % (ec, logfile))
     #     # Here I don't understand, why we shouldn't transfer pilotlog.txt file also, but nevertheless
     #     return lognret(ReturnCode.PostJobOnly, "It is failed job, doing only post-job.")
 
@@ -702,11 +774,11 @@ def setGuids(job_state, files, **kwargs):
         job.outFiles = files
     except Exception, e:
         job.outFilesGuids = None
-        pUtil.tolog("!!FAILED!!1105!! Exception caught (Could not read guids for the remaining output files): %s" %
+        log("!!FAILED!!1105!! Exception caught (Could not read guids for the remaining output files): %s" %
                     str(e))
         return False
 
-    pUtil.tolog("Successfully fetched guids")
+    log("Successfully fetched guids")
     return True
 
 
@@ -717,13 +789,13 @@ def updateOutPFC(job, **kwargs):
         guids_status = pUtil.PFCxml(job.experiment, file_path, job.outFiles, fguids=job.outFilesGuids, fntag="pfn",
                                     analJob=pUtil.isAnalysisJob(job.trf.split(",")[0]), jr=True)
     except Exception, e:
-        pUtil.tolog("!!FAILED!!1105!! Exception caught (Could not generate xml for the remaining output files): %s" %
+        log("!!FAILED!!1105!! Exception caught (Could not generate xml for the remaining output files): %s" %
                     str(e))
         job.result[2] = PilotErrors().ERR_LOSTJOBXML
         return False
     else:
         if not guids_status:
-            pUtil.tolog("!!FAILED!!2999!! Missing guid(s) for output file(s) in metadata")
+            log("!!FAILED!!2999!! Missing guid(s) for output file(s) in metadata")
             job.result[2] = PilotErrors().ERR_MISSINGGUID
             return False
 
@@ -767,7 +839,7 @@ def TransferFiles(job_state, datadir, files, **kwargs):
 
     datasetDict = pUtil.getDatasetDict(job.outFiles, job.destinationDblock, job.logFile, job.logDblock)
     if not datasetDict:
-        pUtil.tolog("Output files will go to default dataset: %s" % (dsname))
+        log("Output files will go to default dataset: %s" % (dsname))
 
     # the cmtconfig is needed by at least the xrdcp site mover
     cmtconfig = pUtil.getCmtconfig(job.cmtconfig)
@@ -793,7 +865,7 @@ def TransferFiles(job_state, datadir, files, **kwargs):
             fileDestinationSE=job.fileDestinationSE, job=job)
     except Exception, e:
         pilotErrorDiag = "Put function can not be called for staging out: %s" % str(e)
-        pUtil.tolog("!!%s!!1105!! %s" % (env['errorLabel'], pilotErrorDiag))
+        log("!!%s!!1105!! %s" % (env['errorLabel'], pilotErrorDiag))
         ec = PilotErrors().ERR_PUTFUNCNOCALL
         _state = ReturnCode.Holding
         _msg = env['errorLabel']
@@ -803,12 +875,12 @@ def TransferFiles(job_state, datadir, files, **kwargs):
                                                                       size=256-len("pilot: Put error: "))
 
         ec = rc
-        pUtil.tolog("Put function returned code: %d" % (rc))
+        log("Put function returned code: %d" % (rc))
         if rc != 0:
             # remove any trailing "\r" or "\n" (there can be two of them)
             if rs is not None:
                 rs = rs.rstrip()
-                pUtil.tolog(" Error string: %s" % (rs))
+                log(" Error string: %s" % (rs))
 
             # is the job recoverable?
             if PilotErrors().isRecoverableErrorCode(rc):
@@ -820,10 +892,10 @@ def TransferFiles(job_state, datadir, files, **kwargs):
 
             # look for special error in the error string
             if rs == "Error: string Limit exceeded 250":
-                pUtil.tolog("!!%s!!3000!! Put error: file name string limit exceeded 250" % (_msg))
+                log("!!%s!!3000!! Put error: file name string limit exceeded 250" % (_msg))
                 ec = PilotErrors().ERR_LRCREGSTRSIZE
 
-            pUtil.tolog("!!%s!! %s" % (_msg, PilotErrors().getErrorStr(rc)))
+            log("!!%s!! %s" % (_msg, PilotErrors().getErrorStr(rc)))
         else:
             # create a weak lockfile meaning that file transfer worked, and all output files have now been transferred
             pUtil.createLockFile(True, job_state.site.workdir, lockfile="ALLFILESTRANSFERRED")
@@ -835,7 +907,7 @@ def TransferFiles(job_state, datadir, files, **kwargs):
     # set the error codes in case of failure
     job.pilotErrorDiag = pilotErrorDiag
     if ec != 0:
-        pUtil.tolog("!!%s!!2999!! %s" % (_msg, pilotErrorDiag))
+        log("!!%s!!2999!! %s" % (_msg, pilotErrorDiag))
 
     job.result[2] = ec
 
@@ -851,10 +923,10 @@ def createAtomicLockFile(file_path):
         fd = os.open(lockfile_name, os.O_EXCL|os.O_CREAT)
     except OSError:
         # work dir is locked, so exit                                                                                                                                                                                                                            
-        pUtil.tolog("Found lock file: %s (skip this dir)" % (lockfile_name))
+        log("Found lock file: %s (skip this dir)" % (lockfile_name))
         fd = None
     else:
-        pUtil.tolog("Created lock file: %s" % (lockfile_name))
+        log("Created lock file: %s" % (lockfile_name))
     return fd, lockfile_name
 
 
@@ -866,11 +938,11 @@ def releaseAtomicLockFile(fd, lockfile_name):
         os.unlink(lockfile_name)
     except Exception, e:
         if "Bad file descriptor" in e:
-            pUtil.tolog("Lock file already released")
+            log("Lock file already released")
         else:
-            pUtil.tolog("WARNING: Could not release lock file: %s" % (e))
+            log("WARNING: Could not release lock file: %s" % (e))
     else:
-        pUtil.tolog("Released lock file: %s" % (lockfile_name))
+        log("Released lock file: %s" % (lockfile_name))
 
 
 def updatePandaServer(job_state, xmlstr=None, spaceReport=False,
