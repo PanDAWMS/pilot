@@ -42,25 +42,29 @@ hpc_jobState_file_wildcart = "HPCManagerState.json"
 number_of_lost_heartbeats_for_pilot_to_be_dead = 20
 
 log_useful = False
-deferredStageoutLogFileTpl = "pilotlog-deferredstageout-{jobid}.txt"
+# deferredStageoutLogFileTpl = "pilotlog-deferredstageout-{jobid}.txt"
 
 
 class LogWrapper(object):
 
-    def __init__(self, name):
-        self.__name = name
+    def __init__(self, nameTpl, id):
+        if not (type(nameTpl) is str) or nameTpl == "":
+            self.__name = False
+        else:
+            self.__name = nameTpl.format(job_id=id)
         self.__old_name = ''
         self.useful = False
         self.same = False
 
     def __enter__(self):
         global log_useful
-        log("Staging up log file, new log file is %s" % self.__name)
         self.__old_name = pUtil.getPilotlogFilename()
 
         if not self.__name or self.__name == self.__old_name:
             self.same = True
         else:
+            log("Staging up log file, new log file is %s" % self.__name)
+
             self.__global_old = os.path.abspath(self.__old_name)
             self.__global = os.path.abspath(self.__name)
             pUtil.setPilotlogFilename(self.__global)
@@ -73,9 +77,9 @@ class LogWrapper(object):
     def __exit__(self, *args):
         global log_useful
 
-        log("Staging down log file")
-
         if not self.same:
+            log("Staging down log file")
+
             self.useful = self.useful and log_useful
             log_useful = self.__old_useful
 
@@ -257,12 +261,17 @@ def DeferredStageoutDir(deferred_stageout_dir, max_stageout_jobs=0, remove_empty
     return stageout_jobs
 
 
-def DeferredStageoutHPCJob(job_dir, **kwargs):
+def DeferredStageoutHPCJob(job_dir, deferred_stageout_logfile=False, **kwargs):
     """
     Performs stageing out preparation for the HPC job in specified directory.
 
     :param job_dir:     (string)    directory with a job.
                         mandatory parameter
+
+    :param deferred_stageout_logfile: (string|False)    template name for deferred log stageout
+                                                        Replaces "{job_id}" with current job id like
+                                                        "log-{job_id}.txt" -> "log-124124.txt"
+                                        Default False
 
     Other parameters are passed into other functions
 
@@ -291,7 +300,7 @@ def DeferredStageoutHPCJob(job_dir, **kwargs):
             JS.get(job_state_file)
             _job, _site, _node, _recoveryAttempt = JS.decode()
 
-            with LogWrapper(deferredStageoutLogFileTpl.format(jobid=_job.jobId)) as logger:
+            with LogWrapper(deferred_stageout_logfile, _job.jobId) as logger:
                 jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(_job.jobId, DorE(kwargs,'pshttpurl'),
                                                                             DorE(kwargs,'psport'),
                                                                             DorE(kwargs,'pilot_initdir'))
@@ -333,7 +342,7 @@ def DeferredStageoutHPCJob(job_dir, **kwargs):
         return False
 
 
-def DeferredStageoutJob(job_dir, job_state_file="",
+def DeferredStageoutJob(job_dir, job_state_file="", deferred_stageout_logfile=False,
                         **kwargs):
     """
     Performs stageing out preparation and stages out the job in specified directory.
@@ -343,6 +352,11 @@ def DeferredStageoutJob(job_dir, job_state_file="",
     :param job_state_file:  (string)    path to job state file or other file containing job state. If empty, job
                                         state file is located as job_dir+'/jobState-*.*'.
                             defaults to ""
+
+    :param deferred_stageout_logfile: (string|False)    template name for deferred log stageout
+                                                        Replaces "{job_id}" with current job id like
+                                                        "log-{job_id}.txt" -> "log-124124.txt"
+                                        Default False
 
     Other parameters are passed into other functions
 
@@ -382,7 +396,7 @@ def DeferredStageoutJob(job_dir, job_state_file="",
             # releaseAtomicLockFile(lockfd, lockfn)
             return False
 
-        with LogWrapper(deferredStageoutLogFileTpl.format(jobid=_job.jobId)) as logger:
+        with LogWrapper(deferred_stageout_logfile, _job.jobId) as logger:
 
             rc = PrepareJobForDeferredStageout(job_state, **kwargs)
 
