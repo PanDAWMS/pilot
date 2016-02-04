@@ -9,6 +9,7 @@ import sys
 import time
 import pickle
 import signal
+import threading
 import traceback
 from os.path import abspath as _abspath, join as _join
 
@@ -22,8 +23,9 @@ import pUtil
 from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getInitialTracingReport
 
-class Droid:
+class Droid(threading.Thread):
     def __init__(self, globalWorkingDir, localWorkingDir):
+        threading.Thread.__init__(self)
         self.__globalWorkingDir = globalWorkingDir
         self.__localWorkingDir = localWorkingDir
         self.__currentDir = None

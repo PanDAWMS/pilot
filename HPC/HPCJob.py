@@ -27,7 +27,13 @@ def main(globalWorkDir, localWorkDir):
         try:
             from pandayoda.yodacore import Yoda
             yoda = Yoda.Yoda(globalWorkDir, localWorkDir)
-            yoda.run()
+            yoda.start()
+            while True:
+                yoda.join(timeout=1)
+                if yoda and yoda.isAlive():
+                    pass
+                else:
+                    break
             print "Rank %s: Yoda finished" % (mpirank)
         except:
             print "Rank %s: Yoda failed: %s" % (mpirank, traceback.format_exc())
@@ -37,7 +43,9 @@ def main(globalWorkDir, localWorkDir):
             status = 0
             from pandayoda.yodaexe import Droid
             droid = Droid.Droid(globalWorkDir, localWorkDir)
-            droid.run()
+            droid.start()
+            while (droid and droid.isAlive()):
+                droid.join(timeout=1)
             # parent process
             #pid, status = os.waitpid(child_pid, 0)
             print "Rank %s: Droid finished status: %s" % (mpirank, status)

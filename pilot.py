@@ -108,13 +108,6 @@ def argParser(argv):
     else:
         env['pilotId'] = gtag
         print "pilot ID = %s" % env['pilotId']
-    try:
-        eventService_ArcID = os.environ["EventService_ArcID"]
-    except:
-        pass
-    else:
-        env['EventService_ArcID'] = eventService_ArcID
-        print "EventService_ArcID = %s" % env['EventService_ArcID']
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
@@ -596,13 +589,10 @@ def testExternalDir(recoveryDir):
 
     return status
 
-def createAtomicLockFile(file_path, lockname=None):
+def createAtomicLockFile(file_path):
     """ Create an atomic lockfile while probing this dir to avoid a possible race-condition """
 
-    if lockname:
-        lockfile_name = os.path.join(os.path.dirname(file_path), lockname)
-    else:
-        lockfile_name = os.path.join(os.path.dirname(file_path), "ATOMIC_LOCKFILE")
+    lockfile_name = os.path.join(os.path.dirname(file_path), "ATOMIC_LOCKFILE")
     try:
         # acquire the lock
         fd = os.open(lockfile_name, os.O_EXCL|os.O_CREAT)
@@ -2682,10 +2672,6 @@ def runMain(runpars):
 
         pUtil.tolog("No more jobs to execute")
 
-        if 'EventService_ArcLockFD' in env.keys() and 'EventService_ArcLockFile' in env.keys():
-            pUtil.tolog("Release EventService ARC lock file %s" % env['EventService_ArcLockFile'])
-            releaseAtomicLockFile(env['EventService_ArcLockFD'], env['EventService_ArcLockFile'])
-
         # wait for the stdout to catch up (otherwise the full log is cut off in the batch stdout dump)
         time.sleep(10)
         pUtil.tolog("End of the pilot")
@@ -2696,10 +2682,6 @@ def runMain(runpars):
 
     # catch any uncaught pilot exceptions
     except Exception, errorMsg:
-
-        if 'EventService_ArcLockFD' in env.keys() and 'EventService_ArcLockFile' in env.keys():
-            pUtil.tolog("Release EventService ARC lock file %s" % env['EventService_ArcLockFile'])
-            releaseAtomicLockFile(env['EventService_ArcLockFD'], env['EventService_ArcLockFile'])
 
         error = PilotErrors()
 

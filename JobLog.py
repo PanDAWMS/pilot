@@ -1,7 +1,6 @@
 import os
 import re
 import commands
-import traceback
 from time import localtime
 from glob import glob
 from shutil import copy2, rmtree
@@ -1148,11 +1147,7 @@ class JobLog:
                     tolog("!!WARNING!!1400!! Could not gzip tarball")
                 else:
                     try:
-                        rank_num = self.getRankNum()
-                        if rank_num:
-                            os.rename("%s.gz" % (tarballNM), job.logFile + ".%s" % rank_num)
-                        else:
-                            os.rename("%s.gz" % (tarballNM), job.logFile)
+                        os.rename("%s.gz" % (tarballNM), job.logFile)
                     except OSError:
                         tolog("!!WARNING!!1400!! Could not rename gzipped tarball %s" % job.logFile)
                     else:
@@ -1250,20 +1245,3 @@ class JobLog:
             logPath = ""
 
         return logPath
-
-    def getRankNum(self):
-        rank_num = None
-        try:
-            if os.environ.has_key('RANK_NUM'):
-                tolog("RANK_NUM(PBS) is %s" % os.environ['RANK_NUM'])
-                rank_num = int(os.environ['RANK_NUM'])
-            elif os.environ.has_key('SLURM_NODEID'):
-                tolog("RANK_NUM(SLURM) %s" % os.environ['SLURM_NODEID'])
-                rank_num = int(os.environ['SLURM_NODEID'])
-        except:
-            tolog(traceback.format_exc())
-
-        if not rank_num is None and rank_num == 0:
-            rank_num = None
-
-        return rank_num

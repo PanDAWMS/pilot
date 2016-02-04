@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import traceback
+import threading
 import pickle
 import signal
 from os.path import abspath as _abspath, join as _join
@@ -17,10 +18,11 @@ from signal_block.signal_block import block_sig, unblock_sig
 #from HPC import EventServer
 
 # main Yoda class
-class Yoda:
+class Yoda(threading.Thread):
     
     # constructor
     def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None):
+        threading.Thread.__init__(self)
         self.globalWorkingDir = globalWorkingDir
         self.localWorkingDir = localWorkingDir
         self.currentDir = None
