@@ -353,7 +353,7 @@ def DeferredStageoutJob(job_dir, job_state_file="",
 
         pUtil.chdir(job_state.site.workdir)
         ret = True
-        if logfile != "":
+        if logfile != "" and not pUtil.isLogfileCopied(job_state.site.workdir):
             pUtil.tolog("Stageout will now transfer the log")
             log = JobLog()
             ret, _ = log.transferLogFile(job_state.job, job_state.site, DorE(kwargs, 'experiment'), dest=None, jr=True)
