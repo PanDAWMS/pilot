@@ -36,7 +36,7 @@ pilotLogFileInNewWD="pilotlog.txt"
 
 jobState_file_wildcart = "jobState-*"
 hpc_jobState_file_wildcart = "HPCManagerState.json"
-number_of_lost_heartbeats_for_pilot_to_be_dead = 20
+number_of_lost_heartbeats_for_pilot_to_be_dead = 2 #20
 
 
 class ReturnCode:
