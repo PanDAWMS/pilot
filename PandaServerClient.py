@@ -7,8 +7,8 @@ from shutil import copy2
 from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
 from JobState import JobState
-from FileState import FileState
-from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames, getHighestPriorityError
+from FileStateClient import getFilesOfState
+from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
 
 class PandaServerClient:
     """
@@ -98,7 +98,7 @@ class PandaServerClient:
 
         return jobMetric
 
-    def getJobMetrics(self, job, workerNode):
+    def getJobMetrics(self, job, site, workerNode):
         """ Return a properly formatted job metrics string """
 
         # style: Number of events read | Number of events written | vmPeak maximum | vmPeak average | RSS average | JEM activation
@@ -153,6 +153,15 @@ class PandaServerClient:
             _jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
             tolog("Could have reported: %s" % (_jobMetrics))
 
+            # Report which output files were moved to an alternative SE
+            filenames = getFilesOfState(site.workdir, job.jobId, state="alt_transferred")
+            if filenames != "":
+                jobMetrics += self.jobMetric(key="altTransferred", value=filenames)
+
+        # report on which OS bucket the log was written to, if any
+        if job.logBucketID != -1:
+            jobMetrics += self.jobMetric(key="logBucketID", value=job.logBucketID)
+
         # only add the JEM bit if explicitly set to YES, otherwise assumed to be NO
         if job.JEM == "YES":
             jobMetrics += self.jobMetric(key="JEM", value=1)
@@ -166,10 +175,10 @@ class PandaServerClient:
         _jobMetrics = ""
 
         # report any OS transfers
-        message = self.getOSJobMetrics()
-        if message != "":
-            _jobMetrics = self.jobMetric(key="OS", value=message)
-            tolog("Could have added: %s to job metrics" % (_jobMetrics))
+        #message = self.getOSJobMetrics()
+        #if message != "":
+        #    _jobMetrics = self.jobMetric(key="OS", value=message)
+        #    tolog("Could have added: %s to job metrics" % (_jobMetrics))
 
         # correct for potential initial and trailing space
         jobMetrics = jobMetrics.lstrip().rstrip()
@@ -207,7 +216,7 @@ class PandaServerClient:
         path = os.path.join(self.__pilot_initdir, filename)
         if os.path.exists(path):
             # Which OS's were used?
-            os_names_dictionary = getOSNames(path)
+            os_names_dictionary = getOSTransferDictionary(path)
             if os_names_dictionary != {}:
                 message = ""
 
@@ -275,7 +284,7 @@ class PandaServerClient:
             node['startTime'] = startTime
 
         # build the jobMetrics
-        node['jobMetrics'] = self.getJobMetrics(job, workerNode)
+        node['jobMetrics'] = self.getJobMetrics(job, site, workerNode)
 
         # for hpc status
         if job.hpcStatus:
@@ -395,7 +404,7 @@ class PandaServerClient:
         # Add the utility info if it is available
         thisExperiment = getExperiment(job.experiment)
         if thisExperiment.shouldExecuteUtility():
-            utility_node = thisExperiment.getUtilityInfo(job.workdir, self.__pilot_initdir)
+            utility_node = thisExperiment.getUtilityInfo(job.workdir, self.__pilot_initdir, allowTxtFile=True)
             node = merge_dictionaries(node, utility_node)
 
         return node
@@ -690,8 +699,6 @@ class PandaServerClient:
             tolog("(fake server update)")
             return 0, node
 
-        tolog("xmlstr = %s" % (xmlstr))
-
         # get the xml
         node['xml'] = self.getXML(job, site.sitename, site.workdir, xmlstr=xmlstr, jr=jr)
 
@@ -925,5 +932,14 @@ class PandaServerClient:
         # reset xml in case it was overwritten above for failed log transfers
         if final and node.has_key('xml'):
             node['xml'] = _xml
+
+        # if final update, now it's safe to remove any lingering memory output files from the init dir
+        if final:
+            try:
+                filename = os.path.join(self.__pilot_initdir, "memory_monitor*")
+                tolog("Will remove any lingering %s files from the init directory" % (filename))
+                os.system("rm -rf %s" % (filename))
+            except Exception, e:
+                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (filename), e)
 
         return ecode, node # ecode=0 : update OK, otherwise something wrong

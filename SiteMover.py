@@ -890,7 +890,7 @@ class SiteMover(object):
             filename = getTracingReportFilename()
             status = writeJSON(filename, report)
             if status:
-                tolog("Wrote tracing report to file %s" % (filename))
+                tolog("Wrote tracing report to file %s (cwd=%s)" % (filename, os.getcwd()))
             else:
                 tolog("!!WARNING!!3333!! Failed to write tracing report to file")
 
@@ -2384,6 +2384,17 @@ class SiteMover(object):
                 tolog("Warning: lcg-get-checksum failed: %d, %s" % (ec, output))
             else:
                 tolog(output)
+
+                # are there any warnings we could ignore..?
+                if output.startswith('Error'):
+                    tolog("Will try to remove the Error line in case it is only a warning")
+                    try:
+                        output = output.split('\n')[-1]
+                    except Exception, e:
+                        tolog("Failed to remove the error line: %s" % (e))
+                    else:
+                        tolog("Updated output: %s" % (output))
+
                 try:
                     remote_checksum = output[:8]
                 except:
@@ -2631,10 +2642,21 @@ class SiteMover(object):
         else:
             # extract file size
             try:
+                # are there any warnings we could ignore..?
+                if output.startswith('Error'):
+                    tolog("Will try to remove the Error line in case it is only a warning (is the file size in the second line?)")
+                    try:
+                        output = output.split('\n')[1] # assuming file size in second line
+                    except Exception, e:
+                        tolog("Failed to remove the error line: %s" % (e))
+                    else:
+                        tolog("Updated output: %s" % (_output))
+
                 # remove extra spaces
                 while "  " in output:
                     output = output.replace("  ", " ")
                 _output = output.split(" ")
+
                 remote_fsize = _output[4]
             except Exception, e:
                 pilotErrorDiag = "_getRemoteFileSizeLCGLS caught an exception: %s" % str(e)
@@ -2931,7 +2953,7 @@ class SiteMover(object):
             if useCT:
                 directIn = False
                 tolog("Direct access mode is switched off (file will be transferred with the copy tool)")
-                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
             else:
                 # determine if the file is a root file according to its name
                 rootFile = self.isRootFileName(lfn)
@@ -2939,13 +2961,13 @@ class SiteMover(object):
                 if prodDBlockToken == 'local' or not rootFile:
                     directIn = False
                     tolog("Direct access mode has been switched off for this file (will be transferred with the copy tool)")
-                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
                 elif rootFile:
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     if useFileStager:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", ftype="input")
                     else:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", ftype="input")
                 else:
                     tolog("Normal file transfer")
         else:

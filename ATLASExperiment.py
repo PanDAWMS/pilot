@@ -775,6 +775,20 @@ class ATLASExperiment(Experiment):
         except Exception, e:
             tolog("!!WARNING!!2341!! Failed to execure cleanupAthenaMP(): %s" % (e))
 
+        # explicitly remove any soft linked archives (.a files) since they will be dereferenced by the tar command (--dereference option)
+        matches = []
+        import fnmatch
+        for root, dirnames, filenames in os.walk(workdir):
+            for filename in fnmatch.filter(filenames, '*.a'):
+                matches.append(os.path.join(root, filename))
+        if matches != []:
+            tolog("!!WARNING!!4990!! Encountered %d archive files - will be purged" % len(matches))
+            rc = remove(matches)
+            if not rc:
+                tolog("WARNING: Failed to remove redundant files")
+        else:
+            tolog("Found no archive files")
+
         # note: these should be partitial file/dir names, not containing any wildcards
         exceptions_list = ["runargs", "runwrapper", "jobReport", "log."]
 
@@ -963,7 +977,7 @@ class ATLASExperiment(Experiment):
                     for i in range(len(lrc_metadata_dom)):
                         _key = str(_file.getElementsByTagName("metadata")[i].getAttribute("att_name"))
                         _value = str(_file.getElementsByTagName("metadata")[i].getAttribute("att_value"))
-                        if _key == "events":
+                        if _key == "events" and _value:
                             try:
                                 N = int(_value)
                             except Exception, e:
@@ -2947,9 +2961,12 @@ class ATLASExperiment(Experiment):
         if limit == None:
             limit = 48
 
+        tolog("envsetup=%s"%(envsetup))
         from SiteMover import SiteMover
         if envsetup == "":
             envsetup = SiteMover.getEnvsetup()
+        tolog("envsetup=%s"%(envsetup))
+        envsetup = envsetup.strip()
 
         # add setup for arcproxy if it exists
         arcproxy_setup = "%s/atlas.cern.ch/repo/sw/arc/client/latest/slc6/x86_64/setup.sh" % (self.getCVMFSPath())
@@ -2969,6 +2986,8 @@ class ATLASExperiment(Experiment):
 
             _envsetup += ". %s;" % (arcproxy_setup)
 
+        tolog("envsetup=%s"%(envsetup))
+
         # first try to use arcproxy since voms-proxy-info is not working properly on SL6 (memory issues on queues with limited memory)
         # cmd = "%sarcproxy -I |grep 'AC:'|awk '{sum=$5*3600+$7*60+$9; print sum}'" % (envsetup)
         cmd = "%sarcproxy -i vomsACvalidityLeft" % (_envsetup)
@@ -2987,6 +3006,9 @@ class ATLASExperiment(Experiment):
                 tolog("Will try voms-proxy-info instead")
 
         # -valid HH:MM is broken
+        if "; ;" in envsetup:
+            envsetup = envsetup.replace('; ;', ';')
+            tolog("Removed a double ; from envsetup")
         cmd = "%svoms-proxy-info -actimeleft --file $X509_USER_PROXY" % (envsetup)
         tolog("Executing command: %s" % (cmd))
         exitcode, output = commands.getstatusoutput(cmd)
@@ -3116,7 +3138,7 @@ class ATLASExperiment(Experiment):
             #    path = path.replace("/cvmfs", self.getCVMFSPath())
             #else:
             #    path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-            cmd = "export ALRB_asetupVersion=testing;export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
+            cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
             cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
             cmd += "source $AtlasSetup/scripts/asetup.sh"
 
@@ -3260,7 +3282,7 @@ class ATLASExperiment(Experiment):
 
     # Optional
     def getUtilityOutputFilename(self):
-        """ Return the filename of the memory monitor JSON file """
+        """ Return the filename of the memory monitor text output file """
 
         # For explanation, see shouldExecuteUtility()
         return "memory_monitor_output.txt"
@@ -3272,16 +3294,15 @@ class ATLASExperiment(Experiment):
         # For explanation, see shouldExecuteUtility()
         return "memory_monitor_summary.json"
 
-    # Optional
-    def getUtilityInfo(self, workdir, pilot_initdir):
-        """ Add the utility info to the node structure if available """
+    def getUtilityInfoPath(self, workdir, pilot_initdir, allowTxtFile=False):
+        """ Find the proper path to the utility info file """
+        # Priority order:
+        #   1. JSON summary file from workdir
+        #   2. JSON summary file from pilot initdir
+        #   3. Text output file from workdir (if allowTxtFile is True)
 
-        node = {}
-
-        # Try to get the memory monitor info from the workdir first
         path = os.path.join(workdir, self.getUtilityJSONFilename())
         init_path = os.path.join(pilot_initdir, self.getUtilityJSONFilename())
-        primary_location = False
         if not os.path.exists(path):
             tolog("File does not exist: %s" % (path))
             if os.path.exists(init_path):
@@ -3289,125 +3310,149 @@ class ATLASExperiment(Experiment):
             else:
                 tolog("File does not exist either: %s" % (init_path))
                 path = ""
-            primary_location = False
-        else:
-            primary_location = True
 
-        if path != "" and os.path.exists(path):
-            tolog("Reading memory monitoring info from: %s" % (path))
+            if path == "" and allowTxtFile:
+                path = os.path.join(workdir, self.getUtilityOutputFilename())
+                if not os.path.exists(path):
+                    tolog("File does not exist either: %s" % (path))
 
-            # If the file is the primary one (ie the one in the workdir and not the initdir, then also check the modification time)
-            read_from_file = True
-            if primary_location:
-                # Get the modification time
-                mod_time = None
-                max_time = 120
-                try:
-                    cmd = "ls -l %s" % (path)
-                    out = commands.getoutput(cmd)
-                    tolog("%s:\n%s" % (cmd, out))
-                    file_modification_time = os.path.getmtime(path)
-                    current_time = int(time.time())
-                    mod_time = current_time - file_modification_time
-                    tolog("File %s was modified %d seconds ago" % (path, mod_time))
-                except Exception, e:
-                    tolog("!!WARNING!!2323!! Could not read the modification time of %s: %s" % (path, e))
-                    tolog("!!WARNING!!2324!! Will add -1 values for the memory info")
-                    node['maxRSS'] = -1
-                    node['maxVMEM'] = -1
-                    node['maxSWAP'] = -1
-                    node['maxPSS'] = -1
-                    node['avgRSS'] = -1
-                    node['avgVMEM'] = -1
-                    node['avgSWAP'] = -1
-                    node['avgPSS'] = -1
-                    read_from_file = False
-                else:
-                    if mod_time > max_time:
-                        tolog("!!WARNING!!2325!! File %s was modified over %d s ago, will add -1 values for the memory info" % (path, max_time))
-                        node['maxRSS'] = -1
-                        node['maxVMEM'] = -1
-                        node['maxSWAP'] = -1
-                        node['maxPSS'] = -1
-                        node['avgRSS'] = -1
-                        node['avgVMEM'] = -1
-                        node['avgSWAP'] = -1
-                        node['avgPSS'] = -1
-                        read_from_file = False
+        return path
 
-            if read_from_file:
-                # Get the dictionary
-                d = getJSONDictionary(path)
-                if d and d != {}:
-                    try:
-                        # Move to experiment class?
-                        node['maxRSS'] = d['Max']['maxRSS']
-                        node['maxVMEM'] = d['Max']['maxVMEM']
-                        node['maxSWAP'] = d['Max']['maxSwap']
-                        node['maxPSS'] = d['Max']['maxPSS']
-                        node['avgRSS'] = d['Avg']['avgRSS']
-                        node['avgVMEM'] = d['Avg']['avgVMEM']
-                        node['avgSWAP'] = d['Avg']['avgSwap']
-                        node['avgPSS'] = d['Avg']['avgPSS']
-                    except Exception, e:
-                        tolog("!!WARNING!!54541! Exception caught while parsing memory monitor JSON: %s" % (e))
-                    else:
-                        tolog("Extracted info from memory monitor JSON")
+    # Optional
+    def getUtilityInfo(self, workdir, pilot_initdir, allowTxtFile=False):
+        """ Add the utility info to the node structure if available """
 
-        # Done with the memory monitor for this job (if the file is read from the pilots' init dir), remove the file in case there are other jobs to be run
-        if os.path.exists(init_path):
+        node = {}
+
+        # Get the values from the memory monitor file
+        summary_dictionary = self.getMemoryValues(workdir, pilot_initdir)
+
+        # Fill the node dictionary
+        if summary_dictionary and summary_dictionary != {}:
             try:
-                os.system("rm -rf %s" % (init_path))
+                node['maxRSS'] = summary_dictionary['Max']['maxRSS']
+                node['maxVMEM'] = summary_dictionary['Max']['maxVMEM']
+                node['maxSWAP'] = summary_dictionary['Max']['maxSwap']
+                node['maxPSS'] = summary_dictionary['Max']['maxPSS']
+                node['avgRSS'] = summary_dictionary['Avg']['avgRSS']
+                node['avgVMEM'] = summary_dictionary['Avg']['avgVMEM']
+                node['avgSWAP'] = summary_dictionary['Avg']['avgSwap']
+                node['avgPSS'] = summary_dictionary['Avg']['avgPSS']
             except Exception, e:
-                tolog("!!WARNING!!4343!! Failed to remove %s: %s" % (init_path), e)
+                tolog("!!WARNING!!54541! Exception caught while parsing memory monitor file: %s" % (e))
+                tolog("!!WARNING!!5455!! Will add -1 values for the memory info")
+                node['maxRSS'] = -1
+                node['maxVMEM'] = -1
+                node['maxSWAP'] = -1
+                node['maxPSS'] = -1
+                node['avgRSS'] = -1
+                node['avgVMEM'] = -1
+                node['avgSWAP'] = -1
+                node['avgPSS'] = -1
             else:
-                tolog("Removed %s" % (init_path))
+                tolog("Extracted info from memory monitor")
+        else:
+            tolog("Memory summary dictionary not yet available")
 
         return node
 
-    # Optional
-    def findMaxPSS(self, workdir):
-        """ Find the maxPSS in the utility output """
+    def getMaxUtilityValue(self, value, maxValue, totalValue):
+        """ Return the max and total value (used by memory monitoring) """
+        # Return an error code, 1, in case of value error
 
-        # NOTE: AS OF NOVEMBER 2015 THE MEMORY MONITOR DOES NOT PRODUCE THE SUMMARY JSON UNTIL THE END OF THE PAYLOAD
-        # WHICH MEANS THAT THE OUTPUT TEXT FILE WILL BE USED INSTEAD. A LATER VERSION OF THE MEMORY MONITOR WILL PRODUCE
-        # AND UPDATE THE SUMMARY JSON FILE DURING RUNNING. AT THAT TIME THIS METHOD NEEDS TO BE UPDATE TO FIRST LOOK
-        # FOR THE JSON FILE AND ONLY FALLBACK TO THE OUTPUT TEXT FILE OTHERWISE.
+        ec = 0
+        try:
+            value_int = int(value)
+        except Exception, e:
+            tolog("!!WARNING!!4543!! Exception caught: %s" % (e))
+            ec = 1
+        else:
+            totalValue += value_int
+            if value_int > maxValue:
+                maxValue = value_int
 
-        filename = self.getUtilityOutputFilename()
-        
+        return ec, maxValue, totalValue
+
+    def getMemoryValues(self, workdir, pilot_initdir):
+        """ Find the values in the utility output file """
+
+        # In case the summary JSON file has not yet been produced, create a summary dictionary with the same format
+        # using the output text file (produced by the memory monitor and which is updated once per minute)
+        #
+        # FORMAT:
+        #   {"Max":{"maxVMEM":40058624,"maxPSS":10340177,"maxRSS":16342012,"maxSwap":16235568},
+        #    "Avg":{"avgVMEM":19384236,"avgPSS":5023500,"avgRSS":6501489,"avgSwap":5964997}}
+
+        maxVMEM = -1
+        maxRSS = -1
         maxPSS = -1
-        path = os.path.join(workdir, filename)
+        maxSwap = -1
+        avgVMEM = 0
+        avgRSS = 0
+        avgPSS = 0
+        avgSwap = 0
+        totalVMEM = 0
+        totalRSS = 0
+        totalPSS = 0
+        totalSwap = 0
+        N = 0
+        summary_dictionary = {}
+
+        # Get the path to the proper memory info file (priority ordered)
+        path = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=True)
         if os.path.exists(path):
 
-            # Loop over the output file, line by line, and look for the maximum PSS value
-            first = True
-            with open(path) as f:
-                for line in f:
-                    # Skip the first line
-                    if first:
-                        first = False
-                        continue
-                    line = convert_unicode_string(line)
-                    if line != "":
-                        try:
-                            Time, VMEM, PSS, RSS, Swap = line.split("\t")
-                        except Exception, e:
-                            tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
-                        else:
-                            # Convert to int
-                            try:
-                                PSS_int = int(PSS)
-                            except Exception, e:
-                                tolog("!!WARNING!!4543!! Exception caught: %s" % (e))
-                            else:
-                                if PSS_int > maxPSS:
-                                    maxPSS = PSS_int
-            f.close()
-        else:
-            tolog("!!WARNING!!4540!! File does not exist: %s" % (path))
+            tolog("Using path: %s" % (path))
 
-        return maxPSS
+            # Does a JSON summary file exist? If so, there's no need to calculate maximums and averages in the pilot
+            if path.lower().endswith('json'):
+                # Read the dictionary from the JSON file
+                summary_dictionary = getJSONDictionary(path)
+            else:
+                # Loop over the output file, line by line, and look for the maximum PSS value
+                first = True
+                with open(path) as f:
+                    for line in f:
+                        # Skip the first line
+                        if first:
+                            first = False
+                            continue
+                        line = convert_unicode_string(line)
+                        if line != "":
+                            try:
+                                Time, VMEM, PSS, RSS, Swap = line.split("\t")
+                            except Exception, e:
+                                tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
+                            else:
+                                # Convert to int
+                                ec1, maxVMEM, totalVMEM = self.getMaxUtilityValue(VMEM, maxVMEM, totalVMEM) 
+                                ec2, maxPSS, totalPSS = self.getMaxUtilityValue(PSS, maxPSS, totalPSS) 
+                                ec3, maxRSS, totalRSS = self.getMaxUtilityValue(RSS, maxRSS, totalRSS) 
+                                ec4, maxSwap, totalSwap = self.getMaxUtilityValue(Swap, maxSwap, totalSwap) 
+                                if ec1 or ec2 or ec3 or ec4:
+                                    tolog("Will skip this row of numbers due to value exception: %s" % (line))
+                                else:
+                                    N += 1
+                    # Calculate averages and store all values
+                    summary_dictionary = { "Max": {}, "Avg": {} }
+                    summary_dictionary["Max"] = { "maxVMEM":maxVMEM, "maxPSS":maxPSS, "maxRSS":maxRSS, "maxSwap":maxSwap }
+                    if N > 0:
+                        avgVMEM = int(float(totalVMEM)/float(N))
+                        avgPSS = int(float(totalPSS)/float(N))
+                        avgRSS = int(float(totalRSS)/float(N))
+                        avgSwap = int(float(totalSwap)/float(N))
+                    summary_dictionary["Avg"] = { "avgVMEM":avgVMEM, "avgPSS":avgPSS, "avgRSS":avgRSS, "avgSwap":avgSwap }
+                    tolog("summary_dictionary=%s"%str(summary_dictionary))
+                f.close()
+        else:
+            if path == "":
+                tolog("!!WARNING!!4541!! Filename not set for utility output")
+            else:
+                # Normally this means that the memory output file has not been produced yet
+                pass
+                # tolog("File does not exist: %s" % (path))
+
+        return summary_dictionary
 
     # Optional
     def getUtilityCommand(self, **argdict):

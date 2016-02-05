@@ -1,3 +1,9 @@
+
+Test failover to alt OS at UTA. code implemented. fake initial failure in S3 site mover
+
+Is MEM kill removed?
+
+
 Complete change log for PanDA Pilot version PICARD
 --------------------------------------------------
 
@@ -48,10 +54,14 @@ Added protection for failure to find alternativeName in getTiersOfATLASAlternati
 
 64.0
 
-WARNING: using export ALRB_asetupVersion=testing in ATLASExpweriment5
+LOCAL SITE MOVER XXX
 
 TODO: update pUtil::getStdoutDictionary() to support the tail of the last updated AthenaMP log file; also update PandaServerClient::updatePandaServer() to
 take the latest log file and send it to the text indexer in debug mode (see Rod's mail on Nov. 24)
+
+DO NOT KILL JOBS THAT EXCEEDED MAX MEMORY!!!
+
+
 
 
 General changes:
@@ -66,17 +76,125 @@ General changes:
 - Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
 - Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
 - Simplified willDoFileLookups() (ATLASExperiment)
+- Avoiding None value while getting number of events in processMetadata() (ATLASExperiment)
+- Ignoring test mode in updateJobStateTest() (JobRecovery)
+- Removing archive files if present prior to log file creation; requested by Emmanouil Vamvakopoulos et al (ATLASExperiment)
+- Cleaned up reporting of transferred file state in mover_put_data_new() and mover_put_data() (Mover)
+- Changed headPilotErrorDiag() to headPilotErrorDiag() to avoid annoying tailed error diagnostics, in get_data() and changed import (Mover)
+- Created headPilotErrorDiag() (pUtil)
+- Now using headPilotErrorDiag in makeJobReport() (pUtil)
+- Replaced all usages of type as a variable and replaced it with ftype (FileState, FileStateClient, all site movers, Monitor, RunJob*, mover)
+- Removed obsolete and unused lateRegistration() (pUtil)
+- Removed duplicated, obsolete and unused getField(), getNewQueuedataFilename() (FileHandling)
+
+To avoid creating dark data in case the server has already failed the job before the pilot has finished
+The problem can happen if the server times out the job before tar+zip of huge log files have not finished within two hours
+- Added 55 minute time-outs each around tar+zip of log file in createLogFile() (JobLog)
+
+Updates to alternative stage-out mechanism (related to WORLD cloud and jobMetrics reporting)
+- Updated getTier1Queue() to handle WORLD cloud for alternative stage-out (ATLASSiteInformation)
+- Removed unused getTier1Queue2() (ATLASSiteInformation, AMSTaiwanSiteInformation)
+- Now sending token to prepareAlternativeStageOut() from mover_put_data() (Mover)
+- Added token argument to prepareAlternativeStageOut() (Mover)
+- Sending token to getTier1Queue() from prepareAlternativeStageOut() (Mover)
+- Reporting alt_transferred file state in mover_put_data_new() and mover_put_data() (Mover)
+- Created getFilesOfState() (FileState, FileStateClient)
+- Using getFilesOfState() in getJobMetrics() (PandaServerClient)
+- Added --quiet to getLocalEMISetup to avoid interrupting JAVA warnings (ATLASSiteInformation)
+- Sending site to getJobMetrics() from getNodeStructure() (PandaServerClient)
+- Added site argument to getJobMetrics() (PandaServerClient)
 
 General bug fixes:
 - Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
 to get the wrong error label (LocalSiteMover)
 - Corrected usage of new method processCanBeKilled() (missing self; also in its call in __updateJobs()) (Monitor)
+- Removed half-implemented getFilenamesAndGuid() (Mover)
+- Changed 'eventservice' to 'logs' in transferLogFile() before adding info to OS transfer dictionary (JobLog)
+- Added missing MAKEFLAGS for ND jobs, in setupNordugridTrf() (NordugridATLASExperiment)
+- Improved handling of lcg-get-checksum output in case of irrelevant warnings in lcgGetChecksum()
 
 Setup of ATLAS Release changes
 - Created a new getJobExecutionCommand(), renamed old function to getJobExecutionCommandOld() (ATLASExperiment)
 - Changed useAtlasSetup() to always return True for all releases (ATLASExperiment)
 - Updated getSplitHomePackage() to handle AnalysisTransforms-AtlasP1HLT_* correctly (ATLASexperiment)
 - Now using getSplitHomePackage() in getJobExecutionCommand() (ATLASExperiment)
+
+Objectstore updates
+  Added fail-over to alternative OS
+    - Created copyFullQueuedata(), getFullQueuedataDictionary(), findOSEnabledQueuesInFullQueuedata(), findAllObjectStores(), getAlternativeOS(), getFullQueuedataFilePath() (SiteInformation, ATLASSiteInformation)
+    - Now using getNewOSStoragePath() in mover_put_data() to get updated path and os_id (Mover)
+  OS identification
+    - Created getOSIDFromName() (SiteInformation)
+    - Returning the os_bucket_id in getObjectstorePath() (SiteInformation)
+    - Receiving and returning the os_bucket_id in getLogPath() (JobLog)
+    - Receiving the os_bucket_id in transferActualLogFile() (JobLog)
+    - Now receiving and returning os_bucket_id from getDDMStorage() (Mover)
+    - Receiving os_bucket_id in mover_put_data() and mover_put_data_new() (Mover)
+    - Receiving os_bucket_id in getFileInfo() (Mover)
+    - Sending os_bucket_id to mover_put_data() from transferActualLogFile() (JobLog)
+    - Added os_bucket_id argument to mover_put_data() and mover_put_data_new() (Mover)
+    - Sending os_bucket_id to getDDMStorage() from mover_put_data() and mover_put_data_new() (Mover)
+    - Sending os_bucket_id to getObjectstorePath() from ..
+    - Added os_bucket_id argument to getObjectstorePath() (SiteInformation)
+    - Sending os_bucket_id to getObjectstoresField() from getObjectstorePath() (SiteInformation)
+    - Added os_bucket_id argument to getObjectstoresField() (SiteInformation)
+    - Sending os_bucket_id to getObjectstoresList() from getObjectstoresField() (SiteInformation)
+    - Added os_bucket_id argument to getObjectstoresList() (SiteInformation)
+    - Removed useless code that looked for objectstores in queuedata in getObjectstoresList() (SiteInformation)
+    - Sending os_bucket_id to getNewQueuedata() from getObjectstoresList() (SiteInformation)
+    - Added os_bucket_id argument to getNewQueuedata() (SiteInformation)
+    - getNewQueuedata() can now find queuedata matching a given os_bucket_id (SiteInformation)
+    - Now returning os_bucket_id from mover_put_data() and mover_put_data_new() (Mover)
+    - Receiving os_bucket_id from mover_put_data() call in transferActualLogFile() and transferAdditionalFile() (JobLog)
+    - Receiving	os_bucket_id from mover_put_data() call in TransferFiles() (DeferredStageout)
+    - Receiving	os_bucket_id from mover_put_data() call in stageOut() (RunJob, RunJobEvent)
+    - Receiving	os_bucket_id from mover_put_data() call in moveLostOutputFiles() (pilot)
+    - Returning os_bucket_id from stageOut() and receiving it in transferToObjectStore() (RunJobEvent)
+    - Returning os_bucket_id from transferToObjectStore(), received in asynchronousOutputStager() (RunJobEvent)
+    - Sending os_bucket_id from asynchronousOutputStager() to updateEventRange() (RunJobEvent)
+    - Added os_bucket_id argument to updateEventRange() (EventRange)
+    - Sending objstoreID=os_bucket_id with updateEventRange call in updateEventRange() (EventRange)
+    - Added os_id argument to getObjectstoreName() (SiteInformation)
+    - Added os_bucket_id argument to getObjectstoreBucketEndpoint() (SiteInformation)
+    - Created findObjectStore(), getOSInfoFromBucketID(), getBucketID() (SiteInformation)
+    - Created logBucketID variable (Job)
+    - Reporting which OS bucket the log was written to, if any, in getJobMetrics() (PandaServerClient)
+    - Added experiment argument to transferActualLogFile() and sending it from transferLogFile() (JobLog)
+    - Created hasOSBucketIDs() to be used for merge jobs to identify prodDBlockTokens containing OS bucket IDs (SiteInformation)
+    - Created convertBucketIDsToOSIDs() (SiteInformation)
+    - Added prodDBlockToken argument to getFileInfo() (Mover)
+    - Sending prodDBlockToken to getFileInfo() from _mover_get_data_new() and mover_get_data() (Mover)
+    - Now getting file info from different OS:s (if necessary) in getFileInfo() (Mover)
+    - Changed addToOSTransferDictionary() to store os_bucket_id instead of os_name (FileHandling)
+    - Updated calls to addToOSTransferDictionary() to send os_bucket_id instead of os_name (JobLog, RunJobEvent)
+    - Updated getOSNames() to work populate dictionary using os_bucket_id instead of os_name (FileHandling)
+    - Renamed getOSNames() to getOSTransferDictionary(), and updated the calls to it (FileHandling, PandaServerClient)
+    - Created getQueuenameFromOSBucketID() (SiteInformation)
+    - Removed preset queuename from getNewQueuedata() (SiteInformation)
+    - Added queuename argument to getObjectstorePath(), getObjectstoresField(), getObjectstoresList(), getNewQueuedata() (SiteInformation)
+    - Sending queuename argument to getNewQueuedata() from getObjectstoresList() (SiteInformation)
+    - Sending queuename argument to getObjectstoresList() from getObjectstoresField() (SiteInformation)
+    - Sending queuename argument to getObjectstoresField() from getObjectstorePath() (SiteInformation)
+    - Sending queuename argument to getObjectstorePath() from getLogPath() (JobLog)
+    - Added queuename argument to getDDMStorage() (Mover)
+    - Sending queuename argument from getDDMStorage() to getObjectstorePath() (Mover)
+    - Sending queuename argument from mover_put_data() and mover_put_data_new() to getDDMStorage() (Mover)
+    - Added queuename argument to getQueuedataFileName(), getField(), readpar() (SiteInformation)
+    - Sending queuename to getQueuedataFileName() from getObjectstoresList(), getNewQueuedata(), getField(), readpar() (SiteInformation)
+    - Sending queuename to getField() from getObjectstoresList(), getNewQueuedata() (SiteInformation)
+    - Added queuename parameter to readpar() and sending it forward to si.readpar() (pUtil)
+    - Sending queuename to getObjectstoresField() from getObjectstorePath() (SiteInformation)
+    - Added queuename argument to getObjectstoreName() (SiteInformation)
+    - Sending queuename to getObjectstoresField() from getObjectstoreName() (SiteInformation)
+    - Added os_bucket_id to fileInfoDic in getFileInfo() (Mover)
+    - Extracting os_bucket_id in extractInputFileInfo() (Mover)
+    - Receiving os_bucket_id in _mover_get_data_new(), mover_get_data() from extractInputFileInfo() (Mover)
+    - Now using getObjectstorePath() in mover_get_data() to trigger a proper queuedata JSON download/copy (Mover)
+  General changes
+    - Minor cleanup; removed usage of alt, prodSourceLabel, testLevel, analysisJob, extradirs, proxyCheck in put_data(), removed proxyCheck in get_data() (S3ObjectstoreSiteMover)
+    - Removed unnecessary cleanupOS() and shouldCleanupOS() (RunJob)
+    - Removed useless getNewQueuedataXXX() (SiteInformation)
+    - Now removing current output files from stage-out queue in case of exception in transferToObjectStore() to prevent endless loop in asynchronousOutputStager() (RunJobEvent)
 
 Memory monitoring updates:
 - Calling __check_memory_usage() in monitoring loop, in monitor_job() (Monitor)
@@ -86,10 +204,10 @@ Memory monitoring updates:
 - Created empty getUtilityInfo() (Experiment)
 - Updated call to getUtilityInfo() in getNodeStructure() (PandaServerClient)
 - Now importing getJSONDictionary in ATLASExperiment
-- Created getUtilityOutputFilename() used by getUtilityCommand() (ATLASExperiment)
+- Created getUtilityOutputFilename() used by getUtilityCommand() (ATLASExperiment, Experiment)
 - Created new error code ERR_PAYLOADEXCEEDMAXMEM, 1235, "Payload exceeded maximum allowed memory" (PilotErrors)
 - Now using getJSONDictionary() in getJobReport() to avoid problems with unicode seen in test jobs (FileHandling)
-- Created parseUtilityOutput() and findMaxPSS() (ATLASExperiment)
+- Created parseUtilityOutput() (ATLASExperiment)
 - Creating a lockfile in __check_memory_usage() to prevent the MemoryMonitor to restart after it has been killed (Monitor)
 - Avoiding restart of memory monitor in __main__() if lockfile MEMORYEXCEEDED is found (RunJob, RunJobEvent)
 - Added purge argument to getUtilityInfo() (PandaServerClient)
@@ -99,6 +217,14 @@ Memory monitoring updates:
 - Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
 - Improved reading of memory_monitor_summary.json in getUtilityInfo() (ATLASExperiment)
 - Corrected time() -> time.time() in getUtilityInfo() (ATLASExperiment)
+- Created getMemoryValues() and getMaxUtilityValue() (ATLASExperiment)
+- Created getUtilityInfoPath() used by getUtilityInfo() and getMemoryValues() (ATLASExperiment)
+- __check_memory_usage() now using getMemoryValues() (Monitor)
+- Added allowTxtFile option to getUtilityInfo() (ATLASExperiment)
+- Added pilot_initdir, allowTxtFile arguments to getUtilityInfo() (Experiment)
+- Added allowTxtFile argument to getUtilityInfo() (ATLASExperiment)
+- Removed getTracingReportFilename, writeJSON from import list (xrdcpSiteMover)
+- Now catching general Exception instead of KeyError in __check_memory_usage() to avoid problem with empty JSON (Monitor)
 
 LFC cleanup:
 - Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
@@ -122,19 +248,20 @@ Code cleanup: (apart from Mario's cleanup)
 - Removed usages of rsespace variable in monitor_job() and monitor_recovery_job() (Monitor)
 - Removed rsespace and rsespmsg from setSiteInfo() (Site)
 - Removed usages of rsespace and rsespmsg, and sending remainingSpace and messageLevel to server from getNodeStructure() (PandaServerClient)
+- Code cleanup in various pilot modules
 
 Update from Danila Oleynik, Taylor Childers:
 - New modules: ArgoJob, RunJobArgo, BalsamJob, MessageInterface
 - Updated RunJobFactory; replaced Mira with Argo
 - Added functions to serialize ARGO messages: serialize(), deserialize(), convert_unicode_string() (pUtil)
 
-Merged with Wen's version:
+Update from Wen Guan:
 - Added EventStager module for HPC Nersc
 - Added GetJob module for getting multiple jobs
 - Update EventServerManager to let it run in a sub-process. Before it was running in the current process, in this case it cannot be switched to another job which is needed by multi-jobs Yoda.
-- In EventServerManager add functions to handle AthenMP error messages.
+- In EventServerManager add functions to handle AthenaMP error messages.
 - Update to use bulk event ranges updates to panda server
-- Fix cases that all ranks of Yoda were killed when one rank finished.
+- Fix cases where all ranks of Yoda were killed when one rank finished.
 - Update HPCManager to handle multi-jobs.
 - Update Yoda database function to fix the bottleneck which was slow to update db changes
 - Update Yoda Interaction module to fix the messages delay
@@ -143,8 +270,18 @@ Merged with Wen's version:
 - Update monitor module to monitor multi-jobs, terminate multi-jobs, handle multi-jobs logs and recover HPC jobs
 - Restored is_secure variable which got lost in the merging process (S3ObjectstoreSiteMover)
 
-Merged with Mario Lassnig's version:
-- Code cleanup in various pilot modules
+Update from Alexey Anisenkon:
+- Job stage-in base workflow implemented:
+- . direct access support
+- . no FAX for stagein
+- . no DBReleases (as special input case) support
+- . FileSpec object integration for stagein
+- . xrdcp mover: get functionality implemented
+- . Job object updates
+- . other mover related updates
+
+Update from Daniil Drizhuk:
+- New job recovery algorithm implemented (DeferredStageout module)
 
 REMOVE RunJobMira.py FROM DISTRIBUTION
 

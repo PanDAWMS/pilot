@@ -939,18 +939,33 @@ class Experiment(object):
         # The utility is executed if this method returns True. The utility is currently expected to produce
         # a summary JSON file whose name is defined by the getUtilityJSONFilename() method. The contents of
         # this file (ie. the full JSON dictionary) will be added to the job update.
+        #
+        # Example of summary JSON file (ATLAS case):
+        #   {"Max":{"maxVMEM":40058624,"maxPSS":10340177,"maxRSS":16342012,"maxSwap":16235568},
+        #    "Avg":{"avgVMEM":19384236,"avgPSS":5023500,"avgRSS":6501489,"avgSwap":5964997}}
+        #
+        # While running, the MemoryMonitor also produces a regularly updated text file with the following format: (tab separated)
+        #   Time          VMEM        PSS        RSS        Swap         (first line in file)
+        #   1447960494    16099644    3971809    6578312    1978060
 
         return False
 
     # Optional
+    def getUtilityOutputFilename(self):
+        """ Return the filename of a utility output file """
+
+        # For explanation, see shouldExecuteUtility()
+        return "memory_monitor_output.txt"
+
+    # Optional
     def getUtilityJSONFilename(self):
-        """ Return the filename of the memory monitor JSON file """
+        """ Return the filename of a utility JSON file """
 
         # For explanation, see shouldExecuteUtility()
         return "utility_summary.json"
 
     # Optional
-    def getUtilityInfo(self, workdir):
+    def getUtilityInfo(self, workdir, pilot_initdir, allowTxtFile=False):
         """ Add the utility info to the node structure if available """
 
         # Extract the relevant information from the utility tool output and add it to the dictionary

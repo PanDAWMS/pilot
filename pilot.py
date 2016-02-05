@@ -26,6 +26,7 @@ from Configuration import Configuration
 from WatchDog import WatchDog
 from Monitor import Monitor
 import subprocess
+import DeferredStageout
 
 try:
     from rucio.client import Client
@@ -170,7 +171,7 @@ def argParser(argv):
             env['queuename'] = a
 
         elif o == "-i":
-            if a == "PR" or a == "RC":
+            if a == "PR" or (a and a.startswith("RC")):
                 env['pilot_version_tag'] = a
             else:
                 print "Unknown pilot version tag: %s" % (a)
@@ -324,11 +325,11 @@ def argParser(argv):
 
     # force user jobs for ANALY sites
     if env['sitename'].startswith('ANALY_'):
-        if env['uflag'] != 'user' and env['uflag'] != 'self' and env['uflag'] != 'ptest' and env['uflag'] != 'rucio_test':
+        if env['uflag'] not in ['user', 'self', 'ptest', 'rucio_test']:
             env['uflag'] = 'user'
-            pUtil.tolog("Pilot user flag has been reset for analysis site (to value: %s)" % (env['uflag']))
+            pUtil.tolog("Pilot user flag has been reset for analysis site (to value: %s)" % env['uflag'])
         else:
-            pUtil.tolog("Pilot user flag: %s" % str(env['uflag']))
+            pUtil.tolog("Pilot user flag: %s" % env['uflag'])
 
 def moveLostOutputFiles(job, thisSite, remaining_files):
     """
@@ -431,7 +432,7 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
     _msg = ""
     try:
         # Note: alt stage-out numbers are not saved in recovery mode (job object not returned from this function)
-        rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (file_path), dsname,
+        rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (file_path), dsname,
                                                           thisSite.sitename, thisSite.computingElement, analysisJob=analJob,
                                                           proxycheck=env['proxycheckFlag'], spsetup=job.spsetup,scopeOut=job.scopeOut, scopeLog=job.scopeLog,
                                                           token=job.destinationDBlockToken, pinitdir=env['pilot_initdir'],
@@ -520,6 +521,57 @@ def FinishedJob(job):
 
     return state
 
+def runJobRecoveryNew(thisSite, _psport, extradir):
+    """
+    run the lost job recovery algorithm
+    """
+
+    tmpdir = os.getcwd()
+
+    # check queuedata for external recovery directory
+    recoveryDir = "" # an empty recoveryDir means that recovery should search local WN disk for lost jobs
+    try:
+        recoveryDir = pUtil.readpar('recoverdir')
+    except:
+        pass
+    else:
+        # make sure the recovery directory actually exists (will not be added to dir list if empty)
+        recoveryDir = pUtil.verifyRecoveryDir(recoveryDir)
+
+    # run job recovery
+    dirs = [DeferredStageout.GetDefaultDeferredStageoutDir(thisSite=thisSite,
+                                        deferred_stageout_logfile="pilotlog-deferredstageout-{jobid}.txt")]
+    if recoveryDir != "":
+        dirs.append(recoveryDir)
+        pUtil.tolog("Job recovery will scan both local disk and external disk")
+    if extradir != "":
+        if extradir not in dirs:
+            dirs.append(extradir)
+            pUtil.tolog("Job recovery will also scan extradir (%s)" % (extradir))
+
+    recovered = DeferredStageout.DeferredStageout(dirs, env['maxjobrec'],
+                                        deferred_stageout_logfile="pilotlog-deferredstageout-{jobid}.txt")
+
+    #dircounter = 0
+    # for _dir in dirs:
+    #     dircounter += 1
+    #     pUtil.tolog("Scanning for lost jobs [pass %d/%d]" % (dircounter, len(dirs)))
+    #
+    #     try:
+    #         lostPandaIDs = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
+    #     except:
+    #         pUtil.tolog("!!WARNING!!1999!! Failed during search for lost HPCEvent jobs: %s" % str(e))
+    #     else:
+    #         pUtil.tolog("Recovered/Updated lost HPCEvent jobs(%s)" % (lostPandaIDs))
+    #
+    #     try:
+    #        found_lost_jobs = RecoverLostJobs(_dir, thisSite, _psport)
+    #     except Exception, e:
+    #         pUtil.tolog("!!WARNING!!1999!! Failed during search for lost jobs: %s" % str(e))
+    #     else:
+    #         pUtil.tolog("Recovered/Updated %d lost job(s)" % (found_lost_jobs))
+    pUtil.chdir(tmpdir)
+
 def runJobRecovery(thisSite, _psport, extradir):
     """
     run the lost job recovery algorithm
@@ -551,14 +603,14 @@ def runJobRecovery(thisSite, _psport, extradir):
     for _dir in dirs:
         dircounter += 1
         pUtil.tolog("Scanning for lost jobs [pass %d/%d]" % (dircounter, len(dirs)))
-
+    
         try:
             lostPandaIDs = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
         except:
             pUtil.tolog("!!WARNING!!1999!! Failed during search for lost HPCEvent jobs: %s" % str(e))
         else:
             pUtil.tolog("Recovered/Updated lost HPCEvent jobs(%s)" % (lostPandaIDs))
-
+    
         try:
             found_lost_jobs = RecoverLostJobs(_dir, thisSite, _psport)
         except Exception, e:
@@ -648,7 +700,7 @@ def RecoverLostJobs(recoveryDir, thisSite, _psport):
     else:
         JS = JobState()
         # grab all job state files in all work directories
-        job_state_files = glob(dir_path + "/Panda_Pilot_*/jobState-*.pickle")
+        job_state_files = glob(dir_path + "/Panda_Pilot_*/jobState-*.*")
 
         # purge any test job state files (testing for new job rec algorithm)
         job_state_files = pUtil.removeTestFiles(job_state_files, mode="default")
@@ -1879,10 +1931,15 @@ def getProdSourceLabel():
         prodSourceLabel = 'test'
 
     # override for release candidate pilots
-    if env['pilot_version_tag'] == "RC" and env['uflag'] != 'ptest':
-        prodSourceLabel = "rc_test"
-    if env['pilot_version_tag'] == "DDM" and env['uflag'] != 'ptest':
-        prodSourceLabel = "ddm"
+    if env['uflag'] != 'ptest' and env['pilot_version_tag']:
+        if env['pilot_version_tag'].startswith("RC"):
+            prodSourceLabel = "rc_test"
+            if env['pilot_version_tag'] == 'RCM':
+                prodSourceLabel = "rcm_test"
+            elif env['pilot_version_tag'] == 'RCMA': # RC Mover for ANALY site: temporary fix
+                prodSourceLabel = "rcm_test"
+        elif env['pilot_version_tag'] == "DDM":
+            prodSourceLabel = "ddm"
 
     return prodSourceLabel
 

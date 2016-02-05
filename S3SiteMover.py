@@ -60,7 +60,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
             status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment)
 
         if status == 0:
-            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
+            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
             state = "DONE"
         else:
             errors = PilotErrors()

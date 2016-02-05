@@ -636,6 +636,9 @@ class JobRecovery:
 
         status = False
 
+        # IGNORE TEST MODE
+        mode = ""
+
         # create a job state object and give it the current job state information
         JS = JobState()
         if JS.put(job, thisSite, workerNode, recoveryAttempt=recoveryAttempt, mode=mode):

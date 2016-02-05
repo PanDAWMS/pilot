@@ -148,7 +148,7 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
         if latereg:
             latereg_str = "True"
         else:
-            latereg_str = "False"            
+            latereg_str = "False"
         msgdic["output_latereg"] = latereg_str
 
     msg = ''
@@ -409,7 +409,7 @@ def convertMetadata4NG(filenameOUT, filenameIN, outsDict, dataset, datasetDict):
             # get the metadata
             xmlIN = f.read()
             f.close()
-            
+
             xmlOUT = _header
             xmlOUT += _tagBEGIN % 'outputfiles'
 
@@ -456,7 +456,7 @@ def convertMetadata4NG(filenameOUT, filenameIN, outsDict, dataset, datasetDict):
                 f.close()
     else:
         status = False
-    
+
     return status
 
 def getOutFilesGuids(outFiles, workdir, experiment, TURL=False):
@@ -528,7 +528,7 @@ def verifyMultiTrf(jobParameterList, jobHomePackageList, jobTrfList, jobAtlasRel
         # jobAtlasRelease = ['14.0.0'] -> ['14.0.0', '14.0.0']
         jobAtlasRelease = jobAtlasRelease*N_jobTrfList
         N_jobAtlasRelease = len(jobAtlasRelease)
-        
+
     if (N_jobParameterList == N_jobHomePackageList) and \
        (N_jobHomePackageList == N_jobTrfList) and \
        (N_jobTrfList == N_jobAtlasRelease):
@@ -677,7 +677,7 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
     # the method is using the file state dictionary
 
     # remove later
-    dumpFileStates(pworkdir, jobId, type="input")
+    dumpFileStates(pworkdir, jobId, ftype="input")
 
     # remove any instruction regarding tag file creation for event service jobs
     _runCommandList = []
@@ -724,7 +724,7 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
         _runCommandList = runCommandList
 
     # was FAX used as primary site mover in combination with direct I/O?
-    if usedFAXandDirectIO:
+    if usedFAXandDirectIO == True:
         tolog("Since FAX was used as primary site mover in combination with direct I/O, the run command list need to be updated")
         _runCommandList2 = []
 
@@ -748,7 +748,7 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
                 tolog("(Removed --newPrefix pattern)")
 
             # add the --usePFCTurl if not there already
-            if not "--usePFCTurl" in cmd:
+            if not "--usePFCTurl" in cmd and analysisJob:
                 cmd += " --usePFCTurl"
                 tolog("(Added --usePFCTurl)")
 
@@ -756,8 +756,58 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
             _runCommandList2.append(cmd)
 
         _runCommandList = _runCommandList2
+
+
+    ### new movers quick integration: reuse usedFAXandDirectIO variable with special meaning
+    ### to avoid any LFC and prefixes lookups in transformation scripts
+    ### since new movers already form proper pfn values
+    ### proper workflow is required: to be reimplemented later
+    if usedFAXandDirectIO == 'newmover' or usedFAXandDirectIO == 'newmover-directaccess':
+        tolog("updateRunCommandList(): use new movers logic")
+        tolog("updateRunCommandList(): remove to be deprecated options (--lfcHost, --oldPrefix, --newPrefix) from command list")
+        tolog("updateRunCommandList(): force to set --usePFCTurl")
+        tolog("updateRunCommandList(): check directaccess mode if need (--directIn)")
+        tolog("current runCommandList=%s" % _runCommandList)
+
+        _runCommandList2 = []
+
+        for cmd in _runCommandList:
+
+            # remove the --lfcHost, --oldPrefix, --newPrefix
+            # add --usePFCTurl
+
+            if "--lfcHost" in cmd:
+                cmd = removePattern(cmd, "(\-\-lfcHost\ \S+)")
+                tolog("(Removed the --lfcHost)")
+
+            if "--oldPrefix" in cmd:
+                pattern = "(\-\-oldPrefix\ \S+)"
+                cmd = removePattern(cmd, pattern)
+                tolog("(Removed --oldPrefix pattern)")
+
+            if "--newPrefix" in cmd:
+                pattern = "(\-\-newPrefix\ \S+)"
+                cmd = removePattern(cmd, pattern)
+                tolog("(Removed --newPrefix pattern)")
+
+            if "--usePFCTurl" not in cmd and analysisJob:
+                cmd += " --usePFCTurl"
+                tolog("(Added --usePFCTurl)")
+
+            # add --directIn if need
+            if usedFAXandDirectIO == 'newmover-directaccess':
+                if "--directIn" not in cmd and analysisJob:
+                    cmd += " --directIn"
+                    tolog("(Added --directIn)")
+
+            tolog("Updated run command: %s" % cmd)
+
+            _runCommandList2.append(cmd)
+
+        _runCommandList = _runCommandList2
+
     tolog("Dumping final input file states")
-    dumpFileStates(pworkdir, jobId, type="input")
+    dumpFileStates(pworkdir, jobId, ftype="input")
 
     return _runCommandList
 
@@ -831,7 +881,7 @@ def getSourceSetup(runCommand):
 
     if type(runCommand) is dict:
             to_str = " ".join(runCommand['environment'])
-            to_str = "%s %s %s %s" % (to_str,  runCommand["interpreter"], runCommand["payload"], runCommand["parameters"])    
+            to_str = "%s %s %s %s" % (to_str,  runCommand["interpreter"], runCommand["payload"], runCommand["parameters"])
             runCommand = to_str
 
     setup = ""
@@ -841,4 +891,3 @@ def getSourceSetup(runCommand):
         setup = s[0]
 
     return setup
-

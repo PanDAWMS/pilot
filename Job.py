@@ -2,6 +2,8 @@ import os
 import time
 import pUtil
 
+from subprocess import Popen, PIPE, STDOUT
+
 class Job:
     """ Job definition """
 
@@ -97,6 +99,7 @@ class Job:
         self.ddmEndPointLog = []           #
         self.cloneJob = ""                 # Is the job cloned? Allowed values: 'runonce', 'storeonce'
         self.allowNoOutput = []            # Used to disregard empty files from jobReport
+        self.logBucketID = -1              # To keep track of which OS bucket the log was stored in
 
         # event service objects
         self.eventService = False          # True for event service jobs
@@ -127,6 +130,9 @@ class Job:
         self.inData = []  # validated structured data of input files ( aggregated inFiles, ddmEndPointIn, scopeIn, filesizeIn and others...)
         self.outData = [] # structured data of output files (similar to inData)
         self.logData = [] # structured data of log files (similar to inData)
+
+        self.accessmode = "" # accessmode=direct,copy: Should direct i/o be used for input files of this job
+
 
     def displayJob(self):
         """ dump job specifics """
@@ -431,6 +437,16 @@ class Job:
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
+        self.accessmode = ""
+        if self.transferType == 'direct': # enable direct access mode
+            self.accessmode = 'direct'
+
+        # job input options overwrite any Job settings
+        if '--accessmode=direct' in self.jobPars: # fix me later
+            self.accessmode = 'direct'
+        if '--accessmode=copy' in self.jobPars:   # fix me later
+            self.accessmode = 'copy'
+
         # for jem testing: self.jobPars += ' --enable-jem --jem-config \"a=1;\"'
         if "--pfnList" in self.jobPars:
             import re
@@ -544,7 +560,6 @@ class Job:
             ref_dat.append(finfo)
 
 
-
     def isAnalysisJob(self):
         """
             Determine whether the job is an analysis job or not
@@ -555,15 +570,121 @@ class Job:
         #return pUtil.isAnalysisJob(self.trf)
         #copied from pUtil.isAnalysisJob to isolate the logic amd move outside pUtil
 
-        #trf = self.trf.split(',')[0] # ???  used like this in few places: it will affect result only if the trf starts with ','
-        is_analysis = self.trf.startswith('https://') or self.trf.startswith('http://')
+        is_analysis = False
 
-        if self.prodSourceLabel == "software": # logic extracted from the sources
+        trf = self.trf.split(',') if self.trf else [] # properly convert to list (normally should be done in setJobDef())
+        if trf and trf[0] and (trf[0].startswith('https://') or trf[0].startswith('http://')): # check 1st entry
+            is_analysis = True
+
+        if self.prodSourceLabel == "software": # logic extracted from the sources, to be verified
             is_analysis = False
 
         # apply addons checks later if need
 
         return is_analysis
+
+    def isBuildJob(self):
+        """
+        Check if the job is a build job
+        (i.e. check if the job only has one output file that is a lib file)
+        """
+
+        ofiles = self.outData
+        is_build_job = len(ofiles) == 1 and '.lib.' in ofiles[0].lfn
+        return is_build_job
+
+
+    #def getDatasets(self):
+    #    """ get the datasets for the output files """
+    #
+    #    # get the default dataset
+    #    if self.destinationDblock and self.destinationDblock[0] not in ['NULL', ' ']:
+    #        dsname = self.destinationDblock[0]
+    #    else:
+    #        dsname = "%s-%s-%s" % (time.localtime()[0:3]) # pass it a random name
+    #
+    #    # create the dataset dictionary
+    #    # (if None, the dsname above will be used for all output files)
+    #    datasetDict = getDatasetDict(self.outFiles, self.destinationDblock, self.logFile, self.logDblock)
+    #    if datasetDict:
+    #        pUtil.tolog("Dataset dictionary has been verified")
+    #    else:
+    #        pUtil.tolog("Dataset dictionary could not be verified, output files will go to: %s" % dsname)
+    #
+    #    return dsname, datasetDict
+    #
+    #
+    #def ___getDatasetDict(self): # don't use this function: do use structured self.outData & self.outLog instead
+    #    """
+    #        Create a dataset dictionary: old cleaned function to verify the logic
+    #
+    #        :logic:
+    #            - validate self.outputFiles, self.destinationDblock: to have same length and contains valid data
+    #            - join self.outputFiles, self.destinationDblock into the dict
+    #            - add (self.logFile, self.logFileDblock) in the dict
+    #    """
+    #
+    #    datasetDict = None
+    #
+    #    # verify that the lists are of equal size
+    #    if len(self.outputFiles) != len(self.destinationDblock):
+    #        pUtil.tolog("WARNING: Lists are not of same length: %s, %s" % (self.outputFiles, self.destinationDblock))
+    #    elif not len(outputFiles):
+    #        pUtil.tolog("No output files for this job (outputFiles has zero length)")
+    #    elif not len(destinationDblock):
+    #        pUtil.tolog("WARNING: destinationDblock has zero length")
+    #    else:
+    #        # verify that list contains valid entries
+    #        for _list in [self.outputFiles, self.destinationDblock]:
+    #            for _entry in _list:
+    #                if _entry in ["NULL", "", " ", None]:
+    #                    pUtil.tolog("!!WARNING!!2999!! Found non-valid entry in list: %s" % _list)
+    #                    return None
+    #
+    #        # build the dictionary
+    #        try:
+    #            datasetDict = dict(zip(self.outputFiles, self.destinationDblock))
+    #        except Exception, e:
+    #            pUtil.tolog("!!WARNING!!2999!! Exception caught in getDatasetDict(): %s" % e)
+    #            return None
+    #
+    #        # add the log file info
+    #        datasetDict[self.logFile] = self.logFileDblock
+    #
+    #    return datasetDict
+    #
+    #
+    #def __getDatasetName(datasetDict, lfn, pdsname): # don't use this function
+    #    """
+    #        Get the dataset name: old function to validate and refactor the logic
+    #        :return: dsname, dsname_for_traces
+    #
+    #        :logic:
+    #                - dsname_for_traces = datasetDict.get(lfn, pdsname)
+    #                - dsname = dsname_for_traces.replace('_sub[0-9]+', '')
+    #    """
+    #
+    #    if datasetDict and lfn not in datasetDict:
+    #        pUtil.tolog("!!WARNING!!2999!! Could not get dsname from datasetDict for lfn=%s: dict=%s .. will use default dsname=%s" % (lfn, datasetDict, pdsname))
+    #
+    #    # get the dataset name from the dictionary
+    #    datasetDict = datasetDict or {}
+    #    dsname = datasetDict.get(lfn, pdsname)
+    #
+    #    # save the original dsname for the tracing report
+    #    dsname_report = dsname
+    #
+    #    # remove any _subNNN parts from the dataset name (from now on dsname will only be used to create SE destination paths)
+    #    m = re.match('\S+(\_sub[0-9]+)', dsname)
+    #    if m:
+    #        dsname = dsname.replace(m.group(1), '')
+    #        tolog("Removed _subNNN part=%s from the dataset, updated dsname=%s" % (match.group(1), dsname))
+    #    else:
+    #        tolog("Found no _subNNN string in the dataset name")
+    #
+    #    tolog("File %s will go to dataset %s" % (lfn, dsname))
+    #
+    #    return dsname, dsname_report
 
 
     def __repr__(self):
@@ -575,6 +696,63 @@ class Job:
             ret.append("Job.%s = %s" % (k, getattr(self, k, None)))
 
         return '\n'.join(ret)
+
+
+    def _print_files(self, key): # quick stub to be checked later
+
+        files = [os.path.join(self.workdir or '', e.lfn) for e in getattr(self, key, [])]
+        pUtil.tolog("%s file(s): %s" % (key, files))
+        cmd = 'ls -la %s' % ' '.join(files)
+        msg = "do EXEC cmd=%s" % cmd
+        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+        output = c.communicate()[0]
+        pUtil.tolog(msg + '\n' + output)
+
+    def print_infiles(self):
+        return self._print_files('inData')
+
+    def print_outfiles(self):
+        return self._print_files('outData')
+
+    def print_logfiles(self):
+        return self._print_files('logData')
+
+
+    def _sync_outdata(self):
+        """
+            old logic integration function
+              - extend job.outData with new entries from job.outFiles if any
+              - do populate guids values
+              - init dataset value (destinationDblock) if not set
+        """
+
+        # group outData by lfn
+        data = dict([e.lfn, e] for e in self.outData)
+
+        # build structure (join data) from splitted attributes
+        extra = []
+        for i, lfn in enumerate(self.outFiles):
+            if lfn not in data: # found new entry
+                kw = {'type':'output'}
+                #kw['destinationDBlockToken'] = self.destinationDBlockToken[i] # not used by new Movers
+                kw['destinationDblock'] = self.destinationDblock[i]
+                kw['scope'] = self.scopeOut[i]
+                kw['ddmendpoint'] = self.ddmEndPointOut[i] if i<len(self.ddmEndPointOut) else self.ddmEndPointOut[0]
+                kw['guid'] = self.outFilesGuids[i] # outFilesGuids must be coherent with outFiles, otherwise logic corrupted
+                spec = FileSpec(lfn=lfn, **kw)
+                extra.append(spec)
+            else: # sync data
+                spec = data[lfn]
+                spec.guid = self.outFilesGuids[i]
+        if extra:
+            pUtil.tolog('Job._sync_outdata(): found extra output files to be added for stage-out: extra=%s' % extra)
+            self.outData.append(extra)
+
+        # init dataset value (destinationDblock) if not set
+        rand_dsn = "%s-%s-%s" % (time.localtime()[0:3]) # pass it a random name
+        for spec in self.outData:
+            if not spec.destinationDblock or spec.destinationDblock == 'NULL':
+                spec.destinationDblock = self.outData[0].destinationDblock or rand_dsn
 
 
 class FileSpec(object):
@@ -595,12 +773,46 @@ class FileSpec(object):
                     'prodDBlockTokenForOutput', # exposed only for eventservice related job
                     ]
 
+    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime']
+
     def __init__(self, **kwargs):
 
-        attributes = self._infile_keys + self._outfile_keys + ['type']
+        attributes = self._infile_keys + self._outfile_keys + self._local_keys
         for k in attributes:
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
+
+        self.filesize = int(getattr(self, 'filesize', 0) or 0)
+        self.replicas = []
 
     def __repr__(self):
         obj = dict((name, getattr(self, name)) for name in sorted(dir(self)) if not name.startswith('_') and not callable(getattr(self, name)))
         return "%s" % obj
+
+    def get_checksum(self):
+        """
+        :return: checksum, checksum_type
+        """
+
+        cc = (self.checksum or '').split(':')
+        if len(cc) != 2:
+            return self.checksum, None
+        checksum_type, checksum = cc
+        cmap = {'ad':'adler32', 'md':'md5'}
+        checksum_type = cmap.get(checksum_type, checksum_type)
+
+        return checksum, checksum_type
+
+    def is_directaccess(self):
+
+        is_rootfile = '.root' in self.lfn
+
+        exclude_pattern = ['.tar.gz', '.lib.tgz', '.raw.']
+        for e in exclude_pattern:
+            if e in self.lfn:
+                is_rootfile = False
+                break
+
+        if not is_rootfile:
+            return False
+
+        return self.prodDBlockToken != 'local' and is_rootfile

@@ -11,7 +11,7 @@ from subprocess import Popen, PIPE, STDOUT
 
 from pUtil import tolog #
 from PilotErrors import PilotErrors, PilotException
-
+from Node import Node
 
 class BaseSiteMover(object):
     """
@@ -33,6 +33,8 @@ class BaseSiteMover(object):
     checksum_type = "adler32"     # algorithm name of checksum calculation
     checksum_command = "adler32"  # command to be executed to get checksum, e.g. md5sum (adler32 is internal default implementation)
 
+    ddmconf = {}                  # DDMEndpoints configuration from AGIS
+
     #has_mkdir = True
     #has_df = True
     #has_getsize = True
@@ -41,13 +43,17 @@ class BaseSiteMover(object):
     #
 
     def __init__(self, setup_path='', **kwargs):
+
         self.copysetup = setup_path
         self.timeout = kwargs.get('timeout', self.timeout)
+        self.ddmconf = kwargs.get('ddmconf', self.ddmconf)
+        self.workDir = kwargs.get('workDir', '')
 
         #self.setup_command = self.getSetup()
 
         self.trace_report = {}
 
+    @classmethod
     def log(self, value): # quick stub
         #print value
         tolog(value)
@@ -59,10 +65,9 @@ class BaseSiteMover(object):
     @copysetup.setter
     def copysetup(self, value):
         value = os.path.expandvars(value.strip())
-        if not os.access(value, os.R_OK):
+        if value and not os.access(value, os.R_OK):
             self.log("WARNING: copysetup=%s is invalid: file is not readdable" % value)
-            raise Exception("Failed to set copysetup: passed invalid file name=%s" % value)
-            # PilotErrors.ERR_NOSUCHFILE, state="RFCP_FAIL"
+            raise PilotException("Failed to set copysetup: passed invalid file name=%s" % value, code=PilotErrors.ERR_NOSUCHFILE, state="RFCP_FAIL")
         self._setup = value
 
     @classmethod
@@ -121,7 +126,8 @@ class BaseSiteMover(object):
             return full setup command to be executed
             Can be customized by different site mover
         """
-
+        if not self.copysetup:
+            return ''
         return 'source %s' % self.copysetup
 
     def setup(self):
@@ -134,6 +140,45 @@ class BaseSiteMover(object):
         # raise in case of errors
 
         return True # rcode=0, output=''
+
+    def shouldVerifyStageIn(self):
+        """
+            Should the get operation perform any file size/checksum verifications?
+            can be customized for specific movers
+        """
+
+        return True
+
+    def check_availablespace(self, maxinputsize, files):
+        """
+            Verify that enough local space is available to stage in and run the job
+        """
+
+        if not self.shouldVerifyStageIn():
+            return
+
+        totalsize = reduce(lambda x, y: x + y.filesize, files, 0)
+
+        # verify total filesize
+        if maxinputsize and totalsize > maxinputsize:
+            error = "Too many/too large input files (%s). Total file size=%s B > maxinputsize=%s B" % (len(files), totalsize, maxinputsize)
+            raise PilotException(error, code=PilotErrors.ERR_SIZETOOLARGE)
+
+        self.log("Total input file size=%s B within allowed limit=%s B (zero value means unlimited)" % (totalsize, maxinputsize))
+
+        # get available space
+        wn = Node()
+        wn.collectWNInfo(self.workDir)
+
+        available_space = int(wn.disk)*1024**2 # convert from MB to B
+
+        self.log("Locally available space: %d B" % available_space)
+
+        # are we wihin the limit?
+        if totalsize > available_space:
+            error = "Not enough local space for staging input files and run the job (need %d B, but only have %d B)" % (totalsize, available_space)
+            raise PilotException(error, code=PilotErrors.ERR_NOLOCALSPACE)
+
 
     def getRemoteFileChecksum(self, filename):
         """
@@ -155,19 +200,207 @@ class BaseSiteMover(object):
 
         return None
 
-    def stageOut(self, source, destination):
+    def resolve_replica(self, fspec):
+        """
+            fspec is FileSpec object
+            :return: input file replica details: {'surl':'', 'ddmendpoint':'', 'pfn':''}
+            :raise: PilotException in case of controlled error
+        """
+
+        # resolve proper surl and find related replica
+
+        ignore_rucio_replicas = True # quick stab until protocols are properly populated in Rucio: CHANGE ME LATER
+        #if '.root' in fspec.lfn:
+        #    ignore_rucio_replicas = False
+
+        protocol = self.protocol
+
+        scheme = protocol.get('se', '').split(':')[0]
+        if not scheme:
+            raise Exception('Failed to resolve copytool scheme to be used, se field is corrupted?: protocol=%s' % protocol)
+
+        replica = None # find first matched to protocol spec replica
+        surl = None
+
+        for ddmendpoint, replicas, ddm_se in fspec.replicas:
+            if not replicas:
+                continue
+            surl = replicas[0] # assume srm protocol is first entry
+            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s" % (surl, ddmendpoint, ddm_se))
+
+            for r in replicas:
+                # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
+                if ignore_rucio_replicas and r.startswith(ddm_se): # manually form pfn based of protocol.se
+                    replica = protocol.get('se') + r.replace(ddm_se, '')
+                    self.log("[stage-in] ignore_rucio_replicas=True: found replica=%s matched ddm.se=%s .. will use TURL=%s" % (surl, ddm_se, replica))
+                    break
+                # use exact pfn from Rucio replicas
+                if not replica and r.startswith("%s://" % scheme):
+                    replica = r
+            if replica:
+                break
+
+        if not replica: # replica not found
+            error = 'Failed to find replica for input file, protocol=%s, fspec=%s' % (protocol, fspec)
+            raise PilotException(error, code=PilotErrors.ERR_REPNOTFOUND)
+
+        return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
+
+    def is_stagein_allowed(self, fspec, job):
+        """
+            check if stage-in operation is allowed for the mover
+            apply additional job specific checks here if need
+            Should be overwritten by custom sitemover
+            :return: True in case stage-in transfer is allowed
+            :raise: PilotException in case of controlled error
+        """
+
+        return True
+
+    def get_data(self, fspec):
+        """
+            fspec is FileSpec object
+            :return: file details: {'checksum': '', 'checksum_type':'', 'filesize':''}
+            :raise: PilotException in case of controlled error
+        """
+
+        # resolve proper surl and find related replica
+
+        dst = os.path.join(self.workDir, fspec.lfn)
+        return self.stageIn(fspec.turl, dst, fspec)
+
+
+    def stageIn(self, source, destination, fspec):
+        """
+            Stage in the source file: do stagein file + verify local file
+            :return: file details: {'checksum': '', 'checksum_type':'', 'filesize':''}
+            :raise: PilotException in case of controlled error
+        """
+
+        self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
+
+        dst_checksum, dst_checksum_type = self.stageInFile(source, destination, fspec)
+
+        src_fsize = fspec.filesize
+
+        if not self.shouldVerifyStageIn():
+            self.log("skipped stage-in verification for lfn=%" % fspec.lfn)
+            return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
+
+        src_checksum, src_checksum_type = fspec.get_checksum()
+
+        dst_fsize = os.path.getsize(destination)
+
+        # verify stagein by checksum
+        self.trace_report.update(validateStart=time.time())
+
+        try:
+            if not dst_checksum:
+                dst_checksum, dst_checksum_type = self.calc_file_checksum(destination)
+        except Exception, e:
+            self.log("verify StageIn: caught exception while getting local file=%s checksum: %s .. skipped" % (destination, e))
+
+        try:
+            if not src_checksum:
+                src_checksum, src_checksum_type = self.getRemoteFileChecksum(source)
+        except Exception, e:
+            self.log("verify StageIn: caught exception while getting remote file=%s checksum: %s .. skipped" % (source, e))
+
+        try:
+            if dst_checksum and dst_checksum_type: # verify against source
+
+                is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
+
+                self.log("Remote checksum [%s]: %s  (%s)" % (src_checksum_type, src_checksum, source))
+                self.log("Local  checksum [%s]: %s  (%s)" % (dst_checksum_type, dst_checksum, destination))
+                self.log("checksum is_verified = %s" % is_verified)
+
+                if not is_verified:
+                    error = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" % \
+                                            (src_checksum_type, os.path.basename(destination), dst_checksum, src_checksum)
+                    if src_checksum_type == 'adler32':
+                        state = 'AD_MISMATCH'
+                        rcode = PilotErrors.ERR_GETADMISMATCH
+                    else:
+                        state = 'MD5_MISMATCH'
+                        rcode = PilotErrors.ERR_GETMD5MISMATCH
+                    raise PilotException(error, code=rcode, state=state)
+
+                self.log("verifying stagein done. [by checksum] [%s]" % source)
+                self.trace_report.update(clientState="DONE")
+                return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':dst_fsize}
+
+        except PilotException:
+            raise
+        except Exception, e:
+            self.log("verify StageIn: caught exception while doing file checksum verification: %s ..  skipped" % e)
+
+        # verify stageout by filesize
+        try:
+            if not src_fsize:
+                src_fsize = self.getRemoteFileSize(source)
+            is_verified = src_fsize and src_fsize == dst_fsize
+
+            self.log("Remote filesize [%s]: %s" % (os.path.dirname(destination), src_fsize))
+            self.log("Local  filesize [%s]: %s" % (os.path.dirname(destination), dst_fsize))
+            self.log("filesize is_verified = %s" % is_verified)
+
+            if not is_verified:
+                error = "Remote and local file sizes do not match for %s (%s != %s)" % (os.path.basename(destination), dst_fsize, src_fsize)
+                self.log(error)
+                raise PilotException(error, code=PilotErrors.ERR_GETWRONGSIZE, state='FS_MISMATCH')
+
+            self.log("verifying stagein done. [by filesize] [%s]" % source)
+            self.trace_report.update(clientState="DONE")
+            return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':dst_fsize}
+
+        except PilotException:
+            raise
+        except Exception, e:
+            self.log("verify StageOut: caught exception while doing file size verification: %s .. skipped" % e)
+
+        raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
+
+
+    def stageInFile(source, destination, fspec=None):
+        """
+            Stage in the file.
+            Should be implemented by different site mover
+            :return: destination file details (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
+        """
+
+        raise Exception('NOT IMPLEMENTED')
+
+
+    def put_data(self, fspec):
+        """
+            fspec is FileSpec object
+            :return: remote file details: {'checksum': '', 'checksum_type':'', 'filesize':'', 'surl':''}
+            stageout workflow could be overwritten by specific Mover
+            :raise: PilotException in case of controlled error
+        """
+
+        src = os.path.join(self.workDir, fspec.lfn)
+        return self.stageOut(src, fspec.turl, fspec)
+
+
+    def stageOut(self, source, destination, fspec):
         """
             Stage out the source file: do stageout file + verify remote file output
             :return: remote file details: {'checksum': '', 'checksum_type':'', 'filesize':''}
             :raise: PilotException in case of controlled error
         """
 
-        # do stageOutFle
-        src_fsize = os.path.getsize(source)
+        src_checksum, src_checksum_type = None, None
+        src_fsize = fspec and fspec.filesize or os.path.getsize(source)
 
+        if fspec:
+            src_checksum, src_checksum_type = fspec.get_checksum()
+
+        # do stageOutFile
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
-
-        dst_checksum, dst_checksum_type = self.stageOutFile(source, destination)
+        dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
 
         # verify stageout by checksum
         self.trace_report.update(validateStart=time.time())
@@ -176,11 +409,14 @@ class BaseSiteMover(object):
             if not dst_checksum:
                 dst_checksum, dst_checksum_type = self.getRemoteFileChecksum(destination)
         except Exception, e:
-            self.log("verify StageOut: caught exception while getting remote file checksum: %s .. skipped" % e)
+            self.log("verify StageOut: caught exception while getting remote file checksum.. skipped, error=%s" % e)
+            import traceback
+            self.log(traceback.format_exc())
 
         try:
             if dst_checksum and dst_checksum_type: # verify against source
-                src_checksum, src_checksum_type = self.calc_file_checksum(source)
+                if not src_checksum: # fspec has no checksum data defined try to calculate from the source
+                    src_checksum, src_checksum_type = self.calc_file_checksum(source)
 
                 is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
 
@@ -234,22 +470,24 @@ class BaseSiteMover(object):
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
-    def stageOutFile(source, destination):
+    def stageOutFile(source, destination, fspec):
         """
             Stage out the file.
             Should be implemented by different site mover
+            :return: destination file details (checksum, checksum_type) in case of success, throw exception in case of failure
+            :raise: PilotException in case of controlled error
         """
 
         raise Exception('NOT IMPLEMENTED')
 
 
-    def resolveStageOutError(self, output, filename=None):
+    def resolveStageErrorFromOutput(self, output, filename=None, is_stagein=False):
         """
             resolve error code, client state and defined error mesage from the output
             :return: dict {'rcode', 'state, 'error'}
         """
 
-        ret = {'rcode': PilotErrors.ERR_STAGEOUTFAILED, 'state': 'COPY_ERROR', 'error': 'StageOut operation failed: %s' % output}
+        ret = {'rcode': PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED, 'state': 'COPY_ERROR', 'error': 'Copy operation failed [is_stagein=%s]: %s' % (is_stagein, output)}
 
         if "Could not establish context" in output:
             ret['rcode'] = PilotErrors.ERR_NOPROXY
@@ -346,7 +584,27 @@ class BaseSiteMover(object):
         c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
         output = c.communicate()[0]
         if c.returncode:
-            self.log('FAILED to calc_md5_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (flename, cmd, c.returncode, output))
+            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (flename, cmd, c.returncode, output))
             raise Exception(output)
 
         return output.split()[0] # return final checksum
+
+    @classmethod
+    def removeLocal(self, filename):
+        """
+            Remove the local file in case of failure to prevent problem with get retry attempt
+        :return: True in case of physical file removal
+        """
+
+        if not os.path.exists(filename): # nothing to remove
+            return False
+
+        try:
+            os.remove(filename)
+            self.log("Successfully removed local file=%s" % filename)
+            is_removed = True
+        except Exception, e:
+            self.log("Could not remove the local file=%s .. skipped, error=%s" % (filename, e))
+            is_removed = False
+
+        return is_removed

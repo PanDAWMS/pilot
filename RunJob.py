@@ -550,6 +550,46 @@ class RunJob(object):
 
         return ec, runCommandList, job, multi_trf
 
+
+    def stageIn_new(self,
+                    job,
+                    jobSite,
+                    analysisJob=None,  # not used: job.isAnalysisJob() should be used instead
+                    pfc_name="PoolFileCatalog.xml"):
+        """
+            Perform the stage-in
+            Do transfer input files
+            new site movers based implementation workflow
+        """
+
+        tolog("Preparing for get command [stageIn_new]")
+
+        infiles = [e.lfn for e in job.inData]
+
+        tolog("Input file(s): (%s in total)" % len(infiles))
+        for ind, lfn in enumerate(infiles, 1):
+            tolog("%s. %s" % (ind, lfn))
+
+        if not infiles:
+            tolog("No input files for this job .. skip stage-in")
+            return job, infiles, None, False
+
+        t0 = os.times()
+
+        job.result[2], job.pilotErrorDiag, _dummy, FAX_dictionary = mover.get_data_new(job, jobSite, stageinTries=self.__stageinretry, proxycheck=False, workDir=self.__pworkdir, pfc_name=pfc_name)
+
+        t1 = os.times()
+
+        job.timeStageIn = int(round(t1[4] - t0[4]))
+
+        usedFAXandDirectIO = FAX_dictionary.get('usedFAXandDirectIO', False)
+
+        statusPFCTurl = None
+
+        return job, infiles, statusPFCTurl, usedFAXandDirectIO
+
+
+    @mover.use_newmover(stageIn_new)
     def stageIn(self, job, jobSite, analysisJob, pfc_name="PoolFileCatalog.xml"):
         """ Perform the stage-in """
 
@@ -1011,6 +1051,80 @@ class RunJob(object):
 
         return dsname, datasetDict
 
+
+    def stageOut_new(self,
+                     job,
+                     jobSite,
+                     outs,            # somehow prepared validated output files list (logfiles not included)
+                     analysisJob,     # not used, --> job.isAnalysisJob() should be used instead
+                     dsname,          # default dataset name to be used if file.destinationDblock is not set
+                     datasetDict,     # validated dict to resolve dataset name: datasetDict = dict(zip(outputFiles, destinationDblock)) + (logFile, logFileDblock)
+                     outputFileInfo   # validated dict: outputFileInfo = dict(zip(job.outFiles, zip(_fsize, _checksum)))
+                                      # can be calculated in Mover directly while transferring??
+                     ):
+        """
+            perform the stage-out
+            :return: (rcode, job, rf, latereg=False) # latereg is always False
+            note: returning `job` is useless since reference passing
+        """
+
+        # warning: in main workflow if jobReport is used as source for output file it completely overwtites job.outFiles ==> suppose it's wrong behaviour .. do extend outFiles instead.
+        # extend job.outData from job.outFiles (consider extra files extractOutputFilesFromJSON in the main workflow)
+
+        #  populate guid and dataset values for job.outData
+        # copy all extra files from job.outFiles into structured job.outData
+
+        job._sync_outdata() # temporary work-around, reuse old workflow that populates job.outFilesGuids
+
+        try:
+            t0 = os.times()
+            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry)
+            t1 = os.times()
+
+            job.timeStageOut = int(round(t1[4] - t0[4]))
+
+        except Exception, e:
+            t1 = os.times()
+            job.timeStageOut = int(round(t1[4] - t0[4]))
+
+            error = "Put function can not be called for staging out: %s, trace=%s" % (e, traceback.format_exc())
+            tolog(error)
+
+            rc = PilotErrors.ERR_PUTFUNCNOCALL
+            job.setState(["holding", job.result[1], rc])
+
+            return rc, job, None, False
+
+        tolog("Put function returned code: %s" % rc)
+
+        if rc:
+
+            if job.pilotErrorDiag:
+                job.pilotErrorDiag = job.pilotErrorDiag[-256:]
+
+            # check if the job is recoverable?
+            _state, _msg = "failed", "FAILED"
+            if PilotErrors.isRecoverableErrorCode(rc) and '(unrecoverable)' not in job.pilotErrorDiag:
+                _state, _msg = "holding", "WARNING"
+
+            job.setState([_state, job.result[1], rc])
+
+            tolog("!!%s!!1212!! %s" % (_msg, PilotErrors.getErrorStr(rc)))
+        else:
+
+            job.setState(["finished", 0, 0])
+
+            # create a weak lockfile meaning that file transfer worked
+            # (useful for job recovery if activated) in the job workdir
+            createLockFile(True, jobSite.workdir, lockfile="ALLFILESTRANSFERRED")
+            # create another lockfile in the site workdir since a transfer failure can still occur during the log transfer
+            # and a later recovery attempt will fail (job workdir will not exist at that time)
+            createLockFile(True, self.__pworkdir, lockfile="ALLFILESTRANSFERRED")
+
+        return rc, job, rf, False
+
+
+    @mover.use_newmover(stageOut_new)
     def stageOut(self, job, jobSite, outs, analysisJob, dsname, datasetDict, outputFileInfo):
         """ perform the stage-out """
 
@@ -1042,7 +1156,7 @@ class RunJob(object):
         rs = "" # return string from put_data with filename in case of transfer error
         tin_0 = os.times()
         try:
-            rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
+            rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
                                              jobSite.computingElement, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
                                              proxycheck=self.__proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
                                              userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
@@ -1268,37 +1382,6 @@ class RunJob(object):
             tolog("Could not extract any event ranges: %s" % (e))
 
         return event_ranges
-
-    def shouldCleanupOS(self, job):
-        """ Should the OS be cleaned up? """
-
-        status = False
-
-        # Only clean up the OS if the merge job finished correctly and if it an event service merge job
-        if job.eventServiceMerge and job.result[1] == 0 and job.result[2] == 0:
-            status = True
-
-        return status
-
-    def cleanupOS(self, inFiles, si):
-        """ Removed merged files from the object store """
-
-        status = False
-
-        # Generate a proper file list
-        for filename in inFiles:
-            # Is this a log file or a pre-merged event service file? Determine the bucket accordingly
-            if ".log." in filename:
-                mode = "logs"
-            else:
-                mode = "eventservice"
-
-            # Generate a proper bucket endpoint
-            path = si.getObjectstorePath(mode)
-            from FileHandling import getHashedBucketEndpoint
-            hashed_endpoint = getHashedBucketEndpoint(path, file_name)
-
-        return status
 
 # main process starts here
 if __name__ == "__main__":
@@ -1628,17 +1711,6 @@ if __name__ == "__main__":
                 runJob.sysExit(job, rf)
 
         # (Stage-out ends here) .......................................................................
-
-        # Object store cleanups .......................................................................
-
-        # Only execute this step for merge jobs and if the order is given
-        if runJob.shouldCleanupOS(job):
-
-            # Go ahead and clean up the OS
-            # status = runJob.cleanupOS(job.inFiles, si)
-            pass
-
-        # (Object store cleanups end here) ............................................................
 
         job.setState(["finished", 0, 0])
         if not finalUpdateDone:

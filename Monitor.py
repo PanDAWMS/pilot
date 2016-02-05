@@ -261,8 +261,17 @@ class Monitor:
             if thisExperiment.shouldExecuteUtility():
                 for k in self.__env['jobDic'].keys():
 
-                    # Get the maxPSS value from the memor monitor
-                    maxPSS_int = thisExperiment.findMaxPSS(self.__env['jobDic'][k][1].workdir)
+                    # Get the maxPSS value from the memory monitor
+                    summary_dictionary = thisExperiment.getMemoryValues(self.__env['jobDic'][k][1].workdir, self.__env['pilot_initdir'])
+                    try:
+                        maxPSS_int = summary_dictionary['Max']['maxPSS']
+                    except Exception, e:
+                        if summary_dictionary != {}:
+                            pUtil.tolog("!!WARNING!!3434!! Could not extract maxPSS value from: %s" % str(summary_dictionary))
+                        else:
+                            # Normally this means that the memory output file has not been produced yet, so skip it
+                            pass 
+                        maxPSS_int = -1
 
                     # Only proceed if values are set
                     if maxPSS_int != -1:
@@ -284,11 +293,12 @@ class Monitor:
                                             pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORYEXCEEDED")
 
                                             # Kill the job
-                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                                            self.__env['jobDic'][k][1].result[0] = "failed"
-                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
-                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
-                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                                            pUtil.tolog("!!WARNING!!9903!! Could have killed the job")
+                                            #killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            #self.__env['jobDic'][k][1].result[0] = "failed"
+                                            #self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            #self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            #self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
                                             pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
                                     else:
@@ -1247,21 +1257,21 @@ class Monitor:
                              self.__env['job'].jobId,
                              outFiles = self.__env['job'].outFiles,
                              logFile = self.__env['job'].logFile,
-                             type="output")
+                             ftype="output")
 
             dumpFileStates(self.__env['thisSite'].workdir,
                            self.__env['job'].jobId,
-                           type = "output")
+                           ftype = "output")
             if self.__env['job'].inFiles != ['']:
 
                 createFileStates(self.__env['thisSite'].workdir,
                                  self.__env['job'].jobId,
                                  inFiles = self.__env['job'].inFiles,
-                                 type="input")
+                                 ftype="input")
 
                 dumpFileStates(self.__env['thisSite'].workdir,
                                self.__env['job'].jobId,
-                               type="input")
+                               ftype="input")
 
             # are the output files within the allowed limit?
             # (keep the LFN verification at this point since the wrkdir is now created, needed for creating the log in case of failure)
@@ -1398,7 +1408,7 @@ class Monitor:
 
             # do not bother with saving the log file if it has already been transferred and registered
             try:
-                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, type="output")
+                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, ftype="output")
                 pUtil.tolog("Current log file state: %s" % str(state))
                 if os.path.exists(os.path.join(self.__env['thisSite'].workdir, self.__env['job'].logFile)) and state[0] == "transferred" and state[1] == "registered":
                     pUtil.tolog("Safe to remove the log file")
@@ -1758,7 +1768,7 @@ class Monitor:
 
             # do not bother with saving the log file if it has already been transferred and registered
             try:
-                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, type="output")
+                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, ftype="output")
                 pUtil.tolog("Current log file state: %s" % str(state))
                 if os.path.exists(os.path.join(self.__env['thisSite'].workdir, self.__env['job'].logFile)) and state[0] == "transferred" and state[1] == "registered":
                     pUtil.tolog("Safe to remove the log file")
