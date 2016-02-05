@@ -5,14 +5,15 @@ import os
 from HPC.Logger import Logger
 from HPC.HPCManagerPlugins.plugin import Plugin
 
-class pbs(Plugin):
+class slurm(Plugin):
     def __init__(self, logFileName):
         self.__log= Logger(logFileName)
         self.__failedPollTimes = 0
 
     def getHPCResources(self, partition, max_nodes=None, min_nodes=2, min_walltime_m=30):
         # copied from RunJobEdison
-        cmd = 'showbf -p %s' % partition
+        #cmd = 'showbf -p %s' % partition
+        cmd = 'sinfo '
         self.__log.info("Executing command: '%s'" % cmd)
         res_tuple = commands.getstatusoutput(cmd)
         self.__log.info("Executing command output: %s" % str(res_tuple))
@@ -74,32 +75,35 @@ class pbs(Plugin):
 
     def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None):
         submit_script = "#!/bin/bash -l" + "\n"
-        submit_script += "#PBS -q " + queue + "\n"
+        submit_script += "#SBATCH -p " + queue + "\n"
         if repo:
-            submit_script += "#PBS -A " + repo + "\n"
-        submit_script += "#PBS -l mppwidth=" + str(mppwidth) + "\n"
-        #submit_script += "#PBS -l mppnppn=" + str(mppnppn) + "\n"
-        submit_script += "#PBS -l walltime=" + walltime + "\n"
-        submit_script += "#PBS -N ES_job" + "\n"
-        submit_script += "#PBS -j oe" + "\n"
-        submit_script += "#PBS -o athena_stdout.txt" + "\n"
-        submit_script += "#PBS -e athena_stderr.txt" + "\n"
-        submit_script += "cd $PBS_O_WORKDIR" + "\n"
+            submit_script += "#SBATCH -A " + repo + "\n"
+        # submit_script += "#SBATCH -n " + str(mppwidth) + "\n"
+        submit_script += "#SBATCH -N " + str(nodes) + "\n"
+        submit_script += "#SBATCH -t " + walltime + "\n"
+        submit_script += "#SBATCH --ntasks-per-node=1\n"
+        submit_script += "#SBATCH --cpus-per-task=" + str(cpuPerNode) + "\n"
+        submit_script += "#SBATCH -J ES_job" + "\n"
+        submit_script += "#SBATCH -o athena_stdout.txt" + "\n"
+        submit_script += "#SBATCH -e athena_stderr.txt" + "\n"
+        submit_script += "cd $SBATCH_O_WORKDIR" + "\n"
         submit_script += "module load mpi4py" + "\n"
         if localSetup:
             submit_script += localSetup + "\n"
         #submit_script += "source /project/projectdirs/atlas/sw/python-yampl/setup.sh" + "\n"
-        submit_script += "export PYTHONPATH=/project/projectdirs/atlas/sw/python-yampl/python-yampl/1.0/lib.linux-x86_64-2.6:$PYTHONPATH" + "\n"
+        #submit_script += "export PYTHONPATH=/project/projectdirs/atlas/sw/python-yampl/python-yampl/1.0/lib.linux-x86_64-2.6:$PYTHONPATH" + "\n"
         submit_script += "export PYTHONPATH=%s:$PYTHONPATH\n" % globalWorkingDir
-        submit_script += "export PYTHONPATH=/project/projectdirs/atlas/pilot/grid_env/boto/lib/python2.6/site-packages:$PYTHONPATH\n"
-        submit_script += "export PYTHONPATH=/project/projectdirs/atlas/pilot/grid_env/external:$PYTHONPATH\n"
-        submit_script += "export LD_LIBRARY_PATH=/project/projectdirs/atlas/sw/python-yampl/yampl/1.0/lib:$LD_LIBRARY_PATH" + "\n"
-        submit_script += "export X509_USER_PROXY=/global/homes/w/wguan/x509up_u23959" + "\n"
-        submit_script += "export X509_CERT_DIR=/project/projectdirs/atlas/pilot/grid_env/external/grid-security/certificates" + "\n"
+        #submit_script += "export PYTHONPATH=/project/projectdirs/atlas/pilot/grid_env/boto/lib/python2.6/site-packages:$PYTHONPATH\n"
+        #submit_script += "export PYTHONPATH=/project/projectdirs/atlas/pilot/grid_env/external:$PYTHONPATH\n"
+        #submit_script += "export LD_LIBRARY_PATH=/project/projectdirs/atlas/sw/python-yampl/yampl/1.0/lib:$LD_LIBRARY_PATH" + "\n"
+        #submit_script += "export X509_USER_PROXY=/global/homes/w/wguan/x509up_u23959" + "\n"
+        #submit_script += "export X509_CERT_DIR=/project/projectdirs/atlas/pilot/grid_env/external/grid-security/certificates" + "\n"
         submit_script += "env" + "\n"
+        # submit_script += "module avail" + "\n"
+        # submit_script += "module list" + "\n"
 
-        #submit_script += "aprun -n " + str(nodes) + " -N " + str(mppnppn) + " -d " + str(ATHENA_PROC_NUMBER) + " -cc none python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalWorkingDir+" --localWorkingDir="+localWorkingDir+""
-        submit_script += "aprun -n " + str(nodes) + " -N " + str(mppnppn) + " -cc none python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
+        #submit_script += "srun -n " + str(nodes) + " -N " + str(mppnppn) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
+        submit_script += "srun -N " + str(nodes) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
         ###cmd = "mpiexec -n 2 python " + os.path.join(self.__globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+self.__globalWorkingDir+" --localWorkingDir="+self.__localWorkingDir+"&"
         self.__submit_file = os.path.join(globalYodaDir, 'submit_script')
         handle = open(self.__submit_file, 'w')
@@ -107,41 +111,43 @@ class pbs(Plugin):
         handle.close()
 
         self.__log.info("submit script:\n%s" % submit_script)
-        cmd = "qsub " + self.__submit_file
+        cmd = "sbatch " + self.__submit_file
         self.__log.info("submitting HPC job: %s" % cmd)
         status, output = commands.getstatusoutput(cmd)
         self.__log.info("submitting HPC job: (status: %s, output: %s)" %(status, output))
         self.__jobid = None
         if status == 0:
-            self.__jobid = output.replace("\n", "").split(".")[0]
+            self.__jobid = output.replace("\n", "").split(" ")[-1]
             return 0, self.__jobid
         return -1, None
 
     def poll(self, jobid):
         # poll the job in HPC. update it
-        cmd = "qstat " + jobid
+        cmd = "scontrol show job " + jobid
         self.__log.info("polling HPC job: %s" % cmd)
         status, output = commands.getstatusoutput(cmd)
-        #self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
+        # self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
         if status == 0:
             self.__failedPollTimes = 0
             state = None
             lines = output.split("\n")
             for line in lines:
                 line = line.strip()
-                if line.startswith(jobid):
-                    state = line.split(" ")[-2]
+                if line.startswith('JobState'):
+                    state = line.split(" ")[0].split("=")[1]
 
-            if state == "C":
+            if state == "COMPLETE":
                 self.__log.info("HPC job complete")
                 return "Complete"
-            if state == "R":
+            if state == "RUNNING":
                 return "Running"
-            if state == "Q":
+            if state == "PENDING":
                 return "Queue"
+            if state == "FAILED":
+                return "Failed"
         else:
             self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
-            if 'Unknown Job Id Error' in output:
+            if 'Invalid job id specified' in output:
                 self.__log.info("Unknown Job Id. Set Job Complete.")
                 return "Complete"
             else:
@@ -152,8 +158,7 @@ class pbs(Plugin):
                     return 'Unknown'
 
     def delete(self, jobid):
-        command = "qdel " + jobid
+        command = "scancel " + jobid
         status, output = commands.getstatusoutput(command)
         self.__log.debug("Run Command: %s " % command)
         self.__log.debug("Status: %s, Output: %s" % (status, output))
-

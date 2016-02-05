@@ -79,6 +79,7 @@ class RunJobHpcEvent(RunJob):
 
         # event Stager
         self.__eventStager = None
+        self.__yoda_to_os = False
 
         # for recovery
         self.__jobStateFile = None
@@ -88,7 +89,7 @@ class RunJobHpcEvent(RunJob):
         """ Override the __new__ method to make the class a singleton """
 
         if not cls.__instance:
-            cls.__instance = super(RunJob, cls).__new__(cls, *args, **kwargs)
+            cls.__instance = super(RunJobHpcEvent, cls).__new__(cls, *args, **kwargs)
 
         return cls.__instance
 
@@ -113,7 +114,7 @@ class RunJobHpcEvent(RunJob):
 
         return False
         
-    def setupHPCEvent(self):
+    def setupHPCEvent(self, rank=None):
         self.__jobSite = Site.Site()
         self.__jobSite.setSiteInfo(self.argumentParser())
         self.__logguid = None
@@ -126,7 +127,11 @@ class RunJobHpcEvent(RunJob):
 
         tolog("runJobHPCEvent.getPilotLogFilename=%s"% self.getPilotLogFilename())
         if self.getPilotLogFilename() != "":
-            pUtil.setPilotlogFilename(self.getPilotLogFilename())
+            pilotLogFilename = self.getPilotLogFilename()
+            if rank:
+                pilotLogFilename = '%s.%s' % (pilotLogFilename, rank)
+            tolog("runJobHPCEvent.setPilotLogFilename=%s"% pilotLogFilename)
+            pUtil.setPilotlogFilename(pilotLogFilename)
 
         # set node info
         self.__node = Node.Node()
@@ -152,10 +157,22 @@ class RunJobHpcEvent(RunJob):
         siteInfo = self.__siteInfo
         catchalls = siteInfo.readpar("catchall")
         values = {}
+        res = {}
+        if "yoda_to_os" in catchalls:
+            res['yoda_to_os'] = True
+        else:
+            res['yoda_to_os'] = False
+        self.__yoda_to_os = res['yoda_to_os']
+
+        if "copyOutputToGlobal" in catchalls:
+            res['copyOutputToGlobal'] = True
+        else:
+            res['copyOutputToGlobal'] = False
+
         for catchall in catchalls.split(","):
             if '=' in catchall:
                 values[catchall.split('=')[0]] = catchall.split('=')[1]
-        res = {}
+
         res['queue'] = values.get('queue', 'regular')
         res['mppwidth'] = values.get('mppwidth', 48)
         res['mppnppn'] = values.get('mppnppn', 1)
@@ -180,7 +197,32 @@ class RunJobHpcEvent(RunJob):
         res['localWorkingDir'] =  values.get('localWorkingDir', None)
         res['parallel_jobs'] = values.get('parallel_jobs', 1)
         res['events_limit_per_job'] = values.get('events_limit_per_job', 1000)
+
+        siteInfo = getSiteInformation(self.getExperiment())
+        # get the copy tool
+        setup = siteInfo.getCopySetup(stageIn=False)
+        tolog("Copy Setup: %s" % (setup))
+        espath = getFilePathForObjectStore(filetype="eventservice")
+        tolog("ES path: %s" % (espath))
+
+        res['setup'] = setup
+        res['esPath'] = espath
+
         return res
+
+    def getYodaSetup(self):
+        siteInfo = self.__siteInfo
+        envsetup = siteInfo.readpar("envsetup")
+        setupPath = os.path.dirname(envsetup)
+        yodaSetup = os.path.join(setupPath, 'yodasetup.sh')
+        if os.path.exists(yodaSetup):
+            setup = ""
+            f = open(yodaSetup)
+            for line in f:
+                setup += line + "\n"
+            f.close()
+            return setup
+        return None
 
     def setupHPCManager(self):
         logFileName = None
@@ -205,6 +247,11 @@ class RunJobHpcEvent(RunJob):
         self.__hpcStatue = 'waitingResource'
         pluginName = defRes.get('plugin', 'pbs')
         hpcManager.setupPlugin(pluginName)
+
+        tolog("Get Yoda setup")
+        yodaSetup = self.getYodaSetup()
+        tolog("Yoda setup: %s" % yodaSetup)
+        hpcManager.setLocalSetup(yodaSetup)
 
         tolog("HPC Manager getting free resouces")
         hpcManager.getFreeResources(defRes)
@@ -267,7 +314,7 @@ class RunJobHpcEvent(RunJob):
         # Send [especially] the process group back to the pilot
         job.setState([job.jobState, 0, 0])
         job.jobState = job.result
-        rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), runJob.getPilotPort())
+        rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), self.getPilotPort())
 
         JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=job.workdir)
         JR.updateJobStateTest(job, self.__jobSite, self.__node, mode="test")
@@ -305,6 +352,15 @@ class RunJobHpcEvent(RunJob):
         content = {'workdir': job.workdir, 'data': data, 'experiment': self.getExperiment(), 'runCommandList': runCommandList}
         with open(filename, 'w') as outputFile:
             json.dump(content, outputFile)
+
+        # copy queue data
+        try:
+            copy_src = self.__siteInfo.getQueuedataFileName()
+            copy_dest = os.path.join(job.workdir, os.path.basename(copy_src))
+            tolog("Copy %s to %s" % (copy_src, copy_dest))
+            shutil.copyfile(copy_src, copy_dest)
+        except:
+            tolog("Failed to copy queuedata to job working dir: %s" % (traceback.format_exc()))
 
         tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
         os.chdir(current_dir)
@@ -416,9 +472,9 @@ class RunJobHpcEvent(RunJob):
             JR.updatePandaServer(job, self.__jobSite, self.__node, 25443)
         job.pilotErrorDiag = pilotErrorDiag
 
-    def updateAllJobsState(self, jobState, hpcState, final=False):
+    def updateAllJobsState(self, jobState, hpcState, final=False, updatePanda=False):
         for jobId in self.__jobs:
-            self.updateJobState(self.__jobs[jobId]['job'], jobState, hpcState, final=final)
+            self.updateJobState(self.__jobs[jobId]['job'], jobState, hpcState, final=final, updatePanda=updatePanda)
 
     def getHPCEventJobs(self):
         self.getHPCEventJobFromEnv()
@@ -479,13 +535,13 @@ class RunJobHpcEvent(RunJob):
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
-            useCT, oldPrefix, newPrefix, useFileStager, directIn = pUtil.getFileAccessInfo()
+            useCT, oldPrefix, newPrefix = pUtil.getFileAccessInfo()
 
             # Transfer input files
             tin_0 = os.times()
             ec, job.pilotErrorDiag, statusPFCTurl, FAX_dictionary = \
                 mover.get_data(job, jobSite, ins, self.__stageinretry, analysisJob=analysisJob, usect=useCT,\
-                               pinitdir=self.__pilotWorkingDir, proxycheck=False, inputDir=None, workDir=job.workdir, pfc_name=pfc_name)
+                               pinitdir=self.getPilotInitDir(), proxycheck=False, inputDir='', workDir=job.workdir, pfc_name=pfc_name)
             if ec != 0:
                 job.result[2] = ec
             tin_1 = os.times()
@@ -514,6 +570,7 @@ class RunJobHpcEvent(RunJob):
     def failOneJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True, final=True, updatePanda=False):
         """ set the fail code and exit """
 
+        current_dir = os.getcwd()
         if pilotExitCode and job.attemptNr < 4 and job.eventServiceMerge:
             pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
         job.setState(["failed", transExitCode, pilotExitCode])
@@ -527,6 +584,7 @@ class RunJobHpcEvent(RunJob):
         self.cleanup(job)
         sys.stderr.close()
         tolog("Job %s has failed" % job.jobId)
+        os.chdir(current_dir)
 
     def failAllJobs(self, transExitCode, pilotExitCode, jobs, pilotErrorDiag=None, docleanup=True, updatePanda=False):
         firstJob = None
@@ -545,10 +603,12 @@ class RunJobHpcEvent(RunJob):
         jobResult = 0
         pilotErrorDiag = ""
         self.__avail_files = {}
+        failedJobIds = []
         for jobId in self.__jobs:
             try:
                 job = self.__jobs[jobId]['job']
-                self.updateJobState(job, 'transferring', '')
+                # self.updateJobState(job, 'transferring', '')
+                self.updateJobState(job, 'starting', '')
 
                 # stage-in all input files (if necessary)
                 jobRet, ins, statusPFCTurl, usedFAXandDirectIO = self.stageInOneJob(job, self.__jobSite, self.__jobs[job.jobId]['analysisJob'], self.__avail_files, pfc_name="PFC.xml")
@@ -556,17 +616,23 @@ class RunJobHpcEvent(RunJob):
                     tolog("Failing job with ec: %d" % (jobRet.result[2]))
                     jobResult = jobRet.result[2]
                     pilotErrorDiag = job.pilotErrorDiag
-                    self.failOneJob(0, jobResult, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=False)
-                    #continue
-                    break
+                    failedJobIds.append(jobId)
+                    self.failOneJob(0, jobResult, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=True)
+                    continue
+                    #break
                 job.displayJob()
                 self.__jobs[job.jobId]['job'] = job
             except:
                 tolog("stageInHPCJobsException")
-                tolog(traceback.format_exc())
+                try:
+                    tolog(traceback.format_exc())
+                except:
+                    tolog("Failed to print traceback")
 
-        if jobResult != 0:
-            self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
+        for jobId in failedJobIds:
+            del self.__jobs[jobId]
+        #if jobResult != 0:
+        #    self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
 
 
     def updateEventRange(self, event_range_id, status='finished'):
@@ -599,6 +665,15 @@ class RunJobHpcEvent(RunJob):
     def getJobEventRanges(self, job, numRanges=2):
         """ Download event ranges from the Event Server """
         tolog("Server: Downloading new event ranges..")
+
+        if os.environ.has_key('EventRanges') and os.path.exists(os.environ['EventRanges']):
+            try:
+                with open(os.environ['EventRanges']) as json_file:
+                    events = json.load(json_file)
+                    tolog(events)
+                    return events
+            except:
+                tolog('Failed to open event ranges json file: %s' % traceback.format_exc())
 
         message = ""
         # url = "https://aipanda007.cern.ch:25443/server/panda"
@@ -671,36 +746,39 @@ class RunJobHpcEvent(RunJob):
                 EventFiles[guid]['file'] = inputFileDict[guid]
 
         # 2. create TAG file
-        for guid in EventFiles:
-            local_copy = False
-            if guid in self.__avail_tag_files:
-                local_copy = True
-                try:
-                    tolog("Copy TAG file from %s to %s" % (self.__avail_tag_files[guid]['TAG_path'], job.workdir))
-                    shutil.copy(self.__avail_tag_files[guid]['TAG_path'], job.workdir)
-                except:
-                    tolog("Failed to copy %s to %s" % (self.__avail_tag_files[guid]['TAG_path'], job.workdir))
-                    local_copy = False
-            if local_copy:
-                tolog("Tag file for %s already copied locally. Will not create it again" % guid)
-                EventFiles[guid]['TAG'] = self.__avail_tag_files[guid]['TAG']
-                EventFiles[guid]['TAG_guid'] = self.__avail_tag_files[guid]['TAG_guid']
-            else:
-                tolog("Tag file for %s does not exist. Will create it." % guid)
-                inFiles = [EventFiles[guid]['file']]
-                input_tag_file, input_tag_file_guid = self.createTAGFile(self.__jobs[job.jobId]['runCommandList'][0], job.trf, inFiles, "MakeRunEventCollection.py")
-                if input_tag_file != "" and input_tag_file_guid != "":
-                    tolog("Will run TokenExtractor on file %s" % (input_tag_file))
-                    EventFiles[guid]['TAG'] = input_tag_file
-                    EventFiles[guid]['TAG_guid'] = input_tag_file_guid
-                    self.__avail_tag_files[guid] = {'TAG': input_tag_file, 'TAG_path': os.path.join(job.workdir, input_tag_file), 'TAG_guid': input_tag_file_guid}
+        jobRunCmd = self.__jobs[job.jobId]['runCommandList'][0]
+	usingTokenExtractor = 'TokenScatterer' in jobRunCmd or 'UseTokenExtractor=True' in jobRunCmd.replace("  ","").replace(" ","")
+        if usingTokenExtractor:
+            for guid in EventFiles:
+                local_copy = False
+                if guid in self.__avail_tag_files:
+                    local_copy = True
+                    try:
+                        tolog("Copy TAG file from %s to %s" % (self.__avail_tag_files[guid]['TAG_path'], job.workdir))
+                        shutil.copy(self.__avail_tag_files[guid]['TAG_path'], job.workdir)
+                    except:
+                        tolog("Failed to copy %s to %s" % (self.__avail_tag_files[guid]['TAG_path'], job.workdir))
+                        local_copy = False
+                if local_copy:
+                    tolog("Tag file for %s already copied locally. Will not create it again" % guid)
+                    EventFiles[guid]['TAG'] = self.__avail_tag_files[guid]['TAG']
+                    EventFiles[guid]['TAG_guid'] = self.__avail_tag_files[guid]['TAG_guid']
                 else:
-                    # only for current test
-                    if len(tagFiles)>0:
-                        EventFiles[guid]['TAG_guid'] = tagFiles.keys()[0]
-                        EventFiles[guid]['TAG'] = tagFiles[tagFiles.keys()[0]]
+                    tolog("Tag file for %s does not exist. Will create it." % guid)
+                    inFiles = [EventFiles[guid]['file']]
+                    input_tag_file, input_tag_file_guid = self.createTAGFile(self.__jobs[job.jobId]['runCommandList'][0], job.trf, inFiles, "MakeRunEventCollection.py")
+                    if input_tag_file != "" and input_tag_file_guid != "":
+                        tolog("Will run TokenExtractor on file %s" % (input_tag_file))
+                        EventFiles[guid]['TAG'] = input_tag_file
+                        EventFiles[guid]['TAG_guid'] = input_tag_file_guid
+                        self.__avail_tag_files[guid] = {'TAG': input_tag_file, 'TAG_path': os.path.join(job.workdir, input_tag_file), 'TAG_guid': input_tag_file_guid}
                     else:
-                        return -1, "Failed to create the TAG file", None
+                        # only for current test
+                        if len(tagFiles)>0:
+                            EventFiles[guid]['TAG_guid'] = tagFiles.keys()[0]
+                            EventFiles[guid]['TAG'] = tagFiles[tagFiles.keys()[0]]
+                        else:
+                            return -1, "Failed to create the TAG file", None
 
         # 3. create Pool File Catalog
         inputFileDict = dict(zip(job.inFilesGuids, inputFilesGlobal))
@@ -730,148 +808,14 @@ class RunJobHpcEvent(RunJob):
         # 5. check if release-compact.tgz exists. If it exists, use it.
         preSetup = None
         postRun = None
-        new_source_setup = None
-        yoda_setup = None
-        if source_setup and '--cmtconfig' in source_setup:
-            try:
-                cmtconfig = source_setup.split('--cmtconfig')[1].strip().split(" ")[0].strip()
-                tolog("cmtconfig: %s" % cmtconfig)
-                source_setup_path = source_setup.replace('source ', '').strip().split(' ')[0]
-                source_setup_option = source_setup.split(source_setup_path)[1]
-                tolog("source_setup_path: %s" % source_setup_path)
-                release_path = os.path.join(source_setup_path.split(cmtconfig)[0], cmtconfig)
-                tolog("release_path: %s" % release_path)
-                release_version = source_setup_path.split(cmtconfig)[1].split('/')[1]
-                tolog("release_version: %s" % release_version)
-                compact_path = os.path.join(release_path, release_version + '-compact.tgz')
-                tolog("compact_path: %s" % compact_path)
-                if os.path.exists(compact_path):
-                    tolog("compact_path exists: %s" % compact_path)
-                    # preSetup = 'rm -fr /tmp/yoda; mkdir -p /tmp/yoda; cd /tmp/yoda; cp ' + compact_path + ' ./; tar xzf ' + release_version + '-compact.tgz'
-                    # preSetup += '; mkdir poolcond; cp ' + release_path + '/' + release_version + '/DBRelease/current/poolcond/*.xml poolcond/'
-                    # preSetup += '; cd -'
-                    if '19.2.1' in release_version:
-                        athena_local_dir = '/tmp/tsulaia'
-                    else:
-                        athena_local_dir = '/tmp/yoda'
-                    postRun = 'rm -fr ' + athena_local_dir
-                    new_source_setup = ' source ' + athena_local_dir + '/' + release_version + '/setup-quick.sh ' + source_setup_option
-                    new_source_setup += '; export  DATAPATH=' + athena_local_dir + ':$DATAPATH'
-                    new_source_setup += '; export  LD_LIBRARY_PATH=/scratch1/scratchdirs/tsulaia/sw/software/x86_64-slc6-gcc47-opt/19.2.1/patch/ldpatch/:$LD_LIBRARY_PATH'
-                    newSetupCommand = setupCommand.replace(source_setup, new_source_setup)
-                    tolog("new setup command: %s" % newSetupCommand)
-
-                    # create yoda_setup.sh
-                    yoda_setup = '#!/bin/bash\n'
-                    yoda_setup += 'compact_path=%s\n' % compact_path
-                    yoda_setup += 'local_path=' + athena_local_dir + '\n'
-                    yoda_setup += 'release=%s\n' % release_version
-                    yoda_setup += 'compact_release=%s-compact.tgz\n' % release_version
-                    yoda_setup += 'compact_release_path=%s\n' % release_path
-                    yoda_setup += 'setup_options="%s"\n' % source_setup_option
-                    yoda_setup += '\n'
-                    yoda_setup += '\n'
-                    yoda_setup += 'function local_setup(){\n'
-                    yoda_setup += '    echo $compact_path\n'
-                    yoda_setup += '    if [ -f "$compact_path" ]; then\n'
-                    yoda_setup += '        echo "Compact relaese $compact_path exists."\n'
-                    yoda_setup += '    else\n'
-                    yoda_setup += '        return 1\n'
-                    yoda_setup += '    fi\n'
-                    yoda_setup += '\n'
-                    yoda_setup += '    if [ -d "$local_path" ]; then\n'
-                    yoda_setup += '        echo "$local_path exits. remove it."\n'
-                    yoda_setup += '        rm -fr $local_path\n'
-                    yoda_setup += '        if [ $? -ne 0 ]; then\n'
-                    yoda_setup += '            echo "failed to remove $local_path"\n'
-                    yoda_setup += '            return 1\n'
-                    yoda_setup += '        fi\n'
-                    yoda_setup += '    fi\n'
-                    yoda_setup += '\n'
-                    yoda_setup += '    mkdir -p $local_path\n'
-                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
-                    yoda_setup += '        echo "failed to mkdir $local_path"\n'
-                    yoda_setup += '        return 1\n'
-                    yoda_setup += '    fi\n'
-                    yoda_setup += '    cd $local_path\n'
-                    yoda_setup += '    cp $compact_path ./\n'
-                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
-                    yoda_setup += '        echo "failed to copy $compact_path to $local_path"\n'
-                    yoda_setup += '        cd -\n'
-                    yoda_setup += '        rm -fr $local_path\n'
-                    yoda_setup += '        return 1\n'
-                    yoda_setup += '    fi\n'
-                    yoda_setup += '    tar xzf $compact_release\n'
-                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
-                    yoda_setup += '        echo "failed to untar $compact_release"\n'
-                    yoda_setup += '        cd -\n'
-                    yoda_setup += '        rm -fr $local_path\n'
-                    yoda_setup += '        return 1\n'
-                    yoda_setup += '    fi\n'
-                    yoda_setup += '    mkdir poolcond\n'
-                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
-                    yoda_setup += '        echo "failed to mkdir poolcond"\n'
-                    yoda_setup += '        cd -\n'
-                    yoda_setup += '        rm -fr $local_path\n'
-                    yoda_setup += '        return 1\n'
-                    yoda_setup += '    fi\n'
-                    yoda_setup += '    cp ${compact_release_path}/${release}/DBRelease/current/poolcond/*.xml poolcond/\n'
-                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
-                    yoda_setup += '        echo "failed to copy pool xml file poolcond"\n'
-                    yoda_setup += '        cd -\n'
-                    yoda_setup += '        rm -fr $local_path\n'
-                    yoda_setup += '        return 1\n'
-                    yoda_setup += '    fi\n'
-                    yoda_setup += '    cd -\n'
-                    yoda_setup += '    source ${local_path}/${release}/setup-quick.sh %s\n' % source_setup_option
-                    yoda_setup += '    if [ $? -ne 0 ]; then\n'
-                    yoda_setup += '        echo "failed to source ${local_path}/${release}/setup-quick.sh"\n'
-                    yoda_setup += '        rm -fr $local_path\n'
-                    yoda_setup += '        return 1\n'
-                    yoda_setup += '    fi\n'
-                    yoda_setup += '    export  DATAPATH=${local_path}:$DATAPATH\n'
-                    yoda_setup += '    export  LD_LIBRARY_PATH=/scratch1/scratchdirs/tsulaia/sw/software/x86_64-slc6-gcc47-opt/19.2.1/patch/ldpatch/:$LD_LIBRARY_PATH\n'
-                    yoda_setup += '    export G4ATLAS_SKIPFILEPEEK=1\n'
-                    yoda_setup += '    return 0\n'
-                    yoda_setup += '}\n'
-                    yoda_setup += '\n'
-                    yoda_setup += 'function global_setup(){\n'
-                    yoda_setup += '    %s\n' % source_setup
-                    yoda_setup += '    export G4ATLAS_SKIPFILEPEEK=1\n'
-                    yoda_setup += '}\n'
-                    yoda_setup += '\n'
-                    yoda_setup += 'current_dir=`pwd`\n'
-                    yoda_setup += 'local_setup\n'
-                    yoda_setup += 'ret=$?\n'
-                    yoda_setup += 'echo $ret\n'
-                    yoda_setup += 'cd $current_dir\n'
-                    yoda_setup += '\n'
-                    yoda_setup += 'if [ $ret -ne 0 ]; then\n'
-                    yoda_setup += '    echo "local setup failed, will use global setup"\n'
-                    yoda_setup += '    global_setup\n'
-                    yoda_setup += 'fi\n'
-                else:
-                    tolog("compact_path does not exist: %s" % compact_path)
-            except Exception ,e:
-                tolog("Failed to convert setup to use compact version, exception: %s " % (str(e)))
-                tolog(traceback.format_exc())
-                yoda_setup = None
-        if not yoda_setup:
-            yoda_setup = '#!/bin/bash\n'
-            yoda_setup += '%s\n' % source_setup
-            yoda_setup += 'export G4ATLAS_SKIPFILEPEEK=1\n'
-        job = self.__jobs[job.jobId]['job']
-        yoda_setup_name = os.path.join(job.workdir, 'yoda_setup.sh')
-        yoda_setup_handle = open(yoda_setup_name, 'w')
-        yoda_setup_handle.write(yoda_setup)
-        yoda_setup_handle.close()
-        yoda_setup_command = 'source %s' % yoda_setup_name
+        # yoda_setup_command = 'export USING_COMPACT=1; %s' % source_setup
 
         # 6. AthenaMP command
         runCommandList_0 = self.__jobs[job.jobId]['runCommandList'][0]
-        if yoda_setup_command:
-            runCommandList_0 = self.__jobs[job.jobId]['runCommandList'][0]
-            runCommandList_0 = runCommandList_0.replace(source_setup, yoda_setup_command)
+        runCommandList_0 = 'export USING_COMPACT=1; %s' % runCommandList_0
+        # if yoda_setup_command:
+        #     runCommandList_0 = self.__jobs[job.jobId]['runCommandList'][0]
+        #     runCommandList_0 = runCommandList_0.replace(source_setup, yoda_setup_command)
         if not self.__copyInputFiles:
             jobInputFileList = None
             jobInputFileList = inputFilesGlobal[0]
@@ -908,25 +852,31 @@ class RunJobHpcEvent(RunJob):
 
         # 7. Token Extractor file list
         # in the token extractor file list, the guid is the Event guid, not the tag guid.
-        tagFile_list = os.path.join(job.workdir, "TokenExtractor_filelist")
-        handle = open(tagFile_list, 'w')
-        for guid in EventFiles:
-            tagFile = EventFiles[guid]['TAG']
-            line = guid + ",PFN:" + tagFile + "\n"
-            handle.write(line)
-        handle.close()
-        self.__jobs[job.jobId]['tagFile_list'] = tagFile_list
+        if usingTokenExtractor:
+            tagFile_list = os.path.join(job.workdir, "TokenExtractor_filelist")
+            handle = open(tagFile_list, 'w')
+            for guid in EventFiles:
+                tagFile = EventFiles[guid]['TAG']
+                line = guid + ",PFN:" + tagFile + "\n"
+                handle.write(line)
+            handle.close()
+            self.__jobs[job.jobId]['tagFile_list'] = tagFile_list
+        else:
+            self.__jobs[job.jobId]['tagFile_list'] = None
 
         # 8. Token Extractor command
-        setup = setupCommand
-        tokenExtractorCmd = setup + ";" + " TokenExtractor -v  --source " + tagFile_list + " 1>tokenExtract_stdout.txt 2>tokenExtract_stderr.txt"
-        tokenExtractorCmd = tokenExtractorCmd.replace(";;", ";")
-        self.__jobs[job.jobId]['tokenExtractorCmd'] = tokenExtractorCmd
+        if usingTokenExtractor:
+            setup = setupCommand
+            tokenExtractorCmd = setup + ";" + " TokenExtractor -v  --source " + tagFile_list + " 1>tokenExtract_stdout.txt 2>tokenExtract_stderr.txt"
+            tokenExtractorCmd = tokenExtractorCmd.replace(";;", ";")
+            self.__jobs[job.jobId]['tokenExtractorCmd'] = tokenExtractorCmd
+        else:
+            self.__jobs[job.jobId]['tokenExtractorCmd'] = None
 
         os.chdir(current_dir)
         tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
 
-        return 0, None, {"TokenExtractCmd": tokenExtractorCmd, "AthenaMPCmd": runCommandList_0, "PreSetup": preSetup, "PostRun": postRun, 'PoolFileCatalog': poolFileCatalog, 'InputFiles': inputFilesGlobal, 'GlobalWorkingDir': job.workdir}
+        return 0, None, {"TokenExtractCmd": self.__jobs[job.jobId]['tokenExtractorCmd'], "AthenaMPCmd": runCommandList_0, "PreSetup": preSetup, "PostRun": postRun, 'PoolFileCatalog': poolFileCatalog, 'InputFiles': inputFilesGlobal, 'GlobalWorkingDir': job.workdir}
 
     def prepareHPCJobs(self):
         for jobId in self.__jobs:
@@ -1025,19 +975,39 @@ class RunJobHpcEvent(RunJob):
         self.__hpcLog = None
 
         hpcManager = self.__hpcManager
+        totalCores = hpcManager.getCoreCount()
+        totalJobs = len(self.__jobs.keys())
+        if totalJobs < 1:
+            totalJobs = 1
+        avgCores = totalCores / totalJobs
         hpcJobs = {}
         for jobId in self.__jobs:
+            self.__jobs[jobId]['job'].coreCount = avgCores
             if len(self.__eventRanges[jobId]) > 0:
                 hpcJobs[jobId] = self.__jobs[jobId]['hpcJob']
         hpcManager.initJobs(hpcJobs, self.__jobEventRanges)
 
+        totalCores = hpcManager.getCoreCount()
+        avgCores = totalCores / totalJobs
+        for jobId in self.__jobs:
+            self.__jobs[jobId]['job'].coreCount = avgCores
+
+        tolog("Submit HPC job")
         hpcManager.submit()
-        
+        tolog("Submitted HPC job")
+
         hpcManager.setPandaJobStateFile(self.__jobStateFile)
         #self.__stageout_threads = defRes['stageout_threads']
         hpcManager.setStageoutThreads(self.__stageout_threads)
         hpcManager.saveState()
         self.__hpcManager = hpcManager
+
+    def startHPCSlaveJobs(self):
+        tolog("Setup HPC Manager")
+        hpcManager = HPCManager(globalWorkingDir=self.__pilotWorkingDir)
+        tolog("Submit HPC job")
+        hpcManager.submit()
+        tolog("Submitted HPC job")
 
     def runHPCEvent(self):
         tolog("runHPCEvent")
@@ -1120,7 +1090,7 @@ class RunJobHpcEvent(RunJob):
             espath = getFilePathForObjectStore(filetype="eventservice")
             token = None
             
-            self.__eventStager = EventStager(workDir=self.__pilotWorkingDir, setup=setup, esPath=espath, token=token, experiment=self.getExperiment(), userid=self.__userid, sitename=self.__jobSite.sitename, threads=self.__stageout_threads, outputDir=self.getOutputDir())
+            self.__eventStager = EventStager(workDir=self.__pilotWorkingDir, setup=setup, esPath=espath, token=token, experiment=self.getExperiment(), userid=self.__userid, sitename=self.__jobSite.sitename, threads=self.__stageout_threads, outputDir=self.getOutputDir(), yodaToOS=self.__yoda_to_os)
             self.__eventStager.start()
         except:
             tolog("Failed to start Event Stager: %s" % traceback.format_exc())
@@ -1185,6 +1155,10 @@ class RunJobHpcEvent(RunJob):
         try:
             old_state = None
             time_start = time.time()
+            state = hpcManager.poll()
+            self.__hpcStatue = state
+            self.updateAllJobsState('starting', self.__hpcStatue, updatePanda=True)
+
             while not hpcManager.isFinished():
                 state = hpcManager.poll()
                 self.__hpcStatue = state
@@ -1192,7 +1166,8 @@ class RunJobHpcEvent(RunJob):
                     old_state = state
                     time_start = time.time()
                     tolog("HPCManager Job stat: %s" % state)
-                    self.updateAllJobsState('running', self.__hpcStatue)
+                    if state and state == 'Running':
+                        self.updateAllJobsState('running', self.__hpcStatue, updatePanda=True)
 
                 if state and state == 'Complete':
                     break
@@ -1407,7 +1382,7 @@ class RunJobHpcEvent(RunJob):
             path = os.path.join(self.__pilotWorkingDir, file)
             if os.path.isdir(path):
                 if file not in ['HPC', 'lib', 'radical', 'saga'] and not file.startswith("PandaJob_"):
-                    if file == 'rank_0' or not file.startswith('rank_'):
+                    if file == 'rank_0' or not file.startswith('ranksd_'):
                         found_dirs[file] = path
                         tolog("Found log dir %s" % path)
             else:
@@ -1426,8 +1401,8 @@ class RunJobHpcEvent(RunJob):
                 except:
                     tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
             for file in found_files:
-                if '.dump.' in file and not file.startswith(str(jobId)):
-                    continue
+                #if '.dump.' in file and not file.startswith(str(jobId)):
+                #    continue
                 path = found_files[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:

@@ -7,8 +7,10 @@
 
 # import relevant python/pilot modules
 import os
+import ssl
 import sys, httplib, cgi, urllib
 import commands
+import requests
 import SiteMover
 from SiteInformation import SiteInformation  # Main site information class
 from pUtil import tolog                      # Logging method that sends text to the pilot log
@@ -484,7 +486,7 @@ class ATLASSiteInformation(SiteInformation):
 # Event Service tests:
 # now set in AGIS   ec = self.replaceQueuedataField("copyprefixin", "srm://gk05.swt2.uta.edu^root://xrdb.local:1094")
 #            ec = self.replaceQueuedataField("corecount", "4")
-            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+            #ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
         if os.environ.get("COPYTOOL"):
             ec = self.replaceQueuedataField("copytool", os.environ.get("COPYTOOL"))
@@ -535,34 +537,57 @@ class ATLASSiteInformation(SiteInformation):
 
 #            ec = self.replaceQueuedataField("copytoolin", "S3")
 #            ec = self.replaceQueuedataField("copytool", "S3")
-#        if  thisSite.sitename == "NERSC_Edison":
-#            ec = self.replaceQueuedataField("copytool", "gfal-copy")
-#            ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
-#            ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
+
+            ec = self.replaceQueuedataField("copytool", "gfal-copy")
+            ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
+            # ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
             #ec = self.replaceQueuedataField("appdir", "/global/homes/w/wguan/software/Athena")
 
+        import socket
+        hostname = socket.gethostname()
+        if 'pdsf' in hostname:
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,,yoda_to_os,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=4,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=119,walltime_m=120,max_walltime_m=120,cpu_per_node=8,mppnppn=1,ATHENA_PROC_NUMBER=8,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
+
+        if thisSite.sitename == "NERSC_Edison" and not 'pdsf' in hostname:
             # Edison
             #ec = self.replaceQueuedataField("appdir", "/project/projectdirs/atlas/software")
-#            ec = self.replaceQueuedataField("appdir", "/scratch1/scratchdirs/tsulaia/sw/software")
+            ec = self.replaceQueuedataField("appdir", "/scratch1/scratchdirs/tsulaia/sw/software")
+            ec = self.replaceQueuedataField("appdir", "/global/project/projectdirs/atlas/pilot/software")
             ##ec = self.replaceQueuedataField("envsetup", "source /global/homes/w/wguan/software/emi/current/setup.sh")
-#            ec = self.replaceQueuedataField("envsetup", "source /global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
-#            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
-#            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
-#            ec = self.replaceQueuedataField("objectstore", "s3://s3.amazonaws.com:80/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_pilot_bucket/eventservice|logs^/atlas_pilot_bucket/logs")
-#            ec = self.replaceQueuedataField("timefloor", "0")
-#            ec = self.replaceQueuedataField("coreCount", "0")
-#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore")
+            ec = self.replaceQueuedataField("envsetup", "source /global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
+            ec = self.replaceQueuedataField("envsetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
+            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
+            ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
+            ec = self.replaceQueuedataField("objectstore", "s3://s3.amazonaws.com:80/|eventservice^/atlas_eventservice|logs^/atlas_logs")
+            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_eventservice|logs^/atlas_logs")
+            ec = self.replaceQueuedataField("timefloor", "0")
+            ec = self.replaceQueuedataField("coreCount", "0")
+            ec = self.replaceQueuedataField("retry", "True")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=backfill,queue=debug,backfill_queue=regular,max_events=2100,initialtime_m=8,time_per_event_m=10,repo=m2015,nodes=26,min_nodes=2,max_nodes=50,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
-#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=8,time_per_event_m=10,repo=m2015,nodes=50,min_nodes=45,max_nodes=50,partition=edison,min_walltime_m=118,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
-#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=20000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=20,min_nodes=20,max_nodes=60,partition=edison,min_walltime_m=178,walltime_m=180,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=8,time_per_event_m=10,repo=m2015,nodes=50,min_nodes=45,max_nodes=50,partition=edison,min_walltime_m=118,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=20000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=20,min_nodes=20,max_nodes=60,partition=edison,min_walltime_m=178,walltime_m=180,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=23")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,mode=backfill,backfill_queue=regular")
-#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m1523,nodes=50,min_nodes=20,max_nodes=600,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
-#            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=13,time_per_event_m=13,repo=m670,nodes=11,min_nodes=10,max_nodes=20,partition=edison,min_walltime_m=60,walltime_m=90,max_walltime_m=185,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=50,min_nodes=20,max_nodes=600,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=100,min_nodes=100,max_nodes=105,partition=edison,min_walltime_m=60,walltime_m=60,max_walltime_m=185,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=10,time_per_event_m=14,repo=m2015,nodes=1000,min_nodes=1000,max_nodes=1005,partition=edison,min_walltime_m=60,walltime_m=60,max_walltime_m=65,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=200,min_nodes=200,max_nodes=205,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
+            
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=60,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=true,localWorkingDir=/tmp/tsulaia")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=25,min_nodes=25,max_nodes=30,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=1000")
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,mode=normal,queue=debug,plugin=slurm,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=2,max_nodes=101,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=1000")
+            # ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=4,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=119,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=50,min_nodes=4,max_nodes=1001,partition=edison,min_walltime_m=59,walltime_m=120,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
+
             #backfill
-            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=backfill,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=13,time_per_event_m=13,repo=m670,nodes=13,min_nodes=8,max_nodes=15,partition=edison,min_walltime_m=60,walltime_m=180,max_walltime_m=240,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=backfill,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=13,min_nodes=8,max_nodes=15,partition=edison,min_walltime_m=60,walltime_m=180,max_walltime_m=240,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
             #debug
-            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m1523,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
+            #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
+
+        if thisSite.sitename == "NERSC_Cori":
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,yoda_to_os,PandaProxy,proxyCache=atlpilo1:pilot,plugin=slurm,yoda_to_os,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=2,mppnppn=1,ATHENA_PROC_NUMBER=2,stageout_threads=20,copy_input_files=false,parallel_jobs=3")
 
 #        if  thisSite.sitename == "NERSC_Hopper":
 #            ec = self.replaceQueuedataField("copytool", "gfal-copy")
@@ -796,19 +821,28 @@ class ATLASSiteInformation(SiteInformation):
                 host = 'pandaserver.cern.ch:25443'
                 path = '/server/panda/getKeyPair'
 
-                conn = httplib.HTTPSConnection(host, key_file=sslKey, cert_file=sslCert, timeout=120)
-                conn.request('POST', path, urllib.urlencode(node))
+                tolog("Cert file %s" % sslCert)
 
-                resp = conn.getresponse()
-                data = resp.read()
-                conn.close()
-                dic = cgi.parse_qs(data)
-                if dic["StatusCode"][0] == "0":
-                    self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
-                    return self.__securityKeys[keyName]
-                else:
-                   tolog("!!WARNING!!4444!! Failed to get key from PanDA server:")
-                   tolog("data = %s" % str(data))
+                # conn = httplib.HTTPSConnection(host, key_file=sslKey, cert_file=sslCert, timeout=120)
+                # conn.request('POST', path, urllib.urlencode(node))
+
+                # resp = conn.getresponse()
+                # data = resp.read()
+                # conn.close()
+                r = requests.post('https://%s%s' % (host, path),
+                                  verify=False,
+                                  cert=(sslCert, sslKey),
+                                  data=urllib.urlencode(node),
+                                  timeout=120)
+                if r and r.status_code == 200:
+                    dic = cgi.parse_qs(r.text)
+                    if dic["StatusCode"][0] == "0":
+                        self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
+                        return self.__securityKeys[keyName]
+
+                tolog("!!WARNING!!4444!! Failed to get key from PanDA server:")
+                tolog("data = %s" % r.text if r else r)
+
             except:
                 _type, value, traceBack = sys.exc_info()
                 tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))

@@ -226,6 +226,10 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
                 # add port number from se to getfile if necessary
                 path = self.addPortToPath(se, path)
+
+        siteInformation = SiteInformation()
+        path = siteInformation.getCopyPrefixPath(path, stageIn=True)
+
         return path
 
     def getStageInMode(self, lfn, prodDBlockToken):
@@ -540,6 +544,12 @@ class GFAL2SiteMover(SiteMover.SiteMover):
                         o = "Remote finished transfer"
                         tolog(o)
                         os.remove(outputFile + ".gfalcmdfinished")
+                        break
+                    if os.path.exists(outputFile + ".gfalcmdfailed"):
+                        ec = 0
+                        o = "Remote finished transfer"
+                        tolog(o)
+                        os.remove(outputFile + ".gfalcmdfailed")
                         break
         else:
             tolog("Executing command: %s" % (_cmd_str))
