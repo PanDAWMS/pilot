@@ -86,6 +86,7 @@ General changes:
 - Replaced all usages of type as a variable and replaced it with ftype (FileState, FileStateClient, all site movers, Monitor, RunJob*, mover)
 - Removed obsolete and unused lateRegistration() (pUtil)
 - Removed duplicated, obsolete and unused getField(), getNewQueuedataFilename() (FileHandling)
+- Now using dictionary get function instead of has_key() in stageIn() (RunJob)
 
 To avoid creating dark data in case the server has already failed the job before the pilot has finished
 The problem can happen if the server times out the job before tar+zip of huge log files have not finished within two hours
@@ -112,6 +113,10 @@ to get the wrong error label (LocalSiteMover)
 - Changed 'eventservice' to 'logs' in transferLogFile() before adding info to OS transfer dictionary (JobLog)
 - Added missing MAKEFLAGS for ND jobs, in setupNordugridTrf() (NordugridATLASExperiment)
 - Improved handling of lcg-get-checksum output in case of irrelevant warnings in lcgGetChecksum()
+- Added missed file state (no-transfer; for DBRelease files) in hasOnlyCopyToScratch(). When prodDBlockToken had 'local' values --directIn was wrongly sent to runAthena (FileState)
+
+Multi-core update for generic jobs
+- Now setting MAKEFLAGS for generic analysis jobs (i.e. analysis jobs with swRelease = 'Atlas-*') in getJobExecutionCommandOld() (ATLASExperiment)
 
 Setup of ATLAS Release changes
 - Created a new getJobExecutionCommand(), renamed old function to getJobExecutionCommandOld() (ATLASExperiment)

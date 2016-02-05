@@ -585,7 +585,6 @@ class RunJob(object):
 
         ec = 0
         statusPFCTurl = None
-        usedFAXandDirectIO = False
 
         # Prepare the input files (remove non-valid names) if there are any
         ins, job.filesizeIn, job.checksumIn = RunJobUtilities.prepareInFiles(job.inFiles, job.filesizeIn, job.checksumIn)
@@ -606,16 +605,11 @@ class RunJob(object):
             job.timeStageIn = int(round(tin_1[4] - tin_0[4]))
 
             # Extract any FAX info from the dictionary
-            if FAX_dictionary.has_key('N_filesWithoutFAX'):
-                job.filesWithoutFAX = FAX_dictionary['N_filesWithoutFAX']
-            if FAX_dictionary.has_key('N_filesWithFAX'):
-                job.filesWithFAX = FAX_dictionary['N_filesWithFAX']
-            if FAX_dictionary.has_key('bytesWithoutFAX'):
-                job.bytesWithoutFAX = FAX_dictionary['bytesWithoutFAX']
-            if FAX_dictionary.has_key('bytesWithFAX'):
-                job.bytesWithFAX = FAX_dictionary['bytesWithFAX']
-            if FAX_dictionary.has_key('usedFAXandDirectIO'):
-                usedFAXandDirectIO = FAX_dictionary['usedFAXandDirectIO']
+            job.filesWithoutFAX = FAX_dictionary.get('N_filesWithoutFAX', 0)
+            job.filesWithFAX = FAX_dictionary.get('N_filesWithFAX', 0)    
+            job.bytesWithoutFAX = FAX_dictionary.get('bytesWithoutFAX', 0)
+            job.bytesWithFAX = FAX_dictionary.get('bytesWithFAX', 0)
+            usedFAXandDirectIO = FAX_dictionary.get('usedFAXandDirectIO', False)
 
         return job, ins, statusPFCTurl, usedFAXandDirectIO
 

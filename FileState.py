@@ -211,8 +211,9 @@ class FileState:
         for filename in self.fileStateDictionary.keys():
             # get the file states
             states = self.fileStateDictionary[filename]
-            tolog("filename=%s states=%s"%(filename,str(states)))
-            if states[1] != 'copy_to_scratch':
+            tolog("filename=%s states=%s"%(filename, str(states)))
+            if states[1] != 'copy_to_scratch' and states[1] != 'no_transfer': # 'no_transfer' is set for DBRelease files
+                tolog("Job does not have only copy-to-scratch transfers")
                 status = False
                 break
         return status
