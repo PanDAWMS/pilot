@@ -56,9 +56,14 @@ class TimerCommand(object):
 
             if not self.stdout:
                 self.stdout = ''
-            self.stdout += "Command Timeout(%s seconds)." % timeoutout
+            self.stdout += "Command time-out (%s seconds)" % timeout
+        
+        if self.process:
+            returncode = self.process.returncode
+        else:
+            returncode = 1
 
-        return self.process.returncode, self.stdout
+        return returncode, self.stdout
 
     def runFunction(self, func, args, timeout=3600):
         def target(func, args, retQ):

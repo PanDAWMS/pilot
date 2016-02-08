@@ -165,6 +165,7 @@ class EventService(object):
             url = os.environ['EVENT_INDEX_URL']
         else:
             url = "http://wn181.ific.uv.es:8080/getIndex.jsp?format=txt2&guid="
+            #url = "http://atlas-service-eies.web.cern.ch/atlas-service-EIES/EI.jsp?guid="
 
         return url
 

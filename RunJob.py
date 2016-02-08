@@ -28,7 +28,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-from FileHandling import tail, getExtension, discoverAdditionalOutputFiles
+from FileHandling import tail, getExtension, extractOutputFilesFromJSON, getDestinationDBlockItems
 from EventRanges import downloadEventRanges
 
 # remove logguid, dq2url, debuglevel - not needed
@@ -797,7 +797,10 @@ class RunJob(object):
                     # Handle main subprocess errors
                     try:
                         stdout = open(job.stdout, 'r')
-                        res_tuple = (main_subprocess.returncode, tail(stdout))
+                        if main_subprocess:
+                            res_tuple = (main_subprocess.returncode, tail(stdout))
+                        else:
+                            res_tuple = (1, "Popen process does not exist (see stdout/err)")
                     except Exception, e:
                         tolog("!!WARNING!!3002!! Failed during tail operation: %s" % (e))
                     else:
@@ -1440,7 +1443,10 @@ if __name__ == "__main__":
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
         if job.inFiles != ['']:
-            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
+            hasInput = True
+        else:
+            hasInput = False
+        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput)
 
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
         #runJob.copyInputForFiles(job.workdir)
@@ -1481,10 +1487,45 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # are there any additional output files created by the trf/payload?
-        job.outFiles, job.destinationDblock, job.scopeOut = discoverAdditionalOutputFiles(job.outFiles, job.workdir, job.destinationDblock, job.scopeOut)
-        tolog("outFiles = %s" % str(job.outFiles))
+        try:
+            if not analysisJob:
+                output_files_json = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
+            else:
+                tolog("Will not extract output files from jobReport for user job")
+                output_files_json = []
 
-        # verify and prepare and the output files for transfer
+            # output_files_json = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
+        except Exception, e:
+            tolog("!!WARNING!!2323!! Exception caught: %s" % (e))
+            output_files_json = []
+
+        if output_files_json != []:
+            tolog("Will update the output file lists since files were discovered in the job report")
+
+            new_destinationDBlockToken = []
+            new_destinationDblock = []
+            new_scopeOut = []
+            try:
+                for f in output_files_json:
+                    _destinationDBlockToken, _destinationDblock, _scopeOut = getDestinationDBlockItems(f, job.outFiles, job.destinationDBlockToken, job.destinationDblock, job.scopeOut)
+                    new_destinationDBlockToken.append(_destinationDBlockToken)
+                    new_destinationDblock.append(_destinationDblock)
+                    new_scopeOut.append(_scopeOut)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Exception caught: %s" % (e))
+            else:
+                # Finally replace the output file lists
+                job.outFiles = output_files_json
+                job.destinationDblock = new_destinationDblock
+                job.destinationDBlockToken = new_destinationDBlockToken
+                job.scopeOut = new_scopeOut
+
+                tolog("Updated: job.outFiles=%s" % str(output_files_json))
+                tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
+                tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
+                tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
+ 
+       # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
         if ec:
             # missing output file (only error code from prepareOutFiles)
@@ -1534,7 +1575,7 @@ if __name__ == "__main__":
                         res = (res_tuple[0], res_tuple[1], exitMsg)
                         job.result[0] = exitMsg
                         job.result[1] = 0 # transExitCode
-                        job.result[2] = self.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
+                        job.result[2] = runJob.__error.ERR_EXECUTEDCLONEJOB # Pilot error code
                         job.pilotErrorDiag = exitMsg
                         runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
                     else:

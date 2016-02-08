@@ -21,6 +21,7 @@ from pUtil import isBuildJob                    # Is the current job a build job
 from pUtil import remove                        # Used to remove redundant file before log file creation
 from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
+from pUtil import isAGreaterOrEqualToB          #
 from PilotErrors import PilotErrors             # Error codes
 from FileHandling import readFile, writeFile    # File handling methods
 from FileHandling import updatePilotErrorReport # Used to set the priority of an error
@@ -228,7 +229,7 @@ class ATLASExperiment(Experiment):
                     cmd1 = self.updateCmd1WithProject(cmd1, atlasProject)
 
                 # Get cmd2 for production jobs for set installDirs (not the case for unset homepackage strings)
-                if installDir != "":
+                if installDir != "" and not "AthSimulation" in job.homePackage:
                     cmd2, pilotErrorDiag = self.getProdCmd2(installDir, job.homePackage)
                     if pilotErrorDiag != "":
                         return self.__error.ERR_SETUPFAILURE, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
@@ -689,21 +690,6 @@ class ATLASExperiment(Experiment):
         else:
             tolog("Can not display ChangeLog: Found no appdir")
 
-    def testImportLFCModule(self):
-        """ Can the LFC module be imported? """
-
-        status = False
-
-        try:
-            import lfc
-        except Exception, e:
-            tolog("!!WARNING!!3111!! Failed to import the LFC module: %s" % (e))
-        else:
-            tolog("Successfully imported the LFC module")
-            status = True
-
-        return status
-
     def getCVMFSPath(self):
         """ Return the proper cvmfs path """
 
@@ -746,6 +732,16 @@ class ATLASExperiment(Experiment):
         if not job:
             tolog("!!WARNING!!2332!! getNumberOfEvents did not receive a job object")
             return 0, 0, ""
+
+        tolog("Looking for number of processed events (pass -1: jobReport.json)")
+
+        from FileHandling import getNumberOfEvents
+        nEventsRead = getNumberOfEvents(job.workdir)
+        nEventsWritten = 0
+        if nEventsRead > 0:
+            return nEventsRead, nEventsWritten, str(nEventsRead)
+        else:
+            nEventsRead = 0
 
         tolog("Looking for number of processed events (pass 0: metadata.xml)")
 
@@ -1341,14 +1337,17 @@ class ATLASExperiment(Experiment):
             pilotErrorDiag = "Detected severe CMT error: %d, %s" % (exitcode, _pilotErrorDiag)
             tolog("!!WARNING!!2992!! %s" % (pilotErrorDiag))
         elif exitcode != 0:
-            from futil import is_timeout
-            if is_timeout(exitcode):
-                pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
+            if "Command time-out" in _pilotErrorDiag:
+                pilotErrorDiag = "cmtsite command was timed out: %s, %s" % (str(exitcode), _pilotErrorDiag)
             else:
-                if "timed out" in _pilotErrorDiag:
+                from futil import is_timeout
+                if is_timeout(exitcode):
                     pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
                 else:
-                    pilotErrorDiag = "cmtsite command failed: %d, %s" % (exitcode, _pilotErrorDiag)
+                    if "timed out" in _pilotErrorDiag:
+                        pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
+                    else:
+                        pilotErrorDiag = "cmtsite command failed: %d, %s" % (exitcode, _pilotErrorDiag)
 
             tolog("!!WARNING!!2992!! %s" % (pilotErrorDiag))
         else:
@@ -1367,7 +1366,7 @@ class ATLASExperiment(Experiment):
         _cmd = "%s;echo CMTCONFIG=$CMTCONFIG;echo SITEROOT=$SITEROOT;echo ATLASVERSION=$AtlasVersion;echo ATLASPROJECT=$AtlasProject" % (releaseCommand)
 
         exitcode, output = timedCommand(_cmd, timeout=getProperTimeout(_cmd))
-        tolog("Command output: %s" % (output))
+        tolog("Command output: %s, %s" % (str(exitcode), output))
 
         # Verify the cmtsite command
         pilotErrorDiag = self.verifyCmtsiteCmd(exitcode, output)
@@ -1922,6 +1921,9 @@ class ATLASExperiment(Experiment):
                 if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage) and os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
                     tolog("Encountered HLT homepackage: %s (must use special siteroot)" % (homePackage))
                     siteroot = os.path.join(swbase, release)
+                elif homePackage.startswith('AthSimulation'):
+                    tolog("Encountered an Ath* release: %s" % (homePackage))
+                    siteroot = self.getSiterootWithHomepackage(swbase, homePackage, cmtconfig, release)
                 else:
                     # default SITEROOT on CVMFS
                     if "/cvmfs" in swbase:
@@ -1945,7 +1947,7 @@ class ATLASExperiment(Experiment):
             elif exitcode != 0 or "Error:" in output or "(ERROR):" in output:
                 # if time out error, don't bother with trying another cmtconfig
 
-                tolog("ATLAS setup for SITEROOT failed: ec=%d, output=%s" % (exitcode, output))
+                tolog("ATLAS setup for SITEROOT failed: ec=%s, output=%s" % (str(exitcode), output))
                 if "No such file or directory" in output:
                     pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
                     tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
@@ -2022,6 +2024,9 @@ class ATLASExperiment(Experiment):
     def useAtlasSetup(self, swbase, release, homePackage, cmtconfig):
         """ determine whether AtlasSetup is to be used """
 
+        #PN
+        return True
+
         status = False
 
         # are we using at least release 16.1.0?
@@ -2034,6 +2039,47 @@ class ATLASExperiment(Experiment):
 
         return status
 
+    def getSplitHomePackage(self, homePackage):
+        """ Split the homePackage if it has a project/release format """
+        # E.g. homePackage = AthSimulationBase/1.0.3 -> AthSimulationBase, 1.0.3
+
+        if "/" in homePackage:
+            s = homePackage.split('/')
+            project = s[0]
+            release = s[1]
+        else:
+            project = homePackage
+            release = ""
+
+        return project, release
+
+    def getSiterootWithHomepackage(self, swbase, homePackage, cmtconfig, release):
+        """ Use the homePackage to set the siteroot """
+
+        _project, _release = self.getSplitHomePackage(homePackage)
+        if _release != "": # i.e. "/" is present in homePackage:
+            path = os.path.join(swbase, _project) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
+            path = os.path.join(path, cmtconfig)
+            siteroot = os.path.join(path, _release) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase/1.0.3
+        else:
+            if release == "":
+                tolog("!!WARNING!!4545!! Found no slash in homePackage and release is not set - have to guess siteroot")
+                if os.path.exists(os.path.join(swbase, _project)):
+                    siteroot = os.path.join(swbase, _project)
+                    if os.path.exists(os.path.join(siteroot, cmtconfig)):
+                        siteroot = os.path.join(siteroot, cmtconfig)
+                    else:
+                        siteroot = os.path.join(swbase, _project)
+                else:
+                    siteroot = os.path.join(swbase, cmtconfig)
+            else:
+                tolog("!!WARNING!!4545!! Found no slash in homePackage - have to guess siteroot")
+                # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
+                siteroot = os.path.join(swbase, cmtconfig)
+                siteroot = os.path.join(siteroot, release)
+                
+        return siteroot
+
     def getProperASetup(self, swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=False, source=True, cacheVer=None, cacheDir=None):
         """ return a proper asetup.sh command """
         
@@ -2041,13 +2087,25 @@ class ATLASExperiment(Experiment):
         if swbase[-len('builds'):] == 'builds' or verifyReleaseString(atlasRelease) == "NULL":
             path = swbase
         else:
-            if os.path.exists(os.path.join(swbase, cmtconfig)):
-                if os.path.exists(os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)):
-                    path = os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)
+            # Check for special release (such as AthSimulationBase/1.0.3)
+            done = False
+            if homePackage.startswith('AthSimulation'):
+                path = self.getSiterootWithHomepackage(swbase, homePackage, cmtconfig, "") # do not send the release in this case
+                if os.path.exists(path):
+                    tolog("Verified siteroot path: %s" % (path))
+                    done = True
+                else:
+                    tolog("!!WARNING!!4545!! Siteroot path does not exist: %s" % (path))
+
+            # Normal setup
+            if not done:
+                if os.path.exists(os.path.join(swbase, cmtconfig)):
+                    if os.path.exists(os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)):
+                        path = os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)
+                    else:
+                        path = os.path.join(swbase, atlasRelease)
                 else:
                     path = os.path.join(swbase, atlasRelease)
-            else:
-                path = os.path.join(swbase, atlasRelease)
 
         # need to tell asetup where the compiler is in the US (location of special config file)
         _path = "%s/AtlasSite/AtlasSiteSetup" % (path)
@@ -2073,6 +2131,11 @@ class ATLASExperiment(Experiment):
             options = cacheVer + ",notest"
         if cacheDir and cacheDir != "":
             options += ",%s" % (cacheDir)
+
+        # special case for Ath* releases
+        if homePackage.startswith('AthSimulation'):
+            _project, _release = self.getSplitHomePackage(homePackage)
+            options = options.replace("notest", "%s,notest" % (_project))
 
         # nightlies setup?
         if "rel_" in homePackage:
@@ -2121,9 +2184,7 @@ class ATLASExperiment(Experiment):
         # HLT on AFS
         if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
             try:
-                h = homePackage.split("/") # ['AtlasP1HLT', '18.1.0.1']
-                project = h[0]
-                patch = h[1]
+                project, patch = self.getSplitHomePackage(homePackage) # ('AtlasP1HLT', '18.1.0.1')
             except Exception, e:
                 tolog("!!WARNING!!1234!! Could not extract project and patch from %s" % (homePackage))
             else:
@@ -2224,12 +2285,8 @@ class ATLASExperiment(Experiment):
         if ('HPC_' in readpar("catchall")) or ('ORNL_Titan_install' in readpar("nickname")):
             status = True
         else:
-            # Test the LFC module
-            status = self.testImportLFCModule()
-
             # Test CVMFS
-            if status:
-                status = self.testCVMFS()
+            status = self.testCVMFS()
         
         return status
 
@@ -3111,11 +3168,15 @@ class ATLASExperiment(Experiment):
         cacheVer = homePackage.split('/')[-1]
 
         # Could anything be extracted?
-        if homePackage == cacheVer: # (no)
+        #if homePackage == cacheVer: # (no)
+        if isAGreaterOrEqualToB(default_release, release) or default_release == release:
             # This means there is no patched release available, ie. we need to use the fallback
             useDefault = True
+            tolog("%s >= %s" % (default_release, release))
         else:
             useDefault = False
+            tolog("%s <= %s" % (default_release, release))
+        useDefault = True
 
         if useDefault:
             tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")

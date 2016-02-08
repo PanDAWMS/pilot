@@ -879,7 +879,7 @@ class PandaServerClient:
         except:
             eventService = False
 
-        if not eventService:
+        if True: #not eventService:
             if os.path.exists(filenamePayloadMetadata) and final:
 
                 # get the metadata created by the payload

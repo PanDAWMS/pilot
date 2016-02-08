@@ -91,8 +91,30 @@ class RunJobEvent(RunJob):
     __yamplChannelName = None                    # Yampl channel name
     __useEventIndex = True                       # Should Event Index be used? If not, a TAG file will be created
     __tokenextractor_input_list_filenane = ""    #
+    __sending_event_range = False                # True while event range is being sent to payload
+    __current_event_range = ""                   # Event range being sent to payload
 
     # Getter and setter methods
+
+    def isSendingEventRange(self):
+        """ Getter for __sending_event_range """
+
+        return self.__sending_event_range
+
+    def setSendingEventRange(self, sending_event_range):
+        """ Setter for __sending_event_range """
+
+        self.__sending_event_range = sending_event_range
+
+    def getCurrentEventRange(self):
+        """ Getter for __current_event_range """
+
+        return self.__current_event_range
+
+    def setCurrentEventRange(self, current_event_range):
+        """ Setter for __current_event_range """
+
+        self.__current_event_range = current_event_range
 
     def getExperiment(self):
         """ Getter for __experiment """
@@ -555,8 +577,13 @@ class RunJobEvent(RunJob):
 
         return self.__useEventIndex
 
-    def setUseEventIndex(self, value):
+    def setUseEventIndex(self, jobPars):
         """ Set the __useEventIndex variable to a boolean value """
+
+        if "--createTAGFileForES" in jobPars:
+            value = False
+        else:
+            value = True
 
         self.__useEventIndex = value
 
@@ -566,8 +593,7 @@ class RunJobEvent(RunJob):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
-        self.__yamplChannelName = "EventService_EventRanges"
-#        self.__yamplChannelName = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
+        self.__yamplChannelName = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
 
     # is this necessary? doesn't exist in RunJob
     def __new__(cls, *args, **kwargs):
@@ -1333,6 +1359,21 @@ class RunJobEvent(RunJob):
                     size, buf = self.__message_server.receive()
                 tolog("Received new message: %s" % (buf))
 
+                max_wait = 600
+                i = 0
+                if self.__sending_event_range:
+                    tolog("Will wait for current event range to finish being sent (pilot not yet ready to process new request)")
+                while self.__sending_event_range:
+                    # Wait until previous send event range has completed (to avoid racing condition), but wait maximum 60 seconds then fail job
+                    time.sleep(0.1)
+                    if i > max_wait:
+                        # Abort with error
+                        buf = "ERR_FATAL_STUCK_SENDING %s: Stuck sending event range to payload; new message: %s" % (self.__current_event_range, buf)
+                        break
+                    i += 1
+                if i > 0:
+                    tolog("Delayed %d s for send message to complete" % (i*10))
+
 #                if not "Ready for" in buf:
 #                    if self.__eventRangeID_dictionary.keys():
 #                        try:
@@ -1651,7 +1692,6 @@ class RunJobEvent(RunJob):
                 scope = _msg.pop("scope")
                 # Convert back to a string
                 message = str([_msg])
-                tolog("Removed scope key-value from message")
 
         self.__message_server.send(message)
         tolog("Sent %s" % (message))
@@ -1905,9 +1945,6 @@ if __name__ == "__main__":
     # Define a new parent group
     os.setpgrp()
 
-    # Should the Event Index be used?
-    runJob.setUseEventIndex(True)
-
     # Protect the runEvent code with exception handling
     hP_ret = False
     try:
@@ -1961,6 +1998,9 @@ if __name__ == "__main__":
             tolog("!!WARNING!!3000!! %s" % (pilotErrorDiag))
             job.failJob(0, error.ERR_UNKNOWN, job, pilotErrorDiag=pilotErrorDiag)
         runJob.setJob(job)
+
+        # Should the Event Index be used?
+        runJob.setUseEventIndex(job.jobPars)
 
         # Set the taskID
         runJob.setTaskID(job.taskID)
@@ -2032,7 +2072,7 @@ if __name__ == "__main__":
         runJob.setJobState(job.result)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
-        # prepare the setup and get the run command list
+        # Prepare the setup and get the run command list
         ec, runCommandList, job, multi_trf = runJob.setup(job, jobSite, thisExperiment)
         if ec != 0:
             tolog("!!WARNING!!2999!! runJob setup failed: %s" % (job.pilotErrorDiag))
@@ -2040,12 +2080,12 @@ if __name__ == "__main__":
         tolog("Setup has finished successfully")
         runJob.setJob(job)
 
-        # job has been updated, display it again
+        # Job has been updated, display it again
         job.displayJob()
 
-        # stage-in .........................................................................................
+        # Stage-in .........................................................................................
 
-        # update the job state
+        # Update the job state
         tolog("Setting stage-in state until all input files have been copied")
         job.jobState = "stagein"
         job.setState([job.jobState, 0, 0])
@@ -2053,13 +2093,13 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
-        # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
+        # Update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
         if job.transferType == 'direct':
             tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
                   (job.transferType))
             RunJobUtilities.updateCopysetups('', transferType=job.transferType)
 
-        # stage-in all input files (if necessary)
+        # Stage-in all input files (if necessary)
         job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob, pfc_name="PFC.xml")
         if job.result[2] != 0:
             tolog("Failing job with ec: %d" % (ec))
@@ -2073,7 +2113,10 @@ if __name__ == "__main__":
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
         if job.inFiles != ['']:
-            runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO)
+            hasInput = True
+        else:
+            hasInput = False
+        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput)
 
         # (stage-in ends here) .............................................................................
 
@@ -2123,7 +2166,8 @@ if __name__ == "__main__":
 
         # In case the event index is not to be used, we need to create a TAG file
         if not runJob.useEventIndex():
-            input_file, input_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
+            input_file, tag_file_guid = runJob.createTAGFile(runCommandList[0], job.trf, job.inFiles, "MakeRunEventCollection.py")
+            input_file_guid = job.inFilesGuids[0]
 
             if input_file == "" or input_file_guid == "":
                 pilotErrorDiag = "Required TAG file/guid could not be identified"
@@ -2145,7 +2189,7 @@ if __name__ == "__main__":
             input_file_guid = job.inFilesGuids[0]
 
         # Get the Token Extractor command
-        tolog("Will use input file %s for the TokenExtractor" % (input_file))
+        tolog("Will use file %s for the TokenExtractor" % (input_file))
         tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
                                                                     stdout=tokenextractor_stdout, stderr=tokenextractor_stderr,\
                                                                     url=thisEventService.getEventIndexURL())
@@ -2187,6 +2231,15 @@ if __name__ == "__main__":
 
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
+
+        # Tell AthenaMP the name of the yampl channel
+        if not "--preExec" in runCommandList[0]:
+            runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
+        else:
+            if "import jobproperties as jps" in runCommandList[0]:
+                runCommandList[0] = runCommandList[0].replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
+            else:
+                runCommandList[0] = runCommandList[0].replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
 
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 
@@ -2252,7 +2305,10 @@ if __name__ == "__main__":
                 for event_range in event_ranges:
                     # Send the event range to AthenaMP
                     tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
+                    runJob.setSendingEventRange(True)
+                    runJob.setCurrentEventRange(currentEventRangeIDs[j])
                     runJob.sendMessage(str([event_range]))
+                    runJob.setSendingEventRange(False)
 
                     # Set the boolean to false until AthenaMP is again ready for processing more events
                     runJob.setAthenaMPIsReady(False)
@@ -2274,9 +2330,30 @@ if __name__ == "__main__":
                             tolog("AthenaMP is ready for new event range")
                             break
 
+                        # Make sure that the utility subprocess is still running
+                        if utility_subprocess:
+                            if not utility_subprocess.poll() is None:
+                                # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
+                                tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                                utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+
+                        # Make sure that the token extractor is still running
+                        if not tokenExtractorProcess.poll() is None:
+                            max_wait = 0
+                            job.pilotErrorDiag = "Token Extractor has crashed"
+                            job.result[0] = "failed"
+                            job.result[2] = error.ERR_TEFATAL
+                            tolog("!!WARNING!!2322!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
+                            break
+
                     # Is AthenaMP still running?
                     if athenaMPProcess.poll() is not None:
                         tolog("AthenaMP has finished (aborting event range loop for current event ranges)")
+                        break
+
+                    # Was there a fatal error in the inner loop?
+                    if job.result[0] == "failed":
+                        tolog("Detected a failure - aborting event range loop")
                         break
 
                     j += 1
@@ -2306,7 +2383,7 @@ if __name__ == "__main__":
                     if not utility_subprocess.poll() is None:
                         # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                        utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                        utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
 
                 # Make sure that the token extractor is still running
                 if not tokenExtractorProcess.poll() is None:

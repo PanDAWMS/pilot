@@ -94,9 +94,92 @@ Non-ATLAS related changes:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-63.1:
+63.2:
 
+Updated the default event index url from ific to cern, in getEventIndexURL() (EventService)
+Sending jobReport.json with the metaData field also for event service jobs, in updatePandaServer() (PandaServerClient)
+Created useDirectAccess() (Mover)
+Sending hasInput to updateRunCommandList() from __main__() (RunJob, RunJobEvent)
+Added hasInput argument to updateRunCommandList() (RunJobUtilities)
+Removing --createTAGFileForES instruction from runCommandList in updateRunCommandList() (RunJobUtilities)
+Updated setUseEventIndex() to set __useEventIndex variable depending on jobPars (RunJobEvent)
+Sending jobPars to setUseEventIndex() from __main__(), and moved the call to setUseEventIndex() until job object is defined (RunJobEvent)
+Added a waiting loop in listener() for send event range to finish (RunJobEvent)
+Added new variables __sending_event_range, __current_event_range and corresponding getters and setters (RunJobEvent)
+Now setting __sending_event_range using setSendingEventRange(), and __current_event_range using setCurrentEventRange() in event range loop in __main__() (RunJobEvent)
+Added memory_monitor to exclusion list for looping job killer in __loopingJobKiller() (Monitor)
 Added missing scope_dict and sourceSite in call to sitemover_get_data() in mover_get_data() (Mover)
+Corrected self -> runJob in __main__() in event range check (RunJob)
+Corrected self -> runJob in __main__() in call to getUtilitySubprocess() (RunJobEvent)
+Protection added against no Popen process in executePayload() (RunJob)
+
+Time-out changes:
+- verifyCmtsiteCmd() was updated for new timer command output (ATLASExperiment)
+- Updated timer command output (TimerCommand)
+- Protection added against no Popen process in run() (TimerCommand)
+- Converting exitcode to string in case it is not an integer in getProperSiterootAndCmtconfig() (ATLASExperiment)
+- Corrected bad variable name in TimerCommand::run() [timeoutout -> timeout] (TimerCommand)
+
+NG changes:
+- Removed obsolete import of timed_command in pUtil
+- Updated timedCommand() to use TimerCommand instead of timed_command (pUtil)
+- Moved tryint(), splittedname() and isAGreaterOrEqualToB() from PandaServerClient to pUtil
+- Now using isAGreaterOrEqualToB() in getUtilityCommand() for the MemoryMonitor setup (ATLASExperiment)
+
+GROUPDISK updates:
+- stageOutFile() updated (GFAL2SiteMover, LocalSiteMover)
+- put_data() updated (lcgcpSiteMover, lcgcp2SiteMover, curlSiteMover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+63.3:
+
+Added optional . in reg exp for discovery of additional output files, in discoverAdditionalOutputFiles() (FileHandling)
+Created extractOutputFilesFromJSON(), getJobReport(), filterSpilloverFilename(), getOutputFileItem(), getDestinationDBlockItems(), getNumberOfEvents() (FileHandling)
+Now using extractOutputFilesFromJSON() instead of discoverAdditionalOutputFiles() in __main__() (RunJob)
+Removed testImportLFCModule() (ATLASExperiment, AMSTaiwanExperiment, NordugridATLASExperiment)
+Removed obsolete 2 GB subtraction from the maxinputsize in getMaxInputSize(), requested by Tadashi Maeno (pUtil)
+Not setting general error when dispatcher has no jobs, but zero, in getJob(); requested by Jose Caballero (pilot)
+
+63.3.1:
+
+Now using FileHandling::getNumberOfEvents() in ATLASExperiment::getNumberOfEvents() (ATLASExperiment)
+
+63.3.2:
+
+Added try-statement around call to extractOutputFilesFromJSON() (RunJob)
+Corrected %f to %s in getOutputFileItem() (FileHandling)
+Only using extractOutputFilesFromJSON() for production jobs (Runjob)
+Corrected //rucio -> /rucio in getPreDestination() (SiteMover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+63.4:
+
+Now verifying that nentries is actually an integer (can aparently be 'null') in extractOutputFilesFromJSON() (FileHandling)
+Now using allowNoOutput list in extractOutputFilesFromJSON() to know when an empty file can be ignored (FileHandling)
+Added allowNoOutput to Job class, including handling (Job)
+Now sending job.allowNoOutput list to extractOutputFilesFromJSON() (RunJob)
+Overriding the input file guid for the TE input file list in __main__() (RunJobEvent)
+Adding a random string to the yampl channel name in __init__() (RunJobEvent)
+Telling AthenaMP the name of the yampl channel in __main__() (RunJobEvent)
+Updated getMaxMemoryUsageFromCGroups() and removed the need for ATLAS_CGROUPS_BASE (processes)
+Created getCGROUPSBasePath() used by getMaxMemoryUsageFromCGroups() (processes)
+Updated isCGROUPSSite() to use getCGROUPSBasePath() instead of using ATLAS_CGROUPS_BASE (processes)
+Added support for AthSimulation* releases (e.g. for jobs with homePackage=AthSimulationBase/1.0.3) in getProperASetup() and getProperSiterootAndCmtconfig() (ATLASExperiment)
+Created getSiterootWithHomepackage(), used by getProperSiterootAndCmtconfig() and getProperASetup() (ATLASExperiment)
+Created getSplitHomePackage() used by getSiterootWithHomepackage(), getProperASetup() (ATLASExperiment)
+Now extracting output files from jobReport for user jobs as well in __main__() (RunJob)
+Avoiding adding cmt setup (getProdCmd2() call) for AthSimulation* releases in getJobExecutionCommand() (ATLASExperiment)
+Updated xml source string from "NG Panda server" to "aRC" in getPoolFileCatalogNG() (Mover)
+Renamed function getPoolFileCatalogNG() to getPoolFileCatalogND() (Mover)
+Updated getFiletypeFromDictionary() to handle ND properly (filetype DISK is implied) (Mover)
+Now setting copytool for ND in extractCopytoolForPFN() (Mover)
+Using readlink to unfold any soft linked file paths in put_data() (mvSiteMover)
+
+63.4.1:
+
+Avoiding extracting output files from jobReport.json for user jobs in __main__() (RunJob)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

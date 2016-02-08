@@ -638,21 +638,6 @@ class AMSTaiwanExperiment(Experiment):
         else:
             tolog("Can not display ChangeLog: Found no appdir")
 
-    def testImportLFCModule(self):
-        """ Can the LFC module be imported? """
-
-        status = False
-
-        try:
-            import lfc
-        except Exception, e:
-            tolog("!!WARNING!!3111!! Failed to import the LFC module: %s" % (e))
-        else:
-            tolog("Successfully imported the LFC module")
-            status = True
-
-        return status
-
     def getCVMFSPath(self):
         """ Return the proper cvmfs path """
 
@@ -2197,18 +2182,10 @@ class AMSTaiwanExperiment(Experiment):
 
         # Set the python version used by the pilot
         self.setPilotPythonVersion()
-        
-        #if 'HPC_Titan' in readpar("catchall"):
-        #    status = True
-        #else:
-        #    # Test the LFC module
-        #    status = self.testImportLFCModule()
 
-        #    # Test CVMFS
-        #    if status:
-        #        status = self.testCVMFS()
         status = True
         tolog("skip special check")
+
         return status
 
     def checkSpecialEnvVars(self, sitename):
