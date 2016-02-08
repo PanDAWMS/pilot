@@ -999,7 +999,6 @@ class Monitor:
                     if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
                         killOrphans()
                     #pUtil.tolog("Going to kill pid %d" %lineno())
-                    pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                     killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                     if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
                         killOrphans()
