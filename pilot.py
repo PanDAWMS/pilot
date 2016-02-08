@@ -540,7 +540,7 @@ def runJobRecoveryNew(thisSite, _psport, extradir):
 
     # run job recovery
     dirs = [DeferredStageout.GetDefaultDeferredStageoutDir(thisSite=thisSite,
-                                        deferred_stageout_logfile="pilotlog-deferredstageout-{jobid}.txt")]
+                                        deferred_stageout_logfile="pilotlog-deferredstageout-{job_id}.txt")]
     if recoveryDir != "":
         dirs.append(recoveryDir)
         pUtil.tolog("Job recovery will scan both local disk and external disk")
@@ -550,7 +550,7 @@ def runJobRecoveryNew(thisSite, _psport, extradir):
             pUtil.tolog("Job recovery will also scan extradir (%s)" % (extradir))
 
     recovered = DeferredStageout.DeferredStageout(dirs, env['maxjobrec'],
-                                        deferred_stageout_logfile="pilotlog-deferredstageout-{jobid}.txt")
+                                        deferred_stageout_logfile="pilotlog-deferredstageout-{job_id}.txt")
 
     #dircounter = 0
     # for _dir in dirs:
