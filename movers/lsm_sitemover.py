@@ -21,7 +21,7 @@ class lsmSiteMover(BaseSiteMover):
     name = "lsm"
     #copy_command = "lsm"
     checksum_type = "adler32"
-    checksum_command = "lcg-get-checksum"
+    checksum_command = "adler32"
 
 
     def shouldVerifyStageIn(self):
@@ -97,6 +97,10 @@ class lsmSiteMover(BaseSiteMover):
         filesize = os.path.getsize(source)
 
         checksum = fspec.get_checksum()
+        if not checksum[0]: # checksum is not available => do calculate
+            checksum = self.calc_file_checksum(source)
+            fspec.set_checksum(checksum[0], checksum[1])
+
         if not checksum[1]:
             checksum = checksum[0]
         else:
