@@ -595,6 +595,7 @@ class RunJob(object):
 
         ec = 0
         statusPFCTurl = None
+        usedFAXandDirectIO = False
 
         # Prepare the input files (remove non-valid names) if there are any
         ins, job.filesizeIn, job.checksumIn = RunJobUtilities.prepareInFiles(job.inFiles, job.filesizeIn, job.checksumIn)
@@ -1716,9 +1717,9 @@ if __name__ == "__main__":
         error = PilotErrors()
 
         if runJob.getGlobalPilotErrorDiag() != "":
-            pilotErrorDiag = "Exception caught in runJob: %s" % (runJob.getGlobalPilotErrorDiag())
+            pilotErrorDiag = "Exception caught in RunJob: %s" % (runJob.getGlobalPilotErrorDiag())
         else:
-            pilotErrorDiag = "Exception caught in runJob: %s" % str(errorMsg)
+            pilotErrorDiag = "Exception caught in RunJob: %s" % str(errorMsg)
 
         if 'format_exc' in traceback.__all__:
             pilotErrorDiag += ", " + traceback.format_exc()
