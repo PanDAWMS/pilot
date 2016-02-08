@@ -103,7 +103,7 @@ class lsmSiteMover(BaseSiteMover):
             checksum = "%s:%s" % (checksum[1], checksum[0])
 
         opts = {'--size':filesize, '-t':token, '--checksum':checksum, '--guid':fspec.guid}
-        opts = " ".join(["%s=%s" % (k,v) for (k,v) in opts.iteritems()])
+        opts = " ".join(["%s %s" % (k,v) for (k,v) in opts.iteritems()])
 
         cmd = 'lsm-put %s %s %s' % (opts, source, destination)
 
@@ -126,7 +126,7 @@ class lsmSiteMover(BaseSiteMover):
 
         opts = {'--size':fspec.filesize, '--checksum':checksum}
         #opts['--guid'] = fspec.guid
-        opts = " ".join(["%s=%s" % (k,v) for (k,v) in opts.iteritems()])
+        opts = " ".join(["%s %s" % (k,v) for (k,v) in opts.iteritems()])
 
         cmd = 'lsm-get %s %s %s' % (opts, source, destination)
 
