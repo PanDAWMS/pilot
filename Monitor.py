@@ -133,6 +133,7 @@ class Monitor:
                             pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
                             # kill the job
                             #pUtil.tolog("Going to kill pid %d" %lineno())
+                            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             self.__env['jobDic'][k][1].result[0] = "failed"
                             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -193,6 +194,7 @@ class Monitor:
                         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
 
                         # kill the job
+                        pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                         killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                         self.__env['jobDic'][k][1].result[0] = "failed"
                         self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -230,6 +232,7 @@ class Monitor:
             for k in self.__env['jobDic'].keys():
                 # kill the job
                 #pUtil.tolog("Going to kill pid %d" %lineno())
+                pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                 killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                 self.__env['jobDic'][k][1].result[0] = "failed"
                 self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -386,6 +389,7 @@ class Monitor:
         for k in self.__env['jobDic'].keys():
             # kill the job
             #pUtil.tolog("Going to kill pid %d" %lineno())
+            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
             self.__env['jobDic'][k][1].result[0] = "failed"
             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -509,6 +513,7 @@ class Monitor:
         cmd = 'ps -o pid,ppid,sid,pgid,tpgid,stat,comm -u %s' % (commands.getoutput("whoami"))
         pUtil.tolog("%s: %s" % (cmd + '\n', commands.getoutput(cmd)))
 
+        pUtil.createLockFile(True, job.workdir, lockfile="JOBWILLBEKILLED")
         killProcesses(pid, job.pgrp)
 
         if self.__env['stagein']:
@@ -580,6 +585,7 @@ class Monitor:
                         pUtil.tolog("Switching off job recovery")
                     # kill the real job process(es)
                     #pUtil.tolog("Going to kill pid %d" %lineno())
+                    pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                     killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                     self.__env['jobDic'][k][1].result[0] = "failed"
                     self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -993,6 +999,7 @@ class Monitor:
                     if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
                         killOrphans()
                     #pUtil.tolog("Going to kill pid %d" %lineno())
+                    pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                     killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                     if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
                         killOrphans()
@@ -1541,6 +1548,7 @@ class Monitor:
                                                   self.__env['experiment'], jr=False)
                                 self.__env['logTransferred'] = True
                             pUtil.tolog("Killing process: %d from line %d" % (self.__env['jobDic'][k][0], lineno()))
+                            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             # move this job from env['jobDic'] to zombieJobList for later collection
                             self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
@@ -1839,6 +1847,7 @@ class Monitor:
                                                   self.__env['experiment'], jr=False)
                                 self.__env['logTransferred'] = True
                             pUtil.tolog("Killing process: %d from line %d" % (self.__env['jobDic'][k][0], lineno()))
+                            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             # move this job from env['jobDic'] to zombieJobList for later collection
                             self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup

@@ -141,7 +141,6 @@ def killProcesses(pid, pgrp):
                     pUtil.tolog(cmd)
 
                 # loop over all child processes
-                first = True
                 for i in children:
                     # dump the stack trace before killing it
                     dumpStackTrace(i)
@@ -155,11 +154,7 @@ def killProcesses(pid, pgrp):
                     else:
                         pUtil.tolog("Killed pid: %d (SIGTERM)" % (i))
 
-                    if first:
-                        _t = 60
-                        first = False
-                    else:
-                        _t = 10
+                    _t = 10
                     pUtil.tolog("Sleeping %d s to allow process to exit" % (_t))
                     time.sleep(_t)
     

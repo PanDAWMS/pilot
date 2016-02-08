@@ -87,6 +87,10 @@ General changes:
 - Removed obsolete and unused lateRegistration() (pUtil)
 - Removed duplicated, obsolete and unused getField(), getNewQueuedataFilename() (FileHandling)
 - Now using dictionary get function instead of has_key() in stageIn() (RunJob)
+- Removed 60s initial delay in killProcesses() since MemoryMonitor is now the first process that will be killed (processes)
+- Using createLockFile() in __checkPayloadStdout(), __checkWorkDir(), __checkLocalSpace(), __failMaxTimeJob(), __killLoopingJob(), __updateJobs(),
+  __cleanUpEndedJobs() and in Monitor main exception handling to prevent MemoryMonitor to restart while the job is being killed (Monitor)
+- Checking that JOBWILLBEKILLED lock file does not exist before restarting MemoryMonitor in executePayload() (RunJob)
 
 To avoid creating dark data in case the server has already failed the job before the pilot has finished
 The problem can happen if the server times out the job before tar+zip of huge log files have not finished within two hours
