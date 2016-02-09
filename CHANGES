@@ -182,8 +182,6 @@ Memory monitoring updates:
 - Created parseUtilityOutput() (ATLASExperiment)
 - Creating a lockfile in __check_memory_usage() to prevent the MemoryMonitor to restart after it has been killed (Monitor)
 - Avoiding restart of memory monitor in __main__() if lockfile MEMORYEXCEEDED is found (RunJob, RunJobEvent)
-- Added purge argument to getUtilityInfo() (PandaServerClient)
-- Now sending purge=True to getUtilityInfo() from getNodeStructure() (PandaServerClient)
 - Sending workdir to getUtilityCommand() from getUtilitySubprocess() (RunJob)
 - Extracting argument workdir in getUtilityCommand() (ATLASExperiment)
 - Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
