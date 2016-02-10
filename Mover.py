@@ -906,8 +906,14 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         #         replicas_dic[guid1] = [replica1, ..]
 
         # Convert the OS bucket ID:s to integers
-        dummy, os_bucket_ids = si.hasOSBucketIDs(prodDBlockToken)
+        status, os_bucket_ids = si.hasOSBucketIDs(prodDBlockToken)
         tolog("os_bucket_ids=%s"%str(os_bucket_ids))
+        if not status:
+            os_bucket_id = si.getObjectstoresField('os_bucket_id', 'eventservice', queuename=queuename)
+            tolog("Will create a list using the default bucket ID: %d" % (os_bucket_id))
+            os_bucket_ids = [os_bucket_id]*len(prodDBlockToken)
+            tolog("os_bucket_ids=%s"%str(os_bucket_ids))
+
         i = 0
         try:
             for lfn in lfns:
