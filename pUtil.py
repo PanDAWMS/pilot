@@ -3519,8 +3519,7 @@ def getSiteInformation(experiment):
 def dumpPilotInfo(version, pilot_version_tag, pilotId, jobSchedulerId, pilot_initdir, tofile=True):
     """ Pilot info """
 
-    tolog("Panda Pilot, version %s" % (version), tofile=tofile)
-    tolog("Panda Pilot, version %s" % (version), tofile=tofile, essential=True)
+    tolog("PanDA Pilot, version %s" % (version), tofile=tofile, essential=True)
     tolog("Version tag = %s" % (pilot_version_tag))
     tolog("PilotId = %s, jobSchedulerId = %s" % (str(pilotId), str(jobSchedulerId)), tofile=tofile)
     tolog("Current time: %s" % (timeStamp()), tofile=tofile)
