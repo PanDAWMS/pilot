@@ -595,6 +595,7 @@ class RunJob(object):
 
         ec = 0
         statusPFCTurl = None
+        usedFAXandDirectIO = False
 
         # Prepare the input files (remove non-valid names) if there are any
         ins, job.filesizeIn, job.checksumIn = RunJobUtilities.prepareInFiles(job.inFiles, job.filesizeIn, job.checksumIn)
