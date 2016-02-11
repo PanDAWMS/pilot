@@ -540,8 +540,8 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("copytoolin", "S3")
 #            ec = self.replaceQueuedataField("copytool", "S3")
 
-            ec = self.replaceQueuedataField("copytool", "gfal-copy")
-            ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
+#            ec = self.replaceQueuedataField("copytool", "gfal-copy")
+#            ec = self.replaceQueuedataField("copytoolin", "gfal-copy")
             # ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
             #ec = self.replaceQueuedataField("appdir", "/global/homes/w/wguan/software/Athena")
 
