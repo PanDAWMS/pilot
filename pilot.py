@@ -325,7 +325,7 @@ def argParser(argv):
 
     # force user jobs for ANALY sites
     if env['sitename'].startswith('ANALY_'):
-        if env['uflag'] not in ['user', 'self', 'ptest', 'rucio_test']:
+        if env['uflag'] not in ['user', 'self', 'ptest', 'rucio_test', 'ptest_rucio']:
             env['uflag'] = 'user'
             pUtil.tolog("Pilot user flag has been reset for analysis site (to value: %s)" % env['uflag'])
         else:
