@@ -797,9 +797,10 @@ class ATLASExperiment(Experiment):
         # run a second pass to clean up any broken links
         matches = []
         for root, dirnames, filenames in os.walk(workdir):
-            path = os.path.join(root, filename)
-            if not os.path.exists(os.readlink(path)):
-                matches.append(path)
+            for filename in filenames:
+                path = os.path.join(root, filename)
+                if not os.path.exists(os.readlink(path)):
+                    matches.append(path)
         if matches != []:
             tolog("!!WARNING!!4991!! Encountered %d broken soft links - will be purged" % len(matches))
             rc = remove(matches)
