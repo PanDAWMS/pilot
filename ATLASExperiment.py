@@ -794,6 +794,20 @@ class ATLASExperiment(Experiment):
         else:
             tolog("Found no archive files")
 
+        # run a second pass to clean up any broken links
+        matches = []
+        for root, dirnames, filenames in os.walk(workdir):
+            path = os.path.join(root, filename)
+            if not os.path.exists(os.readlink(path)):
+                matches.append(path)
+        if matches != []:
+            tolog("!!WARNING!!4991!! Encountered %d broken soft links - will be purged" % len(matches))
+            rc = remove(matches)
+            if not rc:
+                tolog("WARNING: Failed to remove broken soft links")
+        else:
+            tolog("Found no broken links")
+
         # note: these should be partitial file/dir names, not containing any wildcards
         exceptions_list = ["runargs", "runwrapper", "jobReport", "log."]
 

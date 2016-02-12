@@ -10,7 +10,6 @@ import os
 import ssl
 import sys, httplib, cgi, urllib
 import commands
-import requests
 import SiteMover
 from SiteInformation import SiteInformation  # Main site information class
 from pUtil import tolog                      # Logging method that sends text to the pilot log
@@ -831,6 +830,7 @@ class ATLASSiteInformation(SiteInformation):
                 # resp = conn.getresponse()
                 # data = resp.read()
                 # conn.close()
+                import requests
                 r = requests.post('https://%s%s' % (host, path),
                                   verify=False,
                                   cert=(sslCert, sslKey),
