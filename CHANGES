@@ -266,7 +266,7 @@ Removing broken soft links in removeRedundantFiles() (ATLASExperiment)
 
 64.2
 
-Added an artificial 'echo 0' to mask the error from tar command in case of bad files in the log - the time-out will still work, in createLogFile() (JobLog)
+Added an artificial 'echo $?' to mask the error from tar command in case of bad files in the log - the time-out will still work, in createLogFile() (JobLog)
 Corrected bad indentation in broken link finder in removeRedundantFiles() (ATLASExperiment)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
