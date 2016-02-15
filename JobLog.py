@@ -1142,7 +1142,11 @@ class JobLog:
             tolog("!!WARNING!!1400!! Could not move job workdir %s to %s" % (job.workdir, job.newDirNM))
         else:
             timeout = 55*60
-            cmd = "pwd;tar cvf %s %s --dereference" % (tarballNM, job.newDirNM)
+            # add an echo 0 to mask any tar error code - for now - otherwise it can cause the time-out of the tar
+            # to return an error code when we don't want it to, e.g. in evgen jobs that have broken soft links
+            # the pilot should remove the broken links before though. later, the pilot should fail if the log file
+            # is too big
+            cmd = "pwd;tar cvf %s %s --dereference; echo 0" % (tarballNM, job.newDirNM)
             exitcode, output = timedCommand(cmd, timeout=timeout)
             if exitcode != 0:
                 tolog("!!WARNING!!4343!! Log file creation failed: %d, %s" % (exitcode, output))

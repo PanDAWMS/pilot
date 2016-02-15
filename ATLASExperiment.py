@@ -794,30 +794,6 @@ class ATLASExperiment(Experiment):
         else:
             tolog("Found no archive files")
 
-        # run a second pass to clean up any broken links
-        broken = []
-        for root, dirs, files in os.walk(workdir):
-            for filename in files:
-                path = os.path.join(root,filename)
-                if os.path.islink(path):
-                    target_path = os.readlink(path)
-                    # Resolve relative symlinks
-                    if not os.path.isabs(target_path):
-                        target_path = os.path.join(os.path.dirname(path),target_path)             
-                        if not os.path.exists(target_path):
-                            broken.append(path)
-                else:
-                    # If it's not a symlink we're not interested.
-                    continue
-
-        if broken != []:
-            tolog("!!WARNING!!4991!! Encountered %d broken soft links - will be purged" % len(broken))
-            rc = remove(broken)
-            if not rc:
-                tolog("WARNING: Failed to remove broken soft links")
-        else:
-            tolog("Found no broken links")
-
         # note: these should be partitial file/dir names, not containing any wildcards
         exceptions_list = ["runargs", "runwrapper", "jobReport", "log."]
 
@@ -845,6 +821,30 @@ class ATLASExperiment(Experiment):
                 rc = remove(files)
                 if not rc:
                     tolog("IGNORE: Failed to remove redundant file(s): %s" % (files))
+
+        # run a second pass to clean up any broken links
+        broken = []
+        for root, dirs, files in os.walk(workdir):
+            for filename in files:
+                path = os.path.join(root,filename)
+                if os.path.islink(path):
+                    target_path = os.readlink(path)
+                    # Resolve relative symlinks
+                    if not os.path.isabs(target_path):
+                        target_path = os.path.join(os.path.dirname(path),target_path)             
+                    if not os.path.exists(target_path):
+                        broken.append(path)
+                else:
+                    # If it's not a symlink we're not interested.
+                    continue
+
+        if broken != []:
+            tolog("!!WARNING!!4991!! Encountered %d broken soft links - will be purged" % len(broken))
+            rc = remove(broken)
+            if not rc:
+                tolog("WARNING: Failed to remove broken soft links")
+        else:
+            tolog("Found no broken links")
 
     def getWarning(self):
         """ Return any warning message passed to __warning """
