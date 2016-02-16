@@ -592,16 +592,16 @@ class RunJobEvent(RunJob):
 
         return self.__useTokenExtractor
 
-    def setUseTokenExtractor(self, release):
+    def setUseTokenExtractor(self, setup):
         """ Set the __useTokenExtractor variable to a boolean value """
-        # Decision is based on the release
+        # Decision is based on info in the setup string
 
-        if isAGreaterOrEqualToB(release, "20.3.3"):
-            self.__useTokenExtractor = False
-            tolog("Token Extractor is not needed for release %s" % (release))
+        self.__useTokenExtractor = 'TokenScatterer' in setup or 'UseTokenExtractor=True' in setup.replace("  ","").replace(" ","")
+
+        if self.__useTokenExtractor
+            tolog("Token Extractor is not needed")
         else:
-            self.__useTokenExtractor = True
-            tolog("Token Extractor is needed for release %s" % (release))
+            tolog("Token Extractor is needed")
 
     # Required methods
 
@@ -2174,7 +2174,7 @@ if __name__ == "__main__":
         runJob.startMessageThread()
 
         # Should the token extractor be used?
-        runJob.setUseTokenExtractor(job.release)
+        runJob.setUseTokenExtractor(runCommandList[0])
 
         # Stdout/err file objects
         tokenextractor_stdout = None
