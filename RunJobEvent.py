@@ -1356,6 +1356,12 @@ class RunJobEvent(RunJob):
                                 # Time to update the server
                                 msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
 
+                                # Did the updateEventRange back channel contain an instruction?
+                                if msg == "tobekilled":
+                                    tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+                                if msg == "softkill":
+                                    tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+                                    self.sendMessage("No more events")
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
             time.sleep(1)
@@ -2380,7 +2386,7 @@ if __name__ == "__main__":
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
 
-                       # Make sure that the token extractor is still running
+                        # Make sure that the token extractor is still running
                         if runJob.useTokenExtractor():
                             if not tokenExtractorProcess.poll() is None:
                                 max_wait = 0
