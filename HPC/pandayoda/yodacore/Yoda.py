@@ -11,7 +11,7 @@ import pickle
 import signal
 from os.path import abspath as _abspath, join as _join
 
-logging.basicConfig(filename='Yoda.log', level=logging.DEBUG)
+# logging.basicConfig(filename='Yoda.log', level=logging.DEBUG)
 
 import Interaction,Database,Logger
 from signal_block.signal_block import block_sig, unblock_sig
@@ -21,18 +21,18 @@ from signal_block.signal_block import block_sig, unblock_sig
 class Yoda(threading.Thread):
     
     # constructor
-    def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None):
+    def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None, rank=None, nonMPIMode=False):
         threading.Thread.__init__(self)
         self.globalWorkingDir = globalWorkingDir
         self.localWorkingDir = localWorkingDir
         self.currentDir = None
         # communication channel
-        self.comm = Interaction.Receiver()
+        self.comm = Interaction.Receiver(rank=rank, nonMPIMode=nonMPIMode)
         self.rank = self.comm.getRank()
         # database backend
         self.db = Database.Backend(self.globalWorkingDir)
         # logger
-        self.tmpLog = Logger.Logger()
+        self.tmpLog = Logger.Logger(filename='Yoda.log')
         self.tmpLog.info("Global working dir: %s" % self.globalWorkingDir)
         self.initWorkingDir()
         self.tmpLog.info("Current working dir: %s" % self.currentDir)

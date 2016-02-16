@@ -13,7 +13,7 @@ import threading
 import traceback
 from os.path import abspath as _abspath, join as _join
 
-logging.basicConfig(filename='Droid.log', level=logging.DEBUG)
+# logging.basicConfig(filename='Droid.log', level=logging.DEBUG)
 
 from pandayoda.yodacore import Interaction,Database,Logger
 from EventServer.EventServerJobManager import EventServerJobManager
@@ -24,13 +24,13 @@ from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getInitialTracingReport
 
 class Droid(threading.Thread):
-    def __init__(self, globalWorkingDir, localWorkingDir):
+    def __init__(self, globalWorkingDir, localWorkingDir, rank=None, nonMPIMode=False, reserveCores=0):
         threading.Thread.__init__(self)
         self.__globalWorkingDir = globalWorkingDir
         self.__localWorkingDir = localWorkingDir
         self.__currentDir = None
-        self.__comm = Interaction.Requester()
-        self.__tmpLog = Logger.Logger()
+        self.__comm = Interaction.Requester(rank=rank, nonMPIMode=nonMPIMode)
+        self.__tmpLog = Logger.Logger(filename='Droid.log')
         self.__esJobManager = None
         self.__isFinished = False
         self.__rank = self.__comm.getRank()
@@ -51,6 +51,7 @@ class Droid(threading.Thread):
         self.__firstGetEventRanges = True
         self.__copyOutputToGlobal = False
 
+        self.reserveCores = reserveCores
         self.__hostname = socket.getfqdn()
 
         self.__outputs = []
@@ -105,7 +106,11 @@ class Droid(threading.Thread):
                 self.__report =  getInitialTracingReport(userid='Yoda', sitename='Yoda', dsname=None, eventType="objectstore", analysisJob=False, jobId=None, jobDefId=None, dn='Yoda')
                 self.__siteMover = objectstoreSiteMover(setup, useTimerCommand=False)
 
-            self.__ATHENA_PROC_NUMBER = job.get('ATHENA_PROC_NUMBER', 1)
+            self.__ATHENA_PROC_NUMBER = int(job.get('ATHENA_PROC_NUMBER', 1))
+            self.__ATHENA_PROC_NUMBER -= self.reserveCores
+            if self.__ATHENA_PROC_NUMBER < 0:
+                self.__ATHENA_PROC_NUMBER = 1
+            job["AthenaMPCmd"] = "export ATHENA_PROC_NUMBER=" + str(self.__ATHENA_PROC_NUMBER) + "; " + job["AthenaMPCmd"]
             self.__jobWorkingDir = job.get('GlobalWorkingDir', None)
             if self.__jobWorkingDir:
                 self.__jobWorkingDir = os.path.join(self.__jobWorkingDir, 'rank_%s' % self.__rank)

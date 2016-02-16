@@ -576,7 +576,7 @@ class ATLASSiteInformation(SiteInformation):
             
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=60,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=true,localWorkingDir=/tmp/tsulaia")
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=1,min_nodes=1,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=25,min_nodes=25,max_nodes=30,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=1000")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,mode=normal,queue=debug,plugin=slurm,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=2,max_nodes=101,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=1000")
             # ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=4,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=119,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
@@ -809,9 +809,6 @@ class ATLASSiteInformation(SiteInformation):
             return self.__securityKeys[keyName]
         else:
             try:
-                #import environment
-                #env = environment.set_environment()
-
                 sslCert = self.getSSLCertificate()
                 sslKey = sslCert
 
@@ -824,31 +821,41 @@ class ATLASSiteInformation(SiteInformation):
 
                 tolog("Cert file %s" % sslCert)
 
-                # conn = httplib.HTTPSConnection(host, key_file=sslKey, cert_file=sslCert, timeout=120)
-                # conn.request('POST', path, urllib.urlencode(node))
+                conn = httplib.HTTPSConnection(host, key_file=sslKey, cert_file=sslCert, timeout=120)
+                conn.request('POST', path, urllib.urlencode(node))
 
-                # resp = conn.getresponse()
-                # data = resp.read()
-                # conn.close()
-                import requests
-                r = requests.post('https://%s%s' % (host, path),
-                                  verify=False,
-                                  cert=(sslCert, sslKey),
-                                  data=urllib.urlencode(node),
-                                  timeout=120)
-                if r and r.status_code == 200:
-                    dic = cgi.parse_qs(r.text)
-                    if dic["StatusCode"][0] == "0":
-                        self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
-                        return self.__securityKeys[keyName]
+                resp = conn.getresponse()
+                data = resp.read()
+                conn.close()
+                dic = cgi.parse_qs(data)
+                if dic["StatusCode"][0] == "0":
+                    self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
+                    return self.__securityKeys[keyName]
 
                 tolog("!!WARNING!!4444!! Failed to get key from PanDA server:")
-                tolog("data = %s" % r.text if r else r)
+                tolog("data = %s" % str(data))
 
             except:
                 _type, value, traceBack = sys.exc_info()
                 tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
                 tolog("ERROR: %s %s" % (_type, value))
+                tolog("Try to use requests to get key pair")
+                try:
+                    import requests
+                    r = requests.post('https://%s%s' % (host, path),
+                                      verify=False,
+                                      cert=(sslCert, sslKey),
+                                      data=urllib.urlencode(node),
+                                      timeout=120)
+                    if r and r.status_code == 200:
+                        dic = cgi.parse_qs(r.text)
+                        if dic["StatusCode"][0] == "0":
+                            self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
+                            return self.__securityKeys[keyName]
+                except:
+                    _type, value, traceBack = sys.exc_info()
+                    tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
+                    tolog("ERROR: %s %s" % (_type, value))
 
         return {"publicKey": None, "privateKey": None}
 

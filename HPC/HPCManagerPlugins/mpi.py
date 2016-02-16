@@ -8,16 +8,10 @@ import traceback
 from HPC.Logger import Logger
 from HPC.HPCManagerPlugins.plugin import Plugin
 
-class arc(Plugin):
+class mpi(Plugin):
     def __init__(self, logFileName):
         self.__log= Logger(logFileName)
         self.__failedPollTimes = 0
-
-    def isLocalProcess(self):
-        return True
-
-    def getName(self):
-        return 'arc'
 
     def getHPCResources(self, partition, max_nodes=None, min_nodes=2, min_walltime_m=30):
         return None
@@ -55,33 +49,28 @@ class arc(Plugin):
         nodelist = self.convertNodeList(nodelist)
 
         submit_script = "#!/bin/bash -l" + "\n"
-        # submit_script += "module load mpi4py openmpi-ccm" + "\n"
+        submit_script += "module load mpi4py openmpi-ccm" + "\n"
         if localSetup:
             submit_script += localSetup + "\n"
-        submit_script += "source ${VO_ATLAS_SW_DIR}/local/setup-yampl.sh" + "\n"
         submit_script += "export PYTHONPATH=%s:$PYTHONPATH\n" % globalWorkingDir
         submit_script += "env" + "\n"
 
         # submit_script += "srun -N " + str(nodes) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>yoda_stdout.txt 2>yoda_stderr.txt"
-        # submit_script += "srun -N " + str(nodes) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir
+        submit_script += "srun -N " + str(nodes) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir
         # submit_script += "mpirun --host "+nodelist+" python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir
 
         # submit_script += "mpirun -bynode python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>yoda_stdout.txt 2>yoda_stderr.txt"
         # submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>" + globalYodaDir+ "/yoda_stdout.txt 2>" + globalYodaDir+ "/yoda_stderr.txt"
-        submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" --nonMPIMode"
+        # submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
         self.__log.debug("ARC submit script: %s" % submit_script)
         # hpcJob = subprocess.Popen(submit_script, stdout=sys.stdout, stderr=sys.stdout, shell=True)
         yoda_stdout = open(os.path.join(globalYodaDir, 'yoda_stdout.txt'), 'a')
         yoda_stderr = open(os.path.join(globalYodaDir, 'yoda_stderr.txt'), 'a')
         hpcJob = subprocess.Popen(submit_script, stdout=yoda_stdout, stderr=yoda_stderr, shell=True)
 
-        i = 20
         while (hpcJob and hpcJob.poll() is None):
-            if i == 0:
-                self.__log.debug("Yoda process is running%s")
-                i = 20
+            self.__log.debug("Yoda process is running%s")
             time.sleep(30)
-            i -= 1
 
         self.__log.debug("Yoda process terminated")
         self.__log.debug("Yoda process return code: %s" % hpcJob.returncode)

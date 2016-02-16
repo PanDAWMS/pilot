@@ -4,7 +4,7 @@ import inspect
 loggerMap = {}
 
 class Logger:
-    def __init__(self):
+    def __init__(self, filename="log.txt", level=logging.DEBUG):
         # get logger name
         frm = inspect.stack()[1]
         mod = inspect.getmodule(frm[0])
@@ -13,11 +13,14 @@ class Logger:
         else:
             modName = '.'.join(mod.__name__.split('.')[-2:])
         global loggerMap
-        if modName in loggerMap:
+        # if modName in loggerMap:
+        if filename in loggerMap:
             # use existing logger
-            self.log = loggerMap[modName]
+            # self.log = loggerMap[modName]
+            self.log = loggerMap[filename]
         else:
             # make handler
+            """
             fmt = logging.Formatter('%(asctime)s %(name)s: %(levelname)s  %(message)s')
             for handler in logging.root.handlers:
                 handler.setFormatter(fmt)
@@ -26,7 +29,19 @@ class Logger:
             self.log.propagate = False
             for handler in logging.root.handlers:
                 self.log.addHandler(handler)
-            loggerMap[modName] = self.log
+            """
+            self.log = logging.getLogger(filename)
+            fmt = logging.Formatter('%(asctime)s %(name)s: %(levelname)s  %(message)s')
+            fileHandler = logging.FileHandler(filename, mode='a')
+            fileHandler.setFormatter(fmt)
+            streamHandler = logging.StreamHandler()
+            streamHandler.setFormatter(fmt)
+            self.log.setLevel(level)
+            self.log.addHandler(fileHandler)
+            # self.log.addHandler(streamHandler) 
+
+            # loggerMap[modName] = self.log
+            loggerMap[filename] = self.log
 
 
     def info(self,msg):
