@@ -65,7 +65,7 @@ def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', o
         tolog("data=%s"%str(data))
         from json import loads
         try:
-            d = loads(data['Command'][0])
+            d = loads(data['Command'])
         except Exception, e:
             tolog("No message found in updateEventRange back channel: %s" % (e))
             message = ""
