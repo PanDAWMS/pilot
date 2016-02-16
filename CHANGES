@@ -273,9 +273,19 @@ Corrected bad indentation in broken link finder in removeRedundantFiles() (ATLAS
 
 64.3
 
-Protected against too old python versions while importing argparse. Problem seen on Chinese HPC site (EventStager)
-Updated setUseTokenExtractor() to use payload setup string to decide whether the Token Extractor should be used or not, instead of hardcoded release string (RunJobEvent)
-Sending runCommandList[0] to setUseTokenExtractor() instead of release string, from __main__() (RunJobEvent)
+General fixes
+- Protected against too old python versions while importing argparse. Problem seen on Chinese HPC site (EventStager, MVEventStager)
+
+Event service:
+- Updated setUseTokenExtractor() to use payload setup string to decide whether the Token Extractor should be used or not, instead of hardcoded release string (RunJobEvent)
+- Sending runCommandList[0] to setUseTokenExtractor() instead of release string, from __main__() (RunJobEvent)
+- Now sending jobId to updateEventRange() from asynchronousOutputStager(), listener() (RunJobEvent)
+- Added jobId argument to updateEventRange() (EventRanges)
+
+Updates from Wen Guan
+- Fixed ATLAS site information
+- Implementation of one rank yoda
+- Fixed merge problem in site information
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

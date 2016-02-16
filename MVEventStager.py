@@ -1,4 +1,3 @@
-import argparse
 import commands
 import json
 import logging
@@ -8,6 +7,10 @@ import subprocess
 import sys
 import time
 import traceback
+try:
+    import argparse
+except:
+    print "!!WARNING!!4545!! argparse python module could not be imported - too old python version?"
 
 import pUtil
 from ThreadPool import ThreadPool

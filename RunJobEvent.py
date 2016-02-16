@@ -599,9 +599,9 @@ class RunJobEvent(RunJob):
         self.__useTokenExtractor = 'TokenScatterer' in setup or 'UseTokenExtractor=True' in setup.replace("  ","").replace(" ","")
 
         if self.__useTokenExtractor:
-            tolog("Token Extractor is not needed")
-        else:
             tolog("Token Extractor is needed")
+        else:
+            tolog("Token Extractor is not needed")
 
     # Required methods
 
@@ -1354,7 +1354,7 @@ class RunJobEvent(RunJob):
                                     # Note: the rec pilot must update the server appropriately
 
                                 # Time to update the server
-                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status, os_bucket_id=os_bucket_id)
+                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
 
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
@@ -1437,7 +1437,7 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         # Time to update the server
-                        msg = updateEventRange(event_range_id, [], status='failed')
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='failed')
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
