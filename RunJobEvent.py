@@ -598,7 +598,7 @@ class RunJobEvent(RunJob):
 
         self.__useTokenExtractor = 'TokenScatterer' in setup or 'UseTokenExtractor=True' in setup.replace("  ","").replace(" ","")
 
-        if self.__useTokenExtractor
+        if self.__useTokenExtractor:
             tolog("Token Extractor is not needed")
         else:
             tolog("Token Extractor is needed")
