@@ -282,6 +282,7 @@ Event service:
 - Now sending jobId to updateEventRange() from asynchronousOutputStager(), listener() (RunJobEvent)
 - Added jobId argument to updateEventRange() (EventRanges)
 - Now supporting softkill in asynchronousOutputStager() (RunJobEvent)
+- Added __abort, __tobekilled + setters and getters - used in __main__() (RunJobEvent)
 
 Updates from Wen Guan
 - Fixed ATLAS site information
