@@ -13,7 +13,8 @@ import yampl
 import json
 import traceback
 
-import Logger
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+from pandayoda.yodacore import Logger
 
 from signal_block.signal_block import block_sig, unblock_sig
 
@@ -21,7 +22,7 @@ class EventServerJobManager():
     class MessageThread(threading.Thread):
         def __init__(self, messageQ, socketname, context, **kwds):
             threading.Thread.__init__(self, **kwds)
-            self.__log = Logger.Logger()
+            self.__log = Logger.Logger(filename='EventServiceManager.log')
             self.__messageQ = messageQ
             self._stop = threading.Event()
             try:
@@ -70,7 +71,7 @@ class EventServerJobManager():
         self.__athenaMP_needEvents = 0
         self.__pollTimeout = 5
         self.__child_pid = None
-        self.__log = Logger.Logger()
+        self.__log = Logger.Logger(filename='EventServiceManager.log')
         self.__childProcs = []
 
         self.__waitTerminate = False
