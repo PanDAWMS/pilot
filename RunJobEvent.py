@@ -2451,6 +2451,11 @@ if __name__ == "__main__":
                     break
 
             else:
+                # do not continue if the abort has been set
+                if runJob.getAbort():
+                    tolog("Aborting AthenaMP waiting loop")
+                    break
+
                 time.sleep(6)
 
                 if k%10 == 0:
