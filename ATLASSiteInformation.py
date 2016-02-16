@@ -809,7 +809,6 @@ class ATLASSiteInformation(SiteInformation):
             return self.__securityKeys[keyName]
         else:
             try:
-
                 sslCert = self.getSSLCertificate()
                 sslKey = sslCert
 
