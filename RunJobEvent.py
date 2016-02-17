@@ -2490,9 +2490,12 @@ if __name__ == "__main__":
         # Wait for AthenaMP to finish
         kill = False
         if runJob.getToBeKilled():
-            tolog("The pilot has been instructed by the server to kill AthenaMP")
             athenaMPProcess.kill()
             tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
+            job.pilotErrorDiag = "Pilot was instructed by server to kill AthenaMP"
+            job.result[0] = "failed"
+            job.result[2] = error.ERR_ESKILLEDBYSERVER
+            tolog("!!WARNING!!2323!! %s" % (job.pilotErrorDiag))
             kill = True
         else:
             i = 0
