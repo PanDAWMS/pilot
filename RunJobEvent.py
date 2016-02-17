@@ -2635,13 +2635,19 @@ if __name__ == "__main__":
         # wrap up ..........................................................................................
 
         errorCode = runJob.getErrorCode()
-        if not runJob.getStatus() or errorCode != 0:
-            tolog("Detected at least one transfer failure, job will be set to failed")
+
+        # Check for special failure condition
+        if job.result[2] == error.ERR_ESKILLEDBYSERVER:
+            tolog("Killed by server")
             job.jobState = "failed"
-            job.result[2] = errorCode
         else:
-            tolog("No transfer failures detected, job will be set to finished")
-            job.jobState = "finished"
+            if not runJob.getStatus() or errorCode != 0:
+                tolog("Detected at least one transfer failure, job will be set to failed")
+                job.jobState = "failed"
+                job.result[2] = errorCode
+            else:
+                tolog("No transfer failures detected, job will be set to finished")
+                job.jobState = "finished"
         job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
