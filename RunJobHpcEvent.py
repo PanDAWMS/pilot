@@ -992,6 +992,10 @@ class RunJobHpcEvent(RunJob):
         for jobId in self.__jobs:
             self.__jobs[jobId]['job'].coreCount = avgCores
 
+        if hpcManager.isLocalProcess():
+            self.__hpcStatue = 'running'
+            self.updateAllJobsState('running', self.__hpcStatue)
+
         tolog("Submit HPC job")
         hpcManager.submit()
         tolog("Submitted HPC job")

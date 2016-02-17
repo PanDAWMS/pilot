@@ -94,6 +94,8 @@ class RunJobEvent(RunJob):
     __sending_event_range = False                # True while event range is being sent to payload
     __current_event_range = ""                   # Event range being sent to payload
     __useTokenExtractor = False                  # Should the TE be used?
+    __abort = False                              # Global bail-out
+    __tobekilled = False                         # Killed by server boolean
 
     # Getter and setter methods
 
@@ -457,6 +459,26 @@ class RunJobEvent(RunJob):
 
         self.__current_event_range = current_event_range
 
+    def getAbort(self):
+        """ Getter for __abort """
+
+        return self.__abort
+
+    def setAbort(self, abort):
+        """ Setter for __abort """
+
+        self.__abort = abort
+
+    def getToBeKilled(self):
+        """ Getter for __tobekilled """
+
+        return self.__tobekilled
+
+    def setToBeKilled(self, tobekilled):
+        """ Setter for __tobekilled """
+
+        self.__tobekilled = tobekilled
+
     # Get/setters for the job object
 
     def getJob(self):
@@ -592,16 +614,16 @@ class RunJobEvent(RunJob):
 
         return self.__useTokenExtractor
 
-    def setUseTokenExtractor(self, release):
+    def setUseTokenExtractor(self, setup):
         """ Set the __useTokenExtractor variable to a boolean value """
-        # Decision is based on the release
+        # Decision is based on info in the setup string
 
-        if isAGreaterOrEqualToB(release, "20.3.3"):
-            self.__useTokenExtractor = False
-            tolog("Token Extractor is not needed for release %s" % (release))
+        self.__useTokenExtractor = 'TokenScatterer' in setup or 'UseTokenExtractor=True' in setup.replace("  ","").replace(" ","")
+
+        if self.__useTokenExtractor:
+            tolog("Token Extractor is needed")
         else:
-            self.__useTokenExtractor = True
-            tolog("Token Extractor is needed for release %s" % (release))
+            tolog("Token Extractor is not needed")
 
     # Required methods
 
@@ -1354,7 +1376,17 @@ class RunJobEvent(RunJob):
                                     # Note: the rec pilot must update the server appropriately
 
                                 # Time to update the server
-                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status, os_bucket_id=os_bucket_id)
+                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
+
+                                # Did the updateEventRange back channel contain an instruction?
+                                if msg == "tobekilled":
+                                    tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+                                    self.setAbort(True)
+                                    self.setToBeKilled(True)
+                                if msg == "softkill":
+                                    tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+                                    self.sendMessage("No more events")
+                                    self.setAbort(True)
 
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
@@ -1437,7 +1469,7 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         # Time to update the server
-                        msg = updateEventRange(event_range_id, [], status='failed')
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='failed')
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
@@ -2174,7 +2206,7 @@ if __name__ == "__main__":
         runJob.startMessageThread()
 
         # Should the token extractor be used?
-        runJob.setUseTokenExtractor(job.release)
+        runJob.setUseTokenExtractor(runCommandList[0])
 
         # Stdout/err file objects
         tokenextractor_stdout = None
@@ -2342,6 +2374,12 @@ if __name__ == "__main__":
                 i = 0
                 j = 0
                 for event_range in event_ranges:
+
+                    # do not continue if the abort has been set
+                    if runJob.getAbort():
+                        tolog("Aborting event range loop")
+                        break
+
                     # Send the event range to AthenaMP
                     tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
                     runJob.setSendingEventRange(True)
@@ -2354,6 +2392,11 @@ if __name__ == "__main__":
 
                     # Wait until AthenaMP is ready to receive another event range
                     while not runJob.isAthenaMPReady():
+                        # do not continue if the abort has been set
+                        if runJob.getAbort():
+                            tolog("Aborting AthenaMP loop")
+                            break
+
                         # Take a nap
                         if i%10 == 0:
                             tolog("Event range loop iteration #%d" % (i))
@@ -2380,7 +2423,7 @@ if __name__ == "__main__":
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
 
-                       # Make sure that the token extractor is still running
+                        # Make sure that the token extractor is still running
                         if runJob.useTokenExtractor():
                             if not tokenExtractorProcess.poll() is None:
                                 max_wait = 0
@@ -2408,6 +2451,11 @@ if __name__ == "__main__":
                     break
 
             else:
+                # do not continue if the abort has been set
+                if runJob.getAbort():
+                    tolog("Aborting AthenaMP waiting loop")
+                    break
+
                 time.sleep(6)
 
                 if k%10 == 0:
@@ -2440,20 +2488,26 @@ if __name__ == "__main__":
                         break
 
         # Wait for AthenaMP to finish
-        i = 0
         kill = False
-        while athenaMPProcess.poll() is None:
-            tolog("Waiting for AthenaMP to finish (#%d)" % (i))
-            if i > max_wait:
-                # Stop AthenaMP
-                tolog("Waited long enough - Stopping AthenaMP process")
-                athenaMPProcess.kill()
-                tolog("(Kill signal SIGTERM sentto AthenaMP - jobReport might get lost)")
-                kill = True
-                break
+        if runJob.getToBeKilled():
+            tolog("The pilot has been instructed by the server to kill AthenaMP")
+            athenaMPProcess.kill()
+            tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
+            kill = True
+        else:
+            i = 0
+            while athenaMPProcess.poll() is None:
+                tolog("Waiting for AthenaMP to finish (#%d)" % (i))
+                if i > max_wait:
+                    # Stop AthenaMP
+                    tolog("Waited long enough - Stopping AthenaMP process")
+                    athenaMPProcess.kill()
+                    tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
+                    kill = True
+                    break
 
-            time.sleep(60)
-            i += 1
+                time.sleep(60)
+                i += 1
 
         if not kill:
             tolog("AthenaMP has finished")

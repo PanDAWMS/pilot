@@ -15,6 +15,7 @@ from RunJobAnselm import RunJobAnselm
 from RunJobArgo import RunJobArgo
 from RunJobNormal import RunJobNormal
 from RunJobHpcEvent import RunJobHpcEvent
+from RunJobHpcarcEvent import RunJobHpcarcEvent
 
 class RunJobFactory(object):
 
