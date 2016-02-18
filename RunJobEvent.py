@@ -94,8 +94,6 @@ class RunJobEvent(RunJob):
     __sending_event_range = False                # True while event range is being sent to payload
     __current_event_range = ""                   # Event range being sent to payload
     __useTokenExtractor = False                  # Should the TE be used?
-    __abort = False                              # Global bail-out
-    __tobekilled = False                         # Killed by server boolean
 
     # Getter and setter methods
 
@@ -459,25 +457,34 @@ class RunJobEvent(RunJob):
 
         self.__current_event_range = current_event_range
 
-    def getAbort(self):
-        """ Getter for __abort """
+    def shouldBeAborted(self):
+        """ Should the job be aborted? """
 
-        return self.__abort
+        if os.path.exists(os.path.join(self.__job.workdir, "ABORT")):
+            return True
+        else:
+            return False
 
-    def setAbort(self, abort):
-        """ Setter for __abort """
+    def setAbort(self):
+        """ Create the ABORT lock file """
 
-        self.__abort = abort
+        createLockFile(False, self.__job.workdir, lockfile="ABORT")
 
-    def getToBeKilled(self):
-        """ Getter for __tobekilled """
+    def shouldBeKilled(self):
+        """ Does the TOBEKILLED lock file exist? """
 
-        return self.__tobekilled
+        path = os.path.join(self.__job.workdir, "TOBEKILLED")
+        if os.path.exists(path):
+            tolog("path exists: %s" % (path))
+            return True
+        else:
+            tolog("path does not exist: %s" % (path))
+            return False
 
-    def setToBeKilled(self, tobekilled):
-        """ Setter for __tobekilled """
+    def setToBeKilled(self):
+        """ Create the TOBEKILLED lock file"""
 
-        self.__tobekilled = tobekilled
+        createLockFile(False, self.__job.workdir, lockfile="TOBEKILLED")
 
     # Get/setters for the job object
 
@@ -1381,12 +1388,12 @@ class RunJobEvent(RunJob):
                                 # Did the updateEventRange back channel contain an instruction?
                                 if msg == "tobekilled":
                                     tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
-                                    self.setAbort(True)
-                                    self.setToBeKilled(True)
+                                    self.setAbort()
+                                    self.setToBeKilled()
                                 if msg == "softkill":
                                     tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
                                     self.sendMessage("No more events")
-                                    self.setAbort(True)
+                                    self.setAbort()
 
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
@@ -2376,7 +2383,7 @@ if __name__ == "__main__":
                 for event_range in event_ranges:
 
                     # do not continue if the abort has been set
-                    if runJob.getAbort():
+                    if runJob.shouldBeAborted():
                         tolog("Aborting event range loop")
                         break
 
@@ -2393,7 +2400,7 @@ if __name__ == "__main__":
                     # Wait until AthenaMP is ready to receive another event range
                     while not runJob.isAthenaMPReady():
                         # do not continue if the abort has been set
-                        if runJob.getAbort():
+                        if runJob.shouldBeAborted():
                             tolog("Aborting AthenaMP loop")
                             break
 
@@ -2452,7 +2459,7 @@ if __name__ == "__main__":
 
             else:
                 # do not continue if the abort has been set
-                if runJob.getAbort():
+                if runJob.shouldBeAborted():
                     tolog("Aborting AthenaMP waiting loop")
                     break
 
@@ -2489,7 +2496,8 @@ if __name__ == "__main__":
 
         # Wait for AthenaMP to finish
         kill = False
-        if runJob.getToBeKilled():
+        tolog("Will now wait for AthenaMP to finish")
+        if runJob.shouldBeKilled():
             athenaMPProcess.kill()
             tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
             job.pilotErrorDiag = "Pilot was instructed by server to kill AthenaMP"
@@ -2508,7 +2516,15 @@ if __name__ == "__main__":
                     tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
                     kill = True
                     break
-
+                if runJob.shouldBeKilled():
+                    athenaMPProcess.kill()
+                    tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
+                    job.pilotErrorDiag = "Pilot was instructed by server to kill AthenaMP"
+                    job.result[0] = "failed"
+                    job.result[2] = error.ERR_ESKILLEDBYSERVER
+                    tolog("!!WARNING!!2323!! %s" % (job.pilotErrorDiag))
+                    kill = True
+                    break
                 time.sleep(60)
                 i += 1
 

@@ -282,7 +282,7 @@ Event service:
 - Now sending jobId to updateEventRange() from asynchronousOutputStager(), listener() (RunJobEvent)
 - Added jobId argument to updateEventRange() (EventRanges)
 - Now supporting softkill in asynchronousOutputStager() (RunJobEvent)
-- Added __abort, __tobekilled + setters and getters - used in __main__() (RunJobEvent)
+- Created shouldBeAborted(), setAbort(), shouldBeKilled(), setToBeKilled() - used in asynchronousOutputStager(), __main__() (RunJobEvent)
 - Created new error code 1237, ERR_ESKILLEDBYSERVER, 'Event Service job killed by server'
 
 Updates from Wen Guan
