@@ -30,11 +30,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.__isBotoLoaded = False
         self._useTimerCommand = useTimerCommand
 
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(S3ObjectstoreSiteMover, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
-
     def get_timeout(self):
         return self.timeout
 
