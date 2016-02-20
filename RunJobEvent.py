@@ -2305,7 +2305,9 @@ if __name__ == "__main__":
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
 
         # Tell AthenaMP the name of the yampl channel
-        if not "--preExec" in runCommandList[0]:
+        if "PILOT_EVENTRANGECHANNEL" in runCommandList[0]:
+            runCommandList[0] = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (runJob.getYamplChannelName()) + runCommandList[0]
+        elif not "--preExec" in runCommandList[0]:
             runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
         else:
             if "import jobproperties as jps" in runCommandList[0]:

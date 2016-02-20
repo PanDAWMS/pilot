@@ -295,6 +295,7 @@ Updates from Wen Guan
 64.4
 
 Event service
+- Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)
 - Wen Guan: Fix in init function which prevented the S3 site mover from being used (S3ObjectstoreSiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
