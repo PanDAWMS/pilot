@@ -294,6 +294,11 @@ Updates from Wen Guan
 
 64.4
 
+General changes
+- Added taskId argument to addEnvVars2Cmd() (ATLASExperiment)
+- Now sending job.taskID to addEnvVars2Cmd() from getJobExecutionCommand() and getJobExecutionCommandOld() (ATLASExperiment)
+- Added taskId to FRONTIER_ID (taskId#jobId) in addEnvVars2Cmd(), requested by Rodney Walker (ATLASExperiment)
+
 Event service
 - Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)
 - Wen Guan: Fix in init function which prevented the S3 site mover from being used (S3ObjectstoreSiteMover)
