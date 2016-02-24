@@ -1019,7 +1019,7 @@ class SiteInformation(object):
                 useCT = False
             oldPrefix = dInfo['oldPrefix']
             newPrefix = dInfo['newPrefix']
-        if transferType == 'direct' or (transferType == 'fax' and readpar('direct_access_wan').lower() == 'true'):
+        if transferType == 'direct' or (transferType == 'fax' and self.readpar('direct_access_wan').lower() == 'true'):
             useCT = False
         elif useCT:
             tolog("Copy tool will be used for stage-in")
