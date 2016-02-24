@@ -11,7 +11,7 @@ import urllib2
 from datetime import datetime, timedelta
 from pUtil import tolog, replace, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
-from FileHandling import getExtension, readJSON, writeJSON, getJSONDictionary
+from FileHandling import getExtension, readJSON, writeJSON, getJSONDictionary, getDirectAccess
 from PilotErrors import PilotErrors
 
 try:
@@ -993,14 +993,12 @@ class SiteInformation(object):
 
         return ret_path
 
-    def getCopyFileAccessInfo(self, stageIn=True):
+    def getFileAccessInfo(self, transferType, stageIn=True):
         """ return a tuple with all info about how the input files should be accessed """
 
         # default values
         oldPrefix = None
         newPrefix = None
-        useFileStager = None
-        directIn = None
 
         # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
         useCT = True
@@ -1021,27 +1019,26 @@ class SiteInformation(object):
                 useCT = False
             oldPrefix = dInfo['oldPrefix']
             newPrefix = dInfo['newPrefix']
-            useFileStager = dInfo['useFileStager']
-            directIn = dInfo['directIn']
-        if useCT:
+        if transferType == 'direct' or (transferType == 'fax' and readpar('direct_access_wan').lower() == 'true'):
+            useCT = False
+        elif useCT:
             tolog("Copy tool will be used for stage-in")
         else:
-            if useFileStager:
-                tolog("File stager mode: Copy tool will not be used for stage-in of root files")
-            else:
-                tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
-                if oldPrefix == "" and newPrefix == "":
-                    tolog("Will attempt to create a TURL based PFC")
+            tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
+            if oldPrefix == "" and newPrefix == "":
+                tolog("Will attempt to create a TURL based PFC")
 
-        return useCT, oldPrefix, newPrefix, useFileStager, directIn
+        return useCT, oldPrefix, newPrefix
 
-    def getDirectInAccessMode(self, prodDBlockToken, isRootFileName):
-        """Get Direct Access mode"""
+    def getDirectInAccessMode(self, prodDBlockToken, isRootFileName, transferType):
+        """ Get Direct Access mode """
         directIn = False
         useFileStager = False
         transfer_mode = None
 
-        useCT, oldPrefix, newPrefix, useFileStager, directIn = self.getCopyFileAccessInfo(stageIn=True)
+        # get the file access info                                                                                                                                                                                                                  
+        directIn, directInType = getDirectAccess()
+        useCT, oldPrefix, newPrefix = self.getFileAccessInfo(transferType)
 
         if directIn:
             if useCT:
@@ -1058,10 +1055,7 @@ class SiteInformation(object):
                     transfer_mode = "copy_to_scratch"
                 elif rootFile:
                     tolog("Found root file according to file name (will not be transferred in direct reading mode)")
-                    if useFileStager:
-                        transfer_mode = "file_stager"
-                    else:
-                        transfer_mode = "remote_io"
+                    transfer_mode = "remote_io"
                 else:
                     tolog("Normal file transfer")
         else:
