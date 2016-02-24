@@ -3,7 +3,7 @@
 import os
 import time
 
-from pUtil import tolog, convert, getSiteInformation
+from pUtil import tolog, convert, getSiteInformation, readpar
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """
