@@ -161,6 +161,9 @@ class FileState:
 
         status = False
 
+        tolog("updateState: filename=%s" % (filename))
+        tolog("updateState: mode=%s" % (mode))
+        tolog("updateState: state=%s" % (state))
         # get current state list
         state_list = self.getStateList(filename)
 

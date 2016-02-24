@@ -740,10 +740,12 @@ class LocalSiteMover(SiteMover.SiteMover):
         # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'local', lfn, guid)
 
-
+        tolog("transferType=%s"%(transferType))
         status, output = self.getStageInMode(lfn, prodDBlockToken, transferType)
+        tolog("output=%s" % str(output))
         if output["transfer_mode"]:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], ftype="input")
+            tolog("updated file state for lfn=%s, workDir=%s, jobId=%s, state=%s"%(lfn, workDir, jobId, output["transfer_mode"]))
         if status !=0:
             self.prepareReport(output["report"], report)
             return status, output["errorLog"]
