@@ -1902,10 +1902,8 @@ def handleDBRelease(dbh, lfns, jobPars, path):
 
     if not version:
         tolog("No DBRelease info found in job parameters")
-
-    return False
-
-    tolog("DBRelease version from job parameters: %s" % version)
+    else:
+        tolog("DBRelease version from job parameters: %s" % version)
 
     # is the DBRelease locally available?
     DBReleaseIsAvailable = isDBReleaseAvailable(dbh, version, lfns, jobPars)
