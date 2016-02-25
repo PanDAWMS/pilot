@@ -294,6 +294,9 @@ Updates from Wen Guan
 
 64.4
 
+General change
+- Prevented outdated skipping of missing input files, to avoid complications seen on ND when one skipped file is a log file, in sitemover_get_data() (Mover)
+
 Bug fix
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
 

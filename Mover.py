@@ -2018,8 +2018,9 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
             tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (replica_number + 1, s, pilotErrorDiag))
             # add metadata to skipped.xml for the last replica retry
             if (replica_number + 1) == get_RETRY_replicas and (get_attempt + 1) == get_RETRY:
-                tolog("Adding replica info to skipped.xml")
-                _ec = addToSkipped(lfn, guid)
+                tolog("Could have added replica info to skipped.xml (skipped since v 64.4)")
+                #tolog("Adding replica info to skipped.xml")
+                #_ec = addToSkipped(lfn, guid)
         else:
             # is the copied file a root file?
             if sitemover.isRootFileName(lfn):
