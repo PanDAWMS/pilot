@@ -60,6 +60,11 @@ class objectstoreSiteMover(SiteMover.SiteMover):
 
 if __name__ == '__main__':
 
+    os.environ['PilotHomeDir'] = os.getcwd()
+    from SiteInformation import SiteInformation
+    s1 = SiteInformation()
+    s1.getObjectstoresField("os_access_key", "eventservice", queuename='BNL_LOCAL-condor')
+
     f = objectstoreSiteMover()
 
     gpfn = "nonsens_gpfn"
