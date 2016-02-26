@@ -1971,7 +1971,7 @@ def finishTracingReport(sitemover, surl, errordiagnostics):
 def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_attempt, replica_number, N_files_on_tape, N_root_files, N_non_root_files,\
                        gpfn, lfn, path, fsize=None, spsetup=None, fchecksum=None, guid=None, analysisJob=None, usect=None, pinitdir=None, proxycheck=None,\
                        sitename=None, token=None, timeout=None, dsname=None, userid=None, report=None, access=None, inputDir=None, jobId=None, jobsetID=None,\
-                       workDir=None, cmtconfig=None, experiment=None, scope_dict=None, sourceSite="", pandaProxySecretKey=None, transferType=None):
+                       workDir=None, cmtconfig=None, experiment=None, scope_dict=None, sourceSite="", pandaProxySecretKey=None, transferType=None, os_bucket_id=-1):
     """ Wrapper for the actual stage-in command from the relevant sitemover """
 
     s = -1
@@ -1987,7 +1987,8 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
                                            analJob=analysisJob, usect=usect, pinitdir=pinitdir, proxycheck=proxycheck, sitename=sitename,\
                                            token=token, timeout=timeout, dsname=dsname, userid=userid, report=report, sourceSite=sourceSite,\
                                            access=access, inputDir=inputDir, jobId=jobId, jobsetID=jobsetID, workDir=workDir, cmtconfig=cmtconfig,\
-                                           pandaProxySecretKey=pandaProxySecretKey, experiment=experiment, scope=scope_dict[lfn], transferType=transferType)
+                                           pandaProxySecretKey=pandaProxySecretKey, experiment=experiment, scope=scope_dict[lfn], transferType=transferType,\
+                                           os_bucket_id=os_bucket_id)
     except Exception, e:
         pilotErrorDiag = "Unexpected exception: %s" % (get_exc_plus())
         tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
@@ -2512,7 +2513,8 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
                                                                                                                          access=file_access, inputDir=inputDir, jobId=jobId,\
                                                                                                                          workDir=workDir, cmtconfig=cmtconfig,\
                                                                                                                          experiment=experiment, scope_dict=scope_dict,\
-                                                                                                                         sourceSite=sourceSite, transferType=transferType)
+                                                                                                                         sourceSite=sourceSite, transferType=transferType,\
+                                                                                                                         os_bucket_id=os_bucket_id)
                 # Get out of the multiple replica loop
                 if replica_transferred:
                     break
@@ -2561,7 +2563,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
                                                                                                                              access=file_access, inputDir=inputDir, jobId=jobId,\
                                                                                                                              workDir=workDir, cmtconfig=cmtconfig, experiment=experiment,\
                                                                                                                              scope_dict=scope_dict, sourceSite=sourceSite,\
-                                                                                                                             transferType=transferType)
+                                                                                                                             transferType=transferType, os_bucket_id=os_bucket_id)
                     if replica_transferred:
                         tolog("FAX site mover managed to transfer file from remote site (resetting error code to zero)")
                         pilotErrorDiag = ""
@@ -2947,7 +2949,8 @@ def mover_get_data(lfns,
                                                                                                                              workDir=workDir, cmtconfig=cmtconfig, jobsetID=jobsetID,\
                                                                                                                              experiment=experiment, scope_dict=scope_dict,\
                                                                                                                              pandaProxySecretKey=pandaProxySecretKey,\
-                                                                                                                             sourceSite=sourceSite, transferType=transferType)
+                                                                                                                             sourceSite=sourceSite, transferType=transferType,\
+                                                                                                                             os_bucket_id=os_bucket_id)
                     # Get out of the multiple replica loop
                     if replica_transferred:
                         break
@@ -2999,7 +3002,7 @@ def mover_get_data(lfns,
                                                                                                                                  workDir=workDir, cmtconfig=cmtconfig, experiment=experiment,\
                                                                                                                                  pandaProxySecretKey=pandaProxySecretKey,\
                                                                                                                                  scope_dict=scope_dict, sourceSite=sourceSite,
-                                                                                                                                 transferType=transferType)
+                                                                                                                                 transferType=transferType, os_bucket_id=os_bucket_id)
                         if replica_transferred:
                             tolog("FAX site mover managed to transfer file from remote site (resetting error code to zero)")
                             pilotErrorDiag = ""
@@ -3314,7 +3317,7 @@ def getSpaceTokenForFile(filename, _token, logFile, file_nr, fileListLength):
 
 def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname, sitename, analysisJob, testLevel, pinitdir, proxycheck, token, lfn,\
                        guid, spsetup, userid, report, cmtconfig, prodSourceLabel, outputDir, DN, fsize, checksum, logFile, _attempt, experiment, scope,\
-                       fileDestinationSE, nFiles, logPath="", alt=False, pandaProxySecretKey=None, jobsetID=None):
+                       fileDestinationSE, nFiles, logPath="", alt=False, pandaProxySecretKey=None, jobsetID=None, os_bucket_id=-1):
     """ Wrapper method for the sitemover put_data() method """
 
     s = 0
@@ -3339,7 +3342,8 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
                                                                 userid=userid, report=report, cmtconfig=cmtconfig, prodSourceLabel=prodSourceLabel,\
                                                                 outputDir=outputDir, DN=DN, fsize=fsize, fchecksum=checksum, logFile=logFile,\
                                                                 attempt=_attempt, experiment=experiment, alt=alt, scope=scope, fileDestinationSE=fileDestinationSE,\
-                                                                nFiles=nFiles, logPath=logPath, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                nFiles=nFiles, logPath=logPath, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID,\
+                                                                os_bucket_id=os_bucket_id)
         tolog("Stage-out returned: s=%s, r_gpfn=%s, r_fsize=%s, r_fchecksum=%s, r_farch=%s, pilotErrorDiag=%s" %\
               (s, r_gpfn, r_fsize, r_fchecksum, r_farch, pilotErrorDiag))
     except:
@@ -3743,7 +3747,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                                                                                                   _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                   prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
                                                                                                   _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                                  logPath=logPath, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                                                  logPath=logPath, pandaProxySecretKey=pandaProxySecretKey,\
+                                                                                                  jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                 # increase normal stage-out counter if file was staged out
                 if not s: # success
                     N_filesNormalStageOut += 1
@@ -3813,7 +3818,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                                                                                                         _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                         prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
                                                                                                         _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                                        alt=True, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                                                        alt=True, pandaProxySecretKey=pandaProxySecretKey,\
+                                                                                                        jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                         if _s == 0:
                             # do no further stage-out (prevent another attempt, but allow e.g. chirp transfer below, as well as
                             # return a zero error code from this function, also for job recovery returning s=0 will not cause job recovery
@@ -4111,7 +4117,8 @@ def mover_put_data(outputpoolfcstring,
                                                                                                   _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                   prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
                                                                                                   _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                                  logPath=logPath, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                                                  logPath=logPath, pandaProxySecretKey=pandaProxySecretKey,\
+                                                                                                  jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                 # increase normal stage-out counter if file was staged out
                 if s == 0:
                     N_filesNormalStageOut += 1
@@ -4183,7 +4190,8 @@ def mover_put_data(outputpoolfcstring,
                                                                                                         _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                         prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
                                                                                                         _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                                        alt=True, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                                                        alt=True, pandaProxySecretKey=pandaProxySecretKey,\
+                                                                                                        jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                         if _s == 0:
                             # do no further stage-out (prevent another attempt, but allow e.g. chirp transfer below, as well as
                             # return a zero error code from this function, also for job recovery returning s=0 will not cause job recovery
