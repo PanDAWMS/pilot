@@ -62,9 +62,9 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             hostname = socket.getfqdn()
         except:
             tolog(traceback.format_exc())
-        if os.environ.get("http_proxy") and hostname.endswith("bnl.gov"):
+        if os.environ.get("http_proxy") and hostname and hostname.endswith("bnl.gov"):
              del os.environ['http_proxy']
-        if os.environ.get("https_proxy") and hostname.endswith("bnl.gov"):
+        if os.environ.get("https_proxy") and hostname and hostname.endswith("bnl.gov"):
              del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
