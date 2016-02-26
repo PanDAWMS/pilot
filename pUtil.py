@@ -2420,9 +2420,9 @@ def parseDispatcherResponse(response):
     for p in parList:
         data[p[0]] = p[1]
 
-    if 'userProxy' in str(parList):
+    if 'userProxy' in str(parList) or 'privateKey' in str(parList):
 	for i in range(len(parList)):
-		if parList[i][0] == 'userProxy':
+		if parList[i][0] == 'userProxy' or parList[i][0] == 'publicKey' or parList[i][0] == 'privateKey':
 			newList = list(parList[i])
 			newList[1] = 'hidden'
 			parList[i] = newList
