@@ -385,6 +385,8 @@ Direct access updates (to enable this functionality for ES)
 
 Updates from Wen Guan:
 - Now using curl to get keypair (ATLASSiteInformation, pUtil)
+- Add hostname check with http proxy (S3ObjectstoreSiteMover)
+- Fixed hostname is None issue (S3ObjectstoreSiteMover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
