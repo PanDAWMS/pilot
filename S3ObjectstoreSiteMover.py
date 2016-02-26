@@ -456,10 +456,12 @@ class S3ObjctStore(object):
                 calling_format = boto.s3.connection.OrdinaryCallingFormat(),
                 )
 
-            if create:
-                bucket = self.__conn.create_bucket(bucket_name)
-            else:
+            try:
                 bucket = self.__conn.get_bucket(bucket_name)
+            except boto.exception.S3ResponseError, e:
+                tolog("Cannot get bucket: %s" % traceback.format_exc())
+
+                bucket = self.__conn.create_bucket(bucket_name)
 
         if create:
             key = Key(bucket, key_name)
