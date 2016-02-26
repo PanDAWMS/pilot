@@ -36,7 +36,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     def log(self, errorLog):
         tolog(errorLog)
 
-    def setup(self, experiment=None, surl=None, os_bucket_id=-1)):
+    def setup(self, experiment=None, surl=None, os_bucket_id=-1):
         """ setup env """
         if not self.__isBotoLoaded:
             try:

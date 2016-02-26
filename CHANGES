@@ -383,6 +383,9 @@ Direct access updates (to enable this functionality for ES)
 - Sending transferType to sitemover_get_data() from _mover_get_data_new(), mover_get_data() (Mover)
 - Added transferType argument to sitemover_get_data() (Mover)
 
+Updates from Wen Guan:
+- Now using curl to get keypair (ATLASSiteInformation, pUtil)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
