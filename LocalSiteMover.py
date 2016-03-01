@@ -230,7 +230,7 @@ class LocalSiteMover(SiteMover.SiteMover):
                 path = self.addPortToPath(se, path)
         return path
 
-    def getStageInMode(self, lfn, prodDBlockToken):
+    def getStageInMode(self, lfn, prodDBlockToken, transferType):
         # should the root file be copied or read directly by athena?
         status = 0
         output={}
@@ -243,7 +243,7 @@ class LocalSiteMover(SiteMover.SiteMover):
         isRootFileName = self.isRootFileName(lfn)
 
         siteInformation = SiteInformation()
-        directIn, transfer_mode = siteInformation.getDirectInAccessMode(prodDBlockToken, isRootFileName)
+        directIn, transfer_mode = siteInformation.getDirectInAccessMode(prodDBlockToken, isRootFileName, transferType)
         if transfer_mode:
             output["transfer_mode"] = transfer_mode
         if directIn:
@@ -730,6 +730,7 @@ class LocalSiteMover(SiteMover.SiteMover):
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
         experiment = pdict.get('experiment', '')
+        transferType = pdict.get('transferType', '')
         proxycheck = pdict.get('proxycheck', False)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
@@ -739,10 +740,12 @@ class LocalSiteMover(SiteMover.SiteMover):
         # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 'local', lfn, guid)
 
-
-        status, output = self.getStageInMode(lfn, prodDBlockToken)
+        tolog("transferType=%s"%(transferType))
+        status, output = self.getStageInMode(lfn, prodDBlockToken, transferType)
+        tolog("output=%s" % str(output))
         if output["transfer_mode"]:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], ftype="input")
+            tolog("updated file state for lfn=%s, workDir=%s, jobId=%s, state=%s"%(lfn, workDir, jobId, output["transfer_mode"]))
         if status !=0:
             self.prepareReport(output["report"], report)
             return status, output["errorLog"]

@@ -11,10 +11,10 @@ from xml.dom import minidom
 from time import time, sleep
 from timed_command import timed_command
 
-from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems, getFileAccessInfo,\
+from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems,\
      hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, headPilotErrorDiag, getCopysetup,\
      getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile
-from FileHandling import getExtension, getTracingReportFilename, readJSON, getHashedBucketEndpoint
+from FileHandling import getExtension, getTracingReportFilename, readJSON, getHashedBucketEndpoint, getDirectAccess, useDirectAccessWAN
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
 from SysLog import sysLog, dumpSysLogTail
@@ -906,8 +906,14 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         #         replicas_dic[guid1] = [replica1, ..]
 
         # Convert the OS bucket ID:s to integers
-        dummy, os_bucket_ids = si.hasOSBucketIDs(prodDBlockToken)
+        status, os_bucket_ids = si.hasOSBucketIDs(prodDBlockToken)
         tolog("os_bucket_ids=%s"%str(os_bucket_ids))
+        if not status:
+            os_bucket_id = si.getObjectstoresField('os_bucket_id', 'eventservice', queuename=queuename)
+            tolog("Will create a list using the default bucket ID: %d" % (os_bucket_id))
+            os_bucket_ids = [os_bucket_id]*len(prodDBlockToken)
+            tolog("os_bucket_ids=%s"%str(os_bucket_ids))
+
         i = 0
         try:
             for lfn in lfns:
@@ -1211,7 +1217,7 @@ def getMatchingLFN(_lfn, lfns):
 
     return actual_lfn
 
-def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict):
+def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, transferType, experiment):
     """ Return a dictionary with TURLs """
     # Try to do the SURL to TURL conversion using copysetup or copyprefix
     # and fall back to lcg-getturls if the previous attempts fail
@@ -1232,7 +1238,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, co
     dumpOrderedItems(fileList)
 
     # get the old/newPrefix needed for the SURL to TURL conversions
-    oldPrefix, newPrefix, prefix_dictionary = getPrefices(fileList)
+    oldPrefix, newPrefix, prefix_dictionary = getPrefices(fileList, transferType, experiment)
     tolog("Prefix dictionary = %s" % str(prefix_dictionary))
     tolog("oldPrefix=%s" % str(oldPrefix))
     tolog("newPrefix=%s" % str(newPrefix))
@@ -1421,7 +1427,7 @@ def getPlainCopyPrefices():
 
     return oldPrefix, newPrefix
 
-def getPrefices(fileList):
+def getPrefices(fileList, transferType, experiment):
     """ Get the old/newPrefices as a dictionary needed for the SURL to TURL conversions """
     # Format:
     #   prefix_dictionary[surl] = [oldPrefix, newPrefix]
@@ -1433,7 +1439,8 @@ def getPrefices(fileList):
     prefix_dictionary = {}
 
     # get the file access info (only old/newPrefix are needed here)
-    useCT, oldPrefix, newPrefix = getFileAccessInfo()
+    si = getSiteInformation(experiment)
+    useCT, oldPrefix, newPrefix = si.getFileAccessInfo(transferType)
 
     # get the copyprefices
     copyprefix = readpar('copyprefixin')
@@ -1762,7 +1769,7 @@ def getThinFileInfoDic(fileInfoDic):
 
     return thinFileInfoDic
 
-def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict):
+def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, transferType, experiment):
     """ Perform automatic configuration of copysetup[in] (i.e. for direct access/file stager)"""
 
     # (remember to replace preliminary old/newPrefix)
@@ -1778,7 +1785,7 @@ def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_d
     thinFileInfoDic = getThinFileInfoDic(fileInfoDic)
 
     # get the TURLs
-    ec, pilotErrorDiag, turlFileInfoDic = getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict)
+    ec, pilotErrorDiag, turlFileInfoDic = getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, transferType, experiment)
     if ec == 0:
         tolog("getTURL returned dictionary: %s" % str(turlFileInfoDic))
 
@@ -1796,15 +1803,16 @@ def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_d
 
     return ec, pilotErrorDiag
 
-def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
+def shouldPFC4TURLsBeCreated(analysisJob, transferType, experiment, eventService):
     """ determine whether a TURL based PFC should be created """
 
     status = False
 
     if analysisJob:
         # get the file access info
+        si = getSiteInformation(experiment)
         directIn, directInType = getDirectAccess()
-        useCT, oldPrefix, newPrefix = getFileAccessInfo()
+        useCT, oldPrefix, newPrefix = si.getFileAccessInfo(transferType)
 
         # forced TURL (only if copyprefix has enough info)
         if directIn:
@@ -1823,7 +1831,7 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
             # directIn must be True if not useCT and directIn and oldPrefix == "" and newPrefix == "":
             status = True
     else:
-        if transferType == "direct":
+        if transferType == "direct" or (transferType == "fax" and useDirectAccessWAN()):
             tolog("Will attempt to create a TURL based PFC (for transferType %s)" % (transferType))
             status = True
 
@@ -1896,14 +1904,11 @@ def handleDBRelease(dbh, lfns, jobPars, path):
 
     if not version:
         tolog("No DBRelease info found in job parameters")
-
-    return False
-
-    tolog("DBRelease version from job parameters: %s" % version)
+    else:
+        tolog("DBRelease version from job parameters: %s" % version)
 
     # is the DBRelease locally available?
     DBReleaseIsAvailable = isDBReleaseAvailable(dbh, version, lfns, jobPars)
-
 
     DBReleaseIsAvailable = False
     for lfn in lfns:
@@ -1966,7 +1971,7 @@ def finishTracingReport(sitemover, surl, errordiagnostics):
 def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_attempt, replica_number, N_files_on_tape, N_root_files, N_non_root_files,\
                        gpfn, lfn, path, fsize=None, spsetup=None, fchecksum=None, guid=None, analysisJob=None, usect=None, pinitdir=None, proxycheck=None,\
                        sitename=None, token=None, timeout=None, dsname=None, userid=None, report=None, access=None, inputDir=None, jobId=None, jobsetID=None,\
-                       workDir=None, cmtconfig=None, experiment=None, scope_dict=None, sourceSite="", pandaProxySecretKey=None):
+                       workDir=None, cmtconfig=None, experiment=None, scope_dict=None, sourceSite="", pandaProxySecretKey=None, transferType=None, os_bucket_id=-1):
     """ Wrapper for the actual stage-in command from the relevant sitemover """
 
     s = -1
@@ -1982,7 +1987,8 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
                                            analJob=analysisJob, usect=usect, pinitdir=pinitdir, proxycheck=proxycheck, sitename=sitename,\
                                            token=token, timeout=timeout, dsname=dsname, userid=userid, report=report, sourceSite=sourceSite,\
                                            access=access, inputDir=inputDir, jobId=jobId, jobsetID=jobsetID, workDir=workDir, cmtconfig=cmtconfig,\
-                                           pandaProxySecretKey=pandaProxySecretKey, experiment=experiment, scope=scope_dict[lfn])
+                                           pandaProxySecretKey=pandaProxySecretKey, experiment=experiment, scope=scope_dict[lfn], transferType=transferType,\
+                                           os_bucket_id=os_bucket_id)
     except Exception, e:
         pilotErrorDiag = "Unexpected exception: %s" % (get_exc_plus())
         tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
@@ -2193,7 +2199,7 @@ def createStandardPFC4TRF(createdPFCTURL, pfc_name_turl, pfc_name, guidfname):
         # No PFC only if no PFC was returned by Rucio
         createPFC4TRF(pfc_name, guidfname)
 
-def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict):
+def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, experiment):
     """ Create a TURL based PFC if necessary/requested """
     # I.e if copy tool should not be used [useCT=False] and if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False]
 
@@ -2202,8 +2208,8 @@ def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, 
     createdPFCTURL = False
 
     # first check if there is a need to create the PFC
-    if shouldPFC4TURLsBeCreated(analysisJob, transferType, eventService):
-        ec, pilotErrorDiag = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict)
+    if shouldPFC4TURLsBeCreated(analysisJob, transferType, experiment, eventService):
+        ec, pilotErrorDiag = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, transferType, experiment)
         if ec == 0:
             tolog("PFC created with TURLs")
             createdPFCTURL = True
@@ -2385,7 +2391,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
     # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
     if xml_source != "FAX":
         tokens_dictionary = getSurlTokenDictionary(lfns, tokens) # Create a SURL to space token dictionary
-        ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict)
+        ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict, job.experiment)
         if ec: # error
             return ec, pilotErrorDiag, None, {}
     else:
@@ -2507,7 +2513,8 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
                                                                                                                          access=file_access, inputDir=inputDir, jobId=jobId,\
                                                                                                                          workDir=workDir, cmtconfig=cmtconfig,\
                                                                                                                          experiment=experiment, scope_dict=scope_dict,\
-                                                                                                                         sourceSite=sourceSite)
+                                                                                                                         sourceSite=sourceSite, transferType=transferType,\
+                                                                                                                         os_bucket_id=os_bucket_id)
                 # Get out of the multiple replica loop
                 if replica_transferred:
                     break
@@ -2555,7 +2562,8 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
                                                                                                                              dsname=dsname, userid=userid, report=report,\
                                                                                                                              access=file_access, inputDir=inputDir, jobId=jobId,\
                                                                                                                              workDir=workDir, cmtconfig=cmtconfig, experiment=experiment,\
-                                                                                                                             scope_dict=scope_dict, sourceSite=sourceSite)
+                                                                                                                             scope_dict=scope_dict, sourceSite=sourceSite,\
+                                                                                                                             transferType=transferType, os_bucket_id=os_bucket_id)
                     if replica_transferred:
                         tolog("FAX site mover managed to transfer file from remote site (resetting error code to zero)")
                         pilotErrorDiag = ""
@@ -2784,7 +2792,7 @@ def mover_get_data(lfns,
     # Create a TURL based PFC if necessary/requested (i.e. if copy tool should not be used [useCT=False] and
     # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
     if xml_source != "FAX":
-        ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict)
+        ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict, job.experiment)
         if ec != 0:
             return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
     else:
@@ -2941,7 +2949,8 @@ def mover_get_data(lfns,
                                                                                                                              workDir=workDir, cmtconfig=cmtconfig, jobsetID=jobsetID,\
                                                                                                                              experiment=experiment, scope_dict=scope_dict,\
                                                                                                                              pandaProxySecretKey=pandaProxySecretKey,\
-                                                                                                                             sourceSite=sourceSite)
+                                                                                                                             sourceSite=sourceSite, transferType=transferType,\
+                                                                                                                             os_bucket_id=os_bucket_id)
                     # Get out of the multiple replica loop
                     if replica_transferred:
                         break
@@ -2992,7 +3001,8 @@ def mover_get_data(lfns,
                                                                                                                                  access=file_access, inputDir=inputDir, jobId=jobId,jobsetID=jobsetID,\
                                                                                                                                  workDir=workDir, cmtconfig=cmtconfig, experiment=experiment,\
                                                                                                                                  pandaProxySecretKey=pandaProxySecretKey,\
-                                                                                                                                 scope_dict=scope_dict, sourceSite=sourceSite)
+                                                                                                                                 scope_dict=scope_dict, sourceSite=sourceSite,
+                                                                                                                                 transferType=transferType, os_bucket_id=os_bucket_id)
                         if replica_transferred:
                             tolog("FAX site mover managed to transfer file from remote site (resetting error code to zero)")
                             pilotErrorDiag = ""
@@ -3307,7 +3317,7 @@ def getSpaceTokenForFile(filename, _token, logFile, file_nr, fileListLength):
 
 def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsname, sitename, analysisJob, testLevel, pinitdir, proxycheck, token, lfn,\
                        guid, spsetup, userid, report, cmtconfig, prodSourceLabel, outputDir, DN, fsize, checksum, logFile, _attempt, experiment, scope,\
-                       fileDestinationSE, nFiles, logPath="", alt=False, pandaProxySecretKey=None, jobsetID=None):
+                       fileDestinationSE, nFiles, logPath="", alt=False, pandaProxySecretKey=None, jobsetID=None, os_bucket_id=-1):
     """ Wrapper method for the sitemover put_data() method """
 
     s = 0
@@ -3332,7 +3342,8 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
                                                                 userid=userid, report=report, cmtconfig=cmtconfig, prodSourceLabel=prodSourceLabel,\
                                                                 outputDir=outputDir, DN=DN, fsize=fsize, fchecksum=checksum, logFile=logFile,\
                                                                 attempt=_attempt, experiment=experiment, alt=alt, scope=scope, fileDestinationSE=fileDestinationSE,\
-                                                                nFiles=nFiles, logPath=logPath, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                nFiles=nFiles, logPath=logPath, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID,\
+                                                                os_bucket_id=os_bucket_id)
         tolog("Stage-out returned: s=%s, r_gpfn=%s, r_fsize=%s, r_fchecksum=%s, r_farch=%s, pilotErrorDiag=%s" %\
               (s, r_gpfn, r_fsize, r_fchecksum, r_farch, pilotErrorDiag))
     except:
@@ -3736,7 +3747,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                                                                                                   _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                   prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
                                                                                                   _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                                  logPath=logPath, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                                                  logPath=logPath, pandaProxySecretKey=pandaProxySecretKey,\
+                                                                                                  jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                 # increase normal stage-out counter if file was staged out
                 if not s: # success
                     N_filesNormalStageOut += 1
@@ -3806,7 +3818,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                                                                                                         _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                         prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
                                                                                                         _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                                        alt=True, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                                                        alt=True, pandaProxySecretKey=pandaProxySecretKey,\
+                                                                                                        jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                         if _s == 0:
                             # do no further stage-out (prevent another attempt, but allow e.g. chirp transfer below, as well as
                             # return a zero error code from this function, also for job recovery returning s=0 will not cause job recovery
@@ -4104,7 +4117,8 @@ def mover_put_data(outputpoolfcstring,
                                                                                                   _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                   prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
                                                                                                   _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                                  logPath=logPath, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                                                  logPath=logPath, pandaProxySecretKey=pandaProxySecretKey,\
+                                                                                                  jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                 # increase normal stage-out counter if file was staged out
                 if s == 0:
                     N_filesNormalStageOut += 1
@@ -4176,7 +4190,8 @@ def mover_put_data(outputpoolfcstring,
                                                                                                         _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
                                                                                                         prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
                                                                                                         _attempt, experiment, scope, fileDestinationSE, nFiles,\
-                                                                                                        alt=True, pandaProxySecretKey=pandaProxySecretKey, jobsetID=jobsetID)
+                                                                                                        alt=True, pandaProxySecretKey=pandaProxySecretKey,\
+                                                                                                        jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                         if _s == 0:
                             # do no further stage-out (prevent another attempt, but allow e.g. chirp transfer below, as well as
                             # return a zero error code from this function, also for job recovery returning s=0 will not cause job recovery
@@ -5991,53 +6006,3 @@ def getRucioReplicaDictionary(cat, file_dictionary):
         tolog("!!WARNING!!2234!! Empty replica list, can not continue with Rucio replica query")
 
     return replica_dictionary, surl_dictionary
-
-def getDirectAccess():
-    """ Should direct i/o be used, and which type of direct i/o """
-
-    directInLAN = useDirectAccessLAN()
-    directInWAN = useDirectAccessWAN()
-    directInType = 'None'
-
-    if directInLAN:
-        directInType = 'LAN'
-    if directInWAN:
-        directInType = 'WAN' # Overrides LAN if both booleans are set to True
-    if directInWAN or directInLAN:
-        directIn = True
-    else:
-        directIn = False
-
-    return directIn, directInType
-
-def _useDirectAccess(LAN=True, WAN=False):
-    """ Should direct i/o be used over LAN or WAN? """
-
-    useDA = False
-
-    if LAN:
-        par = 'direct_access_lan'
-    elif WAN:
-        par = 'direct_access_wan'
-    else:
-        tolog("!!WARNING!!3443!! Bad LAN/WAN combination: LAN=%s, WAN=%s" % (str(LAN), str(WAN)))
-        par = ''
-
-    if par != '':
-        da = readpar(par)
-        if da:
-            da = da.lower()
-            if da == "true":
-                useDA = True
-
-    return useDA
-
-def useDirectAccessLAN():
-    """ Should direct i/o be used over LAN? """
-
-    return _useDirectAccess(LAN=True, WAN=False)
-
-def useDirectAccessWAN():
-    """ Should direct i/o be used over WAN? """
-
-    return _useDirectAccess(LAN=False, WAN=True)

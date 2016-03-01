@@ -20,8 +20,8 @@ from json import loads
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
+from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand, getSiteInformation,\
+     tailPilotErrorDiag, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
@@ -603,7 +603,8 @@ class RunJob(object):
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
-            useCT, oldPrefix, newPrefix = getFileAccessInfo()
+            si = getSiteInformation(self.getExperiment())
+            useCT, oldPrefix, newPrefix = si.getFileAccessInfo(job.transferType)
 
             # Transfer input files
             tin_0 = os.times()

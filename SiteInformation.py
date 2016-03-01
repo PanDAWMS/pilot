@@ -11,7 +11,7 @@ import urllib2
 from datetime import datetime, timedelta
 from pUtil import tolog, replace, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
-from FileHandling import getExtension, readJSON, writeJSON, getJSONDictionary
+from FileHandling import getExtension, readJSON, writeJSON, getJSONDictionary, getDirectAccess
 from PilotErrors import PilotErrors
 
 try:
@@ -120,7 +120,7 @@ class SiteInformation(object):
 
         return parameter_value
 
-    def getQueuedataFileName(self, useExtension=None, check=True, alt=False, version=0, queuename=None):
+    def getQueuedataFileName(self, useExtension=None, check=True, alt=False, version=0, queuename=None, os_bucket_id=-1):
         """ Define the queuedata filename """
         # alt: alternative extension
         # version: 0 (default, old queuedata version), 1 (new AGIS JSON format)
@@ -139,7 +139,10 @@ class SiteInformation(object):
             if queuename and False: # skip this for now (in case of alt stage-out to OS, e.g. JobLog won't know which is the queuename)
                 filename = "queuedata-%s.%s" % (queuename, extension)
             else:
-                filename = "new_queuedata.%s" % (extension)
+                if os_bucket_id != -1:
+                    filename = "new_queuedata_%d.%s" % (os_bucket_id, extension)
+                else:
+                    filename = "new_queuedata.%s" % (extension)
         else:
             filename = "queuedata.%s" % (extension)
         path = os.path.join(os.environ['PilotHomeDir'], filename)
@@ -993,14 +996,12 @@ class SiteInformation(object):
 
         return ret_path
 
-    def getCopyFileAccessInfo(self, stageIn=True):
+    def getFileAccessInfo(self, transferType, stageIn=True):
         """ return a tuple with all info about how the input files should be accessed """
 
         # default values
         oldPrefix = None
         newPrefix = None
-        useFileStager = None
-        directIn = None
 
         # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
         useCT = True
@@ -1021,27 +1022,26 @@ class SiteInformation(object):
                 useCT = False
             oldPrefix = dInfo['oldPrefix']
             newPrefix = dInfo['newPrefix']
-            useFileStager = dInfo['useFileStager']
-            directIn = dInfo['directIn']
-        if useCT:
+        if transferType == 'direct' or (transferType == 'fax' and self.readpar('direct_access_wan').lower() == 'true'):
+            useCT = False
+        elif useCT:
             tolog("Copy tool will be used for stage-in")
         else:
-            if useFileStager:
-                tolog("File stager mode: Copy tool will not be used for stage-in of root files")
-            else:
-                tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
-                if oldPrefix == "" and newPrefix == "":
-                    tolog("Will attempt to create a TURL based PFC")
+            tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
+            if oldPrefix == "" and newPrefix == "":
+                tolog("Will attempt to create a TURL based PFC")
 
-        return useCT, oldPrefix, newPrefix, useFileStager, directIn
+        return useCT, oldPrefix, newPrefix
 
-    def getDirectInAccessMode(self, prodDBlockToken, isRootFileName):
-        """Get Direct Access mode"""
+    def getDirectInAccessMode(self, prodDBlockToken, isRootFileName, transferType):
+        """ Get Direct Access mode """
         directIn = False
         useFileStager = False
         transfer_mode = None
 
-        useCT, oldPrefix, newPrefix, useFileStager, directIn = self.getCopyFileAccessInfo(stageIn=True)
+        # get the file access info                                                                                                                                                                                                                  
+        directIn, directInType = getDirectAccess()
+        useCT, oldPrefix, newPrefix = self.getFileAccessInfo(transferType)
 
         if directIn:
             if useCT:
@@ -1058,10 +1058,7 @@ class SiteInformation(object):
                     transfer_mode = "copy_to_scratch"
                 elif rootFile:
                     tolog("Found root file according to file name (will not be transferred in direct reading mode)")
-                    if useFileStager:
-                        transfer_mode = "file_stager"
-                    else:
-                        transfer_mode = "remote_io"
+                    transfer_mode = "remote_io"
                 else:
                     tolog("Normal file transfer")
         else:
@@ -1126,10 +1123,10 @@ class SiteInformation(object):
         # Get the field from AGIS
         s = True
         # Download the new queuedata in case it has not been downloaded already and force re-download if os_bucket_id != -1
-        if not os.path.exists(self.getQueuedataFileName(version=1, check=False, queuename=queuename)) or os_bucket_id != -1:
+        if not os.path.exists(self.getQueuedataFileName(version=1, check=False, queuename=queuename, os_bucket_id=os_bucket_id)) or os_bucket_id != -1:
             s = self.getNewQueuedata(queuename, os_bucket_id=os_bucket_id)
         if s:
-            _objectstores = self.getField('objectstores', queuename=queuename)
+            _objectstores = self.getField('objectstores', queuename=queuename, os_bucket_id=os_bucket_id)
 
             if _objectstores:
                 objectstores = _objectstores
@@ -1140,16 +1137,14 @@ class SiteInformation(object):
     def getNewQueuedata(self, queuename, overwrite=True, version=1, os_bucket_id=-1):
         """ Download the queuedata primarily from CVMFS and secondarily from the AGIS server """
 
-        filename = self.getQueuedataFileName(version=version, check=False, queuename=queuename)
+        filename = self.getQueuedataFileName(version=version, check=False, queuename=queuename, os_bucket_id=os_bucket_id)
         status = False
 
         # If overwrite is not required, return True if the queuedata already exists
-        if not overwrite:
-            tolog("Overwrite is currently required")
-            if os.path.exists(filename) and False:
-                tolog("AGIS queuedata already exist")
-                status = True
-                return status
+        if os.path.exists(filename):
+            tolog("AGIS queuedata already exist")
+            status = True
+            return status
 
         # Download queuenadata from CVMFS, full version which needs to be trimmed
         tolog("Copying queuedata from primary location (CVMFS)")
@@ -1211,11 +1206,11 @@ class SiteInformation(object):
 
         return status
 
-    def getField(self, field, version=1, queuename=None):
+    def getField(self, field, version=1, queuename=None, os_bucket_id=-1):
         """ Get the value for entry 'field' in the queuedata """
 
         value = None
-        filename = self.getQueuedataFileName(version=version, check=False, queuename=queuename)
+        filename = self.getQueuedataFileName(version=version, check=False, queuename=queuename, os_bucket_id=os_bucket_id)
         if os.path.exists(filename):
 
             # Load the dictionary

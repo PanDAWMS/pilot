@@ -254,7 +254,7 @@ class ATLASExperiment(Experiment):
         if 'HPC_' in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
             cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
         else:
-            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         if 'HPC_HPC' in readpar("catchall"):
             cmd = 'export JOB_RELEASE=%s;export JOB_HOMEPACKAGE=%s;JOB_CACHEVERSION=%s;JOB_CMTCONFIG=%s;%s' % (job.release, job.homePackage, cacheVer, cmtconfig, cmd)
 
@@ -648,7 +648,7 @@ class ATLASExperiment(Experiment):
         if 'HPC_' in readpar("catchall"):
             cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
         else:
-            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
 
         # Is JEM allowed to be used?
         if self.isJEMAllowed():
@@ -821,6 +821,30 @@ class ATLASExperiment(Experiment):
                 rc = remove(files)
                 if not rc:
                     tolog("IGNORE: Failed to remove redundant file(s): %s" % (files))
+
+        # run a second pass to clean up any broken links
+        broken = []
+        for root, dirs, files in os.walk(workdir):
+            for filename in files:
+                path = os.path.join(root,filename)
+                if os.path.islink(path):
+                    target_path = os.readlink(path)
+                    # Resolve relative symlinks
+                    if not os.path.isabs(target_path):
+                        target_path = os.path.join(os.path.dirname(path),target_path)             
+                    if not os.path.exists(target_path):
+                        broken.append(path)
+                else:
+                    # If it's not a symlink we're not interested.
+                    continue
+
+        if broken != []:
+            tolog("!!WARNING!!4991!! Encountered %d broken soft links - will be purged" % len(broken))
+            rc = remove(broken)
+            if not rc:
+                tolog("WARNING: Failed to remove broken soft links")
+        else:
+            tolog("Found no broken links")
 
     def getWarning(self):
         """ Return any warning message passed to __warning """
@@ -1900,11 +1924,11 @@ class ATLASExperiment(Experiment):
 
         return cmd3
 
-    def addEnvVars2Cmd(self, cmd, jobId, processingType, sitename, analysisJob):
+    def addEnvVars2Cmd(self, cmd, jobId, taskId, processingType, sitename, analysisJob):
         """ Add env variables """
 
         _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
-        _frontier1 = 'export FRONTIER_ID=\"[%s]\";' % (jobId)
+        _frontier1 = 'export FRONTIER_ID=\"[%s#%s]\";' % (taskId, jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
         _ttc = ''
 

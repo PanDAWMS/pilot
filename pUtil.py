@@ -2420,9 +2420,9 @@ def parseDispatcherResponse(response):
     for p in parList:
         data[p[0]] = p[1]
 
-    if 'userProxy' in str(parList):
+    if 'userProxy' in str(parList) or 'privateKey' in str(parList):
 	for i in range(len(parList)):
-		if parList[i][0] == 'userProxy':
+		if parList[i][0] == 'userProxy' or parList[i][0] == 'publicKey' or parList[i][0] == 'privateKey':
 			newList = list(parList[i])
 			newList[1] = 'hidden'
 			parList[i] = newList
@@ -2803,39 +2803,6 @@ def verifyLFNLength(outputFiles):
             tolog("LFN length verified for file %s" % (fileName))
 
     return ec, pilotErrorDiag
-
-def getFileAccessInfo():
-    """ return a tuple with all info about how the input files should be accessed """
-
-    # default values
-    oldPrefix = None
-    newPrefix = None
-
-    # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
-    useCT = True
-
-    # remove all input root files for analysis job for xrootd sites
-    # (they will be read by pAthena directly from xrootd)
-    # create the direct access dictionary
-    dInfo = getDirectAccessDic(readpar('copysetupin'))
-    # if copysetupin did not contain direct access info, try the copysetup instead
-    if not dInfo:
-        dInfo = getDirectAccessDic(readpar('copysetup'))
-
-    # check if we should use the copytool
-    if dInfo:
-        if not dInfo['useCopyTool']:
-            useCT = False
-        oldPrefix = dInfo['oldPrefix']
-        newPrefix = dInfo['newPrefix']
-    if useCT:
-        tolog("Copy tool will be used for stage-in")
-    else:
-        tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
-        if oldPrefix == "" and newPrefix == "":
-            tolog("Will attempt to create a TURL based PFC")
-
-    return useCT, oldPrefix, newPrefix
 
 def isLogfileCopied(workdir, jobId=None):
     """ check whether the log file has been copied or not """

@@ -3,7 +3,7 @@
 import os
 import time
 
-from pUtil import tolog, convert, getSiteInformation
+from pUtil import tolog, convert, getSiteInformation, readpar
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """
@@ -771,5 +771,52 @@ def getNumberOfEvents(workDir):
 
     return Nmax
 
+def getDirectAccess():
+    """ Should direct i/o be used, and which type of direct i/o """
 
+    directInLAN = useDirectAccessLAN()
+    directInWAN = useDirectAccessWAN()
+    directInType = 'None'
 
+    if directInLAN:
+        directInType = 'LAN'
+    if directInWAN:
+        directInType = 'WAN' # Overrides LAN if both booleans are set to True
+    if directInWAN or directInLAN:
+        directIn = True
+    else:
+        directIn = False
+
+    return directIn, directInType
+
+def _useDirectAccess(LAN=True, WAN=False):
+    """ Should direct i/o be used over LAN or WAN? """
+
+    useDA = False
+
+    if LAN:
+        par = 'direct_access_lan'
+    elif WAN:
+        par = 'direct_access_wan'
+    else:
+        tolog("!!WARNING!!3443!! Bad LAN/WAN combination: LAN=%s, WAN=%s" % (str(LAN), str(WAN)))
+        par = ''
+
+    if par != '':
+        da = readpar(par)
+        if da:
+            da = da.lower()
+            if da == "true":
+                useDA = True
+
+    return useDA
+
+def useDirectAccessLAN():
+    """ Should direct i/o be used over LAN? """
+
+    return _useDirectAccess(LAN=True, WAN=False)
+
+def useDirectAccessWAN():
+    """ Should direct i/o be used over WAN? """
+
+    return _useDirectAccess(LAN=False, WAN=True)

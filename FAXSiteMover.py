@@ -237,7 +237,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 
         return statusRet, outputRet
 
-    def getStageInMode(self, lfn, prodDBlockToken):
+    def getStageInMode(self, lfn, prodDBlockToken, transferType):
         # should the root file be copied or read directly by athena?
         status = 0
         output={}
@@ -250,7 +250,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         isRootFileName = self.isRootFileName(lfn)
 
         siteInformation = SiteInformation()
-        directIn, transfer_mode = siteInformation.getDirectInAccessMode(prodDBlockToken, isRootFileName)
+        directIn, transfer_mode = siteInformation.getDirectInAccessMode(prodDBlockToken, isRootFileName, transferType)
         if transfer_mode:
             output["transfer_mode"] = transfer_mode
         if directIn:
@@ -852,6 +852,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
         sourceSite = pdict.get('sourceSite', '')
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
+        transferType = pdict.get('transferType', '')
         computingSite = pdict.get('sitename', '')
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
@@ -888,7 +889,7 @@ class FAXSiteMover(xrdcpSiteMover.xrdcpSiteMover):
 #            tolog("Updated GPFN=%s" % (gpfn))
 
 
-        status, output = self.getStageInMode(lfn, prodDBlockToken)
+        status, output = self.getStageInMode(lfn, prodDBlockToken, transferType)
         if output["transfer_mode"]:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], ftype="input")
         if status !=0:

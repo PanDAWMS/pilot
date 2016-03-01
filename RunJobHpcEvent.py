@@ -535,7 +535,7 @@ class RunJobHpcEvent(RunJob):
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
-            useCT, oldPrefix, newPrefix = pUtil.getFileAccessInfo()
+            useCT, oldPrefix, newPrefix = self.__siteInfo.getFileAccessInfo(job.transferType)
 
             # Transfer input files
             tin_0 = os.times()
@@ -991,6 +991,10 @@ class RunJobHpcEvent(RunJob):
         avgCores = totalCores / totalJobs
         for jobId in self.__jobs:
             self.__jobs[jobId]['job'].coreCount = avgCores
+
+        if hpcManager.isLocalProcess():
+            self.__hpcStatue = 'running'
+            self.updateAllJobsState('running', self.__hpcStatue)
 
         tolog("Submit HPC job")
         hpcManager.submit()
