@@ -803,6 +803,14 @@ class FileSpec(object):
 
         return checksum, checksum_type
 
+    def set_checksum(self, checksum, checksum_type):
+        cmap = {'adler32':'ad', 'md5':'md'}
+
+        if checksum_type:
+            self.checksum = '%s:%s' % (cmap.get(checksum_type, checksum_type), checksum)
+        else:
+            self.checksum = checksum
+
     def is_directaccess(self):
 
         is_rootfile = '.root' in self.lfn

@@ -200,7 +200,7 @@ class JobMover(object):
         self.log("stage-in: protocols=%s" % protocols)
 
         if not protocols:
-            raise PilotException("Failed to get files: no protocols defined for input. check aprotocols schedconfig settings for activity=%s, " % activity, code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to get files: no protocols defined for input. check aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE)
 
         files = self.job.inData
 
@@ -750,7 +750,7 @@ class JobMover(object):
                     try:
                         # quick work around
                         from Job import FileSpec
-                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint)
+                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint, guid=guid)
                         result = sitemover.stageOut(pfn, turl, stub_fspec)
                         break # transferred successfully
                     except PilotException, e:
