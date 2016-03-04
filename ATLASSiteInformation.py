@@ -279,12 +279,18 @@ class ATLASSiteInformation(SiteInformation):
 
         return t1_queuename
 
-    def allowAlternativeStageOut(self, flag=False):
+    def allowAlternativeStageOut(self, **pdict):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
         # For ATLAS, flag=isAnalysisJob(). Alt stage-out is currently disabled for user jobs, so do not allow alt stage-out to be forced.
 
-        if "allow_alt_stageout" in readpar('catchall') and not flag:
+        flag = pdict.get('flag', False)
+        altStageOut = pdict.get('altStageOut', False)
+        if altStageOut == "off":
+            status = False
+        elif altStageOut == "on":
+            status = True
+        elif "allow_alt_stageout" in readpar('catchall') and not flag:
             status = True
         else:
             status = False
@@ -296,12 +302,16 @@ class ATLASSiteInformation(SiteInformation):
 
         return status
 
-    def forceAlternativeStageOut(self, flag=False):
+    def forceAlternativeStageOut(self, **pdict):
         """ Force stage-out to use alternative SE """
         # See allowAlternativeStageOut()
         # For ATLAS, flag=isAnalysisJob(). Alt stage-out is currently disabled for user jobs, so do not allow alt stage-out to be forced.
 
-        if "force_alt_stageout" in readpar('catchall') and not flag:
+        flag = pdict.get('flag', False)
+        altStageOut = pdict.get('altStageOut', False)
+        if altStageOut == "force":
+            status = True
+        elif "force_alt_stageout" in readpar('catchall') and not flag:
             status = True
         else:
             status = False

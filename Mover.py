@@ -3777,7 +3777,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                     if isLogTransfer:
                         useAlternativeStageOut = False
                     else:
-                        useAlternativeStageOut = si.allowAlternativeStageOut(flag=analysisJob)
+                        useAlternativeStageOut = si.allowAlternativeStageOut(flag=analysisJob, altStageOut=job.altStageOut)
 
                 if "failed to remove file" in pilotErrorDiag and not useAlternativeStageOut:
                     tolog("Aborting stage-out retry since file could not be removed from storage/catalog")
@@ -3922,27 +3922,14 @@ def mover_put_data(outputpoolfcstring,
                    testLevel="0",
                    pinitdir="",
                    proxycheck=True,
-                   spsetup="",
-                   token=[],
-                   userid="",
-                   prodSourceLabel="",
                    datasetDict=None,
                    outputDir="",
-                   jobId=None,
-                   jobDefId="",
-                   jobWorkDir=None,
-                   DN=None,
                    outputFileInfo=None,
-                   dispatchDBlockTokenForOut=None,
-                   jobCloud="",
-                   logFile="",
                    cmtconfig="",
                    recoveryWorkDir=None,
                    experiment="ATLAS",
                    stageoutTries=2,
-                   scopeOut=None,
                    scopeLog=None,
-                   fileDestinationSE=None,
                    logPath="",
                    eventService=False,
                    os_bucket_id=-1,
@@ -3955,6 +3942,9 @@ def mover_put_data(outputpoolfcstring,
     fail = 0
     error = PilotErrors()
     pilotErrorDiag = ""
+
+    token = job.destinationDBlockToken
+    altStageOut = job.altStageOut
 
     pandaProxySecretKey = None if not job else job.pandaProxySecretKey
     jobsetID = None if not job else job.jobsetID
@@ -3970,10 +3960,10 @@ def mover_put_data(outputpoolfcstring,
     if recoveryWorkDir:
         workDir = recoveryWorkDir
     else:
-        workDir = os.path.dirname(jobWorkDir)
+        workDir = os.path.dirname(job.workdir)
 
     # setup the dictionary necessary for all instrumentation
-    report = getInitialTracingReport(userid, sitename, pdsname, "put_sm", analysisJob, jobId, jobDefId, DN)
+    report = getInitialTracingReport(job.prodUserID, sitename, pdsname, "put_sm", analysisJob, job.jobId, job.jobDefinitionID, job.prodUserID)
 
     # Remember that se can be a list where the first is used for output but any can be used for input
     listSEs = readpar('se').split(',')
@@ -4002,7 +3992,7 @@ def mover_put_data(outputpoolfcstring,
     # Note: this ends up in the 'destination' variable inside the site mover's put_data() - which is mostly not used
     # It can be used for special purposes, like for the object store path which can be predetermined
     # Note: if os_bucket_id is set (as it will be for an OS transfer), then info from the corresponding OS will be returned [new queuedata]
-    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_bucket_id, queuename)
+    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, job.jobId, objectstore, isLogTransfer(logPath), os_bucket_id, queuename)
     if pilotErrorDiag != "":
         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
@@ -4024,7 +4014,7 @@ def mover_put_data(outputpoolfcstring,
     thisExperiment = getExperiment(experiment)
 
     # get the list of space tokens
-    token_list = getSpaceTokenList(token, listSEs, jobCloud, analysisJob, nFiles, si)
+    token_list = getSpaceTokenList(token, listSEs, job.cloud, analysisJob, nFiles, si)
     alternativeTokenList = None
 
     # loop over all files to be staged in
@@ -4046,11 +4036,11 @@ def mover_put_data(outputpoolfcstring,
         tolog("Preparing copy for %s to %s using %s" % (pfn, ddm_storage_path, copycmd))
 
         # get the corresponding scope
-        scope = getScope(lfn, logFile, file_nr, scopeOut, scopeLog)
+        scope = getScope(lfn, job.logFile, file_nr, job.scopeOut, scopeLog)
 
         # update the current file state
-        updateFileState(filename, workDir, jobId, mode="file_state", state="not_transferred")
-        dumpFileStates(workDir, jobId)
+        updateFileState(filename, workDir, job.jobId, mode="file_state", state="not_transferred")
+        dumpFileStates(workDir, job.jobId)
 
         # get the dataset name (dsname_report is the same as dsname but might contain _subNNN parts)
         dsname, dsname_report = getDatasetName(sitemover, datasetDict, lfn, pdsname)
@@ -4060,7 +4050,7 @@ def mover_put_data(outputpoolfcstring,
         report['scope'] = scope
 
         # get the currect space token for the given file
-        _token_file = getSpaceTokenForFile(filename, token_list, logFile, file_nr, nFiles)
+        _token_file = getSpaceTokenForFile(filename, token_list, job.logFile, file_nr, nFiles)
 
         # get the file size and checksum if possible
         fsize, checksum = getFileSizeAndChecksum(lfn, outputFileInfo)
@@ -4104,19 +4094,19 @@ def mover_put_data(outputpoolfcstring,
                     ddm_storage_path = os.path.dirname(_path)
 
                     # in case of file transfer to OS, also update the ddm_storage_path
-                    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, isLogTransfer(logPath), os_bucket_id, queuename)
+                    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, job.jobId, objectstore, isLogTransfer(logPath), os_bucket_id, queuename)
                     if pilotErrorDiag != "":
                         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
             # perform the normal stage-out, unless we want to force alternative stage-out
-            if not si.forceAlternativeStageOut(flag=analysisJob):
-                s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage_path, dsname,\
+            if not si.forceAlternativeStageOut(flag=analysisJob, altStageOut=job.altStageOut):
+                s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, job.jobId, pfn, ddm_storage_path, dsname,\
                                                                                                   sitename, analysisJob, testLevel, pinitdir, proxycheck,\
-                                                                                                  _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
-                                                                                                  prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
-                                                                                                  _attempt, experiment, scope, fileDestinationSE, nFiles,\
+                                                                                                  _token_file, lfn, guid, job.spsetup, job.prodUserID, report, cmtconfig,\
+                                                                                                  job.prodSourceLabel, outputDir, job.prodUserID, fsize, checksum, job.logFile,\
+                                                                                                  _attempt, experiment, scope, job.fileDestinationSE, nFiles,\
                                                                                                   logPath=logPath, pandaProxySecretKey=pandaProxySecretKey,\
                                                                                                   jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                 # increase normal stage-out counter if file was staged out
@@ -4136,7 +4126,7 @@ def mover_put_data(outputpoolfcstring,
             # attempt alternative stage-out if required
             if s != 0:
                 # report stage-out problem to syslog
-                sysLog("PanDA job %s failed to stage-out output file: %s" % (jobId, pilotErrorDiag))
+                sysLog("PanDA job %s failed to stage-out output file: %s" % (job.jobId, pilotErrorDiag))
                 #dumpSysLogTail()
 
                 if forceAltStageOut and not objectstore:
@@ -4149,7 +4139,7 @@ def mover_put_data(outputpoolfcstring,
                     # should alternative stage-out be attempted?
                     # (not for special log file transfers to object stores)
                     if logPath == "":
-                        useAlternativeStageOut = si.allowAlternativeStageOut(flag=analysisJob)
+                        useAlternativeStageOut = si.allowAlternativeStageOut(flag=analysisJob, altStageOut=job.altStageOut)
                     else:
                         useAlternativeStageOut = False
 
@@ -4162,7 +4152,7 @@ def mover_put_data(outputpoolfcstring,
                     tolog("Attempting alternative stage-out (to the Tier-1 of the cloud the job belongs to)")
 
                     # download new queuedata and return the corresponding sitemover object (for non-objectstore transfers)
-                    alternativeSitemover = prepareAlternativeStageOut(sitemover, si, sitename, jobCloud, _token_file)
+                    alternativeSitemover = prepareAlternativeStageOut(sitemover, si, sitename, job.cloud, _token_file)
                     if alternativeSitemover:
 
                         # init ddmEndPointOut???
@@ -4176,20 +4166,20 @@ def mover_put_data(outputpoolfcstring,
 
                         # which space token should be used? Primarily use the requested space token primarily (is it available at the alternative SE?)
                         # otherwise use the default space token of the alternative SE
-                        alternativeTokenList = getSpaceTokenList(token, alternativeListSEs, jobCloud, analysisJob, nFiles, si, alt=True)
+                        alternativeTokenList = getSpaceTokenList(token, alternativeListSEs, job.cloud, analysisJob, nFiles, si, alt=True)
                         tolog("Created alternative space token list: %s" % str(alternativeTokenList))
 
                         # get the currect space token for the given file
-                        _token_file = getSpaceTokenForFile(filename, alternativeTokenList, logFile, file_nr, nFiles)
+                        _token_file = getSpaceTokenForFile(filename, alternativeTokenList, job.logFile, file_nr, nFiles)
                         tolog("Using alternative space token: %s" % (_token_file))
 
                         # perform the stage-out
                         tolog("Attempting stage-out to alternative SE")
-                        _s, _pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(alternativeSitemover, error, workDir, jobId, pfn, ddm_storage_path, dsname,\
+                        _s, _pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(alternativeSitemover, error, workDir, job.jobId, pfn, ddm_storage_path, dsname,\
                                                                                                         sitename, analysisJob, testLevel, pinitdir, proxycheck,\
-                                                                                                        _token_file, lfn, guid, spsetup, userid, report, cmtconfig,\
-                                                                                                        prodSourceLabel, outputDir, DN, fsize, checksum, logFile,\
-                                                                                                        _attempt, experiment, scope, fileDestinationSE, nFiles,\
+                                                                                                        _token_file, lfn, guid, job.spsetup, job.prodUserID, report, cmtconfig,\
+                                                                                                        job.prodSourceLabel, outputDir, job.prodUserID, fsize, checksum, job.logFile,\
+                                                                                                        _attempt, experiment, scope, job.fileDestinationSE, nFiles,\
                                                                                                         alt=True, pandaProxySecretKey=pandaProxySecretKey,\
                                                                                                         jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                         if _s == 0:
@@ -4220,22 +4210,22 @@ def mover_put_data(outputpoolfcstring,
                     performSpecialADRegistration(sitemover, r_fchecksum, r_gpfn)
 
                 # should the file also be moved to a secondary storage?
-                if dispatchDBlockTokenForOut:
+                if job.dispatchDBlockTokenForOut:
                     # verify that list has correct length
 
                     s2 = None
                     try:
-                        if filename == logFile:
-                            dDBlockTokenForOut = dispatchDBlockTokenForOut[-1]
+                        if filename == job.logFile:
+                            dDBlockTokenForOut = job.dispatchDBlockTokenForOut[-1]
                         else:
-                            dDBlockTokenForOut = dispatchDBlockTokenForOut[file_nr]
+                            dDBlockTokenForOut = job.dispatchDBlockTokenForOut[file_nr]
                         if dDBlockTokenForOut.startswith('chirp'):
                             s2, pilotErrorDiag2 = chirp_put_data(pfn, ddm_storage_path, dsname=dsname, sitename=sitename,\
                                                          analysisJob=analysisJob, testLevel=testLevel, pinitdir=pinitdir,\
                                                          proxycheck=proxycheck, token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn,\
-                                                         guid=guid, spsetup=spsetup, userid=userid, report=report,\
-                                                         prodSourceLabel=prodSourceLabel, outputDir=outputDir, DN=DN,\
-                                                         dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=logFile, experiment=experiment)
+                                                         guid=guid, spsetup=job.spsetup, userid=job.prodUserID, report=report,\
+                                                         prodSourceLabel=job.prodSourceLabel, outputDir=outputDir, DN=job.prodUserID,\
+                                                         dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=job.logFile, experiment=experiment)
                     except Exception, e:
                         tolog("!!WARNING!!2998!! Exception caught in mover chirp put: %s" % str(e))
                     else:
@@ -4277,8 +4267,8 @@ def mover_put_data(outputpoolfcstring,
                 _state = "alt_transferred"
             else:
                 _state = "transferred"
-            updateFileState(filename, workDir, jobId, mode="file_state", state=_state)
-            dumpFileStates(workDir, jobId)
+            updateFileState(filename, workDir, job.jobId, mode="file_state", state=_state)
+            dumpFileStates(workDir, job.jobId)
 
             # should the file be registered in a file catalog?
             if readpar('lfcregister') == "":

@@ -766,14 +766,14 @@ class SiteInformation(object):
         return getExperimentObject(self.getExperiment())
 
 
-    def allowAlternativeStageOut(self, flag=None):
+    def allowAlternativeStageOut(self, **pdict):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
-        # Argument 'flag' can be used for special conditions
+        # Argument 'pdict' can be used for special conditions
 
         return False
 
-    def forceAlternativeStageOut(self, flag=None):
+    def forceAlternativeStageOut(self, **pdict):
         """ Force stage-out to use alternative SE """
         # Argument 'flag' can be used for special conditions
         # See allowAlternativeStageOut()
@@ -1855,6 +1855,22 @@ class SiteInformation(object):
             tolog("Full queuedata not available")
 
         return _queuename
+
+    def updateDirectAccess(self, transferType):
+        """ Update the direct_access_lan/wan depending on the transferType """
+
+        if transferType == "direct":
+            if self.readpar('direct_access_lan').lower() == 'false'):
+                ec = self.replaceQueuedataField("direct_access_lan", "True")
+            else:
+                tolog("No need to update direct_access_lan (already set to True)")
+        elif transferType == "fax":
+            if self.readpar('direct_access_wan').lower() == 'false'):
+                ec = self.replaceQueuedataField("direct_access_wan", "True")
+            else:
+                tolog("No need to update direct_access_wan (already set to True)")
+        else:
+            tolog("Unknown transferType=%s" % (transferType))
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

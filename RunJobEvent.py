@@ -1195,15 +1195,9 @@ class RunJobEvent(RunJob):
         tin_0 = os.times()
         try:
             ec, pilotErrorDiag, rf, rs, self.__job.filesNormalStageOut, self.__job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" %\
-                                         (metadata_fname), dsname, self.__jobSite.sitename, self.__jobSite.computingElement,\
-                                         analysisJob=self.__analysisJob, pinitdir=self.__pilot_initdir, scopeOut=self.__job.scopeOut,\
-                                         proxycheck=self.__proxycheckFlag, spsetup=self.__job.spsetup, token=self.__job.destinationDBlockToken,\
-                                         userid=self.__job.prodUserID, datasetDict=datasetDict, prodSourceLabel=self.__job.prodSourceLabel,\
-                                         outputDir=self.__outputDir, jobId=self.__job.jobId, jobWorkDir=self.__job.workdir, DN=self.__job.prodUserID,\
-                                         dispatchDBlockTokenForOut=self.__job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                         jobDefId=self.__job.jobDefinitionID, jobCloud=self.__job.cloud,\
-                                         logFile=self.__job.logFile, stageoutTries=self.__stageoutretry, experiment=self.__experiment,\
-                                         fileDestinationSE=self.__job.fileDestinationSE, eventService=True, job=self.__job)
+                                         (metadata_fname), dsname, self.__jobSite.sitename, self.__jobSite.computingElement, analysisJob=self.__analysisJob, pinitdir=self.__pilot_initdir,\
+                                         proxycheck=self.__proxycheckFlag, datasetDict=datasetDict, outputDir=self.__outputDir, outputFileInfo=outputFileInfo, stageoutTries=self.__stageoutretry,\
+                                                                                                                                             experiment=self.__experiment, eventService=True, job=self.__job)
             tin_1 = os.times()
             self.__job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:

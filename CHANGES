@@ -312,6 +312,7 @@ General changes
 - Added taskId argument to addEnvVars2Cmd() (ATLASExperiment)
 - Now sending job.taskID to addEnvVars2Cmd() from getJobExecutionCommand() and getJobExecutionCommandOld() (ATLASExperiment)
 - Added taskId to FRONTIER_ID (taskId#jobId) in addEnvVars2Cmd(), requested by Rodney Walker (ATLASExperiment)
+- Simplified call to mover_put_data() from stageOut() (RunJob, RunJobEvent)
 
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
@@ -319,6 +320,10 @@ Bug fixes
 
 Alt stage-out
 - Added altStageOut data member plus handling (Job)
+- Setting altStageOut in mover_put_data() (Mover)
+- Changed argument flag to **pdict in allowAlternativeStageOut(), forceAlternativeStageOut() (SiteInformation)
+- Using altStageOut in allowAlternativeStageOut() and forceAlternativeStageOut() (ATLASSiteInformation)
+- Sending job.altStageOut to forceAlternativeStageOut() and allowAlternativeStageOut() from mover_put_data() and mover_put_data_new() (Mover)
 
 Event service
 - Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)
@@ -387,12 +392,19 @@ Direct access updates (to enable this functionality for ES)
 - Sending transferType to sitemover_get_data() from _mover_get_data_new(), mover_get_data() (Mover)
 - Added transferType argument to sitemover_get_data() (Mover)
 - For transferType direct and fax, now calling si.updateDirectAccess() from __main__() (RunJob, RunJobEvent)
+- Created updateDirectAccess() (SiteInformation)
 
 Updates from Wen Guan:
 - Now using curl to get keypair (ATLASSiteInformation, pUtil)
 - Add hostname check with http proxy (S3ObjectstoreSiteMover)
 - Fixed hostname is None issue (S3ObjectstoreSiteMover)
 - Solve the region problem with AWS OS (S3ObjectstoreSiteMover, objectstoreSiteMover)
+
+CMS Experiment
+- Removed allowAlternativeStageOut() (CMSExperiment)
+
+AMS Experiment
+- Changed argument flag to **pdict in allowAlternativeStageOut(), forceAlternativeStageOut() (AMSTaiwanSiteInformation)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
