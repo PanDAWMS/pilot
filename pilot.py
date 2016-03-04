@@ -434,15 +434,12 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
         # Note: alt stage-out numbers are not saved in recovery mode (job object not returned from this function)
         rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (file_path), dsname,
                                                           thisSite.sitename, thisSite.computingElement, analysisJob=analJob,
-                                                          proxycheck=env['proxycheckFlag'], spsetup=job.spsetup,scopeOut=job.scopeOut, scopeLog=job.scopeLog,
-                                                          token=job.destinationDBlockToken, pinitdir=env['pilot_initdir'],
-                                                          datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,
-                                                          jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,
-                                                          dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut,
-                                                          jobCloud=job.cloud, logFile=job.logFile,
+                                                          proxycheck=env['proxycheckFlag'],
+                                                          pinitdir=env['pilot_initdir'],
+                                                          datasetDict=datasetDict,
                                                           stageoutTries=env['stageoutretry'], experiment=experiment,
                                                           cmtconfig=cmtconfig, recoveryWorkDir=thisSite.workdir,
-                                                          fileDestinationSE=job.fileDestinationSE, job=job) ##
+                                                          job=job)
     except Exception, e:
         pilotErrorDiag = "Put function can not be called for staging out: %s" % str(e)
         pUtil.tolog("!!%s!!1105!! %s" % (env['errorLabel'], pilotErrorDiag))

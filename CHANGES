@@ -304,7 +304,7 @@ Bug fix
 
 transfertype fax Job.py
 remove overwrite argument from getNewQueuedata, is usage from pUtil necessary? download only when needed?
-
+force altstageout job
 
 65.0
 
@@ -313,6 +313,9 @@ General changes
 - Now sending job.taskID to addEnvVars2Cmd() from getJobExecutionCommand() and getJobExecutionCommandOld() (ATLASExperiment)
 - Added taskId to FRONTIER_ID (taskId#jobId) in addEnvVars2Cmd(), requested by Rodney Walker (ATLASExperiment)
 - Simplified call to mover_put_data() from stageOut() (RunJob, RunJobEvent)
+- Simplified call to mover_put_data() from transferActualLogFile(), transferAdditionalFile() (JobLog)
+- Simplified call to mover_put_data() from TransferFiles() (DeferredStageout)
+- Simplified call to mover_put_data() from moveLostOutputFiles() (pilot)
 
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)

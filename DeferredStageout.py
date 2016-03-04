@@ -868,15 +868,12 @@ def TransferFiles(job_state, datadir, files, **kwargs):
         rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_bucket_id = Mover.mover_put_data(
             "xmlcatalog_file:%s" % outPFC, dsname,
             thisSite.sitename, thisSite.computingElement, analysisJob=pUtil.isAnalysisJob(job.trf.split(",")[0]),
-            proxycheck=DorE(kwargs, 'proxycheckFlag'), spsetup=job.spsetup, scopeOut=job.scopeOut,
-            scopeLog=job.scopeLog, token=job.destinationDBlockToken, pinitdir=DorE(kwargs, 'pilot_initdir'),
-            datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,
-            jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,
-            dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut,
-            jobCloud=job.cloud, logFile=job.logFile,
-            stageoutTries=DorE(kwargs, 'stageoutretry'), experiment=job.experiment,
+            proxycheck=DorE(kwargs, 'proxycheckFlag'),
+            pinitdir=DorE(kwargs, 'pilot_initdir'),
+            datasetDict=datasetDict,
+            stageoutTries=DorE(kwargs, 'stageoutretry'), 
             cmtconfig=cmtconfig, recoveryWorkDir=thisSite.workdir,
-            fileDestinationSE=job.fileDestinationSE, job=job)
+            job=job)
     except Exception, e:
         pilotErrorDiag = "Put function can not be called for staging out: %s" % str(e)
         log("!!%s!!1105!! %s" % (env['errorLabel'], pilotErrorDiag))

@@ -3927,7 +3927,6 @@ def mover_put_data(outputpoolfcstring,
                    outputFileInfo=None,
                    cmtconfig="",
                    recoveryWorkDir=None,
-                   experiment="ATLAS",
                    stageoutTries=2,
                    scopeLog=None,
                    logPath="",
@@ -3972,7 +3971,7 @@ def mover_put_data(outputpoolfcstring,
     region = readpar('region')
 
     # Get the site information object and set the queuename
-    si = getSiteInformation(experiment)
+    si = getSiteInformation(job.experiment)
     si.setQueueName(queuename)
 
     # Get the copy tool
@@ -4011,7 +4010,7 @@ def mover_put_data(outputpoolfcstring,
     # scope_dict = createZippedDictionary(file_list, job.scopeOut)
 
     # Get the experiment object
-    thisExperiment = getExperiment(experiment)
+    thisExperiment = getExperiment(job.experiment)
 
     # get the list of space tokens
     token_list = getSpaceTokenList(token, listSEs, job.cloud, analysisJob, nFiles, si)
@@ -4106,7 +4105,7 @@ def mover_put_data(outputpoolfcstring,
                                                                                                   sitename, analysisJob, testLevel, pinitdir, proxycheck,\
                                                                                                   _token_file, lfn, guid, job.spsetup, job.prodUserID, report, cmtconfig,\
                                                                                                   job.prodSourceLabel, outputDir, job.prodUserID, fsize, checksum, job.logFile,\
-                                                                                                  _attempt, experiment, scope, job.fileDestinationSE, nFiles,\
+                                                                                                  _attempt, job.experiment, scope, job.fileDestinationSE, nFiles,\
                                                                                                   logPath=logPath, pandaProxySecretKey=pandaProxySecretKey,\
                                                                                                   jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                 # increase normal stage-out counter if file was staged out
@@ -4179,7 +4178,7 @@ def mover_put_data(outputpoolfcstring,
                                                                                                         sitename, analysisJob, testLevel, pinitdir, proxycheck,\
                                                                                                         _token_file, lfn, guid, job.spsetup, job.prodUserID, report, cmtconfig,\
                                                                                                         job.prodSourceLabel, outputDir, job.prodUserID, fsize, checksum, job.logFile,\
-                                                                                                        _attempt, experiment, scope, job.fileDestinationSE, nFiles,\
+                                                                                                        _attempt, job.experiment, scope, job.fileDestinationSE, nFiles,\
                                                                                                         alt=True, pandaProxySecretKey=pandaProxySecretKey,\
                                                                                                         jobsetID=jobsetID, os_bucket_id=os_bucket_id)
                         if _s == 0:
@@ -4225,7 +4224,7 @@ def mover_put_data(outputpoolfcstring,
                                                          proxycheck=proxycheck, token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn,\
                                                          guid=guid, spsetup=job.spsetup, userid=job.prodUserID, report=report,\
                                                          prodSourceLabel=job.prodSourceLabel, outputDir=outputDir, DN=job.prodUserID,\
-                                                         dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=job.logFile, experiment=experiment)
+                                                         dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=job.logFile, experiment=job.experiment)
                     except Exception, e:
                         tolog("!!WARNING!!2998!! Exception caught in mover chirp put: %s" % str(e))
                     else:
