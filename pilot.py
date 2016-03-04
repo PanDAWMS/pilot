@@ -437,7 +437,7 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
                                                           proxycheck=env['proxycheckFlag'],
                                                           pinitdir=env['pilot_initdir'],
                                                           datasetDict=datasetDict,
-                                                          stageoutTries=env['stageoutretry'], experiment=experiment,
+                                                          stageoutTries=env['stageoutretry'],
                                                           cmtconfig=cmtconfig, recoveryWorkDir=thisSite.workdir,
                                                           job=job)
     except Exception, e:

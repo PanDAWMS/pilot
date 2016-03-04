@@ -1035,7 +1035,6 @@ class JobLog:
                                                                   outputDir = self.__env['outputDir'],
                                                                   stageoutTries = self.__env['stageoutTries'],
                                                                   cmtconfig = cmtconfig,
-                                                                  experiment = experiment,
                                                                   job=job) # quick workaround
             except Exception, e:
                 status = False

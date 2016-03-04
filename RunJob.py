@@ -1154,7 +1154,7 @@ class RunJob(object):
         try:
             rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
                                              jobSite.computingElement, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, proxycheck=self.__proxycheckFlag, datasetDict=datasetDict,\
-                                             outputDir=self.__outputDir, outputFileInfo=outputFileInfo, stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, job=job)
+                                             outputDir=self.__outputDir, outputFileInfo=outputFileInfo, stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, job=job)
             tin_1 = os.times()
             job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
