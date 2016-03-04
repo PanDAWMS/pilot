@@ -107,6 +107,7 @@ class Job:
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
         self.pandaProxySecretKey = None    # pandaproxy secret key
+        self.altStageOut = None            # Alt stage-out overrides from the server
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
 #        self.lastEvent = None              # Set for event service jobs
@@ -235,6 +236,7 @@ class Job:
         self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
         self.allowNoOutput = data.get('allowNoOutput', '').split(',') if data.get('allowNoOutput') else []
 
+        self.altStageOut = data.get('altStageOut', '')
         self.cloneJob = data.get('cloneJob', '')
         self.logFile = data.get('logFile', '')
         self.prodUserID = data.get('prodUserID', '')
@@ -333,7 +335,7 @@ class Job:
         self.maxCpuCount = int(data.get('maxCpuCount', 0))
         self.transferType = data.get('transferType', '')
 #PN        self.transferType = 'direct'
-        self.transferType = 'fax'
+#        self.transferType = 'fax'
 
         if data.has_key('maxDiskCount'):
             _tmp = int(data['maxDiskCount'])

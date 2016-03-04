@@ -1530,10 +1530,12 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
-        if job.transferType == 'direct':
-            tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
+        if job.transferType == 'direct' or job.transferType == 'fax':
+            tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files)' %\
                   (job.transferType))
             RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+            si = getSiteInformation(runJob.getExperiment())
+            si.updateDirectAccess(job.transferType)
 
         # stage-in all input files (if necessary)
         job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob)

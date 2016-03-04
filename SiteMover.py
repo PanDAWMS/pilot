@@ -1096,33 +1096,6 @@ class SiteMover(object):
 
         return filesize, checksum
 
-    def getFileInfoFromRucio(self, dataset, guid):
-        """ Get the file size and checksum from Rucio """
-
-        filesize = ""
-        checksum = ""
-
-        # get the file info
-        fileInDataset = self.getFileInDataset(dataset, guid)
-        if fileInDataset:
-            try:
-                lfn = fileInDataset["lfn"]
-                full_checksum = fileInDataset["checksum"]
-                tmp = full_checksum.split(":")
-                checksum_type = tmp[0]
-                checksum = tmp[1]
-                filesize = str(fileInDataset["filesize"])
-            except Exception, e:
-                tolog("!!WARNING!!1114!! Failed to get file info from Rucio (using default LFC values for file size and checksum): %s" % (e))
-                filesize = ""
-                checksum = ""
-            else:
-                tolog("Rucio file info for LFN = %s: file size = %s, checksum = %s (type: %s)" % (lfn, filesize, checksum, checksum_type))
-        else:
-            tolog("!!WARNING!!1115!! Failed to get file info from Rucio (using default LFC values for file size and checksum)")
-
-        return filesize, checksum
-
     def verifyPaths(self, paths):
         """ Verify existence of paths """
 

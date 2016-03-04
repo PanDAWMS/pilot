@@ -315,7 +315,11 @@ General changes
 
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
- 
+- Removed duplicated getFileInfoFromRucio() (SiteMover)
+
+Alt stage-out
+- Added altStageOut data member plus handling (Job)
+
 Event service
 - Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)
 - Wen Guan: Fix in init function which prevented the S3 site mover from being used (S3ObjectstoreSiteMover)
@@ -382,6 +386,7 @@ Direct access updates (to enable this functionality for ES)
 - Sending transferType to get_data() from sitemover_get_data() (Mover)
 - Sending transferType to sitemover_get_data() from _mover_get_data_new(), mover_get_data() (Mover)
 - Added transferType argument to sitemover_get_data() (Mover)
+- For transferType direct and fax, now calling si.updateDirectAccess() from __main__() (RunJob, RunJobEvent)
 
 Updates from Wen Guan:
 - Now using curl to get keypair (ATLASSiteInformation, pUtil)
