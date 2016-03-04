@@ -1860,12 +1860,12 @@ class SiteInformation(object):
         """ Update the direct_access_lan/wan depending on the transferType """
 
         if transferType == "direct":
-            if self.readpar('direct_access_lan').lower() == 'false'):
+            if self.readpar('direct_access_lan').lower() == 'false':
                 ec = self.replaceQueuedataField("direct_access_lan", "True")
             else:
                 tolog("No need to update direct_access_lan (already set to True)")
         elif transferType == "fax":
-            if self.readpar('direct_access_wan').lower() == 'false'):
+            if self.readpar('direct_access_wan').lower() == 'false':
                 ec = self.replaceQueuedataField("direct_access_wan", "True")
             else:
                 tolog("No need to update direct_access_wan (already set to True)")
