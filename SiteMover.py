@@ -2623,7 +2623,7 @@ class SiteMover(object):
                     except Exception, e:
                         tolog("Failed to remove the error line: %s" % (e))
                     else:
-                        tolog("Updated output: %s" % (_output))
+                        tolog("Updated output: %s" % (output))
 
                 # remove extra spaces
                 while "  " in output:

@@ -320,6 +320,7 @@ General changes
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
 - Removed duplicated getFileInfoFromRucio() (SiteMover)
+- Corrected _output to output in _getRemoteFileSizeLCGLS() (SiteMover)
 
 Alt stage-out
 - Added altStageOut data member plus handling (Job)
