@@ -1952,12 +1952,13 @@ def abortStageIn(dbh, lfns, DBReleaseIsAvailable):
 
     return status
 
-def finishTracingReport(sitemover, surl, errordiagnostics):
+def finishTracingReport(sitemover, surl, errordiagnostics, workdir):
     """ Finish and send the tracing report """
 
     # Read back the tracing report from file
     _filename = getTracingReportFilename()
-    report = readJSON(_filename)
+    path = os.path.join(workdir, _filename)
+    report = readJSON(path)
     if report != {}:
         # Add the remaining items to the tracing report
         report['url'] = surl
@@ -1966,7 +1967,7 @@ def finishTracingReport(sitemover, surl, errordiagnostics):
         # Send the tracing report
         sitemover.sendReport(report)
     else:
-        tolog("!!WARNING!!2990!! Failed to read back tracing report from file %s (cwd=%s)" % (_filename, os.getcwd()))
+        tolog("!!WARNING!!2990!! Failed to read back tracing report from file %s" % (path))
 
 def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_attempt, replica_number, N_files_on_tape, N_root_files, N_non_root_files,\
                        gpfn, lfn, path, fsize=None, spsetup=None, fchecksum=None, guid=None, analysisJob=None, usect=None, pinitdir=None, proxycheck=None,\
@@ -1996,7 +1997,7 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
         tolog("Mover get_data finished (failed)")
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        finishTracingReport(sitemover, gpfn, pErrorText)
+        finishTracingReport(sitemover, gpfn, pErrorText, workDir)
 
         # Special case (not a real error, so reset the return value s)
         if s == error.ERR_DIRECTIOFILE:
@@ -2059,7 +2060,7 @@ def sitemover_get_all_data(sitemover, error, gpfn, lfn, path, fsize=None, spsetu
         tolog("Mover get_data finished (failed)")
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        finishTracingReport(sitemover, gpfn, pilotErrorDiag)
+        finishTracingReport(sitemover, gpfn, pilotErrorDiag, os.getcwd())
 
         if s != 0:
             # did the get command return error text?
@@ -3150,7 +3151,7 @@ def getFileSizeAndChecksum(lfn, outputFileInfo):
 
 def chirp_put_data(pfn, ddm_storage, dsname="", sitename="", analysisJob=True, testLevel=0, pinitdir="",\
                    proxycheck=True, token="", timeout=DEFAULT_TIMEOUT, lfn="", guid="", spsetup="", userid="", report=None,\
-                   prodSourceLabel="", outputDir="", DN="", dispatchDBlockTokenForOut=None, logFile="", experiment=None):
+                   prodSourceLabel="", outputDir="", DN="", dispatchDBlockTokenForOut=None, logFile="", experiment=None, workdir=""):
     """ Special put function for calling chirp site mover """
 
     ec = 0
@@ -3179,7 +3180,7 @@ def chirp_put_data(pfn, ddm_storage, dsname="", sitename="", analysisJob=True, t
         tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        finishTracingReport(sitemover, pfn, pilotErrorDiag)
+        finishTracingReport(sitemover, pfn, pilotErrorDiag, workdir)
 
         if ec != 0:
             tolog('!!WARNING!!2999!! Error in copying: %s - %s' % (ec, pilotErrorDiag))
@@ -3357,7 +3358,7 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
         traceback.print_tb(tb)
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        finishTracingReport(sitemover, r_gpfn, pilotErrorDiag)
+        finishTracingReport(sitemover, r_gpfn, pilotErrorDiag, workDir)
 
         # add the guid and surl to the surl dictionary if possible
         if guid != "" and r_gpfn != "":
@@ -3859,7 +3860,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                                                          proxycheck=proxycheck, token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn,\
                                                          guid=guid, spsetup=spsetup, userid=userid, report=report,\
                                                          prodSourceLabel=prodSourceLabel, outputDir=outputDir, DN=DN,\
-                                                         dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=logFile, experiment=experiment)
+                                                         dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=logFile, experiment=experiment, workdir=job.workdir)
                             if s2:
                                 tolog("chirp transfer returned exit code: %s, msg=%s" % (s2, pilotErrorDiag2))
                             else:
@@ -4220,7 +4221,7 @@ def mover_put_data(outputpoolfcstring,
                                                          analysisJob=analysisJob, testLevel=testLevel, pinitdir=pinitdir,\
                                                          proxycheck=proxycheck, token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn,\
                                                          guid=guid, spsetup=job.spsetup, userid=job.prodUserID, report=report,\
-                                                         prodSourceLabel=job.prodSourceLabel, outputDir=outputDir, DN=job.prodUserID,\
+                                                         prodSourceLabel=job.prodSourceLabel, outputDir=outputDir, DN=job.prodUserID, workdir=job.workdir\
                                                          dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=job.logFile, experiment=job.experiment)
                     except Exception, e:
                         tolog("!!WARNING!!2998!! Exception caught in mover chirp put: %s" % str(e))
