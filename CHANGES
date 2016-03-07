@@ -328,6 +328,7 @@ Alt stage-out
 - Changed argument flag to **pdict in allowAlternativeStageOut(), forceAlternativeStageOut() (SiteInformation)
 - Using altStageOut in allowAlternativeStageOut() and forceAlternativeStageOut() (ATLASSiteInformation)
 - Sending job.altStageOut to forceAlternativeStageOut() and allowAlternativeStageOut() from mover_put_data() and mover_put_data_new() (Mover)
+- Turning off any forced alt stage-out for objectstore transfers in forceAlternativeStageOut() (ATLASSiteInformation)
 
 Event service
 - Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)

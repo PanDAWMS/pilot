@@ -3981,10 +3981,7 @@ def mover_put_data(outputpoolfcstring,
     tolog("Setup: %s" % (setup))
 
     # Is this a transfer to an object store?
-    if "objectstore" in copycmd:
-        objectstore = True
-    else:
-        objectstore = False
+    objectstore = "objectstore" in copycmd
 
     # Get the storage path, e.g.
     # ddm_storage_path = srm://uct2-dc1.uchicago.edu:8443/srm/managerv2?SFN=/pnfs/uchicago.edu/atlasuserdisk
@@ -4100,7 +4097,7 @@ def mover_put_data(outputpoolfcstring,
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
             # perform the normal stage-out, unless we want to force alternative stage-out
-            if not si.forceAlternativeStageOut(flag=analysisJob, altStageOut=job.altStageOut):
+            if not si.forceAlternativeStageOut(flag=analysisJob, altStageOut=job.altStageOut, objectstore=objectstore):
                 s, pilotErrorDiag, r_gpfn, r_fsize, r_fchecksum, r_farch = sitemover_put_data(sitemover, error, workDir, job.jobId, pfn, ddm_storage_path, dsname,\
                                                                                                   sitename, analysisJob, testLevel, pinitdir, proxycheck,\
                                                                                                   _token_file, lfn, guid, job.spsetup, job.prodUserID, report, cmtconfig,\

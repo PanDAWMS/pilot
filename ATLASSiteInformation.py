@@ -306,15 +306,19 @@ class ATLASSiteInformation(SiteInformation):
         """ Force stage-out to use alternative SE """
         # See allowAlternativeStageOut()
         # For ATLAS, flag=isAnalysisJob(). Alt stage-out is currently disabled for user jobs, so do not allow alt stage-out to be forced.
+        status = False
 
         flag = pdict.get('flag', False)
         altStageOut = pdict.get('altStageOut', False)
-        if altStageOut == "force":
-            status = True
-        elif "force_alt_stageout" in readpar('catchall') and not flag:
-            status = True
-        else:
-            status = False
+        objectstore = pdict.get('objectstore', False)
+
+        if not objectstore:
+            if altStageOut == "force":
+                status = True
+            elif "force_alt_stageout" in readpar('catchall') and not flag:
+                status = True
+            else:
+                status = False
 
         return status
 
