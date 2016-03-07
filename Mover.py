@@ -4221,7 +4221,7 @@ def mover_put_data(outputpoolfcstring,
                                                          analysisJob=analysisJob, testLevel=testLevel, pinitdir=pinitdir,\
                                                          proxycheck=proxycheck, token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn,\
                                                          guid=guid, spsetup=job.spsetup, userid=job.prodUserID, report=report,\
-                                                         prodSourceLabel=job.prodSourceLabel, outputDir=outputDir, DN=job.prodUserID, workdir=job.workdir\
+                                                         prodSourceLabel=job.prodSourceLabel, outputDir=outputDir, DN=job.prodUserID, workdir=job.workdir,\
                                                          dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=job.logFile, experiment=job.experiment)
                     except Exception, e:
                         tolog("!!WARNING!!2998!! Exception caught in mover chirp put: %s" % str(e))
