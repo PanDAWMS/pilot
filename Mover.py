@@ -4032,7 +4032,7 @@ def mover_put_data(outputpoolfcstring,
         tolog("Preparing copy for %s to %s using %s" % (pfn, ddm_storage_path, copycmd))
 
         # get the corresponding scope
-        scope = getScope(lfn, job.logFile, file_nr, job.scopeOut, scopeLog)
+        scope = getScope(lfn, job.logFile, file_nr, job.scopeOut, job.scopeLog)
 
         # update the current file state
         updateFileState(filename, workDir, job.jobId, mode="file_state", state="not_transferred")
