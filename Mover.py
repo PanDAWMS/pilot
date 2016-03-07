@@ -1952,11 +1952,12 @@ def abortStageIn(dbh, lfns, DBReleaseIsAvailable):
 
     return status
 
-def finishTracingReport(sitemover, surl, errordiagnostics, workdir):
+def finishTracingReport(sitemover, surl, errordiagnostics):
     """ Finish and send the tracing report """
 
     # Read back the tracing report from file
     _filename = getTracingReportFilename()
+    workdir = os.getcwd()
     path = os.path.join(workdir, _filename)
     report = readJSON(path)
     if report != {}:
@@ -1997,7 +1998,7 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
         tolog("Mover get_data finished (failed)")
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        finishTracingReport(sitemover, gpfn, pErrorText, workDir)
+        finishTracingReport(sitemover, gpfn, pErrorText)
 
         # Special case (not a real error, so reset the return value s)
         if s == error.ERR_DIRECTIOFILE:
@@ -2060,7 +2061,7 @@ def sitemover_get_all_data(sitemover, error, gpfn, lfn, path, fsize=None, spsetu
         tolog("Mover get_data finished (failed)")
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        finishTracingReport(sitemover, gpfn, pilotErrorDiag, os.getcwd())
+        finishTracingReport(sitemover, gpfn, pilotErrorDiag)
 
         if s != 0:
             # did the get command return error text?
@@ -3151,7 +3152,7 @@ def getFileSizeAndChecksum(lfn, outputFileInfo):
 
 def chirp_put_data(pfn, ddm_storage, dsname="", sitename="", analysisJob=True, testLevel=0, pinitdir="",\
                    proxycheck=True, token="", timeout=DEFAULT_TIMEOUT, lfn="", guid="", spsetup="", userid="", report=None,\
-                   prodSourceLabel="", outputDir="", DN="", dispatchDBlockTokenForOut=None, logFile="", experiment=None, workdir=""):
+                   prodSourceLabel="", outputDir="", DN="", dispatchDBlockTokenForOut=None, logFile="", experiment=None):
     """ Special put function for calling chirp site mover """
 
     ec = 0
@@ -3180,7 +3181,7 @@ def chirp_put_data(pfn, ddm_storage, dsname="", sitename="", analysisJob=True, t
         tolog('!!WARNING!!2999!! %s' % (pilotErrorDiag))
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        finishTracingReport(sitemover, pfn, pilotErrorDiag, workdir)
+        finishTracingReport(sitemover, pfn, pilotErrorDiag)
 
         if ec != 0:
             tolog('!!WARNING!!2999!! Error in copying: %s - %s' % (ec, pilotErrorDiag))
@@ -3358,7 +3359,8 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
         traceback.print_tb(tb)
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        finishTracingReport(sitemover, r_gpfn, pilotErrorDiag, workDir)
+        if os_bucket_id == -1: # skip sending tracing report for objectstore transfers
+            finishTracingReport(sitemover, r_gpfn, pilotErrorDiag)
 
         # add the guid and surl to the surl dictionary if possible
         if guid != "" and r_gpfn != "":
@@ -3860,7 +3862,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                                                          proxycheck=proxycheck, token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn,\
                                                          guid=guid, spsetup=spsetup, userid=userid, report=report,\
                                                          prodSourceLabel=prodSourceLabel, outputDir=outputDir, DN=DN,\
-                                                         dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=logFile, experiment=experiment, workdir=job.workdir)
+                                                         dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=logFile, experiment=experiment)
                             if s2:
                                 tolog("chirp transfer returned exit code: %s, msg=%s" % (s2, pilotErrorDiag2))
                             else:
@@ -4221,7 +4223,7 @@ def mover_put_data(outputpoolfcstring,
                                                          analysisJob=analysisJob, testLevel=testLevel, pinitdir=pinitdir,\
                                                          proxycheck=proxycheck, token=_token_file, timeout=DEFAULT_TIMEOUT, lfn=lfn,\
                                                          guid=guid, spsetup=job.spsetup, userid=job.prodUserID, report=report,\
-                                                         prodSourceLabel=job.prodSourceLabel, outputDir=outputDir, DN=job.prodUserID, workdir=job.workdir,\
+                                                         prodSourceLabel=job.prodSourceLabel, outputDir=outputDir, DN=job.prodUserID,\
                                                          dispatchDBlockTokenForOut=dDBlockTokenForOut, logFile=job.logFile, experiment=job.experiment)
                     except Exception, e:
                         tolog("!!WARNING!!2998!! Exception caught in mover chirp put: %s" % str(e))

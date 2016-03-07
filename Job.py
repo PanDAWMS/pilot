@@ -236,7 +236,7 @@ class Job:
         self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
         self.allowNoOutput = data.get('allowNoOutput', '').split(',') if data.get('allowNoOutput') else []
 
-        self.altStageOut = 'force' #PN data.get('altStageOut', '')
+        self.altStageOut = data.get('altStageOut', '') # on, off, force
         self.cloneJob = data.get('cloneJob', '')
         self.logFile = data.get('logFile', '')
         self.prodUserID = data.get('prodUserID', '')
