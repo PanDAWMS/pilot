@@ -503,6 +503,28 @@ def getJobReportOld(workDir):
 
     return jobReport_dictionary
 
+def removeNoOutputFiles(workdir, outFiles, allowNoOutput):
+    """ Remove files from output file list if they are listed in allowNoOutput and do not exist """
+
+    _outFiles = []
+    for filename in outFiles:
+        path = os.path.join(workdir, filename)
+
+        if filename in allowNoOutput:
+            if os.path.exists(path):
+                tolog("File %s is listed in allowNoOutput but exists (will not be removed from list of files to be staged-out)" % (filename))
+                _outFiles.append(filename)
+            else:
+                tolog("File %s is listed in allowNoOutput and does not exist (will be removed from list of files to be staged-out)" % (filename))
+        else:
+            if os.path.exists(path):
+                tolog("File %s is not listed in allowNoOutput (will be staged-out)" % (filename))
+            else:
+                tolog("!!WARNING!!4343!! File %s is not listed in allowNoOutput and does not exist (job will fail)" % (filename))
+            _outFiles.append(filename) # Append here, fail later
+
+    return _outFiles
+
 def extractOutputFilesFromJSON(workDir, allowNoOutput):
     """ In case the trf has produced additional output files, extract all output files from the jobReport """
     # Note: ignore files with nentries = 0

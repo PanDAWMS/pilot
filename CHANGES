@@ -303,8 +303,8 @@ Bug fix
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 transfertype fax Job.py
-remove overwrite argument from getNewQueuedata, is usage from pUtil necessary? download only when needed?
-force altstageout job
+
+test allowNoOutput with user jobs
 
 65.0
 
@@ -316,11 +316,15 @@ General changes
 - Simplified call to mover_put_data() from transferActualLogFile(), transferAdditionalFile() (JobLog)
 - Simplified call to mover_put_data() from TransferFiles() (DeferredStageout)
 - Simplified call to mover_put_data() from moveLostOutputFiles() (pilot)
+- Created removeNoOutputFiles() (FileHandling)
+- Now removing files from output file list if they are listed in allowNoOutput and do not exist, in __main__(). Requested by Tadashi Maeno (RunJob)
+- Renamed output_files_json to extracted_output_files in __main__() (RunJob)
 
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
 - Removed duplicated getFileInfoFromRucio() (SiteMover)
 - Corrected _output to output in _getRemoteFileSizeLCGLS() (SiteMover)
+- Removed -ALL suffix from agis_schedconf.json which seems to prevent the caching of the file to work properly, in getNewQueuedata() (SiteInformation)
 
 Alt stage-out
 - Added altStageOut data member plus handling (Job)

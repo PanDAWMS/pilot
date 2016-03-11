@@ -1150,7 +1150,7 @@ class SiteInformation(object):
         tolog("Copying queuedata from primary location (CVMFS)")
         from shutil import copy2
         try:
-            _filename = filename + "-ALL"
+            _filename = filename #+ "-ALL"
             copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json", _filename)
         except Exception, e:
             tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))

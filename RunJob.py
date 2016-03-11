@@ -28,7 +28,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-from FileHandling import tail, getExtension, extractOutputFilesFromJSON, getDestinationDBlockItems
+from FileHandling import tail, getExtension, extractOutputFilesFromJSON, getDestinationDBlockItems, removeNoOutputFiles
 from EventRanges import downloadEventRanges
 
 # remove logguid, debuglevel - not needed
@@ -1591,22 +1591,26 @@ if __name__ == "__main__":
         # are there any additional output files created by the trf/payload?
         try:
             if not analysisJob:
-                output_files_json = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
+                extracted_output_files = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
             else:
-                tolog("Will not extract output files from jobReport for user job")
-                output_files_json = []
+                if job.allowNoOutput == []:
+                    tolog("Will not extract output files from jobReport for user job (and allowNoOut list is empty)")
+                    extracted_output_files = []
+                else:
+                    # Remove the files listed in allowNoOutput if they don't exist
+                    extracted_output_files = removeNoOutputFiles(job.workdir, job.outFiles, job.allowNoOutput)
         except Exception, e:
             tolog("!!WARNING!!2327!! Exception caught: %s" % (e))
-            output_files_json = []
+            extracted_output_files = []
 
-        if output_files_json != []:
-            tolog("Will update the output file lists since files were discovered in the job report")
+        if extracted_output_files != []:
+            tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
 
             new_destinationDBlockToken = []
             new_destinationDblock = []
             new_scopeOut = []
             try:
-                for f in output_files_json:
+                for f in extracted_output_files:
                     _destinationDBlockToken, _destinationDblock, _scopeOut = getDestinationDBlockItems(f, job.outFiles, job.destinationDBlockToken, job.destinationDblock, job.scopeOut)
                     new_destinationDBlockToken.append(_destinationDBlockToken)
                     new_destinationDblock.append(_destinationDblock)
@@ -1615,12 +1619,12 @@ if __name__ == "__main__":
                 tolog("!!WARNING!!3434!! Exception caught: %s" % (e))
             else:
                 # Finally replace the output file lists
-                job.outFiles = output_files_json
+                job.outFiles = extracted_output_files
                 job.destinationDblock = new_destinationDblock
                 job.destinationDBlockToken = new_destinationDBlockToken
                 job.scopeOut = new_scopeOut
 
-                tolog("Updated: job.outFiles=%s" % str(output_files_json))
+                tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
                 tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
                 tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
                 tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
