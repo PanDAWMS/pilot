@@ -2426,6 +2426,7 @@ if __name__ == "__main__":
                                     utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
+                                    utility_subprocess = None
 
                         # Make sure that the token extractor is still running
                         if runJob.useTokenExtractor():
