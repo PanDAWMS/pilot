@@ -828,6 +828,7 @@ class RunJob(object):
                                     utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
+                                    utility_subprocess = None
 
                     # Stop the utility
                     if utility_subprocess:

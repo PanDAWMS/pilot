@@ -289,7 +289,7 @@ class Monitor:
                                 if maxRSS_int > 0:
                                     if maxPSS_int > 0:
                                         if maxPSS_int > maxRSS_int:
-                                            pilotErrorDiag = "Job has exceeded the memory limit %d B > %d B (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
+                                            pilotErrorDiag = "Job has exceeded the memory limit %d kB > %d kB (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
                                             pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
 
                                             # Create a lockfile to let RunJob know that it should not restart the memory monitor after it has been killed
