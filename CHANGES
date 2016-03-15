@@ -327,6 +327,10 @@ Bug fixes
 - Removed duplicated getFileInfoFromRucio() (SiteMover)
 - Corrected _output to output in _getRemoteFileSizeLCGLS() (SiteMover)
 - Removed -ALL suffix from agis_schedconf.json which seems to prevent the caching of the file to work properly, in getNewQueuedata() (SiteInformation)
+- Sending job.prodDBlockToken to RunJobUtilities.updateRunCommandList() from __main__() (RunJob)
+- Added prodDBlockToken argument to updateRunCommandList() (RunJobUtilities)
+- Now removing --directIn payload option if 'local' is present in prodDBlockToken list, updateRunCommandList() (RunJobUtilities)
+- Updated call to updateRunCommandList() in RunJob modules (RunJob, RunJobEvent, RunJobAnselm, RunJobEdison, RunJobHopper, RunJobTitan)
 
 Alt stage-out
 - Added altStageOut data member plus handling (Job)

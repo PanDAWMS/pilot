@@ -1545,11 +1545,8 @@ if __name__ == "__main__":
         # and update the run command list if necessary.
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
-        if job.inFiles != ['']:
-            hasInput = True
-        else:
-            hasInput = False
-        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput)
+        hasInput = job.inFiles != ['']
+        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
 
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
         #runJob.copyInputForFiles(job.workdir)
