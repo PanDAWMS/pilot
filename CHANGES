@@ -373,6 +373,9 @@ Event service
 - Sending os_bucket_id to sitemover_put_data() from mover_put_data(), mover_put_data_new() (Mover)
 - Added os_bucket_id argument to sitemover_put_data() (Mover)
 - Sending os_bucket_id to put_data() from sitemover_put_data() (Mover)
+-- Changes below affects the changes above --
+- Created getObjectstoreInfoFile(), getObjectstorePath(), getObjectstoreFilename(), getObjectstoreBucketID() (SiteInformation)
+- Renamed old getObjectstorePath() to getObjectstorePathOld() - to be removed shortly (SiteInformation)
 
 Direct access updates (to enable this functionality for ES)
 - Using transferType fax in shouldPFC4TURLsBeCreated()

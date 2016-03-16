@@ -1133,6 +1133,148 @@ class SiteInformation(object):
 
         return objectstores
 
+    def getObjectstoreFilename(self, name=""):
+        """ Return the name of the trimmed objectstore info file """
+
+        if name != "":
+            filename = "objectstore_info_%s.json" % (name)
+        else:
+            filename = "objectstore_info.json"
+
+        return filename
+
+    def getObjectstorePath(self, os_name="", name='logs', os_bucket_id=-1):
+        """ Return the path to the objectstore """
+        # E.g. s3://s3.echo.stfc.ac.uk:80//atlas_logs
+        path = ""
+
+        # If os_name is not specified, os_bucket_id must be set
+        # In that case, the full objectstore info file will be searched for the corresponding os_bucket_id
+
+        if os_name != "":
+            filename = self.getObjectstoreFilename(name=os_name)
+            dictionary = readJSON(filename)
+
+            if dictionary != {}:
+                if dictionary.has_key('endpoint'):
+                    endpoint = dictionary['endpoint']
+                    if dictionary.has_key('os_buckets'):
+                        os_buckets = dictionary['os_buckets']
+                        for os_bucket in os_buckets:
+                            if os_bucket['name'] == name:
+                                path = endpoint + os_bucket['endpoint']
+                                break
+                        if path == "":
+                            tolog("!!WARNING!!2121!! No path for name=%s in entry=%s" % (name, dictionary))
+                    else:
+                        tolog("!!WARNING!!2121!! No os_bucket in entry=%s" % (dictionary))
+                else:
+                    tolog("!!WARNING!!2121!! No endpoint in entry=%s" % (dictionary))
+            else:
+                tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        else:
+            # os_bucket_id must be set in this case
+            if os_bucket_id == -1:
+                tolog("!!WARNING!!2124!! os_bucket_id must be set if os_name is not given")
+            else:
+                filename = self.getObjectstoreFilename()
+                json_list = readJSON(filename)
+
+                if json_list != []:
+                    for entry in json_list:
+                        if entry.has_key('os_buckets'):
+                            endpoint = entry['endpoint']
+                            os_buckets = entry['os_buckets']
+                            for os_bucket in os_buckets:
+                                if os_bucket['id'] == os_bucket_id:
+                                    path = endpoint + os_bucket['endpoint']
+                                    break
+                        else:
+                            tolog("!!WARNING!!2121!! No os_buckets in entry=%s" % (entry))
+                else:
+                    tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        return path
+
+    def getObjectstoreBucketID(self, os_name, name='logs'):
+        """ Return the os_bucket_id corresponding to name """
+
+        os_bucket_id = -1
+
+        filename = self.getObjectstoreFilename(name=os_name)
+        dictionary = readJSON(filename)
+
+        if dictionary != {}:
+            if dictionary.has_key('os_buckets'):
+                os_buckets = dictionary['os_buckets']
+                for os_bucket in os_buckets:
+                    if os_bucket['name'] == name:
+                        os_bucket_id = os_bucket['id']
+                        break
+            else:
+                tolog("!!WARNING!!2121!! No os_bucket in entry=%s" % (dictionary))
+        else:
+            tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        return os_bucket_id
+
+    def getObjectstoreInfoFile(self, os_name):
+        """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
+
+        status = False
+
+        filename = self.getObjectstoreFilename()
+        filename_trimmed = self.getObjectstoreFilename(name=os_name)
+
+        # Don't bother if the file already exists
+        if os.path.exists(filename):
+            tolog("AGIS objectstore info file already exist")
+            status = True
+            return status
+
+        # Download queuedata from CVMFS, full version which needs to be trimmed
+        tolog("Copying queuedata from primary location (CVMFS)")
+        from shutil import copy2
+        try:
+            copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_os_services.json", filename)
+        except Exception, e:
+            tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
+        else:
+            status = True
+
+        # CVMFS download failed, default to AGIS
+        if not status:
+            # Get the queuedata from AGIS
+            tries = 2
+            for trial in range(tries):
+                tolog("Downloading queuedata (attempt #%d)" % (trial+1))
+                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/service/query/get_os_services/?json\" >%s" % (filename)
+                tolog("Executing command: %s" % (cmd))
+                ret, output = commands.getstatusoutput(cmd)
+                if ret == 0:
+                    status = True
+                    break
+        if status:
+            json_list = readJSON(filename)
+            if json_list != []:
+                for entry in json_list:
+                    if entry.has_key('os_name'):
+                        if entry['os_name'] == os_name:
+                            trimmed_dictionary = entry
+                            if writeJSON(filename_trimmed, trimmed_dictionary):
+                                tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename_trimmed))
+                                status = True
+                            else:
+                                tolog("!!WARNING!!2122!! Failed to write trimmed AGIS dictionary to file: %s" % (filename_trimmed))
+	        	    else:
+                        tolog("!!WARNING!!2121!! No os_name in entry=%s" % (entry))
+                        status = False
+            else:
+                tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+    return status
+
     # WARNING: ATLAS SPECIFIC - CONSIDER THIS METHOD AS AN EXAMPLE IMPLEMENTATION, CODE BELOW WILL BE MOVED TO ATLASSITEINFORMATION ASAP
     def getNewQueuedata(self, queuename, overwrite=True, version=1, os_bucket_id=-1):
         """ Download the queuedata primarily from CVMFS and secondarily from the AGIS server """
@@ -1258,7 +1400,7 @@ class SiteInformation(object):
 
         return value
 
-    def getObjectstorePath(self, mode, os_bucket_id=-1, queuename=None):
+    def getObjectstorePathOld(self, mode, os_bucket_id=-1, queuename=None):
         """ Return the path to the objectstore (and also the corresponding os_bucket_id) """
         # mode: https, eventservice, logs
         # Note: a hash based on the file name should be added to the os_bucket_endpoint (ie the end of the path returned from this function - when it is known)
