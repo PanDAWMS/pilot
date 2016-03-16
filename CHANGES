@@ -328,6 +328,7 @@ General changes
 - Created removeNoOutputFiles() (FileHandling)
 - Now removing files from output file list if they are listed in allowNoOutput and do not exist, in __main__(). Requested by Tadashi Maeno (RunJob)
 - Renamed output_files_json to extracted_output_files in __main__() (RunJob)
+- Now explicitly removing 'madevent' in removeRedundantFiles(), requested by Rodney Walker (ATLASExperiment)
 
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)

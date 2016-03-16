@@ -770,6 +770,7 @@ class ATLASExperiment(Experiment):
                     "pwg*",
                     "pwhg*",
                     "*PROC*",
+                    "madevent",
                     "HPC",
                     "saga",
                     "radical"]
