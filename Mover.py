@@ -4538,6 +4538,8 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer,
 
     # special paths are used for objectstore transfers
     if objectstore:
+        # make sure that the AGIS objectstore file is available
+        #if si.getObjectstoreInfoFile()
         if log_transfer:
             mode = "logs"
         else:

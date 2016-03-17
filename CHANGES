@@ -329,6 +329,10 @@ General changes
 - Now removing files from output file list if they are listed in allowNoOutput and do not exist, in __main__(). Requested by Tadashi Maeno (RunJob)
 - Renamed output_files_json to extracted_output_files in __main__() (RunJob)
 - Now explicitly removing 'madevent' in removeRedundantFiles(), requested by Rodney Walker (ATLASExperiment)
+- Removed unnecessary functions, getProdCmd3() and getProdCmd3Old() and updated usages from getJobExecutionCommandOld() (ATLASExperiment)
+- Simplified the implementation of getAnalysisRunCommand() in Experiment and moved the actual implementation to ATLASExperiment (Experiment, ATLASExperiment)
+- Added makeflags option to getAnalysisRunCommand() (Experiment, ATLASExperiment)
+- Removed LFC_HOME variable and single usage in class declaration and to_native_lfn() (SiteMover)
 
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
@@ -339,6 +343,9 @@ Bug fixes
 - Added prodDBlockToken argument to updateRunCommandList() (RunJobUtilities)
 - Now removing --directIn payload option if 'local' is present in prodDBlockToken list, updateRunCommandList() (RunJobUtilities)
 - Updated call to updateRunCommandList() in RunJob modules (RunJob, RunJobEvent, RunJobAnselm, RunJobEdison, RunJobHopper, RunJobTitan)
+- Changed jobDic argument to job object in storeWorkDirSize() and removed unnecessary loop over job objects which caused problems with big Yoda jobs (FileHandling)
+- Sending self.__env['jobDic'][k][1] (job object) instead self.__env['jobDic'] (job dictionary) to storeWorkDirSize() from __checkWorkDir() (Monitor)
+- Sending job instead jobDic to storeWorkDirSize() from createLogFile() (JobLog)
 
 Alt stage-out
 - Added altStageOut data member plus handling (Job)

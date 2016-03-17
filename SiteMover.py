@@ -19,7 +19,6 @@ PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE
 CMD_CHECKSUM = config_sm.COMMAND_MD5
 ARCH_DEFAULT = config_sm.ARCH_DEFAULT
-LFC_HOME = '/grid/atlas/'
 
 class SiteMover(object):
     """
@@ -1379,8 +1378,7 @@ class SiteMover(object):
         Return LFN with LFC hierarchical namespace.
         """
 
-        bpath = LFC_HOME
-        if bpath[-1] != '/': bpath += '/'
+        bpath = '/grid/atlas/'
 
         # add prefix
         bpath += prefix

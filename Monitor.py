@@ -213,7 +213,7 @@ class Monitor:
                         pUtil.tolog("Size of work directory %s: %d B (within %d B limit)" % (workDir, size, maxwdirsize))
 
                     # Store the measured disk space (the max value will later be sent with the job metrics)
-                    status = storeWorkDirSize(size, self.__env['pilot_initdir'], self.__env['jobDic'])
+                    status = storeWorkDirSize(size, self.__env['pilot_initdir'], self.__env['jobDic'][k][1])
                 else:
                     pUtil.tolog("Skipping size of of workDir since it could not be measured")
             else:

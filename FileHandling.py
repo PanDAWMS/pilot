@@ -667,62 +667,59 @@ def addToTotalSize(path, total_size):
 
     return total_size
 
-def storeWorkDirSize(workdir_size, pilot_initdir, jobDic, correction=True):
+def storeWorkDirSize(workdir_size, pilot_initdir, job, correction=True):
     """ Store the measured remaining disk space """
     # If correction=True, then input and output file sizes will be deducated
 
-    for k in jobDic.keys():
-        job = jobDic[k][1]
+    filename = os.path.join(pilot_initdir, getWorkDirSizeFilename(job.jobId))
+    dictionary = {} # FORMAT: { 'workdir_size': [value1, value2, ..] }
+    workdir_size_list = []
 
-        filename = os.path.join(pilot_initdir, getWorkDirSizeFilename(job.jobId))
-        dictionary = {} # FORMAT: { 'workdir_size': [value1, value2, ..] }
-        workdir_size_list = []
+    if os.path.exists(filename):
+        # Read back the dictionary
+         dictionary = readJSON(filename)
+        if dictionary != {}:
+            workdir_size_list = dictionary['workdir_size']
+        else:
+            tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
 
-        if os.path.exists(filename):
-            # Read back the dictionary
-            dictionary = readJSON(filename)
-            if dictionary != {}:
-                workdir_size_list = dictionary['workdir_size']
-            else:
-                tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
-
-        # Correct for any input and output files
-        if correction:
+    # Correct for any input and output files
+    if correction:
             
-            total_size = 0L # B
+    total_size = 0L # B
 
-            if os.path.exists(job.workdir):
-                # Find out which input and output files have been transferred and add their sizes to the total size
-                # (Note: output files should also be removed from the total size since outputfilesize is added in the task def)
+        if os.path.exists(job.workdir):
+            # Find out which input and output files have been transferred and add their sizes to the total size
+            # (Note: output files should also be removed from the total size since outputfilesize is added in the task def)
 
-                # First remove the log file from the output file list
-                outFiles = []
-                for f in job.outFiles:
-                    if not job.logFile in f:
-                        outFiles.append(f)
+            # First remove the log file from the output file list
+            outFiles = []
+            for f in job.outFiles:
+                if not job.logFile in f:
+                    outFiles.append(f)
 
-                # Then update the file list in case additional output files have been produced
-                # Note: don't do this deduction since it is not known by the task definition
-                #outFiles, dummy, dummy = discoverAdditionalOutputFiles(outFiles, job.workdir, job.destinationDblock, job.scopeOut)
+            # Then update the file list in case additional output files have been produced
+            # Note: don't do this deduction since it is not known by the task definition
+            #outFiles, dummy, dummy = discoverAdditionalOutputFiles(outFiles, job.workdir, job.destinationDblock, job.scopeOut)
 
-                file_list = job.inFiles + outFiles
-                for f in file_list:
-                    if f != "":
-                        total_size = addToTotalSize(os.path.join(job.workdir, f), total_size)
+            file_list = job.inFiles + outFiles
+            for f in file_list:
+                if f != "":
+                    total_size = addToTotalSize(os.path.join(job.workdir, f), total_size)
 
-                tolog("Total size of present input+output files: %d B (work dir size: %d B)" % (total_size, workdir_size))
-                workdir_size -= total_size
-            else:
-                tolog("WARNING: Can not correct for input/output files since workdir does not exist: %s" % (job.workdir))
+            tolog("Total size of present input+output files: %d B (work dir size: %d B)" % (total_size, workdir_size))
+            workdir_size -= total_size
+        else:
+            tolog("WARNING: Can not correct for input/output files since workdir does not exist: %s" % (job.workdir))
 
-        # Append the new value to the list and store it
-        workdir_size_list.append(workdir_size)
-        dictionary = { 'workdir_size': workdir_size_list }
-        status = writeJSON(filename, dictionary)
-        if status:
-            tolog("Stored %d B in file %s" % (workdir_size, filename))
+    # Append the new value to the list and store it
+    workdir_size_list.append(workdir_size)
+    dictionary = { 'workdir_size': workdir_size_list }
+    status = writeJSON(filename, dictionary)
+    if status:
+        tolog("Stored %d B in file %s" % (workdir_size, filename))
 
-    return status
+return status
 
 def getWorkDirSizeFilename(jobId):
     """ Return the name of the workdir_size.json file """

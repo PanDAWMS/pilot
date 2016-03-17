@@ -1105,9 +1105,7 @@ class JobLog:
             size = getDirSize(job.workdir)
 
             # Store the measured disk space (the max value will later be sent with the job metrics)
-            jobDic = {}
-            jobDic['prod'] = [0, job, 0]
-            status = storeWorkDirSize(size, self.__env['pilot_initdir'], jobDic)
+            status = storeWorkDirSize(size, self.__env['pilot_initdir'], job)
 
         # input and output files should already be removed from the workdir in child process
         tarballNM = "%s.tar" % (job.newDirNM)
