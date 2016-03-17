@@ -13,7 +13,7 @@
 # objectstoreSiteMover.py
 
 import os
-from config import config_sm
+from configSiteMover import config_sm
 
 import SiteMover
 from xrootdObjectstoreSiteMover import xrootdObjectstoreSiteMover

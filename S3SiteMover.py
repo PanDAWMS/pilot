@@ -10,7 +10,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
-from config import config_sm
+from configSiteMover import config_sm
 
 from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
 

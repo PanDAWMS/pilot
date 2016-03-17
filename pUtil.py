@@ -10,7 +10,6 @@ from xml.dom.minidom import parse, parseString
 # Initialize the configuration singleton
 import environment
 env = environment.set_environment()
-#env = Configuration()
 
 from processes import killProcesses
 
@@ -24,8 +23,6 @@ except:
 
 try:
     from PilotErrors import PilotErrors
-    from config import config_sm
-    CMD_CHECKSUM = config_sm.COMMAND_MD5
 except:
     pass
 

@@ -16,7 +16,7 @@ from time import time
 
 from TimerCommand import TimerCommand
 
-from config import config_sm
+from configSiteMover import config_sm
 CMD_CHECKSUM = config_sm.COMMAND_MD5
 
 import SiteMover

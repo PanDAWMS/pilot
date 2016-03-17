@@ -12,7 +12,7 @@ from re import compile, findall
 from futil import *
 from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation
-from config import config_sm
+from configSiteMover import config_sm
 from FileStateClient import updateFileState
 from timed_command import timed_command
 

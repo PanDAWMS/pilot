@@ -12,7 +12,7 @@ from futil import *
 from pUtil import tolog, readpar, dumpOrderedItems, getDirectAccessDic, getSiteInformation
 from PilotErrors import PilotErrors
 from timed_command import timed_command
-from config import config_sm
+from configSiteMover import config_sm
 from FileHandling import getExtension, getTracingReportFilename, writeJSON
 
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
