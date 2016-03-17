@@ -9,9 +9,14 @@ import Queue
 import multiprocessing
 import subprocess
 import threading
-import yampl
 import json
 import traceback
+
+try:
+    import yampl
+except:
+    print "Failed to import yampl: %s" % traceback.format_exc()
+
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from pandayoda.yodacore import Logger

@@ -24,7 +24,7 @@ from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getInitialTracingReport
 
 class Droid(threading.Thread):
-    def __init__(self, globalWorkingDir, localWorkingDir, rank=None, nonMPIMode=False, reserveCores=0):
+    def __init__(self, globalWorkingDir, localWorkingDir, rank=None, nonMPIMode=False, reserveCores=0, outputDir=None):
         threading.Thread.__init__(self)
         self.__globalWorkingDir = globalWorkingDir
         self.__localWorkingDir = localWorkingDir
@@ -50,6 +50,7 @@ class Droid(threading.Thread):
         self.__ATHENA_PROC_NUMBER = 1
         self.__firstGetEventRanges = True
         self.__copyOutputToGlobal = False
+        self.__outputDir = outputDir
 
         self.reserveCores = reserveCores
         self.__hostname = socket.getfqdn()
@@ -163,7 +164,22 @@ class Droid(threading.Thread):
         return False, None
 
     def copyOutput(self, output):
-        if self.__copyOutputToGlobal:
+        if self.__outputDir:
+            filename = output.split(",")[0]
+            base_filename = os.path.basename(filename)
+            new_file_name = os.path.join(self.__outputDir, base_filename)
+            is_copied = False
+            try:
+                os.rename(filename, new_file_name)
+                is_copied = True
+            except:
+                self.__tmpLog.debug("Rank %s: failed to move output %s to %s, %s" % (self.__rank, filename, new_file_name, str(traceback.format_exc())))
+                is_copied = False
+            if not is_copied:
+                shutil.copy(filename, new_file_name)
+                os.remove(filename)
+            return 0, output.replace(filename, new_file_name)
+        elif self.__copyOutputToGlobal:
             filename = output.split(",")[0]
             base_filename = os.path.basename(filename)
             new_file_name = os.path.join(self.__globalWorkingDir, base_filename)
@@ -278,7 +294,8 @@ class Droid(threading.Thread):
     def updateOutputs(self, signal=False, final=False):
         outputs = self.__esJobManager.getOutputs(signal)
         if outputs:
-            self.__outputs +=  outputs
+            # self.__outputs +=  outputs
+            self.__outputs =  outputs
             self.__tmpLog.info("Rank %s: get outputs(%s)" % (self.__rank, outputs))
             if final:
                 self.dumpUpdates(outputs)

@@ -66,6 +66,8 @@ class RunJob(object):
 
     __recovery = False
     __jobStateFile = None
+    __yodaNodes = None
+    __yodaQueue = None
 
     # Getter and setter methods
 
@@ -182,6 +184,24 @@ class RunJob(object):
 
         self.__logguid = logguid
 
+    def getYodaNodes(self):
+        try:
+            if self.__yodaNodes is None:
+                return None
+            nodes = int(self.__yodaNodes)
+            return nodes
+        except:
+            tolog(traceback.format_exc())
+            return None
+
+    def getYodaQueue(self):
+        try:
+            if self.__yodaQueue is None:
+                return None
+            return self.__yodaQueue
+        except:
+            tolog(traceback.format_exc())
+            return None
 
     # Required methods
 
@@ -244,6 +264,10 @@ class RunJob(object):
                           help="Run in recovery mode", metavar="RECOVERY")
         parser.add_option("-S", "--jobStateFile", dest="jobStateFile",
                           help="Job State File", metavar="JOBSTATEFILE")
+        parser.add_option("-N", "--yodaNodes", dest="yodaNodes",
+                          help="Maximum nodes Yoda starts with", metavar="YODANODES")
+        parser.add_option("-Q", "--yodaQueue", dest="yodaQueue",
+                          help="The queue yoda will be send to", metavar="YODAQUEUE")
         parser.add_option("-H", "--cache", dest="cache",
                           help="Cache URL", metavar="CACHE")
 
@@ -308,6 +332,10 @@ class RunJob(object):
 
             self.__recovery = options.recovery
             self.__jobStateFile = options.jobStateFile
+            if options.yodaNodes:
+                self.__yodaNodes = options.yodaNodes
+            if options.yodaQueue:
+                self.__yodaQueue = options.yodaQueue
 
         return sitename, appdir, workdir, queuename
 

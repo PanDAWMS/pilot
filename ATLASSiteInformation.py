@@ -593,7 +593,10 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=25,min_nodes=25,max_nodes=30,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=1000")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,mode=normal,queue=debug,plugin=slurm,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=2,max_nodes=101,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=1000")
             # ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=4,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=119,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=50,min_nodes=4,max_nodes=1001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=120,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
+
+            if 'cori' in hostname:
+                ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=32,mppnppn=1,ATHENA_PROC_NUMBER=32,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
 
             #backfill
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=backfill,queue=regular,backfill_queue=regular,max_events=2000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=13,min_nodes=8,max_nodes=15,partition=edison,min_walltime_m=60,walltime_m=180,max_walltime_m=240,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
@@ -845,28 +848,29 @@ class ATLASSiteInformation(SiteInformation):
                 _type, value, traceBack = sys.exc_info()
                 tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
                 tolog("ERROR: %s %s" % (_type, value))
-                tolog("Try to use requests to get key pair")
-                try:
-                    sslCert = self.getSSLCertificate()
-                    sslKey = sslCert
-                    host = 'pandaserver.cern.ch:25443'
-                    path = '/server/panda/getKeyPair'
 
-                    import requests
-                    r = requests.post('https://%s%s' % (host, path),
-                                      verify=False,
-                                      cert=(sslCert, sslKey),
-                                      data=urllib.urlencode(node),
-                                      timeout=120)
-                    if r and r.status_code == 200:
-                        dic = cgi.parse_qs(r.text)
-                        if dic["StatusCode"][0] == "0":
-                            self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
-                            return self.__securityKeys[keyName]
-                except:
-                    _type, value, traceBack = sys.exc_info()
-                    tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
-                    tolog("ERROR: %s %s" % (_type, value))
+            tolog("Try to use requests to get key pair")
+            try:
+                sslCert = self.getSSLCertificate()
+                sslKey = sslCert
+                host = 'pandaserver.cern.ch:25443'
+                path = '/server/panda/getKeyPair'
+
+                import requests
+                r = requests.post('https://%s%s' % (host, path),
+                                  verify=False,
+                                  cert=(sslCert, sslKey),
+                                  data=urllib.urlencode(node),
+                                  timeout=120)
+                if r and r.status_code == 200:
+                    dic = cgi.parse_qs(r.text)
+                    if dic["StatusCode"][0] == "0":
+                        self.__securityKeys[keyName] = {"publicKey": dic["publicKey"][0], "privateKey": dic["privateKey"][0]}
+                        return self.__securityKeys[keyName]
+            except:
+                _type, value, traceBack = sys.exc_info()
+                tolog("!!WARNING!!4445!! Failed to getKeyPair for (%s, %s)" % (privateKeyName, publicKeyName))
+                tolog("ERROR: %s %s" % (_type, value))
 
         return {"publicKey": None, "privateKey": None}
 

@@ -3,12 +3,13 @@ import argparse
 import logging
 import os
 import sys
+import time
 import traceback
 
 logging.basicConfig(filename='HPCJob.log', level=logging.DEBUG)
 
 
-def main(globalWorkDir, localWorkDir, nonMPIMode=False):
+def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None):
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
     if nonMPIMode:
@@ -36,11 +37,13 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False):
 
     print "GlobalWorkDir: %s" % globalWorkDir
     print "LocalWorkDir: %s" % localWorkDir
+    print "OutputDir: %s" % outputDir
     print "RANK: %s" % mpirank
+
     if mpirank==0:
         try:
             from pandayoda.yodacore import Yoda
-            yoda = Yoda.Yoda(globalWorkDir, localWorkDir, rank=0, nonMPIMode=nonMPIMode)
+            yoda = Yoda.Yoda(globalWorkDir, localWorkDir, rank=0, nonMPIMode=nonMPIMode, outputDir=outputDir)
             yoda.start()
 
             from pandayoda.yodaexe import Droid
@@ -53,24 +56,27 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False):
                 reserveCores = 2
             elif mpisize > 50:
                 reserveCores = 1
-            droid = Droid.Droid(globalWorkDir, localWorkDir, rank=0, nonMPIMode=True, reserveCores=reserveCores)
+            droid = Droid.Droid(globalWorkDir, localWorkDir, rank=0, nonMPIMode=True, reserveCores=reserveCores, outputDir=outputDir)
             droid.start()
 
+            i = 30
             while True:
-                yoda.join(timeout=1)
+                print "Rank %s: Yoda isAlive %s" % (mpirank, yoda.isAlive())
+                print "Rank %s: Droid isAlive %s" % (mpirank, droid.isAlive())
+
                 if yoda and yoda.isAlive():
-                    pass
+                    time.sleep(60)
                 else:
                     break
             print "Rank %s: Yoda finished" % (mpirank)
         except:
             print "Rank %s: Yoda failed: %s" % (mpirank, traceback.format_exc())
-        sys.exit(0)
+        os._exit(0)
     else:
         try:
             status = 0
             from pandayoda.yodaexe import Droid
-            droid = Droid.Droid(globalWorkDir, localWorkDir, rank=mpirank, nonMPIMode=nonMPIMode)
+            droid = Droid.Droid(globalWorkDir, localWorkDir, rank=mpirank, nonMPIMode=nonMPIMode, outputDir=outputDir)
             droid.start()
             while (droid and droid.isAlive()):
                 droid.join(timeout=1)
@@ -95,6 +101,7 @@ Commands:
     oparser.add_argument('--globalWorkingDir', dest="globalWorkingDir", default=None, help="Global share working directory")
     oparser.add_argument('--localWorkingDir', dest="localWorkingDir", default=None, help="Local working directory. if it's not set, it will use global working directory")
     oparser.add_argument('--nonMPIMode', default=False, action='store_true', help="Run Yoda in non-MPI mode")
+    oparser.add_argument('--outputDir', dest="outputDir", default=None, help="Copy output files to this directory")
     oparser.add_argument('--verbose', '-v', default=False, action='store_true', help="Print more verbose output.")
 
     if len(sys.argv) == 1:
@@ -112,7 +119,7 @@ Commands:
     rank = None
     try:
         print "Start HPCJob"
-        rank = main(args.globalWorkingDir, args.localWorkingDir, args.nonMPIMode)
+        rank = main(args.globalWorkingDir, args.localWorkingDir, args.nonMPIMode, args.outputDir)
         print "Rank %s: HPCJob-Yoda success" % rank
         #sys.exit(0)
     except Exception as e:
