@@ -320,7 +320,7 @@ class Experiment(object):
 
         return 0, pilotErrorDiag, trfName
 
-    def getAnalysisRunCommand(self, job, jobSite, trfName, makeflags=False):
+    def getAnalysisRunCommand(self, job, jobSite, trfName):
         """ Get the run command for analysis jobs """
         # The run command is used to setup up the user job transform
 

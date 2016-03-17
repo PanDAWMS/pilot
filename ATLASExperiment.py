@@ -246,6 +246,9 @@ class ATLASExperiment(Experiment):
                     asetup_options += "," + cacheVer
             asetup_options += " --cmtconfig " + cmtconfig
 
+            # always set the --makeflags option (to prevent asetup from overwriting it)
+            asetup_options += " --makeflags=$MAKEFLAGS"
+
             cmd = asetup_path + asetup_options
 
         # Add the transform and the job parameters
@@ -588,9 +591,14 @@ class ATLASExperiment(Experiment):
                 if job.prodSourceLabel == 'ddm' or job.prodSourceLabel == 'software':
                     cmd = '%s %s %s' % (pybin, trfName, job.jobPars)
                 else:
-                    ec, pilotErrorDiag, cmd = self.getAnalysisRunCommand(job, jobSite, trfName, makeflags=True)
+                    ec, pilotErrorDiag, cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
                     if ec != 0:
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+
+                # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
+	            cmd2 = self.addMAKEFLAGS(job.coreCount, "")
+                tolog("cmd2 = %s" % (cmd2))
+		        cmd = cmd2 + cmd
 
                 # should asetup be used? If so, sqeeze it into the run command (rather than moving the entire getAnalysisRunCommand() into this class)
                 m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
@@ -669,7 +677,7 @@ class ATLASExperiment(Experiment):
 
         return 0, pilotErrorDiag, cmd, special_setup_cmd, JEM, cmtconfig
 
-    def getAnalysisRunCommand(self, job, jobSite, trfName, makeflags=False):
+    def getAnalysisRunCommand(self, job, jobSite, trfName):
         """ Get the run command for analysis jobs """
         # The run command is used to setup up user job transform
 
@@ -696,12 +704,6 @@ class ATLASExperiment(Experiment):
             run_command += 'export X509_USER_PROXY=%s;' % os.environ['X509_USER_PROXY']
         else:
             tolog("Could not add user proxy to the run command (proxy does not exist)")
-
-        if makeflags:
-            # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
-            cmd2 = self.addMAKEFLAGS(job.coreCount, "")
-            tolog("cmd2 = %s" % (cmd2))
-            run_command += cmd2
 
         # set up analysis trf
         run_command += './%s %s' % (trfName, job.jobPars)

@@ -331,8 +331,8 @@ General changes
 - Now explicitly removing 'madevent' in removeRedundantFiles(), requested by Rodney Walker (ATLASExperiment)
 - Removed unnecessary functions, getProdCmd3() and getProdCmd3Old() and updated usages from getJobExecutionCommandOld() (ATLASExperiment)
 - Simplified the implementation of getAnalysisRunCommand() in Experiment and moved the actual implementation to ATLASExperiment (Experiment, ATLASExperiment)
-- Added makeflags option to getAnalysisRunCommand() (Experiment, ATLASExperiment)
 - Removed LFC_HOME variable and single usage in class declaration and to_native_lfn() (SiteMover)
+- Added --makeflags=$MAKEFLAGS option to asetup in getJobExecutionCommand(), requested by Asoka De Silva (ATLASExperiment)
 
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
