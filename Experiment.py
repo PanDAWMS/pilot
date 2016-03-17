@@ -701,7 +701,7 @@ class Experiment(object):
             name = "RunJob" + _name # e.g. "RunJobTitan" is the proper subprocess name for the Titan plug-in
 
         # for es merge jobs
-        if _name == "Hpc":
+        if _name and _name.startswith("Hpc"):
             name = "RunJob"
 
         # Are we going to run an event service job?
@@ -763,6 +763,12 @@ class Experiment(object):
                        "-E", str(env['stageoutretry']),
                        "-F", env['experiment'],
                        "-H", env['cache']]
+            if 'yodaNodes' in env and subprocessName == "RunJobHpcEvent":
+                jobargs.append("-N")
+                jobargs.append(str(env['yodaNodes']))
+            if 'yodaQueue' in env and subprocessName == "RunJobHpcEvent":
+                jobargs.append("-Q")
+                jobargs.append(str(env['yodaQueue']))
 
         tolog("Will use arguments: %s" % str(jobargs))
         return jobargs

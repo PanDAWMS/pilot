@@ -60,6 +60,7 @@ class arc(Plugin):
             submit_script += localSetup + "\n"
         submit_script += "source ${VO_ATLAS_SW_DIR}/local/setup-yampl.sh" + "\n"
         submit_script += "export PYTHONPATH=%s:$PYTHONPATH\n" % globalWorkingDir
+        #submit_script += "export CMTEXTRATAGS=ATLAS,useDBRelease" + "\n"
         submit_script += "env" + "\n"
 
         # submit_script += "srun -N " + str(nodes) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>yoda_stdout.txt 2>yoda_stderr.txt"
@@ -68,15 +69,22 @@ class arc(Plugin):
 
         # submit_script += "mpirun -bynode python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>yoda_stdout.txt 2>yoda_stderr.txt"
         # submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>" + globalYodaDir+ "/yoda_stdout.txt 2>" + globalYodaDir+ "/yoda_stderr.txt"
-        submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" --nonMPIMode"
+        submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" --nonMPIMode --outputDir=" + os.path.dirname(globalYodaDir)
         self.__log.debug("ARC submit script: %s" % submit_script)
         # hpcJob = subprocess.Popen(submit_script, stdout=sys.stdout, stderr=sys.stdout, shell=True)
         yoda_stdout = open(os.path.join(globalYodaDir, 'yoda_stdout.txt'), 'a')
         yoda_stderr = open(os.path.join(globalYodaDir, 'yoda_stderr.txt'), 'a')
         hpcJob = subprocess.Popen(submit_script, stdout=yoda_stdout, stderr=yoda_stderr, shell=True)
 
+        t1 = time.time()
         i = 20
         while (hpcJob and hpcJob.poll() is None):
+            """
+            if (time.time() - t1) > 30 * 60:
+                hpcJob.terminate()
+                time.sleep(30)
+                hpcJob.kill()
+            """
             if i == 0:
                 self.__log.debug("Yoda process is running%s")
                 i = 20

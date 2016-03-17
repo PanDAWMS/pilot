@@ -2750,6 +2750,8 @@ class ATLASExperiment(Experiment):
             transferLogToObjectstore = True
         if 'HPC_HPCARC' in readpar('catchall'):
             transferLogToObjectstore = False
+        if os.environ.has_key('Nordugrid_pilot'):
+            transferLogToObjectstore = False
 
         return transferLogToObjectstore
 

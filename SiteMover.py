@@ -1096,7 +1096,7 @@ class SiteMover(object):
 
         return filesize, checksum
 
-    def getFileInfoFromRucio(self, dataset, guid):
+    def getFileInfoFromRucio1(self, dataset, guid):
         """ Get the file size and checksum from Rucio """
 
         filesize = ""

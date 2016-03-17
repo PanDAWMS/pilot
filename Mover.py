@@ -1007,7 +1007,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             fsize, fchecksum = getFileInfoFromDispatcher(_lfn, fileInfoDictionaryFromDispatcher)
 
             # Get the file info from the metadata [from LFC]
-            if not fsize or not fchecksum:
+            if not os.environ.has_key('Nordugrid_pilot') and (not fsize or not fchecksum):
                 ec, pilotErrorDiag, fsize, fchecksum = getFileInfoFromMetadata(thisfile, guid, replicas_dic, region, sitemover, error)
                 if ec != 0:
                     return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source

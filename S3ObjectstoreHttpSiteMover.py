@@ -98,10 +98,10 @@ class S3ObjectstoreHttpSiteMover(SiteMover.SiteMover):
     def setup(self, experiment=None, surl=None):
         """ setup env """
 
-        if os.environ.get("http_proxy"):
-            del os.environ['http_proxy']
-        if os.environ.get("https_proxy"):
-            del os.environ['https_proxy']
+        if os.environ.get("http_proxy") and hostname and hostname.endswith("bnl.gov"):
+             del os.environ['http_proxy']
+        if os.environ.get("https_proxy") and hostname and hostname.endswith("bnl.gov"):
+             del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
         self.os_name = si.getObjectstoresField("os_name", "eventservice")

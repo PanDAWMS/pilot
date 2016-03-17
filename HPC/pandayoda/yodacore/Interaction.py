@@ -43,6 +43,7 @@ class Receiver:
     # receive request
     def receiveRequest(self):
         # wait for a request from any ranks
+        t1 = time.time()
         self.hasMessage = False
         if self.comm:
             while not self.comm.Iprobe(source=self.selectSource,
@@ -51,15 +52,23 @@ class Receiver:
                     self.hasMessage = True
                     break
                 time.sleep(0.0001)
+                if (time.time() - t1) > 20 * 60:
+                    # waiting too log, should quit.
+                    errMsg = 'No messages received for 20 minutes. quit'
+                    return False,errMsg,None
         else:
             while self.recvQueue.empty():
                 time.sleep(0.0001)
+                if (time.time() - t1) > 20 * 60:
+                    # waiting too log, should quit.
+                    errMsg = 'No messages received for 20 minutes. quit'
+                    return False,errMsg,None
             self.hasMessage = True
 
         if self.hasMessage:
             try:
                 reqData = self.recvQueue.get()
-                self.stat.Set_source(0)
+                # self.stat.Set_source(0)
                 data = json.loads(reqData)
                 return True,data['method'],data['params']
             except:

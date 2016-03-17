@@ -2391,7 +2391,8 @@ def updateDispatcherData4ES(data, experiment, path):
 
                         # Update the copytoolin (should use the proper objectstore site mover)
                         si = getSiteInformation(experiment)
-                        ec = si.replaceQueuedataField("copytoolin", "objectstore")
+                        if not os.environ.has_key('Nordugrid_pilot'):
+                            ec = si.replaceQueuedataField("copytoolin", "objectstore")
 
                     else:
                         tolog("Cannot continue with event service merge job")

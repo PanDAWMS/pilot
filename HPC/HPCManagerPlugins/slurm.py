@@ -75,7 +75,12 @@ class slurm(Plugin):
 
     def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None):
         submit_script = "#!/bin/bash -l" + "\n"
-        submit_script += "#SBATCH -p " + queue + "\n"
+        if queue == 'premium':
+            submit_script += "#SBATCH -p regular\n"
+            submit_script += "#SBATCH --qos=premium\n"
+        else:
+            submit_script += "#SBATCH -p " + queue + "\n"
+
         if repo:
             submit_script += "#SBATCH -A " + repo + "\n"
         # submit_script += "#SBATCH -n " + str(mppwidth) + "\n"
@@ -136,7 +141,7 @@ class slurm(Plugin):
                 if line.startswith('JobState'):
                     state = line.split(" ")[0].split("=")[1]
 
-            if state == "COMPLETE":
+            if state == "COMPLETED":
                 self.__log.info("HPC job complete")
                 return "Complete"
             if state == "RUNNING":
@@ -145,6 +150,11 @@ class slurm(Plugin):
                 return "Queue"
             if state == "FAILED":
                 return "Failed"
+            if state == "CANCELLED":
+                return "Failed"
+            if state == "TIMEOUT":
+                return "Failed"
+            return 'Unknown'
         else:
             self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
             if 'Invalid job id specified' in output:
@@ -156,6 +166,7 @@ class slurm(Plugin):
                     return "Failed"
                 else:
                     return 'Unknown'
+        return 'Unknown'
 
     def delete(self, jobid):
         command = "scancel " + jobid
