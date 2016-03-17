@@ -346,6 +346,7 @@ Bug fixes
 - Changed jobDic argument to job object in storeWorkDirSize() and removed unnecessary loop over job objects which caused problems with big Yoda jobs (FileHandling)
 - Sending self.__env['jobDic'][k][1] (job object) instead self.__env['jobDic'] (job dictionary) to storeWorkDirSize() from __checkWorkDir() (Monitor)
 - Sending job instead jobDic to storeWorkDirSize() from createLogFile() (JobLog)
+- Renamed config to configSiteMover to prevent problems seen on ND with late releases due to presence of a config module from TDAQ in the PYTHONPATH
 
 Alt stage-out
 - Added altStageOut data member plus handling (Job)
