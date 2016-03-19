@@ -2669,7 +2669,7 @@ def runMain(runpars):
             if env['glexec'] == 'False':
                 monitor = Monitor(env)
                 monitor.monitor_job()
-	    elif env['glexec'] == 'test':
+	    elif env['glexec'] == 'test': ##
 		pUtil.tolog('glexec is set to test, we will hard-fail miserably in case of errors')
                 payload = 'python -m glexec_aux'
                 my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
@@ -2680,41 +2680,40 @@ def runMain(runpars):
                 # If it is ok, go ahead with glexec, if not, use the normal pilot mode without glexec.
 
                 if os.environ.has_key('OSG_GLEXEC_LOCATION'):
-			if os.environ['OSG_GLEXEC_LOCATION'] != '':
-				glexec_path = os.environ['OSG_GLEXEC_LOCATION']
-     			else:
-			        glexec_path = '/usr/sbin/glexec'
-                                os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
-                elif os.environ.has_key('GLEXEC_LOCATION'):
-			if os.environ['GLEXEC_LOCATION'] != '':
-	     			glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
-     			else:
-             			glexec_path = '/usr/sbin/glexec'
-                                os.environ['GLEXEC_LOCATION'] = '/usr'
-		elif os.path.exists('/usr/sbin/glexec'):
-			glexec_path = '/usr/sbin/glexec'
-	                os.environ['GLEXEC_LOCATION'] = '/usr'
-                elif os.environ.has_key('GLITE_LOCATION'):
-                        glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
-                                             'sbin/glexec')
-                else:
-			pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
+                    if os.environ['OSG_GLEXEC_LOCATION'] != '':
+		       	glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+                    else:
                         glexec_path = '/usr/sbin/glexec'
+                        os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
+                elif os.environ.has_key('GLEXEC_LOCATION'):
+                    if os.environ['GLEXEC_LOCATION'] != '':
+                        glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
+                    else:
+                        glexec_path = '/usr/sbin/glexec'
+                        os.environ['GLEXEC_LOCATION'] = '/usr'
+		elif os.path.exists('/usr/sbin/glexec'):
+                    glexec_path = '/usr/sbin/glexec'
+                    os.environ['GLEXEC_LOCATION'] = '/usr'
+                elif os.environ.has_key('GLITE_LOCATION'):
+                    glexec_path = os.path.join(os.environ['GLITE_LOCATION'],'sbin/glexec')
+                else:
+                    pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
+                    glexec_path = '/usr/sbin/glexec'
 
                 cmd = 'export GLEXEC_CLIENT_CERT=$X509_USER_PROXY;'+glexec_path + ' /bin/true'
                 stdout, stderr, status = execute(cmd)
                 pUtil.tolog('cmd: %s' % cmd)
                 pUtil.tolog('status: %s' % status)
                 if not (status or stderr):
-                        pUtil.tolog('glexec infrastructure seems to be working fine. Running in glexec mode!')
-                        payload = 'python -m glexec_aux'
-                        my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
-                        glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
-                        glexec_interface.setup_and_run()
+                    pUtil.tolog('glexec infrastructure seems to be working fine. Running in glexec mode!')
+                    payload = 'python -m glexec_aux'
+                    my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
+                    glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
+                    glexec_interface.setup_and_run()
                 else:
-                        pUtil.tolog('!!WARNING!! Problem with the glexec infrastructure! Will run the pilot in normal mode')
-                        monitor = Monitor(env)
-                        monitor.monitor_job()
+                    pUtil.tolog('!!WARNING!! Problem with the glexec infrastructure! Will run the pilot in normal mode')
+                    monitor = Monitor(env)
+                    monitor.monitor_job()
 
             #Get the return code (Should be improved)
             if env['return'] == 'break':

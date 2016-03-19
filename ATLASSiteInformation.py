@@ -447,8 +447,6 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "ANALY_CERN_SLC6":
 #            ec = self.replaceQueuedataField("copysetupin", "/cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh^False^True")
 
-        ec = self.replaceQueuedataField("timefloor", "0")
-
 #        if thisSite.sitename == "CERN-PROD":
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
 
