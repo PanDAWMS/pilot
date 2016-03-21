@@ -41,7 +41,12 @@ globalSite = None
 
 def usage():
     """
-    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -u <user> -m <outputdir> -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel> -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag> -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry> -B <unused> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime> -H <cache> -I <schedconfigURL>
+    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -u <user> -m <outputdir>
+        -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel>
+        -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag>
+        -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry>
+        -B <allowSingleUser> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime>
+        -H <cache> -I <schedconfigURL>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -71,7 +76,7 @@ def usage():
                <countrygroup> Country group selector for getJob request
                <workinggroup> Working group selector for getJob request
                <allowOtherCountry> True/False
-               <unused> (used to be 'lfcRegistration')
+               <allowSingleUser> True/False, multi-jobs will only belong from the same user (owner of first downloaded job)
                <timefloor> Time limit for multi-jobs in minutes
                <useCoPilot> Expect CERNVM pilot to be executed by Co-Pilot (True: on, False: pilot will finish job (default))
                <experiment> Current experiment (default: ATLAS)
@@ -272,7 +277,10 @@ def argParser(argv):
                 env['allowOtherCountry'] = False
 
         elif o == "-B":
-            pass
+            if a.upper() == "TRUE":
+                env['allowSameUser'] = True
+            else:
+                env['allowSameUser'] = False
 
         elif o == "-C":
             try:
@@ -1947,9 +1955,6 @@ def getDispatcherDictionary(_diskSpace, tofile):
 
     # glExec proxy key
     _getProxyKey = "False"
-    # Eddie - commented out
-    # if pUtil.readpar('glexec').lower() in ['true', 'uid']:
-    #     _getProxyKey = "True"
 
     nodename = env['workerNode'].nodename
     pUtil.tolog("Node name: %s" % (nodename))
@@ -1988,6 +1993,10 @@ def getDispatcherDictionary(_diskSpace, tofile):
             jNode['prodUserID'] = DN
 
         pUtil.tolog("prodUserID: %s" % (jNode['prodUserID']))
+    elif env['allowSameUser'] == True and env['prodUserID'] != "":
+        jNode['prodUserID'] = env['prodUserID']
+    if env['prodUserID'] != "":
+        pUtil.tolog("Will download a new job for user: %s" % (env['prodUserID']))
 
     # determine the job type
     prodSourceLabel = getProdSourceLabel()
@@ -2219,13 +2228,18 @@ def getNewJob(tofile=True):
     # should there be a delay before setting running state?
     try:
         env['nSent'] = int(data['nSent'])
-    except Exception,e:
+    except:
         env['nSent'] = 0
     else:
         pUtil.tolog("Received nSent: %d" % (env['nSent']))
 
     # backup response (will be copied to workdir later)
     backupDispatcherResponse(response, tofile)
+
+    if data.has_key('prodUserID'):
+        if env['allowSameUser'] == True and env['prodUserID'] == "":
+            env['prodUserID'] = data['prodUserID']
+            pUtil.tolog("Will only process jobs in multi-job mode for user %s" % (env['prodUserID']))
 
     if data.has_key('prodSourceLabel'):
         if data['prodSourceLabel'] == "":
@@ -2302,13 +2316,13 @@ def getNewJob(tofile=True):
             env['update_freq_server'] = 5*30
             pUtil.tolog("Debug mode requested: Updating server update frequency to %d s" % (env['update_freq_server']))
 
-    # Eddie: try to get user proxy from data['userproxy']
+    # try to get user proxy from data['userproxy']
     if data.has_key('userProxy'):
         pUtil.tolog('Retrieving userproxy from panda-server')
         env['userProxy'] = data['userProxy']
     else:
         pUtil.tolog('no user proxy in data')
-        # Eddie: what do we do when there is no user proxy? Do we use the proxy that started the pilot?
+        # what do we do when there is no user proxy? Do we use the proxy that started the pilot?
         env['userProxy'] = ''
 
     # create a start time file in the pilot init dir (time stamp will be read and sent to the server with the job update

@@ -334,6 +334,12 @@ General changes
 - Removed LFC_HOME variable and single usage in class declaration and to_native_lfn() (SiteMover)
 - Added --makeflags=$MAKEFLAGS option to asetup in getJobExecutionCommand(), requested by Asoka De Silva (ATLASExperiment)
 
+Same user multi-job request by Emmanouil Vamvakopoulos
+- Added allowSameUser boolean and prodUserID (environment)
+- Enabled pilot option -B <allowSameUser> (pilot)
+- Sending prodUserID with job request in case allowSameUser is set, in getDispatcherDictionary() (pilot)
+- Setting prodUserID in getNewJob() (pilot)
+
 Bug fixes
 - Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
 - Removed duplicated getFileInfoFromRucio() (SiteMover)
