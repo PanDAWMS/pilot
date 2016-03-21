@@ -596,9 +596,9 @@ class ATLASExperiment(Experiment):
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
-	            cmd2 = self.addMAKEFLAGS(job.coreCount, "")
+                cmd2 = self.addMAKEFLAGS(job.coreCount, "")
                 tolog("cmd2 = %s" % (cmd2))
-		        cmd = cmd2 + cmd
+                cmd = cmd2 + cmd
 
                 # should asetup be used? If so, sqeeze it into the run command (rather than moving the entire getAnalysisRunCommand() into this class)
                 m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
