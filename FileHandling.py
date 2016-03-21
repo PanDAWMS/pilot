@@ -719,7 +719,7 @@ def storeWorkDirSize(workdir_size, pilot_initdir, job, correction=True):
     if status:
         tolog("Stored %d B in file %s" % (workdir_size, filename))
 
-return status
+    return status
 
 def getWorkDirSizeFilename(jobId):
     """ Return the name of the workdir_size.json file """
