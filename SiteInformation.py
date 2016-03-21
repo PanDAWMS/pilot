@@ -1275,7 +1275,7 @@ class SiteInformation(object):
             else:
                 tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
 
-    return status
+        return status
 
     # WARNING: ATLAS SPECIFIC - CONSIDER THIS METHOD AS AN EXAMPLE IMPLEMENTATION, CODE BELOW WILL BE MOVED TO ATLASSITEINFORMATION ASAP
     def getNewQueuedata(self, queuename, overwrite=True, version=1, os_bucket_id=-1):
