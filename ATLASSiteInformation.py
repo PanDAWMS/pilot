@@ -490,7 +490,7 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("objectstore", "root://atlas-objectstore.cern.ch/|eventservice^/atlas/eventservice|logs^/atlas/logs")
             #ec = self.replaceQueuedataField("retry", "False")
             ec = self.replaceQueuedataField("allowfax", "True")
-#            ec = self.replaceQueuedataField("timefloor", "0")
+            ec = self.replaceQueuedataField("timefloor", "100")
             ec = self.replaceQueuedataField("copytool", "lsm")
             ec = self.replaceQueuedataField("copytoolin", "lsm")
 #            ec = self.replaceQueuedataField("copytool", "lsm")
