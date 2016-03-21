@@ -677,14 +677,14 @@ def storeWorkDirSize(workdir_size, pilot_initdir, job, correction=True):
 
     if os.path.exists(filename):
         # Read back the dictionary
-         dictionary = readJSON(filename)
+        dictionary = readJSON(filename)
         if dictionary != {}:
             workdir_size_list = dictionary['workdir_size']
         else:
             tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
 
     # Correct for any input and output files
-    if correction:
+    #if correction:
             
     total_size = 0L # B
 
