@@ -29,7 +29,7 @@ from futil import *
 
 import SiteMoverFarm
 
-from config import config_sm
+from configSiteMover import config_sm
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE
 CMD_CHECKSUM = config_sm.COMMAND_MD5
