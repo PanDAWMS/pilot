@@ -684,9 +684,9 @@ def storeWorkDirSize(workdir_size, pilot_initdir, job, correction=True):
             tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
 
     # Correct for any input and output files
-    #if correction:
+    if correction:
             
-    total_size = 0L # B
+        total_size = 0L # B
 
         if os.path.exists(job.workdir):
             # Find out which input and output files have been transferred and add their sizes to the total size
