@@ -714,7 +714,7 @@ def storeWorkDirSize(workdir_size, pilot_initdir, job, correction=True):
 
     # Append the new value to the list and store it
     workdir_size_list.append(workdir_size)
-    dictionary = { 'workdir_size': workdir_size_list }
+    dictionary = {'workdir_size': workdir_size_list}
     status = writeJSON(filename, dictionary)
     if status:
         tolog("Stored %d B in file %s" % (workdir_size, filename))

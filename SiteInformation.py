@@ -1267,7 +1267,9 @@ class SiteInformation(object):
                                 status = True
                             else:
                                 tolog("!!WARNING!!2122!! Failed to write trimmed AGIS dictionary to file: %s" % (filename_trimmed))
-	        	    else:
+                        else:
+                            pass
+                    else:
                         tolog("!!WARNING!!2121!! No os_name in entry=%s" % (entry))
                         status = False
             else:
