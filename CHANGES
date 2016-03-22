@@ -338,7 +338,7 @@ Limit number of MemoryMonitor restarts, requested by Rodney Walker
 - Added utility_subprocess_launches variables + handling to __main__() (RunJob, RunJobEvent)
 
 Same user multi-job request by Emmanouil Vamvakopoulos
-- Added allowSameUser boolean and prodUserID (environment)
+- Added allowSameUser boolean and taskID (environment)
 - Enabled pilot option -B <allowSameUser> (pilot)
 - Sending prodUserID with job request in case allowSameUser is set, in getDispatcherDictionary() (pilot)
 - Setting prodUserID in getNewJob() (pilot)

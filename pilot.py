@@ -1993,10 +1993,10 @@ def getDispatcherDictionary(_diskSpace, tofile):
             jNode['prodUserID'] = DN
 
         pUtil.tolog("prodUserID: %s" % (jNode['prodUserID']))
-    elif env['allowSameUser'] == True and env['prodUserID'] != "":
-        jNode['prodUserID'] = env['prodUserID']
-    if env['prodUserID'] != "":
-        pUtil.tolog("Will download a new job for user: %s" % (env['prodUserID']))
+    elif env['allowSameUser'] == True and env['taskID'] != "":
+        jNode['taskID'] = env['taskID']
+    if env['taskID'] != "":
+        pUtil.tolog("Will download a new job for taskID: %s" % (env['taskID']))
 
     # determine the job type
     prodSourceLabel = getProdSourceLabel()
@@ -2236,10 +2236,10 @@ def getNewJob(tofile=True):
     # backup response (will be copied to workdir later)
     backupDispatcherResponse(response, tofile)
 
-    if data.has_key('prodUserID'):
-        if env['allowSameUser'] == True and env['prodUserID'] == "":
-            env['prodUserID'] = data['prodUserID']
-            pUtil.tolog("Will only process jobs in multi-job mode for user %s" % (env['prodUserID']))
+    if data.has_key('taskID'):
+        if env['allowSameUser'] == True and env['taskID'] == "":
+            env['taskID'] = data['taskID']
+            pUtil.tolog("Will only process jobs in multi-job mode that belong to taskID %s" % (env['taskID']))
 
     if data.has_key('prodSourceLabel'):
         if data['prodSourceLabel'] == "":
