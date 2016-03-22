@@ -2504,7 +2504,7 @@ class ATLASExperiment(Experiment):
                 asetup_path = ""
                 cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
 
-        return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
+        return "%s %s %s --makeflags=$MAKEFLAGS --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
         """ Extract the rel_N bit from the homePackage string """

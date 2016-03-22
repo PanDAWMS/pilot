@@ -811,6 +811,7 @@ class RunJob(object):
 
                     # Start the utility if required
                     utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                    utility_subprocess_launches = 1
 
                     # Loop until the main subprocess has finished
                     while main_subprocess.poll() is None:
@@ -825,8 +826,12 @@ class RunJob(object):
                                 # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                                 # Unless it was killed by the Monitor along with all other subprocesses
                                 if not os.path.exists(os.path.join(job.workdir, "MEMORYEXCEEDED")) and not os.path.exists(os.path.join(job.workdir, "JOBWILLBEKILLED")):
-                                    tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                                    utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                                    if utility_subprocess_launches <= 5:
+                                        tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                                        utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                                        utility_subprocess_launches += 1
+                                    else:
+                                        tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - too many restarts, will not restart again")
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
                                     utility_subprocess = None
