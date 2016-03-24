@@ -120,6 +120,10 @@ class Monitor:
             # now loop over all files and check each individually (any large enough file will fail the job)
             for filename in fileList:
 
+                if "job.log.tgz" in filename:
+                    pUtil.tolog("(Skipping file size check of file (%s) since it's job.log.tgz file)" % filename)
+                    continue
+
                 if os.path.exists(filename):
                     try:
                         # get file size in bytes
@@ -257,7 +261,7 @@ class Monitor:
         Note: requires that the memory monitoring tool is executed (as specified in Experiment::shouldExecuteUtility())
         """
 
-        if (int(time.time()) - self.__env['curtime_mem']) > 60:
+        if (int(time.time()) - self.__env['curtime_mem']) > 60 * 10:
             # Check the memory from the utility every minute
 
             # get the experiment object and check if the memory utility should be used
