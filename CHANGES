@@ -333,6 +333,7 @@ General changes
 - Simplified the implementation of getAnalysisRunCommand() in Experiment and moved the actual implementation to ATLASExperiment (Experiment, ATLASExperiment)
 - Removed LFC_HOME variable and single usage in class declaration and to_native_lfn() (SiteMover)
 - Added --makeflags=$MAKEFLAGS option to asetup in getJobExecutionCommand() and getProperASetup(), requested by Asoka De Silva (ATLASExperiment)
+- Added exception for log file in __checkPayloadStdout() (Monitor)
 
 Limit number of MemoryMonitor restarts, requested by Rodney Walker
 - Added utility_subprocess_launches variables + handling to __main__() (RunJob, RunJobEvent)

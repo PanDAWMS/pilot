@@ -120,6 +120,10 @@ class Monitor:
             # now loop over all files and check each individually (any large enough file will fail the job)
             for filename in fileList:
 
+                if "job.log.tgz" in filename:
+                    pUtil.tolog("(Skipping file size check of file (%s) since it is a special log file)" % (filename))
+                    continue
+
                 if os.path.exists(filename):
                     try:
                         # get file size in bytes
