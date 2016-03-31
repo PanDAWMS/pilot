@@ -178,7 +178,7 @@ class ErrorDiagnosis(Diagnosis):
         tolog("dbTime=%s" % (job.dbTime))
         tolog("dbData=%s" % (job.dbData))
 
-    return job
+        return job
 
     
 if __name__ == "__main__":
