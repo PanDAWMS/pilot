@@ -81,7 +81,7 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     msgdic["dbTime"] = job.dbTime
     msgdic["dbData"] = job.dbData
 
-if job.mode:
+    if job.mode:
         msgdic["mode"] = job.mode
     if job.hpcStatus:
         msgdic['hpcStatus'] = job.hpcStatus
