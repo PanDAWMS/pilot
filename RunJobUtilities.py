@@ -78,9 +78,10 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     msgdic["RSSMean"] = job.RSSMean
     msgdic["JEM"] = job.JEM
     msgdic["cmtconfig"] = getCmtconfig(job.cmtconfig)
+    msgdic["dbTime"] = job.dbTime
+    msgdic["dbData"] = job.dbData
 
-    # hpc job status
-    if job.mode:
+if job.mode:
         msgdic["mode"] = job.mode
     if job.hpcStatus:
         msgdic['hpcStatus'] = job.hpcStatus

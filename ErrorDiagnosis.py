@@ -175,8 +175,6 @@ class ErrorDiagnosis(Diagnosis):
         # get the DB info from the jobReport (experiment specific)
         from FileHandling import getDBInfo
         job.dbTime, job.dbData = getDBInfo(job.workdir)
-        tolog("dbTime=%s" % (job.dbTime))
-        tolog("dbData=%s" % (job.dbData))
 
         return job
 
