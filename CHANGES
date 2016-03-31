@@ -359,6 +359,7 @@ Bug fixes
 - Renamed config to configSiteMover to prevent problems seen on ND with late releases due to presence of a config module from TDAQ in the PYTHONPATH
 - Updated config to configSiteMover import (S3ObjectstoreHttpSiteMover, S3ObjectstoreSiteMover, S3SiteMover, SiteMover, mvSiteMover, objectstoreSiteMover, xrootdObjectstoreSiteMover, xrootdSiteMover)
 - Removed unused config import (pUtil)
+- Now recognizing copytool=fax in mover_get_data() when counting FAX statistics (Mover)
 
 Alt stage-out
 - Added altStageOut data member plus handling (Job)

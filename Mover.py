@@ -2970,9 +2970,10 @@ def mover_get_data(lfns,
             # Increase the successful file transfer counter (used only when reporting FAX transfers)
             if s == 0:
                 # note the special case if FAX is the primary site mover (normally FAX is the fallback)
-                if sitemover.copyCommand == "fax":
+                if sitemover.copyCommand == 'fax' or copytool == 'fax':
                     N_filesWithFAX += 1
                     bytesWithFAX += long(fsize)
+                    usedFAXMode = True
                 else:
                     # Normal case
                     N_filesWithoutFAX += 1
@@ -2981,7 +2982,7 @@ def mover_get_data(lfns,
             if s != 0:
                 # Normal stage-in failed, now try with FAX if possible
                 if error.isPilotFAXErrorCode(s):
-                    if isFAXAllowed(filetype, gpfn) and transferType != "fax" and sitemover.copyCommand != "fax": # no point in trying to fallback to fax if the fax transfer above failed
+                    if isFAXAllowed(filetype, gpfn) and transferType != 'fax' and sitemover.copyCommand != 'fax' and copytool != 'fax': # no point in trying to fallback to fax if the fax transfer above failed
                         tolog("Normal stage-in failed, will attempt to use FAX")
                         usedFAXMode = True
 
