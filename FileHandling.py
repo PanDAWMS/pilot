@@ -525,6 +525,24 @@ def removeNoOutputFiles(workdir, outFiles, allowNoOutput):
 
     return _outFiles
 
+
+def extractOutputFiles(analysisJob, workdir, allowNoOutput, outFiles):
+    """ Extract the output files from the JSON if possible """
+    try:
+        if not analysisJob:
+            extracted_output_files = extractOutputFilesFromJSON(workdir, allowNoOutput)
+        else:
+            if allowNoOutput == []:
+                tolog("Will not extract output files from jobReport for user job (and allowNoOut list is empty)")
+                extracted_output_files = []
+            else:
+                # Remove the files listed in allowNoOutput if they don't exist
+                extracted_output_files = removeNoOutputFiles(workdir, outFiles, allowNoOutput)
+    except Exception, e:
+        tolog("!!WARNING!!2327!! Exception caught: %s" % (e))
+        extracted_output_files = []
+    return extracted_output_files
+
 def extractOutputFilesFromJSON(workDir, allowNoOutput):
     """ In case the trf has produced additional output files, extract all output files from the jobReport """
     # Note: ignore files with nentries = 0
@@ -751,6 +769,7 @@ def getMaxWorkDirSize(path, jobId):
 
     return maxdirsize
 
+# ATLAS specific
 def getNumberOfEvents(workDir):
     """ Extract the number of events from the job report """
 
@@ -789,6 +808,47 @@ def getNumberOfEvents(workDir):
         Nmax = 0
 
     return Nmax
+
+# ATLAS specific
+def getDBInfo(workDir):
+    """ Extract and add up the DB info from the job report """
+
+    # Input:  workDir (location of jobReport.json
+    # Output: dbTime, dbData [converted strings, e.g. "dbData=105077960 dbTime=251.42"]
+
+    dbTime = 0
+    dbData = 0L
+
+    jobReport_dictionary = getJobReport(workDir)
+    if jobReport_dictionary != {}:
+
+        if jobReport_dictionary.has_key('resource'):
+            resource_dictionary = jobReport_dictionary['resource']
+            if resource_dictionary.has_key('executor'):
+                executor_dictionary = resource_dictionary['executor']
+                for format in executor_dictionary.keys(): # "RAWtoESD", ..
+                    if executor_dictionary[format].has_key('dbData'):
+                        dbData += executor_dictionary[format]['dbData']
+                    else:
+                        tolog("Format %s has no such key: dbData" % (format))
+                    if executor_dictionary[format].has_key('dbTime'):
+                        dbTime += executor_dictionary[format]['dbTime']
+                    else:
+                        tolog("Format %s has no such key: dbTime" % (format))
+            else:
+                tolog("No such key: executor")
+        else:
+            tolog("No such key: resource")
+
+    if dbData != 0L:
+        dbDataS = "%s" % (dbData)
+    else:
+        dbDataS = ""
+    if dbTime != 0:
+        dbTimeS = "%.2f" % (dbTime)
+    else:
+        dbTimeS = ""
+    return dbTimeS, dbDataS
 
 def getDirectAccess():
     """ Should direct i/o be used, and which type of direct i/o """

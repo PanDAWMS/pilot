@@ -136,22 +136,14 @@ class PandaServerClient:
         if job.hpcStatus:
             jobMetrics += self.jobMetric(key="HPCStatus", value=job.hpcStatus)
 
-        # report FAX transfers if at least one successful FAX transfer
-        #if job.filesWithFAX > 0:
-        #    jobMetrics += " filesWithFAX=%d" % (job.filesWithFAX)
-        #    jobMetrics += " filesWithoutFAX=%d" % (job.filesWithoutFAX)
-        #    jobMetrics += " bytesWithFAX=%d" % (job.bytesWithFAX)
-        #    jobMetrics += " bytesWithoutFAX=%d" % (job.bytesWithoutFAX)
-        #    jobMetrics += " timeToCopy=%s" % (job.timeStageIn)
-
         # report alternative stage-out in case alt SE method was used
         # (but not in job recovery mode)
         recovery_mode = False
         if job.filesAltStageOut > 0 and not recovery_mode:
-            _jobMetrics = ""
-            _jobMetrics += " filesAltStageOut=%d" % (job.filesAltStageOut)
-            _jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
-            tolog("Could have reported: %s" % (_jobMetrics))
+            #_jobMetrics = ""
+            #_jobMetrics += " filesAltStageOut=%d" % (job.filesAltStageOut)
+            #_jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
+            #tolog("Could have reported: %s" % (_jobMetrics))
 
             # Report which output files were moved to an alternative SE
             filenames = getFilesOfState(site.workdir, job.jobId, state="alt_transferred")
@@ -167,10 +159,13 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="JEM", value=1)
             # old format: jobMetrics += " JEM=%s" % (job.JEM)
 
+        if job.dbTime != "":
+            jobMetrics += self.jobMetric(key="dbTime", value=job.dbTime)
+        if job.dbData != "":
+            jobMetrics += self.jobMetric(key="dbData", value=job.dbData)
+
         # machine and job features, max disk space used by the payload
         jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir, job.jobId)
-        #if _jobMetrics != "":
-        #    tolog("Could have added: %s to job metrics" % (_jobMetrics))
 
         _jobMetrics = ""
 

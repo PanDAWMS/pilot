@@ -100,8 +100,10 @@ class Job:
         self.cloneJob = ""                 # Is the job cloned? Allowed values: 'runonce', 'storeonce'
         self.allowNoOutput = []            # Used to disregard empty files from jobReport
         self.logBucketID = -1              # To keep track of which OS bucket the log was stored in
+        self.dbTime = ""                   # dbTime extracted from jobReport.json, to be used in jobMetrics
+        self.dbData = ""                   # dbData extracted from jobReport.json, to be used in jobMetrice
 
-        # event service objects
+        #  event service data
         self.eventService = False          # True for event service jobs
         self.eventServiceMerge = False     # True for event service merge jobs
         self.eventRanges = None            # Event ranges dictionary

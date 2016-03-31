@@ -28,7 +28,7 @@ from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at 
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-from FileHandling import tail, getExtension, extractOutputFilesFromJSON, getDestinationDBlockItems, removeNoOutputFiles
+from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems
 from EventRanges import downloadEventRanges
 
 # remove logguid, debuglevel - not needed
@@ -1592,20 +1592,7 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # are there any additional output files created by the trf/payload?
-        try:
-            if not analysisJob:
-                extracted_output_files = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
-            else:
-                if job.allowNoOutput == []:
-                    tolog("Will not extract output files from jobReport for user job (and allowNoOut list is empty)")
-                    extracted_output_files = []
-                else:
-                    # Remove the files listed in allowNoOutput if they don't exist
-                    extracted_output_files = removeNoOutputFiles(job.workdir, job.outFiles, job.allowNoOutput)
-        except Exception, e:
-            tolog("!!WARNING!!2327!! Exception caught: %s" % (e))
-            extracted_output_files = []
-
+        extracted_output_files = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles)
         if extracted_output_files != []:
             tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
 
@@ -1637,7 +1624,6 @@ if __name__ == "__main__":
         if ec:
             # missing output file (only error code from prepareOutFiles)
             runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
-        tolog("outsDict: %s" % str(outsDict))
 
         # update the current file states
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
