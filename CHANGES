@@ -406,6 +406,9 @@ Event service
 -- Changes below affects the changes above --
 - Created getObjectstoreInfoFile(), getObjectstorePath(), getObjectstoreFilename(), getObjectstoreBucketID() (SiteInformation)
 - Renamed old getObjectstorePath() to getObjectstorePathOld() - to be removed shortly (SiteInformation)
+- Created getObjectstoresInfo() (SiteInformation)
+- Created getObjectstoreField() (SiteInformation)
+- Created getObjectstorePath() (SiteInformation)
 
 Direct access updates (to enable this functionality for ES)
 - Using transferType fax in shouldPFC4TURLsBeCreated()
