@@ -909,7 +909,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         status, os_bucket_ids = si.hasOSBucketIDs(prodDBlockToken)
         tolog("os_bucket_ids=%s"%str(os_bucket_ids))
         if not status:
-            os_bucket_id = si.getObjectstoresField('os_bucket_id', 'eventservice', queuename=queuename)
+            os_bucket_id = si.getObjectstoresField('os_bucket_id', os_bucket_name='eventservice')
             tolog("Will create a list using the default bucket ID: %d" % (os_bucket_id))
             os_bucket_ids = [os_bucket_id]*len(prodDBlockToken)
             tolog("os_bucket_ids=%s"%str(os_bucket_ids))
@@ -918,11 +918,13 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         try:
             for lfn in lfns:
                 if ".log." in lfn:
-                    path, os_bucket_id  = si.getObjectstorePath("logs", os_bucket_id=os_bucket_ids[i]) # Should be the last item
+                    os_bucket_id = si.getObjectstoresField('os_bucket_id')
+                    path = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i]) # Should be the last item
                     fullpath = os.path.join(path, lfns[i])
                     tolog("Log path = %s" % (fullpath))
                 else:
-                    path, os_bucket_id = si.getObjectstorePath("eventservice", os_bucket_id=os_bucket_ids[i])
+                    os_bucket_id = si.getObjectstoresField('os_bucket_id', os_bucket_name='eventservice')
+                    path  = si.getObjectstorePath(os_bucket_name='eventservice', os_bucket_id=os_bucket_ids[i])
                     fullpath = os.path.join(path, lfns[i])
                     tolog("ES path = %s" % (fullpath))
                 fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i], 'DISK', copytool, os_bucket_id) # filetype is always DISK on objectstores
@@ -2879,8 +2881,8 @@ def mover_get_data(lfns,
             if os_bucket_id != -1:
                 # Get the site information object
                 si = getSiteInformation(experiment)
-                dummy, dummy = si.getObjectstorePath("eventservice", os_bucket_id=os_bucket_id, queuename=queuename)
-                tolog("Queuedata should now be updated for an OS transfer")
+                #dummy, dummy = si.getObjectstorePath("eventservice", os_bucket_id=os_bucket_id, queuename=queuename)
+                tolog("!!WARNING!!3333!! Queuedata should IS NOT updated for an OS transfer")
 
             # Has the copycmd/copytool changed? (E.g. due to FAX) If so, update the sitemover object
             if copytool != copycmd:
