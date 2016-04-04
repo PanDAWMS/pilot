@@ -104,11 +104,11 @@ class S3ObjectstoreHttpSiteMover(SiteMover.SiteMover):
             del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
-        self.os_name = si.getObjectstoresField("os_name", "eventservice")
-        self.os_endpoint = si.getObjectstoresField("os_endpoint", "eventservice")
-        self.os_bucket_endpoint = si.getObjectstoresField("os_bucket_endpoint", "eventservice")
-        self.public_key = si.getObjectstoresField("os_access_key", "eventservice")
-        self.private_key = si.getObjectstoresField("os_secret_key", "eventservice")
+        self.os_name = si.getObjectstoresField("os_name", os_bucket_name="eventservice")
+        self.os_endpoint = si.getObjectstoresField("os_endpoint", os_bucket_name="eventservice")
+        self.os_bucket_endpoint = si.getObjectstoresField("os_bucket_endpoint", os_bucket_name="eventservice")
+        self.public_key = si.getObjectstoresField("os_access_key", os_bucket_name="eventservice")
+        self.private_key = si.getObjectstoresField("os_secret_key", os_bucket_name="eventservice")
         if not (self.os_name and self.os_name != "" and self.os_bucket_endpoint and self.os_bucket_endpoint != ""):
             tolog("Failed to get S3 objectstore name")
             return PilotErrors.ERR_GETKEYPAIR, "Failed to get S3 objectstore name"

@@ -4306,7 +4306,7 @@ def getNewOSStoragePath(si, eventService=True):
         mode = "logs"
 
     # Which is the current OS?
-    os_name = si.getObjectstoreName(mode)
+    os_name = si.getObjectstoresField('os_name', os_bucket_name=mode)  # si.getObjectstoreName(mode)
 
     if os_name:
         tolog("Current Objectstore: %s" % (os_name))
@@ -4549,7 +4549,9 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer,
             mode = "eventservice"
         # get the path for objectstore id os_bucket_id
         # (send os_bucket_id to specify exactly which OS we want the info from; if default value, -1, then find the proper os_bucket_id for the default OS and return it)
-        _path, os_bucket_id = si.getObjectstorePath(mode, os_bucket_id=os_bucket_id, queuename=queuename)
+        os_bucket_id = si.getObjectstoresField('os_bucket_id', os_bucket_name=mode)
+        _path = si.getObjectstorePath(os_bucket_name=mode, os_bucket_id=os_bucket_id)
+        #_path, os_bucket_id = si.getObjectstorePath(mode, os_bucket_id=os_bucket_id, queuename=queuename)
         if _path == "":
             pilotErrorDiag = "No path to object store"
         return _path, os_bucket_id, pilotErrorDiag

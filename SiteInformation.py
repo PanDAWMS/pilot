@@ -1520,13 +1520,13 @@ class SiteInformation(object):
         """ Return the objectstore name identifier """
         # E.g. CERN_OS_0
 
-        return self.getObjectstoresField('os_name', mode, os_bucket_id=os_bucket_id)
+        return self.getObjectstoresField('os_name', os_bucket_name=mode, os_bucket_id=os_bucket_id)
 
     def getObjectstoreBucketEndpoint(self, mode, os_bucket_id=-1):
         """ Return the objectstore bucket endpoint for the relevant mode """
         # E.g. atlas_logs (for mode='logs')
 
-        return self.getObjectstoresField('os_bucket_endpoint', mode, os_bucket_id=os_bucket_id)
+        return self.getObjectstoresField('os_bucket_endpoint', os_bucket_name=mode, os_bucket_id=os_bucket_id)
 
     @classmethod
     def isFileExpired(self, fname, cache_time=0): ## should be isolated later

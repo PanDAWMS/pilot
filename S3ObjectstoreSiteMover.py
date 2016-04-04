@@ -68,15 +68,15 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
              del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
-        os_access_key = si.getObjectstoresField("os_access_key", "eventservice", os_bucket_id=os_bucket_id)
-        os_secret_key = si.getObjectstoresField("os_secret_key", "eventservice", os_bucket_id=os_bucket_id)
+        os_access_key = si.getObjectstoresField("os_access_key", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
+        os_secret_key = si.getObjectstoresField("os_secret_key", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
         if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":
             keyPair = si.getSecurityKey(os_secret_key, os_access_key)
         else:
             tolog("Failed to get the keyPair name for S3 objectstore")
             return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair name for S3 objectstore"
 
-        os_is_secure = si.getObjectstoresField("os_is_secure", "eventservice", os_bucket_id=os_bucket_id)
+        os_is_secure = si.getObjectstoresField("os_is_secure", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure, self._useTimerCommand)
 
 #        keyPair = None
