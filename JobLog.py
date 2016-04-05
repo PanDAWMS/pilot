@@ -95,7 +95,7 @@ class JobLog:
         # transfer log file to special log SE (CERN via xrdcp)
         # get the experiment object
         thisExperiment = getExperiment(experiment)
-        if thisExperiment.doSpecialLogFileTransfer(eventService=job.eventService):
+        if thisExperiment.doSpecialLogFileTransfer(eventService=job.eventService, putLogToOS=job.putLogToOS):
             tolog("Preparing for log file transfer to special SE")
 
             # get the site information object

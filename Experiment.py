@@ -632,13 +632,15 @@ class Experiment(object):
         return jobargs
 
     # Optional
-    def doSpecialLogFileTransfer(self, eventService=False):
+    def doSpecialLogFileTransfer(self, **argdict):
         """ Should the log file be transfered to a special SE? """
 
         # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file
         # If this method returns True, the JobLog class will attempt to store the log file in a secondary SE after the transfer of
         # the log to the primary/normal SE. Additional information about the secondary SE is required and can be specified in
         # another optional method defined in the *Experiment classes
+
+        # eventService = argdict.get('eventService', False)
 
         return False
 

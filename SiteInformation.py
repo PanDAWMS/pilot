@@ -1356,7 +1356,7 @@ class SiteInformation(object):
 
         return os_bucket_id
 
-    def getObjectstoreInfoFile(self, os_name):
+    def getObjectstoreInfoFile(self):
         """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
 
         status = False
@@ -1365,20 +1365,76 @@ class SiteInformation(object):
         filename_trimmed = self.getObjectstoreFilename(name=os_name)
 
         # Don't bother if the file already exists
-        if os.path.exists(filename):
-            tolog("AGIS objectstore info file already exist")
+        if os.path.exists(filename) and os.path.exists(filename_trimmed):
+            tolog("AGIS objectstore info file(s) already exist")
             status = True
             return status
 
         # Download queuedata from CVMFS, full version which needs to be trimmed
-        tolog("Copying queuedata from primary location (CVMFS)")
-        from shutil import copy2
-        try:
-            copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_os_services.json", filename)
-        except Exception, e:
-            tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
-        else:
+        if not os.path.exists(filename):
+            tolog("Copying queuedata from primary location (CVMFS)")
+            from shutil import copy2
+            try:
+                copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_os_services.json", filename)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
+            else:
+                status = True
+
+
+        if not status:
+            # Get the queuedata from AGIS
+            tries = 2
+            for trial in range(tries):
+                tolog("Downloading queuedata (attempt #%d)" % (trial + 1))
+                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/service/query/get_os_services/?json\" >%s" % (filename)
+                tolog("Executing command: %s" % (cmd))
+                ret, output = commands.getstatusoutput(cmd)
+                if ret == 0:
+                    status = True
+                    break
+        if status:
+            tolog("Will create trimmed json files for each objectstore")
+            json_list = readJSON(filename)
+            if json_list != []:
+                for os_name in json_list.keys():
+                    trimmed_dictionary = json_list[os_name]
+                    filename_trimmed = self.getObjectstoreFilename(name=os_name)
+                    if writeJSON(filename_trimmed, trimmed_dictionary):
+                        tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename_trimmed))
+                        status = True
+                    else:
+                        tolog("!!WARNING!!2122!! Failed to write trimmed AGIS dictionary to file: %s" % (filename_trimmed))
+                        status = False
+            else:
+                tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        return status
+
+    def getObjectstoreInfoFileOld(self, os_name):
+        """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
+
+        status = False
+
+        filename = self.getObjectstoreFilename()
+        filename_trimmed = self.getObjectstoreFilename(name=os_name)
+
+        # Don't bother if the file already exists
+        if os.path.exists(filename) and os.path.exists(filename_trimmed):
+            tolog("AGIS objectstore info file(s) already exist")
             status = True
+            return status
+
+        # Download queuedata from CVMFS, full version which needs to be trimmed
+        if not os.path.exists(filename):
+            tolog("Copying queuedata from primary location (CVMFS)")
+            from shutil import copy2
+            try:
+                copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_os_services.json", filename)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
+            else:
+                status = True
 
         # CVMFS download failed, default to AGIS
         if not status:

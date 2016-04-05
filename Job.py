@@ -102,6 +102,7 @@ class Job:
         self.logBucketID = -1              # To keep track of which OS bucket the log was stored in
         self.dbTime = ""                   # dbTime extracted from jobReport.json, to be used in jobMetrics
         self.dbData = ""                   # dbData extracted from jobReport.json, to be used in jobMetrice
+        self.putLogToOS = False            # Job def instruction to ask pilot to transfer log to OS
 
         #  event service data
         self.eventService = False          # True for event service jobs
@@ -439,6 +440,13 @@ class Job:
         pUtil.tolog("Updated ddmEndPointLog=%s" % self.ddmEndPointLog)
 
         self.jobPars = data.get('jobPars', '')
+        putLogToOS = data.get('putLogToOS', 'False')
+        putLogToOS = 'True'
+        if putLogToOS.lower() == 'true':
+            self.putLogToOS = True
+        else:
+            self.putLogToOS = False
+        tolog("putLogToOS = %s" % str(job.putLogToOS))
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 

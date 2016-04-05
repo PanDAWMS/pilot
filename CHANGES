@@ -417,6 +417,11 @@ Event service
 - Using new getObjectstoresField() and getObjectstorePath() instead of old getObjectstorePath() in getDDMStorage() (Mover)
 - Updated calls to getObjectstoresField() (S3ObjectstoreHttpSiteMover, S3ObjectstoreSiteMover, SiteInformation)
 
+Logs to OS:
+- Added putLogToOS to Job class (Job)
+- Changed argument from eventService to **argdict in doSpecialLogtransfer() (Experiment, ATLASExperiment)
+- Now sending log to OS if job.putLogToOS is set, in doSpecialLogFileTransfer() (JobLog)
+
 Direct access updates (to enable this functionality for ES)
 - Using transferType fax in shouldPFC4TURLsBeCreated()
 - Sending job.transferType to getFileAccessInfo() from stageIn() (RunJob)

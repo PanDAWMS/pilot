@@ -2647,7 +2647,7 @@ class ATLASExperiment(Experiment):
         return name
 
     def getMetadataForRegistration(self, guid):
-        """ Return metadata (not known yet) for LFC registration """
+        """ Return metadata (not known yet) for later file registration """
 
         # Use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)
         return '    <metadata att_name="surl" att_value="%s-surltobeset"/>\n' % (guid)
@@ -2839,7 +2839,7 @@ class ATLASExperiment(Experiment):
         return allowjem
 
     # Optional
-    def doSpecialLogFileTransfer(self, eventService=False):
+    def doSpecialLogFileTransfer(self, *argdict):
         """ Should the log file be transfered to a special SE? """
 
         # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file
@@ -2849,7 +2849,9 @@ class ATLASExperiment(Experiment):
 
         transferLogToObjectstore = False
 
-        if "log_to_objectstore" in readpar('catchall') or eventService:
+        eventService = argdict.get('eventService', False)
+        putLogToOS = argdict.get('putLogtoOS', False)
+        if "log_to_objectstore" in readpar('catchall') or eventService or putLogToOS:
             transferLogToObjectstore = True
         if 'HPC_HPC' in readpar('catchall'):
             transferLogToObjectstore = True
