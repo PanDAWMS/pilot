@@ -347,6 +347,9 @@ Send DB info in jobMetrics, requested by Rodney Walker
 Limit number of MemoryMonitor restarts, requested by Rodney Walker
 - Added utility_subprocess_launches variables + handling to __main__() (RunJob, RunJobEvent)
 
+Memory monitoring
+- Fix for dangling utility_subprocess (RunJob, RunJobEvent)
+
 Same user multi-job request by Emmanouil Vamvakopoulos
 - Added allowSameUser boolean and taskID (environment)
 - Enabled pilot option -B <allowSameUser> (pilot)
@@ -377,9 +380,6 @@ Alt stage-out
 - Using altStageOut in allowAlternativeStageOut() and forceAlternativeStageOut() (ATLASSiteInformation)
 - Sending job.altStageOut to forceAlternativeStageOut() and allowAlternativeStageOut() from mover_put_data() and mover_put_data_new() (Mover)
 - Turning off any forced alt stage-out for objectstore transfers in forceAlternativeStageOut() (ATLASSiteInformation)
-
-Memory monitoring
-- Fix for dangling utility_subprocess (RunJob, RunJobEvent)
 
 Event service
 - Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)
