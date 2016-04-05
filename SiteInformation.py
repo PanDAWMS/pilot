@@ -1217,8 +1217,8 @@ class SiteInformation(object):
             pass
 
         if objectstoresInfo:
-            os_endpoint = self.getObjectstoreField('os_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
-            os_bucket_endpoint = self.getObjectstoreField('os_bucket_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            os_endpoint = self.getObjectstoresField('os_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
             if os_endpoint != "" and os_bucket_endpoint != "":
                 path = os_endpoint + os_bucket_endpoint
             else:
