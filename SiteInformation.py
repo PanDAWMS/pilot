@@ -1113,37 +1113,122 @@ class SiteInformation(object):
 
         return {"publicKey": publicKey, "privateKey": privateKey}
 
-    def getObjectstoresList(self, os_bucket_id=-1, queuename=None):
-        """ Get the objectstores list from the proper queuedata for the relevant queue """
-        # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
-        # If os_bucket_id is set (!= -1) then get the info from the corresponding OS
+    def getObjectstoresInfo(self):
+        """ Get the objectstores list from the queuedata """
+
+        # Input:  None
+        # Output: List containing all OS dictionaries (one per bucket) for the current queue
 
         objectstores = None
-
-        # Get the field from AGIS
-        s = True
-        # Download the new queuedata in case it has not been downloaded already and force re-download if os_bucket_id != -1
-        if not os.path.exists(self.getQueuedataFileName(version=1, check=False, queuename=queuename, os_bucket_id=os_bucket_id)) or os_bucket_id != -1:
-            s = self.getNewQueuedata(queuename, os_bucket_id=os_bucket_id)
-        if s:
-            _objectstores = self.getField('objectstores', queuename=queuename, os_bucket_id=os_bucket_id)
-
-            if _objectstores:
-                objectstores = _objectstores
-
+        _objectstores = readpar('objectstores')
+        if _objectstores != "":
+            # Try to parse the field (should be a JSON parsable object)
+            from json import loads
+            try:
+                objectstores = loads(_objectstores)
+            except Exception, e:
+                tolog("!!WARNING!!3444!! JSON loads failed to parse objectstores field: %s, %s" % (e, _objectstores))
+            else:
+                from FileHandling import convert
+                objectstores = convert(objectstores)
+                if type(objectstores) != list:
+                    tolog("!!WARNING!!3445!! Not a list: Failed to parse objectstores field: %s (type=%s)" % (str(objectstores), type(objectstores)))
+                    objectstores = None
+        else:
+            pass
         return objectstores
 
-    def getObjectstoreFilename(self, name=""):
-        """ Return the name of the trimmed objectstore info file """
+    def getObjectstoresField(self, os_field_name, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
+        """ Get the objectstore field value for the given bucket """
 
-        if name != "":
-            filename = "objectstore_info_%s.json" % (name)
+        # Input:  os_field_name (os_name, os_access_key, ..)
+        #         bucket name (logs, eventservice, http)
+        #         bucket id (optional; if set, bucket name will be ignored)
+        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file (useful during alt OS stage-outs)
+        # Output: OS field value for the given bucket
+
+        os_name = ""
+        if objectstoresInfo != []:
+            d = objectstoresInfo
         else:
-            filename = "objectstore_info.json"
+            d = self.getObjectstoresInfo()
 
-        return filename
+        if d != []:
+            if os_bucket_id != -1:
+                name = 'os_bucket_id'
+                value = os_bucket_id
+            else:
+                name = 'os_bucket_name'
+                value = os_bucket_name
 
-    def getObjectstorePath(self, os_name="", name='logs', os_bucket_id=-1):
+            # Loop over the OS entries
+            for l in d:
+                if l.has_key(name) and l.has_key(os_field_name):
+                    if value == l[name]:
+                        os_name = l[os_field_name]
+                        break
+                    else:
+                        pass
+                else:
+                    tolog("!!WARNING!!4554!! Either field name %s or %s is missing in OS info list" % (name, os_field_name))
+        else:
+            tolog("!!WARNING!!4555!! Cannot resolve os_name (empty OS info list)")
+
+        return os_name
+
+    def getObjectstoresFieldOld(self, field, mode, os_bucket_id=-1, queuename=None):
+        """ Return the objectorestores field from the objectstores list for the relevant mode """
+        # mode: eventservice, logs, http
+        # If os_bucket_id is set (!= -1) then get the info from the corresponding OS
+        # If os_bucket_id is not set (= -1) the the queuename is expected to be set and is used to locate
+        # the desired field from new_queuedata.json-ALL
+
+        value = None
+
+        # Get the objectstores list
+        objectstores_list = self.getObjectstoresList(os_bucket_id=os_bucket_id, queuename=queuename)
+
+        if objectstores_list:
+            for d in objectstores_list:
+                try:
+                    if d['os_bucket_name'] == mode:
+                        value = d[field]
+                        break
+                except Exception, e:
+                    tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
+
+        return value
+
+    def getObjectstorePath(self, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
+        """ Return a proper base path to an objectstore bucket """
+
+        # Input:  os_bucket_name (os_name, os_access_key, ..)
+        #         bucket name (logs, eventservice, http)
+        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file
+        #         Note: the objectstoresInfo needs to be given for any alternative OS transfer (i.e. not read from the normal queuedata file)
+        # Output: OS path for the corresponding bucket (and corresponding OS info list)
+        #         E.g. "s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice"
+        path = ""
+
+        # Read the objectstores field from file
+        if objectstoresInfo == []:
+            objectstoresInfo = self.getObjectstoresInfo()
+        else:
+            pass
+
+        if objectstoresInfo:
+            os_endpoint = self.getObjectstoreField('os_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            os_bucket_endpoint = self.getObjectstoreField('os_bucket_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            if os_endpoint != "" and os_bucket_endpoint != "":
+                path = os_endpoint + os_bucket_endpoint
+            else:
+                tolog("!!WARNING!!4559!! Could not generate OS path for os_bucket_name=%s, os_bucket_id=%d" % (os_bucket_name, os_bucket_id))
+        else:
+            tolog("!!WARNING!!4558!! Could not generate OS path since OS info could not be retrieved")
+
+        return path
+
+    def getObjectstorePathOld(self, os_name="", name='logs', os_bucket_id=-1):
         """ Return the path to the objectstore """
         # E.g. s3://s3.echo.stfc.ac.uk:80//atlas_logs
         path = ""
@@ -1196,6 +1281,58 @@ class SiteInformation(object):
                     tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
 
         return path
+
+    def getObjectstorePathOld2(self, mode, os_bucket_id=-1, queuename=None):
+        """ Return the path to the objectstore (and also the corresponding os_bucket_id) """
+        # mode: https, eventservice, logs
+        # Note: a hash based on the file name should be added to the os_bucket_endpoint (ie the end of the path returned from this function - when it is known)
+        # since the number of buckets is rather limited ~O(1k)
+        # Read the endpoint info from the queuedata
+        # If os_bucket_id is set (!= -1), get the info from objectstore bucket id = os_bucket_id
+        # If os_bucket_id is not set, then find it for the default OS for this mode
+        if os_bucket_id == -1:
+            os_bucket_id = self.getObjectstoresField('os_bucket_id', mode, queuename=queuename)
+        os_endpoint = self.getObjectstoresField('os_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
+        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
+
+        if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
+            if not os_endpoint.endswith('/'):
+                os_endpoint += '/'
+            path = os_endpoint + os_bucket_endpoint
+        else:
+            path = ""
+
+        return path, os_bucket_id
+
+    def getObjectstoresList(self, os_bucket_id=-1, queuename=None):
+        """ Get the objectstores list from the proper queuedata for the relevant queue """
+        # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
+        # If os_bucket_id is set (!= -1) then get the info from the corresponding OS
+
+        objectstores = None
+
+        # Get the field from AGIS
+        s = True
+        # Download the new queuedata in case it has not been downloaded already and force re-download if os_bucket_id != -1
+        if not os.path.exists(self.getQueuedataFileName(version=1, check=False, queuename=queuename, os_bucket_id=os_bucket_id)) or os_bucket_id != -1:
+            s = self.getNewQueuedata(queuename, os_bucket_id=os_bucket_id)
+        if s:
+            _objectstores = self.getField('objectstores', queuename=queuename, os_bucket_id=os_bucket_id)
+
+            if _objectstores:
+                objectstores = _objectstores
+
+        return objectstores
+
+    def getObjectstoreFilename(self, name=""):
+        """ Return the name of the trimmed objectstore info file """
+
+        if name != "":
+            filename = "objectstore_info_%s.json" % (name)
+        else:
+            filename = "objectstore_info.json"
+
+        return filename
 
     def getObjectstoreBucketID(self, os_name, name='logs'):
         """ Return the os_bucket_id corresponding to name """
@@ -1379,62 +1516,17 @@ class SiteInformation(object):
 
         return value
 
-    def getObjectstoresField(self, field, mode, os_bucket_id=-1, queuename=None):
-        """ Return the objectorestores field from the objectstores list for the relevant mode """
-        # mode: eventservice, logs, http
-        # If os_bucket_id is set (!= -1) then get the info from the corresponding OS
-        # If os_bucket_id is not set (= -1) the the queuename is expected to be set and is used to locate
-        # the desired field from new_queuedata.json-ALL
-
-        value = None
-
-        # Get the objectstores list
-        objectstores_list = self.getObjectstoresList(os_bucket_id=os_bucket_id, queuename=queuename)
-
-        if objectstores_list:
-            for d in objectstores_list:
-                try:
-                    if d['os_bucket_name'] == mode:
-                        value = d[field]
-                        break
-                except Exception, e:
-                    tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
-
-        return value
-
-    def getObjectstorePathOld(self, mode, os_bucket_id=-1, queuename=None):
-        """ Return the path to the objectstore (and also the corresponding os_bucket_id) """
-        # mode: https, eventservice, logs
-        # Note: a hash based on the file name should be added to the os_bucket_endpoint (ie the end of the path returned from this function - when it is known)
-        # since the number of buckets is rather limited ~O(1k)
-        # Read the endpoint info from the queuedata
-        # If os_bucket_id is set (!= -1), get the info from objectstore bucket id = os_bucket_id
-        # If os_bucket_id is not set, then find it for the default OS for this mode
-        if os_bucket_id == -1:
-            os_bucket_id = self.getObjectstoresField('os_bucket_id', mode, queuename=queuename)
-        os_endpoint = self.getObjectstoresField('os_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
-        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
-
-        if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
-            if not os_endpoint.endswith('/'):
-                os_endpoint += '/'
-            path = os_endpoint + os_bucket_endpoint
-        else:
-            path = ""
-
-        return path, os_bucket_id
-
     def getObjectstoreName(self, mode, os_bucket_id=-1):
         """ Return the objectstore name identifier """
         # E.g. CERN_OS_0
 
-        return self.getObjectstoresField('os_name', mode, os_bucket_id=os_bucket_id)
+        return self.getObjectstoresField('os_name', os_bucket_name=mode, os_bucket_id=os_bucket_id)
 
     def getObjectstoreBucketEndpoint(self, mode, os_bucket_id=-1):
         """ Return the objectstore bucket endpoint for the relevant mode """
         # E.g. atlas_logs (for mode='logs')
 
-        return self.getObjectstoresField('os_bucket_endpoint', mode, os_bucket_id=os_bucket_id)
+        return self.getObjectstoresField('os_bucket_endpoint', os_bucket_name=mode, os_bucket_id=os_bucket_id)
 
     @classmethod
     def isFileExpired(self, fname, cache_time=0): ## should be isolated later

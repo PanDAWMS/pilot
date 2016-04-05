@@ -117,8 +117,8 @@ class JobLog:
             else:
                 # Update the OS transfer dictionary
                 # Get the OS name identifier and bucket endpoint
-                os_name = si.getObjectstoreName("logs")
-                os_bucket_endpoint = si.getObjectstoreBucketEndpoint("logs")
+                os_name = si.getObjectstoresField('os_name') # si.getObjectstoreName("logs")
+                os_bucket_endpoint = si.getObjectstoresField('os_bucket_endpoint') # si.getObjectstoreBucketEndpoint("logs")
                 os_bucket_id = job.logBucketID
 
                 # Add the transferred file to the OS transfer file
@@ -1206,7 +1206,9 @@ class JobLog:
         # Get the site information object
         si = getSiteInformation(experiment)
         #logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
-        logPaths, os_bucket_id = si.getObjectstorePath("logs", queuename=self.__env['queuename']) #mover.getFilePathForObjectStore(filetype="logs")
+        #logPaths, os_bucket_id = si.getObjectstorePath("logs", queuename=self.__env['queuename'])
+        logPaths = si.getObjectstorePath()
+        os_bucket_id = si.getObjectstoresField('os_bucket_id')
 
         # Handle multiple paths (primary and secondary log paths)
         if "," in logPaths:

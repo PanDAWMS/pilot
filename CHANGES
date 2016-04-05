@@ -406,6 +406,16 @@ Event service
 -- Changes below affects the changes above --
 - Created getObjectstoreInfoFile(), getObjectstorePath(), getObjectstoreFilename(), getObjectstoreBucketID() (SiteInformation)
 - Renamed old getObjectstorePath() to getObjectstorePathOld() - to be removed shortly (SiteInformation)
+- Created getObjectstoresInfo() (SiteInformation)
+- Created getObjectstoresField() (SiteInformation)
+- Created getObjectstorePath() (SiteInformation)
+- Now using getObjectstoresField() instead of getObjectstoreName() and getObjectstoreBucketEndpoint() in transferLogFile() (JobLog)
+- Now using getObjectstoresField() and new getObjectstorePath() instead of old getObjectstorePath() in transferLogFile() (JobLog)
+- Updated call to getObjectstoresField() in getFileInfo() (Mover)
+- Updated two calls to getObjectstorePath(), and using getObjectstoresField() in getFileInfo() (Mover)
+- Using new getObjectstoresField() instead of getObjectstoreName() in getNewOSStoragePath() (Mover)
+- Using new getObjectstoresField() and getObjectstorePath() instead of old getObjectstorePath() in getDDMStorage() (Mover)
+- Updated calls to getObjectstoresField() (S3ObjectstoreHttpSiteMover, S3ObjectstoreSiteMover, SiteInformation)
 
 Direct access updates (to enable this functionality for ES)
 - Using transferType fax in shouldPFC4TURLsBeCreated()
