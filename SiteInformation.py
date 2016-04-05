@@ -1120,7 +1120,7 @@ class SiteInformation(object):
         # Output: List containing all OS dictionaries (one per bucket) for the current queue
 
         objectstores = None
-        _objectstores = readpar('objectstores')
+        _objectstores = self.readpar('objectstores')
         if _objectstores != "":
             # Try to parse the field (should be a JSON parsable object)
             from json import loads
