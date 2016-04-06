@@ -554,6 +554,8 @@ class Yoda(threading.Thread):
         res = {'StatusCode':0, 'State': 'finished'}
         self.tmpLog.debug('res={0}'.format(str(res)))
         self.comm.sendMessage(res)
+        self.comm.disconnect()
+
 
     # main
     def run(self):

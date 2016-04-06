@@ -1417,7 +1417,8 @@ class RunJobHpcEvent(RunJob):
                 path = found_dirs[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:
-                    pUtil.recursive_overwrite(path, dest_dir)
+                    if file == 'rank_0' or (file.startswith("rank_") and os.path.exists(dest_dir)):
+                        pUtil.recursive_overwrite(path, dest_dir)
                 except:
                     tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
             for file in found_files:
@@ -1426,7 +1427,11 @@ class RunJobHpcEvent(RunJob):
                 path = found_files[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:
-                    pUtil.recursive_overwrite(path, dest_dir)
+                    if file.endswith(".dump") or file.startswith("metadata-"):
+                        if str(jobId) in file:
+                            pUtil.recursive_overwrite(path, dest_dir)
+                    else:
+                        pUtil.recursive_overwrite(path, dest_dir)
                 except:
                     tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
 

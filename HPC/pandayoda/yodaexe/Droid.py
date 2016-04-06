@@ -299,6 +299,8 @@ class Droid(threading.Thread):
             self.__tmpLog.info("Rank %s: get outputs(%s)" % (self.__rank, outputs))
             if final:
                 self.dumpUpdates(outputs)
+        else:
+            self.__outputs = []
 
         outputs = self.__outputs
         if outputs:

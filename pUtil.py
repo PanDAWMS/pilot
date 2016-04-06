@@ -3164,7 +3164,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
     if os.path.exists(fname):
         if os.path.getsize(fname) > 0:
             tolog("\n//begin %s ///////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
-            dumpFile(fname, topilotlog=True)
+            dumpFile(fname, topilotlog=False)
             tolog("\n//end %s /////////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
 
     # dump the wrapper (RunJob) stderr if it exists
