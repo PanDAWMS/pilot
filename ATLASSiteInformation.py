@@ -464,12 +464,10 @@ class ATLASSiteInformation(SiteInformation):
         #    ec = self.replaceQueuedataField("copytoolin", "lcg-cp2")
 
         #if thisSite.sitename == "HEPHY-UIBK":
+        #    ec = self.replaceQueuedataField("status", "online")
         #    ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw/software")
         #    ec = self.replaceQueuedataField("envsetup", "export X509_USER_PROXY=/opt/rucio/tools/x509up;")
         #    ec = self.replaceQueuedataField("use_newmover", "true")
-        #    ec = self.replaceQueuedataField("direct_access_lan", "false")
-        #    ec = self.replaceQueuedataField("direct_access_wan", "false")
-        #    ec = self.replaceQueuedataField("allow_fax", "false")
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
@@ -588,7 +586,7 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=100,min_nodes=100,max_nodes=105,partition=edison,min_walltime_m=60,walltime_m=60,max_walltime_m=185,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=10,time_per_event_m=14,repo=m2015,nodes=1000,min_nodes=1000,max_nodes=1005,partition=edison,min_walltime_m=60,walltime_m=60,max_walltime_m=65,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=200,min_nodes=200,max_nodes=205,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
-            
+
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=60,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=true,localWorkingDir=/tmp/tsulaia")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=1,min_nodes=1,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
