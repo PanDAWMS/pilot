@@ -181,6 +181,11 @@ class JobMover(object):
             check if direct access I/O is allowed
             quick workaround: should be properly implemented in SiteInformation
         """
+
+        # LOCAL TEST OVERRIDE -- RUCIO SITEMOVER -- IMPORTS DO NOT EXIST??
+        # return False
+        # LOCAL TEST OVERRIDE -- RUCIO SITEMOVER -- IMPORTS DO NOT EXIST??
+
         from Mover import getDirectAccess
         from Mover import useDirectAccessLAN
         return useDirectAccessLAN()
@@ -212,6 +217,12 @@ class JobMover(object):
         transferred_files, failed_transfers = [], []
 
         self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
+
+        # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
+        # for dat in protocols:
+        #    dat[u'copysetup'] = u'/bin/true'
+        #    dat[u'copytool'] = u'rucio'
+        # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
 
         for dat in protocols:
 
@@ -450,6 +461,12 @@ class JobMover(object):
 
         # try to use each protocol of same ddmendpoint until successfull transfer
         for ddmendpoint, iprotocols in ddmprotocols.iteritems():
+
+            # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
+            # for dat in iprotocols:
+            #    dat[u'copysetup'] = u'/bin/true'
+            #    dat[u'copytool'] = u'rucio'
+            # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
 
             for dat in iprotocols:
 
@@ -690,6 +707,12 @@ class JobMover(object):
 
         transferred_files, failed_transfers = [], []
 
+        # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
+        # for dat in protocols:
+        #    dat[u'copysetup'] = u'/bin/true'
+        #    dat[u'copytool'] = u'rucio'
+        # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
+
         for dat in protocols:
 
             copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
@@ -750,7 +773,7 @@ class JobMover(object):
                     try:
                         # quick work around
                         from Job import FileSpec
-                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint, guid=guid)
+                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint, guid=guid, scope=scope, lfn=lfn)
                         result = sitemover.stageOut(pfn, turl, stub_fspec)
                         break # transferred successfully
                     except PilotException, e:

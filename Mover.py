@@ -1036,7 +1036,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             _copytool = extractCopytoolForPFN(gpfn, copytool_dictionary)
 
             # Store in the file info dictionary
-            fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, _copytool, -1) # set os_bucketId=-1 for non-OS files 
+            fileInfoDic[file_nr] = (guid, gpfn, fsize, fchecksum, filetype, _copytool, -1) # set os_bucketId=-1 for non-OS files
 
             # Check total file sizes to avoid filling up the working dir, add current file size
             try:
@@ -3541,10 +3541,10 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
         dat['dsname'] = re.sub('(\_sub[0-9]+)$', '', dsname) # remove any _subNNN parts from the dataset name
 
         if lfn == logFile:
-            dat['scope'] = scopeLog[0] if scopeLog else ""
+            dat['scope'] = job.scopeLog[0] if job.scopeLog else ""
             logfiles.append(dat)
         else:
-            dat['scope'] = scopeOut[file_nr] if file_nr < len(scopeOut) else ""
+            dat['scope'] = job.scopeOut[file_nr] if file_nr < len(job.scopeOut) else ""
             outfiles.append(dat)
 
     tolog("Extracted data: outfiles=%s" % outfiles)
@@ -3934,6 +3934,7 @@ def mover_put_data(outputpoolfcstring,
                    cmtconfig="",
                    recoveryWorkDir=None,
                    stageoutTries=2,
+                   scopeOut=None,
                    scopeLog=None,
                    logPath="",
                    eventService=False,

@@ -138,7 +138,7 @@ class ATLASExperiment(Experiment):
         #            cmd =
         #        Setup example runAthena:
         #          old setup:
-        #            cmd = export PANDA_RESOURCE="ANALY_BNL_LONG";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2674156736]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="panda-client-0.5.56-jedi-athena";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc47-opt/19.2.0/cmtsite/asetup.sh 19.2.0,notest --cmtconfig x86_64-slc6-gcc47-opt ;export MAKEFLAGS="j1 QUICK=1 -l1";export X509_USER_PROXY=<path>;./runAthena-00-00-12 .. 
+        #            cmd = export PANDA_RESOURCE="ANALY_BNL_LONG";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2674156736]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="panda-client-0.5.56-jedi-athena";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc47-opt/19.2.0/cmtsite/asetup.sh 19.2.0,notest --cmtconfig x86_64-slc6-gcc47-opt ;export MAKEFLAGS="j1 QUICK=1 -l1";export X509_USER_PROXY=<path>;./runAthena-00-00-12 ..
         #          new setup:
         #            cmd =
         #        Setup example buildGen:
@@ -149,20 +149,20 @@ class ATLASExperiment(Experiment):
         #     2. AnalysisTransforms-<project>_<cache>, e.g. project=AthAnalysisBase,AtlasDerivation,AtlasProduction,MCProd,TrigMC; cache=20.1.6.2,..
         #        Setup example
         #          old setup:
-        #            cmd = 
+        #            cmd =
         #     3. AnalysisTransforms-<project>_rel_<N>, e.g. project=AtlasOffline; N=0,1,2,..
         #        Setup example
         #          old setup:
-        #            cmd = 
+        #            cmd =
         #     4. [homaPackage not set]
         #        Setup example runGen:
         #          old setup:
-        #            cmd = export PANDA_RESOURCE="ANALY_LPC";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2673995173]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="gangarobot-rctest";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;export X509_USER_PROXY=<path>;./runGen-00-00-02 .. 
+        #            cmd = export PANDA_RESOURCE="ANALY_LPC";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2673995173]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="gangarobot-rctest";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;export X509_USER_PROXY=<path>;./runGen-00-00-02 ..
         #          new setup:
         #            cmd =
         #        Setup example buildGen:
         #          old setup:
-        #            cmd = export PANDA_RESOURCE=\"ANALY_TRIUMF\";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID=\"[2674133638]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"panda-client-0.5.56-jedi-run\";export RUCIO_ACCOUNT=\"pilot\";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh;export X509_USER_PROXY=<path>;./buildGen-00-00-01 
+        #            cmd = export PANDA_RESOURCE=\"ANALY_TRIUMF\";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID=\"[2674133638]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"panda-client-0.5.56-jedi-run\";export RUCIO_ACCOUNT=\"pilot\";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh;export X509_USER_PROXY=<path>;./buildGen-00-00-01
         #          new setup:
         #            cmd =
         #
@@ -975,7 +975,7 @@ class ATLASExperiment(Experiment):
                     target_path = os.readlink(path)
                     # Resolve relative symlinks
                     if not os.path.isabs(target_path):
-                        target_path = os.path.join(os.path.dirname(path),target_path)             
+                        target_path = os.path.join(os.path.dirname(path),target_path)
                     if not os.path.exists(target_path):
                         broken.append(path)
                 else:
@@ -3561,10 +3561,10 @@ class ATLASExperiment(Experiment):
                                 tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
                             else:
                                 # Convert to int
-                                ec1, maxVMEM, totalVMEM = self.getMaxUtilityValue(VMEM, maxVMEM, totalVMEM) 
-                                ec2, maxPSS, totalPSS = self.getMaxUtilityValue(PSS, maxPSS, totalPSS) 
-                                ec3, maxRSS, totalRSS = self.getMaxUtilityValue(RSS, maxRSS, totalRSS) 
-                                ec4, maxSwap, totalSwap = self.getMaxUtilityValue(Swap, maxSwap, totalSwap) 
+                                ec1, maxVMEM, totalVMEM = self.getMaxUtilityValue(VMEM, maxVMEM, totalVMEM)
+                                ec2, maxPSS, totalPSS = self.getMaxUtilityValue(PSS, maxPSS, totalPSS)
+                                ec3, maxRSS, totalRSS = self.getMaxUtilityValue(RSS, maxRSS, totalRSS)
+                                ec4, maxSwap, totalSwap = self.getMaxUtilityValue(Swap, maxSwap, totalSwap)
                                 if ec1 or ec2 or ec3 or ec4:
                                     tolog("Will skip this row of numbers due to value exception: %s" % (line))
                                 else:
