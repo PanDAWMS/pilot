@@ -78,6 +78,12 @@ class slurm(Plugin):
         if queue == 'premium':
             submit_script += "#SBATCH -p regular\n"
             submit_script += "#SBATCH --qos=premium\n"
+        elif queue == "scavenger":
+            submit_script += "#SBATCH -p regular\n"
+            submit_script += "#SBATCH --qos=scavenger\n"
+        elif queue == "low":
+            submit_script += "#SBATCH -p regular\n"
+            submit_script += "#SBATCH --qos=low\n"
         else:
             submit_script += "#SBATCH -p " + queue + "\n"
 

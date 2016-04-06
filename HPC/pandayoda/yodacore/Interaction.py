@@ -52,16 +52,16 @@ class Receiver:
                     self.hasMessage = True
                     break
                 time.sleep(0.0001)
-                if (time.time() - t1) > 20 * 60:
+                if (time.time() - t1) > 40 * 60:
                     # waiting too log, should quit.
-                    errMsg = 'No messages received for 20 minutes. quit'
+                    errMsg = 'No messages received for 40 minutes. quit'
                     return False,errMsg,None
         else:
             while self.recvQueue.empty():
                 time.sleep(0.0001)
-                if (time.time() - t1) > 20 * 60:
+                if (time.time() - t1) > 40 * 60:
                     # waiting too log, should quit.
-                    errMsg = 'No messages received for 20 minutes. quit'
+                    errMsg = 'No messages received for 40 minutes. quit'
                     return False,errMsg,None
             self.hasMessage = True
 

@@ -112,7 +112,9 @@ class PandaServerClient:
             # Always use the ATHENA_PROC_NUMBER first, if set
             if os.environ.has_key('ATHENA_PROC_NUMBER'):
                 try:
-                    job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+                    envCoreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+                    if envCoreCount > job.coreCount:
+                        job.coreCount = envCoreCount
                 except Exception, e:
                     tolog("ATHENA_PROC_NUMBER is not properly set: %s (will use existing job.coreCount value)" % (e))
 

@@ -71,6 +71,7 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None):
             print "Rank %s: Yoda finished" % (mpirank)
         except:
             print "Rank %s: Yoda failed: %s" % (mpirank, traceback.format_exc())
+        sys.exit(0)
         os._exit(0)
     else:
         try:
