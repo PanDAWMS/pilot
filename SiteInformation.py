@@ -1115,6 +1115,7 @@ class SiteInformation(object):
 
     def getObjectstoresInfo(self):
         """ Get the objectstores list from the queuedata """
+        # Note: this corresponds to the default OS info for a given queue
 
         # Input:  None
         # Output: List containing all OS dictionaries (one per bucket) for the current queue
@@ -1198,6 +1199,30 @@ class SiteInformation(object):
                     tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
 
         return value
+
+    def getObjectstoreDDMEndpoint(self, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
+        """ Return the OS DDM endpoint corresponding to the given bucket """
+        # Note: value is read from queuedata and is thus the default value
+
+        # Input:  os_bucket_name (logs, eventservice, http)
+        #         os_bucket_id (optional)
+        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file
+        # Output: DDM endpoint, e.g. CERN-PROD_LOGS
+
+        ddmendpoint = ""
+
+        # Read the objectstores field from file
+        if objectstoresInfo == []:
+            objectstoresInfo = self.getObjectstoresInfo()
+        else:
+            pass
+
+        if objectstoresInfo:
+            ddmendpoint = self.getObjectstoreField('ddmendpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            if ddmendpoint == "":
+                tolog("!!WARNING!!4555!! Encountered an unset ddmendpoint in AGIS OS info")
+
+        return ddmendpoint
 
     def getObjectstorePath(self, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
         """ Return a proper base path to an objectstore bucket """
@@ -1957,7 +1982,7 @@ class SiteInformation(object):
 
         try:
             # Can the list of string integers be converted to a list of integers?
-            prodDBlockTokenInts = map(int, prodDBlockToken)
+            prodDBlockTokenInts = [int(x) if x.isdigit() else None for x in prodDBlockToken] # map(int, prodDBlockToken)
         except:
             # Will throw a ValueError in case of present non-integers
             tolog("prodDBlockToken does not contain OS bucket IDs (prodDBlockToken=%s)" % str(prodDBlockToken))

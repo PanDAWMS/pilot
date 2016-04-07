@@ -416,6 +416,8 @@ Event service
 - Using new getObjectstoresField() instead of getObjectstoreName() in getNewOSStoragePath() (Mover)
 - Using new getObjectstoresField() and getObjectstorePath() instead of old getObjectstorePath() in getDDMStorage() (Mover)
 - Updated calls to getObjectstoresField() (S3ObjectstoreHttpSiteMover, S3ObjectstoreSiteMover, SiteInformation)
+- Avoiding None values in prodDBlockToken list, in hasOSBucketIDs() (SiteInformation)
+- Created getObjectstoreDDMEndpoint() (SiteInformation)
 
 Logs to OS:
 - Added putLogToOS to Job class (Job)
