@@ -1980,6 +1980,16 @@ class RunJobEvent(RunJob):
 
         return filename
 
+    def checkSetupObjectstore(self):
+        try:
+            from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
+            testSiteMover = S3ObjectstoreSiteMover('')
+            status, output = testSiteMover.setup(experiment=self.getExperiment())
+            return status, output
+        except:
+            err_msg = "Failed to check setup Objectstore: %s" % traceback.format_exc()
+            return PilotErrors.ERR_UNKNOWN, err_msg
+
 
 # main process starts here
 if __name__ == "__main__":
@@ -2108,6 +2118,11 @@ if __name__ == "__main__":
         trf = runJob.getJobTrf()
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
+
+        status, output = runJob.checkSetupObjectstore()
+        if status != 0:
+            tolog("ObjectStore setup test failed. Will exit: %s" % output)
+            runJob.failJob(0, job.result[2], job, pilotErrorDiag="ObjectStore setup test failed")
 
         # Create a message server object (global message_server)
         if runJob.createMessageServer():
