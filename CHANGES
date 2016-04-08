@@ -335,6 +335,8 @@ General changes
 - Added --makeflags=$MAKEFLAGS option to asetup in getJobExecutionCommand() and getProperASetup(), requested by Asoka De Silva (ATLASExperiment)
 - Added exception for log file in __checkPayloadStdout() (Monitor)
 - Created extractOutputFiles() used by __main__ in RunJob instead of extractOutputFilesJSON() (FileHandling, RunJob)
+- Removed some debug messages that caused too much stdout leading to large log sizes, e.g. in getSURLDictionary() (SiteMover)
+- Removed some debug messages that caused too much stdout leading to large log sizes, e.g. in getDatasetDict() (pUtil)
 
 Send DB info in jobMetrics, requested by Rodney Walker
 - Created getDBInfo() (FileHandling)

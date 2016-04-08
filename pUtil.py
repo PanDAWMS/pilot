@@ -2615,7 +2615,7 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
 
     # verify that the lists are of equal size
     if len(outputFiles) != len(destinationDblock):
-        tolog("WARNING: Lists are not of same length: %s, %s" % (str(outputFiles), str(destinationDblock)))
+        tolog("WARNING: Lists are not of same length: len(outputFiles)=%d, len(destinationDblock)=%d" % (len(outputFiles), len(destinationDblock)))
     elif len(outputFiles) == 0:
         tolog("No output files for this job (outputFiles has zero length)")
     elif len(destinationDblock) == 0:
