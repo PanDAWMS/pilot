@@ -420,6 +420,7 @@ Event service
 - Updated calls to getObjectstoresField() (S3ObjectstoreHttpSiteMover, S3ObjectstoreSiteMover, SiteInformation)
 - Avoiding None values in prodDBlockToken list, in hasOSBucketIDs() (SiteInformation)
 - Created getObjectstoreDDMEndpoint() (SiteInformation)
+- Created getCPUTimes() (FileHandling)
 
 Logs to OS:
 - Added putLogToOS to Job class (Job)
