@@ -2336,6 +2336,8 @@ if __name__ == "__main__":
         #tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
 
         # Create and start the AthenaMP process
+        t0 = os.times()
+        tolog("t0 = %s" % str(t0))
         athenaMPProcess = runJob.getSubprocess(thisExperiment, runCommandList[0], stdout=athenamp_stdout, stderr=athenamp_stderr)
 
         # Start the utility if required
@@ -2549,6 +2551,17 @@ if __name__ == "__main__":
 
         if not kill:
             tolog("AthenaMP has finished")
+        t1 = os.times()
+        tolog("t1 = %s" % str(t1))
+        t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
+        # Try to get the cpu time from the jobReport
+        job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workDir)
+        if job.cpuConsumptionTime == 0:
+            tolog("!!WARNING!!3434!! Falling back to less accurate os.times() measurement of CPU time")
+            job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
+        tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
+        tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
+        job.timeExe = int(round(t1[4] - t0[4]))
 
         # Stop the utility
         if utility_subprocess:

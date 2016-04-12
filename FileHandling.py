@@ -855,29 +855,31 @@ def getCPUTimes(workDir):
     """ Extract and add up the total CPU times from the job report """
     # Note: this is used with Event Service jobs
 
-    # Input:  workDir (location of jobReport.json
-    # Output: cpuTime
+    # Input:  workDir (location of jobReport.json)
+    # Output: cpuCU (unit), totalCPUTime, conversionFactor (output consistent with pUtil::setTimeConsumed())
 
     totalCPUTime = 0L
 
     jobReport_dictionary = getJobReport(workDir)
     if jobReport_dictionary != {}:
-
-	if jobReport_dictionary.has_key('resource'):
+    	if jobReport_dictionary.has_key('resource'):
             resource_dictionary = jobReport_dictionary['resource']
             if resource_dictionary.has_key('executor'):
-		executor_dictionary = resource_dictionary['executor']
-		for format in executor_dictionary.keys(): # "RAWtoESD", ..
+	        	executor_dictionary = resource_dictionary['executor']
+		        for format in executor_dictionary.keys(): # "RAWtoESD", ..
                     if executor_dictionary[format].has_key('cpuTime'):
-			totalCPUTime += executor_dictionary[format]['cpuTime']
+			            totalCPUTime += executor_dictionary[format]['cpuTime']
                     else:
                         tolog("Format %s has no such key: cpuTime" % (format))
             else:
                 tolog("No such key: executor")
-	else:
+    	else:
             tolog("No such key: resource")
 
-    return totalCPUTime
+    conversionFactor = 1.0
+    cpuCU = "s"
+
+    return cpuCU, totalCPUTime, conversionFactor
 
 def getDirectAccess():
     """ Should direct i/o be used, and which type of direct i/o """
