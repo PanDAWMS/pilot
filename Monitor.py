@@ -184,9 +184,6 @@ class Monitor:
         # get the limit of the workdir
         maxwdirsize = self.__getMaxAllowedWorkDirSize()
 
-        # Store the measured disk space (the max value will later be sent with the job metrics)
-        status = storeWorkDirSize(maxwdirsize, self.__env['pilot_initdir'], self.__env['jobDic'])
-
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
             # get size of workDir
