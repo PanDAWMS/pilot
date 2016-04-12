@@ -93,6 +93,11 @@ class EventServerJobManager():
         self.__retry = 0
         self.__errEvent = False
 
+        # accounting
+        self.__startTime = time.time()
+        self.__readyForEventTime = None
+        self.__endTime = None
+
     def handler(self, signal, frame):
         self.__log.debug("!!FAILED!!3000!! Signal %s is caught" % signal)
         self.terminate()
@@ -310,6 +315,8 @@ class EventServerJobManager():
     def isDead(self):
         if self.__child_pid is None:
             self.__log.debug("Rank %s: Child process id is %s" % (self.__rank, self.__child_pid))
+            if self.__endTime is None:
+                self.__endTime = time.time()
             return True
         try:
             pid, status = os.waitpid(self.__child_pid, os.WNOHANG)
@@ -317,11 +324,15 @@ class EventServerJobManager():
             self.__log.debug("Rank %s: Exception when checking child process %s: %s" % (self.__rank, self.__child_pid, e))
             if "No child processes" in str(e):
                 self.__childRetStatus = 0
+                if self.__endTime is None:
+                    self.__endTime = time.time()
                 return True
         else:
             if pid: # finished
                 self.__log.debug("Rank %s: Child process %s finished with status: %s" % (self.__rank, pid, status%255))
                 self.__childRetStatus = status%255
+                if self.__endTime is None:
+                    self.__endTime = time.time()
                 return True
         return False
 
@@ -419,6 +430,8 @@ class EventServerJobManager():
             unblock_sig(signal.SIGTERM)
             return False
         else:
+            if self.__readyForEventTime is None:
+                self.__readyForEventTime = time.time()
             self.__log.debug("Rank %s: Received message: %s" % (self.__rank, message))
             if "Ready for events" in message:
                 self.__athenaMP_isReady = True
