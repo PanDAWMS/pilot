@@ -2839,7 +2839,7 @@ class ATLASExperiment(Experiment):
         return allowjem
 
     # Optional
-    def doSpecialLogFileTransfer(self, *argdict):
+    def doSpecialLogFileTransfer(self, **argdict):
         """ Should the log file be transfered to a special SE? """
 
         # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file
