@@ -42,7 +42,7 @@ def getJSONDictionary(filename):
                     tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (dictionary, e))
             else:
                 tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
- 
+
     return dictionary
 
 def writeJSON(file_name, dictionary):
@@ -241,7 +241,7 @@ def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_bucket_endpoi
     # Only proceed if os_bucket_id and os_bucket_endpoint have values
     if os_bucket_id and os_bucket_id != "" and os_bucket_endpoint and os_bucket_endpoint != "":
 
-        # Get the name and path of the objectstore transfer dictionary file 
+        # Get the name and path of the objectstore transfer dictionary file
         os_tr_path = os.path.join(workdir, getOSTransferDictionaryFilename())
 
         # Create a hash of the file name, two char long, and then the final bucket endpoint
@@ -480,7 +480,7 @@ def getJobReportOld(workDir):
 
     fileName = os.path.join(workDir, "jobReport.json")
     if os.path.exists(fileName):
-        # the jobReport file exists, read it back                                                                                                                                                                                                          
+        # the jobReport file exists, read it back
         try:
             f = open(fileName, "r")
         except Exception, e:
@@ -489,7 +489,7 @@ def getJobReportOld(workDir):
         else:
             from json import load
             try:
-                # load the dictionary                                                                                                                                                                                                                                            
+                # load the dictionary
                 jobReport_dictionary = load(f)
             except Exception, e:
                 tolog("!!WARNING!!1001!! Could not read back jobReport dictionary: %s" % (e))
@@ -636,7 +636,7 @@ def getOutputFileItem(filename, outputFileItem, original_output_files):
 def filterSpilloverFilename(filename):
     """ Remove any unwanted spill-over filename endings (i.e. _NNN or ._NNN) """
 
-    # Create the search pattern                                                                                                                                         
+    # Create the search pattern
     from re import compile, findall
     pattern = compile(r'(\.?\_\d+)')
     found = findall(pattern, filename)
@@ -658,8 +658,8 @@ def getDirSize(d):
     size = 0
 
     # E.g., size_str = "900\t/scratch-local/nilsson/pilot3z"
-    try: 
-       # Remove tab and path, and convert to int (and B)                                                                                                                                                
+    try:
+       # Remove tab and path, and convert to int (and B)
         size = int(size_str.split("\t")[0])*1024
     except Exception, e:
         tolog("!!WARNING!!4343!! Failed to convert to int: %s" % (e))
@@ -703,7 +703,7 @@ def storeWorkDirSize(workdir_size, pilot_initdir, job, correction=True):
 
     # Correct for any input and output files
     if correction:
-            
+
         total_size = 0L # B
 
         if os.path.exists(job.workdir):
@@ -865,10 +865,10 @@ def getCPUTimes(workDir):
     	if jobReport_dictionary.has_key('resource'):
             resource_dictionary = jobReport_dictionary['resource']
             if resource_dictionary.has_key('executor'):
-	        	executor_dictionary = resource_dictionary['executor']
-		        for format in executor_dictionary.keys(): # "RAWtoESD", ..
+	        executor_dictionary = resource_dictionary['executor']
+		for format in executor_dictionary.keys(): # "RAWtoESD", ..
                     if executor_dictionary[format].has_key('cpuTime'):
-			            totalCPUTime += executor_dictionary[format]['cpuTime']
+			totalCPUTime += executor_dictionary[format]['cpuTime']
                     else:
                         tolog("Format %s has no such key: cpuTime" % (format))
             else:
