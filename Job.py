@@ -446,7 +446,7 @@ class Job:
             self.putLogToOS = True
         else:
             self.putLogToOS = False
-        tolog("putLogToOS = %s" % str(job.putLogToOS))
+        pUtil.tolog("putLogToOS = %s" % str(job.putLogToOS))
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
