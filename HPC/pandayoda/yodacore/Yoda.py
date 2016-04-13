@@ -21,7 +21,7 @@ from signal_block.signal_block import block_sig, unblock_sig
 class Yoda(threading.Thread):
     
     # constructor
-    def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None, rank=None, nonMPIMode=False):
+    def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None, rank=None, nonMPIMode=False, outputDir=None):
         threading.Thread.__init__(self)
         self.globalWorkingDir = globalWorkingDir
         self.localWorkingDir = localWorkingDir
@@ -37,6 +37,7 @@ class Yoda(threading.Thread):
         self.initWorkingDir()
         self.tmpLog.info("Current working dir: %s" % self.currentDir)
         self.failed_updates = []
+        self.outputDir = outputDir
 
         self.pilotJob = pilotJob
 
@@ -274,14 +275,19 @@ class Yoda(threading.Thread):
     def getJob(self,params):
         rank = params['rank']
         job = None
-        if len(self.jobRanks):
+        while len(self.jobRanks):
             jobId = self.jobRanks.pop(0)
-            job = self.jobs[jobId]
-        else:
-            self.rescheduleJobRanks()
-            if len(self.jobRanks):
-                jobId = self.jobRanks.pop(0)
+            if len(self.readyJobsEventRanges[jobId]) > 0:
                 job = self.jobs[jobId]
+                break
+
+        if job is None:
+            self.rescheduleJobRanks()
+            while len(self.jobRanks):
+                jobId = self.jobRanks.pop(0)
+                if len(self.readyJobsEventRanges[jobId]) > 0:
+                    job = self.jobs[jobId]
+                    break
 
         res = {'StatusCode':0,
                'job': job}
@@ -479,9 +485,13 @@ class Yoda(threading.Thread):
         outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
         etadataFileName = 'metadata-' + outFileName.split('.dump')[0] + '.xml'
         outFileName = os.path.join(self.globalWorkingDir, outFileName)
-        metadataFileName = os.path.join(self.globalWorkingDir, etadataFileName)
+        if self.outputDir:
+            metadataFileName = os.path.join(self.outputDir, etadataFileName)
+        else:
+            metadataFileName = os.path.join(self.globalWorkingDir, etadataFileName)
         outFile = open(outFileName,'w')
 
+        self.tmpLog.debug("dumpUpdates: outputDir %s, metadataFileName %s" % (self.outputDir, metadataFileName))
         metafd = open(metadataFileName, "w")
         metafd.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
         metafd.write("<!-- Edited By POOL -->\n")
@@ -493,7 +503,7 @@ class Yoda(threading.Thread):
 
             metafd.write('  <File EventRangeID="%s">\n' % (eventRangeID))
             metafd.write("    <physical>\n")
-            metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (output))
+            metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (output.split(",")[0]))
             metafd.write("    </physical>\n")
             metafd.write("  </File>\n")
 
@@ -544,6 +554,8 @@ class Yoda(threading.Thread):
         res = {'StatusCode':0, 'State': 'finished'}
         self.tmpLog.debug('res={0}'.format(str(res)))
         self.comm.sendMessage(res)
+        self.comm.disconnect()
+
 
     # main
     def run(self):
@@ -605,6 +617,8 @@ class Yoda(threading.Thread):
         self.postExecJob()
         self.finishDroids()
         self.tmpLog.info('done')
+        os._exit(0)
+        return 0
 
 
     def flushMessages(self):

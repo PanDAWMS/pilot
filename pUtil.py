@@ -2388,7 +2388,8 @@ def updateDispatcherData4ES(data, experiment, path):
 
                         # Update the copytoolin (should use the proper objectstore site mover)
                         si = getSiteInformation(experiment)
-                        ec = si.replaceQueuedataField("copytoolin", "objectstore")
+                        if not os.environ.has_key('Nordugrid_pilot'):
+                            ec = si.replaceQueuedataField("copytoolin", "objectstore")
 
                     else:
                         tolog("Cannot continue with event service merge job")
@@ -3163,7 +3164,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
     if os.path.exists(fname):
         if os.path.getsize(fname) > 0:
             tolog("\n//begin %s ///////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
-            dumpFile(fname, topilotlog=True)
+            dumpFile(fname, topilotlog=False)
             tolog("\n//end %s /////////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
 
     # dump the wrapper (RunJob) stderr if it exists

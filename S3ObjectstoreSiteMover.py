@@ -25,7 +25,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def __init__(self, setup_path, useTimerCommand=True, *args, **kwrds):
         self._setup = setup_path.strip()
-        self._defaultSetup = "source /cvmfs/atlas.cern.ch/repo/sw/external/boto/setup.sh; unset http_proxy; unset https_proxy"
+        self._defaultSetup = "source /cvmfs/atlas.cern.ch/repo/sw/external/boto/setup.sh "
         self.s3Objectstore = None
         self.__isBotoLoaded = False
         self._useTimerCommand = useTimerCommand

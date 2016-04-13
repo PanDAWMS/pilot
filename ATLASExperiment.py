@@ -2857,6 +2857,8 @@ class ATLASExperiment(Experiment):
             transferLogToObjectstore = True
         if 'HPC_HPCARC' in readpar('catchall'):
             transferLogToObjectstore = False
+        if os.environ.has_key('Nordugrid_pilot'):
+            transferLogToObjectstore = False
 
         return transferLogToObjectstore
 
@@ -3413,6 +3415,8 @@ class ATLASExperiment(Experiment):
         # While running, the MemoryMonitor also produces a regularly updated text file with the following format: (tab separated)
         #   Time          VMEM        PSS        RSS        Swap         (first line in file)
         #   1447960494    16099644    3971809    6578312    1978060
+        if 'HPC_HPC' in readpar("catchall"):
+            return False
 
         return True
 
