@@ -375,6 +375,10 @@ Bug fixes
 - Removed unused config import (pUtil)
 - Now recognizing copytool=fax in mover_get_data() when counting FAX statistics (Mover)
 
+Server update for ND true pilots (pre-placed job def but with server updates) after out of local disk space, requested by Andrej Filipcic
+- (i.e. updateServerFlag == True and jobRequestFlag == False)
+- Avoiding checking local disk space in runMain(), before the getJob() (pilot)
+
 Alt stage-out
 - Added altStageOut data member plus handling (Job)
 - Setting altStageOut in mover_put_data() (Mover)

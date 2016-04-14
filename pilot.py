@@ -2640,11 +2640,13 @@ def runMain(runpars):
             env['workerNode'].mem = getsetWNMem(env['memory'])
 
             # do we have enough local disk space to run the job?
-            ec = checkLocalDiskSpace(error)
-            if ec != 0:
-                pUtil.tolog("Pilot was executed on host: %s" % (env['workerNode'].nodename))
-                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
-                return pUtil.shellExitCode(ec)
+            # (skip this test for ND true pilots - job will be failed in Monitor::monitor_job() instead)
+            if not (env['updateServerFlag'] == True and env['jobRequestFlag'] == False):
+                ec = checkLocalDiskSpace(error)
+                if ec != 0:
+                    pUtil.tolog("Pilot was executed on host: %s" % (env['workerNode'].nodename))
+                    pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
+                    return pUtil.shellExitCode(ec)
 
             # getJob begins here....................................................................................
 
