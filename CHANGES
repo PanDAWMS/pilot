@@ -337,6 +337,7 @@ General changes
 - Created extractOutputFiles() used by __main__ in RunJob instead of extractOutputFilesJSON() (FileHandling, RunJob)
 - Removed some debug messages that caused too much stdout leading to large log sizes, e.g. in getSURLDictionary() (SiteMover)
 - Removed some debug messages that caused too much stdout leading to large log sizes, e.g. in getDatasetDict() (pUtil)
+- Using os.getcwd() as default for wntmpdir instead of /tmp, in set_environment(). Requested by Andrej Filipcic (environment)
 
 Send DB info in jobMetrics, requested by Rodney Walker
 - Created getDBInfo() (FileHandling)

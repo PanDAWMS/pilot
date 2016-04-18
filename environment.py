@@ -109,7 +109,7 @@ def set_environment():
 
     # some default values
     env['sitename'] = "testsite"
-    env['workdir'] = "/tmp"
+    env['workdir'] = os.getcwd() # "/tmp"
     env['appdir'] = ""
     env['return_code'] = None
     env['return'] = 0
