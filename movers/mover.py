@@ -182,13 +182,16 @@ class JobMover(object):
             quick workaround: should be properly implemented in SiteInformation
         """
 
-        # LOCAL TEST OVERRIDE -- RUCIO SITEMOVER -- IMPORTS DO NOT EXIST??
-        # return False
-        # LOCAL TEST OVERRIDE -- RUCIO SITEMOVER -- IMPORTS DO NOT EXIST??
+        try:
+            from Mover import getDirectAccess
+        except:
+            return False
 
-        from Mover import getDirectAccess
-        from Mover import useDirectAccessLAN
-        return useDirectAccessLAN()
+        try:
+            from Mover import useDirectAccessLAN
+            return useDirectAccessLAN()
+        except:
+            return False
 
         return getDirectAccess()[0]
 
@@ -217,12 +220,6 @@ class JobMover(object):
         transferred_files, failed_transfers = [], []
 
         self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
-
-        # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
-        # for dat in protocols:
-        #    dat[u'copysetup'] = u'/bin/true'
-        #    dat[u'copytool'] = u'rucio'
-        # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
 
         for dat in protocols:
 
@@ -448,8 +445,8 @@ class JobMover(object):
         surl_protocols, no_surl_ddms = {}, set()
 
         for fspec in files:
-            if not fspec.surl: # initilize only if not already set
-                surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
+            if not fspec.surl: # initialize only if not already set
+                surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {}).get('SE', self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {}).get('a', [])), key=lambda x: x[1])]
                 if surl_prot:
                     surl_protocols.setdefault(fspec.ddmendpoint, surl_prot[0])
                 else:
@@ -461,12 +458,6 @@ class JobMover(object):
 
         # try to use each protocol of same ddmendpoint until successfull transfer
         for ddmendpoint, iprotocols in ddmprotocols.iteritems():
-
-            # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
-            # for dat in iprotocols:
-            #    dat[u'copysetup'] = u'/bin/true'
-            #    dat[u'copytool'] = u'rucio'
-            # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
 
             for dat in iprotocols:
 
@@ -504,6 +495,7 @@ class JobMover(object):
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="output")
 
                     fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
+
                     self.log("[stage-out] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.surl, fdata.lfn, fdata.ddmendpoint))
 
                     self.log("[stage-out] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.turl, fdata.lfn, fdata.ddmendpoint))
@@ -693,25 +685,18 @@ class JobMover(object):
 
         # get SURL for Panda calback registration
         # resolve from special protocol activity=SE # fix me later to proper name of activitiy=SURL (panda SURL, at the moment only 2-letter name is allowed on AGIS side)
-
-        surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
+        # if SE is not found, try to fallback to a
+        surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('SE', self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('a', [])), key=lambda x: x[1])]
 
         if not surl_prot:
             self.log('FAILED to resolve default SURL path for ddmendpoint=%s' % ddmendpoint)
             return [], []
-
         surl_prot = surl_prot[0] # take first
         self.log("[do_put_files] SURL protocol to be used: %s" % surl_prot)
 
         self.trace_report.update(localSite=ddmendpoint, remoteSite=ddmendpoint)
 
         transferred_files, failed_transfers = [], []
-
-        # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
-        # for dat in protocols:
-        #    dat[u'copysetup'] = u'/bin/true'
-        #    dat[u'copytool'] = u'rucio'
-        # LOCAL aprotocols OVERRIDE -- RUCIO SITEMOVER
 
         for dat in protocols:
 
