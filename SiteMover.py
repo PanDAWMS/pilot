@@ -12,14 +12,13 @@ from futil import *
 from pUtil import tolog, readpar, dumpOrderedItems, getDirectAccessDic, getSiteInformation
 from PilotErrors import PilotErrors
 from timed_command import timed_command
-from config import config_sm
+from configSiteMover import config_sm
 from FileHandling import getExtension, getTracingReportFilename, writeJSON
 
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE
 CMD_CHECKSUM = config_sm.COMMAND_MD5
 ARCH_DEFAULT = config_sm.ARCH_DEFAULT
-LFC_HOME = '/grid/atlas/'
 
 class SiteMover(object):
     """
@@ -959,7 +958,7 @@ class SiteMover(object):
                     tolog("!!WARNING!!1800!! JobState could not deserialize file: %s" % (filename))
                 else:
                     tolog("Deserialized surl dictionary with %d keys" % len(surlDictionary.keys()))
-                    tolog("surlDictionary=%s" % str(surlDictionary))
+                    #tolog("surlDictionary=%s" % str(surlDictionary))
             fp.close()
 
         return surlDictionary
@@ -1093,33 +1092,6 @@ class SiteMover(object):
                     else:
                         tolog("File %s has checksum %s and size %s (no recorded events)" % (replica_list[i]['name'], checksum, filesize))
                     break
-
-        return filesize, checksum
-
-    def getFileInfoFromRucio(self, dataset, guid):
-        """ Get the file size and checksum from Rucio """
-
-        filesize = ""
-        checksum = ""
-
-        # get the file info
-        fileInDataset = self.getFileInDataset(dataset, guid)
-        if fileInDataset:
-            try:
-                lfn = fileInDataset["lfn"]
-                full_checksum = fileInDataset["checksum"]
-                tmp = full_checksum.split(":")
-                checksum_type = tmp[0]
-                checksum = tmp[1]
-                filesize = str(fileInDataset["filesize"])
-            except Exception, e:
-                tolog("!!WARNING!!1114!! Failed to get file info from Rucio (using default LFC values for file size and checksum): %s" % (e))
-                filesize = ""
-                checksum = ""
-            else:
-                tolog("Rucio file info for LFN = %s: file size = %s, checksum = %s (type: %s)" % (lfn, filesize, checksum, checksum_type))
-        else:
-            tolog("!!WARNING!!1115!! Failed to get file info from Rucio (using default LFC values for file size and checksum)")
 
         return filesize, checksum
 
@@ -1406,8 +1378,7 @@ class SiteMover(object):
         Return LFN with LFC hierarchical namespace.
         """
 
-        bpath = LFC_HOME
-        if bpath[-1] != '/': bpath += '/'
+        bpath = '/grid/atlas/'
 
         # add prefix
         bpath += prefix
@@ -2384,6 +2355,17 @@ class SiteMover(object):
                 tolog("Warning: lcg-get-checksum failed: %d, %s" % (ec, output))
             else:
                 tolog(output)
+
+                # are there any warnings we could ignore..?
+                if output.startswith('Error'):
+                    tolog("Will try to remove the Error line in case it is only a warning")
+                    try:
+                        output = output.split('\n')[-1]
+                    except Exception, e:
+                        tolog("Failed to remove the error line: %s" % (e))
+                    else:
+                        tolog("Updated output: %s" % (output))
+
                 try:
                     remote_checksum = output[:8]
                 except:
@@ -2631,10 +2613,21 @@ class SiteMover(object):
         else:
             # extract file size
             try:
+                # are there any warnings we could ignore..?
+                if output.startswith('Error'):
+                    tolog("Will try to remove the Error line in case it is only a warning (is the file size in the second line?)")
+                    try:
+                        output = output.split('\n')[1] # assuming file size in second line
+                    except Exception, e:
+                        tolog("Failed to remove the error line: %s" % (e))
+                    else:
+                        tolog("Updated output: %s" % (output))
+
                 # remove extra spaces
                 while "  " in output:
                     output = output.replace("  ", " ")
                 _output = output.split(" ")
+
                 remote_fsize = _output[4]
             except Exception, e:
                 pilotErrorDiag = "_getRemoteFileSizeLCGLS caught an exception: %s" % str(e)
@@ -2931,7 +2924,7 @@ class SiteMover(object):
             if useCT:
                 directIn = False
                 tolog("Direct access mode is switched off (file will be transferred with the copy tool)")
-                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
             else:
                 # determine if the file is a root file according to its name
                 rootFile = self.isRootFileName(lfn)
@@ -2939,13 +2932,13 @@ class SiteMover(object):
                 if prodDBlockToken == 'local' or not rootFile:
                     directIn = False
                     tolog("Direct access mode has been switched off for this file (will be transferred with the copy tool)")
-                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
                 elif rootFile:
                     tolog("Found root file according to file name: %s (will not be transferred in direct reading mode)" % (lfn))
                     if useFileStager:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", ftype="input")
                     else:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", ftype="input")
                 else:
                     tolog("Normal file transfer")
         else:

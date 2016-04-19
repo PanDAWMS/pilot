@@ -4,31 +4,40 @@ import json
 import logging
 import os
 import shutil
+import socket
 import sys
 import time
 import pickle
 import signal
+import threading
 import traceback
 from os.path import abspath as _abspath, join as _join
 
-logging.basicConfig(filename='Droid.log', level=logging.DEBUG)
+# logging.basicConfig(filename='Droid.log', level=logging.DEBUG)
 
 from pandayoda.yodacore import Interaction,Database,Logger
 from EventServer.EventServerJobManager import EventServerJobManager
 from signal_block.signal_block import block_sig, unblock_sig
 
+import pUtil
+from objectstoreSiteMover import objectstoreSiteMover
+from Mover import getInitialTracingReport
 
-class Droid:
-    def __init__(self, globalWorkingDir, localWorkingDir):
+class Droid(threading.Thread):
+    def __init__(self, globalWorkingDir, localWorkingDir, rank=None, nonMPIMode=False, reserveCores=0, outputDir=None):
+        threading.Thread.__init__(self)
         self.__globalWorkingDir = globalWorkingDir
         self.__localWorkingDir = localWorkingDir
         self.__currentDir = None
-        self.__comm = Interaction.Requester()
-        self.__tmpLog = Logger.Logger()
+        self.__comm = Interaction.Requester(rank=rank, nonMPIMode=nonMPIMode)
+        self.__tmpLog = Logger.Logger(filename='Droid.log')
         self.__esJobManager = None
         self.__isFinished = False
         self.__rank = self.__comm.getRank()
         self.__tmpLog.info("Rank %s: Global working dir: %s" % (self.__rank, self.__globalWorkingDir))
+        if not os.environ.has_key('PilotHomeDir'):
+            os.environ['PilotHomeDir'] = self.__globalWorkingDir
+
         self.initWorkingDir()
         self.__tmpLog.info("Rank %s: Current working dir: %s" % (self.__rank, self.__currentDir))
 
@@ -40,6 +49,13 @@ class Droid:
         self.__postRun = None
         self.__ATHENA_PROC_NUMBER = 1
         self.__firstGetEventRanges = True
+        self.__copyOutputToGlobal = False
+        self.__outputDir = outputDir
+
+        self.reserveCores = reserveCores
+        self.__hostname = socket.getfqdn()
+
+        self.__outputs = []
 
         signal.signal(signal.SIGTERM, self.stop)
         signal.signal(signal.SIGQUIT, self.stop)
@@ -82,13 +98,29 @@ class Droid:
             self.__copyInputFiles = job.get('CopyInputFiles', False)
             self.__preSetup = job.get('PreSetup', None)
             self.__postRun = job.get('PostRun', None)
-            self.__ATHENA_PROC_NUMBER = job.get('ATHENA_PROC_NUMBER', 1)
+            self.__yodaToOS = job.get('yodaToOS', False)
+            self.__copyOutputToGlobal =  job.get('copyOutputToGlobal', False)
+
+            if self.__yodaToOS:
+                setup = job.get('setup', None)
+                self.__esPath = job.get('esPath', None)
+                self.__report =  getInitialTracingReport(userid='Yoda', sitename='Yoda', dsname=None, eventType="objectstore", analysisJob=False, jobId=None, jobDefId=None, dn='Yoda')
+                self.__siteMover = objectstoreSiteMover(setup, useTimerCommand=False)
+
+            self.__ATHENA_PROC_NUMBER = int(job.get('ATHENA_PROC_NUMBER', 1))
+            self.__ATHENA_PROC_NUMBER -= self.reserveCores
+            if self.__ATHENA_PROC_NUMBER < 0:
+                self.__ATHENA_PROC_NUMBER = 1
+            job["AthenaMPCmd"] = "export ATHENA_PROC_NUMBER=" + str(self.__ATHENA_PROC_NUMBER) + "; " + job["AthenaMPCmd"]
             self.__jobWorkingDir = job.get('GlobalWorkingDir', None)
             if self.__jobWorkingDir:
                 self.__jobWorkingDir = os.path.join(self.__jobWorkingDir, 'rank_%s' % self.__rank)
                 if not os.path.exists(self.__jobWorkingDir):
                     os.makedirs(self.__jobWorkingDir)
                 os.chdir(self.__jobWorkingDir)
+                logFile = os.path.join(self.__jobWorkingDir, 'Droid.log')
+                logging.basicConfig(filename=logFile, level=logging.DEBUG)
+                self.__tmpLog = Logger.Logger()
 
             if self.__copyInputFiles and self.__inputFiles is not None and self.__poolFileCatalog is not None:
                 for inputFile in self.__inputFiles:
@@ -132,17 +164,57 @@ class Droid:
         return False, None
 
     def copyOutput(self, output):
-        if self.__localWorkingDir == self.__globalWorkingDir:
-            return 0, output
+        if self.__outputDir:
+            filename = output.split(",")[0]
+            base_filename = os.path.basename(filename)
+            new_file_name = os.path.join(self.__outputDir, base_filename)
+            is_copied = False
+            try:
+                os.rename(filename, new_file_name)
+                is_copied = True
+            except:
+                self.__tmpLog.debug("Rank %s: failed to move output %s to %s, %s" % (self.__rank, filename, new_file_name, str(traceback.format_exc())))
+                is_copied = False
+            if not is_copied:
+                shutil.copy(filename, new_file_name)
+                os.remove(filename)
+            return 0, output.replace(filename, new_file_name)
+        elif self.__copyOutputToGlobal:
+            filename = output.split(",")[0]
+            base_filename = os.path.basename(filename)
+            new_file_name = os.path.join(self.__globalWorkingDir, base_filename)
+            is_copied = False
+            try:
+                os.rename(filename, new_file_name)
+                is_copied = True
+            except:
+                self.__tmpLog.debug("Rank %s: failed to move output %s to %s, %s" % (self.__rank, filename, new_file_name, str(traceback.format_exc())))
+                is_copied = False
+            if not is_copied:
+                shutil.copy(filename, new_file_name)
+                os.remove(filename)
+            return 0, output.replace(filename, new_file_name)
+        else:
+            if self.__localWorkingDir == self.__globalWorkingDir:
+                return 0, output
 
+            filename = output.split(",")[0]
+            new_file_name = filename.replace(self.__localWorkingDir, self.__globalWorkingDir)
+            dirname = os.path.dirname(new_file_name)
+            if not os.path.exists(dirname):
+                 os.makedirs (dirname)
+            shutil.copy(filename, new_file_name)
+            os.remove(filename)
+            return 0, output.replace(filename, new_file_name)
+
+    def stageOut(self, output):
         filename = output.split(",")[0]
-        new_file_name = filename.replace(self.__localWorkingDir, self.__globalWorkingDir)
-        dirname = os.path.dirname(new_file_name)
-        if not os.path.exists(dirname):
-             os.makedirs (dirname)
-        shutil.copy(filename, new_file_name)
-        os.remove(filename)
-        return 0, output.replace(filename, new_file_name)
+        ret_status, pilotErrorDiag, surl, size, checksum, arch_type = self.__siteMover.put_data(filename, self.__esPath, lfn=os.path.basename(filename), report=self.__report, token=None, experiment='ATLAS')
+        if ret_status == 0:
+            os.remove(filename)
+            return 0, output.replace(filename, surl)
+        self.__tmpLog.debug("Failed to stageout %s: %s %s" % (output, ret_status, pilotErrorDiag))
+        return ret_status, output
 
     def getEventRanges(self, nRanges=1):
         #if self.__firstGetEventRanges:
@@ -193,13 +265,47 @@ class Droid:
             outFile.write('{0} {1} {2}\n'.format(eventRangeID,status,output))
         outFile.close()
 
+    def updatePandaEventRanges(self, event_ranges):
+        """ Update an event range on the Event Server """
+        self.__tmpLog.debug("Updating event ranges..")
+
+        message = ""
+        #url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
+        # eventRanges = [{'eventRangeID': '4001396-1800223966-4426028-1-2', 'eventStatus':'running'}, {'eventRangeID': '4001396-1800223966-4426028-2-2','eventStatus':'running'}]
+
+        node={}
+        node['eventRanges']=json.dumps(event_ranges)
+
+        # open connection
+        ret = pUtil.httpConnect(node, url, path='.', mode="UPDATEEVENTRANGES")
+        # response = json.loads(ret[1])
+
+        status = ret[0]
+        if ret[0]: # non-zero return code
+            message = "Failed to update event range - error code = %d, error: " % (ret[0], ret[1])
+        else:
+            response = json.loads(json.dumps(ret[1]))
+            status = int(response['StatusCode'])
+            message = json.dumps(response['Returns'])
+
+        return status, message
+
     def updateOutputs(self, signal=False, final=False):
         outputs = self.__esJobManager.getOutputs(signal)
         if outputs:
+            # self.__outputs +=  outputs
+            self.__outputs =  outputs
             self.__tmpLog.info("Rank %s: get outputs(%s)" % (self.__rank, outputs))
             if final:
                 self.dumpUpdates(outputs)
+        else:
+            self.__outputs = []
+
+        outputs = self.__outputs
+        if outputs:
             requests = []
+            stagedRequests = []
             for outputMsg in outputs:
                 try:
                     #eventRangeID = output.split(",")[1]
@@ -208,16 +314,54 @@ class Droid:
                     self.__tmpLog.warnning("Rank %s: failed to parse output message: %s" % (self.__rank, outputMsg))
                     self.__tmpLog.warnning("Rank %s: error message: %s" % (self.__rank, str(e)))
                     continue
-                status, output = self.copyOutput(output)
-                if status != 0:
-                    self.__tmpLog.debug("Rank %s: failed to copy output from local working dir to global working dir: %s" % (self.__rank, output))
+                if eventStatus.startswith("ERR"):
+                    request = {"jobId": self.__jobId,
+                               "eventRangeID": eventRangeID,
+                               'eventStatus': eventStatus,
+                               "output": output}
+                    stagedRequests.append(request)
                     continue
 
-                request = {"jobId": self.__jobId,
-                           "eventRangeID": eventRangeID,
-                           'eventStatus': eventStatus,
-                           "output": output}
-                requests.append(request)
+                copyOutput = True
+                if self.__yodaToOS and not final:
+                    copyOutput = False
+                    status, output = self.stageOut(output)
+                    if status != 0:
+                        self.__tmpLog.debug("Rank %s: failed to stageout output from local working dir to S3 Objectstore: %s" % (self.__rank, output))
+                        copyOutput = True
+                    else:
+                        request = {"jobId": self.__jobId,
+                                   "eventRangeID": eventRangeID,
+                                   'eventStatus': 'stagedOut',
+                                   "output": output}
+                        stagedRequests.append(request)
+                if copyOutput:
+                    status, output = self.copyOutput(output)
+                    if status != 0:
+                        self.__tmpLog.debug("Rank %s: failed to copy output from local working dir to global working dir: %s" % (self.__rank, output))
+                        continue
+
+                    request = {"jobId": self.__jobId,
+                               "eventRangeID": eventRangeID,
+                               'eventStatus': eventStatus,
+                               "output": output}
+                    requests.append(request)
+            if stagedRequests:
+                eventRanges = []
+                for stagedRequest in stagedRequests:
+                    eventStatus = stagedRequest['eventStatus']
+                    if eventStatus.startswith("ERR"):
+                        eventStatus = 'failed'
+                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': eventStatus})
+                    if eventStatus == 'stagedOut':
+                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': 'finished'})
+                status, output = self.updatePandaEventRanges(eventRanges)
+                if status == 0:
+                    self.__tmpLog.debug("Rank %s: updatePandaEventRanges(status: %s, output: %s)" % (self.__rank, status, output))
+                    for stagedRequest in stagedRequests:
+                        if not stagedRequest['eventStatus'].startswith("ERR"):
+                            stagedRequest['eventStatus'] = 'reported'
+            requests += stagedRequests
             if requests:
                 self.__tmpLog.debug("Rank %s: updateEventRanges(request: %s)" % (self.__rank, requests))
                 retStatus, retOutput = self.__comm.sendRequest('updateEventRanges',requests)
@@ -227,7 +371,11 @@ class Droid:
                     if statusCode == 0:
                         if signal:
                             self.__esJobManager.updatedOutputs(outputs)
-                        return True
+
+            for output in outputs:
+                self.__outputs.remove(output)            
+            return True
+                    
         return False
 
     def finishJob(self):
@@ -333,10 +481,22 @@ class Droid:
         self.__tmpLog.info("Rank %s: finish job" % self.__rank)
         self.finishJob()
         #self.waitYoda()
+        return self.__esJobManager.getChildRetStatus()
+
+    def preCheck(self):
+        if not os.access('/tmp', os.W_OK):
+            self.__tmpLog.info("Rank %s: PreCheck /tmp is readonly" % self.__rank)
+            status, output = commands.getstatusoutput("ll /|grep tmp")
+            self.__tmpLog.info("Rank %s: tmp dir: %s" % (self.__rank, output))
+            return 1
         return 0
 
     def run(self):
-        self.__tmpLog.info("Rank %s: Droid starts" % self.__rank)
+        self.__tmpLog.info("Rank %s: Droid starts on %s" % (self.__rank, self.__hostname))
+        if self.preCheck():
+            self.__tmpLog.info("Rank %s: Droid failed preCheck, exit" % self.__rank)
+            return 1
+
         while True:
             self.__tmpLog.info("Rank %s: Droid starts to run one job" % self.__rank)
             os.chdir(self.__globalWorkingDir)

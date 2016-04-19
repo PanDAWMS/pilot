@@ -1,5 +1,5 @@
-import argparse
 import commands
+import hashlib
 import json
 import logging
 import multiprocessing
@@ -8,10 +8,16 @@ import subprocess
 import sys
 import time
 import traceback
+try:
+    import argparse
+except:
+    print "!!WARNING!!4545!! argparse python module could not be imported - too old python version?"
 
 import pUtil
 from ThreadPool import ThreadPool
+from TimerCommand import TimerCommand
 from objectstoreSiteMover import objectstoreSiteMover
+from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
 from Mover import getInitialTracingReport
 
 logging.basicConfig(stream=sys.stdout,
@@ -19,15 +25,15 @@ logging.basicConfig(stream=sys.stdout,
                     format='%(asctime)s\t%(process)d\t%(levelname)s\t%(message)s')
 
 
-class EventStager:
-    def __init__(self, workDir, setup, esPath, token, experiment, userid, sitename, outputDir=None, threads=10, isDaemon=False):
+class EventStager(object):
+    def __init__(self, workDir, setup, esPath, token, experiment, userid, sitename, outputDir=None, yodaToOS=False, threads=10, isDaemon=False, process=0, totalProcess=1):
         self.__workDir = workDir
-        self.__updateEventRangesDir = os.path.join(self.__workDir, 'updateEventRanges')
+        self.__updateEventRangesDir = os.path.join(self.__workDir, 'updateEventRanges_%s' % process)
         if not os.path.exists(self.__updateEventRangesDir):
             os.makedirs(self.__updateEventRangesDir)
         self.__logFile = os.path.join(workDir, 'EventStager.log')
         self.__setup = setup
-        self.__siteMover = objectstoreSiteMover(setup, useTimerCommand=False)
+        self.__siteMover = S3ObjectstoreSiteMover(setup, useTimerCommand=False)
         self.__esPath = esPath
         self.__token = token
         self.__experiment = experiment
@@ -38,6 +44,7 @@ class EventStager:
 
         self.__report =  getInitialTracingReport(userid=self.__userid, sitename=self.__sitename, dsname=None, eventType="objectstore", analysisJob=False, jobId=None, jobDefId=None, dn=self.__userid)
 
+        self.__num_stagingFile = 0
         self.__eventRanges = {}
         self.__eventRanges_staged = {}
         self.__eventRanges_faileStaged = {}
@@ -55,8 +62,15 @@ class EventStager:
         self.__startWait = None
         self.__waitTime = 15 * 60 # 15 minutes
 
+        self.__yodaToOS = yodaToOS
+
         if not os.environ.has_key('PilotHomeDir'):
-            os.environ['PilotHomeDir'] = os.getcwd()
+            os.environ['PilotHomeDir'] = os.path.dirname(__file__)
+
+        self.__process = process
+        self.__totalProcess = totalProcess
+
+        self.__siteMover.setup(experiment)
 
         self.__threadpool = ThreadPool(self.__threads)
         logging.info("Init EventStager workDir %s setup %s esPath %s token %s experiment %s userid %s sitename %s threads %s outputDir %s isDaemond %s" % (self.__workDir, self.__setup, self.__esPath, self.__token, self.__experiment, self.__userid, self.__sitename, self.__threads, self.__outputDir, self.__isDaemon))
@@ -97,10 +111,13 @@ class EventStager:
             else:
                 stageCmd = "EventStager.py"
 
+            yoda_to_os = ''
+            if self.__yodaToOS:
+                yoda_to_os = '--YodaToOS '
             if self.__setup and len(self.__setup.strip()):
-                cmd = 'python %s/%s --workDir %s --setup %s --esPath %s --token %s --experiment %s --userid %s --sitename %s --threads %s --outputDir %s --isDaemon 2>&1 1>>%s' % (self.__workDir, stageCmd, self.__workDir, self.__setup, self.__esPath, self.__token, self.__experiment, self.__userid, self.__sitename, self.__threads, self.__outputDir, self.__logFile)
+                cmd = 'python %s/%s --workDir %s --setup %s --esPath %s --token %s --experiment %s --userid %s --sitename %s --threads %s --outputDir %s %s--isDaemon 2>&1 1>>%s' % (self.__workDir, stageCmd, self.__workDir, self.__setup, self.__esPath, self.__token, self.__experiment, self.__userid, self.__sitename, self.__threads, self.__outputDir, yoda_to_os, self.__logFile)
             else:
-                cmd = 'python %s/%s --workDir %s --esPath %s --token %s --experiment %s --userid %s --sitename %s --threads %s --outputDir %s --isDaemon 2>&1 1>>%s' % (self.__workDir, stageCmd, self.__workDir, self.__esPath, self.__token, self.__experiment, self.__userid, self.__sitename, self.__threads, self.__outputDir, self.__logFile)
+                cmd = 'python %s/%s --workDir %s --esPath %s --token %s --experiment %s --userid %s --sitename %s --threads %s --outputDir %s %s--isDaemon 2>&1 1>>%s' % (self.__workDir, stageCmd, self.__workDir, self.__esPath, self.__token, self.__experiment, self.__userid, self.__sitename, self.__threads, self.__outputDir, yoda_to_os, self.__logFile)
             pUtil.tolog("Start Event Stager: %s" % cmd)
             self.__eventStager = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stdout, shell=True)
         except:
@@ -154,7 +171,7 @@ class EventStager:
                         del self.__eventRanges[filename][eventRangeID]
                         return
 
-                ret_status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(output, self.__esPath, lfn=os.path.basename(output), report=self.__report, token=self.__token, experiment=self.__experiment)
+                ret_status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(output, os.path.join(self.__esPath, os.path.basename(output)), lfn=os.path.basename(output), report=self.__report, token=self.__token, experiment=self.__experiment)
                 if ret_status == 0:
                     try:
                         self.__eventRanges_staged[filename].append((jobId, eventRangeID, status, output))
@@ -174,14 +191,27 @@ class EventStager:
             logging.warning(traceback.format_exc())
             self.__eventRanges_faileStaged[filename].append((jobId, eventRangeID, status, output))
 
+    def sort_file_by_mtime(self, path, files):
+        mtime = lambda f: os.stat(os.path.join(path, f)).st_mtime
+        return list(sorted(files, key=mtime))
+
     def getUnstagedOutputFiles(self, ext=".dump"):
         outputFiles = []
         all_files = os.listdir(self.__workDir)
-        for file in all_files:
-            if file.endswith(ext):
-                filename = os.path.join(self.__workDir, file)
-                outputFiles.append(file)
+        if ext == ".dump":
+            for file in all_files:
+                if file.endswith(ext):
+                    if (int(hashlib.sha1(file).hexdigest(),16) % self.__totalProcess) == self.__process:
+                        filename = os.path.join(self.__workDir, file)
+                        outputFiles.append(file)
+        else:
+            for file in all_files:
+                if file.endswith(ext):
+                    if self.__process == 0:
+                        filename = os.path.join(self.__workDir, file)
+                        outputFiles.append(file)
         if outputFiles:
+            outputFiles = self.sort_file_by_mtime(self.__workDir, outputFiles)
             logging.info("UnStaged Output files: %s" % outputFiles)
         return outputFiles
 
@@ -216,8 +246,8 @@ class EventStager:
         pUtil.tolog("Updating event ranges..")
 
         message = ""
-        url = "https://aipanda007.cern.ch:25443/server/panda"
-        # url = "https://pandaserver.cern.ch:25443/server/panda"
+        #url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
         # eventRanges = [{'eventRangeID': '4001396-1800223966-4426028-1-2', 'eventStatus':'running'}, {'eventRangeID': '4001396-1800223966-4426028-2-2','eventStatus':'running'}]
 
         node={}
@@ -237,19 +267,42 @@ class EventStager:
 
         return status, message
 
-    def cleanStagingFiles(self):
-        self.__eventRanges = {}
-        self.__eventRanges_staged = {}
-        self.__eventRanges_faileStaged = {}
+    def cleanStagingFiles(self, older=None):
+        if older == None:
+            self.__eventRanges = {}
+            self.__eventRanges_staged = {}
+            self.__eventRanges_faileStaged = {}
         all_files = os.listdir(self.__workDir)
         for file in all_files:
-            if file.endswith(".dump.staging"):
-                filepath = os.path.join(self.__workDir, file)
-                os.rename(filepath, filepath.replace(".dump.staging", ".dump"))
+            if older == None:
+                if file.endswith(".dump.staging"):
+                    origin_file = file.replace(".dump.staging", ".dump")
+                    if (int(hashlib.sha1(origin_file).hexdigest(),16) % self.__totalProcess) == self.__process:
+                        filepath = os.path.join(self.__workDir, file)
+                        os.rename(filepath, filepath.replace(".dump.staging", ".dump"))
+
+                if file.endswith("cmdcopying"):
+                    origin_file = file.replace("cmdcopying", "cmd")
+                    if self.__process == 0:
+                        filepath = os.path.join(self.__workDir, file)
+                        os.rename(filepath, filepath.replace("cmdcopying", "cmd"))
+            else:
+                if file.endswith("cmdcopying"):
+                    present = time.time()
+                    origin_file = file.replace("cmdcopying", "cmd")
+                    if self.__process == 0:
+                        filepath = os.path.join(self.__workDir, file)
+                        if (present - os.path.getmtime(filepath)) > older:
+                            os.rename(filepath, filepath.replace("cmdcopying", "cmd"))
+
 
     def getEventRanges(self):
+        if len(self.__eventRanges.keys()) > 5:
+            return
         outputFiles = self.getUnstagedOutputFiles()
         for file in outputFiles:
+            if len(self.__eventRanges.keys()) > 5:
+                return
             self.__startWait = None
             self.__eventRanges[file] = {}
             self.__eventRanges_staged[file] = []
@@ -269,6 +322,25 @@ class EventStager:
                     self.__processedJobs.append(jobId)
             handle.close()
             os.rename(filepath, filepath + ".staging")
+
+    def checkMissedStagingFiles(self):
+        all_files = os.listdir(self.__workDir)
+        for file in all_files:
+            try:
+                if file.endswith(".dump.staged.reported"):
+                    origin_file = file.replace(".dump.staged.reported", ".dump")
+                    filepath = os.path.join(self.__workDir, file)
+                    size = os.path.getsize(filepath)
+                    if size == 0:
+                        if (int(hashlib.sha1(origin_file).hexdigest(),16) % self.__totalProcess) == self.__process:
+                            back_file = filepath.replace(".dump.staged.reported", ".dump.BAK")
+                            origin_file = filepath.replace(".dump.staged.reported", ".dump")
+                            staging_file = filepath.replace(".dump.staged.reported", ".dump.staging")
+                            if not os.path.exists(back_file) and not os.path.exists(origin_file) and not os.path.exists(staging_file):
+                                os.remove(filepath)
+                            os.rename(back_file, origin_file)
+            except:
+                logging.warning("Failed to rename %s to %s: %s" % (back_file, origin_file, traceback.format_exc()))
 
     def checkFailedStagingFiles(self):
         for file in self.__eventRanges_faileStaged:
@@ -299,7 +371,10 @@ class EventStager:
                                 jobId, eventRangeID, status, output = outputEvents
                                 if eventRangeID not in finishedEventRanges:
                                     finishedEventRanges.append(eventRangeID)
-                                    eventRanges.append({"eventRangeID": eventRangeID, "eventStatus": status})
+                                    if status == 'finished':
+                                        eventRanges.append({"eventRangeID": eventRangeID, "eventStatus": status})
+                                    if status.startswith("ERR"):
+                                        eventRanges.append({"eventRangeID": eventRangeID, "eventStatus": 'failed'})
 
                             update_status, update_output = self.updateEventRanges(eventRanges)
                             logging.info("update Event Range: status: %s, output: %s" % (update_status, update_output))
@@ -331,6 +406,8 @@ class EventStager:
                 logging.warning(traceback.format_exc())
         for file in finishedFiles:
             del self.__eventRanges[file]
+            del self.__eventRanges_staged[file]
+            del self.__eventRanges_faileStaged[file]
 
     def checkLostEvents(self):
         for file in self.__eventRanges:
@@ -340,19 +417,24 @@ class EventStager:
 
     def handleGfalFile(self, gfalFile):
         try:
-            gfalFile = os.path.join(self.__workDir, gfalFile)
-            os.rename(gfalFile, gfalFile + "copying")
-            handle = open(gfalFile + "copying")
-            cmd = handle.read()
-            handle.close()
-            cmd = cmd.replace(" -t 3600 ", " -t 300 ")
-            logging.info("Execute command: %s" % cmd)
-            status, output = commands.getstatusoutput(cmd)
-            logging.info("Status %s output %s" % (status, output))
-            if status == 0:
-                os.rename(gfalFile + "copying", gfalFile + "finished")
-            else:
-                os.rename(gfalFile + "copying", gfalFile)
+            for i in range(3):
+                gfalFile = os.path.join(self.__workDir, gfalFile)
+                os.rename(gfalFile, gfalFile + "copying")
+                handle = open(gfalFile + "copying")
+                cmd = handle.read()
+                handle.close()
+                cmd = cmd.replace(" -t 3600 ", " -t 300 ")
+                logging.info("Execute command: %s" % cmd)
+                # status, output = commands.getstatusoutput(cmd)
+                status, output = TimerCommand(cmd).run(600)
+                logging.info("Status %s output %s" % (status, output))
+                if status == 0:
+                    os.rename(gfalFile + "copying", gfalFile + "finished")
+                    return
+                else:
+                    os.rename(gfalFile + "copying", gfalFile)
+
+            os.rename(gfalFile, gfalFile + "failed")
         except:
             logging.error("handleGfalFile %s" % traceback.format_exc())
         finally:
@@ -367,7 +449,7 @@ class EventStager:
             handle.close()
             source, destination = cmd.split(" ")
             logging.info("S3 stage out from %s to %s" % (source, destination))
-            ret_status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(source, os.path.dirname(destination), lfn=os.path.basename(destination), report=self.__report, token=self.__token, experiment=self.__experiment, timeout=300)
+            ret_status, pilotErrorDiag, surl, size, checksum, self.arch_type = self.__siteMover.put_data(source, destination, lfn=os.path.basename(destination), report=self.__report, token=self.__token, experiment=self.__experiment, timeout=300)
             logging.info("Status %s output %s" % (ret_status, pilotErrorDiag))
             if ret_status == 0:
                 os.rename(s3File + "copying", s3File + "finished")
@@ -402,6 +484,13 @@ class EventStager:
         for p in termProcesses:
             self.__otherProcesses.remove(p)
 
+    def killStallProcess(self):
+        command = "find /proc -maxdepth 1 -user wguan -type d -mmin +1 -exec basename {} \; | xargs ps | grep EventStager.py | awk '{ print $1 }' | grep -v " + str(os.getpid()) + "|xargs kill"
+        print command
+        status, output = commands.getstatusoutput(command)
+        print status
+        print output
+
     def run(self):
         logging.info("Start to run")
         self.cleanStagingFiles()
@@ -410,6 +499,8 @@ class EventStager:
             try:
                 if (time.time() - timeStart) > 60:
                     self.renewEventStagerStatus()
+                    self.cleanStagingFiles(20*60)
+                    # self.checkMissedStagingFiles()
                     self.getEventRanges()
                     self.checkFailedStagingFiles()
                     self.checkFinishedStagingFiles()
@@ -425,8 +516,10 @@ class EventStager:
                 #logging.debug("%s" % self.__eventRanges)
                 logging.debug("otherProcesses:%s" % len(self.__otherProcesses))
                 if len(self.__eventRanges.keys()) == 0 and len(self.__otherProcesses) == 0:
+                    self.cleanStagingFiles()
                     if self.__startWait == None:
                         self.__startWait = time.time()
+                self.killStallProcess()
                 if self.__startWait and (time.time() - self.__startWait) > self.__waitTime:
                     break
             except:
@@ -446,11 +539,19 @@ if __name__ == "__main__":
     parser.add_argument("--sitename", action="store", type=str, help='sitename')
     parser.add_argument("--threads", action="store", type=int, default=10, help='sitename')
     parser.add_argument("--outputDir", action="store", type=str, help='outputDir')
+    parser.add_argument("--YodaToOS", action="store_true", default=False)
     parser.add_argument("--isDaemon", action='store_true', default=True)
+
+    # for process hash
+    parser.add_argument("--process", action='store', type=int, default=0)
+    parser.add_argument("--totalProcess", action='store', type=int, default=1)
 
     args = parser.parse_args()
     try:
-        es = EventStager(args.workDir, args.setup, args.esPath, args.token, args.experiment, args.userid, args.sitename, threads=args.threads, outputDir=args.outputDir, isDaemon=args.isDaemon)
+        if args.totalProcess < 1 or args.process >= args.totalProcess:
+            logging.error("Total process must not smaller than 1 and process must be smaller than total process.")
+            sys.exit(1)
+        es = EventStager(args.workDir, args.setup, args.esPath, args.token, args.experiment, args.userid, args.sitename, threads=args.threads, outputDir=args.outputDir, yodaToOS=args.YodaToOS, isDaemon=args.isDaemon, process=args.process, totalProcess=args.totalProcess)
         es.run()
     except:
         logging.warning("Run exception")

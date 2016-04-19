@@ -1,5 +1,6 @@
 """
-  xrdcpSiteMover implementation
+  dcacheSiteMover implementation
+  SiteMover for dCache/dccp locally mounted SEs
   :reimplemented: Alexey Anisenkov
 """
 
@@ -15,52 +16,76 @@ from datetime import datetime
 import re
 import os
 
-class xrdcpSiteMover(BaseSiteMover):
-    """ SiteMover that uses xrdcp for both get and put """
+class dcacheSiteMover(BaseSiteMover):
+    """ SiteMover for dCache/dccp locally mounted SEs for both get and put operations"""
 
-    #name = "xrdcp"
-    copy_command = "xrdcp"
+    #name = "dccp"
+    copy_command = "dccp"
     checksum_type = "adler32"
-    checksum_command = "xrdadler32"
+    checksum_command = "adler32"
 
-    def __init__(self, *args, **kwargs):
+    #def __init__(self, *args, **kwargs):
+    #    super(dcacheSiteMover, self).__init__(*args, **kwargs)
 
-        super(xrdcpSiteMover, self).__init__(*args, **kwargs)
+    def is_stagein_allowed(self, fspec, job):
+        """
+            check if stage-in operation is allowed for the mover
+            apply additional job specific checks here if need
+            Should be overwritten by custom sitemover
+            :return: True in case stage-in transfer is allowed
+            :raise: PilotException in case of controlled error
+        """
 
-        self.coption = self._resolve_checksum_option()
+        # for analysis jobs, failure transfer of (non lib) input file if the file is on tape (not pre-staged)
+        if job.isAnalysisJob() and not '.lib.tgz' in fspec.lfn: # check if file is on tape
+            if not self.isFileStaged(fspec):
+                raise PilotException("File %s is not staged and will be skipped for analysis job: stage-in is not allowed" % fspec.lfn, code=PilotErrors.ERR_FILEONTAPE, state='FILE_ON_TAPE')
 
-    def _resolve_checksum_option(self):
+        return True
 
-        cmd = "%s -h" % self.copy_command
+    def isFileStaged(self, fspec):
+
+        is_staged = True # assume file is staged by default
+
+        cmd = '%s -P -t -1 %s' % (self.copy_command, fspec.turl)
         setup = self.getSetup()
         if setup:
             cmd = "%s; %s" % (setup, cmd)
 
-        self.log("Execute command (%s) to decide which option should be used to calc file checksum.." % cmd)
+        timeout = 10
+        self.log("Executing command: %s, timeout=%s" % (cmd, timeout))
 
-        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
-        output = c.communicate()[0]
+        t0 = datetime.now()
+        is_timeout = False
+        try:
+            timer = TimerCommand(cmd)
+            rcode, output = timer.run(timeout=timeout)
+            is_timeout = timer.is_timeout
+        except Exception, e:
+            self.log("WARNING: %s threw an exception: %s" % (self.copy_command, e))
+            rcode, output = -1, str(e)
 
-        self.log("return code: %s" % c.returncode)
+        dt = datetime.now() - t0
+        self.log("Command execution time: %s" % dt)
+        self.log("is_timeout=%s, rcode=%s, output=%s" % (is_timeout, rcode, output.replace("\n", " ")))
 
-        coption = ""
-
-        if c.returncode:
-            self.log('FAILED to execute command=%s: %s' % (cmd, output))
+        if is_timeout:
+            self.log("isFileStaged command self timed out after %s, timeout=%s, output=%s" % (dt, self.timeout, output))
+            self.log('skip isFileStaged() test..')
+        elif rcode == -1:
+            self.log('WARNING: isFileStaged command (%s) failed: Status=%s Output=%s' % (cmd, rcode, output.replace("\n"," ")))
+            self.log('skip isFileStaged() test..')
+        elif not rcode: # zero code => file is online
+            is_staged = True
+            self.log("isFileStaged: is_staged=True, successfully verified file stage status for lfn=%s" % fspec.lfn)
         else:
-            if "--cksum" in output:
-                coption = "--cksum %s:print" % self.checksum_type
-            elif "-adler" in output and self.checksum_type == 'adler32':
-                coption = "-adler"
-            elif "-md5" in output and self.checksum_type == 'md5':
-                coption = "-md5"
+            is_staged = False
+            self.log("isFileStaged: is_staged=False, successfully verified OFFLINE file stage status for lfn=%s" % fspec.lfn)
 
-        if coption:
-            self.log("Use %s option to get the checksum" % coption)
-        else:
-            self.log("Cannot find neither -adler nor --cksum. will not use checksum .. command output=%s" % output)
+        self.log("result: is_staged=%s" % is_staged)
 
-        return coption
+        return is_staged
+
 
     def _stagefile(self, source, destination, filesize, is_stagein):
         """
@@ -70,10 +95,7 @@ class xrdcpSiteMover(BaseSiteMover):
             :raise: PilotException in case of controlled error
         """
 
-        if self.checksum_type not in ['adler32']: # exclude md5
-            raise PilotException("Failed to stage file: internal error: unsupported checksum_type=%s .. " % self.checksum_type, code=PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED, state='BAD_CSUMTYPE')
-
-        cmd = '%s -np -f %s %s %s' % (self.copy_command, self.coption, source, destination)
+        cmd = '%s -A %s %s' % (self.copy_command, source, destination)
         setup = self.getSetup()
         if setup:
             cmd = "%s; %s" % (setup, cmd)
@@ -88,7 +110,7 @@ class xrdcpSiteMover(BaseSiteMover):
             rcode, output = timer.run(timeout=timeout)
             is_timeout = timer.is_timeout
         except Exception, e:
-            self.log("WARNING: xrdcp threw an exception: %s" % e)
+            self.log("WARNING: %s threw an exception: %s" % (self.copy_command, e))
             rcode, output = -1, str(e)
 
         dt = datetime.now() - t0
@@ -105,12 +127,6 @@ class xrdcpSiteMover(BaseSiteMover):
             if is_stagein: # do clean up: check if file was partially transferred
                 self.removeLocal(destination)
 
-            #if rcode != PilotErrors.ERR_FILEEXIST:
-            #    # check if file was partially transferred, if so, remove it
-            #    #_ec, removeOutput = self.removeRemoteFile(destination)
-            #    #if not _ec :
-            #    #    self.log("Failed to remove file %s" % destination)
-            #    #return rcode, outputRet
             rcode = error.get('rcode')
             if not rcode:
                 rcode = PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED
@@ -120,12 +136,10 @@ class xrdcpSiteMover(BaseSiteMover):
 
             raise PilotException(error.get('error'), code=rcode, state=state)
 
-        # extract filesize and checksum values from output
+        # extract filesize and checksum values from output: not available for dccp in stage-in
+        # check stage-out: not used at the moment
 
-        checksum, checksum_type = self.getRemoteFileChecksumFromOutput(output)
-
-        return checksum, checksum_type
-
+        return None, None
 
     def stageOutFile(self, source, destination, fspec):
         """
@@ -146,7 +160,6 @@ class xrdcpSiteMover(BaseSiteMover):
             :raise: PilotException in case of controlled error
         """
 
-
         return self._stagefile(source, destination, fspec.filesize, is_stagein=True)
 
 
@@ -158,10 +171,7 @@ class xrdcpSiteMover(BaseSiteMover):
             :raise: an exception in case of errors
         """
 
-        if self.checksum_type not in ['adler32']:
-            raise Exception("getRemoteFileChecksum(): internal error: unsupported checksum_type=%s .. " % self.checksum_type)
-
-        return self.calc_checksum(filename, self.checksum_command, setup=self.getSetup()), 'adler32'
+        raise Exception("getRemoteFileChecksum(): NOT IMPLEMENTED error")
 
 
     def getRemoteFileSize(self, filename):
@@ -171,31 +181,5 @@ class xrdcpSiteMover(BaseSiteMover):
             :return: length of file
             :raise: an exception in case of errors
         """
-        # For xrdcp site mover, not implemented yet.
 
         raise Exception("getRemoteFileSize(): NOT IMPLEMENTED error")
-
-
-    def getRemoteFileChecksumFromOutput(self, output):
-        """
-            extract checksum value from xrdcp --chksum command output
-            :return: (checksum, checksum_type) or (None, None) in case of failure
-        """
-
-        if not ("xrootd" in output or "XRootD" in output or "adler32" in output):
-            self.log("WARNING: Failed to extract checksum: Unexpected %s output: %s" % (self.copy_command, output))
-            return None, None
-
-        pattern = "(?P<type>md5|adler32): (?P<checksum>[a-zA-Z0-9]+)"
-        checksum, checksum_type = None, None
-
-        m = re.search(pattern, output)
-        if m:
-            checksum_type = m.group('type')
-            checksum = m.group('checksum')
-            checksum = checksum.zfill(8) # make it at least 8 chars length (adler32 xrdcp fix)
-            #self.log("Copy command returned checksum: %s" % checksum)
-        else:
-            self.log("WARNING: Checksum info not found in output: failed to match pattern=%s in output=%s" % (pattern, output))
-
-        return checksum, checksum_type

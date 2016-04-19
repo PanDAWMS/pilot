@@ -73,6 +73,8 @@ def set_environment():
     env['countryGroup'] = ""                   # Country group selector for getJob request
     env['workingGroup'] = ""                   # Working group selector for getJob request
     env['allowOtherCountry'] = False           #
+    env['allowSameUser'] = True                # Boolean, multi-jobs will only come from same taskID (and thus same user)
+    env['taskID'] = ""                         # TaskID of the current job or the first downloaded job in case allowSameUser is set to True
     env['inputDir'] = ""                       # Location of input files (source for mv site mover)
     env['outputDir'] = ""                      # Location of output files (destination for mv site mover)
     env['jobIds'] = []                         # Global job id list
@@ -107,7 +109,7 @@ def set_environment():
 
     # some default values
     env['sitename'] = "testsite"
-    env['workdir'] = "/tmp"
+    env['workdir'] = os.getcwd() # "/tmp"
     env['appdir'] = ""
     env['return_code'] = None
     env['return'] = 0

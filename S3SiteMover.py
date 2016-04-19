@@ -10,7 +10,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
-from config import config_sm
+from configSiteMover import config_sm
 
 from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
 
@@ -35,6 +35,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
         workDir = pdict.get('workDir', '')
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
+        s_bucket_id = pdict.get('os_bucket_id', -1)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)
@@ -57,10 +58,10 @@ class S3SiteMover(S3ObjectstoreSiteMover):
             output = errorLog
         else:
             gpfn = ret_path
-            status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment)
+            status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment, os_bucket_id=os_bucket_id)
 
         if status == 0:
-            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
+            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
             state = "DONE"
         else:
             errors = PilotErrors()
@@ -78,7 +79,6 @@ class S3SiteMover(S3ObjectstoreSiteMover):
         error = PilotErrors()
         pilotErrorDiag = ""
 
-
         # Get input parameters from pdict
         alt = pdict.get('alt', False)
         lfn = pdict.get('lfn', '')
@@ -91,6 +91,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
         extradirs = pdict.get('extradirs', '')
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
+        os_bucket_id = pdict.get('os_bucket_id', -1)
         prodSourceLabel = pdict.get('prodSourceLabel', '')
 
         # get the site information object
@@ -134,7 +135,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
             size = None
             checksum = None
         else:
-            status, output, size, checksum = self.stageOut(source, ret_path, token, experiment)
+            status, output, size, checksum = self.stageOut(source, ret_path, token, experiment, os_bucket_id=os_bucket_id)
 
         if status !=0:
             errors = PilotErrors()

@@ -53,6 +53,9 @@ class HPCManager:
 
         self.__pluginName = 'pbs'
         self.__plugin = None
+        self.__localSetup = None
+
+        self.__firstJobWorkDir = None
 
     def __init__(self, globalWorkingDir=None, localWorkingDir=None, logFileName=None, copyInputFiles=False):
         self.__globalWorkingDir = globalWorkingDir
@@ -96,9 +99,13 @@ class HPCManager:
         self.__jobid = None
         self.__stageout_threads = 1
         self.__pandaJobStateFile = None
+        self.__yodaToOS = False
 
         self.__pluginName = 'pbs'
         self.__plugin = None
+        self.__localSetup = None
+
+        self.__firstJobWorkDir = None
 
     def setPandaJobStateFile(self, file):
         self.__pandaJobStateFile = file
@@ -148,6 +155,9 @@ class HPCManager:
             mod = getattr(mod, comp)
         self.__plugin = mod(self.__logFileName)
         self.__log.info("HPCManager plugin is setup: %s" % self.__plugin)
+
+    def setLocalSetup(self, setup):
+        self.__localSetup = setup
 
     def getFreeResources(self, defaultResources):
         mode = self.getMode(defaultResources)
@@ -201,30 +211,40 @@ class HPCManager:
             self.__eventsPerWorker = 1
         self.__ATHENA_PROC_NUMBER = defaultResources['ATHENA_PROC_NUMBER']
         self.__repo = defaultResources['repo']
+        self.__yodaToOS = defaultResources.get('yoda_to_os', False)
+        self.__copyOutputToGlobal = defaultResources.get('copyOutputToGlobal', False)
+        self.__setup = defaultResources.get('setup', None)
+        self.__esPath = defaultResources.get('esPath', None)
 
     def getCoreCount(self):
-        return self.__mppwidth
+        return int(self.__mppwidth)
 
     def getEventsNumber(self):
         # walltime is minutes
         # 1 Yoda and (self.__nodes -1) Droid
         # plus 1 cached event per node
         #return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER) + (int(self.__nodes) -1) * 1
-        return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER)
+        return int(self.__eventsPerWorker) * (int(self.__nodes) -0) * int(self.__ATHENA_PROC_NUMBER)
 
     def initJobs(self, jobs, eventRanges):
         self.__log.info("initJobs: %s" % jobs)
         ranks = [i for i in range(1, self.__nodes)]
+        totalNeededRanks = 1
         for jobId in jobs:
             # job = {"TokenExtractCmd": tokenExtractorCommand, "AthenaMPCmd": athenaMPCommand}
             job = jobs[jobId]
             job['JobId'] = jobId
-            job["AthenaMPCmd"] = "export ATHENA_PROC_NUMBER=" + str(self.__ATHENA_PROC_NUMBER) + "; export TRF_ECHO=1; " + job["AthenaMPCmd"]
+            job["AthenaMPCmd"] = "export TRF_ECHO=1; " + job["AthenaMPCmd"]
             job["CopyInputFiles"] = self.__copyInputFiles
             job["LocalWorkingDir"] = self.__localWorkingDir
             job["ATHENA_PROC_NUMBER"] = self.__ATHENA_PROC_NUMBER
             job['neededRanks'] = 0
             job['ranks'] = []
+            job['yodaToOS'] = self.__yodaToOS
+            job['copyOutputToGlobal'] = self.__copyOutputToGlobal
+            job['setup'] = self.__setup
+            job['esPath'] = self.__esPath
+
             eventsPerNode = int(self.__ATHENA_PROC_NUMBER) * (int(self.__eventsPerWorker))
             if jobId in eventRanges:
                 job['neededRanks'] = len(eventRanges[jobId]) / eventsPerNode + (len(eventRanges[jobId]) % eventsPerNode + eventsPerNode - 1)/eventsPerNode
@@ -232,7 +252,17 @@ class HPCManager:
                     job['neededRanks'] += 2
                 elif len(eventRanges[jobId]) > eventsPerNode:
                     job['neededRanks'] += 1
+                totalNeededRanks += job['neededRanks']
             self.__jobs[jobId] = job
+
+            if self.__firstJobWorkDir is None:
+                self.__firstJobWorkDir = job['GlobalWorkingDir']
+
+        if totalNeededRanks < self.__nodes:
+            self.__nodes = totalNeededRanks
+        # if self.__nodes < 2:
+        #     self.__nodes = 2
+        self.__mppwidth = int(self.__nodes) * int(self.__cpuPerNode)
 
         self.__jobsFile = os.path.join(self.__globalYodaDir, "HPCJobs.json")
         with open(self.__jobsFile, 'w') as outputFile:
@@ -272,9 +302,18 @@ class HPCManager:
                  h, m = divmod(self.__walltime_m, 60)
                  self.__walltime = "%d:%02d:%02d" % (h, m, 0)
 
+    def isLocalProcess(self):
+        return self.__plugin.isLocalProcess()
+
     def submit(self):
+        if not self.__jobs:
+            self.__log.info("No prepared jobs available. will not submit any jobs.")
+            return
         for i in range(5):
-            status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__globalYodaDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes)
+            if self.__plugin.getName() == 'arc12233' and self.__firstJobWorkDir is not None:
+                status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__firstJobWorkDir, self.__firstJobWorkDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes, localSetup=self.__localSetup, cpuPerNode=self.__cpuPerNode)
+            else:
+                status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__globalYodaDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes, localSetup=self.__localSetup, cpuPerNode=self.__cpuPerNode)
             if status != 0:
                 self.__log.info("Failed to submit this job to HPC. will sleep one minute and retry")
                 time.sleep(60)
@@ -301,6 +340,14 @@ class HPCManager:
             self.setupPlugin(self.__pluginName)
 
     def poll(self):
+        if self.__plugin.isLocalProcess():
+            return 'Complete'
+
+        if self.__jobid is None:
+            self.__log.info("HPC job id is None, will return failed.")
+            self.__isFinished = True
+            return 'Failed'
+
         state = self.__plugin.poll(self.__jobid)
         if self.__lastState is None or self.__lastState != state or time.time() > self.__lastTime + 60*5:
             self.__log.info("HPC job state is: %s" %(state))
@@ -344,11 +391,8 @@ class HPCManager:
         return self.__isFinished
 
     def finishJob(self):
-        if self.__jobid:
-            command = "qdel " + self.__jobid
-            status, output = commands.getstatusoutput(command)
-            self.__log.debug("Run Command: %s " % command)
-            self.__log.debug("Status: %s, Output: %s" % (status, output))
+        if self.__jobid and self.__plugin:
+            self.__plugin.delete(self.__jobid)
 
     def flushOutputs(self):
         try:

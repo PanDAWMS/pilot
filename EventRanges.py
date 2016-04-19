@@ -35,7 +35,7 @@ def downloadEventRanges(jobId, jobsetID, taskID):
 
     return message
 
-def updateEventRange(event_range_id, eventRangeList, status='finished'):
+def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', os_bucket_id=-1):
     """ Update an event range on the Event Server """
 
     tolog("Updating an event range..")
@@ -45,6 +45,8 @@ def updateEventRange(event_range_id, eventRangeList, status='finished'):
     node = {}
     node['eventRangeID'] = event_range_id
 
+    if os_bucket_id != -1:
+        node['objstoreID'] = os_bucket_id
     if eventRangeList != []:
         pass
         # node['cpu'] =  eventRangeList[1]
@@ -58,6 +60,19 @@ def updateEventRange(event_range_id, eventRangeList, status='finished'):
     if ret[0]: # non-zero return code
         message = "Server responded with error code = %d" % (ret[0])
     else:
-        message = ""
+        # is there an instruction in the back channel?
+        data = ret[1]
+        tolog("data=%s"%str(data))
+        from json import loads
+        try:
+            d = loads(data['Command'])
+        except Exception, e:
+            tolog("No message found in updateEventRange back channel: %s" % (e))
+            message = ""
+        else:
+            # does the returned dictionary contain any kill instructions?
+            # {PandaID: u'tobekilled'} for normal kill 
+            # {PandaID: u'softkill'} for soft kill
+            message = d.get(jobId, "")
 
     return message

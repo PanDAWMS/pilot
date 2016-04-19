@@ -120,6 +120,10 @@ class Monitor:
             # now loop over all files and check each individually (any large enough file will fail the job)
             for filename in fileList:
 
+                if "job.log.tgz" in filename:
+                    pUtil.tolog("(Skipping file size check of file (%s) since it is a special log file)" % (filename))
+                    continue
+
                 if os.path.exists(filename):
                     try:
                         # get file size in bytes
@@ -133,6 +137,7 @@ class Monitor:
                             pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
                             # kill the job
                             #pUtil.tolog("Going to kill pid %d" %lineno())
+                            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             self.__env['jobDic'][k][1].result[0] = "failed"
                             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -193,6 +198,7 @@ class Monitor:
                         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
 
                         # kill the job
+                        pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                         killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                         self.__env['jobDic'][k][1].result[0] = "failed"
                         self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -211,7 +217,7 @@ class Monitor:
                         pUtil.tolog("Size of work directory %s: %d B (within %d B limit)" % (workDir, size, maxwdirsize))
 
                     # Store the measured disk space (the max value will later be sent with the job metrics)
-                    status = storeWorkDirSize(size, self.__env['pilot_initdir'], self.__env['jobDic'])
+                    status = storeWorkDirSize(size, self.__env['pilot_initdir'], self.__env['jobDic'][k][1])
                 else:
                     pUtil.tolog("Skipping size of of workDir since it could not be measured")
             else:
@@ -230,6 +236,7 @@ class Monitor:
             for k in self.__env['jobDic'].keys():
                 # kill the job
                 #pUtil.tolog("Going to kill pid %d" %lineno())
+                pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                 killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                 self.__env['jobDic'][k][1].result[0] = "failed"
                 self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -261,11 +268,16 @@ class Monitor:
             if thisExperiment.shouldExecuteUtility():
                 for k in self.__env['jobDic'].keys():
 
-                    # Get the maxPSS value from the memor monitor
+                    #PN
+                    pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORYEXCEEDED")
+
+
+
+                    # Get the maxPSS value from the memory monitor
                     summary_dictionary = thisExperiment.getMemoryValues(self.__env['jobDic'][k][1].workdir, self.__env['pilot_initdir'])
                     try:
                         maxPSS_int = summary_dictionary['Max']['maxPSS']
-                    except KeyError, e:
+                    except Exception, e:
                         if summary_dictionary != {}:
                             pUtil.tolog("!!WARNING!!3434!! Could not extract maxPSS value from: %s" % str(summary_dictionary))
                         else:
@@ -386,6 +398,7 @@ class Monitor:
         for k in self.__env['jobDic'].keys():
             # kill the job
             #pUtil.tolog("Going to kill pid %d" %lineno())
+            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
             self.__env['jobDic'][k][1].result[0] = "failed"
             self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -509,6 +522,7 @@ class Monitor:
         cmd = 'ps -o pid,ppid,sid,pgid,tpgid,stat,comm -u %s' % (commands.getoutput("whoami"))
         pUtil.tolog("%s: %s" % (cmd + '\n', commands.getoutput(cmd)))
 
+        pUtil.createLockFile(True, job.workdir, lockfile="JOBWILLBEKILLED")
         killProcesses(pid, job.pgrp)
 
         if self.__env['stagein']:
@@ -580,6 +594,7 @@ class Monitor:
                         pUtil.tolog("Switching off job recovery")
                     # kill the real job process(es)
                     #pUtil.tolog("Going to kill pid %d" %lineno())
+                    pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                     killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                     self.__env['jobDic'][k][1].result[0] = "failed"
                     self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
@@ -1257,21 +1272,21 @@ class Monitor:
                              self.__env['job'].jobId,
                              outFiles = self.__env['job'].outFiles,
                              logFile = self.__env['job'].logFile,
-                             type="output")
+                             ftype="output")
 
             dumpFileStates(self.__env['thisSite'].workdir,
                            self.__env['job'].jobId,
-                           type = "output")
+                           ftype = "output")
             if self.__env['job'].inFiles != ['']:
 
                 createFileStates(self.__env['thisSite'].workdir,
                                  self.__env['job'].jobId,
                                  inFiles = self.__env['job'].inFiles,
-                                 type="input")
+                                 ftype="input")
 
                 dumpFileStates(self.__env['thisSite'].workdir,
                                self.__env['job'].jobId,
-                               type="input")
+                               ftype="input")
 
             # are the output files within the allowed limit?
             # (keep the LFN verification at this point since the wrkdir is now created, needed for creating the log in case of failure)
@@ -1408,7 +1423,7 @@ class Monitor:
 
             # do not bother with saving the log file if it has already been transferred and registered
             try:
-                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, type="output")
+                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, ftype="output")
                 pUtil.tolog("Current log file state: %s" % str(state))
                 if os.path.exists(os.path.join(self.__env['thisSite'].workdir, self.__env['job'].logFile)) and state[0] == "transferred" and state[1] == "registered":
                     pUtil.tolog("Safe to remove the log file")
@@ -1541,6 +1556,7 @@ class Monitor:
                                                   self.__env['experiment'], jr=False)
                                 self.__env['logTransferred'] = True
                             pUtil.tolog("Killing process: %d from line %d" % (self.__env['jobDic'][k][0], lineno()))
+                            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             # move this job from env['jobDic'] to zombieJobList for later collection
                             self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
@@ -1731,7 +1747,7 @@ class Monitor:
             self.__env['curtime_sp'] = self.__env['curtime']
             self.__env['curtime_of'] = self.__env['curtime']
             self.__env['curtime_proc'] = self.__env['curtime']
-            #self.__env['curtime_mem'] = self.__env['curtime']
+            self.__env['curtime_mem'] = self.__env['curtime']
             self.__env['create_softlink'] = True
             while True:
 
@@ -1768,7 +1784,7 @@ class Monitor:
 
             # do not bother with saving the log file if it has already been transferred and registered
             try:
-                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, type="output")
+                state = getFileState(self.__env['job'].logFile, self.__env['thisSite'].workdir, self.__env['job'].jobId, ftype="output")
                 pUtil.tolog("Current log file state: %s" % str(state))
                 if os.path.exists(os.path.join(self.__env['thisSite'].workdir, self.__env['job'].logFile)) and state[0] == "transferred" and state[1] == "registered":
                     pUtil.tolog("Safe to remove the log file")
@@ -1839,6 +1855,7 @@ class Monitor:
                                                   self.__env['experiment'], jr=False)
                                 self.__env['logTransferred'] = True
                             pUtil.tolog("Killing process: %d from line %d" % (self.__env['jobDic'][k][0], lineno()))
+                            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                             # move this job from env['jobDic'] to zombieJobList for later collection
                             self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup

@@ -1,4 +1,3 @@
-import argparse
 import commands
 import json
 import logging
@@ -8,21 +7,29 @@ import subprocess
 import sys
 import time
 import traceback
+try:
+    import argparse
+except:
+    print "!!WARNING!!4545!! argparse python module could not be imported - too old python version?"
 
 import pUtil
 from ThreadPool import ThreadPool
 from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getInitialTracingReport
 
+from EventStager import EventStager
+
 logging.basicConfig(stream=sys.stdout,
                     level=logging.DEBUG,
                     format='%(asctime)s\t%(process)d\t%(levelname)s\t%(message)s')
 
 
-class EventStager:
-    def __init__(self, workDir, setup, esPath, token, experiment, userid, sitename, outputDir=None, threads=10, isDaemon=False):
+class MVEventStager(EventStager):
+    def __init__(self, workDir, setup, esPath, token, experiment, userid, sitename, outputDir=None, yodaToOS=False, threads=10, isDaemon=False):
+        super(MVEventStager, self).__init__(workDir, setup, esPath, token, experiment, userid, sitename, outputDir, yodaToOS, threads, isDaemon)
+
         self.__workDir = workDir
-        self.__updateEventRangesDir = os.path.join(self.__workDir, 'updateEventRanges')
+        self.__updateEventRangesDir = os.path.join(self.__workDir, 'MVupdateEventRanges')
         if not os.path.exists(self.__updateEventRangesDir):
             os.makedirs(self.__updateEventRangesDir)
         self.__logFile = os.path.join(workDir, 'EventStager.log')
@@ -46,6 +53,7 @@ class EventStager:
         self.__canFinish = False
         self.__status = 'new'
         self.__threads = threads
+        self.__yodaToOS = yodaToOS
         self.__isDaemon = isDaemon
 
         self.__threadpool = ThreadPool(self.__threads)
@@ -144,6 +152,96 @@ class EventStager:
                 filepath = os.path.join(self.__workDir, file)
                 os.rename(filepath, filepath.replace(".dump.staging", ".dump"))
 
+    def processFile(self, outputFile):
+        handle = open(outputFile)
+        toMvFiles = []
+        yodaStagedFiles = []
+        yodaReportedFiles = []
+        for line in handle:
+            line = line.replace("  ", " ")
+            jobId, eventRange, status, output = line.split(" ")
+            if status == 'stagedOut' or status.startswith("ERR"):
+                yodaStagedFiles.append(line)
+            elif status == 'reported':
+                yodaReportedFiles.append(line)
+                yodaStagedFiles.append(line)
+            else:
+                toMvFiles.append(line)
+        handle.close()
+
+        if toMvFiles:
+            handlemv = open(outputFile + ".mv", "w")
+            for i in range(3):
+                tmpToMvFiles = toMvFiles
+                toMvFiles = []
+                for line in tmpToMvFiles:
+                    line = line.replace("  ", " ")
+                    jobId, eventRange, status, output = line.split(" ")
+                    outputPath = output.split(",")[0]
+                    newOutputPath = os.path.join(self.__outputDir, os.path.basename(outputPath))
+                    command = "mv -f %s %s" % (outputPath, newOutputPath)
+                    logging.debug("Execute command %s" % command)
+                    status, output = commands.getstatusoutput(command)
+                    logging.debug("Status %s output %s" % (status, output))
+                    if status:
+                        toMvFiles.append(line)
+                    else:
+                        handlemv.write(line.replace(outputPath, newOutputPath)+"\n")
+            if toMvFiles:
+                logging.error("Failed mv files: %s" % toMvFiles)
+            handlemv.close()
+            shutil.copyfile(outputFile + ".mv", os.path.join(self.__outputDir, os.path.basename(outputFile)))
+            os.rename(outputFile, outputFile + ".BAK")
+
+        if yodaReportedFiles:
+            handleYoda = open(outputFile + ".yodaReported", "w")
+            for line in yodaStagedFiles:
+                handleYoda.write(line + "\n")
+            handleYoda.close()
+            if os.path.exists(outputFile):
+                os.rename(outputFile, outputFile + ".BAK")
+
+        if yodaStagedFiles:
+            handleYoda = open(outputFile + ".yodaStaged", "w")
+            for line in yodaStagedFiles:
+                handleYoda.write(line + "\n")
+            handleYoda.close()
+            handleYoda = open(outputFile + ".yodaStaged.reported", "w")
+            for chunk in pUtil.chunks(yodaStagedFiles, 100):
+                try:
+                    eventRanges = []
+                    for outputEvents in chunk:
+                        jobId, eventRangeID, status, output = outputEvents.split(" ")
+                        if status == 'stagedOut' or status == 'reported':
+                            eventRanges.append({"eventRangeID": eventRangeID, "eventStatus": 'finished'})
+                        if status.startswith("ERR"):
+                            eventRanges.append({"eventRangeID": eventRangeID, "eventStatus": 'failed'})
+
+                    update_status, update_output = self.updateEventRanges(eventRanges)
+                    logging.info("update Event Range: status: %s, output: %s" % (update_status, update_output))
+                    if update_status:
+                        update_status, update_output = self.updateEventRanges(eventRanges)
+                        logging.info("update Event retry Range: status: %s, output: %s" % (update_status, update_output))
+                    if update_status == 0:
+                        try:
+                            ret_outputs = json.loads(json.loads(update_output))
+                            if len(ret_outputs) == len(chunk):
+                                for i in range(len(ret_outputs)):
+                                    try:
+                                        if ret_outputs[i]:
+                                            jobId, eventRangeID, status, output = chunk[i].split(" ")
+                                            handleYoda.write('{0} {1} {2} {3}\n'.format(jobId, eventRangeID, status, output))
+                                    except:
+                                        logging.warning("Failed to book updated status %s: %s" % (output, traceback.format_exc()))
+                        except:
+                                    logging.warning(traceback.format_exc())
+                except:
+                    logging.warning(traceback.format_exc())
+            handleYoda.close()
+            if os.path.exists(outputFile):
+                os.rename(outputFile, outputFile + ".BAK")
+ 
+
     def run(self):
         logging.info("Start to run")
         self.cleanStagingFiles()
@@ -153,50 +251,12 @@ class EventStager:
                 finished = True
                 outputFiles = self.getUnstagedOutputFiles()
                 for outputFile in outputFiles:
-                    handle = open(outputFile)
-                    handlemv = open(outputFile + ".mv", "w")
-                    failedFiles = []
-                    for line in handle:
-                        line = line.replace("  ", " ")
-                        jobId, eventRange, status, output = line.split(" ")
-                        outputPath = output.split(",")[0]
-                        newOutputPath = os.path.join(self.__outputDir, os.path.basename(outputPath))
-                        command = "mv -f %s %s" % (outputPath, newOutputPath)
-                        logging.debug("Execute command %s" % command)
-                        status, output = commands.getstatusoutput(command)
-                        logging.debug("Status %s output %s" % (status, output))
-                        if status:
-                            failedFiles.append(line)
-                        else:
-                            handlemv.write(line.replace(outputPath, newOutputPath))
-                    for i in range(3):
-                        tmpFailedFiles = failedFiles
-                        failedFiles = []
-                        for line in tmpFailedFiles:
-                            line = line.replace("  ", " ")
-                            jobId, eventRange, status, output = line.split(" ")
-                            outputPath = output.split(",")[0]
-                            newOutputPath = os.path.join(self.__outputDir, os.path.basename(outputPath))
-                            command = "mv -f %s %s" % (outputPath, newOutputPath)
-                            logging.debug("Execute command %s" % command)
-                            status, output = commands.getstatusoutput(command)
-                            logging.debug("Status %s output %s" % (status, output))
-                            if status:
-                                failedFiles.append(line)
-                            else:
-                                handlemv.write(line.replace(outputPath, newOutputPath)+"\n")
-                    if failedFiles:
-                        logging.error("Failed mv files: %s" % failedFiles)
-                    handle.close()
-                    handlemv.close()
-                    shutil.copyfile(outputFile + ".mv", os.path.join(self.__outputDir, os.path.basename(outputFile)))
-                    os.rename(outputFile, outputFile + ".BAK")
-
-                outputFiles = self.getUnstagedOutputFiles(".dump.BAK")
+                    self.processFile(os.path.join(self.__workDir, outputFile))
+                outputFiles = self.getUnstagedOutputFiles(".dump.mv")
                 for outputFile in outputFiles:
                     newOutputFile = os.path.join(self.__outputDir, os.path.basename(outputFile))
-                    localNewOutputFile = os.path.join(self.__workDir, os.path.basename(outputFile)).replace(".dump.BAK", ".dump.staged.reported")
-                    newOutputFile = newOutputFile.replace(".dump.BAK", ".dump.staged.reported")
+                    localNewOutputFile = os.path.join(self.__workDir, os.path.basename(outputFile)).replace(".dump.mv", ".dump.staged.reported")
+                    newOutputFile = newOutputFile.replace(".dump.mv", ".dump.staged.reported")
                     if not os.path.exists(localNewOutputFile):
                         if os.path.exists(newOutputFile):
                             shutil.copyfile(newOutputFile, localNewOutputFile)
@@ -225,11 +285,12 @@ if __name__ == "__main__":
     parser.add_argument("--sitename", action="store", type=str, help='sitename')
     parser.add_argument("--threads", action="store", type=int, default=10, help='sitename')
     parser.add_argument("--outputDir", action="store", type=str, help='outputDir')
+    parser.add_argument("--YodaToOS", action="store_true", default=False)
     parser.add_argument("--isDaemon", action='store_true', default=True)
 
     args = parser.parse_args()
     try:
-        es = EventStager(args.workDir, args.setup, args.esPath, args.token, args.experiment, args.userid, args.sitename, threads=args.threads, outputDir=args.outputDir, isDaemon=args.isDaemon)
+        es = MVEventStager(args.workDir, args.setup, args.esPath, args.token, args.experiment, args.userid, args.sitename, threads=args.threads, outputDir=args.outputDir, yodaToOS=args.YodaToOS, isDaemon=args.isDaemon)
         es.run()
     except:
         logging.warning("Run exception")

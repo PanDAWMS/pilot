@@ -10,7 +10,6 @@ from xml.dom.minidom import parse, parseString
 # Initialize the configuration singleton
 import environment
 env = environment.set_environment()
-#env = Configuration()
 
 from processes import killProcesses
 
@@ -24,8 +23,6 @@ except:
 
 try:
     from PilotErrors import PilotErrors
-    from config import config_sm
-    CMD_CHECKSUM = config_sm.COMMAND_MD5
 except:
     pass
 
@@ -1479,55 +1476,6 @@ def removeSRMInfo(f0):
 
     return fields0
 
-def lateRegistration(ub, job, type="unknown"):
-    """ late registration used by the job recovery """
-
-    # function will return True if late registration has been performed, False if it failed
-    # and None if there is nothing to do
-    status = False
-    latereg = False
-    fields = None
-
-    # protect against old jobState files which may not have the new variables
-    try:
-        tolog("type: %s" % (type))
-        if type == "output":
-            if job.output_latereg == "False":
-                latereg = False
-            else:
-                latereg = True
-            fields = job.output_fields
-        elif type == "log":
-            if job.log_latereg == "False":
-                latereg = False
-            else:
-                latereg = True
-            fields = job.log_field
-        else:
-            tolog("!!WARNING!!4000!! Unknown id type for registration: %s" % (type))
-            tolog("!!WARNING!!4000!! Skipping late registration step")
-            pass
-    except Exception, e:
-        tolog("!!WARNING!!4000!! Late registration has come upon an old jobState file - can not perform this step: %s" % e)
-        pass
-    else:
-        tolog("latereg: %s" % str(latereg))
-        tolog("fields: %s" % str(fields))
-        # should late registration be performed?
-#        if latereg:
-#            ec, ret = registerFiles(fields, ub=ub)
-#            if ec == 0:
-#                tolog("registerFiles done")
-#                status = True
-#            else:
-#                tolog("!!WARNING!!4000!! File registration returned: (%d, %s)" % (ec, ret))
-
-    if not latereg:
-        tolog("Nothing to register (%s)" % (type))
-        return None
-    else:
-        return status
-
 def isAnalysisJob(trf):
     """ Determine whether the job is an analysis job or not """
 
@@ -1582,13 +1530,13 @@ def stringToFields(jobFields):
 
     return fields
 
-def readpar(parameter, alt=False, version=0):
+def readpar(parameter, alt=False, version=0, queuename=None):
     """ Read 'parameter' from queuedata via SiteInformation class """
 
     from SiteInformation import SiteInformation
     si = SiteInformation()
 
-    return si.readpar(parameter, alt=alt, version=version)
+    return si.readpar(parameter, alt=alt, version=version, queuename=queuename)
 
 def getBatchSystemJobID():
     """ return the batch system job id (will be reported to the server) """
@@ -2440,7 +2388,8 @@ def updateDispatcherData4ES(data, experiment, path):
 
                         # Update the copytoolin (should use the proper objectstore site mover)
                         si = getSiteInformation(experiment)
-                        ec = si.replaceQueuedataField("copytoolin", "objectstore")
+                        if not os.environ.has_key('Nordugrid_pilot'):
+                            ec = si.replaceQueuedataField("copytoolin", "objectstore")
 
                     else:
                         tolog("Cannot continue with event service merge job")
@@ -2469,9 +2418,9 @@ def parseDispatcherResponse(response):
     for p in parList:
         data[p[0]] = p[1]
 
-    if 'userProxy' in str(parList):
+    if 'userProxy' in str(parList) or 'privateKey' in str(parList):
 	for i in range(len(parList)):
-		if parList[i][0] == 'userProxy':
+		if parList[i][0] == 'userProxy' or parList[i][0] == 'publicKey' or parList[i][0] == 'privateKey':
 			newList = list(parList[i])
 			newList[1] = 'hidden'
 			parList[i] = newList
@@ -2667,7 +2616,7 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
 
     # verify that the lists are of equal size
     if len(outputFiles) != len(destinationDblock):
-        tolog("WARNING: Lists are not of same length: %s, %s" % (str(outputFiles), str(destinationDblock)))
+        tolog("WARNING: Lists are not of same length: len(outputFiles)=%d, len(destinationDblock)=%d" % (len(outputFiles), len(destinationDblock)))
     elif len(outputFiles) == 0:
         tolog("No output files for this job (outputFiles has zero length)")
     elif len(destinationDblock) == 0:
@@ -2727,12 +2676,19 @@ def getChecksumCommand():
     return sitemover.getChecksumCommand()
 
 def tailPilotErrorDiag(pilotErrorDiag, size=256):
-    """ Return the last 256 characters of pilotErrorDiag """
+    """ Return the last n characters of pilotErrorDiag """
 
     try:
         return pilotErrorDiag[-size:]
-    except Exception, e:
-        tolog("Warning: tailPilotErrorDiag caught exception: %s" % e)
+    except:
+        return pilotErrorDiag
+
+def headPilotErrorDiag(pilotErrorDiag, size=256):
+    """ Return the first n characters of pilotErrorDiag """
+
+    try:
+        return pilotErrorDiag[:size]
+    except:
         return pilotErrorDiag
 
 def getMaxInputSize(MB=False):
@@ -2846,39 +2802,6 @@ def verifyLFNLength(outputFiles):
 
     return ec, pilotErrorDiag
 
-def getFileAccessInfo():
-    """ return a tuple with all info about how the input files should be accessed """
-
-    # default values
-    oldPrefix = None
-    newPrefix = None
-
-    # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
-    useCT = True
-
-    # remove all input root files for analysis job for xrootd sites
-    # (they will be read by pAthena directly from xrootd)
-    # create the direct access dictionary
-    dInfo = getDirectAccessDic(readpar('copysetupin'))
-    # if copysetupin did not contain direct access info, try the copysetup instead
-    if not dInfo:
-        dInfo = getDirectAccessDic(readpar('copysetup'))
-
-    # check if we should use the copytool
-    if dInfo:
-        if not dInfo['useCopyTool']:
-            useCT = False
-        oldPrefix = dInfo['oldPrefix']
-        newPrefix = dInfo['newPrefix']
-    if useCT:
-        tolog("Copy tool will be used for stage-in")
-    else:
-        tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
-        if oldPrefix == "" and newPrefix == "":
-            tolog("Will attempt to create a TURL based PFC")
-
-    return useCT, oldPrefix, newPrefix
-
 def isLogfileCopied(workdir, jobId=None):
     """ check whether the log file has been copied or not """
 
@@ -2924,7 +2847,6 @@ def updateJobState(job, site, workNode, recoveryAttempt=0):
 def chdir(dir):
     """ keep track of where we are... """
 
-    tolog("chdir to: %s" % (dir))
     os.chdir(dir)
     tolog("current dir: %s" % (os.getcwd()))
 
@@ -3154,10 +3076,8 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
         else:
             tolog(". Length pilot error diag   : %d" % (lenPilotErrorDiag))
         if job.pilotErrorDiag != "":
-            if lenPilotErrorDiag > 80:
-                tolog(". Pilot error diag [:80]    : %s" % (job.pilotErrorDiag[:80]))
-            else:
-                tolog(". Pilot error diag          : %s" % (job.pilotErrorDiag))
+            l = 100
+            tolog(". Pilot error diag [%d:]    : %s" % (l, headPilotErrorDiag(job.pilotErrorDiag, size=l)))
         else:
             tolog(". Pilot error diag          : Empty")
     else:
@@ -3244,7 +3164,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
     if os.path.exists(fname):
         if os.path.getsize(fname) > 0:
             tolog("\n//begin %s ///////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
-            dumpFile(fname, topilotlog=True)
+            dumpFile(fname, topilotlog=False)
             tolog("\n//end %s /////////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
 
     # dump the wrapper (RunJob) stderr if it exists
@@ -3564,8 +3484,7 @@ def getSiteInformation(experiment):
 def dumpPilotInfo(version, pilot_version_tag, pilotId, jobSchedulerId, pilot_initdir, tofile=True):
     """ Pilot info """
 
-    tolog("Panda Pilot, version %s" % (version), tofile=tofile)
-    tolog("Panda Pilot, version %s" % (version), tofile=tofile, essential=True)
+    tolog("PanDA Pilot, version %s" % (version), tofile=tofile, essential=True)
     tolog("Version tag = %s" % (pilot_version_tag))
     tolog("PilotId = %s, jobSchedulerId = %s" % (str(pilotId), str(jobSchedulerId)), tofile=tofile)
     tolog("Current time: %s" % (timeStamp()), tofile=tofile)

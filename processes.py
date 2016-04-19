@@ -123,7 +123,8 @@ def killProcesses(pid, pgrp):
         # firstly find all the children process IDs to be killed
         children = []
         findProcessesInGroup(children, pid)
-    # reverse the process order so that the athena process is killed first (otherwise the stdout will be truncated)
+
+        # reverse the process order so that the athena process is killed first (otherwise the stdout will be truncated)
         children.reverse()
         pUtil.tolog("Process IDs to be killed: %s (in reverse order)" % str(children))
 
@@ -141,7 +142,6 @@ def killProcesses(pid, pgrp):
                     pUtil.tolog(cmd)
 
                 # loop over all child processes
-                first = True
                 for i in children:
                     # dump the stack trace before killing it
                     dumpStackTrace(i)
@@ -155,11 +155,7 @@ def killProcesses(pid, pgrp):
                     else:
                         pUtil.tolog("Killed pid: %d (SIGTERM)" % (i))
 
-                    if first:
-                        _t = 60
-                        first = False
-                    else:
-                        _t = 10
+                    _t = 10
                     pUtil.tolog("Sleeping %d s to allow process to exit" % (_t))
                     time.sleep(_t)
     

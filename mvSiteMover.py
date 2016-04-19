@@ -8,7 +8,7 @@ import SiteMover
 from futil import *
 from pUtil import tolog, readpar, getSiteInformation
 from PilotErrors import PilotErrors
-from config import config_sm
+from configSiteMover import config_sm
 
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE

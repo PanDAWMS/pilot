@@ -39,7 +39,7 @@ pilotLogFileInNewWD = "pilotlog.txt"
 
 jobState_file_wildcart = "jobState-*"
 hpc_jobState_file_wildcart = "HPCManagerState.json"
-number_of_lost_heartbeats_for_pilot_to_be_dead = 20
+number_of_lost_heartbeats_for_pilot_to_be_dead = 2 #20
 
 log_useful = False
 # deferredStageoutLogFileTpl = "pilotlog-deferredstageout-{jobid}.txt"
@@ -865,18 +865,15 @@ def TransferFiles(job_state, datadir, files, **kwargs):
     ec = -1
     try:
         # Note: alt stage-out numbers are not saved in recovery mode (job object not returned from this function)
-        rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut = Mover.mover_put_data(
+        rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_bucket_id = Mover.mover_put_data(
             "xmlcatalog_file:%s" % outPFC, dsname,
             thisSite.sitename, thisSite.computingElement, analysisJob=pUtil.isAnalysisJob(job.trf.split(",")[0]),
-            proxycheck=DorE(kwargs, 'proxycheckFlag'), spsetup=job.spsetup, scopeOut=job.scopeOut,
-            scopeLog=job.scopeLog, token=job.destinationDBlockToken, pinitdir=DorE(kwargs, 'pilot_initdir'),
-            datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,
-            jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,
-            dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut,
-            jobCloud=job.cloud, logFile=job.logFile,
-            stageoutTries=DorE(kwargs, 'stageoutretry'), experiment=job.experiment,
+            proxycheck=DorE(kwargs, 'proxycheckFlag'),
+            pinitdir=DorE(kwargs, 'pilot_initdir'),
+            datasetDict=datasetDict,
+            stageoutTries=DorE(kwargs, 'stageoutretry'), 
             cmtconfig=cmtconfig, recoveryWorkDir=thisSite.workdir,
-            fileDestinationSE=job.fileDestinationSE, job=job)
+            job=job)
     except Exception, e:
         pilotErrorDiag = "Put function can not be called for staging out: %s" % str(e)
         log("!!%s!!1105!! %s" % (env['errorLabel'], pilotErrorDiag))

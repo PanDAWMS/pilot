@@ -78,8 +78,9 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     msgdic["RSSMean"] = job.RSSMean
     msgdic["JEM"] = job.JEM
     msgdic["cmtconfig"] = getCmtconfig(job.cmtconfig)
+    msgdic["dbTime"] = job.dbTime
+    msgdic["dbData"] = job.dbData
 
-    # hpc job status
     if job.mode:
         msgdic["mode"] = job.mode
     if job.hpcStatus:
@@ -672,12 +673,12 @@ def setEnvVars(sitename):
     os.environ["COPY_TOOL"] = copytool
     tolog("Set COPY_TOOL = %s" % (copytool))
 
-def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput):
+def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, prodDBlockToken):
     """ update the run command list if --directIn is no longer needed """
     # the method is using the file state dictionary
 
     # remove later
-    dumpFileStates(pworkdir, jobId, type="input")
+    dumpFileStates(pworkdir, jobId, ftype="input")
 
     # remove any instruction regarding tag file creation for event service jobs
     _runCommandList = []
@@ -694,11 +695,12 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
     # are there only copy_to_scratch transfer modes in the file state dictionary?
     # if so, remove any lingering --directIn instruction
     only_copy_to_scratch = hasOnlyCopyToScratch(pworkdir, jobId)
-    if only_copy_to_scratch:
+    if only_copy_to_scratch or 'local' in prodDBlockToken:
 #    if hasOnlyCopyToScratch(pworkdir, jobId): # python bug? does not work, have to use previous two lines?
         _runCommandList = []
 
-        tolog("There are only copy_to_scratch transfer modes in file state dictionary")
+        if only_copy_to_scratch:
+            tolog("There are only copy_to_scratch transfer modes in file state dictionary")
         for cmd in runCommandList:
             # remove the --directIn string if present
             if "--directIn" in cmd:
@@ -748,7 +750,7 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
                 tolog("(Removed --newPrefix pattern)")
 
             # add the --usePFCTurl if not there already
-            if not "--usePFCTurl" in cmd:
+            if not "--usePFCTurl" in cmd and analysisJob:
                 cmd += " --usePFCTurl"
                 tolog("(Added --usePFCTurl)")
 
@@ -790,13 +792,13 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
                 cmd = removePattern(cmd, pattern)
                 tolog("(Removed --newPrefix pattern)")
 
-            if "--usePFCTurl" not in cmd:
+            if "--usePFCTurl" not in cmd and analysisJob:
                 cmd += " --usePFCTurl"
                 tolog("(Added --usePFCTurl)")
 
             # add --directIn if need
             if usedFAXandDirectIO == 'newmover-directaccess':
-                if "--directIn" not in cmd:
+                if "--directIn" not in cmd and analysisJob:
                     cmd += " --directIn"
                     tolog("(Added --directIn)")
 
@@ -807,7 +809,7 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
         _runCommandList = _runCommandList2
 
     tolog("Dumping final input file states")
-    dumpFileStates(pworkdir, jobId, type="input")
+    dumpFileStates(pworkdir, jobId, ftype="input")
 
     return _runCommandList
 

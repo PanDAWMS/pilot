@@ -7,8 +7,8 @@ from shutil import copy2
 from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
 from JobState import JobState
-from FileState import FileState
-from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSNames, getHighestPriorityError
+from FileStateClient import getFilesOfState
+from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
 
 class PandaServerClient:
     """
@@ -98,7 +98,7 @@ class PandaServerClient:
 
         return jobMetric
 
-    def getJobMetrics(self, job, workerNode):
+    def getJobMetrics(self, job, site, workerNode):
         """ Return a properly formatted job metrics string """
 
         # style: Number of events read | Number of events written | vmPeak maximum | vmPeak average | RSS average | JEM activation
@@ -112,7 +112,9 @@ class PandaServerClient:
             # Always use the ATHENA_PROC_NUMBER first, if set
             if os.environ.has_key('ATHENA_PROC_NUMBER'):
                 try:
-                    job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+                    envCoreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+                    if envCoreCount > job.coreCount:
+                        job.coreCount = envCoreCount
                 except Exception, e:
                     tolog("ATHENA_PROC_NUMBER is not properly set: %s (will use existing job.coreCount value)" % (e))
 
@@ -136,40 +138,44 @@ class PandaServerClient:
         if job.hpcStatus:
             jobMetrics += self.jobMetric(key="HPCStatus", value=job.hpcStatus)
 
-        # report FAX transfers if at least one successful FAX transfer
-        #if job.filesWithFAX > 0:
-        #    jobMetrics += " filesWithFAX=%d" % (job.filesWithFAX)
-        #    jobMetrics += " filesWithoutFAX=%d" % (job.filesWithoutFAX)
-        #    jobMetrics += " bytesWithFAX=%d" % (job.bytesWithFAX)
-        #    jobMetrics += " bytesWithoutFAX=%d" % (job.bytesWithoutFAX)
-        #    jobMetrics += " timeToCopy=%s" % (job.timeStageIn)
-
         # report alternative stage-out in case alt SE method was used
         # (but not in job recovery mode)
         recovery_mode = False
         if job.filesAltStageOut > 0 and not recovery_mode:
-            _jobMetrics = ""
-            _jobMetrics += " filesAltStageOut=%d" % (job.filesAltStageOut)
-            _jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
-            tolog("Could have reported: %s" % (_jobMetrics))
+            #_jobMetrics = ""
+            #_jobMetrics += " filesAltStageOut=%d" % (job.filesAltStageOut)
+            #_jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
+            #tolog("Could have reported: %s" % (_jobMetrics))
+
+            # Report which output files were moved to an alternative SE
+            filenames = getFilesOfState(site.workdir, job.jobId, state="alt_transferred")
+            if filenames != "":
+                jobMetrics += self.jobMetric(key="altTransferred", value=filenames)
+
+        # report on which OS bucket the log was written to, if any
+        if job.logBucketID != -1:
+            jobMetrics += self.jobMetric(key="logBucketID", value=job.logBucketID)
 
         # only add the JEM bit if explicitly set to YES, otherwise assumed to be NO
         if job.JEM == "YES":
             jobMetrics += self.jobMetric(key="JEM", value=1)
             # old format: jobMetrics += " JEM=%s" % (job.JEM)
 
+        if job.dbTime != "":
+            jobMetrics += self.jobMetric(key="dbTime", value=job.dbTime)
+        if job.dbData != "":
+            jobMetrics += self.jobMetric(key="dbData", value=job.dbData)
+
         # machine and job features, max disk space used by the payload
         jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir, job.jobId)
-        #if _jobMetrics != "":
-        #    tolog("Could have added: %s to job metrics" % (_jobMetrics))
 
         _jobMetrics = ""
 
         # report any OS transfers
-        message = self.getOSJobMetrics()
-        if message != "":
-            _jobMetrics = self.jobMetric(key="OS", value=message)
-            tolog("Could have added: %s to job metrics" % (_jobMetrics))
+        #message = self.getOSJobMetrics()
+        #if message != "":
+        #    _jobMetrics = self.jobMetric(key="OS", value=message)
+        #    tolog("Could have added: %s to job metrics" % (_jobMetrics))
 
         # correct for potential initial and trailing space
         jobMetrics = jobMetrics.lstrip().rstrip()
@@ -207,7 +213,7 @@ class PandaServerClient:
         path = os.path.join(self.__pilot_initdir, filename)
         if os.path.exists(path):
             # Which OS's were used?
-            os_names_dictionary = getOSNames(path)
+            os_names_dictionary = getOSTransferDictionary(path)
             if os_names_dictionary != {}:
                 message = ""
 
@@ -275,7 +281,7 @@ class PandaServerClient:
             node['startTime'] = startTime
 
         # build the jobMetrics
-        node['jobMetrics'] = self.getJobMetrics(job, workerNode)
+        node['jobMetrics'] = self.getJobMetrics(job, site, workerNode)
 
         # for hpc status
         if job.hpcStatus:

@@ -11,7 +11,7 @@ import urllib2
 from datetime import datetime, timedelta
 from pUtil import tolog, replace, getDirectAccessDic
 from pUtil import getExperiment as getExperimentObject
-from FileHandling import getExtension, readJSON, writeJSON
+from FileHandling import getExtension, readJSON, writeJSON, getJSONDictionary, getDirectAccess
 from PilotErrors import PilotErrors
 
 try:
@@ -53,14 +53,14 @@ class SiteInformation(object):
 
         self.__queuename = queuename
 
-    def readpar(self, par, alt=False, version=0):
+    def readpar(self, par, alt=False, version=0, queuename=None):
         """ Read parameter variable from queuedata """
 
         value = ""
 
         # Should we should use the new queuedata JSON version?
         if version == 1:
-            return self.getField(par)
+            return self.getField(par, queuename=queuename)
 
         # Use olf queuedata version
         fileName = self.getQueuedataFileName(alt=alt)
@@ -120,7 +120,7 @@ class SiteInformation(object):
 
         return parameter_value
 
-    def getQueuedataFileName(self, useExtension=None, check=True, alt=False, version=0):
+    def getQueuedataFileName(self, useExtension=None, check=True, alt=False, version=0, queuename=None, os_bucket_id=-1):
         """ Define the queuedata filename """
         # alt: alternative extension
         # version: 0 (default, old queuedata version), 1 (new AGIS JSON format)
@@ -136,7 +136,13 @@ class SiteInformation(object):
             extension = "alt." + extension
 
         if version == 1:
-            filename = "new_queuedata.%s" % (extension)
+            if queuename and False: # skip this for now (in case of alt stage-out to OS, e.g. JobLog won't know which is the queuename)
+                filename = "queuedata-%s.%s" % (queuename, extension)
+            else:
+                if os_bucket_id != -1:
+                    filename = "new_queuedata_%d.%s" % (os_bucket_id, extension)
+                else:
+                    filename = "new_queuedata.%s" % (extension)
         else:
             filename = "queuedata.%s" % (extension)
         path = os.path.join(os.environ['PilotHomeDir'], filename)
@@ -760,14 +766,14 @@ class SiteInformation(object):
         return getExperimentObject(self.getExperiment())
 
 
-    def allowAlternativeStageOut(self, flag=None):
+    def allowAlternativeStageOut(self, **pdict):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
-        # Argument 'flag' can be used for special conditions
+        # Argument 'pdict' can be used for special conditions
 
         return False
 
-    def forceAlternativeStageOut(self, flag=None):
+    def forceAlternativeStageOut(self, **pdict):
         """ Force stage-out to use alternative SE """
         # Argument 'flag' can be used for special conditions
         # See allowAlternativeStageOut()
@@ -990,14 +996,12 @@ class SiteInformation(object):
 
         return ret_path
 
-    def getCopyFileAccessInfo(self, stageIn=True):
+    def getFileAccessInfo(self, transferType, stageIn=True):
         """ return a tuple with all info about how the input files should be accessed """
 
         # default values
         oldPrefix = None
         newPrefix = None
-        useFileStager = None
-        directIn = None
 
         # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
         useCT = True
@@ -1018,33 +1022,31 @@ class SiteInformation(object):
                 useCT = False
             oldPrefix = dInfo['oldPrefix']
             newPrefix = dInfo['newPrefix']
-            useFileStager = dInfo['useFileStager']
-            directIn = dInfo['directIn']
-        if useCT:
+        if transferType == 'direct' or (transferType == 'fax' and self.readpar('direct_access_wan').lower() == 'true'):
+            useCT = False
+        elif useCT:
             tolog("Copy tool will be used for stage-in")
         else:
-            if useFileStager:
-                tolog("File stager mode: Copy tool will not be used for stage-in of root files")
-            else:
-                tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
-                if oldPrefix == "" and newPrefix == "":
-                    tolog("Will attempt to create a TURL based PFC")
+            tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
+            if oldPrefix == "" and newPrefix == "":
+                tolog("Will attempt to create a TURL based PFC")
 
-        return useCT, oldPrefix, newPrefix, useFileStager, directIn
+        return useCT, oldPrefix, newPrefix
 
-    def getDirectInAccessMode(self, prodDBlockToken, isRootFileName):
-        """Get Direct Access mode"""
+    def getDirectInAccessMode(self, prodDBlockToken, isRootFileName, transferType):
+        """ Get Direct Access mode """
         directIn = False
         useFileStager = False
         transfer_mode = None
 
-        useCT, oldPrefix, newPrefix, useFileStager, directIn = self.getCopyFileAccessInfo(stageIn=True)
+        # get the file access info                                                                                                                                                                                                                  
+        directIn, directInType = getDirectAccess()
+        useCT, oldPrefix, newPrefix = self.getFileAccessInfo(transferType)
 
         if directIn:
             if useCT:
                 directIn = False
                 tolog("Direct access mode is switched off (file will be transferred with the copy tool)")
-                #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
                 transfer_mode = "copy_to_scratch"
             else:
                 # determine if the file is a root file according to its name
@@ -1053,16 +1055,10 @@ class SiteInformation(object):
                 if prodDBlockToken == 'local' or not rootFile:
                     directIn = False
                     tolog("Direct access mode has been switched off for this file (will be transferred with the copy tool)")
-                    #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
                     transfer_mode = "copy_to_scratch"
                 elif rootFile:
                     tolog("Found root file according to file name (will not be transferred in direct reading mode)")
-                    if useFileStager:
-                        #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
-                        transfer_mode = "file_stager"
-                    else:
-                        #updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", type="input")
-                        transfer_mode = "remote_io"
+                    transfer_mode = "remote_io"
                 else:
                     tolog("Normal file transfer")
         else:
@@ -1078,6 +1074,14 @@ class SiteInformation(object):
         # where it usually is (e.g. on an HPC). See example implementation in ATLASSiteInformation
         # E.g. site movers that have setup paths on CVMFS use this method to locate the setup script. See e.g. objectstoreSiteMover
 
+        return ""
+
+    # Optional
+    def getFullQueuedataFilePath(self):
+        """ Location of full schedconfig info """
+
+        # E.g. the full queuedata can be located on cvmfs. Queuedata is assumed to be in json format.
+        # The full queuedata should contain a complete list of schedconfig info for all sites
         return ""
 
     # Required if a local ROOT setup is necessary from e.g. a site mover (FAXSiteMover, objectstoreSiteMover, ..)
@@ -1109,51 +1113,406 @@ class SiteInformation(object):
 
         return {"publicKey": publicKey, "privateKey": privateKey}
 
-    def getObjectstoresList(self):
+    def getObjectstoresInfo(self):
+        """ Get the objectstores list from the queuedata """
+        # Note: this corresponds to the default OS info for a given queue
+
+        # Input:  None
+        # Output: List containing all OS dictionaries (one per bucket) for the current queue
+
+        objectstores = None
+        _objectstores = self.readpar('objectstores')
+        if _objectstores != "":
+            # Try to parse the field (should be a JSON parsable object)
+            from json import loads
+            try:
+                objectstores = loads(_objectstores)
+            except Exception, e:
+                tolog("!!WARNING!!3444!! JSON loads failed to parse objectstores field: %s, %s" % (e, _objectstores))
+            else:
+                from FileHandling import convert
+                objectstores = convert(objectstores)
+                if type(objectstores) != list:
+                    tolog("!!WARNING!!3445!! Not a list: Failed to parse objectstores field: %s (type=%s)" % (str(objectstores), type(objectstores)))
+                    objectstores = None
+        else:
+            pass
+        return objectstores
+
+    def getObjectstoresField(self, os_field_name, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
+        """ Get the objectstore field value for the given bucket """
+
+        # Input:  os_field_name (os_name, os_access_key, ..)
+        #         bucket name (logs, eventservice, http)
+        #         bucket id (optional; if set, bucket name will be ignored)
+        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file (useful during alt OS stage-outs)
+        # Output: OS field value for the given bucket
+
+        os_name = ""
+        if objectstoresInfo != []:
+            d = objectstoresInfo
+        else:
+            d = self.getObjectstoresInfo()
+
+        if d != []:
+            if os_bucket_id != -1:
+                name = 'os_bucket_id'
+                value = os_bucket_id
+            else:
+                name = 'os_bucket_name'
+                value = os_bucket_name
+
+            # Loop over the OS entries
+            for l in d:
+                if l.has_key(name) and l.has_key(os_field_name):
+                    if value == l[name]:
+                        os_name = l[os_field_name]
+                        break
+                    else:
+                        pass
+                else:
+                    tolog("!!WARNING!!4554!! Either field name %s or %s is missing in OS info list" % (name, os_field_name))
+        else:
+            tolog("!!WARNING!!4555!! Cannot resolve os_name (empty OS info list)")
+
+        return os_name
+
+    def getObjectstoresFieldOld(self, field, mode, os_bucket_id=-1, queuename=None):
+        """ Return the objectorestores field from the objectstores list for the relevant mode """
+        # mode: eventservice, logs, http
+        # If os_bucket_id is set (!= -1) then get the info from the corresponding OS
+        # If os_bucket_id is not set (= -1) the the queuename is expected to be set and is used to locate
+        # the desired field from new_queuedata.json-ALL
+
+        value = None
+
+        # Get the objectstores list
+        objectstores_list = self.getObjectstoresList(os_bucket_id=os_bucket_id, queuename=queuename)
+
+        if objectstores_list:
+            for d in objectstores_list:
+                try:
+                    if d['os_bucket_name'] == mode:
+                        value = d[field]
+                        break
+                except Exception, e:
+                    tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
+
+        return value
+
+    def getObjectstoreDDMEndpoint(self, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
+        """ Return the OS DDM endpoint corresponding to the given bucket """
+        # Note: value is read from queuedata and is thus the default value
+
+        # Input:  os_bucket_name (logs, eventservice, http)
+        #         os_bucket_id (optional)
+        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file
+        # Output: DDM endpoint, e.g. CERN-PROD_LOGS
+
+        ddmendpoint = ""
+
+        # Read the objectstores field from file
+        if objectstoresInfo == []:
+            objectstoresInfo = self.getObjectstoresInfo()
+        else:
+            pass
+
+        if objectstoresInfo:
+            ddmendpoint = self.getObjectstoreField('ddmendpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            if ddmendpoint == "":
+                tolog("!!WARNING!!4555!! Encountered an unset ddmendpoint in AGIS OS info")
+
+        return ddmendpoint
+
+    def getObjectstorePath(self, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
+        """ Return a proper base path to an objectstore bucket """
+
+        # Input:  os_bucket_name (os_name, os_access_key, ..)
+        #         bucket name (logs, eventservice, http)
+        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file
+        #         Note: the objectstoresInfo needs to be given for any alternative OS transfer (i.e. not read from the normal queuedata file)
+        # Output: OS path for the corresponding bucket (and corresponding OS info list)
+        #         E.g. "s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice"
+        path = ""
+
+        # Read the objectstores field from file
+        if objectstoresInfo == []:
+            objectstoresInfo = self.getObjectstoresInfo()
+        else:
+            pass
+
+        if objectstoresInfo:
+            os_endpoint = self.getObjectstoresField('os_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            if os_endpoint != "" and os_bucket_endpoint != "":
+                path = os_endpoint + os_bucket_endpoint
+            else:
+                tolog("!!WARNING!!4559!! Could not generate OS path for os_bucket_name=%s, os_bucket_id=%d" % (os_bucket_name, os_bucket_id))
+        else:
+            tolog("!!WARNING!!4558!! Could not generate OS path since OS info could not be retrieved")
+
+        return path
+
+    def getObjectstorePathOld(self, os_name="", name='logs', os_bucket_id=-1):
+        """ Return the path to the objectstore """
+        # E.g. s3://s3.echo.stfc.ac.uk:80//atlas_logs
+        path = ""
+
+        # If os_name is not specified, os_bucket_id must be set
+        # In that case, the full objectstore info file will be searched for the corresponding os_bucket_id
+
+        if os_name != "":
+            filename = self.getObjectstoreFilename(name=os_name)
+            dictionary = readJSON(filename)
+
+            if dictionary != {}:
+                if dictionary.has_key('endpoint'):
+                    endpoint = dictionary['endpoint']
+                    if dictionary.has_key('os_buckets'):
+                        os_buckets = dictionary['os_buckets']
+                        for os_bucket in os_buckets:
+                            if os_bucket['name'] == name:
+                                path = endpoint + os_bucket['endpoint']
+                                break
+                        if path == "":
+                            tolog("!!WARNING!!2121!! No path for name=%s in entry=%s" % (name, dictionary))
+                    else:
+                        tolog("!!WARNING!!2121!! No os_bucket in entry=%s" % (dictionary))
+                else:
+                    tolog("!!WARNING!!2121!! No endpoint in entry=%s" % (dictionary))
+            else:
+                tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        else:
+            # os_bucket_id must be set in this case
+            if os_bucket_id == -1:
+                tolog("!!WARNING!!2124!! os_bucket_id must be set if os_name is not given")
+            else:
+                filename = self.getObjectstoreFilename()
+                json_list = readJSON(filename)
+
+                if json_list != []:
+                    for entry in json_list:
+                        if entry.has_key('os_buckets'):
+                            endpoint = entry['endpoint']
+                            os_buckets = entry['os_buckets']
+                            for os_bucket in os_buckets:
+                                if os_bucket['id'] == os_bucket_id:
+                                    path = endpoint + os_bucket['endpoint']
+                                    break
+                        else:
+                            tolog("!!WARNING!!2121!! No os_buckets in entry=%s" % (entry))
+                else:
+                    tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        return path
+
+    def getObjectstorePathOld2(self, mode, os_bucket_id=-1, queuename=None):
+        """ Return the path to the objectstore (and also the corresponding os_bucket_id) """
+        # mode: https, eventservice, logs
+        # Note: a hash based on the file name should be added to the os_bucket_endpoint (ie the end of the path returned from this function - when it is known)
+        # since the number of buckets is rather limited ~O(1k)
+        # Read the endpoint info from the queuedata
+        # If os_bucket_id is set (!= -1), get the info from objectstore bucket id = os_bucket_id
+        # If os_bucket_id is not set, then find it for the default OS for this mode
+        if os_bucket_id == -1:
+            os_bucket_id = self.getObjectstoresField('os_bucket_id', mode, queuename=queuename)
+        os_endpoint = self.getObjectstoresField('os_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
+        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
+
+        if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
+            if not os_endpoint.endswith('/'):
+                os_endpoint += '/'
+            path = os_endpoint + os_bucket_endpoint
+        else:
+            path = ""
+
+        return path, os_bucket_id
+
+    def getObjectstoresList(self, os_bucket_id=-1, queuename=None):
         """ Get the objectstores list from the proper queuedata for the relevant queue """
         # queuename is needed as long as objectstores field is not available in normal queuedata (temporary)
+        # If os_bucket_id is set (!= -1) then get the info from the corresponding OS
 
         objectstores = None
 
-        # First try to get the objectstores field from the normal queuedata
-        try:
-            _objectstores = self.readpar('objectstores', version=0)
-        except:
-            #tolog("Field \'objectstores\' not yet available in queuedata")
-            _objectstores = None
-
         # Get the field from AGIS
-        if not _objectstores:
-            s = True
-            # Download the new queuedata in case it has not been downloaded already
-            if not os.path.exists(self.getQueuedataFileName(version=1, check=False)):
-                s = self.getNewQueuedata(self.__queuename)
-            if s:
-                _objectstores = self.getField('objectstores')
+        s = True
+        # Download the new queuedata in case it has not been downloaded already and force re-download if os_bucket_id != -1
+        if not os.path.exists(self.getQueuedataFileName(version=1, check=False, queuename=queuename, os_bucket_id=os_bucket_id)) or os_bucket_id != -1:
+            s = self.getNewQueuedata(queuename, os_bucket_id=os_bucket_id)
+        if s:
+            _objectstores = self.getField('objectstores', queuename=queuename, os_bucket_id=os_bucket_id)
 
-        if _objectstores:
-            objectstores = _objectstores
+            if _objectstores:
+                objectstores = _objectstores
 
         return objectstores
 
-    def getNewQueuedata(self, queuename, overwrite=True, version=1):
+    def getObjectstoreFilename(self, name=""):
+        """ Return the name of the trimmed objectstore info file """
+
+        if name != "":
+            filename = "objectstore_info_%s.json" % (name)
+        else:
+            filename = "objectstore_info.json"
+
+        return filename
+
+    def getObjectstoreBucketID(self, os_name, name='logs'):
+        """ Return the os_bucket_id corresponding to name """
+
+        os_bucket_id = -1
+
+        filename = self.getObjectstoreFilename(name=os_name)
+        dictionary = readJSON(filename)
+
+        if dictionary != {}:
+            if dictionary.has_key('os_buckets'):
+                os_buckets = dictionary['os_buckets']
+                for os_bucket in os_buckets:
+                    if os_bucket['name'] == name:
+                        os_bucket_id = os_bucket['id']
+                        break
+            else:
+                tolog("!!WARNING!!2121!! No os_bucket in entry=%s" % (dictionary))
+        else:
+            tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        return os_bucket_id
+
+    def getObjectstoreInfoFile(self):
+        """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
+
+        status = False
+
+        filename = self.getObjectstoreFilename()
+        filename_trimmed = self.getObjectstoreFilename(name=os_name)
+
+        # Don't bother if the file already exists
+        if os.path.exists(filename) and os.path.exists(filename_trimmed):
+            tolog("AGIS objectstore info file(s) already exist")
+            status = True
+            return status
+
+        # Download queuedata from CVMFS, full version which needs to be trimmed
+        if not os.path.exists(filename):
+            tolog("Copying queuedata from primary location (CVMFS)")
+            from shutil import copy2
+            try:
+                copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_os_services.json", filename)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
+            else:
+                status = True
+
+
+        if not status:
+            # Get the queuedata from AGIS
+            tries = 2
+            for trial in range(tries):
+                tolog("Downloading queuedata (attempt #%d)" % (trial + 1))
+                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/service/query/get_os_services/?json\" >%s" % (filename)
+                tolog("Executing command: %s" % (cmd))
+                ret, output = commands.getstatusoutput(cmd)
+                if ret == 0:
+                    status = True
+                    break
+        if status:
+            tolog("Will create trimmed json files for each objectstore")
+            json_list = readJSON(filename)
+            if json_list != []:
+                for os_name in json_list.keys():
+                    trimmed_dictionary = json_list[os_name]
+                    filename_trimmed = self.getObjectstoreFilename(name=os_name)
+                    if writeJSON(filename_trimmed, trimmed_dictionary):
+                        tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename_trimmed))
+                        status = True
+                    else:
+                        tolog("!!WARNING!!2122!! Failed to write trimmed AGIS dictionary to file: %s" % (filename_trimmed))
+                        status = False
+            else:
+                tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        return status
+
+    def getObjectstoreInfoFileOld(self, os_name):
+        """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
+
+        status = False
+
+        filename = self.getObjectstoreFilename()
+        filename_trimmed = self.getObjectstoreFilename(name=os_name)
+
+        # Don't bother if the file already exists
+        if os.path.exists(filename) and os.path.exists(filename_trimmed):
+            tolog("AGIS objectstore info file(s) already exist")
+            status = True
+            return status
+
+        # Download queuedata from CVMFS, full version which needs to be trimmed
+        if not os.path.exists(filename):
+            tolog("Copying queuedata from primary location (CVMFS)")
+            from shutil import copy2
+            try:
+                copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_os_services.json", filename)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
+            else:
+                status = True
+
+        # CVMFS download failed, default to AGIS
+        if not status:
+            # Get the queuedata from AGIS
+            tries = 2
+            for trial in range(tries):
+                tolog("Downloading queuedata (attempt #%d)" % (trial+1))
+                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/service/query/get_os_services/?json\" >%s" % (filename)
+                tolog("Executing command: %s" % (cmd))
+                ret, output = commands.getstatusoutput(cmd)
+                if ret == 0:
+                    status = True
+                    break
+        if status:
+            json_list = readJSON(filename)
+            if json_list != []:
+                for entry in json_list:
+                    if entry.has_key('os_name'):
+                        if entry['os_name'] == os_name:
+                            trimmed_dictionary = entry
+                            if writeJSON(filename_trimmed, trimmed_dictionary):
+                                tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename_trimmed))
+                                status = True
+                            else:
+                                tolog("!!WARNING!!2122!! Failed to write trimmed AGIS dictionary to file: %s" % (filename_trimmed))
+                        else:
+                            pass
+                    else:
+                        tolog("!!WARNING!!2121!! No os_name in entry=%s" % (entry))
+                        status = False
+            else:
+                tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+
+        return status
+
+    # WARNING: ATLAS SPECIFIC - CONSIDER THIS METHOD AS AN EXAMPLE IMPLEMENTATION, CODE BELOW WILL BE MOVED TO ATLASSITEINFORMATION ASAP
+    def getNewQueuedata(self, queuename, overwrite=True, version=1, os_bucket_id=-1):
         """ Download the queuedata primarily from CVMFS and secondarily from the AGIS server """
 
-        filename = self.getQueuedataFileName(version=version, check=False)
+        filename = self.getQueuedataFileName(version=version, check=False, queuename=queuename, os_bucket_id=os_bucket_id)
         status = False
 
         # If overwrite is not required, return True if the queuedata already exists
-        if not overwrite:
-            if os.path.exists(filename):
-                tolog("AGIS queuedata already exist")
-                status = True
-                return status
+        if os.path.exists(filename):
+            tolog("AGIS queuedata already exist")
+            status = True
+            return status
 
         # Download queuenadata from CVMFS, full version which needs to be trimmed
         tolog("Copying queuedata from primary location (CVMFS)")
         from shutil import copy2
         try:
-            _filename = filename + "-ALL"
+            _filename = filename #+ "-ALL"
             copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json", _filename)
         except Exception, e:
             tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
@@ -1162,21 +1521,32 @@ class SiteInformation(object):
             # Load the dictionary
             dictionary = readJSON(_filename)
             if dictionary != {}:
-                # Get the entry for queuename
-                try:
-                    _d = dictionary[queuename]
-                except Exception, e:
-                    tolog("No entry for queue %s in JSON: %s" % (queuename, e))
+                # in case os_bucket_id is set, we are only interested in objectstore info so find the corresponding queuename
+                if os_bucket_id != -1:
+                    tolog("os_bucket_id=%d - will find a corresponding queuename (only interested in OS info)" % (os_bucket_id))
+                    queuename = self.getQueuenameFromOSBucketID(os_bucket_id)
                 else:
-                    # Create a new queuedata dictionary
-                    trimmed_dictionary = { queuename: _d }
+                    # queuename is expected to be set in case os_bucket_id = -1
+                    pass
 
-                    # Store it
-                    if writeJSON(filename, trimmed_dictionary):
-                        tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename))
-                        status = True
+                if queuename:
+                    # Get the entry for queuename
+                    try:
+                        _d = dictionary[queuename]
+                    except Exception, e:
+                        tolog("No entry for queue %s in JSON: %s" % (queuename, e))
                     else:
-                        tolog("!!WARNING!!4545!! Failed to write trimmed AGIS dictionary to file: %s" % (filename))
+                        # Create a new queuedata dictionary
+                        trimmed_dictionary = { queuename: _d }
+
+                        # Store it
+                        if writeJSON(filename, trimmed_dictionary):
+                            tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename))
+                            status = True
+                        else:
+                            tolog("!!WARNING!!4545!! Failed to write trimmed AGIS dictionary to file: %s" % (filename))
+                else:
+                    tolog("!!WARNING!!2122!! Can not proceed with unset os_bucket_id or queuename  (need it to find the queue)")
             else:
                 tolog("!!WARNING!!2120!! Failed to read dictionary from file %s" % (filename))
 
@@ -1191,50 +1561,18 @@ class SiteInformation(object):
                 ret, output = commands.getstatusoutput(cmd)
 
                 # Verify queuedata
-                value = self.getField('objectstores')
+                value = self.getField('objectstores', queuename=queuename)
                 if value:
                     status = True
                     break
 
         return status
 
-    def getNewQueuedataXXX(self, queuename, overwrite=True, version=1):
-        """ Download the queuedata primarily from the AGIS server and secondarily from CVMFS """
-
-        filename = self.getQueuedataFileName(version=version, check=False)
-        status = False
-
-        # If overwrite is not required, return True if the queuedata already exists
-        if not overwrite:
-            if os.path.exists(filename):
-                tolog("AGIS queuedata already exist")
-                status = True
-                return status
-
-        # Get the queuedata from AGIS
-        tries = 2
-        for trial in range(tries):
-            tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-            cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&vo_name=atlas&panda_queue=%s\" >%s" % (queuename, filename)
-            tolog("Executing command: %s" % (cmd))
-            ret, output = commands.getstatusoutput(cmd)
-
-            # Verify queuedata
-            value = self.getField('copysetup')
-            if value:
-                status = True
-                break
-
-        # AGIS download failed, default to CVMFS (full version which needs to be trimmed)
-        # ..
-
-        return status
-
-    def getField(self, field, version=1):
+    def getField(self, field, version=1, queuename=None, os_bucket_id=-1):
         """ Get the value for entry 'field' in the queuedata """
 
         value = None
-        filename = self.getQueuedataFileName(version=version, check=False)
+        filename = self.getQueuedataFileName(version=version, check=False, queuename=queuename, os_bucket_id=os_bucket_id)
         if os.path.exists(filename):
 
             # Load the dictionary
@@ -1259,55 +1597,17 @@ class SiteInformation(object):
 
         return value
 
-    def getObjectstoresField(self, field, mode):
-        """ Return the objectorestores field from the objectstores list for the relevant mode """
-        # mode: eventservice, logs, http
-        value = None
-
-        # Get the objectstores list
-        objectstores_list = self.getObjectstoresList()
-
-        if objectstores_list:
-            for d in objectstores_list:
-                try:
-                    os_bucket_name = d['os_bucket_name']
-                    if os_bucket_name == mode:
-                        value = d[field]
-                        break
-                except Exception, e:
-                    tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
-
-        return value
-
-    def getObjectstorePath(self, mode):
-        """ Return the path to the objectstore """
-        # mode: https, eventservice, logs
-        # Note: a hash based on the file name should be added to the os_bucket_endpoint (ie the end of the path returned from this function - when it is known)
-        # since the number of buckets is rather limited ~O(1k)
-        # Read the endpoint info from the queuedata
-        os_endpoint = self.getObjectstoresField('os_endpoint', mode)
-        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode)
-
-        if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
-            if not os_endpoint.endswith('/'):
-                os_endpoint += '/'
-            path = os_endpoint + os_bucket_endpoint
-        else:
-            path = ""
-
-        return path
-
-    def getObjectstoreName(self, mode):
+    def getObjectstoreName(self, mode, os_bucket_id=-1):
         """ Return the objectstore name identifier """
         # E.g. CERN_OS_0
 
-        return self.getObjectstoresField('os_name', mode)
+        return self.getObjectstoresField('os_name', os_bucket_name=mode, os_bucket_id=os_bucket_id)
 
-    def getObjectstoreBucketEndpoint(self, mode):
+    def getObjectstoreBucketEndpoint(self, mode, os_bucket_id=-1):
         """ Return the objectstore bucket endpoint for the relevant mode """
         # E.g. atlas_logs (for mode='logs')
 
-        return self.getObjectstoresField('os_bucket_endpoint', mode)
+        return self.getObjectstoresField('os_bucket_endpoint', os_bucket_name=mode, os_bucket_id=os_bucket_id)
 
     @classmethod
     def isFileExpired(self, fname, cache_time=0): ## should be isolated later
@@ -1535,6 +1835,359 @@ class SiteInformation(object):
         # See example implementation in ATLASExperiment
 
         return None
+
+    def copyFullQueuedata(self, destination=None):
+        """ Copy the full queuedata file from a location specified in SiteInformation """
+
+        # Get the path to the full queuedata json file
+        path = self.getFullQueuedataFilePath()
+        if destination:
+            dest = destination
+        else:
+            dest = os.getcwd()
+        try:
+            if os.path.exists(path):
+                tolog("File already exists, will not copy again: %s" % (path))
+            else:
+                from shutil import copy2
+                copy2(path, dest)
+                tolog("Copied %s to %s" % (path, dest))
+        except IOError, e:
+            tolog("!!WARNING!!4444!! Failed to copy file %s: %s" % (path, e))
+
+    def getFullQueuedataDictionary(self):
+        """ Return the full queuedata JSON dictionary """
+        # Note: this dictionary is very heavy since it contains all the info for all the queues
+
+        return getJSONDictionary(self.getFullQueuedataFilePath())
+
+    def findOSEnabledQueuesInFullQueuedata(self):
+        """ Create a list with all queues that have object stores defined """
+
+        queuename_list = []
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    queuename_list.append(queuename)
+
+        return queuename_list
+
+    def findAllObjectStores(self, os_bucket_name):
+        """ Find all Object Store names corresponding to a particular bucket name """
+        # E.g. os_bucket_name = http - only return Object Stores that has the http bucket defined
+        os_info = {}
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    # dictionary[queuename]["objectstores"] =
+                    # [{'os_secret_key': 'CERN_ObjectStoreKey', 'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 41, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_id': 17172, 'os_bucket_name': 'eventservice', 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_eventservice', 'os_endpoint': 's3://cs3.cern.ch:443/'}, {'os_secret_key': 'CERN_ObjectStoreKey', 'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 42, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_id': 17172, 'os_bucket_name': 'logs', 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_logs', 'os_endpoint': 's3://cs3.cern.ch:443/'}]
+
+                    l = dictionary[queuename]["objectstores"]
+                    for i in range(len(l)):
+                        os_name = l[i]["os_name"] # e.g. CERN_OS_1
+
+                        # l[0] = {'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 41, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_eventservice', 'os_secret_key': 'CERN_ObjectStoreKey', 'os_id': 17172, 'os_bucket_name': 'eventservice', 'os_endpoint': 's3://cs3.cern.ch:443/'}
+               # l[1] = {'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 42, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_logs', 'os_secret_key': 'CERN_ObjectStoreKey', 'os_id': 17172, 'os_bucket_name': 'logs', 'os_endpoint': 's3://cs3.cern.ch:443/'}
+
+                        if os_name in os_info.keys() and os_info[os_name]['os_bucket_name'] == os_bucket_name:
+                            continue
+                        else:
+                            if l[i]['os_bucket_name'] == os_bucket_name:
+                                os_info[os_name] = l[i]
+                            else:
+                                continue
+
+        return os_info
+
+    def getAlternativeOS(self, os_bucket_name, preferredOS="", currentOS=""):
+        """ Get the dictionary of alternative Objectstores """
+        # Only the preferred OS will be returned in preferredOS is set.
+        # In case preferredOS is not set, currentOS has to be set; and in this case the subsequent OS will be returned
+
+        alt_os_info_dictionary = {}
+
+        # First copy all the queuedata
+        self.copyFullQueuedata()
+
+        # Get the list of alternative OS dictionaries
+        # OS info: os_info[i], e.g. = {'os_secret_key': '', 'os_access_key': '', 'os_name': 'BNL_OS_0', 'os_bucket_id': 1, 'os_state': 'ACTIVE', 'os_is_secure': False, 'os_id': 17114, 'os_bucket_name': 'http', 'os_flavour': 'AWS-HTTP', 'os_bucket_endpoint': '/atlas_logs', 'os_endpoint': 'http://cephgw.usatlas.bnl.gov:8443/'}
+        os_info = self.findAllObjectStores(os_bucket_name)
+        tolog("Found objectstores: %s" % str(os_info.keys()))
+
+        # Pre-determine the fallback OS for now
+        if preferredOS == "":
+            if not "BNL" in currentOS:
+                # Get a BNL OS from the dictionary
+                for os_name in os_info.keys():
+                    if "BNL" in os_name:
+                        preferredOS = os_name
+                        break
+            else:
+                # For the BNL OS, fallback to CERN
+                for os_name in os_info.keys():
+                    if "CERN" in os_name:
+                        preferredOS = os_name
+
+        # Select a proper alternative OS - if there's a preferred OS, then select that one
+        if preferredOS != "":
+            for os_name in os_info.keys():
+                if os_name == preferredOS:
+                    alt_os_info_dictionary = os_info[os_name]
+                    break
+
+        if alt_os_info_dictionary == {}:
+            # Never fallback to AMAZON OS
+            avoidObjectstores = ['AMAZON'] # pattern, not exact names
+
+            if currentOS != "":
+                # Create a valid OS list
+                valid = []
+                for os_name in os_info.keys():
+                    found_not_valid = False
+                    for not_valid in avoidObjectstores:
+                        if not_valid in os_name and not_valid not in currentOS:
+                            found_not_valid = True
+                    if not found_not_valid:
+                        valid.append(os_name)
+
+                # Find the current OS
+                i = 0
+                j = -1
+                for os_name in valid:
+                    if os_name == currentOS:
+                        j = i+1
+                        if j == len(valid):
+                            j = 0
+                        break
+                    else:
+                        i += 1
+                if j != -1:
+                    alt_os_info_dictionary = os_info[valid[j]]
+
+        return alt_os_info_dictionary
+
+    def hasOSBucketIDs(self, prodDBlockToken):
+        """ Does the prodDBlockToken contain OS bucket IDs? """
+        # The prodDBlockToken is considered to contain bucket IDs if it's a list of string integers
+
+        status = False
+        prodDBlockTokenInts = []
+
+        try:
+            # Can the list of string integers be converted to a list of integers?
+            prodDBlockTokenInts = [int(x) if x.isdigit() else None for x in prodDBlockToken] # map(int, prodDBlockToken)
+        except:
+            # Will throw a ValueError in case of present non-integers
+            tolog("prodDBlockToken does not contain OS bucket IDs (prodDBlockToken=%s)" % str(prodDBlockToken))
+        else:
+            tolog("prodDBlockToken contains OS bucket IDs (prodDBlockToken=%s)" % str(prodDBlockToken))
+            status = True
+
+        return status, prodDBlockTokenInts
+
+    def convertBucketIDsToOSIDs(self, prodDBlockToken):
+        """ Convert the bucket IDs in prodDBlockToken to OS IDs """
+
+        os_ids = []
+
+        # Convert to a list of integers
+        status, prodDBlockToken = self.hasOSBucketIDs(prodDBlockToken)
+
+        if status:
+            # Create a lookup dictionary
+            # FORMAT: { os_bucket_id1 : os_id1, .. }
+            lookup = {}
+
+            for os_bucket_id in prodDBlockToken:
+                if lookup.has_key(os_bucket_id):
+                    os_id = lookup[os_bucket_id]
+                else:
+                    os_name, os_id = self.getOSInfoFromBucketID(os_bucket_id) # os_name is not of interest here
+                if type(os_id) == int:
+                    # Add the info to the lookup dictionary so we don't have to scan for this info again
+                    if not lookup.has_key(os_bucket_id):
+                        lookup[os_bucket_id] = os_id
+                    os_ids.append(os_id)
+                else:
+                    tolog("!!WARNING!!4343!! Encountered a non-integer OS ID: %s (type=%s)" % (os_id, type(os_id)))
+
+        return os_ids
+
+    def getOSInfoFromBucketID(self, os_bucket_id):
+        """ Return the OS ID and name for a given bucket id """
+
+        os_id = -1
+        os_name = ""
+
+        # Get the OS dictionary
+        os_info = self.findObjectStore(os_bucket_id)
+
+        for _os_name in os_info.keys():
+            try:
+                os_id = os_info[_os_name]['os_id']
+            except Exception, e:
+                tolog("!!WARNING!!5655!! Exception caught: %s" % (e))
+            else:
+                os_name = _os_name
+                break
+
+        return os_name, os_id
+
+    def getBucketID(self, os_id, os_bucket_name):
+        """ Return the unique bucket id for a given OS and bucket name """
+
+        os_bucket_id = -1
+
+        # Get the OS dictionary
+        os_info = self.findAllObjectStores(os_bucket_name)
+
+        for os_name in os_info.keys():
+            try:
+                _os_id = os_info[os_name]['os_id']
+                _os_bucket_name = os_info[os_name]['os_bucket_name']
+            except Exception, e:
+                tolog("!!WARNING!!4554!! Exception caught: %s" % (e))
+            else:
+                if _os_bucket_name == os_bucket_name and _os_id == os_id:
+                    try:
+                        os_bucket_id = os_info[os_name]['os_bucket_id']
+                    except Exception, e:
+                        tolog("!!WARNING!!4554!! Exception caught: %s" % (e))
+                    else:
+                        tolog("OS ID=%s has bucket id=%d for bucket name=%s" % (os_name, os_bucket_id, os_bucket_name))
+                        break
+
+        return os_bucket_id
+
+    def findObjectStore(self, os_bucket_id):
+        """ Find the Object Store corresponding to the unique bucket id """
+
+        os_info = {}
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    # dictionary[queuename]["objectstores"] =
+                    # [{'os_secret_key': 'CERN_ObjectStoreKey', 'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 41, 'os_state': 'ACTIVE', 
+                    #   'os_is_secure': True, 'os_id': 17172, 'os_bucket_name': 'eventservice', 'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_eventservice', 
+                    #   'os_endpoint': 's3://cs3.cern.ch:443/'}, {'os_secret_key': 'CERN_ObjectStoreKey', 'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 
+                    #   'os_bucket_id': 42, 'os_state': 'ACTIVE', 'os_is_secure': True, 'os_id': 17172, 'os_bucket_name': 'logs', 'os_flavour': 'AWS-S3', 
+                    #   'os_bucket_endpoint': '/atlas_logs', 'os_endpoint': 's3://cs3.cern.ch:443/'}]
+
+                    l = dictionary[queuename]["objectstores"]
+                    for i in range(len(l)):
+                        os_name = l[i]["os_name"] # e.g. CERN_OS_1
+
+                        # l[0] = {'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 41, 'os_state': 'ACTIVE', 'os_is_secure': True, 
+                        #         'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_eventservice', 'os_secret_key': 'CERN_ObjectStoreKey', 'os_id': 17172, 
+                        #         'os_bucket_name': 'eventservice', 'os_endpoint': 's3://cs3.cern.ch:443/'}
+                        # l[1] = {'os_access_key': 'CERN_ObjectStoreKey.pub', 'os_name': 'CERN_OS_1', 'os_bucket_id': 42, 'os_state': 'ACTIVE', 'os_is_secure': True, 
+                        #         'os_flavour': 'AWS-S3', 'os_bucket_endpoint': '/atlas_logs', 'os_secret_key': 'CERN_ObjectStoreKey', 'os_id': 17172, 'os_bucket_name': 'logs', 
+                        # 'os_endpoint': 's3://cs3.cern.ch:443/'}
+
+                        if l[i]['os_bucket_id'] == os_bucket_id:
+                            os_info[os_name] = l[i]
+                            break
+                        else:
+                            continue
+
+        return os_info
+
+    def getOSIDFromName(self, os_name, os_bucket_name):
+        """ Return the corresponding Objectstore ID for a given OS name and bucket """
+
+        os_id = -1
+
+        # Get the OS dictionary
+        os_info = self.findAllObjectStores(os_bucket_name)
+
+        if os_info.has_key(os_name):
+            try:
+                os_id = os_info[os_name]['os_id']
+            except Exception, e:
+                tolog("!!WARNING!!4554!! Exception caught: %s" % (e))
+        else:
+            tolog("!!WARNING!!4555!! No such OS name: %s (%s)" % (os_name, str(os_info.keys())))
+
+        return os_id
+
+    def getQueuenameFromOSID(self, os_id):
+        """ Return the name of a queue that has the given os_id """
+
+        _queuename = ""
+
+        # First copy all the queuedata
+        self.copyFullQueuedata()
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    l = dictionary[queuename]["objectstores"]
+                    for i in l:
+                        if i['os_id'] == os_id:
+                            tolog("Queuename %s has os_id=%d" % (queuename, os_id))
+                            _queuename = queuename
+                            break
+                if _queuename != "":
+                    break
+        else:
+            tolog("Full queuedata not available")
+
+        return _queuename
+
+    def getQueuenameFromOSBucketID(self, os_bucket_id):
+        """ Return the name of a queue that has the given os_bucket_id """
+
+        _queuename = ""
+
+        # First copy all the queuedata
+        self.copyFullQueuedata()
+
+        # Load the dictionary
+        dictionary = self.getFullQueuedataDictionary()
+        if dictionary != {}:
+            for queuename in dictionary.keys():
+                if dictionary[queuename]["objectstores"] != []:
+                    l = dictionary[queuename]["objectstores"]
+                    for i in l:
+                        if i['os_bucket_id'] == os_bucket_id:
+                            tolog("Queuename %s has os_bucket_id=%d (note: queuename not important for OS transfers - only its OS info)" % (queuename, os_bucket_id))
+                            _queuename = queuename
+                            break
+                if _queuename != "":
+                    break
+        else:
+            tolog("Full queuedata not available")
+
+        return _queuename
+
+    def updateDirectAccess(self, transferType):
+        """ Update the direct_access_lan/wan depending on the transferType """
+
+        if transferType == "direct":
+            if self.readpar('direct_access_lan').lower() == 'false':
+                ec = self.replaceQueuedataField("direct_access_lan", "True")
+            else:
+                tolog("No need to update direct_access_lan (already set to True)")
+        elif transferType == "fax":
+            if self.readpar('direct_access_wan').lower() == 'false':
+                ec = self.replaceQueuedataField("direct_access_wan", "True")
+            else:
+                tolog("No need to update direct_access_wan (already set to True)")
+        else:
+            tolog("Unknown transferType=%s" % (transferType))
 
 if __name__ == "__main__":
     from SiteInformation import SiteInformation

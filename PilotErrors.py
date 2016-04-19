@@ -132,6 +132,8 @@ class PilotErrors:
     ERR_TEHOSTNAME = 1233
     ERR_EXECUTEDCLONEJOB = 1234
     ERR_PAYLOADEXCEEDMAXMEM = 1235
+    ERR_FAILEDBYSERVER = 1236
+    ERR_ESKILLEDBYSERVER = 1237
 
     # internal error codes
     ERR_DDMREG = 1
@@ -268,7 +270,9 @@ class PilotErrors:
         ERR_TEINVALIDGUID: "Token Extractor error: Invalid GUID length",
         ERR_TEWRONGGUID: "Token Extractor error: No tokens for this GUID",
         ERR_EXECUTEDCLONEJOB: "Already executed clone job",
-        ERR_PAYLOADEXCEEDMAXMEM: "Payload exceeded maximum allowed memory"
+        ERR_PAYLOADEXCEEDMAXMEM: "Payload exceeded maximum allowed memory",
+        ERR_FAILEDBYSERVER: "Failed by server",
+        ERR_ESKILLEDBYSERVER: "Event Service job killed by server"
         }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]

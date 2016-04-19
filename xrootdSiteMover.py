@@ -12,7 +12,7 @@ from re import compile, findall
 from futil import *
 from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation
-from config import config_sm
+from configSiteMover import config_sm
 from FileStateClient import updateFileState
 from timed_command import timed_command
 
@@ -131,22 +131,22 @@ class xrootdSiteMover(SiteMover.SiteMover):
             if useCT:
                 directIn = False
                 tolog("Direct access mode is switched off (file will be transferred with the copy tool)")
-                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
             else:
                 rootFile = self.isRootFile(src_loc_pfn, setup=_setup_str)
                 if prodDBlockToken == 'local' or not rootFile:
                     directIn = False
                     tolog("Direct access mode has been switched off for this file (will be transferred with the copy tool)")
-                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", type="input")
+                    updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="copy_to_scratch", ftype="input")
                 elif rootFile:
                     tolog("Found root file: %s (will not be transferred in direct reading mode)" % (src_loc_pfn))
                     report['relativeStart'] = None
                     report['transferStart'] = None
                     self.prepareReport('IS_ROOT', report)
                     if useFileStager:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="file_stager", ftype="input")
                     else:
-                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", type="input")
+                        updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="remote_io", ftype="input")
                     return error.ERR_DIRECTIOFILE, pilotErrorDiag
                 else:
                     tolog("Normal file transfer")
@@ -257,7 +257,7 @@ class xrootdSiteMover(SiteMover.SiteMover):
 
             return error.ERR_GETWRONGSIZE, pilotErrorDiag
 
-        updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
+        updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 

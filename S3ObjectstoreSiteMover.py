@@ -2,6 +2,7 @@ import os, re, sys
 import commands
 from time import time, sleep
 import urlparse
+import traceback
 
 from TimerCommand import TimerCommand
 import SiteMover
@@ -10,7 +11,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
-from config import config_sm
+from configSiteMover import config_sm
 
 CMD_CHECKSUM = config_sm.COMMAND_MD5
 
@@ -24,15 +25,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def __init__(self, setup_path, useTimerCommand=True, *args, **kwrds):
         self._setup = setup_path.strip()
-        self._defaultSetup = "source /cvmfs/atlas.cern.ch/repo/sw/external/boto/setup.sh; unset http_proxy; unset https_proxy"
+        self._defaultSetup = "source /cvmfs/atlas.cern.ch/repo/sw/external/boto/setup.sh "
         self.s3Objectstore = None
         self.__isBotoLoaded = False
         self._useTimerCommand = useTimerCommand
-
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            cls._instance = super(S3ObjectstoreSiteMover, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
 
     def get_timeout(self):
         return self.timeout
@@ -40,7 +36,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     def log(self, errorLog):
         tolog(errorLog)
 
-    def setup(self, experiment=None, surl=None):
+    def setup(self, experiment=None, surl=None, os_bucket_id=-1):
         """ setup env """
         if not self.__isBotoLoaded:
             try:
@@ -60,21 +56,30 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
                     tolog("Failed to import boto again. exit")
                     return PilotErrors.ERR_UNKNOWN, "Failed to import boto"
 
-        if os.environ.get("http_proxy"):
-            del os.environ['http_proxy']
-        if os.environ.get("https_proxy"):
-            del os.environ['https_proxy']
+        hostname = None
+        try:
+            import socket
+            hostname = socket.getfqdn()
+        except:
+            tolog(traceback.format_exc())
+        if os.environ.get("http_proxy") and hostname and hostname.endswith("bnl.gov"):
+             del os.environ['http_proxy']
+        if os.environ.get("https_proxy") and hostname and hostname.endswith("bnl.gov"):
+             del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
-        os_access_key = si.getObjectstoresField("os_access_key", "eventservice")
-        os_secret_key = si.getObjectstoresField("os_secret_key", "eventservice")
+        os_access_key = si.getObjectstoresField("os_access_key", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
+        os_secret_key = si.getObjectstoresField("os_secret_key", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
         if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":
             keyPair = si.getSecurityKey(os_secret_key, os_access_key)
+            if "privateKey" not in keyPair or keyPair["privateKey"] is None:
+                tolog("Failed to get the keyPair for S3 objectstore")
+                return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
         else:
-            tolog("Failed to get the keyPair for S3 objectstore")
-            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
+            tolog("Failed to get the keyPair name for S3 objectstore")
+            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair name for S3 objectstore"
 
-        os_is_secure = si.getObjectstoresField("os_is_secure", "eventservice")
+        os_is_secure = si.getObjectstoresField("os_is_secure", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure, self._useTimerCommand)
 
 #        keyPair = None
@@ -172,7 +177,8 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         return status, output
 
     def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token, outputDir=None, timeout=3600):
-        """StageIn the file. should be implementated by different site mover."""
+        """ Stage-out the file. should be implementated by different site mover """
+
         status = -1
         output = 'not defined'
         if outputDir and outputDir.endswith("PilotMVOutputDir"):
@@ -206,7 +212,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             try:
                 status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token, timeout=timeout)
             except:
-                tolog("Failed to stage out file: %s" % (sys.exc_info()[1]))
+                tolog("Failed to stage out file: %s" % (traceback.format_exc()))
                 return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
         return status, output
 
@@ -244,7 +250,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.log("Finished to verify staging")
         return 0, errLog
 
-    def stageIn(self, source, destination, sourceSize=None, sourceChecksum=None, experiment=None):
+    def stageIn(self, source, destination, sourceSize=None, sourceChecksum=None, experiment=None, os_bucket_id=-1):
         """Stage in the source file"""
         self.log("Starting to stagein file %s(size:%s, chksum:%s) to %s" % (source, sourceSize, sourceChecksum, destination))
 
@@ -253,7 +259,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if sourceChecksum == "" or sourceChecksum == "NULL":
             sourceChecksum = None
 
-        status, output = self.setup(experiment, source)
+        status, output = self.setup(experiment, source, os_bucket_id=os_bucket_id)
         if status:
             return status, output
 
@@ -289,11 +295,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.log("Finished to stagin file %s(status:%s, output:%s)" % (source, status, output))
         return status, output
 
-    def stageOut(self, source, destination, token, experiment=None, outputDir=None, timeout=3600):
+    def stageOut(self, source, destination, token, experiment=None, outputDir=None, timeout=3600, os_bucket_id=-1):
         """Stage in the source file"""
         self.log("Starting to stageout file %s to %s with token: %s" % (source, destination, token))
 
-        status, output = self.setup(experiment, destination)
+        status, output = self.setup(experiment, destination, os_bucket_id=os_bucket_id)
         if status:
             return status, output, None, None
 
@@ -326,7 +332,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
         experiment = pdict.get('experiment', '')
-        proxycheck = pdict.get('proxycheck', False)
+        os_bucket_id = pdict.get('os_bucket_id', -1)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)
@@ -338,10 +344,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if path == '': path = './'
         fullname = os.path.join(path, lfn)
 
-        status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment)
+        status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment, os_bucket_id=os_bucket_id)
 
         if status == 0:
-            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", type="input")
+            updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
             state = "DONE"
         else:
             errors = PilotErrors()
@@ -360,21 +366,15 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         error = PilotErrors()
         pilotErrorDiag = ""
 
-
         # Get input parameters from pdict
-        alt = pdict.get('alt', False)
         lfn = pdict.get('lfn', '')
         guid = pdict.get('guid', '')
         token = pdict.get('token', '')
         scope = pdict.get('scope', '')
         dsname = pdict.get('dsname', '')
-        analysisJob = pdict.get('analJob', False)
-        testLevel = pdict.get('testLevel', '0')
-        extradirs = pdict.get('extradirs', '')
         experiment = pdict.get('experiment', '')
-        proxycheck = pdict.get('proxycheck', False)
-        prodSourceLabel = pdict.get('prodSourceLabel', '')
         outputDir = pdict.get('outputDir', '')
+        os_bucket_id = pdict.get('os_bucket_id', -1)
         timeout = pdict.get('timeout', None)
         if not timeout:
             timeout = self.timeout
@@ -382,17 +382,12 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         # get the site information object
         si = getSiteInformation(experiment)
 
-        tolog("put_data received prodSourceLabel=%s" % (prodSourceLabel))
-        if prodSourceLabel == 'ddm' and analysisJob:
-            tolog("Treating PanDA Mover job as a production job during stage-out")
-            analysisJob = False
-
         # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
 
         filename = os.path.basename(source)
         surl = destination
-        status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout)
+        status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout, os_bucket_id=os_bucket_id)
         if status !=0:
             errors = PilotErrors()
             state = errors.getErrorName(status)
@@ -464,10 +459,12 @@ class S3ObjctStore(object):
                 calling_format = boto.s3.connection.OrdinaryCallingFormat(),
                 )
 
-            if create:
-                bucket = self.__conn.create_bucket(bucket_name)
-            else:
+            try:
                 bucket = self.__conn.get_bucket(bucket_name)
+            except boto.exception.S3ResponseError, e:
+                tolog("Cannot get bucket: %s" % traceback.format_exc())
+
+                bucket = self.__conn.create_bucket(bucket_name)
 
         if create:
             key = Key(bucket, key_name)
@@ -505,9 +502,9 @@ class S3ObjctStore(object):
             key = self.get_key(destination, create=True)
             if key is None:
                 return -1, "Failed to create S3 key on destionation(%s)" % destination
-
             key.set_metadata("md5", sourceChecksum)
             size = key.set_contents_from_filename(source)
+
             # if key.md5 != key.etag.strip('"').strip("'"):
             #     return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
             if sourceSize and str(sourceSize) != str(key.size):
