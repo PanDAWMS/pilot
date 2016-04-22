@@ -1449,17 +1449,15 @@ class RunJobEvent(RunJob):
                     tolog("Received file and process info from client: %s" % (buf))
 
                     # Extract the information from the message
-                    path, event_range_id, cpu, wall = self.interpretMessage(buf)
-                    if path not in self.__stageout_queue and path != "":
-                        # Correct the output file name if necessary
-                        # path = correctFileName(path, event_range_id)
+                    paths, event_range_id, cpu, wall = self.interpretMessage(buf)
+                    for path in paths:
+                        if path not in self.__stageout_queue and path != "":
+                            # Add the extracted info to the event range dictionary
+                            self.__eventRange_dictionary[event_range_id] = [path, cpu, wall]
 
-                        # Add the extracted info to the event range dictionary
-                        self.__eventRange_dictionary[event_range_id] = [path, cpu, wall]
-
-                        # Add the file to the stage-out queue
-                        self.__stageout_queue.append(path)
-                        tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(self.__stageout_queue)))
+                            # Add the file to the stage-out queue
+                            self.__stageout_queue.append(path)
+                            tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(self.__stageout_queue)))
 
                 elif buf.startswith('ERR'):
                     tolog("Received an error message: %s" % (buf))
@@ -1601,48 +1599,37 @@ class RunJobEvent(RunJob):
         return path
 
     def interpretMessage(self, msg):
-        """ Interpret a message containing file and processing info """
+        """ Interpret a yampl message containing file and processing info """
 
         # The message is assumed to have the following format
-        # Format: "<file_path>,<event_range_id>,CPU:<number_in_sec>,WALL:<number_in_sec>"
-        # Return: path, event_range_id, cpu time (s), wall time (s)
+        # Format: "<file_path1>,<file_path2>, .. ,ID:<event_range_id>,CPU:<number_in_sec>,WALL:<number_in_sec>"
+        # Return: [paths], event_range_id, cpu time (s), wall time (s)
 
-        path = ""
+        paths = []
         event_range_id = ""
         cpu = ""
         wall = ""
 
         if "," in msg:
-            message = msg.split(",")
+            for message in msg.split(","):
+                if not ":" in message:
+                    paths.append(message)
+                elif message.startswith("ID"):
+                    event_range_id = message.split(":")[1]
+                elif message.startswith("CPU"):
+                    cpu = message.split(":")[1]
+                elif message.startswith("WALL"):
+                    wall = message.split(":")[1]
+                else:
+                    tolog("!!WARNING!!3535!! Unsupported identifier: %s" % (message))
 
-            try:
-                path = message[0]
-            except:
-                tolog("!!WARNING!!1100!! Failed to extract file path from message: %s" % (msg))
-
-            try:
-                event_range_id = message[1]
-            except:
-                tolog("!!WARNING!!1101!! Failed to extract event range id from message: %s" % (msg))
-
-            try:
-                # CPU:<number_in_sec>
-                _cpu = message[2]
-                cpu = _cpu.split(":")[1]
-            except:
-                tolog("!!WARNING!!1102!! Failed to extract CPU time from message: %s" % (msg))
-
-            try:
-                # WALL:<number_in_sec>
-                _wall = message[3]
-                wall = _wall.split(":")[1]
-            except:
-                tolog("!!WARNING!!1103!! Failed to extract wall time from message: %s" % (msg))
-
+            # Correct for older format where ID was not present. In this case, the last 'path' is actually the event_range_id
+            if not "ID" in msg:
+                event_range_id = paths.pop()
         else:
-            tolog("!!WARNING!!1122!! Unknown message format: missing commas: %s" % (msg))
+            tolog("!!WARNING!!1122!! Unknown yampl message format: missing commas: %s" % (msg))
 
-        return path, event_range_id, cpu, wall
+        return paths, event_range_id, cpu, wall
 
     def getTokenExtractorInputListEntry(self, input_file_guid, input_filename):
         """ Prepare the guid and filename string for the token extractor file with the proper format """

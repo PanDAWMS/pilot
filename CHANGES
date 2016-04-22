@@ -426,6 +426,8 @@ Event service
 - Avoiding None values in prodDBlockToken list, in hasOSBucketIDs() (SiteInformation)
 - Created getObjectstoreDDMEndpoint() (SiteInformation)
 - Created getCPUTimes(), used in RunJobEvent::__main__() (FileHandling, RunJobEvent)
+- Updated interpretMessage() to handle multiple files (RunJobEvent)
+- Updated listener() to handle list of files from interpretMessage() (RunJobEvent)
 
 Logs to OS:
 - Added putLogToOS to Job class (Job)
