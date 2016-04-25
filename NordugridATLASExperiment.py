@@ -101,7 +101,7 @@ class NordugridATLASExperiment(ATLASExperiment):
             return status, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
         # add FRONTIER debugging and RUCIO env variables
-        cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
+        cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
 
         if readpar('cloud') == "DE":
             # Should JEM be used?
