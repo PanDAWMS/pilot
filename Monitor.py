@@ -268,11 +268,6 @@ class Monitor:
             if thisExperiment.shouldExecuteUtility():
                 for k in self.__env['jobDic'].keys():
 
-                    #PN
-                    pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORYEXCEEDED")
-
-
-
                     # Get the maxPSS value from the memory monitor
                     summary_dictionary = thisExperiment.getMemoryValues(self.__env['jobDic'][k][1].workdir, self.__env['pilot_initdir'])
                     try:
