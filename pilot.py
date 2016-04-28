@@ -83,8 +83,8 @@ def usage():
                <getJobMaxTime> The maximum time the pilot will attempt single job downloads (in minutes, default is 3 minutes, min value is 1)
                <cache> is an optional URL used by some experiment classes (LSST)
                <schedconfigURL> optional URL used by the pilot to download queuedata from the schedconfig server
-               <yodaNodes> The maximum nodes Yoda will start with.
-               <yodaQueue> The queue Yoda jobs will be send to.
+               <yodaNodes> The maximum nodes Yoda will start with
+               <yodaQueue> The queue Yoda jobs will be sent to
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__

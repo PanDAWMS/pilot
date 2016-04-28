@@ -1200,6 +1200,44 @@ class SiteInformation(object):
 
         return value
 
+    def getObjectstoreField(self, os_field_name, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
+        """ Get the objectstore field value for the given bucket (from normal queuedata) """
+
+        # Input:  os_field_name (os_name, os_access_key, ..)
+        #         bucket name (logs, eventservice, http)
+        #         bucket id (optional; if set, bucket name will be ignored)
+        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file (useful during alt OS stage-outs)
+        # Output: OS field value for the given bucket
+
+        os_field_value = ""
+        if objectstoresInfo != []:
+            d = objectstoresInfo
+        else:
+            d = self.getObjectstoresInfo()
+
+        if d != []:
+            if os_bucket_id != -1:
+                name = 'os_bucket_id'
+                value = os_bucket_id
+            else:
+                name = 'os_bucket_name'
+                value = os_bucket_name
+
+            # Loop over the OS entries
+            for l in d:
+                if l.has_key(name) and l.has_key(os_field_name):
+                    if value == l[name]:
+                        os_field_value = l[os_field_name]
+                        break
+                    else:
+                        pass
+                else:
+                    tolog("!!WARNING!!4554!! Either field name %s or %s is missing in OS info list" % (name, os_field_name))
+        else:
+            tolog("!!WARNING!!4555!! Cannot resolve os_name (empty OS info list)")
+
+        return os_field_value
+
     def getObjectstoreDDMEndpoint(self, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
         """ Return the OS DDM endpoint corresponding to the given bucket """
         # Note: value is read from queuedata and is thus the default value
@@ -1224,110 +1262,97 @@ class SiteInformation(object):
 
         return ddmendpoint
 
-    def getObjectstorePath(self, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
-        """ Return a proper base path to an objectstore bucket """
+    def getObjectstorePathFromARProtocols(self, dictionary_ddmendpoint, label, protocol, os_bucket_id):
+        """ Get the os_path from the arprotocol dictinoary """
 
-        # Input:  os_bucket_name (os_name, os_access_key, ..)
-        #         bucket name (logs, eventservice, http)
-        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file
-        #         Note: the objectstoresInfo needs to be given for any alternative OS transfer (i.e. not read from the normal queuedata file)
-        # Output: OS path for the corresponding bucket (and corresponding OS info list)
-        #         E.g. "s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice"
-        path = ""
+        # Input: dictionary_ddmendpoint (for given ddmendpoint), label (d,r,w), protocol (s3, s3+rucio, http)
+        # Output: os_path
 
-        # Read the objectstores field from file
-        if objectstoresInfo == []:
-            objectstoresInfo = self.getObjectstoresInfo()
-        else:
-            pass
+        os_path = ""
 
-        if objectstoresInfo:
-            os_endpoint = self.getObjectstoresField('os_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
-            os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
-            if os_endpoint != "" and os_bucket_endpoint != "":
-                path = os_endpoint + os_bucket_endpoint
+        arprotocols = dictionary_ddmendpoint['arprotocols']
+        if arprotocols != {}:
+            if arprotocols.has_key(label):
+                d = arprotocols[label]
             else:
-                tolog("!!WARNING!!4559!! Could not generate OS path for os_bucket_name=%s, os_bucket_id=%d" % (os_bucket_name, os_bucket_id))
-        else:
-            tolog("!!WARNING!!4558!! Could not generate OS path since OS info could not be retrieved")
+                tolog("!!WARNING!!2323!! No such arprotocols label: %s (using default label (\'d\'))" % (label))
+                label = "d"
+                d = arprotocols[label]
+            if d != []:
+                endpoint = ""
+                path = ""
+                for entry in d:
+                    _endpoint = entry.get('endpoint', '')
+                    _path = entry.get('path', '')
+                    if _endpoint != "" and _path != "":
+                        if _endpoint.startswith(protocol):
+                            endpoint = _endpoint
+                            path = _path
+                            break
+                if endpoint == "" or path == "":
+                    tolog("!!WARNING!!2325!! Empty endpoint/path in %s (for protocol %s)" % (str(d), protocol))
+                else:
+                    os_path = endpoint + path
 
-        return path
+            else:
+                tolog("!!WARNING!!2328!! Empty arprotocols dictionary for os_bucket_id=%d - Cannot locate path" % (
+                os_bucket_id))
 
-    def getObjectstorePathOld(self, os_name="", name='logs', os_bucket_id=-1):
+        return os_path
+
+    def getObjectstorePath(self, ddmendpoint="", os_bucket_id=-1, label="r", protocol="s3"):
         """ Return the path to the objectstore """
-        # E.g. s3://s3.echo.stfc.ac.uk:80//atlas_logs
-        path = ""
 
-        # If os_name is not specified, os_bucket_id must be set
+        # Input: either ddmendpoint or os_bucket_id ("id" in arprotocols "r"/"w" dictionary) must be set
+        #        label="w" means get an OS path for writing ("w" dictionary), "r" is used for reading ("r" dictionary) ["d" means delete]
+        #        protocol="s3", "s3+rucio", "http"
+        # Output: os_path, full path to OS bucket, e.g. 's3://s3.echo.stfc.ac.uk:80//atlas_logs'
+
+        os_path = ""
+
+        # First collect all the queuedata
+        if not self.getObjectstoreInfoFile():
+            tolog("!!WARNING!!3333!! No access to AGIS OS info file, forced to abort")
+            return os_path
+
+        # If ddmendpoint is not specified, os_bucket_id must be set
         # In that case, the full objectstore info file will be searched for the corresponding os_bucket_id
 
-        if os_name != "":
-            filename = self.getObjectstoreFilename(name=os_name)
-            dictionary = readJSON(filename)
+        filename = self.getObjectstoreFilename()
+        if not os.path.exists(filename):
+            tolog("Cannot find %s - will download it" % (filename))
+            self.getObjectstoreInfoFile()
 
-            if dictionary != {}:
-                if dictionary.has_key('endpoint'):
-                    endpoint = dictionary['endpoint']
-                    if dictionary.has_key('os_buckets'):
-                        os_buckets = dictionary['os_buckets']
-                        for os_bucket in os_buckets:
-                            if os_bucket['name'] == name:
-                                path = endpoint + os_bucket['endpoint']
-                                break
-                        if path == "":
-                            tolog("!!WARNING!!2121!! No path for name=%s in entry=%s" % (name, dictionary))
-                    else:
-                        tolog("!!WARNING!!2121!! No os_bucket in entry=%s" % (dictionary))
-                else:
-                    tolog("!!WARNING!!2121!! No endpoint in entry=%s" % (dictionary))
-            else:
-                tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+        dictionary = readJSON(filename)
+        if dictionary != {}:
+            # Simplest case first, known ddmendpoint
+            if ddmendpoint != "":
 
-        else:
-            # os_bucket_id must be set in this case
-            if os_bucket_id == -1:
-                tolog("!!WARNING!!2124!! os_bucket_id must be set if os_name is not given")
-            else:
-                filename = self.getObjectstoreFilename()
-                json_list = readJSON(filename)
+                os_path = self.getObjectstorePathFromARProtocols(dictionary[ddmendpoint], label, protocol, os_bucket_id)
 
-                if json_list != []:
-                    for entry in json_list:
-                        if entry.has_key('os_buckets'):
-                            endpoint = entry['endpoint']
-                            os_buckets = entry['os_buckets']
-                            for os_bucket in os_buckets:
-                                if os_bucket['id'] == os_bucket_id:
-                                    path = endpoint + os_bucket['endpoint']
-                                    break
+            elif os_bucket_id != -1:
+                # ddmendpoint not known, rely on the os_bucket_id
+                for ddmendpoint in dictionary.keys():
+
+                    # Check the os_bucket_id from the json
+                    resource = dictionary[ddmendpoint].get('resource', {})
+                    if resource != {}:
+                        bucket_id = resource.get('bucket_id', -1)
+                        if bucket_id == os_bucket_id:
+                            # Found the right ddmendpoint
+                            tolog("os_bucket_id=%d located at ddmendpoint=%s" % (os_bucket_id, ddmendpoint))
+                            os_path = self.getObjectstorePathFromARProtocols(dictionary[ddmendpoint], label, protocol,
+                                                                        os_bucket_id)
                         else:
-                            tolog("!!WARNING!!2121!! No os_buckets in entry=%s" % (entry))
-                else:
-                    tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
+                            # Go to the next ddmendpoint, wrong bucket_id
+                            continue
+                    else:
+                        # Ignore this ddmendpoint
+                        continue
+            else:
+                tolog("!!WARNING!!2326!! Either ddmendpoint or os_bucket_id must be set! Cannot resolve OS path")
 
-        return path
-
-    def getObjectstorePathOld2(self, mode, os_bucket_id=-1, queuename=None):
-        """ Return the path to the objectstore (and also the corresponding os_bucket_id) """
-        # mode: https, eventservice, logs
-        # Note: a hash based on the file name should be added to the os_bucket_endpoint (ie the end of the path returned from this function - when it is known)
-        # since the number of buckets is rather limited ~O(1k)
-        # Read the endpoint info from the queuedata
-        # If os_bucket_id is set (!= -1), get the info from objectstore bucket id = os_bucket_id
-        # If os_bucket_id is not set, then find it for the default OS for this mode
-        if os_bucket_id == -1:
-            os_bucket_id = self.getObjectstoresField('os_bucket_id', mode, queuename=queuename)
-        os_endpoint = self.getObjectstoresField('os_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
-        os_bucket_endpoint = self.getObjectstoresField('os_bucket_endpoint', mode, os_bucket_id=os_bucket_id, queuename=queuename)
-
-        if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
-            if not os_endpoint.endswith('/'):
-                os_endpoint += '/'
-            path = os_endpoint + os_bucket_endpoint
-        else:
-            path = ""
-
-        return path, os_bucket_id
+        return os_path
 
     def getObjectstoresList(self, os_bucket_id=-1, queuename=None):
         """ Get the objectstores list from the proper queuedata for the relevant queue """
@@ -1387,108 +1412,69 @@ class SiteInformation(object):
         status = False
 
         filename = self.getObjectstoreFilename()
-        filename_trimmed = self.getObjectstoreFilename(name=os_name)
 
         # Don't bother if the file already exists
-        if os.path.exists(filename) and os.path.exists(filename_trimmed):
-            tolog("AGIS objectstore info file(s) already exist")
+        if os.path.exists(filename):
+            # tolog("AGIS objectstore info file already exist")
             status = True
             return status
 
         # Download queuedata from CVMFS, full version which needs to be trimmed
-        if not os.path.exists(filename):
-            tolog("Copying queuedata from primary location (CVMFS)")
-            from shutil import copy2
-            try:
-                copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_os_services.json", filename)
-            except Exception, e:
-                tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
-            else:
-                status = True
-
-
-        if not status:
-            # Get the queuedata from AGIS
-            tries = 2
-            for trial in range(tries):
-                tolog("Downloading queuedata (attempt #%d)" % (trial + 1))
-                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/service/query/get_os_services/?json\" >%s" % (filename)
-                tolog("Executing command: %s" % (cmd))
-                ret, output = commands.getstatusoutput(cmd)
-                if ret == 0:
-                    status = True
-                    break
-        if status:
-            tolog("Will create trimmed json files for each objectstore")
-            json_list = readJSON(filename)
-            if json_list != []:
-                for os_name in json_list.keys():
-                    trimmed_dictionary = json_list[os_name]
-                    filename_trimmed = self.getObjectstoreFilename(name=os_name)
-                    if writeJSON(filename_trimmed, trimmed_dictionary):
-                        tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename_trimmed))
-                        status = True
-                    else:
-                        tolog("!!WARNING!!2122!! Failed to write trimmed AGIS dictionary to file: %s" % (filename_trimmed))
-                        status = False
-            else:
-                tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))
-
-        return status
-
-    def getObjectstoreInfoFileOld(self, os_name):
-        """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
-
-        status = False
-
-        filename = self.getObjectstoreFilename()
-        filename_trimmed = self.getObjectstoreFilename(name=os_name)
-
-        # Don't bother if the file already exists
-        if os.path.exists(filename) and os.path.exists(filename_trimmed):
-            tolog("AGIS objectstore info file(s) already exist")
+        tolog("Copying master objectstore queuedata file from primary location (CVMFS)")
+        from shutil import copy2
+        try:
+            _filename = "/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmendpoints_objectstores.json"
+            tolog("%s -> %s" % (_filename, filename))
+            copy2(_filename, filename)
+        except Exception, e:
+            tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
+        else:
             status = True
-            return status
-
-        # Download queuedata from CVMFS, full version which needs to be trimmed
-        if not os.path.exists(filename):
-            tolog("Copying queuedata from primary location (CVMFS)")
-            from shutil import copy2
-            try:
-                copy2("/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_os_services.json", filename)
-            except Exception, e:
-                tolog("!!WARNING!!3434!! Failed to copy AGIS queuedata from CVMFS: %s" % (e))
-            else:
-                status = True
 
         # CVMFS download failed, default to AGIS
         if not status:
             # Get the queuedata from AGIS
             tries = 2
             for trial in range(tries):
-                tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/service/query/get_os_services/?json\" >%s" % (filename)
-                tolog("Executing command: %s" % (cmd))
-                ret, output = commands.getstatusoutput(cmd)
-                if ret == 0:
-                    status = True
-                    break
-        if status:
-            json_list = readJSON(filename)
-            if json_list != []:
-                for entry in json_list:
-                    if entry.has_key('os_name'):
-                        if entry['os_name'] == os_name:
-                            trimmed_dictionary = entry
-                            if writeJSON(filename_trimmed, trimmed_dictionary):
-                                tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename_trimmed))
-                                status = True
-                            else:
-                                tolog("!!WARNING!!2122!! Failed to write trimmed AGIS dictionary to file: %s" % (filename_trimmed))
+                tolog("Downloading queuedata (attempt #%d)" % (trial + 1))
+                # cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/service/query/get_os_services/?json\" >%s" % (filename)
+                # tolog("Executing command: %s" % (cmd))
+                # ret, output = commands.getstatusoutput(cmd)
+                # if ret == 0:
+                #    status = True
+                #    break
+                url = 'http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&site_state=ACTIVE&preset=dict&json_pretty=1&type[]=OS_LOGS&type[]=OS_ES'
+                from urllib2 import urlopen
+                f = urlopen(url)
+                if f:
+                    # Import the dictionary
+                    from json import loads
+                    json_dictionary = loads(f.read())
+                    # Write the downloaded dictionary to file
+                    if type(json_dictionary) == dict:
+                        if writeJSON(filename, json_dictionary):
+                            tolog("Wrote AGIS OS dictionary to file %s" % (filename))
+                            status = True
+                            f.close()
+                            break
                         else:
-                            pass
+                            tolog("!!WARNING!!5656!! Failed to write AGIS JSON dictionary to file")
                     else:
-                        tolog("!!WARNING!!2121!! No os_name in entry=%s" % (entry))
+                        tolog("!!WARNING!!5657!! Not a dictionary: %s" % str(type(json_dictionary)))
+                else:
+                    tolog("!!WARNING!!4545!! Failed to open %s" % (url))
+        if status:
+            tolog("Will create trimmed json files for each objectstore")
+            if json_dictionary != {}:
+                for os_name in json_dictionary.keys():
+                    trimmed_dictionary = json_dictionary[os_name]
+                    filename_trimmed = self.getObjectstoreFilename(name=os_name)
+                    if writeJSON(filename_trimmed, trimmed_dictionary):
+                        tolog("Stored trimmed AGIS dictionary from CVMFS in: %s" % (filename_trimmed))
+                        status = True
+                    else:
+                        tolog("!!WARNING!!2122!! Failed to write trimmed AGIS dictionary to file: %s" % (
+                        filename_trimmed))
                         status = False
             else:
                 tolog("!!WARNING!!2120!! Failed to read JSON from file %s" % (filename))

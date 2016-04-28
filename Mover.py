@@ -919,12 +919,12 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             for lfn in lfns:
                 if ".log." in lfn:
                     os_bucket_id = si.getObjectstoresField('os_bucket_id')
-                    path = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i]) # Should be the last item
+                    path = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i], label='r') # Should be the last item
                     fullpath = os.path.join(path, lfns[i])
                     tolog("Log path = %s" % (fullpath))
                 else:
                     os_bucket_id = si.getObjectstoresField('os_bucket_id', os_bucket_name='eventservice')
-                    path  = si.getObjectstorePath(os_bucket_name='eventservice', os_bucket_id=os_bucket_ids[i])
+                    path  = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i], label='r')
                     fullpath = os.path.join(path, lfns[i])
                     tolog("ES path = %s" % (fullpath))
                 fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i], 'DISK', copytool, os_bucket_id) # filetype is always DISK on objectstores
@@ -4550,7 +4550,7 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer,
         # get the path for objectstore id os_bucket_id
         # (send os_bucket_id to specify exactly which OS we want the info from; if default value, -1, then find the proper os_bucket_id for the default OS and return it)
         os_bucket_id = si.getObjectstoresField('os_bucket_id', os_bucket_name=mode)
-        _path = si.getObjectstorePath(os_bucket_name=mode, os_bucket_id=os_bucket_id)
+        _path = si.getObjectstorePath(os_bucket_id=os_bucket_id, label='w')
         #_path, os_bucket_id = si.getObjectstorePath(mode, os_bucket_id=os_bucket_id, queuename=queuename)
         if _path == "":
             pilotErrorDiag = "No path to object store"
