@@ -1140,67 +1140,6 @@ class SiteInformation(object):
         return objectstores
 
     def getObjectstoresField(self, os_field_name, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
-        """ Get the objectstore field value for the given bucket """
-
-        # Input:  os_field_name (os_name, os_access_key, ..)
-        #         bucket name (logs, eventservice, http)
-        #         bucket id (optional; if set, bucket name will be ignored)
-        #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file (useful during alt OS stage-outs)
-        # Output: OS field value for the given bucket
-
-        os_name = ""
-        if objectstoresInfo != []:
-            d = objectstoresInfo
-        else:
-            d = self.getObjectstoresInfo()
-
-        if d != []:
-            if os_bucket_id != -1:
-                name = 'os_bucket_id'
-                value = os_bucket_id
-            else:
-                name = 'os_bucket_name'
-                value = os_bucket_name
-
-            # Loop over the OS entries
-            for l in d:
-                if l.has_key(name) and l.has_key(os_field_name):
-                    if value == l[name]:
-                        os_name = l[os_field_name]
-                        break
-                    else:
-                        pass
-                else:
-                    tolog("!!WARNING!!4554!! Either field name %s or %s is missing in OS info list" % (name, os_field_name))
-        else:
-            tolog("!!WARNING!!4555!! Cannot resolve os_name (empty OS info list)")
-
-        return os_name
-
-    def getObjectstoresFieldOld(self, field, mode, os_bucket_id=-1, queuename=None):
-        """ Return the objectorestores field from the objectstores list for the relevant mode """
-        # mode: eventservice, logs, http
-        # If os_bucket_id is set (!= -1) then get the info from the corresponding OS
-        # If os_bucket_id is not set (= -1) the the queuename is expected to be set and is used to locate
-        # the desired field from new_queuedata.json-ALL
-
-        value = None
-
-        # Get the objectstores list
-        objectstores_list = self.getObjectstoresList(os_bucket_id=os_bucket_id, queuename=queuename)
-
-        if objectstores_list:
-            for d in objectstores_list:
-                try:
-                    if d['os_bucket_name'] == mode:
-                        value = d[field]
-                        break
-                except Exception, e:
-                    tolog("!!WARNING!!2222!! Failed to read field %s from objectstores list: %s" % (field, e))
-
-        return value
-
-    def getObjectstoreField(self, os_field_name, os_bucket_name='logs', os_bucket_id=-1, objectstoresInfo=[]):
         """ Get the objectstore field value for the given bucket (from normal queuedata) """
 
         # Input:  os_field_name (os_name, os_access_key, ..)
@@ -1208,7 +1147,6 @@ class SiteInformation(object):
         #         bucket id (optional; if set, bucket name will be ignored)
         #         objectstoresInfo (optional); if set, the objectstores field will not be re-parsed from file (useful during alt OS stage-outs)
         # Output: OS field value for the given bucket
-        # Note: this method should only be used to get the default ddmendpoint from the schedconfig objectstores field
 
         os_field_value = ""
         if objectstoresInfo != []:
@@ -1235,7 +1173,7 @@ class SiteInformation(object):
                 else:
                     tolog("!!WARNING!!4554!! Either field name %s or %s is missing in OS info list" % (name, os_field_name))
         else:
-            tolog("!!WARNING!!4555!! Empty objectstore info list in normal queuedata (cannot access field %s)" % (os_field_name))
+            tolog("!!WARNING!!4555!! Cannot resolve os_field_value (empty OS info list)")
 
         return os_field_value
 
@@ -1370,7 +1308,7 @@ class SiteInformation(object):
             objectstoresInfo = self.getObjectstoresInfo()
 
         if objectstoresInfo:
-            ddmendpoint = self.getObjectstoreField('ddmendpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
+            ddmendpoint = self.getObjectstoresField('ddmendpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
             if ddmendpoint == "":
                 tolog("!!WARNING!!4555!! Encountered an unset ddmendpoint in AGIS OS info")
 

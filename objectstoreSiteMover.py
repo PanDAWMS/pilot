@@ -63,7 +63,7 @@ if __name__ == '__main__':
     os.environ['PilotHomeDir'] = os.getcwd()
     from SiteInformation import SiteInformation
     s1 = SiteInformation()
-    s1.getObjectstoresField("os_access_key", "eventservice", queuename='BNL_EC2W2_MCORE')
+    #s1.getObjectstoresField("os_access_key", "eventservice", queuename='BNL_EC2W2_MCORE')
 
     f = objectstoreSiteMover()
 
