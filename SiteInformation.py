@@ -1314,7 +1314,7 @@ class SiteInformation(object):
 
         return ddmendpoint
 
-    def findAllObjectstoreDdmendpoints(self.os_bucket_name):
+    def findAllObjectstoreDdmendpoints(self, os_bucket_name):
         """ Find all Object Store ddm endpoints corresponding to a particular bucket name from the full OS queuedata file """
 
         # Input:  os_bucket_name, e.g. 'logs', 'eventservice' - only return Object Stores that have the logs bucket defined
