@@ -1570,6 +1570,18 @@ class SiteInformation(object):
                         tolog("!!WARNING!!5657!! Not a dictionary: %s" % str(type(json_dictionary)))
                 else:
                     tolog("!!WARNING!!4545!! Failed to open %s" % (url))
+        else:
+            tolog("Opening %s" % (filename))
+            try:
+                f = open(filename, 'r')
+            except IOError, e:
+                tolog("!!WARNING!!5659!! Failed to open %s" % (filename))
+                status = False
+            else:
+                # Import the dictionary
+                from json import loads
+                json_dictionary = loads(f.read())
+                f.close()
         if status:
             tolog("Will create trimmed json files for each objectstore")
             if json_dictionary != {}:
