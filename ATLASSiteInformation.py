@@ -792,10 +792,24 @@ class ATLASSiteInformation(SiteInformation):
 
         return os.environ.get('ATLAS_SW_BASE', '/cvmfs')
 
+    def getObjectstoreFilename(self, name=""):
+        """ Return the name of the objectstore info file """
+
+        # Input:  name (e.g. the name of the ddm endpoint or the objectstore itself - this is used for caching
+        #               potentially large files - see example implementation in ATLASSiteInformation)
+        # Output: filename
+
+        if name != "":
+            filename = "objectstore_info_%s.json" % (name)
+        else:
+            filename = "objectstore_info.json"
+
+        return filename
+
     def getFullQueuedataFilePath(self):
         """ Location of full AGIS/schedconfig info """
 
-        return "%s/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json" % (self.getFileSystemRootPath())
+        return getObjectstoreFilename()
 
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """

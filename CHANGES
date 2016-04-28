@@ -408,6 +408,7 @@ Alt stage-out
 - Removed deprecated methods getAlternativeOS(), convertBucketIDsToOSIDs(), getOSInfoFromBucketID(), getBucketID(),
   findObjectStore(), getOSIDFromName(), getQueuenameFromOSID(), findAllObjectStores(),
   findOSEnabledQueuesInFullQueuedata(), getObjectstoresList() (SiteInformation)
+- Added getObjectstoreFilename() (ATLASSiteInformation)
 
 Event service
 - Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)

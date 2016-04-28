@@ -1477,14 +1477,13 @@ class SiteInformation(object):
         return os_path
 
     def getObjectstoreFilename(self, name=""):
-        """ Return the name of the trimmed objectstore info file """
+        """ Return the name of the objectstore info file """
 
-        if name != "":
-            filename = "objectstore_info_%s.json" % (name)
-        else:
-            filename = "objectstore_info.json"
+        # Input:  name (e.g. the name of the ddm endpoint or the objectstore itself - this is used for caching
+        #               potentially large files - see example implementation in ATLASSiteInformation)
+        # Output: filename
 
-        return filename
+        return ""
 
     def getObjectstoreBucketID(self, ddm_endpoint):
         """ Return the os_bucket_id corresponding to the given ddm endpoint (from the objectstore queuedata file) """
