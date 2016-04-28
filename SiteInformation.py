@@ -1448,7 +1448,7 @@ class SiteInformation(object):
 
                 dictionary_ddmendpoint = dictionary.get(ddmendpoint, {})
                 if dictionary_ddmendpoint != {}:
-                    os_path = getObjectstorePathFromARProtocols(dictionary[ddmendpoint], label, protocol, os_bucket_id)
+                    os_path = self.getObjectstorePathFromARProtocols(dictionary[ddmendpoint], label, protocol, os_bucket_id)
                 else:
                     tolog("!!WARNING!!5656!! No such ddm endpoint: %s (cannot resolve path)" % (ddmendpoint))
 
