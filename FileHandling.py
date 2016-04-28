@@ -82,7 +82,6 @@ def readJSON(file_name):
             tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
         else:
             f.close()
-            tolog("Read dictionary from file %s" % (file_name))
 
     return dictionary
 
@@ -231,21 +230,21 @@ def getHashedBucketEndpoint(endpoint, file_name):
 #    return endpoint + "_" + getHash(file_name, 2)
     return endpoint
 
-def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_bucket_endpoint):
+def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_ddmendpoint):
     """ Add the transferred file to the OS transfer file """
     # Note: we don't want to store the file name since potentially there can be a large number of files
     # We only store a file number count
     # We still need to know the file name in order to figure out which bucket it belongs to (using a hash of the file name)
     # The has will be added to the os_bucket_endpoint (e.g. 'atlas_logs' -> 'atlas_logs_E2')
 
-    # Only proceed if os_bucket_id and os_bucket_endpoint have values
-    if os_bucket_id and os_bucket_id != "" and os_bucket_endpoint and os_bucket_endpoint != "":
+    # Only proceed if os_bucket_id and os_ddmendpoint have values
+    if os_bucket_id and os_bucket_id != "" and os_ddmendpoint and os_ddmendpoint != "":
 
         # Get the name and path of the objectstore transfer dictionary file
         os_tr_path = os.path.join(workdir, getOSTransferDictionaryFilename())
 
         # Create a hash of the file name, two char long, and then the final bucket endpoint
-        _endpoint = getHashedBucketEndpoint(os_bucket_endpoint, file_name)
+        _endpoint = getHashedBucketEndpoint(os_ddmendpoint, file_name)
 
         # Does the transfer file exist already? If not, create it
         if os.path.exists(os_tr_path):
@@ -278,7 +277,7 @@ def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_bucket_endpoi
             tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
 
     else:
-        tolog("Cannot add to OS transfer dictionary due to unset values (os_name/os_bucket_endpoint)")
+        tolog("Cannot add to OS transfer dictionary due to unset values (os_name/os_ddmendpoint)")
 
 def getOSTransferDictionary(filename):
     """ Get the dictionary of objectstore os_bucket_ids with populated buckets from the OS transfer dictionary """

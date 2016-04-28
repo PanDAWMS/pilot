@@ -387,6 +387,23 @@ Alt stage-out
 - Using altStageOut in allowAlternativeStageOut() and forceAlternativeStageOut() (ATLASSiteInformation)
 - Sending job.altStageOut to forceAlternativeStageOut() and allowAlternativeStageOut() from mover_put_data() and mover_put_data_new() (Mover)
 - Turning off any forced alt stage-out for objectstore transfers in forceAlternativeStageOut() (ATLASSiteInformation)
+- Created new functions for stage-in/out optimization: getObjectstoreBucketID(), getObjectstorePath(), getObjectstoreDDMEndpoint(),
+  getAlternativeObjectstoreDDMEndpoint(), getObjectstoreEndpointID(), getObjectstoreKeyInfo() (SiteInformation)
+- Updated getLogPath() to use getObjectstoreDDMEndpoint(), getObjectstorePath(), getObjectstoreBucketID() (JobLog)
+- Updated getFileInfo() to use getObjectstoreDDMEndpoint(), getObjectstoreBucketID() and shortened logic (no special case for log files) (Mover)
+- Updated getNewOSStoragePath() to use getObjectstoreDDMEndpoint(), getAlternativeObjectstoreDDMEndpoint(), getObjectstorePath()
+  and getObjectstoreBucketID() (Mover)
+- Removed unused variables from getDDMStorage() (os_bucket_id, queuename, jobId, ub) (Mover)
+- Updated getDDMStorage() to use getObjectstoreDDMEndpoint(), getObjectstorePath(), getObjectstoreBucketID() (Mover)
+- Removed unnecessary OS functions in transferToObjectStore() (RunJobEvent)
+- Created getObjectstoreDDMEndpointFromBucketID() (SiteInformation)
+- Now using getObjectstoreDDMEndpointFromBucketID() in transferLogFile() (JobLog)
+- Now using getObjectstoreDDMEndpointFromBucketID() in transferToObjectStore() (RunJobEvent)
+- Now using os_ddmendpoint instead of os_bucket_endpoint in addToOSTransferDictionary() (FileHandling)
+- Removed unwanted methods getObjectstoreBucketEndpoint(), getObjectstoreName() (SiteInformation)
+- Changed os_name to os_ddmendpoint (S3ObjectstoreHttpSiteMover)
+- Updated setup() to use getObjectstoreDDMEndpointFromBucketID(), getObjectstoreEndpointID(), getObjectstoreKeyInfo() (S3ObjectstoreSiteMover)
+- Added argument label to setup() and its calls (S3ObjectstoreSiteMover)
 
 Event service
 - Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)

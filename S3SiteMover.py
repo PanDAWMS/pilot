@@ -35,7 +35,7 @@ class S3SiteMover(S3ObjectstoreSiteMover):
         workDir = pdict.get('workDir', '')
         experiment = pdict.get('experiment', '')
         proxycheck = pdict.get('proxycheck', False)
-        s_bucket_id = pdict.get('os_bucket_id', -1)
+        os_bucket_id = pdict.get('os_bucket_id', -1)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)

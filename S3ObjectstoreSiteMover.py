@@ -36,7 +36,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     def log(self, errorLog):
         tolog(errorLog)
 
-    def setup(self, experiment=None, surl=None, os_bucket_id=-1):
+    def setup(self, experiment=None, surl=None, os_bucket_id=-1, label='r'):
         """ setup env """
         if not self.__isBotoLoaded:
             try:
@@ -68,8 +68,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
              del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
-        os_access_key = si.getObjectstoresField("os_access_key", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
-        os_secret_key = si.getObjectstoresField("os_secret_key", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
+        ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(os_bucket_id)
+        endpoint_id = si.getObjectstoreEndpointID(ddmendpoint=ddmendpoint, label=label, protocol='s3')
+        os_access_key, os_secret_key, os_is_secure = si.getObjectstoreKeyInfo(endpoint_id, ddmendpoint=ddmendpoint)
+
         if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":
             keyPair = si.getSecurityKey(os_secret_key, os_access_key)
             if "privateKey" not in keyPair or keyPair["privateKey"] is None:
@@ -79,7 +81,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             tolog("Failed to get the keyPair name for S3 objectstore")
             return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair name for S3 objectstore"
 
-        os_is_secure = si.getObjectstoresField("os_is_secure", os_bucket_name="eventservice", os_bucket_id=os_bucket_id)
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure, self._useTimerCommand)
 
 #        keyPair = None
@@ -259,7 +260,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if sourceChecksum == "" or sourceChecksum == "NULL":
             sourceChecksum = None
 
-        status, output = self.setup(experiment, source, os_bucket_id=os_bucket_id)
+        status, output = self.setup(experiment, source, os_bucket_id=os_bucket_id, label='r')
         if status:
             return status, output
 
@@ -299,7 +300,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         """Stage in the source file"""
         self.log("Starting to stageout file %s to %s with token: %s" % (source, destination, token))
 
-        status, output = self.setup(experiment, destination, os_bucket_id=os_bucket_id)
+        status, output = self.setup(experiment, destination, os_bucket_id=os_bucket_id, label='w')
         if status:
             return status, output, None, None
 

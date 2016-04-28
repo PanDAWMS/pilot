@@ -117,12 +117,11 @@ class JobLog:
             else:
                 # Update the OS transfer dictionary
                 # Get the OS name identifier and bucket endpoint
-                os_name = si.getObjectstoresField('os_name') # si.getObjectstoreName("logs")
-                os_bucket_endpoint = si.getObjectstoresField('os_bucket_endpoint') # si.getObjectstoreBucketEndpoint("logs")
                 os_bucket_id = job.logBucketID
+                os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(os_bucket_id)
 
                 # Add the transferred file to the OS transfer file
-                addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_bucket_id, os_bucket_endpoint)
+                addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_bucket_id, os_ddmendpoint)
 
             # finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
@@ -1205,10 +1204,10 @@ class JobLog:
 
         # Get the site information object
         si = getSiteInformation(experiment)
-        #logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
-        #logPaths, os_bucket_id = si.getObjectstorePath("logs", queuename=self.__env['queuename'])
-        logPaths = si.getObjectstorePath()
-        os_bucket_id = si.getObjectstoresField('os_bucket_id')
+
+        default_ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name='logs')
+        logPaths = si.getObjectstorePath(ddmendpoint=default_ddmendpoint, label='w')
+        os_bucket_id = si.getObjectstoreBucketID(default_ddmendpoint)
 
         # Handle multiple paths (primary and secondary log paths)
         if "," in logPaths:

@@ -1290,14 +1290,14 @@ class RunJobEvent(RunJob):
             # Transfer the file
             ec, pilotErrorDiag, os_bucket_id = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
             if ec == 0:
-                # Get the OS name identifier and bucket endpoint using the returned os_bucket_id
-                os_name = si.getObjectstoreName("eventservice", os_bucket_id=os_bucket_id)
-                os_bucket_endpoint = si.getObjectstoreBucketEndpoint("eventservice", os_bucket_id=os_bucket_id)
-                #os_bucket_id = si.getBucketID(os_id, "eventservice")
-                tolog("Files were transferred to objectstore with os_bucket_id=%d (os_name=%s, os_bucket_endpoint=%s)" % (os_bucket_id, os_name, os_bucket_endpoint))
+                os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(os_bucket_id)
+                if os_ddmendpoint != "":
+                    tolog("Files were transferred to objectstore ddm_endpoint=%s with os_bucket_id=%d" % (os_ddmendpoint, os_bucket_id))
 
-                # Add the transferred file to the OS transfer file
-                addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_bucket_id, os_bucket_endpoint)
+                    # Add the transferred file to the OS transfer file
+                    addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_bucket_id, os_ddmendpoint)
+                else:
+                    tolog("!!WARNING!!5656!! OS DDM endpoint unknown - cannot add bucket id to OS transfer dictionary")
 
             # Finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")

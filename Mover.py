@@ -909,7 +909,9 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         status, os_bucket_ids = si.hasOSBucketIDs(prodDBlockToken)
         tolog("os_bucket_ids=%s"%str(os_bucket_ids))
         if not status:
-            os_bucket_id = si.getObjectstoresField('os_bucket_id', os_bucket_name='eventservice')
+            # Get the default ddm endpoint from the normal queuedata
+            ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
+            os_bucket_id = si.getObjectstoreBucketID(ddmendpoint)
             tolog("Will create a list using the default bucket ID: %d" % (os_bucket_id))
             os_bucket_ids = [os_bucket_id]*len(prodDBlockToken)
             tolog("os_bucket_ids=%s"%str(os_bucket_ids))
@@ -917,16 +919,9 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         i = 0
         try:
             for lfn in lfns:
-                if ".log." in lfn:
-                    os_bucket_id = si.getObjectstoresField('os_bucket_id')
-                    path = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i], label='r') # Should be the last item
-                    fullpath = os.path.join(path, lfns[i])
-                    tolog("Log path = %s" % (fullpath))
-                else:
-                    os_bucket_id = si.getObjectstoresField('os_bucket_id', os_bucket_name='eventservice')
-                    path  = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i], label='r')
-                    fullpath = os.path.join(path, lfns[i])
-                    tolog("ES path = %s" % (fullpath))
+                path = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i], label='r') # Should be the last item
+                fullpath = os.path.join(path, lfns[i])
+                tolog("OS path = %s" % (fullpath))
                 fileInfoDic[i] = (guids[i], fullpath, filesizeIn[i], checksumIn[i], 'DISK', copytool, os_bucket_id) # filetype is always DISK on objectstores
                 replicas_dic[guids[i]] = [fullpath]
                 surl_filetype_dictionary[fullpath] = 'DISK' # filetype is always DISK on objectstores
@@ -934,8 +929,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         except Exception, e:
             tolog("!!WARNING!!2233!! Failed to create replica and file dictionaries: %s" % (e))
             ec = -1
-        tolog("fileInfoDic=%s" % str(fileInfoDic))
-        tolog("replicas_dic=%s" % str(replicas_dic))
+
         return ec, pilotErrorDiag, fileInfoDic, totalFileSize, replicas_dic, xml_source
 
     # If the pilot is running on a Tier 3 site, then neither LFC nor PFC should be used
@@ -3659,11 +3653,10 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     # Note: this ends up in the 'destination' variable inside the site mover's put_data() - which is mostly not used
     # It can be used for special purposes, like for the object store path which can be predetermined
 
-    #ddm_storage_path, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, readpar('region'), jobId, objectstore, isLogTransfer)
-    # JobId is not used in this funct
+    #ddm_storage_path, pilotErrorDiag = getDDMStorage(si, analysisJob, readpar('region'), objectstore, isLogTransfer)
 
     # for normal (not objectstore) non US and non NDGF jobs this ddm_storage_path="" from this function
-    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, readpar('region'), None, objectstore, isLogTransfer, os_bucket_id, queuename)
+    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, readpar('region'), objectstore, isLogTransfer)
 
     if pilotErrorDiag:
         return PilotErrors.ERR_NOSTORAGE, pilotErrorDiag, [''] * 7, None, 0, 0, os_bucket_id
@@ -3994,7 +3987,7 @@ def mover_put_data(outputpoolfcstring,
     # Note: this ends up in the 'destination' variable inside the site mover's put_data() - which is mostly not used
     # It can be used for special purposes, like for the object store path which can be predetermined
     # Note: if os_bucket_id is set (as it will be for an OS transfer), then info from the corresponding OS will be returned [new queuedata]
-    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, job.jobId, objectstore, isLogTransfer(logPath), os_bucket_id, queuename)
+    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
     if pilotErrorDiag != "":
         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
@@ -4096,7 +4089,7 @@ def mover_put_data(outputpoolfcstring,
                     ddm_storage_path = os.path.dirname(_path)
 
                     # in case of file transfer to OS, also update the ddm_storage_path
-                    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(ub, si, analysisJob, region, job.jobId, objectstore, isLogTransfer(logPath), os_bucket_id, queuename)
+                    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
                     if pilotErrorDiag != "":
                         return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
@@ -4305,31 +4298,22 @@ def getNewOSStoragePath(si, eventService=True):
     else:
         mode = "logs"
 
-    # Which is the current OS?
-    os_name = si.getObjectstoresField('os_name', os_bucket_name=mode)  # si.getObjectstoreName(mode)
+    # Which is the current OS ddm endpoint?
+    default_ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name=mode)
 
-    if os_name:
-        tolog("Current Objectstore: %s" % (os_name))
+    if default_ddmendpoint:
+        tolog("Current OS ddm endpoint: %s" % (default_ddmendpoint))
 
-        # Get an alternative OS
-        alt_os_info_dictionary = si.getAlternativeOS(mode, currentOS=os_name)
+        # Get an alternative OS ddm endpoint
+        alternative_ddmendpoint = getAlternativeObjectstoreDDMEndpoint(default_ddmendpoint, mode)
 
         # Get the corresponding log path
-        if alt_os_info_dictionary != {}:
-            tolog("Alternative Objectstore = %s" % str(alt_os_info_dictionary))
-            os_endpoint = alt_os_info_dictionary['os_endpoint']
-            os_bucket_endpoint = alt_os_info_dictionary['os_bucket_endpoint']
-            os_bucket_id = alt_os_info_dictionary['os_bucket_id']
-
-            if os_endpoint and os_bucket_endpoint and os_endpoint != "" and os_bucket_endpoint != "":
-                if not os_endpoint.endswith('/'):
-                    os_endpoint += '/'
-                path = os_endpoint + os_bucket_endpoint
-            else:
-                path = ""
-                os_bucket_id = -1
+        if alternative_ddmendpoint != "":
+            tolog("Alternative Objectstore ddm endpoint = %s" % (alternative_ddmendpoint))
+            path = si.getObjectstorePath(ddmendpoint=alternative_ddmendpoint, label='w')
+            os_bucket_id = si.getObjectstoreBucketID(alternative_ddmendpoint)
         else:
-            tolog("!!WARNING!!4343!! Found no alternative Objectstore")
+            tolog("!!WARNING!!4343!! Found no alternative objectstore")
     else:
         tolog("No current objectstore defined")
 
@@ -4532,12 +4516,13 @@ def getFilePathForObjectStore(filetype="logs"):
 
     return basepath
 
-def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer, os_bucket_id, queuename):
+def getDDMStorage(si, analysisJob, region, objectstore, log_transfer):
     """ return the DDM storage (http version) """
 
     pilotErrorDiag = ""
     useHTTP = True
     ddm_storage_path = ""
+    os_bucket_id = -1
 
     # special paths are used for objectstore transfers
     if objectstore:
@@ -4549,9 +4534,9 @@ def getDDMStorage(ub, si, analysisJob, region, jobId, objectstore, log_transfer,
             mode = "eventservice"
         # get the path for objectstore id os_bucket_id
         # (send os_bucket_id to specify exactly which OS we want the info from; if default value, -1, then find the proper os_bucket_id for the default OS and return it)
-        os_bucket_id = si.getObjectstoresField('os_bucket_id', os_bucket_name=mode)
-        _path = si.getObjectstorePath(os_bucket_id=os_bucket_id, label='w')
-        #_path, os_bucket_id = si.getObjectstorePath(mode, os_bucket_id=os_bucket_id, queuename=queuename)
+        default_ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name=mode)
+        _path = si.getObjectstorePath(ddmendpoint=default_ddmendpoint, label='w')
+        os_bucket_id = si.getObjectstoreBucketID(default_ddmendpoint)
         if _path == "":
             pilotErrorDiag = "No path to object store"
         return _path, os_bucket_id, pilotErrorDiag
