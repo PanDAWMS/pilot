@@ -3823,10 +3823,10 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
         return ec, thisSite, _jobrec, hasQueuedata
 
     # Get the new queuedata file from AGIS (unless it already exists)
-    try:
-        s = si.getNewQueuedata(_queuename, overwrite=False)
-    except Exception, e:
-        tolog("!!WARNING!!1212!! Exception caught: %s" % (e))
+    #try:
+    #    s = si.getNewQueuedata(_queuename, overwrite=False)
+    #except Exception, e:
+    #    tolog("!!WARNING!!1212!! Exception caught: %s" % (e))
 
     if hasQueuedata:
         # update queuedata and thisSite if necessary

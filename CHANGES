@@ -338,6 +338,7 @@ General changes
 - Removed some debug messages that caused too much stdout leading to large log sizes, e.g. in getSURLDictionary() (SiteMover)
 - Removed some debug messages that caused too much stdout leading to large log sizes, e.g. in getDatasetDict() (pUtil)
 - Using os.getcwd() as default for wntmpdir instead of /tmp, in set_environment(). Requested by Andrej Filipcic (environment)
+- Out-commented call to deprecated getNewQueuedata() in handleQueuedata() (pUtil)
 
 Send DB info in jobMetrics, requested by Rodney Walker
 - Created getDBInfo() (FileHandling)
@@ -404,6 +405,9 @@ Alt stage-out
 - Changed os_name to os_ddmendpoint (S3ObjectstoreHttpSiteMover)
 - Updated setup() to use getObjectstoreDDMEndpointFromBucketID(), getObjectstoreEndpointID(), getObjectstoreKeyInfo() (S3ObjectstoreSiteMover)
 - Added argument label to setup() and its calls (S3ObjectstoreSiteMover)
+- Removed deprecated methods getAlternativeOS(), convertBucketIDsToOSIDs(), getOSInfoFromBucketID(), getBucketID(),
+  findObjectStore(), getOSIDFromName(), getQueuenameFromOSID(), findAllObjectStores(),
+  findOSEnabledQueuesInFullQueuedata(), getObjectstoresList() (SiteInformation)
 
 Event service
 - Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)
