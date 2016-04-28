@@ -2850,7 +2850,7 @@ class ATLASExperiment(Experiment):
         transferLogToObjectstore = False
 
         eventService = argdict.get('eventService', False)
-        putLogToOS = argdict.get('putLogtoOS', False)
+        putLogToOS = argdict.get('putLogToOS', False)
         if "log_to_objectstore" in readpar('catchall') or eventService or putLogToOS:
             transferLogToObjectstore = True
         if 'HPC_HPC' in readpar('catchall'):
