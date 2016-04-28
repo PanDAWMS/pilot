@@ -1942,7 +1942,7 @@ class SiteInformation(object):
 
         return getJSONDictionary(self.getFullQueuedataFilePath())
 
-   def hasOSBucketIDs(self, prodDBlockToken):
+    def hasOSBucketIDs(self, prodDBlockToken):
         """ Does the prodDBlockToken contain OS bucket IDs? """
         # The prodDBlockToken is considered to contain bucket IDs if it's a list of string integers
 
