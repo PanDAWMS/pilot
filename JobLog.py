@@ -7,8 +7,13 @@ from shutil import copy2, rmtree
 
 import Mover as mover
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, getGUID, timedCommand
-from FileHandling import addToOSTransferDictionary, getWorkDirSizeFilename, getDirSize, storeWorkDirSize
+from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, \
+    getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, \
+    makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, \
+    getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, \
+    getGUID, timedCommand, updateXMLWithEndpoints
+from FileHandling import addToOSTransferDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, \
+    getWorkDirSizeFilename, getDirSize, storeWorkDirSize
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
@@ -860,6 +865,14 @@ class JobLog:
         if strXML and strXML != "":
             tolog("Updating metadata XML with SURLs prior to PanDA server update")
             strXML = updateXMLWithSURLs(experiment, strXML, site.workdir, job.jobId, self.__env['jobrec']) # do not use format 'NG' here (even for NG)
+
+            # was the log file transferred to an OS? check in the OS transfer dictionary
+            if job.logBucketID != -1:
+                # get the corresponding ddm endpoint
+                si = getSiteInformation(experiment)
+                os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(job.logBucketID)
+                strXML = updateXMLWithEndpoints(strXML, [job.logFile], [os_ddmendpoint])
+
             tolog("Updated XML:\n%s" % (strXML))
 
             # replace the metadata-<jobId>.xml file

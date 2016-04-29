@@ -389,7 +389,7 @@ def prepareMetadata(metadata_filename):
 
     return metadata_filename
 
-def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None):
+def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None, logToOS=False):
     """ Create a PFC style XML file """
 
     # fnlist = output file list
@@ -533,6 +533,10 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
                 special_xml = thisExperiment.getMetadataForRegistration(glist[i])
                 if special_xml != "":
                     fd.write(special_xml)
+
+            # if the log is to be transferred to an OS, add an endpoint tag
+            if logToOS and alog == flist[i]:
+                fd.write('    <endpoint>%s-ddmendpoint_tobeset</endpoint>' % (alog))
 
             # add log file metadata later (not known yet)
             if flist[i] == alog:
@@ -2892,6 +2896,36 @@ def processDBRelease(inputFiles, inFilesGuids, realDatasetsIn, dispatchDblock, d
                          dbh.removeDBRelease(list(inputFiles), list(inFilesGuids), list(realDatasetsIn), list(dispatchDblock), list(dispatchDBlockToken), list(prodDBlockToken))
 
     return _inputFiles, _inFilesGuids, _realDatasetsIn, _dispatchDblock, _dispatchDBlockToken, _prodDBlockToken
+
+def updateXMLWithEndpoints(xml, filenames, endpoints):
+    """ Replace any 'tobeset' strings in the XML with final ddm endpoints """
+
+    # Input:  xml (string)
+    #         filenames (list of strings)
+    #         endpoints (list of strings, 1-to-1 mapped to the filenames list)
+    # Output: xml (string)
+    # Description: The method looks for patterns '<filename>-ddmendpoint_tobeset' and
+    #              replaces it with the corresponding 'endpoint'
+
+    lines = []
+    for line in xml.split('\n'):
+        i = 0
+        s = False
+        for filename in filenames:
+            p = filename + '-ddmendpoint_tobeset'
+            if p in line:
+                lines.append(line.replace(p, endpoints[i]))
+                s = True
+                break
+            i += 1
+        if not s:
+            lines.append(line)
+
+    if lines == []:
+        r = xml
+    else:
+        r = '\n'.join(lines)
+    return r
 
 def updateXMLWithSURLs(experiment, node_xml, workDir, jobId, jobrec, format=''):
     """ update the XML with the SURLs """

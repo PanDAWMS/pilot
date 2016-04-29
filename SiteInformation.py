@@ -1197,7 +1197,7 @@ class SiteInformation(object):
                 # Check the os_bucket_id from the json
                 resource = dictionary[os_ddmendpoint].get('resource', {})
                 if resource != {}:
-                    bucket_id = resource.get('bucket_id', -1)
+                    bucket_id = resource.get('bucket_id', -999)
                     if bucket_id == os_bucket_id:
                         # Found the right ddmendpoint
                         tolog("os_bucket_id=%d located at ddmendpoint=%s" % (os_bucket_id, os_ddmendpoint))
@@ -1418,7 +1418,7 @@ class SiteInformation(object):
 
         return os_path
 
-    def getObjectstorePath(self, ddmendpoint="", os_bucket_id=-1, label="r", protocol="s3"):
+    def getObjectstorePath(self, ddmendpoint="", os_bucket_id=-99, label="r", protocol="s3"):
         """ Return the path to the objectstore (using the full OS queuedata file) """
 
         # Input: either ddmendpoint or os_bucket_id ("id" in arprotocols "r"/"w" dictionary) must be set
@@ -1460,6 +1460,8 @@ class SiteInformation(object):
                     resource = dictionary[ddmendpoint].get('resource', {})
                     if resource != {}:
                         bucket_id = resource.get('bucket_id', -999)
+                        tolog("bucket_id=%d"%(bucket_id))
+                        tolog("os_bucket_id=%d"%(os_bucket_id))
                         if bucket_id == os_bucket_id:
                             # Found the right ddmendpoint
                             tolog("os_bucket_id=%d located at ddmendpoint=%s" % (os_bucket_id, ddmendpoint))

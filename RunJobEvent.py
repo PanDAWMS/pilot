@@ -38,7 +38,7 @@ from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID, isAGreaterOrEqualToB
-from FileHandling import getExtension, addToOSTransferDictionary
+from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes
 from EventRanges import downloadEventRanges, updateEventRange
 
 try:
@@ -1043,7 +1043,7 @@ class RunJobEvent(RunJob):
 
         try:
             _status = pUtil.PFCxml(self.__experiment, _fname, fnlist=lfns, fguids=self.__job.outFilesGuids, fntag="lfn", alog=self.__job.logFile, alogguid=guid,\
-                                       fsize=fsize, checksum=checksum, analJob=self.__analysisJob)
+                                       fsize=fsize, checksum=checksum, analJob=self.__analysisJob, logToOS=self.__job.putLogToOS)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
             tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag))
@@ -2542,7 +2542,7 @@ if __name__ == "__main__":
         tolog("t1 = %s" % str(t1))
         t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
         # Try to get the cpu time from the jobReport
-        job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workDir)
+        job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workdir)
         if job.cpuConsumptionTime == 0:
             tolog("!!WARNING!!3434!! Falling back to less accurate os.times() measurement of CPU time")
             job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)

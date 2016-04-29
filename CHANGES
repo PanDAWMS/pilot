@@ -455,6 +455,8 @@ Logs to OS:
 - Added putLogToOS to Job class (Job)
 - Changed argument from eventService to **argdict in doSpecialLogtransfer() (Experiment, ATLASExperiment)
 - Now sending log to OS if job.putLogToOS is set, in doSpecialLogFileTransfer() (JobLog)
+- Added logToOS boolean argument to PFCxml(), used to add an endpoint tag to the xml (pUtil)
+- Sending logToOS to PFCxml() from createFileMetadata() (RunJobEvent, RunJob)
 
 Direct access updates (to enable this functionality for ES)
 - Using transferType fax in shouldPFC4TURLsBeCreated()

@@ -1015,7 +1015,7 @@ class RunJob(object):
         _fname = "%s/metadata-%s.xml" % (job.workdir, job.jobId)
         try:
             _status = pUtil.PFCxml(job.experiment, _fname, list(job.outFiles), fguids=job.outFilesGuids, fntag="lfn", alog=job.logFile, alogguid=guid,\
-                                   fsize=fsize, checksum=checksum, analJob=analysisJob)
+                                   fsize=fsize, checksum=checksum, analJob=analysisJob, logToOS=job.putLogToOS)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
             tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag))

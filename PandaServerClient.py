@@ -8,7 +8,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
 from JobState import JobState
 from FileStateClient import getFilesOfState
-from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
+from FileHandling import getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
 
 class PandaServerClient:
     """
@@ -197,6 +197,7 @@ class PandaServerClient:
 
         return jobMetrics
 
+    # deprecated
     def getOSJobMetrics(self):
         """ Generate the objectstore jobMetrics message """
         # Message format:
@@ -220,7 +221,7 @@ class PandaServerClient:
                 os_names = os_names_dictionary.keys()
                 # Note: the should only be one os_name
                 if len(os_names) > 1:
-                    tolog("!!WARNING!!2345!! Can only report one os_name (will use first only): %s" % (os_names_dictionary))
+                    tolog("!!WARNING!!2345!! Can only report one ddm endpoint (will use first only): %s" % (os_names_dictionary))
 
                 # Which buckets were written to?
                 for os_name in os_names_dictionary.keys():
@@ -854,6 +855,8 @@ class PandaServerClient:
         # do not send xml if there was a put error during the log transfer
         _xml = None
         if final and node.has_key('xml'):
+            # is the call to updateXMLWithSURLs() useless? already done in JobLog?
+
             # update xml with SURLs stored in special SURL dictionary file
             tolog("Updating node structure XML with SURLs")
             node['xml'] = updateXMLWithSURLs(experiment, node['xml'], site.workdir, job.jobId, self.__jobrec)

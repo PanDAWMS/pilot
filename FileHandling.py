@@ -235,7 +235,7 @@ def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_ddmendpoint):
     # Note: we don't want to store the file name since potentially there can be a large number of files
     # We only store a file number count
     # We still need to know the file name in order to figure out which bucket it belongs to (using a hash of the file name)
-    # The has will be added to the os_bucket_endpoint (e.g. 'atlas_logs' -> 'atlas_logs_E2')
+    # The hash will be added to the os_ddmendpoint (e.g. 'atlas_logs' -> 'atlas_logs_E2')
 
     # Only proceed if os_bucket_id and os_ddmendpoint have values
     if os_bucket_id and os_bucket_id != "" and os_ddmendpoint and os_ddmendpoint != "":

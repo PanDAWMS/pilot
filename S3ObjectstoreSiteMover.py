@@ -68,7 +68,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
              del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
-        ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(os_bucket_id)
+        # os_bucket_id will only be set if the setup function is called, if setup via the init function - get the default bucket id
+        if os_bucket_id == -1:
+            ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name='eventservice') # assume eventservice
+        else:
+            ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(os_bucket_id)
         endpoint_id = si.getObjectstoreEndpointID(ddmendpoint=ddmendpoint, label=label, protocol='s3')
         os_access_key, os_secret_key, os_is_secure = si.getObjectstoreKeyInfo(endpoint_id, ddmendpoint=ddmendpoint)
 
@@ -388,6 +392,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         filename = os.path.basename(source)
         surl = destination
+
+        # hack for log files
+        if "log.tgz" in lfn:
+            source = source.replace(lfn, "%s:%s" % (scope, lfn))
+
         status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout, os_bucket_id=os_bucket_id)
         if status !=0:
             errors = PilotErrors()
