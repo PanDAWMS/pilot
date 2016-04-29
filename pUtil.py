@@ -527,16 +527,16 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
             fd.write('      <lfn name="%s"/>\n' % (flist[i]))
             fd.write("    </logical>\n")
 
+            # if the log is to be transferred to an OS, add an endpoint tag
+            if logToOS and alog == flist[i]:
+                fd.write('    <endpoint>%s-ddmendpoint_tobeset</endpoint>\n' % (alog))
+
             # add SURL metadata (not known yet) for server LFC registration
             # use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)
             if thisExperiment:
                 special_xml = thisExperiment.getMetadataForRegistration(glist[i])
                 if special_xml != "":
                     fd.write(special_xml)
-
-            # if the log is to be transferred to an OS, add an endpoint tag
-            if logToOS and alog == flist[i]:
-                fd.write('    <endpoint>%s-ddmendpoint_tobeset</endpoint>' % (alog))
 
             # add log file metadata later (not known yet)
             if flist[i] == alog:

@@ -4033,6 +4033,10 @@ def mover_put_data(outputpoolfcstring,
         # get the corresponding scope
         scope = getScope(lfn, job.logFile, file_nr, job.scopeOut, job.scopeLog)
 
+        # use scope:lfn convension for objectstore log files
+        #if objectstore and job.logFile in pfn:
+        #    pfn = pfn.replace(lfn, "%s:%s" % (scope, lfn))
+
         # update the current file state
         updateFileState(filename, workDir, job.jobId, mode="file_state", state="not_transferred")
         dumpFileStates(workDir, job.jobId)
@@ -4305,7 +4309,7 @@ def getNewOSStoragePath(si, eventService=True):
         tolog("Current OS ddm endpoint: %s" % (default_ddmendpoint))
 
         # Get an alternative OS ddm endpoint
-        alternative_ddmendpoint = getAlternativeObjectstoreDDMEndpoint(default_ddmendpoint, mode)
+        alternative_ddmendpoint = si.getAlternativeObjectstoreDDMEndpoint(default_ddmendpoint, mode)
 
         # Get the corresponding log path
         if alternative_ddmendpoint != "":

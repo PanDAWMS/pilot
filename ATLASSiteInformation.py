@@ -809,7 +809,7 @@ class ATLASSiteInformation(SiteInformation):
     def getFullQueuedataFilePath(self):
         """ Location of full AGIS/schedconfig info """
 
-        return getObjectstoreFilename()
+        return self.getObjectstoreFilename()
 
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
