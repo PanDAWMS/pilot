@@ -1459,7 +1459,7 @@ class SiteInformation(object):
                     # Check the os_bucket_id from the json
                     resource = dictionary[ddmendpoint].get('resource', {})
                     if resource != {}:
-                        bucket_id = resource.get('bucket_id', -1)
+                        bucket_id = resource.get('bucket_id', -999)
                         if bucket_id == os_bucket_id:
                             # Found the right ddmendpoint
                             tolog("os_bucket_id=%d located at ddmendpoint=%s" % (os_bucket_id, ddmendpoint))
