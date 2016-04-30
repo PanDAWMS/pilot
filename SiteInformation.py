@@ -1460,8 +1460,6 @@ class SiteInformation(object):
                     resource = dictionary[ddmendpoint].get('resource', {})
                     if resource != {}:
                         bucket_id = resource.get('bucket_id', -999)
-                        tolog("bucket_id=%d"%(bucket_id))
-                        tolog("os_bucket_id=%d"%(os_bucket_id))
                         if bucket_id == os_bucket_id:
                             # Found the right ddmendpoint
                             tolog("os_bucket_id=%d located at ddmendpoint=%s" % (os_bucket_id, ddmendpoint))
