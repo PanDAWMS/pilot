@@ -441,7 +441,7 @@ class Job:
 
         self.jobPars = data.get('jobPars', '')
         putLogToOS = data.get('putLogToOS', 'False')
-        putLogToOS = 'True'
+        #putLogToOS = 'True'
         if putLogToOS.lower() == 'true':
             self.putLogToOS = True
         else:
