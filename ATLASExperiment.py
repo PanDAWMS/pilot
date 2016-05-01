@@ -256,7 +256,7 @@ class ATLASExperiment(Experiment):
 
         # Add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
-            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         else:
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         if 'HPC_HPC' in readpar("catchall"):
@@ -645,7 +645,7 @@ class ATLASExperiment(Experiment):
 
         # add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall"):
-            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         else:
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
 
@@ -2033,7 +2033,7 @@ class ATLASExperiment(Experiment):
         """ Add env variables """
 
         _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
-        _frontier1 = 'export FRONTIER_ID=\"[%s#%s]\";' % (taskId, jobId)
+        _frontier1 = 'export FRONTIER_ID=\"[%s^%s]\";' % (taskId, jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
         _ttc = ''
 
@@ -2061,12 +2061,12 @@ class ATLASExperiment(Experiment):
 
         return _sitename + _ttc + _frontier1 + _frontier2 + _rucio + _coreCount + _unset + cmd
 
-    def getEnvVars2Cmd(self, jobId, processingType, sitename, analysisJob):
+    def getEnvVars2Cmd(self, jobId, taskId, processingType, sitename, analysisJob):
         """ Return array with enviroment variables """
 
         variables = []
         variables.append('export PANDA_RESOURCE=\"%s\";' % (sitename))
-        variables.append('export FRONTIER_ID=\"[%s]\";' % (jobId))
+        variables.append('export FRONTIER_ID=\"[%s^%s]\";' % (taskId, jobId))
         variables.append('export CMSSW_VERSION=$FRONTIER_ID;')
         variables.append('export ROOT_TTREECACHE_SIZE=1;')
 
