@@ -247,7 +247,7 @@ class ATLASExperiment(Experiment):
             asetup_options += " --cmtconfig " + cmtconfig
 
             # always set the --makeflags option (to prevent asetup from overwriting it)
-            asetup_options += " --makeflags=$MAKEFLAGS"
+            asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
 
             cmd = asetup_path + asetup_options
 
@@ -2033,7 +2033,7 @@ class ATLASExperiment(Experiment):
         """ Add env variables """
 
         _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
-        _frontier1 = 'export FRONTIER_ID=\"[%s^%s]\";' % (taskId, jobId)
+        _frontier1 = 'export FRONTIER_ID=\"[%s_%s]\";' % (taskId, jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
         _ttc = ''
 
@@ -2066,7 +2066,7 @@ class ATLASExperiment(Experiment):
 
         variables = []
         variables.append('export PANDA_RESOURCE=\"%s\";' % (sitename))
-        variables.append('export FRONTIER_ID=\"[%s^%s]\";' % (taskId, jobId))
+        variables.append('export FRONTIER_ID=\"[%s_%s]\";' % (taskId, jobId))
         variables.append('export CMSSW_VERSION=$FRONTIER_ID;')
         variables.append('export ROOT_TTREECACHE_SIZE=1;')
 
@@ -2504,7 +2504,7 @@ class ATLASExperiment(Experiment):
                 asetup_path = ""
                 cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
 
-        return "%s %s %s --makeflags=$MAKEFLAGS --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
+        return '%s %s %s --makeflags=\"$MAKEFLAGS\" --cmtconfig %s %s%s' % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
         """ Extract the rel_N bit from the homePackage string """

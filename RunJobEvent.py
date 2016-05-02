@@ -2428,8 +2428,12 @@ if __name__ == "__main__":
                                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
                                         utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
                                         utility_subprocess_launches += 1
-                                    else:
+                                    elif utility_subprocess_launches <= 6:
                                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - too many restarts, will not restart again")
+                                        utility_subprocess_launches += 1
+                                        utility_subprocess = None
+                                    else:
+                                        pass
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
                                     utility_subprocess = None
@@ -2489,8 +2493,11 @@ if __name__ == "__main__":
                             tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
                             utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
                             utility_subprocess_launches += 1
-                        else:
+                        elif utility_subprocess_launches <= 6:
                             tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - too many restarts, will not restart again")
+                            utility_subprocess = None
+                        else:
+                            pass
 
                 # Make sure that the token extractor is still running
                 if runJob.useTokenExtractor():

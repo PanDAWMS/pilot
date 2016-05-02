@@ -320,7 +320,7 @@ pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORY
 General changes
 - Added taskId argument to addEnvVars2Cmd() (ATLASExperiment)
 - Now sending job.taskID to addEnvVars2Cmd() from getJobExecutionCommand() and getJobExecutionCommandOld() (ATLASExperiment, NordugridATLASExperiment)
-- Added taskId to FRONTIER_ID (taskId^jobId) in addEnvVars2Cmd(), getEnvVars2Cmd() requested by Rodney Walker (ATLASExperiment)
+- Added taskId to FRONTIER_ID (taskId_jobId) in addEnvVars2Cmd(), getEnvVars2Cmd() requested by Rodney Walker (ATLASExperiment)
 - Simplified call to mover_put_data() from stageOut() (RunJob, RunJobEvent)
 - Simplified call to mover_put_data() from transferActualLogFile(), transferAdditionalFile() (JobLog)
 - Simplified call to mover_put_data() from TransferFiles() (DeferredStageout)
@@ -353,7 +353,6 @@ Limit number of MemoryMonitor restarts, requested by Rodney Walker
 
 Memory monitoring
 - Fix for dangling utility_subprocess (RunJob, RunJobEvent)
-- Ignoring "No such process" exception in executePayload() which can be thrown after memory monitor has crashed (RunJob)
 
 Same user multi-job request by Emmanouil Vamvakopoulos
 - Added allowSameUser boolean and taskID (environment)

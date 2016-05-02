@@ -858,8 +858,12 @@ class RunJob(object):
                                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
                                         utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
                                         utility_subprocess_launches += 1
-                                    else:
+                                    elif utility_subprocess_launches <= 6:
                                         tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - too many restarts, will not restart again")
+                                        utility_subprocess_launches += 1
+                                        utility_subprocess = None
+                                    else:
+                                        pass
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
                                     utility_subprocess = None
