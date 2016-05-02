@@ -2872,11 +2872,11 @@ def mover_get_data(lfns,
             # OS info in the queuedata JSON since files can potentially be spread to different buckets and objectstores
             # Calling si.getObjectstorePath() will trigger a fresh download/copy of the proper queuedata for the corresponding OS
             # (there is no need to use the returned variables)
-            if os_bucket_id != -1:
+            #if os_bucket_id != -1:
                 # Get the site information object
-                si = getSiteInformation(experiment)
+            #    si = getSiteInformation(experiment)
                 #dummy, dummy = si.getObjectstorePath("eventservice", os_bucket_id=os_bucket_id, queuename=queuename)
-                tolog("!!WARNING!!3333!! Queuedata should IS NOT updated for an OS transfer")
+            #    tolog("!!WARNING!!3333!! Queuedata should IS NOT updated for an OS transfer")
 
             # Has the copycmd/copytool changed? (E.g. due to FAX) If so, update the sitemover object
             if copytool != copycmd:

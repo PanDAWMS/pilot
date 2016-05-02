@@ -2744,9 +2744,11 @@ class ATLASExperiment(Experiment):
         installation_error = False
         if getstatusoutput_was_interrupted:
             if os.path.exists(filename):
-                if os.path.getsize(filename) > 0:
-                    tolog("Payload produced stdout but was interrupted (getstatusoutput threw an exception)")
+                fsize = os.path.getsize(filename)
+                if fsize > 0:
+                    tolog("!!WARNING!!3444!! Payload produced stdout but was interrupted (getstatusoutput threw an exception)")
                 else:
+                    tolog("!!WARNING!!3444!! Payload produced zero size output (%s)" % (filename))
                     no_payload_output = True
                 failed = True
             else:

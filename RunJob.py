@@ -903,15 +903,12 @@ class RunJob(object):
                     tolog("!!WARNING!!3001!! %s" % (res_tuple[1]))
 
             except Exception, e:
-                if "No such process" in e:
-                    tolog("!!WARNING!!3000!! Exception caught in executePayload(): %s [ignore]" % (e))
-                else:
-                    tolog("!!FAILED!!3000!! Failed to run command: %s" % (e))
-                    getstatusoutput_was_interrupted = True
-                    if self.__failureCode:
-                        job.result[2] = self.__failureCode
-                        tolog("!!FAILED!!3000!! Failure code: %d" % (self.__failureCode))
-                        break
+                tolog("!!WARNING!!3000!! Failed to run command: %s" % (e))
+                getstatusoutput_was_interrupted = True
+                if self.__failureCode:
+                    job.result[2] = self.__failureCode
+                    tolog("!!FAILED!!3000!! Failure code: %d" % (self.__failureCode))
+                    break
             else:
                 if res_tuple[0] == 0:
                     tolog("Job command %d/%d finished" % (current_job_number, number_of_jobs))
