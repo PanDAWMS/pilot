@@ -180,9 +180,13 @@ class RunJobHpcEvent(RunJob):
         res['ATHENA_PROC_NUMBER'] = values.get('ATHENA_PROC_NUMBER', 23)
         res['max_nodes'] = values.get('max_nodes', 3)
         res['min_walltime_m'] = values.get('min_walltime_m', 20)
-        res['max_walltime_m'] = values.get('max_walltime_m', 30)
+        res['max_walltime_m'] = values.get('max_walltime_m', 2000)
         res['nodes'] = values.get('nodes', 2)
-        res['min_nodes'] = values.get('min_nodes', 2)
+        if self.getYodaNodes():
+            res['nodes'] = self.getYodaNodes()
+        if self.getYodaQueue():
+            res['queue'] = self.getYodaQueue()
+        res['min_nodes'] = values.get('min_nodes', 1)
         res['cpu_per_node'] = values.get('cpu_per_node', 24)
         res['partition'] = values.get('partition', None)
         res['repo'] = values.get('repo', None)
@@ -197,6 +201,9 @@ class RunJobHpcEvent(RunJob):
         res['localWorkingDir'] =  values.get('localWorkingDir', None)
         res['parallel_jobs'] = values.get('parallel_jobs', 1)
         res['events_limit_per_job'] = values.get('events_limit_per_job', 1000)
+
+        if 'debug' in res['queue']:
+            res['walltime_m'] = 30
 
         siteInfo = getSiteInformation(self.getExperiment())
         # get the copy tool
@@ -535,7 +542,7 @@ class RunJobHpcEvent(RunJob):
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
-            useCT, oldPrefix, newPrefix = pUtil.getFileAccessInfo()
+            useCT, oldPrefix, newPrefix = self.__siteInfo.getFileAccessInfo(job.transferType)
 
             # Transfer input files
             tin_0 = os.times()
@@ -836,15 +843,17 @@ class RunJobHpcEvent(RunJob):
             runCommandList_0 += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (poolFileCatalogTempName)
 
         # should not have --DBRelease and UserFrontier.py in HPC
-        runCommandList_0 = runCommandList_0.replace("--DBRelease=current", "")
-        if 'RecJobTransforms/UseFrontier.py,' in runCommandList_0:
-            runCommandList_0 = runCommandList_0.replace('RecJobTransforms/UseFrontier.py,', '')
-        if ',RecJobTransforms/UseFrontier.py' in runCommandList_0:
-            runCommandList_0 = runCommandList_0.replace(',RecJobTransforms/UseFrontier.py', '')
-        if ' --postInclude=RecJobTransforms/UseFrontier.py ' in runCommandList_0:
-            runCommandList_0 = runCommandList_0.replace(' --postInclude=RecJobTransforms/UseFrontier.py ', ' ')
-        if '--postInclude "default:RecJobTransforms/UseFrontier.py"' in runCommandList_0:
-            runCommandList_0 = runCommandList_0.replace('--postInclude "default:RecJobTransforms/UseFrontier.py"', ' ')
+        if not os.environ.has_key('Nordugrid_pilot'):
+            runCommandList_0 = runCommandList_0.replace("--DBRelease=current", "").replace('--DBRelease="default:current"', '').replace("--DBRelease='default:current'", '')
+            if 'RecJobTransforms/UseFrontier.py,' in runCommandList_0:
+                runCommandList_0 = runCommandList_0.replace('RecJobTransforms/UseFrontier.py,', '')
+            if ',RecJobTransforms/UseFrontier.py' in runCommandList_0:
+                runCommandList_0 = runCommandList_0.replace(',RecJobTransforms/UseFrontier.py', '')
+            if ' --postInclude=RecJobTransforms/UseFrontier.py ' in runCommandList_0:
+                runCommandList_0 = runCommandList_0.replace(' --postInclude=RecJobTransforms/UseFrontier.py ', ' ')
+            if '--postInclude "default:RecJobTransforms/UseFrontier.py"' in runCommandList_0:
+                runCommandList_0 = runCommandList_0.replace('--postInclude "default:RecJobTransforms/UseFrontier.py"', ' ')
+            runCommandList_0 = runCommandList_0.replace('--postInclude "default:PyJobTransforms/UseFrontier.py"', ' ')
 
         runCommandList_0 += " 1>athenaMP_stdout.txt 2>athenaMP_stderr.txt"
         runCommandList_0 = runCommandList_0.replace(";;", ";")
@@ -867,8 +876,8 @@ class RunJobHpcEvent(RunJob):
         # 8. Token Extractor command
         if usingTokenExtractor:
             setup = setupCommand
-            tokenExtractorCmd = setup + ";" + " TokenExtractor -v  --source " + tagFile_list + " 1>tokenExtract_stdout.txt 2>tokenExtract_stderr.txt"
-            tokenExtractorCmd = tokenExtractorCmd.replace(";;", ";")
+            tokenExtractorCmd = setup + " TokenExtractor -v  --source " + tagFile_list + " 1>tokenExtract_stdout.txt 2>tokenExtract_stderr.txt"
+            tokenExtractorCmd = tokenExtractorCmd.replace(";;", ";").replace("; ;", ";")
             self.__jobs[job.jobId]['tokenExtractorCmd'] = tokenExtractorCmd
         else:
             self.__jobs[job.jobId]['tokenExtractorCmd'] = None
@@ -999,6 +1008,10 @@ class RunJobHpcEvent(RunJob):
         tolog("Submit HPC job")
         hpcManager.submit()
         tolog("Submitted HPC job")
+
+        if hpcManager.isLocalProcess():
+            self.__hpcStatue = 'closed'
+            self.updateAllJobsState('finished', self.__hpcStatue)
 
         hpcManager.setPandaJobStateFile(self.__jobStateFile)
         #self.__stageout_threads = defRes['stageout_threads']
@@ -1151,10 +1164,11 @@ class RunJobHpcEvent(RunJob):
             tolog("Failed in check Event Stager status: %s" % traceback.format_exc())
             return False
 
-    def runHPCEventJobsWithEventStager(self):
+    def runHPCEventJobsWithEventStager(self, useEventStager=False):
         tolog("runHPCEventWithEventStager")
         hpcManager = self.__hpcManager
-        self.startEventStager()
+        if useEventStager:
+            self.startEventStager()
 
         try:
             old_state = None
@@ -1176,7 +1190,8 @@ class RunJobHpcEvent(RunJob):
                 if state and state == 'Complete':
                     break
 
-                self.monitorEventStager()
+                if useEventStager:
+                    self.monitorEventStager()
                 time.sleep(30)
 
             tolog("HPCManager Job Finished")
@@ -1185,19 +1200,20 @@ class RunJobHpcEvent(RunJob):
         except:
             tolog("RunHPCEvent failed: %s" % traceback.format_exc())
 
-        try:
-            self.finishEventStager()
-            while not self.isEventStagerFinished():
-                self.monitorEventStager()
-                time.sleep(30)
+        if useEventStager:
+            try:
+                self.finishEventStager()
+                while not self.isEventStagerFinished():
+                    self.monitorEventStager()
+                    time.sleep(30)
 
-            eventStager_log = self.getEventStagerLog()
-            for jobId in self.__jobs:
-                job_workdir = self.__jobs[jobId]['job'].workdir
-                tolog("Copy event stager log %s to job %s work dir %s" % (eventStager_log, jobId, job_workdir))
-                shutil.copy(eventStager_log, job_workdir)
-        except:
-            tolog("Waiting EventStager: %s" % traceback.format_exc())
+                eventStager_log = self.getEventStagerLog()
+                for jobId in self.__jobs:
+                    job_workdir = self.__jobs[jobId]['job'].workdir
+                    tolog("Copy event stager log %s to job %s work dir %s" % (eventStager_log, jobId, job_workdir))
+                    shutil.copy(eventStager_log, job_workdir)
+            except:
+                tolog("Waiting EventStager: %s" % traceback.format_exc())
 
         try:
             hpcManager.postRun()
@@ -1401,7 +1417,8 @@ class RunJobHpcEvent(RunJob):
                 path = found_dirs[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:
-                    pUtil.recursive_overwrite(path, dest_dir)
+                    if file == 'rank_0' or (file.startswith("rank_") and os.path.exists(dest_dir)):
+                        pUtil.recursive_overwrite(path, dest_dir)
                 except:
                     tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
             for file in found_files:
@@ -1410,7 +1427,11 @@ class RunJobHpcEvent(RunJob):
                 path = found_files[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:
-                    pUtil.recursive_overwrite(path, dest_dir)
+                    if file.endswith(".dump") or file.startswith("metadata-"):
+                        if str(jobId) in file:
+                            pUtil.recursive_overwrite(path, dest_dir)
+                    else:
+                        pUtil.recursive_overwrite(path, dest_dir)
                 except:
                     tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
 
@@ -1464,14 +1485,14 @@ if __name__ == "__main__":
             runJob.recoveryJobs()
             runJob.recoveryHPCManager()
             #runJob.runHPCEvent()
-            runJob.runHPCEventJobsWithEventStager()
+            runJob.runHPCEventJobsWithEventStager(useEventStager=False)
         else:
             runJob.setupHPCManager()
             runJob.getHPCEventJobs()
             runJob.stageInHPCJobs()
             runJob.startHPCJobs()
             #runJob.runHPCEvent()
-            runJob.runHPCEventJobsWithEventStager()
+            runJob.runHPCEventJobsWithEventStager(useEventStager=False)
     except:
         tolog("RunJobHpcEventException")
         tolog(traceback.format_exc())

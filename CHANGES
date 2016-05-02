@@ -2,293 +2,206 @@ Complete change log for PanDA Pilot version PICARD
 --------------------------------------------------
 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+65.0
 
-Pre-release versions
+General changes
+- Added taskId argument to addEnvVars2Cmd() (ATLASExperiment)
+- Now sending job.taskID to addEnvVars2Cmd() from getJobExecutionCommand() and getJobExecutionCommandOld() (ATLASExperiment, NordugridATLASExperiment)
+- Added taskId to FRONTIER_ID (taskId_jobId) in addEnvVars2Cmd(), getEnvVars2Cmd() requested by Rodney Walker (ATLASExperiment)
+- Simplified call to mover_put_data() from stageOut() (RunJob, RunJobEvent)
+- Simplified call to mover_put_data() from transferActualLogFile(), transferAdditionalFile() (JobLog)
+- Simplified call to mover_put_data() from TransferFiles() (DeferredStageout)
+- Simplified call to mover_put_data() from moveLostOutputFiles() (pilot)
+- Created removeNoOutputFiles() (FileHandling)
+- Now removing files from output file list if they are listed in allowNoOutput and do not exist, in __main__(). Requested by Tadashi Maeno (RunJob)
+- Renamed output_files_json to extracted_output_files in __main__() (RunJob)
+- Now explicitly removing 'madevent' in removeRedundantFiles(), requested by Rodney Walker (ATLASExperiment)
+- Removed unnecessary functions, getProdCmd3() and getProdCmd3Old() and updated usages from getJobExecutionCommandOld() (ATLASExperiment)
+- Simplified the implementation of getAnalysisRunCommand() in Experiment and moved the actual implementation to ATLASExperiment (Experiment, ATLASExperiment)
+- Removed LFC_HOME variable and single usage in class declaration and to_native_lfn() (SiteMover)
+- Added --makeflags=$MAKEFLAGS option to asetup in getJobExecutionCommand() and getProperASetup(), requested by Asoka De Silva (ATLASExperiment)
+- Added exception for log file in __checkPayloadStdout() (Monitor)
+- Created extractOutputFiles() used by __main__ in RunJob instead of extractOutputFilesJSON() (FileHandling, RunJob)
+- Removed some debug messages that caused too much stdout leading to large log sizes, e.g. in getSURLDictionary() (SiteMover)
+- Removed some debug messages that caused too much stdout leading to large log sizes, e.g. in getDatasetDict() (pUtil)
+- Using os.getcwd() as default for wntmpdir instead of /tmp, in set_environment(). Requested by Andrej Filipcic (environment)
+- Out-commented call to deprecated getNewQueuedata() in handleQueuedata() (pUtil)
 
-63.4.1:
+Send DB info in jobMetrics, requested by Rodney Walker
+- Created getDBInfo() (FileHandling)
+- Added dbTime, dbData job object strings (Job)
+- Added call to getDBInfo() from extractJobInformation() (ErrorDiagnosis)
+- Now adding dbTime and dbData to jobMetrics in getJobMetrics() (PandaServerClient)
+- Added dbTime and dbData to updateJobInfo() (RunJobUtilities)
+- Added dbTime and dbData to handle() (UpdateHandler)
 
-Avoiding extracting output files from jobReport.json for user jobs in __main__() (RunJob)
+Limit number of MemoryMonitor restarts, requested by Rodney Walker
+- Added utility_subprocess_launches variables + handling to __main__() (RunJob, RunJobEvent)
 
-63.4.2:
+Memory monitoring
+- Fix for dangling utility_subprocess (RunJob, RunJobEvent)
 
-Added exit code 11 and error acronym TRF_OUTPUT_FILE_ERROR to ignore list in __main__() (RunJobEvent)
-Sending job.taskID to downloadEventRanges() from executePayload() and __main__() (RunJob, RunJobEvent)
-Added taskID argument to downloadEventRanges() (EventRanges)
-Now sending taskID with GETEVENTRANGES server request in downloadEventRanges(); requested by Tadashi Maeno (EventRanges)
-Now sending taskID with GETEVENTRANGES server request in getJobEventRanges(); requested by Tadashi Maeno (RunJobHpcEvent)
-Now importing isAGreaterOrEqualToB() (RunJobEvent)
-Created useTokenExtractor(), setUseTokenExtractor() (RunJobEvent)
-Now using useTokenExtractor in several places in __main__() (RunJobEvent)
-Corrected preExec setting in __main__() (RunJobEvent)
-Added protection for failure to find alternativeName in getTiersOfATLASAlternativeName() (SiteMover)
+Same user multi-job request by Emmanouil Vamvakopoulos
+- Added allowSameUser boolean and taskID (environment)
+- Enabled pilot option -B <allowSameUser> (pilot)
+- Sending prodUserID with job request in case allowSameUser is set, in getDispatcherDictionary() (pilot)
+- Setting prodUserID in getNewJob() (pilot)
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Bug fixes
+- Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
+- Removed duplicated getFileInfoFromRucio() (SiteMover)
+- Corrected _output to output in _getRemoteFileSizeLCGLS() (SiteMover)
+- Removed -ALL suffix from agis_schedconf.json which seems to prevent the caching of the file to work properly, in getNewQueuedata() (SiteInformation)
+- Sending job.prodDBlockToken to RunJobUtilities.updateRunCommandList() from __main__() (RunJob)
+- Added prodDBlockToken argument to updateRunCommandList() (RunJobUtilities)
+- Now removing --directIn payload option if 'local' is present in prodDBlockToken list, updateRunCommandList() (RunJobUtilities)
+- Updated call to updateRunCommandList() in RunJob modules (RunJob, RunJobEvent, RunJobAnselm, RunJobEdison, RunJobHopper, RunJobTitan)
+- Changed jobDic argument to job object in storeWorkDirSize() and removed unnecessary loop over job objects which caused problems with big Yoda jobs (FileHandling)
+- Sending self.__env['jobDic'][k][1] (job object) instead self.__env['jobDic'] (job dictionary) to storeWorkDirSize() from __checkWorkDir() (Monitor)
+- Sending job instead jobDic to storeWorkDirSize() from createLogFile() (JobLog)
+- Renamed config to configSiteMover to prevent problems seen on ND with late releases due to presence of a config module from TDAQ in the PYTHONPATH
+- Updated config to configSiteMover import (S3ObjectstoreHttpSiteMover, S3ObjectstoreSiteMover, S3SiteMover, SiteMover, mvSiteMover, objectstoreSiteMover, xrootdObjectstoreSiteMover, xrootdSiteMover)
+- Removed unused config import (pUtil)
+- Now recognizing copytool=fax in mover_get_data() when counting FAX statistics (Mover)
 
-64.0
+Server update for ND true pilots (pre-placed job def but with server updates) after out of local disk space, requested by Andrej Filipcic
+- (i.e. updateServerFlag == True and jobRequestFlag == False)
+- Avoiding checking local disk space in runMain(), before the getJob() (pilot)
 
-General changes:
-- Replaced useFileStager and directIn with _dummy strings in getPrefices() and shouldPFC4TURLsBeCreated() since they are not used in these functions (Mover)
-- Now getting the value of directIn from useDirectAccessLAN() instead of from getFileAccessInfo() in shouldPFC4TURLsBeCreated() (Mover)
-- Replaced useFileStager and directIn with _dummy in stageIn() since they are not used (RunJob)
-- Removed import of getFileAccessInfo() since it is not used (RunJobEvent)
-- Created getDirectAccess(), used by shouldPFC4TURLsBeCreated() (Mover)
-- Simplified getFileAccessInfo() (pUtil)
-- Updated return values from getFileAccessInfo() in getPrefices() and shouldPFC4TURLsBeCreated() (Mover)
-- Updated return values from getFileAccessInfo() in stageIn() (RunJob)
-- Now using useDirectAccessWAN() in getPoolFileCatalog() to determine if a PFC with direct I/O over FAX should be produced (Mover)
-- Now failing immediately if PFC could not be created in getPoolFileCatalog() (Mover)
-- Simplified willDoFileLookups() (ATLASExperiment)
-- Avoiding None value while getting number of events in processMetadata() (ATLASExperiment)
-- Ignoring test mode in updateJobStateTest() (JobRecovery)
-- Removing archive files if present prior to log file creation; requested by Emmanouil Vamvakopoulos et al (ATLASExperiment)
-- Cleaned up reporting of transferred file state in mover_put_data_new() and mover_put_data() (Mover)
-- Changed headPilotErrorDiag() to headPilotErrorDiag() to avoid annoying tailed error diagnostics, in get_data() and changed import (Mover)
-- Created headPilotErrorDiag() (pUtil)
-- Now using headPilotErrorDiag in makeJobReport() (pUtil)
-- Replaced all usages of type as a variable and replaced it with ftype (FileState, FileStateClient, all site movers, Monitor, RunJob*, mover)
-- Removed obsolete and unused lateRegistration() (pUtil)
-- Removed duplicated, obsolete and unused getField(), getNewQueuedataFilename() (FileHandling)
-- Now using dictionary get function instead of has_key() in stageIn() (RunJob)
-- Removed 60s initial delay in killProcesses() since MemoryMonitor is now the first process that will be killed (processes)
-- Using createLockFile() in __checkPayloadStdout(), __checkWorkDir(), __checkLocalSpace(), __failMaxTimeJob(), __killLoopingJob(), __updateJobs(),
-  __cleanUpEndedJobs() and in Monitor main exception handling to prevent MemoryMonitor to restart while the job is being killed (Monitor)
-- Checking that JOBWILLBEKILLED lock file does not exist before restarting MemoryMonitor in executePayload() (RunJob)
+Alt stage-out
+- Added altStageOut data member plus handling (Job)
+- Setting altStageOut in mover_put_data() (Mover)
+- Changed argument flag to **pdict in allowAlternativeStageOut(), forceAlternativeStageOut() (SiteInformation)
+- Using altStageOut in allowAlternativeStageOut() and forceAlternativeStageOut() (ATLASSiteInformation)
+- Sending job.altStageOut to forceAlternativeStageOut() and allowAlternativeStageOut() from mover_put_data() and mover_put_data_new() (Mover)
+- Turning off any forced alt stage-out for objectstore transfers in forceAlternativeStageOut() (ATLASSiteInformation)
+- Created new functions for stage-in/out optimization: getObjectstoreBucketID(), getObjectstorePath(), getObjectstoreDDMEndpoint(),
+  getAlternativeObjectstoreDDMEndpoint(), getObjectstoreEndpointID(), getObjectstoreKeyInfo() (SiteInformation)
+- Updated getLogPath() to use getObjectstoreDDMEndpoint(), getObjectstorePath(), getObjectstoreBucketID() (JobLog)
+- Updated getFileInfo() to use getObjectstoreDDMEndpoint(), getObjectstoreBucketID() and shortened logic (no special case for log files) (Mover)
+- Updated getNewOSStoragePath() to use getObjectstoreDDMEndpoint(), getAlternativeObjectstoreDDMEndpoint(), getObjectstorePath()
+  and getObjectstoreBucketID() (Mover)
+- Removed unused variables from getDDMStorage() (os_bucket_id, queuename, jobId, ub) (Mover)
+- Updated getDDMStorage() to use getObjectstoreDDMEndpoint(), getObjectstorePath(), getObjectstoreBucketID() (Mover)
+- Removed unnecessary OS functions in transferToObjectStore() (RunJobEvent)
+- Created getObjectstoreDDMEndpointFromBucketID() (SiteInformation)
+- Now using getObjectstoreDDMEndpointFromBucketID() in transferLogFile() (JobLog)
+- Now using getObjectstoreDDMEndpointFromBucketID() in transferToObjectStore() (RunJobEvent)
+- Now using os_ddmendpoint instead of os_bucket_endpoint in addToOSTransferDictionary() (FileHandling)
+- Removed unwanted methods getObjectstoreBucketEndpoint(), getObjectstoreName() (SiteInformation)
+- Changed os_name to os_ddmendpoint (S3ObjectstoreHttpSiteMover)
+- Updated setup() to use getObjectstoreDDMEndpointFromBucketID(), getObjectstoreEndpointID(), getObjectstoreKeyInfo() (S3ObjectstoreSiteMover)
+- Added argument label to setup() and its calls (S3ObjectstoreSiteMover)
+- Removed deprecated methods getAlternativeOS(), convertBucketIDsToOSIDs(), getOSInfoFromBucketID(), getBucketID(),
+  findObjectStore(), getOSIDFromName(), getQueuenameFromOSID(), findAllObjectStores(),
+  findOSEnabledQueuesInFullQueuedata(), getObjectstoresList() (SiteInformation)
+- Added getObjectstoreFilename() (ATLASSiteInformation)
 
-To avoid creating dark data in case the server has already failed the job before the pilot has finished
-The problem can happen if the server times out the job before tar+zip of huge log files have not finished within two hours
-- Added 55 minute time-outs each around tar+zip of log file in createLogFile() (JobLog)
+Event service
+- Setting PILOT_EVENTRANGECHANNEL env variable instead of manipulating jobPars, in __main__() (RunJobEvent)
+- Wen Guan: Fix in init function which prevented the S3 site mover from being used (S3ObjectstoreSiteMover)
+- Sending os_bucket_id to getQueuedataFileName() from getObjectstoresList(), getNewQueuedata(), getField() (SiteInformation)
+- Added os_bucket_id argument to getQueuedataFileName() (SiteInformation)
+- Using os_bucket_id in queuedata filename in getQueuedataFileName() (SiteInformation)
+- Will abandon getNewQueuedata() if file already exists (filename should now be unique to the bucket id) (SiteInformation)
+- Added os_bucket_id argument to getNewQueuedata() (SiteInformation)
+- Sending os_bucket_id to getField() from getObjectstoresList() (SiteInformation)
+- Added os_bucket_id argument to getField() (SiteInformation)
+- Extracting os_bucket_id in get_data(), put_data() (S3ObjectstoreSiteMover, S3SiteMover)
+- Sending os_bucket_id to stageOut() from put_data() (S3ObjectstoreSiteMover, S3SiteMover)
+- Sending os_bucket_id to stageIn() from get_data() (S3ObjectstoreSiteMover, S3SiteMover)
+- Added os_bucket_id argument to setup(), stageIn(), stageOut() (S3ObjectstoreSiteMover)
+- Sending os_bucket_id to setup() from stageIn(), stageOut() (S3ObjectstoreSiteMover)
+- Sending os_bucket_id to getObjectstoresField() from setup() (S3ObjectstoreSiteMover)
+- Sending os_bucket_id to sitemover_get_data() from mover_get_data(), _mover_get_data_new() (Mover)
+- Added os_bucket_id argument to sitemover_get_data() (Mover)
+- Sending os_bucket_id to get_data() from sitemover_get_data() (Mover)
+- Sending os_bucket_id to sitemover_put_data() from mover_put_data(), mover_put_data_new() (Mover)
+- Added os_bucket_id argument to sitemover_put_data() (Mover)
+- Sending os_bucket_id to put_data() from sitemover_put_data() (Mover)
+-- Changes below affects the changes above --
+- Created getObjectstoreInfoFile(), getObjectstorePath(), getObjectstoreFilename(), getObjectstoreBucketID() (SiteInformation)
+- Renamed old getObjectstorePath() to getObjectstorePathOld() - to be removed shortly (SiteInformation)
+- Created getObjectstoresInfo() (SiteInformation)
+- Created getObjectstoresField() (SiteInformation)
+- Created getObjectstorePath() (SiteInformation)
+- Now using getObjectstoresField() instead of getObjectstoreName() and getObjectstoreBucketEndpoint() in transferLogFile() (JobLog)
+- Now using getObjectstoresField() and new getObjectstorePath() instead of old getObjectstorePath() in transferLogFile() (JobLog)
+- Updated call to getObjectstoresField() in getFileInfo() (Mover)
+- Updated two calls to getObjectstorePath(), and using getObjectstoresField() in getFileInfo() (Mover)
+- Using new getObjectstoresField() instead of getObjectstoreName() in getNewOSStoragePath() (Mover)
+- Using new getObjectstoresField() and getObjectstorePath() instead of old getObjectstorePath() in getDDMStorage() (Mover)
+- Updated calls to getObjectstoresField() (S3ObjectstoreHttpSiteMover, S3ObjectstoreSiteMover, SiteInformation)
+- Avoiding None values in prodDBlockToken list, in hasOSBucketIDs() (SiteInformation)
+- Created getObjectstoreDDMEndpoint() (SiteInformation)
+- Created getCPUTimes(), used in RunJobEvent::__main__() (FileHandling, RunJobEvent)
+- Updated interpretMessage() to handle multiple files (RunJobEvent)
+- Updated listener() to handle list of files from interpretMessage() (RunJobEvent)
 
-Updates to alternative stage-out mechanism (related to WORLD cloud and jobMetrics reporting)
-- Updated getTier1Queue() to handle WORLD cloud for alternative stage-out (ATLASSiteInformation)
-- Removed unused getTier1Queue2() (ATLASSiteInformation, AMSTaiwanSiteInformation)
-- Now sending token to prepareAlternativeStageOut() from mover_put_data() (Mover)
-- Added token argument to prepareAlternativeStageOut() (Mover)
-- Sending token to getTier1Queue() from prepareAlternativeStageOut() (Mover)
-- Reporting alt_transferred file state in mover_put_data_new() and mover_put_data() (Mover)
-- Created getFilesOfState() (FileState, FileStateClient)
-- Using getFilesOfState() in getJobMetrics() (PandaServerClient)
-- Added --quiet to getLocalEMISetup to avoid interrupting JAVA warnings (ATLASSiteInformation)
-- Sending site to getJobMetrics() from getNodeStructure() (PandaServerClient)
-- Added site argument to getJobMetrics() (PandaServerClient)
+Logs to OS:
+- Added putLogToOS to Job class (Job)
+- Changed argument from eventService to **argdict in doSpecialLogtransfer() (Experiment, ATLASExperiment)
+- Now sending log to OS if job.putLogToOS is set, in doSpecialLogFileTransfer() (JobLog)
+- Added logToOS boolean argument to PFCxml(), used to add an endpoint tag to the xml (pUtil)
+- Sending logToOS to PFCxml() from createFileMetadata() (RunJobEvent, RunJob)
 
-General bug fixes:
-- Corrected bad return (function returned pilotErrorDiag string, but should have returned an outputRet dictionary) in errorToReport(); caused timed-out jobs at BNL
-to get the wrong error label (LocalSiteMover)
-- Corrected usage of new method processCanBeKilled() (missing self; also in its call in __updateJobs()) (Monitor)
-- Removed half-implemented getFilenamesAndGuid() (Mover)
-- Changed 'eventservice' to 'logs' in transferLogFile() before adding info to OS transfer dictionary (JobLog)
-- Added missing MAKEFLAGS for ND jobs, in setupNordugridTrf() (NordugridATLASExperiment)
-- Improved handling of lcg-get-checksum output in case of irrelevant warnings in lcgGetChecksum()
-- Added missed file state (no-transfer; for DBRelease files) in hasOnlyCopyToScratch(). When prodDBlockToken had 'local' values --directIn was wrongly sent to runAthena (FileState)
+Direct access updates (to enable this functionality for ES)
+- Using transferType fax in shouldPFC4TURLsBeCreated()
+- Sending job.transferType to getFileAccessInfo() from stageIn() (RunJob)
+- Sending transferType to getFileAccessInfo() from shouldPFC4TURLsBeCreated() (Mover)
+- Sending transferType to createPFC4TURLs() from PFC4TURLs() (Mover)
+- Added transferType argument to createPFC4TURLs() (Mover)
+- Sending transferType to getTURLs() from createPFC4TURLs() (Mover)
+- Added transferType argument to getTURLs() (Mover)
+- Sending transferType to getPrefices() from getTURLs() (Mover)
+- Added transferType argument to getPrefices() (Mover)
+- Sending transferType to getFileAccessInfo() from getPrefices() (Mover)
+- Sending job.transferType to pUtil.getFileAccessInfo() (RunJobHpcEvent)
+- Added transferType argument to getFileAccessInfo() (pUtil)
+- Using transferType and direct_access_wan in getFileAccessInfo() (pUtil)
+- Added transferType argument to getCopyFileAccessInfo() (SiteInformation)
+- Sending transferType to getCopyFileAccessInfo() from getDirectInAccessMode() (SiteInformation)
+- Removed useFileStager from getCopyFileAccessInfo() and getDirectInAccessMode() (SiteInformation)
+- Using transferType and direct_access_wan in getCopyFileAccessInfo() (SiteInformation)
+- Moved getDirectAccess(), useDirectAccessLAN(), useDirectAccessWAN() from Mover to FileHandling
+- Now using getDirectAccess() in getDirectInAccessMode() (SiteInformation)
+- Removed directIn from getCopyFileAccessInfo() (SiteInformation)
+- Now using self.__siteInfo.getCopyFileAccessInfo() instead of pUtil.getFileAccessInfo() (RunJobHpcEvent)
+- Now using si.getCopyFileAccessInfo() instead of pUtil.getFileAccessInfo() (RunJob)
+- Added experiment argument to getTURLs(), createPFC4TURLs(), PFC4TURLs() (Mover)
+- Sending experiment to getTURLs() from createPFC4TURLs() (Mover)
+- Sending experiment to createPFC4TURLs() from PFC4TURLs() (Mover)
+- Sending experiment to PFC4TURLs() from _mover_get_data_new() and mover_get_data() (Mover)
+- Added experiment argument to getPrefices() (Mover)
+- Sending experiment to getPrefices() from getTURLs() (Mover)
+- Now using si.getCopyFileAccessInfo() instead of pUtil.getFileAccessInfo() in getPrefices(), shouldPFC4TURLsBeCreated() (Mover)
+- Added experiment argument to shouldPFC4TURLsBeCreated() (Mover)
+- Sending experiment to shouldPFC4TURLsBeCreated() from PFC4TURLs() (Mover)
+- Removed getFileAccessInfo() which has now become a duplicate of SiteInformation.getCopyFileAccessInfo() (pUtil)
+- Renamed getCopyFileAccessInfo() to getFileAccessInfo() (SiteInformation, Mover, RunJob, RunJobHpcEvent)
+- Removed sending stageIn boolean to getFileAccessInfo() from getDirectInAccessMode() (SiteInformation)
+- Added transferType argument to getDirectInAccessMode() (SiteInformation)
+- Sending transferType to getDirectInAccessMode() from getStageInMode() (FAXSiteMover, GFAL2SiteMover, LocalSiteMover, xrdcpSiteMover, xrootdObjectstoreSiteMover)
+- Sending transferType to getStageInMode() from get_data() (FAXSiteMover, GFAL2SiteMover, LocalSiteMover, xrdcpSiteMover, xrootdObjectstoreSiteMover)
+- Added transferType argument to getStageInMode() (FAXSiteMover, GFAL2SiteMover, LocalSiteMover, xrdcpSiteMover, xrootdObjectstoreSiteMover)
+- Extracting transferType in get_data() (FAXSiteMover, GFAL2SiteMover, LocalSiteMover, xrdcpSiteMover, xrootdObjectstoreSiteMover)
+- Sending transferType to get_data() from sitemover_get_data() (Mover)
+- Sending transferType to sitemover_get_data() from _mover_get_data_new(), mover_get_data() (Mover)
+- Added transferType argument to sitemover_get_data() (Mover)
+- For transferType direct and fax, now calling si.updateDirectAccess() from __main__() (RunJob, RunJobEvent)
+- Created updateDirectAccess() (SiteInformation)
 
-Multi-core update for generic jobs
-- Now setting MAKEFLAGS for generic analysis jobs (i.e. analysis jobs with swRelease = 'Atlas-*') in getJobExecutionCommandOld() (ATLASExperiment)
+Updates from Wen Guan:
+- Now using curl to get keypair (ATLASSiteInformation, pUtil)
+- Add hostname check with http proxy (S3ObjectstoreSiteMover)
+- Fixed hostname is None issue (S3ObjectstoreSiteMover)
+- Solve the region problem with AWS OS (S3ObjectstoreSiteMover, objectstoreSiteMover)
 
-Setup of ATLAS Release changes
-- Created a new getJobExecutionCommand(), renamed old function to getJobExecutionCommandOld() (ATLASExperiment)
-- Changed useAtlasSetup() to always return True for all releases (ATLASExperiment)
-- Updated getSplitHomePackage() to handle AnalysisTransforms-AtlasP1HLT_* correctly (ATLASexperiment)
-- Now using getSplitHomePackage() in getJobExecutionCommand() (ATLASExperiment)
+CMS Experiment
+- Removed allowAlternativeStageOut() (CMSExperiment)
 
-Objectstore updates
-  Added fail-over to alternative OS
-    - Created copyFullQueuedata(), getFullQueuedataDictionary(), findOSEnabledQueuesInFullQueuedata(), findAllObjectStores(), getAlternativeOS(), getFullQueuedataFilePath() (SiteInformation, ATLASSiteInformation)
-    - Now using getNewOSStoragePath() in mover_put_data() to get updated path and os_id (Mover)
-  OS identification
-    - Created getOSIDFromName() (SiteInformation)
-    - Returning the os_bucket_id in getObjectstorePath() (SiteInformation)
-    - Receiving and returning the os_bucket_id in getLogPath() (JobLog)
-    - Receiving the os_bucket_id in transferActualLogFile() (JobLog)
-    - Now receiving and returning os_bucket_id from getDDMStorage() (Mover)
-    - Receiving os_bucket_id in mover_put_data() and mover_put_data_new() (Mover)
-    - Receiving os_bucket_id in getFileInfo() (Mover)
-    - Sending os_bucket_id to mover_put_data() from transferActualLogFile() (JobLog)
-    - Added os_bucket_id argument to mover_put_data() and mover_put_data_new() (Mover)
-    - Sending os_bucket_id to getDDMStorage() from mover_put_data() and mover_put_data_new() (Mover)
-    - Sending os_bucket_id to getObjectstorePath() from ..
-    - Added os_bucket_id argument to getObjectstorePath() (SiteInformation)
-    - Sending os_bucket_id to getObjectstoresField() from getObjectstorePath() (SiteInformation)
-    - Added os_bucket_id argument to getObjectstoresField() (SiteInformation)
-    - Sending os_bucket_id to getObjectstoresList() from getObjectstoresField() (SiteInformation)
-    - Added os_bucket_id argument to getObjectstoresList() (SiteInformation)
-    - Removed useless code that looked for objectstores in queuedata in getObjectstoresList() (SiteInformation)
-    - Sending os_bucket_id to getNewQueuedata() from getObjectstoresList() (SiteInformation)
-    - Added os_bucket_id argument to getNewQueuedata() (SiteInformation)
-    - getNewQueuedata() can now find queuedata matching a given os_bucket_id (SiteInformation)
-    - Now returning os_bucket_id from mover_put_data() and mover_put_data_new() (Mover)
-    - Receiving os_bucket_id from mover_put_data() call in transferActualLogFile() and transferAdditionalFile() (JobLog)
-    - Receiving	os_bucket_id from mover_put_data() call in TransferFiles() (DeferredStageout)
-    - Receiving	os_bucket_id from mover_put_data() call in stageOut() (RunJob, RunJobEvent)
-    - Receiving	os_bucket_id from mover_put_data() call in moveLostOutputFiles() (pilot)
-    - Returning os_bucket_id from stageOut() and receiving it in transferToObjectStore() (RunJobEvent)
-    - Returning os_bucket_id from transferToObjectStore(), received in asynchronousOutputStager() (RunJobEvent)
-    - Sending os_bucket_id from asynchronousOutputStager() to updateEventRange() (RunJobEvent)
-    - Added os_bucket_id argument to updateEventRange() (EventRange)
-    - Sending objstoreID=os_bucket_id with updateEventRange call in updateEventRange() (EventRange)
-    - Added os_id argument to getObjectstoreName() (SiteInformation)
-    - Added os_bucket_id argument to getObjectstoreBucketEndpoint() (SiteInformation)
-    - Created findObjectStore(), getOSInfoFromBucketID(), getBucketID() (SiteInformation)
-    - Created logBucketID variable (Job)
-    - Reporting which OS bucket the log was written to, if any, in getJobMetrics() (PandaServerClient)
-    - Added experiment argument to transferActualLogFile() and sending it from transferLogFile() (JobLog)
-    - Created hasOSBucketIDs() to be used for merge jobs to identify prodDBlockTokens containing OS bucket IDs (SiteInformation)
-    - Created convertBucketIDsToOSIDs() (SiteInformation)
-    - Added prodDBlockToken argument to getFileInfo() (Mover)
-    - Sending prodDBlockToken to getFileInfo() from _mover_get_data_new() and mover_get_data() (Mover)
-    - Now getting file info from different OS:s (if necessary) in getFileInfo() (Mover)
-    - Changed addToOSTransferDictionary() to store os_bucket_id instead of os_name (FileHandling)
-    - Updated calls to addToOSTransferDictionary() to send os_bucket_id instead of os_name (JobLog, RunJobEvent)
-    - Updated getOSNames() to work populate dictionary using os_bucket_id instead of os_name (FileHandling)
-    - Renamed getOSNames() to getOSTransferDictionary(), and updated the calls to it (FileHandling, PandaServerClient)
-    - Created getQueuenameFromOSBucketID() (SiteInformation)
-    - Removed preset queuename from getNewQueuedata() (SiteInformation)
-    - Added queuename argument to getObjectstorePath(), getObjectstoresField(), getObjectstoresList(), getNewQueuedata() (SiteInformation)
-    - Sending queuename argument to getNewQueuedata() from getObjectstoresList() (SiteInformation)
-    - Sending queuename argument to getObjectstoresList() from getObjectstoresField() (SiteInformation)
-    - Sending queuename argument to getObjectstoresField() from getObjectstorePath() (SiteInformation)
-    - Sending queuename argument to getObjectstorePath() from getLogPath() (JobLog)
-    - Added queuename argument to getDDMStorage() (Mover)
-    - Sending queuename argument from getDDMStorage() to getObjectstorePath() (Mover)
-    - Sending queuename argument from mover_put_data() and mover_put_data_new() to getDDMStorage() (Mover)
-    - Added queuename argument to getQueuedataFileName(), getField(), readpar() (SiteInformation)
-    - Sending queuename to getQueuedataFileName() from getObjectstoresList(), getNewQueuedata(), getField(), readpar() (SiteInformation)
-    - Sending queuename to getField() from getObjectstoresList(), getNewQueuedata() (SiteInformation)
-    - Added queuename parameter to readpar() and sending it forward to si.readpar() (pUtil)
-    - Sending queuename to getObjectstoresField() from getObjectstorePath() (SiteInformation)
-    - Added queuename argument to getObjectstoreName() (SiteInformation)
-    - Sending queuename to getObjectstoresField() from getObjectstoreName() (SiteInformation)
-    - Added os_bucket_id to fileInfoDic in getFileInfo() (Mover)
-    - Extracting os_bucket_id in extractInputFileInfo() (Mover)
-    - Receiving os_bucket_id in _mover_get_data_new(), mover_get_data() from extractInputFileInfo() (Mover)
-    - Now using getObjectstorePath() in mover_get_data() to trigger a proper queuedata JSON download/copy (Mover)
-  General changes
-    - Minor cleanup; removed usage of alt, prodSourceLabel, testLevel, analysisJob, extradirs, proxyCheck in put_data(), removed proxyCheck in get_data() (S3ObjectstoreSiteMover)
-    - Removed unnecessary cleanupOS() and shouldCleanupOS() (RunJob)
-    - Removed useless getNewQueuedataXXX() (SiteInformation)
-    - Now removing current output files from stage-out queue in case of exception in transferToObjectStore() to prevent endless loop in asynchronousOutputStager() (RunJobEvent)
-
-Memory monitoring updates:
-- Calling __check_memory_usage() in monitoring loop, in monitor_job() (Monitor)
-- Created merge_dictionaries() (pUtil)
-- Now importing merge_dictionaries (PandaServerClient)
-- Moved getUtilityInfo() from PandaServerClient to ATLASExperiment
-- Created empty getUtilityInfo() (Experiment)
-- Updated call to getUtilityInfo() in getNodeStructure() (PandaServerClient)
-- Now importing getJSONDictionary in ATLASExperiment
-- Created getUtilityOutputFilename() used by getUtilityCommand() (ATLASExperiment, Experiment)
-- Created new error code ERR_PAYLOADEXCEEDMAXMEM, 1235, "Payload exceeded maximum allowed memory" (PilotErrors)
-- Now using getJSONDictionary() in getJobReport() to avoid problems with unicode seen in test jobs (FileHandling)
-- Created parseUtilityOutput() (ATLASExperiment)
-- Creating a lockfile in __check_memory_usage() to prevent the MemoryMonitor to restart after it has been killed (Monitor)
-- Avoiding restart of memory monitor in __main__() if lockfile MEMORYEXCEEDED is found (RunJob, RunJobEvent)
-- Sending workdir to getUtilityCommand() from getUtilitySubprocess() (RunJob)
-- Extracting argument workdir in getUtilityCommand() (ATLASExperiment)
-- Changing to workdir before utility command is executed in getUtilityCommand() (ATLASExperiment)
-- Improved reading of memory_monitor_summary.json in getUtilityInfo() (ATLASExperiment)
-- Corrected time() -> time.time() in getUtilityInfo() (ATLASExperiment)
-- Created getMemoryValues() and getMaxUtilityValue() (ATLASExperiment)
-- Created getUtilityInfoPath() used by getUtilityInfo() and getMemoryValues() (ATLASExperiment)
-- __check_memory_usage() now using getMemoryValues() (Monitor)
-- Added allowTxtFile option to getUtilityInfo() (ATLASExperiment)
-- Added pilot_initdir, allowTxtFile arguments to getUtilityInfo() (Experiment)
-- Added allowTxtFile argument to getUtilityInfo() (ATLASExperiment)
-- Removed getTracingReportFilename, writeJSON from import list (xrdcpSiteMover)
-- Now catching general Exception instead of KeyError in __check_memory_usage() to avoid problem with empty JSON (Monitor)
-
-LFC cleanup:
-- Removed getLFCDir(), lfc_mkdir(), lcg_rf() (SiteMover)
-- Ignoring empty lFC paths from getLFCPath() call in getProperPaths()
-- Protecting against empty lfcpaths in getUserLFCDir() (SiteMover)
-- Removed obsolete function getLFCChecksumType() (SiteMover)
-- Removed obsolete function addMD5sum() (castorSvcClassSiteMover, dCacheLFCSiteMover, rfcpLFCSiteMover)
-
-Time-out changes:
-- Protected against exitcode None being sent in run() (TimerCommand)
-
-Logging changes: (mainly invisible changes in this version)
-- Change default log file name from pilotlog.out to pilotlog.txt (pUtil)
-- Added new logging module to distribution: Logger.py with code constributions from Wen Guan (logging) and Jose Caballero (formatting)
-- Created new global essentialPilotlogFilename (pUtil)
-- Setting new global essentialPilotlogFilename in setPilotlogFilename() (pUtil)
-- Added arguments label and essential to tolog() (pUtil)
-
-Code cleanup: (apart from Mario's cleanup)
-- Removed outdated getPoolFileCatalogDQ2() (Mover)
-- Removed usages of rsespace variable in monitor_job() and monitor_recovery_job() (Monitor)
-- Removed rsespace and rsespmsg from setSiteInfo() (Site)
-- Removed usages of rsespace and rsespmsg, and sending remainingSpace and messageLevel to server from getNodeStructure() (PandaServerClient)
-- Code cleanup in various pilot modules
-
-Update from Danila Oleynik, Taylor Childers:
-- New modules: ArgoJob, RunJobArgo, BalsamJob, MessageInterface
-- Updated RunJobFactory; replaced Mira with Argo
-- Added functions to serialize ARGO messages: serialize(), deserialize(), convert_unicode_string() (pUtil)
-
-Update from Wen Guan:
-- Added EventStager module for HPC Nersc
-- Added GetJob module for getting multiple jobs
-- Update EventServerManager to let it run in a sub-process. Before it was running in the current process, in this case it cannot be switched to another job which is needed by multi-jobs Yoda.
-- In EventServerManager add functions to handle AthenaMP error messages.
-- Update to use bulk event ranges updates to panda server
-- Fix cases where all ranks of Yoda were killed when one rank finished.
-- Update HPCManager to handle multi-jobs.
-- Update Yoda database function to fix the bottleneck which was slow to update db changes
-- Update Yoda Interaction module to fix the messages delay
-- Update Yoda and Droid to handle multi-jobs
-- Add Signal_block module in Yoda to make Yoda soft termination
-- Update monitor module to monitor multi-jobs, terminate multi-jobs, handle multi-jobs logs and recover HPC jobs
-- Restored is_secure variable which got lost in the merging process (S3ObjectstoreSiteMover)
-
-Update from Alexey Anisenkon:
-- Job stage-in base workflow implemented:
-- . direct access support
-- . no FAX for stagein
-- . no DBReleases (as special input case) support
-- . FileSpec object integration for stagein
-- . xrdcp mover: get functionality implemented
-- . Job object updates
-- . other mover related updates
-
-Update from Daniil Drizhuk:
-- New job recovery algorithm implemented (DeferredStageout module)
-
-REMOVE RunJobMira.py FROM DISTRIBUTION
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-64.1
-
-Moved import of requests module into getSecurityKey() (ATLASSiteInformation)
-Removing broken soft links in removeRedundantFiles() (ATLASExperiment)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-64.2
-
-Added an artificial 'echo $?' to mask the error from tar command in case of bad files in the log - the time-out will still work, in createLogFile() (JobLog)
-Corrected bad indentation in broken link finder in removeRedundantFiles() (ATLASExperiment)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-64.3
-
-General fixes
-- Protected against too old python versions while importing argparse. Problem seen on Chinese HPC site (EventStager, MVEventStager)
-
-Event service:
-- Updated setUseTokenExtractor() to use payload setup string to decide whether the Token Extractor should be used or not, instead of hardcoded release string (RunJobEvent)
-- Sending runCommandList[0] to setUseTokenExtractor() instead of release string, from __main__() (RunJobEvent)
-- Now sending jobId to updateEventRange() from asynchronousOutputStager(), listener() (RunJobEvent)
-- Added jobId argument to updateEventRange() (EventRanges)
-- Now supporting softkill in asynchronousOutputStager() (RunJobEvent)
-- Created shouldBeAborted(), setAbort(), shouldBeKilled(), setToBeKilled() - used in asynchronousOutputStager(), __main__() (RunJobEvent)
-- Created new error code 1237, ERR_ESKILLEDBYSERVER, 'Event Service job killed by server'
-
-Updates from Wen Guan
-- Fixed ATLAS site information
-- Implementation of one rank yoda
-- Fixed merge problem in site information
+AMS Experiment
+- Changed argument flag to **pdict in allowAlternativeStageOut(), forceAlternativeStageOut() (AMSTaiwanSiteInformation)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -314,7 +227,6 @@ Remove singletons:
 Avoiding setting exit code 1008/65 when no jobs were downloaded in getJob(), requested by John Hover (pilot)
 
 REMOVE OTHERSITEMOVER FROM DIST
-HUSITEMOVER?
 
 Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file
 registrations using Rucio functions test with a job run in the US, BNL e.g. which still uses the pilot for file registrations

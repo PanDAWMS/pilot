@@ -38,7 +38,7 @@ from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
      tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID, isAGreaterOrEqualToB
-from FileHandling import getExtension, addToOSTransferDictionary
+from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes
 from EventRanges import downloadEventRanges, updateEventRange
 
 try:
@@ -1043,7 +1043,7 @@ class RunJobEvent(RunJob):
 
         try:
             _status = pUtil.PFCxml(self.__experiment, _fname, fnlist=lfns, fguids=self.__job.outFilesGuids, fntag="lfn", alog=self.__job.logFile, alogguid=guid,\
-                                       fsize=fsize, checksum=checksum, analJob=self.__analysisJob)
+                                       fsize=fsize, checksum=checksum, analJob=self.__analysisJob, logToOS=self.__job.putLogToOS)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
             tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag))
@@ -1195,15 +1195,9 @@ class RunJobEvent(RunJob):
         tin_0 = os.times()
         try:
             ec, pilotErrorDiag, rf, rs, self.__job.filesNormalStageOut, self.__job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" %\
-                                         (metadata_fname), dsname, self.__jobSite.sitename, self.__jobSite.computingElement,\
-                                         analysisJob=self.__analysisJob, pinitdir=self.__pilot_initdir, scopeOut=self.__job.scopeOut,\
-                                         proxycheck=self.__proxycheckFlag, spsetup=self.__job.spsetup, token=self.__job.destinationDBlockToken,\
-                                         userid=self.__job.prodUserID, datasetDict=datasetDict, prodSourceLabel=self.__job.prodSourceLabel,\
-                                         outputDir=self.__outputDir, jobId=self.__job.jobId, jobWorkDir=self.__job.workdir, DN=self.__job.prodUserID,\
-                                         dispatchDBlockTokenForOut=self.__job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                         jobDefId=self.__job.jobDefinitionID, jobCloud=self.__job.cloud,\
-                                         logFile=self.__job.logFile, stageoutTries=self.__stageoutretry, experiment=self.__experiment,\
-                                         fileDestinationSE=self.__job.fileDestinationSE, eventService=True, job=self.__job)
+                                         (metadata_fname), dsname, self.__jobSite.sitename, self.__jobSite.computingElement, analysisJob=self.__analysisJob, pinitdir=self.__pilot_initdir,\
+                                         proxycheck=self.__proxycheckFlag, datasetDict=datasetDict, outputDir=self.__outputDir, outputFileInfo=outputFileInfo, stageoutTries=self.__stageoutretry,\
+                                                                                                                                             eventService=True, job=self.__job)
             tin_1 = os.times()
             self.__job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
@@ -1296,14 +1290,14 @@ class RunJobEvent(RunJob):
             # Transfer the file
             ec, pilotErrorDiag, os_bucket_id = self.stageOut([path], dsname, datasetDict, outputFileInfo, metadata_fname)
             if ec == 0:
-                # Get the OS name identifier and bucket endpoint using the returned os_bucket_id
-                os_name = si.getObjectstoreName("eventservice", os_bucket_id=os_bucket_id)
-                os_bucket_endpoint = si.getObjectstoreBucketEndpoint("eventservice", os_bucket_id=os_bucket_id)
-                #os_bucket_id = si.getBucketID(os_id, "eventservice")
-                tolog("Files were transferred to objectstore with os_bucket_id=%d (os_name=%s, os_bucket_endpoint=%s)" % (os_bucket_id, os_name, os_bucket_endpoint))
+                os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(os_bucket_id)
+                if os_ddmendpoint != "":
+                    tolog("Files were transferred to objectstore ddm_endpoint=%s with os_bucket_id=%d" % (os_ddmendpoint, os_bucket_id))
 
-                # Add the transferred file to the OS transfer file
-                addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_bucket_id, os_bucket_endpoint)
+                    # Add the transferred file to the OS transfer file
+                    addToOSTransferDictionary(os.path.basename(path), self.__pilot_initdir, os_bucket_id, os_ddmendpoint)
+                else:
+                    tolog("!!WARNING!!5656!! OS DDM endpoint unknown - cannot add bucket id to OS transfer dictionary")
 
             # Finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
@@ -1455,17 +1449,15 @@ class RunJobEvent(RunJob):
                     tolog("Received file and process info from client: %s" % (buf))
 
                     # Extract the information from the message
-                    path, event_range_id, cpu, wall = self.interpretMessage(buf)
-                    if path not in self.__stageout_queue and path != "":
-                        # Correct the output file name if necessary
-                        # path = correctFileName(path, event_range_id)
+                    paths, event_range_id, cpu, wall = self.interpretMessage(buf)
+                    for path in paths:
+                        if path not in self.__stageout_queue and path != "":
+                            # Add the extracted info to the event range dictionary
+                            self.__eventRange_dictionary[event_range_id] = [path, cpu, wall]
 
-                        # Add the extracted info to the event range dictionary
-                        self.__eventRange_dictionary[event_range_id] = [path, cpu, wall]
-
-                        # Add the file to the stage-out queue
-                        self.__stageout_queue.append(path)
-                        tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(self.__stageout_queue)))
+                            # Add the file to the stage-out queue
+                            self.__stageout_queue.append(path)
+                            tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(self.__stageout_queue)))
 
                 elif buf.startswith('ERR'):
                     tolog("Received an error message: %s" % (buf))
@@ -1607,48 +1599,37 @@ class RunJobEvent(RunJob):
         return path
 
     def interpretMessage(self, msg):
-        """ Interpret a message containing file and processing info """
+        """ Interpret a yampl message containing file and processing info """
 
         # The message is assumed to have the following format
-        # Format: "<file_path>,<event_range_id>,CPU:<number_in_sec>,WALL:<number_in_sec>"
-        # Return: path, event_range_id, cpu time (s), wall time (s)
+        # Format: "<file_path1>,<file_path2>, .. ,ID:<event_range_id>,CPU:<number_in_sec>,WALL:<number_in_sec>"
+        # Return: [paths], event_range_id, cpu time (s), wall time (s)
 
-        path = ""
+        paths = []
         event_range_id = ""
         cpu = ""
         wall = ""
 
         if "," in msg:
-            message = msg.split(",")
+            for message in msg.split(","):
+                if not ":" in message:
+                    paths.append(message)
+                elif message.startswith("ID"):
+                    event_range_id = message.split(":")[1]
+                elif message.startswith("CPU"):
+                    cpu = message.split(":")[1]
+                elif message.startswith("WALL"):
+                    wall = message.split(":")[1]
+                else:
+                    tolog("!!WARNING!!3535!! Unsupported identifier: %s" % (message))
 
-            try:
-                path = message[0]
-            except:
-                tolog("!!WARNING!!1100!! Failed to extract file path from message: %s" % (msg))
-
-            try:
-                event_range_id = message[1]
-            except:
-                tolog("!!WARNING!!1101!! Failed to extract event range id from message: %s" % (msg))
-
-            try:
-                # CPU:<number_in_sec>
-                _cpu = message[2]
-                cpu = _cpu.split(":")[1]
-            except:
-                tolog("!!WARNING!!1102!! Failed to extract CPU time from message: %s" % (msg))
-
-            try:
-                # WALL:<number_in_sec>
-                _wall = message[3]
-                wall = _wall.split(":")[1]
-            except:
-                tolog("!!WARNING!!1103!! Failed to extract wall time from message: %s" % (msg))
-
+            # Correct for older format where ID was not present. In this case, the last 'path' is actually the event_range_id
+            if not "ID" in msg:
+                event_range_id = paths.pop()
         else:
-            tolog("!!WARNING!!1122!! Unknown message format: missing commas: %s" % (msg))
+            tolog("!!WARNING!!1122!! Unknown yampl message format: missing commas: %s" % (msg))
 
-        return path, event_range_id, cpu, wall
+        return paths, event_range_id, cpu, wall
 
     def getTokenExtractorInputListEntry(self, input_file_guid, input_filename):
         """ Prepare the guid and filename string for the token extractor file with the proper format """
@@ -1807,7 +1788,7 @@ class RunJobEvent(RunJob):
             # Create a TURL based PFC
             tokens_dictionary = {} # not needed here, so set it to an empty dictionary
             ec, pilotErrorDiag, createdPFCTURL, usect = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
-                                                                            sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict)
+                                                                            sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict, self.__experiment)
             if ec != 0:
                 tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
@@ -1986,6 +1967,16 @@ class RunJobEvent(RunJob):
 
         return filename
 
+    def checkSetupObjectstore(self):
+        try:
+            from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
+            testSiteMover = S3ObjectstoreSiteMover('')
+            status, output = testSiteMover.setup(experiment=self.getExperiment())
+            return status, output
+        except:
+            err_msg = "Failed to check setup Objectstore: %s" % traceback.format_exc()
+            return PilotErrors.ERR_UNKNOWN, err_msg
+
 
 # main process starts here
 if __name__ == "__main__":
@@ -2115,6 +2106,11 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
 
+        status, output = runJob.checkSetupObjectstore()
+        if status != 0:
+            tolog("ObjectStore setup test failed. Will exit: %s" % output)
+            runJob.failJob(0, job.result[2], job, pilotErrorDiag="ObjectStore setup test failed")
+
         # Create a message server object (global message_server)
         if runJob.createMessageServer():
             tolog("The message server is alive")
@@ -2157,10 +2153,11 @@ if __name__ == "__main__":
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
         # Update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
-        if job.transferType == 'direct':
-            tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
-                  (job.transferType))
+        if job.transferType == 'direct' or job.transferType == 'fax':
+            tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files)' % (job.transferType))
             RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+            si = getSiteInformation(runJob.getExperiment())
+            si.updateDirectAccess(job.transferType)
 
         # Stage-in all input files (if necessary)
         job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob, pfc_name="PFC.xml")
@@ -2175,11 +2172,8 @@ if __name__ == "__main__":
         # and update the run command list if necessary.
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
-        if job.inFiles != ['']:
-            hasInput = True
-        else:
-            hasInput = False
-        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput)
+        hasInput = job.inFiles != ['']
+        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
 
         # (stage-in ends here) .............................................................................
 
@@ -2305,7 +2299,9 @@ if __name__ == "__main__":
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
 
         # Tell AthenaMP the name of the yampl channel
-        if not "--preExec" in runCommandList[0]:
+        if "PILOT_EVENTRANGECHANNEL" in runCommandList[0]:
+            runCommandList[0] = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (runJob.getYamplChannelName()) + runCommandList[0]
+        elif not "--preExec" in runCommandList[0]:
             runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
         else:
             if "import jobproperties as jps" in runCommandList[0]:
@@ -2327,10 +2323,13 @@ if __name__ == "__main__":
         #tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
 
         # Create and start the AthenaMP process
+        t0 = os.times()
+        tolog("t0 = %s" % str(t0))
         athenaMPProcess = runJob.getSubprocess(thisExperiment, runCommandList[0], stdout=athenamp_stdout, stderr=athenamp_stderr)
 
         # Start the utility if required
         utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+        utility_subprocess_launches = 1
 
         # Main loop ........................................................................................
 
@@ -2425,10 +2424,19 @@ if __name__ == "__main__":
                                 # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                                 # Unless it was killed by the Monitor along with all other subprocesses
                                 if not os.path.exists(os.path.join(job.workdir, "MEMORYEXCEEDED")):
-                                    tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                                    utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+                                    if utility_subprocess_launches <= 5:
+                                        tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                                        utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+                                        utility_subprocess_launches += 1
+                                    elif utility_subprocess_launches <= 6:
+                                        tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - too many restarts, will not restart again")
+                                        utility_subprocess_launches += 1
+                                        utility_subprocess = None
+                                    else:
+                                        pass
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
+                                    utility_subprocess = None
 
                         # Make sure that the token extractor is still running
                         if runJob.useTokenExtractor():
@@ -2481,8 +2489,15 @@ if __name__ == "__main__":
                 if utility_subprocess:
                     if not utility_subprocess.poll() is None:
                         # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
-                        tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                        utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+                        if utility_subprocess_launches <= 5:
+                            tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                            utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)
+                            utility_subprocess_launches += 1
+                        elif utility_subprocess_launches <= 6:
+                            tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - too many restarts, will not restart again")
+                            utility_subprocess = None
+                        else:
+                            pass
 
                 # Make sure that the token extractor is still running
                 if runJob.useTokenExtractor():
@@ -2530,6 +2545,17 @@ if __name__ == "__main__":
 
         if not kill:
             tolog("AthenaMP has finished")
+        t1 = os.times()
+        tolog("t1 = %s" % str(t1))
+        t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
+        # Try to get the cpu time from the jobReport
+        job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workdir)
+        if job.cpuConsumptionTime == 0:
+            tolog("!!WARNING!!3434!! Falling back to less accurate os.times() measurement of CPU time")
+            job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
+        tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
+        tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
+        job.timeExe = int(round(t1[4] - t0[4]))
 
         # Stop the utility
         if utility_subprocess:

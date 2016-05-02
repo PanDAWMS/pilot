@@ -12,7 +12,6 @@ from lcgcpSiteMover import lcgcpSiteMover                   # LYON, CERN, MANC, 
 from lcgcp2SiteMover import lcgcp2SiteMover                 # US sites; AGLT2 
 from stormSiteMover import stormSiteMover                   # Bologna
 from mvSiteMover import mvSiteMover                         # NDGF
-from HUSiteMover import HUSiteMover                         # None
 from rfcpLFCSiteMover import rfcpLFCSiteMover               # GLASGOW (works for all DPM sites)
 from castorSvcClassSiteMover import castorSvcClassSiteMover # RAL (needs extra configuation to map space tokens to service classes)
 from LocalSiteMover import LocalSiteMover                   # HU, MWT2 
@@ -37,7 +36,6 @@ mover_selector = {
     lcgcp2SiteMover.copyCommand : lcgcp2SiteMover,
     stormSiteMover.copyCommand : stormSiteMover,
     mvSiteMover.copyCommand : mvSiteMover,
-    HUSiteMover.copyCommand : HUSiteMover,
     rfcpLFCSiteMover.copyCommand : rfcpLFCSiteMover,
     castorSvcClassSiteMover.copyCommand : castorSvcClassSiteMover,
     LocalSiteMover.copyCommand : LocalSiteMover,

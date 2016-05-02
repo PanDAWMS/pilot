@@ -113,8 +113,8 @@ class PilotErrors:
     ERR_DAFSNOTALLOWED = 1214
     ERR_NOTCPCONNECTION = 1215
     ERR_NOPILOTTCPSERVER = 1216
-    ERR_RUNEVENTEXC = 1218
     ERR_CORECOUNTMISMATCH = 1217
+    ERR_RUNEVENTEXC = 1218
     ERR_UUIDGEN = 1219
     ERR_UNKNOWN = 1220
     ERR_FILEEXIST = 1221
@@ -255,13 +255,14 @@ class PilotErrors:
         ERR_NOPILOTTCPSERVER : "Pilot TCP server has died",
         ERR_CORECOUNTMISMATCH : "Mismatch between core count in job and queue definition",
         ERR_RUNEVENTEXC : "Exception caught by runEvent",
+        ERR_UUIDGEN : "uuidgen failed to produce a guid",
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)",
         ERR_FILEEXIST : "File already exist",
         ERR_GETKEYPAIR : "Failed to get security key pair",
         ERR_BADALLOC : "TRF failed due to bad_alloc",
         ERR_ESMERGERECOVERABLE : "Recoverable Event Service Merge error",
         ERR_ESRECOVERABLE: "Recoverable Event Service error",
-	ERR_GLEXEC: "gLExec related error",
+        ERR_GLEXEC: "gLExec related error",
         ERR_ESATHENAMPDIED: "AthenaMP ended Event Service job prematurely",
         ERR_ESFATAL: "Fatal Event Service error",
         ERR_TEFATAL: "Fatal Token Extractor error",

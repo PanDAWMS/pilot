@@ -4,15 +4,39 @@
 #   Based the on Factory Design Pattern
 #   Note: not compatible with Singleton Design Pattern due to the subclassing
 
+import traceback
+import pUtil
+
+
 from types import TypeType
 from RunJob import RunJob
 from RunJobEvent import RunJobEvent
 from RunJobHPC import RunJobHPC
-from RunJobTitan import RunJobTitan
-from RunJobHopper import RunJobHopper
-from RunJobEdison import RunJobEdison
-from RunJobAnselm import RunJobAnselm
-from RunJobArgo import RunJobArgo
+try:
+    from RunJobTitan import RunJobTitan
+except:
+    pUtil.tolog("Failed to import RunJobTitan: %s" % traceback.format_exc())
+
+try:
+    from RunJobHopper import RunJobHopper
+except:
+    pUtil.tolog("Failed to import RunJobHopper: %s" % traceback.format_exc())
+
+try:
+    from RunJobEdison import RunJobEdison
+except:
+    pUtil.tolog("Failed to import RunJobEdison: %s" % traceback.format_exc())
+
+try:
+    from RunJobAnselm import RunJobAnselm
+except:
+    pUtil.tolog("Failed to import RunJobAnselm: %s" % traceback.format_exc())
+
+try:
+    from RunJobArgo import RunJobArgo
+except:
+    pUtil.tolog("Failed to import RunJobArgo: %s" % traceback.format_exc())
+
 from RunJobNormal import RunJobNormal
 from RunJobHpcEvent import RunJobHpcEvent
 from RunJobHpcarcEvent import RunJobHpcarcEvent

@@ -3,7 +3,7 @@
 import os
 import time
 
-from pUtil import tolog, convert, getSiteInformation
+from pUtil import tolog, convert, getSiteInformation, readpar
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """
@@ -42,7 +42,7 @@ def getJSONDictionary(filename):
                     tolog("!!WARNING!!2996!! Failed to convert dictionary from unicode to utf-8: %s, %s" % (dictionary, e))
             else:
                 tolog("!!WARNING!!2995!! Load function returned empty JSON dictionary: %s" % (filename))
- 
+
     return dictionary
 
 def writeJSON(file_name, dictionary):
@@ -82,7 +82,6 @@ def readJSON(file_name):
             tolog("!!WARNING!!2332!! Failed to read dictionary from file %s: %s" % (file_name, e))
         else:
             f.close()
-            tolog("Read dictionary from file %s" % (file_name))
 
     return dictionary
 
@@ -231,21 +230,21 @@ def getHashedBucketEndpoint(endpoint, file_name):
 #    return endpoint + "_" + getHash(file_name, 2)
     return endpoint
 
-def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_bucket_endpoint):
+def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_ddmendpoint):
     """ Add the transferred file to the OS transfer file """
     # Note: we don't want to store the file name since potentially there can be a large number of files
     # We only store a file number count
     # We still need to know the file name in order to figure out which bucket it belongs to (using a hash of the file name)
-    # The has will be added to the os_bucket_endpoint (e.g. 'atlas_logs' -> 'atlas_logs_E2')
+    # The hash will be added to the os_ddmendpoint (e.g. 'atlas_logs' -> 'atlas_logs_E2')
 
-    # Only proceed if os_bucket_id and os_bucket_endpoint have values
-    if os_bucket_id and os_bucket_id != "" and os_bucket_endpoint and os_bucket_endpoint != "":
+    # Only proceed if os_bucket_id and os_ddmendpoint have values
+    if os_bucket_id and os_bucket_id != "" and os_ddmendpoint and os_ddmendpoint != "":
 
-        # Get the name and path of the objectstore transfer dictionary file 
+        # Get the name and path of the objectstore transfer dictionary file
         os_tr_path = os.path.join(workdir, getOSTransferDictionaryFilename())
 
         # Create a hash of the file name, two char long, and then the final bucket endpoint
-        _endpoint = getHashedBucketEndpoint(os_bucket_endpoint, file_name)
+        _endpoint = getHashedBucketEndpoint(os_ddmendpoint, file_name)
 
         # Does the transfer file exist already? If not, create it
         if os.path.exists(os_tr_path):
@@ -278,7 +277,7 @@ def addToOSTransferDictionary(file_name, workdir, os_bucket_id, os_bucket_endpoi
             tolog("!!WARNING!!2211!! Failed to store OS transfer dictionary")
 
     else:
-        tolog("Cannot add to OS transfer dictionary due to unset values (os_name/os_bucket_endpoint)")
+        tolog("Cannot add to OS transfer dictionary due to unset values (os_name/os_ddmendpoint)")
 
 def getOSTransferDictionary(filename):
     """ Get the dictionary of objectstore os_bucket_ids with populated buckets from the OS transfer dictionary """
@@ -480,7 +479,7 @@ def getJobReportOld(workDir):
 
     fileName = os.path.join(workDir, "jobReport.json")
     if os.path.exists(fileName):
-        # the jobReport file exists, read it back                                                                                                                                                                                                          
+        # the jobReport file exists, read it back
         try:
             f = open(fileName, "r")
         except Exception, e:
@@ -489,7 +488,7 @@ def getJobReportOld(workDir):
         else:
             from json import load
             try:
-                # load the dictionary                                                                                                                                                                                                                                            
+                # load the dictionary
                 jobReport_dictionary = load(f)
             except Exception, e:
                 tolog("!!WARNING!!1001!! Could not read back jobReport dictionary: %s" % (e))
@@ -502,6 +501,46 @@ def getJobReportOld(workDir):
         jobReport_dictionary = {}
 
     return jobReport_dictionary
+
+def removeNoOutputFiles(workdir, outFiles, allowNoOutput):
+    """ Remove files from output file list if they are listed in allowNoOutput and do not exist """
+
+    _outFiles = []
+    for filename in outFiles:
+        path = os.path.join(workdir, filename)
+
+        if filename in allowNoOutput:
+            if os.path.exists(path):
+                tolog("File %s is listed in allowNoOutput but exists (will not be removed from list of files to be staged-out)" % (filename))
+                _outFiles.append(filename)
+            else:
+                tolog("File %s is listed in allowNoOutput and does not exist (will be removed from list of files to be staged-out)" % (filename))
+        else:
+            if os.path.exists(path):
+                tolog("File %s is not listed in allowNoOutput (will be staged-out)" % (filename))
+            else:
+                tolog("!!WARNING!!4343!! File %s is not listed in allowNoOutput and does not exist (job will fail)" % (filename))
+            _outFiles.append(filename) # Append here, fail later
+
+    return _outFiles
+
+
+def extractOutputFiles(analysisJob, workdir, allowNoOutput, outFiles):
+    """ Extract the output files from the JSON if possible """
+    try:
+        if not analysisJob:
+            extracted_output_files = extractOutputFilesFromJSON(workdir, allowNoOutput)
+        else:
+            if allowNoOutput == []:
+                tolog("Will not extract output files from jobReport for user job (and allowNoOut list is empty)")
+                extracted_output_files = []
+            else:
+                # Remove the files listed in allowNoOutput if they don't exist
+                extracted_output_files = removeNoOutputFiles(workdir, outFiles, allowNoOutput)
+    except Exception, e:
+        tolog("!!WARNING!!2327!! Exception caught: %s" % (e))
+        extracted_output_files = []
+    return extracted_output_files
 
 def extractOutputFilesFromJSON(workDir, allowNoOutput):
     """ In case the trf has produced additional output files, extract all output files from the jobReport """
@@ -596,7 +635,7 @@ def getOutputFileItem(filename, outputFileItem, original_output_files):
 def filterSpilloverFilename(filename):
     """ Remove any unwanted spill-over filename endings (i.e. _NNN or ._NNN) """
 
-    # Create the search pattern                                                                                                                                         
+    # Create the search pattern
     from re import compile, findall
     pattern = compile(r'(\.?\_\d+)')
     found = findall(pattern, filename)
@@ -618,8 +657,8 @@ def getDirSize(d):
     size = 0
 
     # E.g., size_str = "900\t/scratch-local/nilsson/pilot3z"
-    try: 
-       # Remove tab and path, and convert to int (and B)                                                                                                                                                
+    try:
+       # Remove tab and path, and convert to int (and B)
         size = int(size_str.split("\t")[0])*1024
     except Exception, e:
         tolog("!!WARNING!!4343!! Failed to convert to int: %s" % (e))
@@ -645,60 +684,57 @@ def addToTotalSize(path, total_size):
 
     return total_size
 
-def storeWorkDirSize(workdir_size, pilot_initdir, jobDic, correction=True):
+def storeWorkDirSize(workdir_size, pilot_initdir, job, correction=True):
     """ Store the measured remaining disk space """
     # If correction=True, then input and output file sizes will be deducated
 
-    for k in jobDic.keys():
-        job = jobDic[k][1]
+    filename = os.path.join(pilot_initdir, getWorkDirSizeFilename(job.jobId))
+    dictionary = {} # FORMAT: { 'workdir_size': [value1, value2, ..] }
+    workdir_size_list = []
 
-        filename = os.path.join(pilot_initdir, getWorkDirSizeFilename(job.jobId))
-        dictionary = {} # FORMAT: { 'workdir_size': [value1, value2, ..] }
-        workdir_size_list = []
+    if os.path.exists(filename):
+        # Read back the dictionary
+        dictionary = readJSON(filename)
+        if dictionary != {}:
+            workdir_size_list = dictionary['workdir_size']
+        else:
+            tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
 
-        if os.path.exists(filename):
-            # Read back the dictionary
-            dictionary = readJSON(filename)
-            if dictionary != {}:
-                workdir_size_list = dictionary['workdir_size']
-            else:
-                tolog("!!WARNING!!4555!! Failed to read back remaining disk space from file: %s" % (filename))
+    # Correct for any input and output files
+    if correction:
 
-        # Correct for any input and output files
-        if correction:
-            
-            total_size = 0L # B
+        total_size = 0L # B
 
-            if os.path.exists(job.workdir):
-                # Find out which input and output files have been transferred and add their sizes to the total size
-                # (Note: output files should also be removed from the total size since outputfilesize is added in the task def)
+        if os.path.exists(job.workdir):
+            # Find out which input and output files have been transferred and add their sizes to the total size
+            # (Note: output files should also be removed from the total size since outputfilesize is added in the task def)
 
-                # First remove the log file from the output file list
-                outFiles = []
-                for f in job.outFiles:
-                    if not job.logFile in f:
-                        outFiles.append(f)
+            # First remove the log file from the output file list
+            outFiles = []
+            for f in job.outFiles:
+                if not job.logFile in f:
+                    outFiles.append(f)
 
-                # Then update the file list in case additional output files have been produced
-                # Note: don't do this deduction since it is not known by the task definition
-                #outFiles, dummy, dummy = discoverAdditionalOutputFiles(outFiles, job.workdir, job.destinationDblock, job.scopeOut)
+            # Then update the file list in case additional output files have been produced
+            # Note: don't do this deduction since it is not known by the task definition
+            #outFiles, dummy, dummy = discoverAdditionalOutputFiles(outFiles, job.workdir, job.destinationDblock, job.scopeOut)
 
-                file_list = job.inFiles + outFiles
-                for f in file_list:
-                    if f != "":
-                        total_size = addToTotalSize(os.path.join(job.workdir, f), total_size)
+            file_list = job.inFiles + outFiles
+            for f in file_list:
+                if f != "":
+                    total_size = addToTotalSize(os.path.join(job.workdir, f), total_size)
 
-                tolog("Total size of present input+output files: %d B (work dir size: %d B)" % (total_size, workdir_size))
-                workdir_size -= total_size
-            else:
-                tolog("WARNING: Can not correct for input/output files since workdir does not exist: %s" % (job.workdir))
+            tolog("Total size of present input+output files: %d B (work dir size: %d B)" % (total_size, workdir_size))
+            workdir_size -= total_size
+        else:
+            tolog("WARNING: Can not correct for input/output files since workdir does not exist: %s" % (job.workdir))
 
-        # Append the new value to the list and store it
-        workdir_size_list.append(workdir_size)
-        dictionary = { 'workdir_size': workdir_size_list }
-        status = writeJSON(filename, dictionary)
-        if status:
-            tolog("Stored %d B in file %s" % (workdir_size, filename))
+    # Append the new value to the list and store it
+    workdir_size_list.append(workdir_size)
+    dictionary = {'workdir_size': workdir_size_list}
+    status = writeJSON(filename, dictionary)
+    if status:
+        tolog("Stored %d B in file %s" % (workdir_size, filename))
 
     return status
 
@@ -732,6 +768,7 @@ def getMaxWorkDirSize(path, jobId):
 
     return maxdirsize
 
+# ATLAS specific
 def getNumberOfEvents(workDir):
     """ Extract the number of events from the job report """
 
@@ -771,5 +808,124 @@ def getNumberOfEvents(workDir):
 
     return Nmax
 
+# ATLAS specific
+def getDBInfo(workDir):
+    """ Extract and add up the DB info from the job report """
 
+    # Input:  workDir (location of jobReport.json
+    # Output: dbTime, dbData [converted strings, e.g. "dbData=105077960 dbTime=251.42"]
 
+    dbTime = 0
+    dbData = 0L
+
+    jobReport_dictionary = getJobReport(workDir)
+    if jobReport_dictionary != {}:
+
+        if jobReport_dictionary.has_key('resource'):
+            resource_dictionary = jobReport_dictionary['resource']
+            if resource_dictionary.has_key('executor'):
+                executor_dictionary = resource_dictionary['executor']
+                for format in executor_dictionary.keys(): # "RAWtoESD", ..
+                    if executor_dictionary[format].has_key('dbData'):
+                        dbData += executor_dictionary[format]['dbData']
+                    else:
+                        tolog("Format %s has no such key: dbData" % (format))
+                    if executor_dictionary[format].has_key('dbTime'):
+                        dbTime += executor_dictionary[format]['dbTime']
+                    else:
+                        tolog("Format %s has no such key: dbTime" % (format))
+            else:
+                tolog("No such key: executor")
+        else:
+            tolog("No such key: resource")
+
+    if dbData != 0L:
+        dbDataS = "%s" % (dbData)
+    else:
+        dbDataS = ""
+    if dbTime != 0:
+        dbTimeS = "%.2f" % (dbTime)
+    else:
+        dbTimeS = ""
+    return dbTimeS, dbDataS
+
+# ATLAS specific
+def getCPUTimes(workDir):
+    """ Extract and add up the total CPU times from the job report """
+    # Note: this is used with Event Service jobs
+
+    # Input:  workDir (location of jobReport.json)
+    # Output: cpuCU (unit), totalCPUTime, conversionFactor (output consistent with pUtil::setTimeConsumed())
+
+    totalCPUTime = 0L
+
+    jobReport_dictionary = getJobReport(workDir)
+    if jobReport_dictionary != {}:
+    	if jobReport_dictionary.has_key('resource'):
+            resource_dictionary = jobReport_dictionary['resource']
+            if resource_dictionary.has_key('executor'):
+	        executor_dictionary = resource_dictionary['executor']
+		for format in executor_dictionary.keys(): # "RAWtoESD", ..
+                    if executor_dictionary[format].has_key('cpuTime'):
+			totalCPUTime += executor_dictionary[format]['cpuTime']
+                    else:
+                        tolog("Format %s has no such key: cpuTime" % (format))
+            else:
+                tolog("No such key: executor")
+    	else:
+            tolog("No such key: resource")
+
+    conversionFactor = 1.0
+    cpuCU = "s"
+
+    return cpuCU, totalCPUTime, conversionFactor
+
+def getDirectAccess():
+    """ Should direct i/o be used, and which type of direct i/o """
+
+    directInLAN = useDirectAccessLAN()
+    directInWAN = useDirectAccessWAN()
+    directInType = 'None'
+
+    if directInLAN:
+        directInType = 'LAN'
+    if directInWAN:
+        directInType = 'WAN' # Overrides LAN if both booleans are set to True
+    if directInWAN or directInLAN:
+        directIn = True
+    else:
+        directIn = False
+
+    return directIn, directInType
+
+def _useDirectAccess(LAN=True, WAN=False):
+    """ Should direct i/o be used over LAN or WAN? """
+
+    useDA = False
+
+    if LAN:
+        par = 'direct_access_lan'
+    elif WAN:
+        par = 'direct_access_wan'
+    else:
+        tolog("!!WARNING!!3443!! Bad LAN/WAN combination: LAN=%s, WAN=%s" % (str(LAN), str(WAN)))
+        par = ''
+
+    if par != '':
+        da = readpar(par)
+        if da:
+            da = da.lower()
+            if da == "true":
+                useDA = True
+
+    return useDA
+
+def useDirectAccessLAN():
+    """ Should direct i/o be used over LAN? """
+
+    return _useDirectAccess(LAN=True, WAN=False)
+
+def useDirectAccessWAN():
+    """ Should direct i/o be used over WAN? """
+
+    return _useDirectAccess(LAN=False, WAN=True)

@@ -60,10 +60,13 @@ class rucioSiteMover(BaseSiteMover):
         cmd = 'mv %s %s' % (dirname(dst) + '/%s/%s' % (fspec.scope,
                                                        fspec.lfn),
                             dst)
-        tolog('stageIn: %s' % cmd)
+        tolog('stageInCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)
+        tolog('stageInOutput: %s' % o)
+
         if s:
             raise PilotException('stageIn failed -- could not move downloaded file to destination: %s' % o.replace('\n', ''))
+
 
         return {'ddmendpoint': fspec.replicas[0][0],
                 'surl': None,
@@ -79,11 +82,13 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        cmd = 'rucio upload --rse %s --scope %s %s' % (fspec.ddmendpoint,
-                                                       fspec.scope,
-                                                       fspec.lfn)
-        tolog('stageIn: %s' % cmd)
+        cmd = 'rucio upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
+                                                                     fspec.scope,
+                                                                     fspec.lfn)
+        tolog('stageOutCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)
+        tolog('stageOutOutput: %s' % o)
+
         if s:
             raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
 

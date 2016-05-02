@@ -7,8 +7,13 @@ from shutil import copy2, rmtree
 
 import Mover as mover
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, getGUID, timedCommand
-from FileHandling import addToOSTransferDictionary, getWorkDirSizeFilename, getDirSize, storeWorkDirSize
+from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, getFileGuid, PFCxml, createLockFile, \
+    getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, \
+    makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, \
+    getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, \
+    getGUID, timedCommand, updateXMLWithEndpoints
+from FileHandling import addToOSTransferDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, \
+    getWorkDirSizeFilename, getDirSize, storeWorkDirSize
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
@@ -95,7 +100,7 @@ class JobLog:
         # transfer log file to special log SE (CERN via xrdcp)
         # get the experiment object
         thisExperiment = getExperiment(experiment)
-        if thisExperiment.doSpecialLogFileTransfer(eventService=job.eventService):
+        if thisExperiment.doSpecialLogFileTransfer(eventService=job.eventService, putLogToOS=job.putLogToOS):
             tolog("Preparing for log file transfer to special SE")
 
             # get the site information object
@@ -117,12 +122,11 @@ class JobLog:
             else:
                 # Update the OS transfer dictionary
                 # Get the OS name identifier and bucket endpoint
-                os_name = si.getObjectstoreName("logs")
-                os_bucket_endpoint = si.getObjectstoreBucketEndpoint("logs")
                 os_bucket_id = job.logBucketID
+                os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(os_bucket_id)
 
                 # Add the transferred file to the OS transfer file
-                addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_bucket_id, os_bucket_endpoint)
+                addToOSTransferDictionary(job.logFile, self.__env['pilot_initdir'], os_bucket_id, os_ddmendpoint)
 
             # finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
@@ -218,26 +222,14 @@ class JobLog:
                                                                   site.sitename,
                                                                   site.computingElement,
                                                                   analysisJob = analyJob,
-                                                                  scopeLog = job.scopeLog,
                                                                   testLevel = self.__env['testLevel'],
                                                                   proxycheck = self.__env['proxycheckFlag'],
-                                                                  spsetup = job.spsetup,
-                                                                  token = job.destinationDBlockToken,
                                                                   pinitdir = self.__env['pilot_initdir'],
                                                                   datasetDict = None,
-                                                                  prodSourceLabel = job.prodSourceLabel,
                                                                   outputDir = self.__env['outputDir'],
-                                                                  jobId = job.jobId,
-                                                                  jobWorkDir = job.workdir,
-                                                                  DN = job.prodUserID,
-                                                                  logFile = job.logFile,
-                                                                  jobCloud = job.cloud,
-                                                                  dispatchDBlockTokenForOut = job.dispatchDBlockTokenForOut,
                                                                   stageoutTries = self.__env['stageoutretry'],
                                                                   cmtconfig = cmtconfig,
                                                                   recoveryWorkDir = site.workdir,
-                                                                  experiment = job.experiment,
-                                                                  fileDestinationSE = job.fileDestinationSE,
                                                                   logPath = logPath,
                                                                   os_bucket_id = os_bucket_id,
                                                                   job = job)
@@ -297,7 +289,7 @@ class JobLog:
                     # get the site information object
                     #si = getSiteInformation(experiment)
                     job.logBucketID = os_bucket_id #si.getBucketID(os_id, "logs")
-                    tolog("Stored log bucket ID: %d" % (job.logBucketID)) 
+                    tolog("Stored log bucket ID: %d" % (job.logBucketID))
 
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
             if job.result[2] == 0:
@@ -873,6 +865,14 @@ class JobLog:
         if strXML and strXML != "":
             tolog("Updating metadata XML with SURLs prior to PanDA server update")
             strXML = updateXMLWithSURLs(experiment, strXML, site.workdir, job.jobId, self.__env['jobrec']) # do not use format 'NG' here (even for NG)
+
+            # was the log file transferred to an OS? check in the OS transfer dictionary
+            if job.logBucketID != -1:
+                # get the corresponding ddm endpoint
+                si = getSiteInformation(experiment)
+                os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(job.logBucketID)
+                strXML = updateXMLWithEndpoints(strXML, [job.logFile], [os_ddmendpoint])
+
             tolog("Updated XML:\n%s" % (strXML))
 
             # replace the metadata-<jobId>.xml file
@@ -1042,22 +1042,11 @@ class JobLog:
                                                                   dsname, site.sitename, site.computingElement, analysisJob = analyJob,
                                                                   testLevel = self.__env['testLevel'],
                                                                   proxycheck = self.__env['proxycheckFlag'],
-                                                                  spsetup = job.spsetup,
-                                                                  token = job.destinationDBlockToken,
                                                                   pinitdir = self.__env['pilot_initdir'],
                                                                   datasetDict = None,
-                                                                  prodSourceLabel = job.prodSourceLabel,
                                                                   outputDir = self.__env['outputDir'],
-                                                                  jobId = job.jobId,
-                                                                  jobWorkDir = job.workdir,
-                                                                  DN = job.prodUserID,
-                                                                  jobCloud = job.cloud,
-                                                                  logFile = job.logFile,
-                                                                  dispatchDBlockTokenForOut = job.dispatchDBlockTokenForOut,
                                                                   stageoutTries = self.__env['stageoutTries'],
                                                                   cmtconfig = cmtconfig,
-                                                                  experiment = experiment,
-                                                                  fileDestinationSE = job.fileDestinationSE,
                                                                   job=job) # quick workaround
             except Exception, e:
                 status = False
@@ -1128,9 +1117,7 @@ class JobLog:
             size = getDirSize(job.workdir)
 
             # Store the measured disk space (the max value will later be sent with the job metrics)
-            jobDic = {}
-            jobDic['prod'] = [0, job, 0]
-            status = storeWorkDirSize(size, self.__env['pilot_initdir'], jobDic)
+            status = storeWorkDirSize(size, self.__env['pilot_initdir'], job)
 
         # input and output files should already be removed from the workdir in child process
         tarballNM = "%s.tar" % (job.newDirNM)
@@ -1230,8 +1217,10 @@ class JobLog:
 
         # Get the site information object
         si = getSiteInformation(experiment)
-        #logPaths = "root://atlas-objectstore.cern.ch//atlas/logs"
-        logPaths, os_bucket_id = si.getObjectstorePath("logs", queuename=self.__env['queuename']) #mover.getFilePathForObjectStore(filetype="logs")
+
+        default_ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name='logs')
+        logPaths = si.getObjectstorePath(ddmendpoint=default_ddmendpoint, label='w')
+        os_bucket_id = si.getObjectstoreBucketID(default_ddmendpoint)
 
         # Handle multiple paths (primary and secondary log paths)
         if "," in logPaths:

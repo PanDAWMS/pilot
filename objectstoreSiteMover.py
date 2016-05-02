@@ -13,7 +13,7 @@
 # objectstoreSiteMover.py
 
 import os
-from config import config_sm
+from configSiteMover import config_sm
 
 import SiteMover
 from xrootdObjectstoreSiteMover import xrootdObjectstoreSiteMover
@@ -60,6 +60,11 @@ class objectstoreSiteMover(SiteMover.SiteMover):
 
 if __name__ == '__main__':
 
+    os.environ['PilotHomeDir'] = os.getcwd()
+    from SiteInformation import SiteInformation
+    s1 = SiteInformation()
+    #s1.getObjectstoresField("os_access_key", "eventservice", queuename='BNL_EC2W2_MCORE')
+
     f = objectstoreSiteMover()
 
     gpfn = "nonsens_gpfn"
@@ -93,13 +98,15 @@ if __name__ == '__main__':
 
     # test S3 object store
     source = "/bin/hostname"
-    dest = "s3://ceph003.usatlas.bnl.gov:8443//wguan_bucket/dir1/dir2/NTUP_PHOTON.01255150._000001.root.1"
+    #dest = "s3://ceph003.usatlas.bnl.gov:8443//wguan_bucket/dir1/dir2/NTUP_PHOTON.01255150._000001.root.1"
+    dest = "s3://s3-us-west-2.amazonaws.com:80//s3-atlasdatadisk-west2-racf/dir1/"
     lfn = "NTUP_PHOTON.01255150._000001.root.1"
     localSize = None
     localChecksum = None
     print f.put_data(source, dest, fsize=localSize, fchecksum=localChecksum, prodSourceLabel='ptest', experiment='ATLAS', report =report, lfn=lfn, guid='aa8ee1ae-54a5-468b-a0a0-41cf17477ffc', jobId=2730987843, jobsetID=2728044425,pandaProxySecretKey='deb05b9fb5034a45b80c03bd671359c9')
 
     gpfn = "s3://ceph003.usatlas.bnl.gov:8443//wguan_bucket/dir1/dir2/NTUP_PHOTON.01255150._000001.root.1"
+    gpfn = "s3://s3-us-west-2.amazonaws.com:80//s3-atlasdatadisk-west2-racf/dir1/NTUP_PHOTON.01255150._000001.root.1"
     lfn = "NTUP_PHOTON.01255150._000001.root.1"
     tmpDir = "/tmp/"
     localSize = None

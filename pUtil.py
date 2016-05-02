@@ -10,7 +10,6 @@ from xml.dom.minidom import parse, parseString
 # Initialize the configuration singleton
 import environment
 env = environment.set_environment()
-#env = Configuration()
 
 from processes import killProcesses
 
@@ -24,8 +23,6 @@ except:
 
 try:
     from PilotErrors import PilotErrors
-    from config import config_sm
-    CMD_CHECKSUM = config_sm.COMMAND_MD5
 except:
     pass
 
@@ -392,7 +389,7 @@ def prepareMetadata(metadata_filename):
 
     return metadata_filename
 
-def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None):
+def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None, logToOS=False):
     """ Create a PFC style XML file """
 
     # fnlist = output file list
@@ -529,6 +526,10 @@ def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogg
             fd.write("    <logical>\n")
             fd.write('      <lfn name="%s"/>\n' % (flist[i]))
             fd.write("    </logical>\n")
+
+            # if the log is to be transferred to an OS, add an endpoint tag
+            if logToOS and alog == flist[i]:
+                fd.write('    <endpoint>%s-ddmendpoint_tobeset</endpoint>\n' % (alog))
 
             # add SURL metadata (not known yet) for server LFC registration
             # use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)
@@ -2391,7 +2392,8 @@ def updateDispatcherData4ES(data, experiment, path):
 
                         # Update the copytoolin (should use the proper objectstore site mover)
                         si = getSiteInformation(experiment)
-                        ec = si.replaceQueuedataField("copytoolin", "objectstore")
+                        if not os.environ.has_key('Nordugrid_pilot'):
+                            ec = si.replaceQueuedataField("copytoolin", "objectstore")
 
                     else:
                         tolog("Cannot continue with event service merge job")
@@ -2420,9 +2422,9 @@ def parseDispatcherResponse(response):
     for p in parList:
         data[p[0]] = p[1]
 
-    if 'userProxy' in str(parList):
+    if 'userProxy' in str(parList) or 'privateKey' in str(parList):
 	for i in range(len(parList)):
-		if parList[i][0] == 'userProxy':
+		if parList[i][0] == 'userProxy' or parList[i][0] == 'publicKey' or parList[i][0] == 'privateKey':
 			newList = list(parList[i])
 			newList[1] = 'hidden'
 			parList[i] = newList
@@ -2618,7 +2620,7 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
 
     # verify that the lists are of equal size
     if len(outputFiles) != len(destinationDblock):
-        tolog("WARNING: Lists are not of same length: %s, %s" % (str(outputFiles), str(destinationDblock)))
+        tolog("WARNING: Lists are not of same length: len(outputFiles)=%d, len(destinationDblock)=%d" % (len(outputFiles), len(destinationDblock)))
     elif len(outputFiles) == 0:
         tolog("No output files for this job (outputFiles has zero length)")
     elif len(destinationDblock) == 0:
@@ -2804,39 +2806,6 @@ def verifyLFNLength(outputFiles):
 
     return ec, pilotErrorDiag
 
-def getFileAccessInfo():
-    """ return a tuple with all info about how the input files should be accessed """
-
-    # default values
-    oldPrefix = None
-    newPrefix = None
-
-    # move input files from local DDM area to workdir if needed using a copy tool (can be turned off below in case of remote I/O)
-    useCT = True
-
-    # remove all input root files for analysis job for xrootd sites
-    # (they will be read by pAthena directly from xrootd)
-    # create the direct access dictionary
-    dInfo = getDirectAccessDic(readpar('copysetupin'))
-    # if copysetupin did not contain direct access info, try the copysetup instead
-    if not dInfo:
-        dInfo = getDirectAccessDic(readpar('copysetup'))
-
-    # check if we should use the copytool
-    if dInfo:
-        if not dInfo['useCopyTool']:
-            useCT = False
-        oldPrefix = dInfo['oldPrefix']
-        newPrefix = dInfo['newPrefix']
-    if useCT:
-        tolog("Copy tool will be used for stage-in")
-    else:
-        tolog("Direct access mode: Copy tool will not be used for stage-in of root files")
-        if oldPrefix == "" and newPrefix == "":
-            tolog("Will attempt to create a TURL based PFC")
-
-    return useCT, oldPrefix, newPrefix
-
 def isLogfileCopied(workdir, jobId=None):
     """ check whether the log file has been copied or not """
 
@@ -2927,6 +2896,36 @@ def processDBRelease(inputFiles, inFilesGuids, realDatasetsIn, dispatchDblock, d
                          dbh.removeDBRelease(list(inputFiles), list(inFilesGuids), list(realDatasetsIn), list(dispatchDblock), list(dispatchDBlockToken), list(prodDBlockToken))
 
     return _inputFiles, _inFilesGuids, _realDatasetsIn, _dispatchDblock, _dispatchDBlockToken, _prodDBlockToken
+
+def updateXMLWithEndpoints(xml, filenames, endpoints):
+    """ Replace any 'tobeset' strings in the XML with final ddm endpoints """
+
+    # Input:  xml (string)
+    #         filenames (list of strings)
+    #         endpoints (list of strings, 1-to-1 mapped to the filenames list)
+    # Output: xml (string)
+    # Description: The method looks for patterns '<filename>-ddmendpoint_tobeset' and
+    #              replaces it with the corresponding 'endpoint'
+
+    lines = []
+    for line in xml.split('\n'):
+        i = 0
+        s = False
+        for filename in filenames:
+            p = filename + '-ddmendpoint_tobeset'
+            if p in line:
+                lines.append(line.replace(p, endpoints[i]))
+                s = True
+                break
+            i += 1
+        if not s:
+            lines.append(line)
+
+    if lines == []:
+        r = xml
+    else:
+        r = '\n'.join(lines)
+    return r
 
 def updateXMLWithSURLs(experiment, node_xml, workDir, jobId, jobrec, format=''):
     """ update the XML with the SURLs """
@@ -3199,7 +3198,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
     if os.path.exists(fname):
         if os.path.getsize(fname) > 0:
             tolog("\n//begin %s ///////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
-            dumpFile(fname, topilotlog=True)
+            dumpFile(fname, topilotlog=False)
             tolog("\n//end %s /////////////////////////////////////////////////////////////////////////////" % os.path.basename(fname))
 
     # dump the wrapper (RunJob) stderr if it exists
@@ -3858,10 +3857,10 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
         return ec, thisSite, _jobrec, hasQueuedata
 
     # Get the new queuedata file from AGIS (unless it already exists)
-    try:
-        s = si.getNewQueuedata(_queuename, overwrite=False)
-    except Exception, e:
-        tolog("!!WARNING!!1212!! Exception caught: %s" % (e))
+    #try:
+    #    s = si.getNewQueuedata(_queuename, overwrite=False)
+    #except Exception, e:
+    #    tolog("!!WARNING!!1212!! Exception caught: %s" % (e))
 
     if hasQueuedata:
         # update queuedata and thisSite if necessary

@@ -16,7 +16,7 @@ from time import time
 
 from TimerCommand import TimerCommand
 
-from config import config_sm
+from configSiteMover import config_sm
 CMD_CHECKSUM = config_sm.COMMAND_MD5
 
 import SiteMover
@@ -238,7 +238,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
 
         return statusRet, outputRet
 
-    def getStageInMode(self, lfn, prodDBlockToken):
+    def getStageInMode(self, lfn, prodDBlockToken, transferType):
         # should the root file be copied or read directly by athena?
         status = 0
         output={}
@@ -251,7 +251,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         isRootFileName = self.isRootFileName(lfn)
 
         siteInformation = SiteInformation()
-        directIn, transfer_mode = siteInformation.getDirectInAccessMode(prodDBlockToken, isRootFileName)
+        directIn, transfer_mode = siteInformation.getDirectInAccessMode(prodDBlockToken, isRootFileName, transferType)
         if transfer_mode:
             output["transfer_mode"] = transfer_mode
         if directIn:
@@ -840,6 +840,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
         experiment = pdict.get('experiment', '')
+        transferType = pdict.get('transferType', '')
         proxycheck = pdict.get('proxycheck', False)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
@@ -850,7 +851,7 @@ class xrootdObjectstoreSiteMover(SiteMover.SiteMover):
         report = self.getStubTracingReport(pdict['report'], 'xrootdObjectstore', lfn, guid)
 
 
-        status, output = self.getStageInMode(lfn, prodDBlockToken)
+        status, output = self.getStageInMode(lfn, prodDBlockToken, transferType)
         if output["transfer_mode"]:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state=output["transfer_mode"], ftype="input")
         if status !=0:
