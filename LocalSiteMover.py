@@ -893,7 +893,7 @@ class LocalSiteMover(SiteMover.SiteMover):
                     return PilotErrors.ERR_PUTTIMEOUT, outputRet
             else:
                 if len(errorOutput) == 0:
-                    pilotErrorDiag = "Copy command returned error code %d but no output" % (s)
+                    pilotErrorDiag = "Copy command returned error code but no output"
                 else:
                     pilotErrorDiag = errorOutput
                 #self.prepareReport('COPY_ERROR', report)
