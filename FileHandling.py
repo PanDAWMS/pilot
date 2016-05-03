@@ -827,11 +827,17 @@ def getDBInfo(workDir):
                 executor_dictionary = resource_dictionary['executor']
                 for format in executor_dictionary.keys(): # "RAWtoESD", ..
                     if executor_dictionary[format].has_key('dbData'):
-                        dbData += executor_dictionary[format]['dbData']
+                        try:
+                            dbData += executor_dictionary[format]['dbData']
+                        except:
+                            pass
                     else:
                         tolog("Format %s has no such key: dbData" % (format))
                     if executor_dictionary[format].has_key('dbTime'):
-                        dbTime += executor_dictionary[format]['dbTime']
+                        try:
+                            dbTime += executor_dictionary[format]['dbTime']
+                        except:
+                            pass
                     else:
                         tolog("Format %s has no such key: dbTime" % (format))
             else:
@@ -861,18 +867,21 @@ def getCPUTimes(workDir):
 
     jobReport_dictionary = getJobReport(workDir)
     if jobReport_dictionary != {}:
-    	if jobReport_dictionary.has_key('resource'):
+        if jobReport_dictionary.has_key('resource'):
             resource_dictionary = jobReport_dictionary['resource']
             if resource_dictionary.has_key('executor'):
-	        executor_dictionary = resource_dictionary['executor']
-		for format in executor_dictionary.keys(): # "RAWtoESD", ..
+                executor_dictionary = resource_dictionary['executor']
+                for format in executor_dictionary.keys(): # "RAWtoESD", ..
                     if executor_dictionary[format].has_key('cpuTime'):
-			totalCPUTime += executor_dictionary[format]['cpuTime']
+                        try:
+                            totalCPUTime += executor_dictionary[format]['cpuTime']
+                        except:
+                            pass
                     else:
                         tolog("Format %s has no such key: cpuTime" % (format))
             else:
                 tolog("No such key: executor")
-    	else:
+        else:
             tolog("No such key: resource")
 
     conversionFactor = 1.0

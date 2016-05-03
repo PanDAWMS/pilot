@@ -205,13 +205,15 @@ AMS Experiment
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-64.4
+65.1:
 
-General change
-- Prevented outdated skipping of missing input files, to avoid complications seen on ND when one skipped file is a log file, in sitemover_get_data() (Mover)
+Bug fixes:
+- Correction for unexpected values (dbData/dbTime=null) in jobReport, in getDBInfo() (FileHandling)
+- Corrected for missing error code in errorToReport() masking the actual error [problem seen with older pilot version 64.5] (LocalSiteMover)
 
-Bug fix
-- Removed tmp return from handleDBRelease() which caused skipping of DBRelease file to fail (Mover)
+General changes:
+- Added try-statement around cpu time adding in getCPUTimes() to preempt any strange values in jobReport (FileHandling)
+- Now removing objectstore json files prior to log file creation, in removeRedundantFiles() (ATLASExperiment)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -223,13 +225,7 @@ Remove singletons:
 - Use super() in __init__() (ATLASExperiment)
 - Same changes to SiteInformation classes
 
-62.1?
-Avoiding setting exit code 1008/65 when no jobs were downloaded in getJob(), requested by John Hover (pilot)
-
 REMOVE OTHERSITEMOVER FROM DIST
-
-Prior to file registration (i.e. for US sites that still uses the pilot for file registrations), the pilot sets the LFC_HOST env variable; no longer needed for file
-registrations using Rucio functions test with a job run in the US, BNL e.g. which still uses the pilot for file registrations
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
 todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation
