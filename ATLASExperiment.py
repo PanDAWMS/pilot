@@ -915,6 +915,7 @@ class ATLASExperiment(Experiment):
                     "*PROC*",
                     "madevent",
                     "HPC",
+                    "objectstore*.json",
                     "saga",
                     "radical"]
 
