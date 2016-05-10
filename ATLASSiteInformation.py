@@ -469,6 +469,9 @@ class ATLASSiteInformation(SiteInformation):
         #    ec = self.replaceQueuedataField("envsetup", "export X509_USER_PROXY=/opt/rucio/tools/x509up;")
         #    ec = self.replaceQueuedataField("use_newmover", "true")
 
+        if thisSite.sitename == "ANALY_UIO" or thisSite.sitename == "ANALY_SiGNET":
+            ec = self.replaceQueuedataField("direct_access_lan", "True")
+
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("maxrss", "100")
