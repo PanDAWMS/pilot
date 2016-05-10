@@ -79,15 +79,41 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     msgdic["JEM"] = job.JEM
     msgdic["cmtconfig"] = getCmtconfig(job.cmtconfig)
 
+    if job.outputZipName and job.outputZipBucketID:
+        msgdic['outputZipName'] = job.outputZipName
+        msgdic['outputZipBucketID'] = job.outputZipBucketID
+
     # hpc job status
     if job.mode:
         msgdic["mode"] = job.mode
     if job.hpcStatus:
         msgdic['hpcStatus'] = job.hpcStatus
+    if job.yodaSetupTime:
+        msgdic["yodaSetupTime"] = job.yodaSetupTime
+    if job.yodaTotalTime:
+        msgdic["yodaTotalTime"] = job.yodaTotalTime
+    if job.yodaTotalCPUHour:
+        msgdic['yodaTotalCPUHour'] = job.yodaTotalCPUHour
+    if job.yodaProcessCPUHour:
+        msgdic['yodaProcessCPUHour'] = job.yodaProcessCPUHour
+    if job.yodaCores:
+        msgdic['yodaCores'] = job.yodaCores
+    if job.yodaQueueEvents:
+        msgdic['yodaQueueEvents'] = job.yodaQueueEvents
+    if job.yodaProcessedEvents:
+        msgdic['yodaProcessedEvents'] = job.yodaProcessedEvents
+    if job.avgProcessTimePerEvent:
+        msgdic['avgProcessTimePerEvent'] = job.avgProcessTimePerEvent
+
+    if job.outputZipName and job.outputZipBucketID:
+        msgdic['outputZipName'] = job.outputZipName
+        msgdic['outputZipBucketID'] = job.outputZipBucketID
+
     if job.refreshNow:
         msgdic['refreshNow'] = job.refreshNow
     if job.coreCount or job.coreCount == 0:
         msgdic['coreCount'] = job.coreCount
+
 
     # report FAX usage if at least one successful FAX transfer
     if job.filesWithFAX > 0:

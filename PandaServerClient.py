@@ -137,6 +137,27 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="mode", value=job.mode)
         if job.hpcStatus:
             jobMetrics += self.jobMetric(key="HPCStatus", value=job.hpcStatus)
+        if job.yodaSetupTime:
+            jobMetrics += self.jobMetric(key="yodaSetupTime", value=job.yodaSetupTime)
+        if job.yodaTotalTime:
+            jobMetrics += self.jobMetric(key="yodaTotalTime", value=job.yodaTotalTime)
+        if job.yodaTotalCPUHour:
+            jobMetrics += self.jobMetric(key="yodaTotalCPUHour", value=job.yodaTotalCPUHour)
+        if job.yodaProcessCPUHour:
+            jobMetrics += self.jobMetric(key="yodaProcessCPUHour", value=job.yodaProcessCPUHour)
+        if job.yodaCores:
+            jobMetrics += self.jobMetric(key="yodaCores", value=job.yodaCores)
+        if job.yodaQueueEvents:
+            jobMetrics += self.jobMetric(key="yodaQueueEvents", value=job.yodaQueueEvents)
+        if job.yodaProcessedEvents:
+            jobMetrics += self.jobMetric(key="yodaProcessedEvents", value=job.yodaProcessedEvents)
+        if job.avgProcessTimePerEvent:
+            jobMetrics += self.jobMetric(key="avgProcessTimePerEvent", value=job.avgProcessTimePerEvent)
+
+        # eventservice zip file
+        if job.outputZipName and job.outputZipBucketID:
+            jobMetrics += self.jobMetric(key="outputZipName", value=os.path.basename(job.outputZipName))
+            jobMetrics += self.jobMetric(key="outputZipBucketID", value=job.outputZipBucketID)
 
         # report FAX transfers if at least one successful FAX transfer
         #if job.filesWithFAX > 0:

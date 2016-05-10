@@ -63,3 +63,30 @@ def updateEventRange(event_range_id, eventRangeList, status='finished', os_bucke
         message = ""
 
     return message
+
+def updateEventRanges(event_ranges):
+    """ Update an event range on the Event Server """
+    tolog("Updating event ranges..")
+
+    message = ""
+    #url = "https://aipanda007.cern.ch:25443/server/panda"
+    url = "https://pandaserver.cern.ch:25443/server/panda"
+    # eventRanges = [{'eventRangeID': '4001396-1800223966-4426028-1-2', 'eventStatus':'running'}, {'eventRangeID': '4001396-1800223966-4426028-2-2','eventStatus':'running'}]
+
+    node={}
+    node['eventRanges']=json.dumps(event_ranges)
+
+    # open connection
+    ret = pUtil.httpConnect(node, url, path='.', mode="UPDATEEVENTRANGES")
+    # response = json.loads(ret[1])
+
+    status = ret[0]
+    if ret[0]: # non-zero return code
+        message = "Failed to update event range - error code = %d, error: " % (ret[0], ret[1])
+    else:
+        response = json.loads(json.dumps(ret[1]))
+        status = int(response['StatusCode'])
+        message = json.dumps(response['Returns'])
+
+    return status, message
+

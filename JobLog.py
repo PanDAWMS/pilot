@@ -297,7 +297,7 @@ class JobLog:
                     # get the site information object
                     #si = getSiteInformation(experiment)
                     job.logBucketID = os_bucket_id #si.getBucketID(os_id, "logs")
-                    tolog("Stored log bucket ID: %d" % (job.logBucketID)) 
+                    tolog("Stored log bucket ID: %s" % (job.logBucketID)) 
 
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
             if job.result[2] == 0:

@@ -134,11 +134,32 @@ class UpdateHandler(BaseRequestHandler):
                             self.__env['jobDic'][k][1].mode = jobinfo['mode']
                         if jobinfo.has_key("hpcStatus"):
                             self.__env['jobDic'][k][1].hpcStatus = jobinfo['hpcStatus']
+                        if jobinfo.has_key("yodaSetupTime"):
+                            self.__env['jobDic'][k][1].yodaSetupTime = jobinfo['yodaSetupTime']
+                        if jobinfo.has_key("yodaTotalTime"):
+                            self.__env['jobDic'][k][1].yodaTotalTime = jobinfo['yodaTotalTime']
+                        if jobinfo.has_key("yodaTotalCPUHour"):
+                            self.__env['jobDic'][k][1].yodaTotalCPUHour = jobinfo['yodaTotalCPUHour']
+                        if jobinfo.has_key("yodaProcessCPUHour"):
+                            self.__env['jobDic'][k][1].yodaProcessCPUHour = jobinfo['yodaProcessCPUHour']
+                        if jobinfo.has_key("yodaCores"):
+                            self.__env['jobDic'][k][1].yodaCores = jobinfo['yodaCores']
+                        if jobinfo.has_key("yodaQueueEvents"):
+                            self.__env['jobDic'][k][1].yodaQueueEvents = jobinfo['yodaQueueEvents']
+                        if jobinfo.has_key("yodaProcessedEvents"):
+                            self.__env['jobDic'][k][1].yodaProcessedEvents = jobinfo['yodaProcessedEvents']
+                        if jobinfo.has_key("avgProcessTimePerEvent"):
+                            self.__env['jobDic'][k][1].avgProcessTimePerEvent = jobinfo['avgProcessTimePerEvent']
                         if jobinfo.has_key("refreshNow"):
                             self.__env['jobDic'][k][1].refreshNow = jobinfo['refreshNow']
                         if jobinfo.has_key("coreCount"):
                             self.__env['jobDic'][k][1].coreCount = jobinfo['coreCount']
 
+                        # zip output
+                        if jobinfo.has_key("outputZipName"):
+                            self.__env['jobDic'][k][1].outputZipName = jobinfo['outputZipName']
+                        if jobinfo.has_key("outputZipBucketID"):
+                            self.__env['jobDic'][k][1].outputZipBucketID = jobinfo['outputZipBucketID']
                     except Exception, e:
                         pUtil.tolog("!!WARNING!!1998!! Caught exception. Pilot server down? %s" % str(e))
                         try:
