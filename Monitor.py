@@ -260,7 +260,7 @@ class Monitor:
         Note: requires that the memory monitoring tool is executed (as specified in Experiment::shouldExecuteUtility())
         """
 
-        if (int(time.time()) - self.__env['curtime_mem']) > 60 * 10:
+        if (int(time.time()) - self.__env['curtime_mem']) > 60:
             # Check the memory from the utility every minute
 
             # get the experiment object and check if the memory utility should be used
