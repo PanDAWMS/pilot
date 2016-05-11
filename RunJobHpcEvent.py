@@ -165,7 +165,7 @@ class RunJobHpcEvent(RunJob):
             res['yoda_to_os'] = False
         self.__yoda_to_os = res['yoda_to_os']
 
-        if "yoda_to_zip" in catchalls:
+        if "es_to_zip" in catchalls:
             res['yoda_to_zip'] = True
         else:
             res['yoda_to_zip'] = False
