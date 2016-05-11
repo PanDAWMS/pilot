@@ -524,7 +524,7 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("copyprefixin", "srm://uct2-dc1.uchicago.edu^srm://uct2-dc1.uchicago.edu")
 #            ec = self.replaceQueuedataField("timefloor", "0")
 
-        if thisSite.sitename == "BNL_PROD_MCORE":
+#        if thisSite.sitename == "BNL_PROD_MCORE":
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
 #            ec = self.replaceQueuedataField("catchall", "es_to_zip")
 #            ec = self.replaceQueuedataField("timefloor", "0")
