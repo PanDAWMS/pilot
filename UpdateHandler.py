@@ -156,6 +156,8 @@ class UpdateHandler(BaseRequestHandler):
                             self.__env['jobDic'][k][1].refreshNow = jobinfo['refreshNow']
                         if jobinfo.has_key("coreCount"):
                             self.__env['jobDic'][k][1].coreCount = jobinfo['coreCount']
+                        if jobinfo.has_key("HPCJobId"):
+                            self.__env['jobDic'][k][1].HPCJobId = jobinfo['HPCJobId']
 
                         # zip output
                         if jobinfo.has_key("outputZipName"):

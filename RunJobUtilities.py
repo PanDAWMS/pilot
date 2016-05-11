@@ -106,6 +106,8 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
         msgdic['yodaProcessedEvents'] = job.yodaProcessedEvents
     if job.avgProcessTimePerEvent:
         msgdic['avgProcessTimePerEvent'] = job.avgProcessTimePerEvent
+    if job.HPCJobId:
+        msgdic['HPCJobId'] = job.HPCJobId
 
     if job.outputZipName and job.outputZipBucketID:
         msgdic['outputZipName'] = job.outputZipName

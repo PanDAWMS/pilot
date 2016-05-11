@@ -218,9 +218,12 @@ class RunJobHpcEvent(RunJob):
         tolog("Copy Setup: %s" % (setup))
         espath = getFilePathForObjectStore(filetype="eventservice")
         tolog("ES path: %s" % (espath))
+        os_bucket_id = siteInfo.getObjectstoresField('os_bucket_id', 'eventservice')
+        tolog("The default bucket ID: %s for queue %s" % (os_bucket_id, self.__jobSite.computingElement))
 
         res['setup'] = setup
         res['esPath'] = espath
+        res['os_bucket_id'] = os_bucket_id
 
         return res
 
@@ -1256,7 +1259,7 @@ class RunJobHpcEvent(RunJob):
             tolog("Copy Setup: %s" % (setup))
             espath = getFilePathForObjectStore(filetype="eventservice")
             tolog("ES path: %s" % (espath))
-            os_bucket_id = siteInfo.getObjectstoresField('os_bucket_id', 'eventservice', queuename=self.__jobSite.computingElement)
+            os_bucket_id = siteInfo.getObjectstoresField('os_bucket_id', 'eventservice')
             tolog("Will create a list using the default bucket ID: %s for queue %s" % (os_bucket_id, self.__jobSite.computingElement))
 
             self.__siteMover = objectstoreSiteMover(setup)

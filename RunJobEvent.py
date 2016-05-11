@@ -85,6 +85,7 @@ class RunJobEvent(RunJob):
     __asyncOutputStager_thread = None            #
     __analysisJob = False                        # True for analysis job
     __jobSite = None                             # Site object
+    __node = None
     __job = None                                 # Job object
     __cache = ""                                 # Cache URL, e.g. used by LSST
     __metadata_filename = ""                     # Full path to the metadata file
@@ -419,6 +420,9 @@ class RunJobEvent(RunJob):
         """ Setter for __jobSite """
 
         self.__jobSite = jobSite
+
+    def setJobNode(self, node):
+        self.__node = node
 
     def getYamplChannelName(self):
         """ Getter for __yamplChannelName """
@@ -1333,7 +1337,7 @@ class RunJobEvent(RunJob):
             command = "zip -j " + self.__job.outputZipName + " " + path
             tolog("Adding file to zip: %s" % command)
             ec, pilotErrorDiag = commands.getstatusoutput(command)
-            tolog("status: %s, output: %s" % (ec, pilotErrorDiag))
+            tolog("status: %s, output: %s\n" % (ec, pilotErrorDiag))
             if ec:
                 tolog("Failed to zip %s: %s, %s" % (path, ec, pilotErrorDiag))
                 return ec, pilotErrorDiag
@@ -1390,6 +1394,8 @@ class RunJobEvent(RunJob):
                 self.__job.outputZipName = self.__job.outputZipName
                 self.__job.outputZipBucketID = os_bucket_id
                 rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+                JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=self.__job.workdir)
+                JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
 
                 # Time to update the server
                 eventRanges = []
@@ -1444,7 +1450,7 @@ class RunJobEvent(RunJob):
 
         tolog("Asynchronous output stager thread initiated")
         while not self.__asyncOutputStager_thread.stopped():
-
+          try:
             if len(self.__stageout_queue) > 0:
                 for f in self.__stageout_queue:
                     # Create the output file metadata (will be sent to server)
@@ -1479,18 +1485,21 @@ class RunJobEvent(RunJob):
 
                                         # Note: the rec pilot must update the server appropriately
 
-                                    # Time to update the server
-                                    msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], status=status, os_bucket_id=os_bucket_id)
+                                    try:
+                                        # Time to update the server
+                                        msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
 
-                                    # Did the updateEventRange back channel contain an instruction?
-                                    if msg == "tobekilled":
-                                        tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
-                                        self.setAbort()
-                                        self.setToBeKilled()
-                                    if msg == "softkill":
-                                        tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
-                                        self.sendMessage("No more events")
-                                        self.setAbort()
+                                        # Did the updateEventRange back channel contain an instruction?
+                                        if msg == "tobekilled":
+                                            tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+                                            self.setAbort()
+                                            self.setToBeKilled()
+                                        if msg == "softkill":
+                                            tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+                                            self.sendMessage("No more events")
+                                            self.setAbort()
+                                    except:
+                                        tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                             else:
                                 try:
                                     status, output = self.zipOutput(event_range_id, outputFileInfo)
@@ -1507,7 +1516,8 @@ class RunJobEvent(RunJob):
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
             time.sleep(1)
-
+          except:
+               tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
         tolog("Asynchronous output stager thread has been stopped")
 
     def listener(self):
@@ -2133,6 +2143,7 @@ if __name__ == "__main__":
         node = Node.Node()
         node.setNodeName(os.uname()[1])
         node.collectWNInfo(jobSite.workdir)
+        runJob.setJobNode(node)
 
         # Redirect stderr
         sys.stderr = open("%s/runevent.stderr" % (jobSite.workdir), "w")

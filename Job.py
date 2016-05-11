@@ -114,6 +114,7 @@ class Job:
         self.outputZipEventRangesName = None
         self.outputZipBucketID = None
         self.inputZipFiles = []
+        self.HPCJobId = None
         self.altStageOut = None            # Alt stage-out overrides from the server
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
@@ -339,6 +340,8 @@ class Job:
             self.yodaProcessedEvents = data.get('yodaProcessedEvents', None)
         if data.has_key('avgProcessTimePerEvent'):
             self.avgProcessTimePerEvent = data.get('avgProcessTimePerEvent', None)
+        if data.has_key('HPCJobId'):
+            self.HPCJobId = data.get('HPCJobId', None)
 
 #        self.eventRangeID = data.get('eventRangeID', None)
 #        self.startEvent = data.get('startEvent', None)

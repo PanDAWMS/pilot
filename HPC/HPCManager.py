@@ -120,6 +120,9 @@ class HPCManager:
     def getStageoutThreads(self):
         return self.__stageout_threads
 
+    def getHPCJobId(self):
+        return self.__jobid
+
     def prepare(self):
         if self.__globalWorkingDir != self.__localWorkingDir:
             self.__log.info("Global Working directory is different with local working directory.")
@@ -219,6 +222,7 @@ class HPCManager:
         self.__copyOutputToGlobal = defaultResources.get('copyOutputToGlobal', False)
         self.__setup = defaultResources.get('setup', None)
         self.__esPath = defaultResources.get('esPath', None)
+        self.__os_bucket_id = defaultResources.get('os_bucket_id', None)
 
     def getCoreCount(self):
         return int(self.__mppwidth)
@@ -250,6 +254,7 @@ class HPCManager:
             job['copyOutputToGlobal'] = self.__copyOutputToGlobal
             job['setup'] = self.__setup
             job['esPath'] = self.__esPath
+            job['os_bucket_id'] = self.__os_bucket_id
 
             eventsPerNode = int(self.__ATHENA_PROC_NUMBER) * (int(self.__eventsPerWorker))
             if jobId in eventRanges:

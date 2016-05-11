@@ -112,6 +112,7 @@ class Droid(threading.Thread):
             if self.__yodaToOS:
                 setup = job.get('setup', None)
                 self.__esPath = job.get('esPath', None)
+                self.__os_bucket_id = job.get('os_bucket_id', None)
                 self.__report =  getInitialTracingReport(userid='Yoda', sitename='Yoda', dsname=None, eventType="objectstore", analysisJob=False, jobId=None, jobDefId=None, dn='Yoda')
                 self.__siteMover = objectstoreSiteMover(setup, useTimerCommand=False)
 
@@ -409,9 +410,9 @@ class Droid(threading.Thread):
                     eventStatus = stagedRequest['eventStatus']
                     if eventStatus.startswith("ERR"):
                         eventStatus = 'failed'
-                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': eventStatus})
+                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': eventStatus, 'objstoreID': self.__os_bucket_id})
                     if eventStatus == 'stagedOut':
-                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': 'finished'})
+                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': 'finished', 'objstoreID': self.__os_bucket_id})
                 status, output = self.updatePandaEventRanges(eventRanges)
                 if status == 0:
                     self.__tmpLog.debug("Rank %s: updatePandaEventRanges(status: %s, output: %s)" % (self.__rank, status, output))

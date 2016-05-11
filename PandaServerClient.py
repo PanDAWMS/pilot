@@ -153,6 +153,8 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="yodaProcessedEvents", value=job.yodaProcessedEvents)
         if job.avgProcessTimePerEvent:
             jobMetrics += self.jobMetric(key="avgProcessTimePerEvent", value=job.avgProcessTimePerEvent)
+        if job.HPCJobId:
+            jobMetrics += self.jobMetric(key="HPCJobId", value=job.HPCJobId)
 
         # eventservice zip file
         if job.outputZipName and job.outputZipBucketID:
