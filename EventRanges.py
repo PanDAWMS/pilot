@@ -1,5 +1,6 @@
 #
 
+import json
 import os
 from pUtil import httpConnect, tolog
 
@@ -90,7 +91,7 @@ def updateEventRanges(event_ranges):
     node['eventRanges']=json.dumps(event_ranges)
 
     # open connection
-    ret = pUtil.httpConnect(node, url, path='.', mode="UPDATEEVENTRANGES")
+    ret = httpConnect(node, url, path='.', mode="UPDATEEVENTRANGES")
     # response = json.loads(ret[1])
 
     status = ret[0]
