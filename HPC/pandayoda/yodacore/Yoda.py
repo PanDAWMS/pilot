@@ -672,7 +672,7 @@ class Yoda(threading.Thread):
         self.finishDroids()
         self.tmpLog.info('done')
         #os._exit(0)
-        #sys.exit(0)
+        sys.exit(0)
         return 0
 
 

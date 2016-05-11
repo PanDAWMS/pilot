@@ -11,7 +11,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, verifySetupCommand, getSiteInformation, extractFilePaths
 from FileStateClient import updateFileState
 from SiteInformation import SiteInformation
-from config import config_sm
+from configSiteMover import config_sm
 
 CMD_CHECKSUM = config_sm.COMMAND_MD5
 
@@ -36,7 +36,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     def log(self, errorLog):
         tolog(errorLog)
 
-    def setup(self, experiment=None, surl=None):
+    def setup(self, experiment=None, surl=None, os_bucket_id=-1, label='r'):
         """ setup env """
         if not self.__isBotoLoaded:
             try:
@@ -68,15 +68,23 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
              del os.environ['https_proxy']
 
         si = getSiteInformation(experiment)
-        os_access_key = si.getObjectstoresField("os_access_key", "eventservice")
-        os_secret_key = si.getObjectstoresField("os_secret_key", "eventservice")
+        # os_bucket_id will only be set if the setup function is called, if setup via the init function - get the default bucket id
+        if os_bucket_id == -1:
+            ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name='eventservice') # assume eventservice
+        else:
+            ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(os_bucket_id)
+        endpoint_id = si.getObjectstoreEndpointID(ddmendpoint=ddmendpoint, label=label, protocol='s3')
+        os_access_key, os_secret_key, os_is_secure = si.getObjectstoreKeyInfo(endpoint_id, ddmendpoint=ddmendpoint)
+
         if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":
             keyPair = si.getSecurityKey(os_secret_key, os_access_key)
+            if "privateKey" not in keyPair or keyPair["privateKey"] is None:
+                tolog("Failed to get the keyPair for S3 objectstore")
+                return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
         else:
             tolog("Failed to get the keyPair name for S3 objectstore")
             return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair name for S3 objectstore"
 
-        os_is_secure = si.getObjectstoresField("os_is_secure", "eventservice")
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure, self._useTimerCommand)
 
 #        keyPair = None
@@ -100,7 +108,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
     def getLocalFileInfo(self, fileName, checksumType="md5", date=None):
         """ Return exit code (0 if OK), file size and checksum of a local file, as well as as date string if requested """
         # note that date is mutable
-        self.log("Starting to get file(%s) info(checksum tyep:%s)" % (fileName, checksumType))
+        self.log("Starting to get file(%s) info(checksum type:%s)" % (fileName, checksumType))
         size = 0
         checksum = None
 
@@ -247,7 +255,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.log("Finished to verify staging")
         return 0, errLog
 
-    def stageIn(self, source, destination, sourceSize=None, sourceChecksum=None, experiment=None):
+    def stageIn(self, source, destination, sourceSize=None, sourceChecksum=None, experiment=None, os_bucket_id=-1):
         """Stage in the source file"""
         self.log("Starting to stagein file %s(size:%s, chksum:%s) to %s" % (source, sourceSize, sourceChecksum, destination))
 
@@ -256,7 +264,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if sourceChecksum == "" or sourceChecksum == "NULL":
             sourceChecksum = None
 
-        status, output = self.setup(experiment, source)
+        status, output = self.setup(experiment, source, os_bucket_id=os_bucket_id, label='r')
         if status:
             return status, output
 
@@ -292,11 +300,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.log("Finished to stagin file %s(status:%s, output:%s)" % (source, status, output))
         return status, output
 
-    def stageOut(self, source, destination, token, experiment=None, outputDir=None, timeout=3600):
+    def stageOut(self, source, destination, token, experiment=None, outputDir=None, timeout=3600, os_bucket_id=-1):
         """Stage in the source file"""
         self.log("Starting to stageout file %s to %s with token: %s" % (source, destination, token))
 
-        status, output = self.setup(experiment, destination)
+        status, output = self.setup(experiment, destination, os_bucket_id=os_bucket_id, label='w')
         if status:
             return status, output, None, None
 
@@ -329,6 +337,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         jobId = pdict.get('jobId', '')
         workDir = pdict.get('workDir', '')
         experiment = pdict.get('experiment', '')
+        os_bucket_id = pdict.get('os_bucket_id', -1)
 
         # try to get the direct reading control variable (False for direct reading mode; file should not be copied)
         useCT = pdict.get('usect', True)
@@ -340,7 +349,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if path == '': path = './'
         fullname = os.path.join(path, lfn)
 
-        status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment)
+        status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment, os_bucket_id=os_bucket_id)
 
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
@@ -370,6 +379,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         dsname = pdict.get('dsname', '')
         experiment = pdict.get('experiment', '')
         outputDir = pdict.get('outputDir', '')
+        os_bucket_id = pdict.get('os_bucket_id', -1)
         timeout = pdict.get('timeout', None)
         if not timeout:
             timeout = self.timeout
@@ -382,7 +392,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         filename = os.path.basename(source)
         surl = destination
-        status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout)
+        self.log("surl=%s"%(surl))
+        if "log.tgz" in surl:
+            surl = surl.replace(lfn, "%s:%s"%(scope,lfn))
+        status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout, os_bucket_id=os_bucket_id)
         if status !=0:
             errors = PilotErrors()
             state = errors.getErrorName(status)

@@ -41,7 +41,12 @@ globalSite = None
 
 def usage():
     """
-    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -u <user> -m <outputdir> -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel> -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag> -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry> -B <unused> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime> -H <cache> -I <schedconfigURL> -N <yodaNodes> -Q <yodaQueue>
+    usage: python pilot.py -s <sitename> -d <workdir> -a <appdir> -w <url> -p <port> -u <user> -m <outputdir>
+        -g <inputdir> -r <rmwkdir> -j <jrflag> -n <jrmax> -c <jrmaxatt> -f <jreqflag> -e <logfiledir> -b <debuglevel>
+        -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag>
+        -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry>
+        -B <allowSingleUser> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime>
+        -H <cache> -I <schedconfigURL> -N <yodaNodes> -Q <yodaQueue>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -71,15 +76,15 @@ def usage():
                <countrygroup> Country group selector for getJob request
                <workinggroup> Working group selector for getJob request
                <allowOtherCountry> True/False
-               <unused> (used to be 'lfcRegistration')
+               <allowSingleUser> True/False, multi-jobs will only belong from the same user (owner of first downloaded job)
                <timefloor> Time limit for multi-jobs in minutes
                <useCoPilot> Expect CERNVM pilot to be executed by Co-Pilot (True: on, False: pilot will finish job (default))
                <experiment> Current experiment (default: ATLAS)
                <getJobMaxTime> The maximum time the pilot will attempt single job downloads (in minutes, default is 3 minutes, min value is 1)
                <cache> is an optional URL used by some experiment classes (LSST)
                <schedconfigURL> optional URL used by the pilot to download queuedata from the schedconfig server
-               <yodaNodes> The maximum nodes Yoda will start with.
-               <yodaQueue> The queue Yoda jobs will be send to.
+               <yodaNodes> The maximum nodes Yoda will start with
+               <yodaQueue> The queue Yoda jobs will be sent to
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__
@@ -274,7 +279,10 @@ def argParser(argv):
                 env['allowOtherCountry'] = False
 
         elif o == "-B":
-            pass
+            if a.upper() == "TRUE":
+                env['allowSameUser'] = True
+            else:
+                env['allowSameUser'] = False
 
         elif o == "-C":
             try:
@@ -445,15 +453,12 @@ def moveLostOutputFiles(job, thisSite, remaining_files):
         # Note: alt stage-out numbers are not saved in recovery mode (job object not returned from this function)
         rc, pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (file_path), dsname,
                                                           thisSite.sitename, thisSite.computingElement, analysisJob=analJob,
-                                                          proxycheck=env['proxycheckFlag'], spsetup=job.spsetup,scopeOut=job.scopeOut, scopeLog=job.scopeLog,
-                                                          token=job.destinationDBlockToken, pinitdir=env['pilot_initdir'],
-                                                          datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,
-                                                          jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,
-                                                          dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut,
-                                                          jobCloud=job.cloud, logFile=job.logFile,
-                                                          stageoutTries=env['stageoutretry'], experiment=experiment,
+                                                          proxycheck=env['proxycheckFlag'],
+                                                          pinitdir=env['pilot_initdir'],
+                                                          datasetDict=datasetDict,
+                                                          stageoutTries=env['stageoutretry'],
                                                           cmtconfig=cmtconfig, recoveryWorkDir=thisSite.workdir,
-                                                          fileDestinationSE=job.fileDestinationSE, job=job) ##
+                                                          job=job)
     except Exception, e:
         pilotErrorDiag = "Put function can not be called for staging out: %s" % str(e)
         pUtil.tolog("!!%s!!1105!! %s" % (env['errorLabel'], pilotErrorDiag))
@@ -1961,9 +1966,6 @@ def getDispatcherDictionary(_diskSpace, tofile):
 
     # glExec proxy key
     _getProxyKey = "False"
-    # Eddie - commented out
-    # if pUtil.readpar('glexec').lower() in ['true', 'uid']:
-    #     _getProxyKey = "True"
 
     nodename = env['workerNode'].nodename
     pUtil.tolog("Node name: %s" % (nodename))
@@ -2002,6 +2004,10 @@ def getDispatcherDictionary(_diskSpace, tofile):
             jNode['prodUserID'] = DN
 
         pUtil.tolog("prodUserID: %s" % (jNode['prodUserID']))
+    elif env['allowSameUser'] == True and env['taskID'] != "":
+        jNode['taskID'] = env['taskID']
+    if env['taskID'] != "":
+        pUtil.tolog("Will download a new job for taskID: %s" % (env['taskID']))
 
     # determine the job type
     prodSourceLabel = getProdSourceLabel()
@@ -2233,13 +2239,18 @@ def getNewJob(tofile=True):
     # should there be a delay before setting running state?
     try:
         env['nSent'] = int(data['nSent'])
-    except Exception,e:
+    except:
         env['nSent'] = 0
     else:
         pUtil.tolog("Received nSent: %d" % (env['nSent']))
 
     # backup response (will be copied to workdir later)
     backupDispatcherResponse(response, tofile)
+
+    if data.has_key('taskID'):
+        if env['allowSameUser'] == True and env['taskID'] == "":
+            env['taskID'] = data['taskID']
+            pUtil.tolog("Will only process jobs in multi-job mode that belong to taskID %s" % (env['taskID']))
 
     if data.has_key('prodSourceLabel'):
         if data['prodSourceLabel'] == "":
@@ -2316,13 +2327,13 @@ def getNewJob(tofile=True):
             env['update_freq_server'] = 5*30
             pUtil.tolog("Debug mode requested: Updating server update frequency to %d s" % (env['update_freq_server']))
 
-    # Eddie: try to get user proxy from data['userproxy']
+    # try to get user proxy from data['userproxy']
     if data.has_key('userProxy'):
         pUtil.tolog('Retrieving userproxy from panda-server')
         env['userProxy'] = data['userProxy']
     else:
         pUtil.tolog('no user proxy in data')
-        # Eddie: what do we do when there is no user proxy? Do we use the proxy that started the pilot?
+        # what do we do when there is no user proxy? Do we use the proxy that started the pilot?
         env['userProxy'] = ''
 
     # create a start time file in the pilot init dir (time stamp will be read and sent to the server with the job update
@@ -2629,11 +2640,13 @@ def runMain(runpars):
             env['workerNode'].mem = getsetWNMem(env['memory'])
 
             # do we have enough local disk space to run the job?
-            ec = checkLocalDiskSpace(error)
-            if ec != 0:
-                pUtil.tolog("Pilot was executed on host: %s" % (env['workerNode'].nodename))
-                pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
-                return pUtil.shellExitCode(ec)
+            # (skip this test for ND true pilots - job will be failed in Monitor::monitor_job() instead)
+            if not (env['updateServerFlag'] == True and env['jobRequestFlag'] == False):
+                ec = checkLocalDiskSpace(error)
+                if ec != 0:
+                    pUtil.tolog("Pilot was executed on host: %s" % (env['workerNode'].nodename))
+                    pUtil.fastCleanup(env['thisSite'].workdir, env['pilot_initdir'], env['rmwkdir'])
+                    return pUtil.shellExitCode(ec)
 
             # getJob begins here....................................................................................
 
@@ -2683,7 +2696,7 @@ def runMain(runpars):
             if env['glexec'] == 'False':
                 monitor = Monitor(env)
                 monitor.monitor_job()
-	    elif env['glexec'] == 'test':
+	    elif env['glexec'] == 'test': ##
 		pUtil.tolog('glexec is set to test, we will hard-fail miserably in case of errors')
                 payload = 'python -m glexec_aux'
                 my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
@@ -2694,41 +2707,40 @@ def runMain(runpars):
                 # If it is ok, go ahead with glexec, if not, use the normal pilot mode without glexec.
 
                 if os.environ.has_key('OSG_GLEXEC_LOCATION'):
-			if os.environ['OSG_GLEXEC_LOCATION'] != '':
-				glexec_path = os.environ['OSG_GLEXEC_LOCATION']
-     			else:
-			        glexec_path = '/usr/sbin/glexec'
-                                os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
-                elif os.environ.has_key('GLEXEC_LOCATION'):
-			if os.environ['GLEXEC_LOCATION'] != '':
-	     			glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
-     			else:
-             			glexec_path = '/usr/sbin/glexec'
-                                os.environ['GLEXEC_LOCATION'] = '/usr'
-		elif os.path.exists('/usr/sbin/glexec'):
-			glexec_path = '/usr/sbin/glexec'
-	                os.environ['GLEXEC_LOCATION'] = '/usr'
-                elif os.environ.has_key('GLITE_LOCATION'):
-                        glexec_path = os.path.join(os.environ['GLITE_LOCATION'],
-                                             'sbin/glexec')
-                else:
-			pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
+                    if os.environ['OSG_GLEXEC_LOCATION'] != '':
+		       	glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+                    else:
                         glexec_path = '/usr/sbin/glexec'
+                        os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
+                elif os.environ.has_key('GLEXEC_LOCATION'):
+                    if os.environ['GLEXEC_LOCATION'] != '':
+                        glexec_path = os.path.join(os.environ['GLEXEC_LOCATION'],'sbin/glexec')
+                    else:
+                        glexec_path = '/usr/sbin/glexec'
+                        os.environ['GLEXEC_LOCATION'] = '/usr'
+		elif os.path.exists('/usr/sbin/glexec'):
+                    glexec_path = '/usr/sbin/glexec'
+                    os.environ['GLEXEC_LOCATION'] = '/usr'
+                elif os.environ.has_key('GLITE_LOCATION'):
+                    glexec_path = os.path.join(os.environ['GLITE_LOCATION'],'sbin/glexec')
+                else:
+                    pUtil.tolog("!!WARNING!! gLExec is probably not installed at the WN!")
+                    glexec_path = '/usr/sbin/glexec'
 
                 cmd = 'export GLEXEC_CLIENT_CERT=$X509_USER_PROXY;'+glexec_path + ' /bin/true'
                 stdout, stderr, status = execute(cmd)
                 pUtil.tolog('cmd: %s' % cmd)
                 pUtil.tolog('status: %s' % status)
                 if not (status or stderr):
-                        pUtil.tolog('glexec infrastructure seems to be working fine. Running in glexec mode!')
-                        payload = 'python -m glexec_aux'
-                        my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
-                        glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
-                        glexec_interface.setup_and_run()
+                    pUtil.tolog('glexec infrastructure seems to be working fine. Running in glexec mode!')
+                    payload = 'python -m glexec_aux'
+                    my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
+                    glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
+                    glexec_interface.setup_and_run()
                 else:
-                        pUtil.tolog('!!WARNING!! Problem with the glexec infrastructure! Will run the pilot in normal mode')
-                        monitor = Monitor(env)
-                        monitor.monitor_job()
+                    pUtil.tolog('!!WARNING!! Problem with the glexec infrastructure! Will run the pilot in normal mode')
+                    monitor = Monitor(env)
+                    monitor.monitor_job()
 
             #Get the return code (Should be improved)
             if env['return'] == 'break':

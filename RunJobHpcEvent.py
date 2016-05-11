@@ -551,7 +551,7 @@ class RunJobHpcEvent(RunJob):
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
-            useCT, oldPrefix, newPrefix = pUtil.getFileAccessInfo()
+            useCT, oldPrefix, newPrefix = self.__siteInfo.getFileAccessInfo(job.transferType)
 
             # Transfer input files
             tin_0 = os.times()

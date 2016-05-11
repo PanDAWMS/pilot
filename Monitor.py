@@ -121,7 +121,7 @@ class Monitor:
             for filename in fileList:
 
                 if "job.log.tgz" in filename:
-                    pUtil.tolog("(Skipping file size check of file (%s) since it's job.log.tgz file)" % filename)
+                    pUtil.tolog("(Skipping file size check of file (%s) since it is a special log file)" % (filename))
                     continue
 
                 if os.path.exists(filename):
@@ -219,6 +219,8 @@ class Monitor:
                     else:
                         pUtil.tolog("Size of work directory %s: %d B (within %d B limit)" % (workDir, size, maxwdirsize))
 
+                    # Store the measured disk space (the max value will later be sent with the job metrics)
+                    status = storeWorkDirSize(size, self.__env['pilot_initdir'], self.__env['jobDic'][k][1])
                 else:
                     pUtil.tolog("Skipping size of of workDir since it could not be measured")
             else:

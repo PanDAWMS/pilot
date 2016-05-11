@@ -8,7 +8,7 @@ from PilotErrors import PilotErrors
 from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
 from JobState import JobState
 from FileStateClient import getFilesOfState
-from FileHandling import getJSONDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
+from FileHandling import getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
 
 class PandaServerClient:
     """
@@ -159,22 +159,14 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="outputZipName", value=os.path.basename(job.outputZipName))
             jobMetrics += self.jobMetric(key="outputZipBucketID", value=job.outputZipBucketID)
 
-        # report FAX transfers if at least one successful FAX transfer
-        #if job.filesWithFAX > 0:
-        #    jobMetrics += " filesWithFAX=%d" % (job.filesWithFAX)
-        #    jobMetrics += " filesWithoutFAX=%d" % (job.filesWithoutFAX)
-        #    jobMetrics += " bytesWithFAX=%d" % (job.bytesWithFAX)
-        #    jobMetrics += " bytesWithoutFAX=%d" % (job.bytesWithoutFAX)
-        #    jobMetrics += " timeToCopy=%s" % (job.timeStageIn)
-
         # report alternative stage-out in case alt SE method was used
         # (but not in job recovery mode)
         recovery_mode = False
         if job.filesAltStageOut > 0 and not recovery_mode:
-            _jobMetrics = ""
-            _jobMetrics += " filesAltStageOut=%d" % (job.filesAltStageOut)
-            _jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
-            tolog("Could have reported: %s" % (_jobMetrics))
+            #_jobMetrics = ""
+            #_jobMetrics += " filesAltStageOut=%d" % (job.filesAltStageOut)
+            #_jobMetrics += " filesNormalStageOut=%d" % (job.filesNormalStageOut)
+            #tolog("Could have reported: %s" % (_jobMetrics))
 
             # Report which output files were moved to an alternative SE
             filenames = getFilesOfState(site.workdir, job.jobId, state="alt_transferred")
@@ -190,10 +182,13 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="JEM", value=1)
             # old format: jobMetrics += " JEM=%s" % (job.JEM)
 
+        if job.dbTime != "":
+            jobMetrics += self.jobMetric(key="dbTime", value=job.dbTime)
+        if job.dbData != "":
+            jobMetrics += self.jobMetric(key="dbData", value=job.dbData)
+
         # machine and job features, max disk space used by the payload
         jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir, job.jobId)
-        #if _jobMetrics != "":
-        #    tolog("Could have added: %s to job metrics" % (_jobMetrics))
 
         _jobMetrics = ""
 
@@ -223,6 +218,7 @@ class PandaServerClient:
 
         return jobMetrics
 
+    # deprecated
     def getOSJobMetrics(self):
         """ Generate the objectstore jobMetrics message """
         # Message format:
@@ -246,7 +242,7 @@ class PandaServerClient:
                 os_names = os_names_dictionary.keys()
                 # Note: the should only be one os_name
                 if len(os_names) > 1:
-                    tolog("!!WARNING!!2345!! Can only report one os_name (will use first only): %s" % (os_names_dictionary))
+                    tolog("!!WARNING!!2345!! Can only report one ddm endpoint (will use first only): %s" % (os_names_dictionary))
 
                 # Which buckets were written to?
                 for os_name in os_names_dictionary.keys():
@@ -880,6 +876,8 @@ class PandaServerClient:
         # do not send xml if there was a put error during the log transfer
         _xml = None
         if final and node.has_key('xml'):
+            # is the call to updateXMLWithSURLs() useless? already done in JobLog?
+
             # update xml with SURLs stored in special SURL dictionary file
             tolog("Updating node structure XML with SURLs")
             node['xml'] = updateXMLWithSURLs(experiment, node['xml'], site.workdir, job.jobId, self.__jobrec)

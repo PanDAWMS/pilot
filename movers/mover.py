@@ -181,9 +181,17 @@ class JobMover(object):
             check if direct access I/O is allowed
             quick workaround: should be properly implemented in SiteInformation
         """
-        from Mover import getDirectAccess
-        from Mover import useDirectAccessLAN
-        return useDirectAccessLAN()
+
+        try:
+            from Mover import getDirectAccess
+        except:
+            return False
+
+        try:
+            from Mover import useDirectAccessLAN
+            return useDirectAccessLAN()
+        except:
+            return False
 
         return getDirectAccess()[0]
 
@@ -200,7 +208,7 @@ class JobMover(object):
         self.log("stage-in: protocols=%s" % protocols)
 
         if not protocols:
-            raise PilotException("Failed to get files: no protocols defined for input. check aprotocols schedconfig settings for activity=%s, " % activity, code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to get files: no protocols defined for input. check aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE)
 
         files = self.job.inData
 
@@ -437,8 +445,8 @@ class JobMover(object):
         surl_protocols, no_surl_ddms = {}, set()
 
         for fspec in files:
-            if not fspec.surl: # initilize only if not already set
-                surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
+            if not fspec.surl: # initialize only if not already set
+                surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {}).get('SE', self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {}).get('a', [])), key=lambda x: x[1])]
                 if surl_prot:
                     surl_protocols.setdefault(fspec.ddmendpoint, surl_prot[0])
                 else:
@@ -487,6 +495,7 @@ class JobMover(object):
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="output")
 
                     fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
+
                     self.log("[stage-out] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.surl, fdata.lfn, fdata.ddmendpoint))
 
                     self.log("[stage-out] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.turl, fdata.lfn, fdata.ddmendpoint))
@@ -676,13 +685,12 @@ class JobMover(object):
 
         # get SURL for Panda calback registration
         # resolve from special protocol activity=SE # fix me later to proper name of activitiy=SURL (panda SURL, at the moment only 2-letter name is allowed on AGIS side)
-
-        surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('SE', []), key=lambda x: x[1])]
+        # if SE is not found, try to fallback to a
+        surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('SE', self.ddmconf.get(ddmendpoint, {}).get('aprotocols', {}).get('a', [])), key=lambda x: x[1])]
 
         if not surl_prot:
             self.log('FAILED to resolve default SURL path for ddmendpoint=%s' % ddmendpoint)
             return [], []
-
         surl_prot = surl_prot[0] # take first
         self.log("[do_put_files] SURL protocol to be used: %s" % surl_prot)
 
@@ -750,7 +758,7 @@ class JobMover(object):
                     try:
                         # quick work around
                         from Job import FileSpec
-                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint)
+                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint, guid=guid, scope=scope, lfn=lfn)
                         result = sitemover.stageOut(pfn, turl, stub_fspec)
                         break # transferred successfully
                     except PilotException, e:

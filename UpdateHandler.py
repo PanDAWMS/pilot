@@ -59,6 +59,8 @@ class UpdateHandler(BaseRequestHandler):
                         self.__env['jobDic'][k][1].vmPeakMean = int(jobinfo["vmPeakMean"])
                         self.__env['jobDic'][k][1].RSSMean = int(jobinfo["RSSMean"])
                         self.__env['jobDic'][k][1].JEM = jobinfo["JEM"]
+                        self.__env['jobDic'][k][1].dbTime = jobinfo["dbTime"]
+                        self.__env['jobDic'][k][1].dbData = jobinfo["dbData"]
                         self.__env['jobDic'][k][1].cmtconfig = jobinfo["cmtconfig"]
 
                         try:

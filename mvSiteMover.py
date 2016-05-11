@@ -8,7 +8,7 @@ import SiteMover
 from futil import *
 from pUtil import tolog, readpar, getSiteInformation
 from PilotErrors import PilotErrors
-from config import config_sm
+from configSiteMover import config_sm
 
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE
@@ -98,7 +98,8 @@ class mvSiteMover(SiteMover.SiteMover):
         dest_file = os.path.join(path, src_loc_filename)
 
         # verify that the file exists
-        if not os.path.exists(src_loc_pfn):
+        direct_access_lan = readpar('direct_access_lan')
+        if not os.path.exists(src_loc_pfn) and direct_access_lan and direct_access_lan.lower() == 'false':
             pilotErrorDiag = "No such file or directory: %s" % (src_loc_pfn)
             tolog('!!WARNING!!2100!! %s' % (pilotErrorDiag))
             if src_loc_pfn.find("DBRelease") >= 0:

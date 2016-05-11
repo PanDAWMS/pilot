@@ -12,14 +12,13 @@ from futil import *
 from pUtil import tolog, readpar, dumpOrderedItems, getDirectAccessDic, getSiteInformation
 from PilotErrors import PilotErrors
 from timed_command import timed_command
-from config import config_sm
+from configSiteMover import config_sm
 from FileHandling import getExtension, getTracingReportFilename, writeJSON
 
 PERMISSIONS_DIR = config_sm.PERMISSIONS_DIR
 PERMISSIONS_FILE = config_sm.PERMISSIONS_FILE
 CMD_CHECKSUM = config_sm.COMMAND_MD5
 ARCH_DEFAULT = config_sm.ARCH_DEFAULT
-LFC_HOME = '/grid/atlas/'
 
 class SiteMover(object):
     """
@@ -959,7 +958,7 @@ class SiteMover(object):
                     tolog("!!WARNING!!1800!! JobState could not deserialize file: %s" % (filename))
                 else:
                     tolog("Deserialized surl dictionary with %d keys" % len(surlDictionary.keys()))
-                    tolog("surlDictionary=%s" % str(surlDictionary))
+                    #tolog("surlDictionary=%s" % str(surlDictionary))
             fp.close()
 
         return surlDictionary
@@ -1093,33 +1092,6 @@ class SiteMover(object):
                     else:
                         tolog("File %s has checksum %s and size %s (no recorded events)" % (replica_list[i]['name'], checksum, filesize))
                     break
-
-        return filesize, checksum
-
-    def getFileInfoFromRucio1(self, dataset, guid):
-        """ Get the file size and checksum from Rucio """
-
-        filesize = ""
-        checksum = ""
-
-        # get the file info
-        fileInDataset = self.getFileInDataset(dataset, guid)
-        if fileInDataset:
-            try:
-                lfn = fileInDataset["lfn"]
-                full_checksum = fileInDataset["checksum"]
-                tmp = full_checksum.split(":")
-                checksum_type = tmp[0]
-                checksum = tmp[1]
-                filesize = str(fileInDataset["filesize"])
-            except Exception, e:
-                tolog("!!WARNING!!1114!! Failed to get file info from Rucio (using default LFC values for file size and checksum): %s" % (e))
-                filesize = ""
-                checksum = ""
-            else:
-                tolog("Rucio file info for LFN = %s: file size = %s, checksum = %s (type: %s)" % (lfn, filesize, checksum, checksum_type))
-        else:
-            tolog("!!WARNING!!1115!! Failed to get file info from Rucio (using default LFC values for file size and checksum)")
 
         return filesize, checksum
 
@@ -1406,8 +1378,7 @@ class SiteMover(object):
         Return LFN with LFC hierarchical namespace.
         """
 
-        bpath = LFC_HOME
-        if bpath[-1] != '/': bpath += '/'
+        bpath = '/grid/atlas/'
 
         # add prefix
         bpath += prefix
@@ -2650,7 +2621,7 @@ class SiteMover(object):
                     except Exception, e:
                         tolog("Failed to remove the error line: %s" % (e))
                     else:
-                        tolog("Updated output: %s" % (_output))
+                        tolog("Updated output: %s" % (output))
 
                 # remove extra spaces
                 while "  " in output:

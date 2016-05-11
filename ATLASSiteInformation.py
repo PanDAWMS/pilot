@@ -279,12 +279,18 @@ class ATLASSiteInformation(SiteInformation):
 
         return t1_queuename
 
-    def allowAlternativeStageOut(self, flag=False):
+    def allowAlternativeStageOut(self, **pdict):
         """ Is alternative stage-out allowed? """
         # E.g. if stage-out to primary SE (at Tier-2) fails repeatedly, is it allowed to attempt stage-out to secondary SE (at Tier-1)?
         # For ATLAS, flag=isAnalysisJob(). Alt stage-out is currently disabled for user jobs, so do not allow alt stage-out to be forced.
 
-        if "allow_alt_stageout" in readpar('catchall') and not flag:
+        flag = pdict.get('flag', False)
+        altStageOut = pdict.get('altStageOut', False)
+        if altStageOut == "off":
+            status = False
+        elif altStageOut == "on":
+            status = True
+        elif "allow_alt_stageout" in readpar('catchall') and not flag:
             status = True
         else:
             status = False
@@ -296,15 +302,23 @@ class ATLASSiteInformation(SiteInformation):
 
         return status
 
-    def forceAlternativeStageOut(self, flag=False):
+    def forceAlternativeStageOut(self, **pdict):
         """ Force stage-out to use alternative SE """
         # See allowAlternativeStageOut()
         # For ATLAS, flag=isAnalysisJob(). Alt stage-out is currently disabled for user jobs, so do not allow alt stage-out to be forced.
+        status = False
 
-        if "force_alt_stageout" in readpar('catchall') and not flag:
-            status = True
-        else:
-            status = False
+        flag = pdict.get('flag', False)
+        altStageOut = pdict.get('altStageOut', False)
+        objectstore = pdict.get('objectstore', False)
+
+        if not objectstore:
+            if altStageOut == "force":
+                status = True
+            elif "force_alt_stageout" in readpar('catchall') and not flag:
+                status = True
+            else:
+                status = False
 
         return status
 
@@ -408,7 +422,8 @@ class ATLASSiteInformation(SiteInformation):
         if 'pandadev' in pshttpurl or force_devpilot or thisSite.sitename == "CERNVM":
             ec = self.replaceQueuedataField("status", "online")
 
-        #ec = self.replaceQueuedataField("timefloor", "0")
+        if 'aipanda007' in pshttpurl or force_devpilot:
+            ec = self.replaceQueuedataField("timefloor", "0")
 
 #        ec = self.replaceQueuedataField("retry", "false")
 
@@ -432,8 +447,6 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "ANALY_CERN_SLC6":
 #            ec = self.replaceQueuedataField("copysetupin", "/cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh^False^True")
 
-        ec = self.replaceQueuedataField("timefloor", "0")
-
 #        if thisSite.sitename == "CERN-PROD":
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
 
@@ -451,12 +464,13 @@ class ATLASSiteInformation(SiteInformation):
         #    ec = self.replaceQueuedataField("copytoolin", "lcg-cp2")
 
         #if thisSite.sitename == "HEPHY-UIBK":
+        #    ec = self.replaceQueuedataField("status", "online")
         #    ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw/software")
         #    ec = self.replaceQueuedataField("envsetup", "export X509_USER_PROXY=/opt/rucio/tools/x509up;")
         #    ec = self.replaceQueuedataField("use_newmover", "true")
-        #    ec = self.replaceQueuedataField("direct_access_lan", "false")
-        #    ec = self.replaceQueuedataField("direct_access_wan", "false")
-        #    ec = self.replaceQueuedataField("allow_fax", "false")
+
+        if thisSite.sitename == "ANALY_UIO" or thisSite.sitename == "ANALY_SiGNET":
+            ec = self.replaceQueuedataField("direct_access_lan", "True")
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
@@ -468,7 +482,8 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 ###            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|http^http://cephgw02.usatlas.bnl.gov:8443//atlas_logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
-            ec = self.replaceQueuedataField("catchall", "log_to_objectstore allow_alt_stageout localEsMerge")
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore localEsMerge")
+            ec = self.replaceQueuedataField("catchall", "allow_alt_stageout localEsMerge")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
 #            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://atlasgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
@@ -574,7 +589,7 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=100,min_nodes=100,max_nodes=105,partition=edison,min_walltime_m=60,walltime_m=60,max_walltime_m=185,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=10,time_per_event_m=14,repo=m2015,nodes=1000,min_nodes=1000,max_nodes=1005,partition=edison,min_walltime_m=60,walltime_m=60,max_walltime_m=65,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=200,min_nodes=200,max_nodes=205,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false")
-            
+
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=58,walltime_m=60,max_walltime_m=60,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=true,localWorkingDir=/tmp/tsulaia")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=1,min_nodes=1,max_nodes=4,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=3")
@@ -780,10 +795,24 @@ class ATLASSiteInformation(SiteInformation):
 
         return os.environ.get('ATLAS_SW_BASE', '/cvmfs')
 
+    def getObjectstoreFilename(self, name=""):
+        """ Return the name of the objectstore info file """
+
+        # Input:  name (e.g. the name of the ddm endpoint or the objectstore itself - this is used for caching
+        #               potentially large files - see example implementation in ATLASSiteInformation)
+        # Output: filename
+
+        if name != "":
+            filename = "objectstore_info_%s.json" % (name)
+        else:
+            filename = "objectstore_info.json"
+
+        return filename
+
     def getFullQueuedataFilePath(self):
         """ Location of full AGIS/schedconfig info """
 
-        return "%s/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json" % (self.getFileSystemRootPath())
+        return self.getObjectstoreFilename()
 
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """

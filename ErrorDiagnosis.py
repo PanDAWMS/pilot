@@ -172,6 +172,10 @@ class ErrorDiagnosis(Diagnosis):
         except Exception, e:
             tolog("!!WARNING!!2999!! Failed to get number of events: %s (ignore)" % str(e))
 
+        # get the DB info from the jobReport (experiment specific)
+        from FileHandling import getDBInfo
+        job.dbTime, job.dbData = getDBInfo(job.workdir)
+
         return job
 
     

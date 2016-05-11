@@ -20,15 +20,15 @@ from json import loads
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
-     tailPilotErrorDiag, getFileAccessInfo, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
+from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand, getSiteInformation,\
+     tailPilotErrorDiag, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from ProxyGuard import ProxyGuard
 from shutil import copy2
-from FileHandling import tail, getExtension, extractOutputFilesFromJSON, getDestinationDBlockItems
+from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems
 from EventRanges import downloadEventRanges
 
 # remove logguid, debuglevel - not needed
@@ -631,7 +631,8 @@ class RunJob(object):
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
-            useCT, oldPrefix, newPrefix = getFileAccessInfo()
+            si = getSiteInformation(self.getExperiment())
+            useCT, oldPrefix, newPrefix = si.getFileAccessInfo(job.transferType)
 
             # Transfer input files
             tin_0 = os.times()
@@ -838,6 +839,7 @@ class RunJob(object):
 
                     # Start the utility if required
                     utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                    utility_subprocess_launches = 1
 
                     # Loop until the main subprocess has finished
                     while main_subprocess.poll() is None:
@@ -852,10 +854,19 @@ class RunJob(object):
                                 # If poll() returns anything but None it means that the subprocess has ended - which it should not have done by itself
                                 # Unless it was killed by the Monitor along with all other subprocesses
                                 if not os.path.exists(os.path.join(job.workdir, "MEMORYEXCEEDED")) and not os.path.exists(os.path.join(job.workdir, "JOBWILLBEKILLED")):
-                                    tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
-                                    utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                                    if utility_subprocess_launches <= 5:
+                                        tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - will restart it")
+                                        utility_subprocess = self.getUtilitySubprocess(thisExperiment, cmd, main_subprocess.pid, job)
+                                        utility_subprocess_launches += 1
+                                    elif utility_subprocess_launches <= 6:
+                                        tolog("!!WARNING!!4343!! Dectected crashed utility subprocess - too many restarts, will not restart again")
+                                        utility_subprocess_launches += 1
+                                        utility_subprocess = None
+                                    else:
+                                        pass
                                 else:
                                     tolog("Detected lockfile MEMORYEXCEEDED: will not restart utility")
+                                    utility_subprocess = None
 
                     # Stop the utility
                     if utility_subprocess:
@@ -896,7 +907,7 @@ class RunJob(object):
                     tolog("!!WARNING!!3001!! %s" % (res_tuple[1]))
 
             except Exception, e:
-                tolog("!!FAILED!!3000!! Failed to run command: %s" % str(e))
+                tolog("!!WARNING!!3000!! Failed to run command: %s" % (e))
                 getstatusoutput_was_interrupted = True
                 if self.__failureCode:
                     job.result[2] = self.__failureCode
@@ -1008,7 +1019,7 @@ class RunJob(object):
         _fname = "%s/metadata-%s.xml" % (job.workdir, job.jobId)
         try:
             _status = pUtil.PFCxml(job.experiment, _fname, list(job.outFiles), fguids=job.outFilesGuids, fntag="lfn", alog=job.logFile, alogguid=guid,\
-                                   fsize=fsize, checksum=checksum, analJob=analysisJob)
+                                   fsize=fsize, checksum=checksum, analJob=analysisJob, logToOS=job.putLogToOS)
         except Exception, e:
             pilotErrorDiag = "PFCxml failed due to problematic XML: %s" % (e)
             tolog("!!WARNING!!1113!! %s" % (pilotErrorDiag))
@@ -1180,13 +1191,8 @@ class RunJob(object):
         tin_0 = os.times()
         try:
             rc, job.pilotErrorDiag, rf, rs, job.filesNormalStageOut, job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (pfnFile), dsname, jobSite.sitename,\
-                                             jobSite.computingElement, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, scopeOut=job.scopeOut,\
-                                             proxycheck=self.__proxycheckFlag, spsetup=job.spsetup, token=job.destinationDBlockToken,\
-                                             userid=job.prodUserID, datasetDict=datasetDict, prodSourceLabel=job.prodSourceLabel,\
-                                             outputDir=self.__outputDir, jobId=job.jobId, jobWorkDir=job.workdir, DN=job.prodUserID,\
-                                             dispatchDBlockTokenForOut=job.dispatchDBlockTokenForOut, outputFileInfo=outputFileInfo,\
-                                             jobDefId=job.jobDefinitionID, jobCloud=job.cloud, logFile=job.logFile,\
-                                             stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, experiment=self.__experiment, fileDestinationSE=job.fileDestinationSE, job=job)
+                                             jobSite.computingElement, analysisJob=analysisJob, pinitdir=self.__pilot_initdir, proxycheck=self.__proxycheckFlag, datasetDict=datasetDict,\
+                                             outputDir=self.__outputDir, outputFileInfo=outputFileInfo, stageoutTries=self.__stageoutretry, cmtconfig=cmtconfig, job=job)
             tin_1 = os.times()
             job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
@@ -1566,10 +1572,12 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # update copysetup[in] for production jobs if brokerage has decided that remote I/O should be used
-        if job.transferType == 'direct':
-            tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files, any special access mode will be ignored)' %\
+        if job.transferType == 'direct' or job.transferType == 'fax':
+            tolog('Brokerage has set transfer type to \"%s\" (remote I/O will be attempted for input files)' %\
                   (job.transferType))
             RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+            si = getSiteInformation(runJob.getExperiment())
+            si.updateDirectAccess(job.transferType)
 
         # stage-in all input files (if necessary)
         job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob)
@@ -1583,11 +1591,8 @@ if __name__ == "__main__":
         # and update the run command list if necessary.
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
-        if job.inFiles != ['']:
-            hasInput = True
-        else:
-            hasInput = False
-        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput)
+        hasInput = job.inFiles != ['']
+        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
 
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
         #runJob.copyInputForFiles(job.workdir)
@@ -1629,24 +1634,15 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # are there any additional output files created by the trf/payload?
-        try:
-            if not analysisJob:
-                output_files_json = extractOutputFilesFromJSON(job.workdir, job.allowNoOutput)
-            else:
-                tolog("Will not extract output files from jobReport for user job")
-                output_files_json = []
-        except Exception, e:
-            tolog("!!WARNING!!2327!! Exception caught: %s" % (e))
-            output_files_json = []
-
-        if output_files_json != []:
-            tolog("Will update the output file lists since files were discovered in the job report")
+        extracted_output_files = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles)
+        if extracted_output_files != []:
+            tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
 
             new_destinationDBlockToken = []
             new_destinationDblock = []
             new_scopeOut = []
             try:
-                for f in output_files_json:
+                for f in extracted_output_files:
                     _destinationDBlockToken, _destinationDblock, _scopeOut = getDestinationDBlockItems(f, job.outFiles, job.destinationDBlockToken, job.destinationDblock, job.scopeOut)
                     new_destinationDBlockToken.append(_destinationDBlockToken)
                     new_destinationDblock.append(_destinationDblock)
@@ -1655,12 +1651,12 @@ if __name__ == "__main__":
                 tolog("!!WARNING!!3434!! Exception caught: %s" % (e))
             else:
                 # Finally replace the output file lists
-                job.outFiles = output_files_json
+                job.outFiles = extracted_output_files
                 job.destinationDblock = new_destinationDblock
                 job.destinationDBlockToken = new_destinationDBlockToken
                 job.scopeOut = new_scopeOut
 
-                tolog("Updated: job.outFiles=%s" % str(output_files_json))
+                tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
                 tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
                 tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
                 tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
@@ -1670,7 +1666,6 @@ if __name__ == "__main__":
         if ec:
             # missing output file (only error code from prepareOutFiles)
             runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
-        tolog("outsDict: %s" % str(outsDict))
 
         # update the current file states
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")

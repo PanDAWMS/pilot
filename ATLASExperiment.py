@@ -109,11 +109,12 @@ class ATLASExperiment(Experiment):
                 pass
             else:
                 if coreCount >= 1:
-                    cmd2 += 'export MAKEFLAGS="j%d QUICK=1 -l1";' % (coreCount)
+                    # Note: the original request (AF) was to use j%d and not -j%d, now using the latter
+                    cmd2 += 'export MAKEFLAGS="-j%d QUICK=1 -l1";' % (coreCount)
                     tolog("Added multi-core support to cmd2: %s" % (cmd2))
         # make sure that MAKEFLAGS is always set
         if not "MAKEFLAGS=" in cmd2:
-            cmd2 += 'export MAKEFLAGS="j1 QUICK=1 -l1";'
+            cmd2 += 'export MAKEFLAGS="-j1 QUICK=1 -l1";'
 
         return cmd2
 
@@ -137,7 +138,7 @@ class ATLASExperiment(Experiment):
         #            cmd =
         #        Setup example runAthena:
         #          old setup:
-        #            cmd = export PANDA_RESOURCE="ANALY_BNL_LONG";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2674156736]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="panda-client-0.5.56-jedi-athena";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc47-opt/19.2.0/cmtsite/asetup.sh 19.2.0,notest --cmtconfig x86_64-slc6-gcc47-opt ;export MAKEFLAGS="j1 QUICK=1 -l1";export X509_USER_PROXY=<path>;./runAthena-00-00-12 .. 
+        #            cmd = export PANDA_RESOURCE="ANALY_BNL_LONG";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2674156736]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="panda-client-0.5.56-jedi-athena";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc47-opt/19.2.0/cmtsite/asetup.sh 19.2.0,notest --cmtconfig x86_64-slc6-gcc47-opt ;export MAKEFLAGS="j1 QUICK=1 -l1";export X509_USER_PROXY=<path>;./runAthena-00-00-12 ..
         #          new setup:
         #            cmd =
         #        Setup example buildGen:
@@ -148,20 +149,20 @@ class ATLASExperiment(Experiment):
         #     2. AnalysisTransforms-<project>_<cache>, e.g. project=AthAnalysisBase,AtlasDerivation,AtlasProduction,MCProd,TrigMC; cache=20.1.6.2,..
         #        Setup example
         #          old setup:
-        #            cmd = 
+        #            cmd =
         #     3. AnalysisTransforms-<project>_rel_<N>, e.g. project=AtlasOffline; N=0,1,2,..
         #        Setup example
         #          old setup:
-        #            cmd = 
+        #            cmd =
         #     4. [homaPackage not set]
         #        Setup example runGen:
         #          old setup:
-        #            cmd = export PANDA_RESOURCE="ANALY_LPC";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2673995173]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="gangarobot-rctest";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;export X509_USER_PROXY=<path>;./runGen-00-00-02 .. 
+        #            cmd = export PANDA_RESOURCE="ANALY_LPC";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2673995173]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="gangarobot-rctest";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;export X509_USER_PROXY=<path>;./runGen-00-00-02 ..
         #          new setup:
         #            cmd =
         #        Setup example buildGen:
         #          old setup:
-        #            cmd = export PANDA_RESOURCE=\"ANALY_TRIUMF\";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID=\"[2674133638]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"panda-client-0.5.56-jedi-run\";export RUCIO_ACCOUNT=\"pilot\";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh;export X509_USER_PROXY=<path>;./buildGen-00-00-01 
+        #            cmd = export PANDA_RESOURCE=\"ANALY_TRIUMF\";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID=\"[2674133638]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"panda-client-0.5.56-jedi-run\";export RUCIO_ACCOUNT=\"pilot\";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh;export X509_USER_PROXY=<path>;./buildGen-00-00-01
         #          new setup:
         #            cmd =
         #
@@ -245,6 +246,9 @@ class ATLASExperiment(Experiment):
                     asetup_options += "," + cacheVer
             asetup_options += " --cmtconfig " + cmtconfig
 
+            # always set the --makeflags option (to prevent asetup from overwriting it)
+            asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
+
             cmd = asetup_path + asetup_options
 
         # Add the transform and the job parameters
@@ -252,9 +256,9 @@ class ATLASExperiment(Experiment):
 
         # Add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
-            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         else:
-            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         if 'HPC_HPC' in readpar("catchall"):
             cmd = 'export JOB_RELEASE=%s;export JOB_HOMEPACKAGE=%s;JOB_CACHEVERSION=%s;JOB_CMTCONFIG=%s;%s' % (job.release, job.homePackage, cacheVer, cmtconfig, cmd)
 
@@ -540,13 +544,8 @@ class ATLASExperiment(Experiment):
                     if ec == self.__error.ERR_MISSINGINSTALLATION:
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
-                    # Prepare the cmd3 command with the python from the release and the full path to the trf
-                    _cmd = cmd1
-                    if cmd2 != "": # could be unset (in the case of unset homepackage strings)
-                        _cmd += ";" + cmd2
-                    cmd3 = self.getProdCmd3(_cmd, pybin, job.trf, job.jobPars)
-                else:
-                    cmd3 = "%s %s" % (job.trf, job.jobPars)
+                # Prepare the cmd3 command with the trf and job parameters
+                cmd3 = "%s %s" % (job.trf, job.jobPars)
 
             elif verifyReleaseString(job.homePackage) != 'NULL':
                 cmd3 = "%s/kitval/KitValidation/JobTransforms/%s/%s %s" %\
@@ -646,9 +645,9 @@ class ATLASExperiment(Experiment):
 
         # add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall"):
-            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd['environment'] = self.getEnvVars2Cmd(job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         else:
-            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.processingType, jobSite.sitename, analysisJob)
+            cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
 
         # Is JEM allowed to be used?
         if self.isJEMAllowed():
@@ -677,6 +676,150 @@ class ATLASExperiment(Experiment):
             tolog("Special setup command: %s" % (special_setup_cmd))
 
         return 0, pilotErrorDiag, cmd, special_setup_cmd, JEM, cmtconfig
+
+    def getAnalysisRunCommand(self, job, jobSite, trfName):
+        """ Get the run command for analysis jobs """
+        # The run command is used to setup up user job transform
+
+        from RunJobUtilities import updateCopysetups
+
+        ec = 0
+        pilotErrorDiag = ""
+        run_command = ""
+
+        # get the queuedata info
+        # (directAccess info is stored in the copysetup variable)
+
+        # get relevant file transfer info
+        dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl, lfcHost =\
+               self.getFileTransferInfo(job.transferType, isBuildJob(job.outFiles))
+
+        # extract the setup file from copysetup (and verify that it exists)
+        _copysetup = self.getSetupFromCopysetup(copysetup)
+        if _copysetup != "" and os.path.exists(_copysetup):
+            run_command = 'source %s;' % (_copysetup)
+
+        # add the user proxy
+        if os.environ.has_key('X509_USER_PROXY'):
+            run_command += 'export X509_USER_PROXY=%s;' % os.environ['X509_USER_PROXY']
+        else:
+            tolog("Could not add user proxy to the run command (proxy does not exist)")
+
+        # set up analysis trf
+        run_command += './%s %s' % (trfName, job.jobPars)
+
+        # add options for file stager if necessary
+        if dInfo:
+            # in case of forced usePFCTurl
+            if usePFCTurl and not '--usePFCTurl' in run_command:
+                oldPrefix = ""
+                newPrefix = ""
+                run_command += ' --usePFCTurl'
+                tolog("reset old/newPrefix (forced TURL mode (1))")
+
+            # sort out when directIn and useFileStager options should be used
+            if useDirectAccess and '--directIn' not in job.jobPars and '--directIn' not in run_command:
+                run_command += ' --directIn'
+            if useFileStager and '--useFileStager' not in job.jobPars:
+                run_command += ' --useFileStager'
+            # old style copysetups will contain oldPrefix and newPrefix needed for the old style remote I/O
+            if oldPrefix != "" and newPrefix != "":
+                run_command += ' --oldPrefix "%s" --newPrefix %s' % (oldPrefix, newPrefix)
+            else:
+                # --directIn should be used in combination with --usePFCTurl, but not --old/newPrefix and --lfcHost
+                if usePFCTurl and not '--usePFCTurl' in run_command:
+                    run_command += ' --usePFCTurl'
+
+        if job.transferType == 'direct':
+            # update the copysetup
+            # transferType is only needed if copysetup does not contain remote I/O info
+            updateCopysetups(run_command, transferType=job.transferType, useCT=False, directIn=useDirectAccess, useFileStager=useFileStager)
+
+        # add options for file stager if necessary (ignore if transferType = direct)
+        if "accessmode" in job.jobPars and job.transferType != 'direct':
+            accessmode_useCT = None
+            accessmode_useFileStager = None
+            accessmode_directIn = None
+            _accessmode_dic = { "--accessmode=copy":["copy-to-scratch mode", ""],
+                                "--accessmode=direct":["direct access mode", " --directIn"],
+                                "--accessmode=filestager":["direct access / file stager mode", " --directIn --useFileStager"]}
+            # update run_command according to jobPars
+            for _mode in _accessmode_dic.keys():
+                if _mode in job.jobPars:
+                    # any accessmode set in jobPars should overrule schedconfig
+                    tolog("Enforcing %s" % (_accessmode_dic[_mode][0]))
+                    if _mode == "--accessmode=copy":
+                        # make sure direct access and file stager get turned off
+                        usePFCTurl = False
+                        accessmode_useCT = True
+                        accessmode_directIn = False
+                        accessmode_useFileStager = False
+                    elif _mode == "--accessmode=direct":
+                        # make sure copy-to-scratch and file stager get turned off
+                        usePFCTurl = True
+                        accessmode_useCT = False
+                        accessmode_directIn = True
+                        accessmode_useFileStager = False
+                    else:
+                        # make sure file stager gets turned on
+                        usePFCTurl = False
+                        accessmode_useCT = False
+                        accessmode_directIn = True
+                        accessmode_useFileStager = True
+
+                    # update run_command (do not send the accessmode switch to runAthena)
+                    run_command += _accessmode_dic[_mode][1]
+                    if _mode in run_command:
+                        run_command = run_command.replace(_mode, "")
+
+            if "directIn" in run_command and not dInfo:
+                if not usePFCTurl:
+                    usePFCTurl = True
+                    tolog("WARNING: accessmode mode specified directIn but direct access mode is not specified in copysetup (will attempt to create TURL based PFC later)")
+                if not "usePFCTurl" in run_command:
+                    run_command += ' --usePFCTurl'
+
+            # need to add proxy if not there already
+            if ("--directIn" in run_command or "--useFileStager" in run_command) and not "export X509_USER_PROXY" in run_command:
+                if os.environ.has_key('X509_USER_PROXY'):
+                    run_command = run_command.replace("./%s" % (trfName), "export X509_USER_PROXY=%s;./%s" % (os.environ['X509_USER_PROXY'], trfName))
+                else:
+                    tolog("Did not add user proxy to the run command (proxy does not exist)")
+
+            # add the lfcHost if not there already
+            if not "--lfcHost" in run_command and lfcHost != "":
+                run_command += " --lfcHost %s" % (lfcHost)
+
+            # update the copysetup
+            updateCopysetups(run_command, transferType=None, useCT=accessmode_useCT, directIn=accessmode_directIn, useFileStager=accessmode_useFileStager)
+
+        # add guids and lfc host when needed
+        if lfcHost != "":
+            # get the correct guids list (with only the direct access files)
+            if not isBuildJob(job.outFiles):
+                _guids = self.getGuidsFromJobPars(job.jobPars, job.inFiles, job.inFilesGuids)
+                # only add the lfcHost if --usePFCTurl is not specified
+                if usePFCTurl:
+                    run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
+                else:
+                    if not "--lfcHost" in run_command:
+                        run_command += ' --lfcHost %s' % (lfcHost)
+                    run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
+            else:
+                if not usePFCTurl and not "--lfcHost" in run_command:
+                    run_command += ' --lfcHost %s' % (lfcHost)
+
+        # if both direct access and the accessmode loop added a directIn switch, remove the first one from the string
+        if run_command.count("directIn") > 1:
+            run_command = run_command.replace("--directIn", "", 1)
+
+        # make sure that the site supports direct access / file stager
+#        if ("--directIn" in run_command or "--useFileStager" in run_command) and readpar('allowdirectaccess').lower() != "true":
+#            ec = self.__error.ERR_DAFSNOTALLOWED
+#            pilotErrorDiag = "Site does not allow requested direct access / file stager (payload will fail)"
+#            tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
+
+        return ec, pilotErrorDiag, run_command
 
     def getFileLookups(self):
         """ Return the file lookup boolean """
@@ -770,7 +913,9 @@ class ATLASExperiment(Experiment):
                     "pwg*",
                     "pwhg*",
                     "*PROC*",
+                    "madevent",
                     "HPC",
+                    "objectstore*.json",
                     "saga",
                     "radical"]
 
@@ -831,7 +976,7 @@ class ATLASExperiment(Experiment):
                     target_path = os.readlink(path)
                     # Resolve relative symlinks
                     if not os.path.isabs(target_path):
-                        target_path = os.path.join(os.path.dirname(path),target_path)             
+                        target_path = os.path.join(os.path.dirname(path),target_path)
                     if not os.path.exists(target_path):
                         broken.append(path)
                 else:
@@ -1885,50 +2030,11 @@ class ATLASExperiment(Experiment):
 
         return _swbase
 
-    def getProdCmd3(self, cmd, pybin, jobtrf, jobPars):
-        """ Prepare the cmd3 command with the python from the release and the full path to the trf """
-        # When python is invoked using the full path, it also needs the full path to the script
-
-        return "%s %s" % (jobtrf, jobPars)
-        #return "%s `which %s` %s" % (pybin, jobtrf, jobPars)
-        #return "%s %s %s" % (pybin, jobtrf, jobPars)
-
-    def getProdCmd3Old(self, cmd, pybin, jobtrf, jobPars):
-        """ Prepare the cmd3 command with the python from the release and the full path to the trf """
-        # When python is invoked using the full path, it also needs the full path to the script
-
-        # First try to figure out where the trf is inside the release
-        if not cmd.endswith(";"):
-            cmd += ";"
-        _cmd = "%swhich %s" % (cmd, jobtrf)
-        _timedout = False
-
-        exitcode, _trf = timedCommand(_cmd, timeout=getProperTimeout(cmd))
-        if exitcode != 0:
-            _timedout = True
-        tolog("Trf: %s" % (_trf))
-
-        # split the output if necessary (the path should be the last entry)
-        if "\n" in _trf:
-            _trf = _trf.split("\n")[-1]
-            tolog("Trf: %s (extracted)" % (_trf))
-
-        # could the trf be found?
-        if "which: no" in _trf or jobtrf not in _trf or _timedout:
-            tolog("!!WARNING!!2999!! Will not use python from the release since the trf path could not be figured out")
-            cmd3 = "%s %s" % (jobtrf, jobPars)
-        else:
-            tolog("Will use python from the release: %s" % (pybin))
-            tolog("Path to trf: %s" % (_trf))
-            cmd3 = "%s %s %s" % (pybin, _trf, jobPars)
-
-        return cmd3
-
-    def addEnvVars2Cmd(self, cmd, jobId, processingType, sitename, analysisJob):
+    def addEnvVars2Cmd(self, cmd, jobId, taskId, processingType, sitename, analysisJob):
         """ Add env variables """
 
         _sitename = 'export PANDA_RESOURCE=\"%s\";' % (sitename)
-        _frontier1 = 'export FRONTIER_ID=\"[%s]\";' % (jobId)
+        _frontier1 = 'export FRONTIER_ID=\"[%s_%s]\";' % (taskId, jobId)
         _frontier2 = 'export CMSSW_VERSION=$FRONTIER_ID;'
         _ttc = ''
 
@@ -1956,12 +2062,12 @@ class ATLASExperiment(Experiment):
 
         return _sitename + _ttc + _frontier1 + _frontier2 + _rucio + _coreCount + _unset + cmd
 
-    def getEnvVars2Cmd(self, jobId, processingType, sitename, analysisJob):
+    def getEnvVars2Cmd(self, jobId, taskId, processingType, sitename, analysisJob):
         """ Return array with enviroment variables """
 
         variables = []
         variables.append('export PANDA_RESOURCE=\"%s\";' % (sitename))
-        variables.append('export FRONTIER_ID=\"[%s]\";' % (jobId))
+        variables.append('export FRONTIER_ID=\"[%s_%s]\";' % (taskId, jobId))
         variables.append('export CMSSW_VERSION=$FRONTIER_ID;')
         variables.append('export ROOT_TTREECACHE_SIZE=1;')
 
@@ -2399,7 +2505,7 @@ class ATLASExperiment(Experiment):
                 asetup_path = ""
                 cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
 
-        return "%s %s %s --cmtconfig %s %s%s" % (cmd, asetup_path, options, cmtconfig, _input, tail)
+        return '%s %s %s --makeflags=\"$MAKEFLAGS\" --cmtconfig %s %s%s' % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractRelN(self, homePackage):
         """ Extract the rel_N bit from the homePackage string """
@@ -2542,7 +2648,7 @@ class ATLASExperiment(Experiment):
         return name
 
     def getMetadataForRegistration(self, guid):
-        """ Return metadata (not known yet) for LFC registration """
+        """ Return metadata (not known yet) for later file registration """
 
         # Use the GUID as identifier (the string "<GUID>-surltobeset" will later be replaced with the SURL)
         return '    <metadata att_name="surl" att_value="%s-surltobeset"/>\n' % (guid)
@@ -2639,9 +2745,11 @@ class ATLASExperiment(Experiment):
         installation_error = False
         if getstatusoutput_was_interrupted:
             if os.path.exists(filename):
-                if os.path.getsize(filename) > 0:
-                    tolog("Payload produced stdout but was interrupted (getstatusoutput threw an exception)")
+                fsize = os.path.getsize(filename)
+                if fsize > 0:
+                    tolog("!!WARNING!!3444!! Payload produced stdout but was interrupted (getstatusoutput threw an exception)")
                 else:
+                    tolog("!!WARNING!!3444!! Payload produced zero size output (%s)" % (filename))
                     no_payload_output = True
                 failed = True
             else:
@@ -2734,7 +2842,7 @@ class ATLASExperiment(Experiment):
         return allowjem
 
     # Optional
-    def doSpecialLogFileTransfer(self, eventService=False):
+    def doSpecialLogFileTransfer(self, **argdict):
         """ Should the log file be transfered to a special SE? """
 
         # The log file can at the end of the job be stored in a special SE - in addition to the normal stage-out of the log file
@@ -2744,7 +2852,9 @@ class ATLASExperiment(Experiment):
 
         transferLogToObjectstore = False
 
-        if "log_to_objectstore" in readpar('catchall') or eventService:
+        eventService = argdict.get('eventService', False)
+        putLogToOS = argdict.get('putLogToOS', False)
+        if "log_to_objectstore" in readpar('catchall') or eventService or putLogToOS:
             transferLogToObjectstore = True
         if 'HPC_HPC' in readpar('catchall'):
             transferLogToObjectstore = True
@@ -3308,6 +3418,8 @@ class ATLASExperiment(Experiment):
         # While running, the MemoryMonitor also produces a regularly updated text file with the following format: (tab separated)
         #   Time          VMEM        PSS        RSS        Swap         (first line in file)
         #   1447960494    16099644    3971809    6578312    1978060
+        if 'HPC_HPC' in readpar("catchall"):
+            return False
 
         return True
 
@@ -3456,10 +3568,10 @@ class ATLASExperiment(Experiment):
                                 tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
                             else:
                                 # Convert to int
-                                ec1, maxVMEM, totalVMEM = self.getMaxUtilityValue(VMEM, maxVMEM, totalVMEM) 
-                                ec2, maxPSS, totalPSS = self.getMaxUtilityValue(PSS, maxPSS, totalPSS) 
-                                ec3, maxRSS, totalRSS = self.getMaxUtilityValue(RSS, maxRSS, totalRSS) 
-                                ec4, maxSwap, totalSwap = self.getMaxUtilityValue(Swap, maxSwap, totalSwap) 
+                                ec1, maxVMEM, totalVMEM = self.getMaxUtilityValue(VMEM, maxVMEM, totalVMEM)
+                                ec2, maxPSS, totalPSS = self.getMaxUtilityValue(PSS, maxPSS, totalPSS)
+                                ec3, maxRSS, totalRSS = self.getMaxUtilityValue(RSS, maxRSS, totalRSS)
+                                ec4, maxSwap, totalSwap = self.getMaxUtilityValue(Swap, maxSwap, totalSwap)
                                 if ec1 or ec2 or ec3 or ec4:
                                     tolog("Will skip this row of numbers due to value exception: %s" % (line))
                                 else:

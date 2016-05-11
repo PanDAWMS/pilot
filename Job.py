@@ -100,8 +100,11 @@ class Job:
         self.cloneJob = ""                 # Is the job cloned? Allowed values: 'runonce', 'storeonce'
         self.allowNoOutput = []            # Used to disregard empty files from jobReport
         self.logBucketID = -1              # To keep track of which OS bucket the log was stored in
+        self.dbTime = ""                   # dbTime extracted from jobReport.json, to be used in jobMetrics
+        self.dbData = ""                   # dbData extracted from jobReport.json, to be used in jobMetrice
+        self.putLogToOS = False            # Job def instruction to ask pilot to transfer log to OS
 
-        # event service objects
+        #  event service data
         self.eventService = False          # True for event service jobs
         self.eventServiceMerge = False     # True for event service merge jobs
         self.eventRanges = None            # Event ranges dictionary
@@ -111,6 +114,7 @@ class Job:
         self.outputZipEventRangesName = None
         self.outputZipBucketID = None
         self.inputZipFiles = []
+        self.altStageOut = None            # Alt stage-out overrides from the server
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
 #        self.lastEvent = None              # Set for event service jobs
@@ -251,6 +255,7 @@ class Job:
         self.ddmEndPointOut = data.get('ddmEndPointOut', '').split(',') if data.get('ddmEndPointOut') else []
         self.allowNoOutput = data.get('allowNoOutput', '').split(',') if data.get('allowNoOutput') else []
 
+        self.altStageOut = data.get('altStageOut', '') # on, off, force
         self.cloneJob = data.get('cloneJob', '')
         self.logFile = data.get('logFile', '')
         self.prodUserID = data.get('prodUserID', '')
@@ -367,6 +372,7 @@ class Job:
         self.maxCpuCount = int(data.get('maxCpuCount', 0))
         self.transferType = data.get('transferType', '')
 #PN        self.transferType = 'direct'
+#        self.transferType = 'fax'
 
         if data.has_key('maxDiskCount'):
             _tmp = int(data['maxDiskCount'])
@@ -468,6 +474,13 @@ class Job:
         pUtil.tolog("Updated ddmEndPointLog=%s" % self.ddmEndPointLog)
 
         self.jobPars = data.get('jobPars', '')
+        putLogToOS = data.get('putLogToOS', 'False')
+        #putLogToOS = 'True'
+        if putLogToOS.lower() == 'true':
+            self.putLogToOS = True
+        else:
+            self.putLogToOS = False
+        pUtil.tolog("putLogToOS = %s" % str(self.putLogToOS))
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
@@ -835,6 +848,14 @@ class FileSpec(object):
         checksum_type = cmap.get(checksum_type, checksum_type)
 
         return checksum, checksum_type
+
+    def set_checksum(self, checksum, checksum_type):
+        cmap = {'adler32':'ad', 'md5':'md'}
+
+        if checksum_type:
+            self.checksum = '%s:%s' % (cmap.get(checksum_type, checksum_type), checksum)
+        else:
+            self.checksum = checksum
 
     def is_directaccess(self):
 

@@ -113,8 +113,8 @@ class PilotErrors:
     ERR_DAFSNOTALLOWED = 1214
     ERR_NOTCPCONNECTION = 1215
     ERR_NOPILOTTCPSERVER = 1216
-    ERR_RUNEVENTEXC = 1218
     ERR_CORECOUNTMISMATCH = 1217
+    ERR_RUNEVENTEXC = 1218
     ERR_UUIDGEN = 1219
     ERR_UNKNOWN = 1220
     ERR_FILEEXIST = 1221
@@ -133,6 +133,7 @@ class PilotErrors:
     ERR_EXECUTEDCLONEJOB = 1234
     ERR_PAYLOADEXCEEDMAXMEM = 1235
     ERR_FAILEDBYSERVER = 1236
+    ERR_ESKILLEDBYSERVER = 1237
 
     # internal error codes
     ERR_DDMREG = 1
@@ -254,13 +255,14 @@ class PilotErrors:
         ERR_NOPILOTTCPSERVER : "Pilot TCP server has died",
         ERR_CORECOUNTMISMATCH : "Mismatch between core count in job and queue definition",
         ERR_RUNEVENTEXC : "Exception caught by runEvent",
+        ERR_UUIDGEN : "uuidgen failed to produce a guid",
         ERR_UNKNOWN : "Job failed due to unknown reason (consult log file)",
         ERR_FILEEXIST : "File already exist",
         ERR_GETKEYPAIR : "Failed to get security key pair",
         ERR_BADALLOC : "TRF failed due to bad_alloc",
         ERR_ESMERGERECOVERABLE : "Recoverable Event Service Merge error",
         ERR_ESRECOVERABLE: "Recoverable Event Service error",
-	ERR_GLEXEC: "gLExec related error",
+        ERR_GLEXEC: "gLExec related error",
         ERR_ESATHENAMPDIED: "AthenaMP ended Event Service job prematurely",
         ERR_ESFATAL: "Fatal Event Service error",
         ERR_TEFATAL: "Fatal Token Extractor error",
@@ -270,7 +272,8 @@ class PilotErrors:
         ERR_TEWRONGGUID: "Token Extractor error: No tokens for this GUID",
         ERR_EXECUTEDCLONEJOB: "Already executed clone job",
         ERR_PAYLOADEXCEEDMAXMEM: "Payload exceeded maximum allowed memory",
-        ERR_FAILEDBYSERVER: "Failed by server"
+        ERR_FAILEDBYSERVER: "Failed by server",
+        ERR_ESKILLEDBYSERVER: "Event Service job killed by server"
         }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]
