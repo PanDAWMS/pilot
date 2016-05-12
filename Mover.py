@@ -4078,9 +4078,8 @@ def mover_put_data(outputpoolfcstring,
                     _rest = 10*60
                     tolog("(Waiting %d seconds before next stage-out attempt)" % (_rest))
                     sleep(_rest)
-
-                # in case of file transfer to OS, update file paths
-                if objectstore:
+                else:
+                    # in case of file transfer to OS, update file paths
                     _path, os_bucket_id = getNewOSStoragePath(si, eventService)
                     _path = os.path.join(_path, lfn)
                     if logPath != "":
@@ -4093,9 +4092,9 @@ def mover_put_data(outputpoolfcstring,
                     ddm_storage_path = os.path.dirname(_path)
 
                     # in case of file transfer to OS, also update the ddm_storage_path
-                    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
-                    if pilotErrorDiag != "":
-                        return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
+                    #ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
+                    #if pilotErrorDiag != "":
+                    #    return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 

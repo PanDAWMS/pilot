@@ -219,7 +219,14 @@ General changes:
 
 65.2:
 
-Relaxed the input file verification in get_data() to allow for direct access, requested by D. Cameron and A. Filipcic (mvSiteMover)
+Bug fixes:
+- Removed call to getDDMStorage() which overwrote alternative bucket id (Mover)
+
+OS log transfers:
+- Ignoring failed OS log transfer and resetting os_bucket_id, in transferActualLogFile() (JobLog)
+
+Direct Access on ND:
+- Relaxed the input file verification in get_data() to allow for direct access, requested by D. Cameron and A. Filipcic (mvSiteMover)
 
 [testing at analy_uio etc, see ATLASSiteInformation]
 
