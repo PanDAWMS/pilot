@@ -4,7 +4,7 @@ import json
 import os
 from pUtil import httpConnect, tolog
 
-def downloadEventRanges(jobId, jobsetID, taskID):
+def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10):
     """ Download event ranges from the Event Server """
 
     # Return the server response (instruction to AthenaMP)
@@ -21,6 +21,7 @@ def downloadEventRanges(jobId, jobsetID, taskID):
     node['pandaID'] = jobId
     node['jobsetID'] = jobsetID
     node['taskID'] = taskID 
+    node['nRanges'] = numRanges
 
     # open connection
     ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")
@@ -37,7 +38,7 @@ def downloadEventRanges(jobId, jobsetID, taskID):
     return message
 
 def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', os_bucket_id=-1):
-    """ Update an event range on the Event Server """
+    """ Update an list of event ranges on the Event Server """
 
     tolog("Updating an event range..")
 

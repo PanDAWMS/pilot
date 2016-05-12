@@ -34,6 +34,7 @@ from pUtil import tolog, getExperiment, isAnalysisJob, httpConnect, createPoolFi
 from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getFilePathForObjectStore, getInitialTracingReport
 from PandaServerClient import PandaServerClient
+import EventRanges
 
 from GetJob import GetJob
 from EventStager import EventStager
@@ -73,6 +74,7 @@ class RunJobHpcEvent(RunJob):
         self.__hpcStatue = 'starting'
         self.__hpcCoreCount = 0
         self.__hpcEventRanges = 0
+        self.__hpcJobId = None
         self.__neededEventRanges = 0
         self.__avail_files = {}
         self.__avail_tag_files = {}
@@ -473,6 +475,7 @@ class RunJobHpcEvent(RunJob):
         return 0
 
     def updateJobState(self, job, jobState, hpcState, final=False, updatePanda=True):
+        job.HPCJobId = self.__hpcJobId
         job.setMode(self.__hpcMode)
         job.jobState = jobState
         job.setState([job.jobState, 0, 0])
@@ -659,61 +662,22 @@ class RunJobHpcEvent(RunJob):
         #    self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
 
 
-    def updateEventRange(self, event_range_id, status='finished'):
+    def updateEventRange(self, event_range_id, jobid, status='finished', os_bucket_id=-1):
         """ Update an event range on the Event Server """
-        tolog("Updating an event range..")
+        message = EventRanges.updateEventRange(event_range_id, [], jobid, status, os_bucket_id)
 
-        message = ""
-        # url = "https://aipanda007.cern.ch:25443/server/panda"
-        url = "https://pandaserver.cern.ch:25443/server/panda"
-        node = {}
-        node['eventRangeID'] = event_range_id
-
-        # node['cpu'] =  eventRangeList[1]
-        # node['wall'] = eventRangeList[2]
-        node['eventStatus'] = status
-        # tolog("node = %s" % str(node))
-
-        # open connection
-        ret = httpConnect(node, url, path=self.__pilotWorkingDir, mode="UPDATEEVENTRANGE")
-        # response = ret[1]
-
-        if ret[0]: # non-zero return code
-            message = "Failed to update event range - error code = %d" % (ret[0])
-        else:
-            message = ""
-
-        return ret[0], message
+        return 0, message
 
 
     def updateEventRanges(self, event_ranges):
         """ Update an event range on the Event Server """
-        tolog("Updating event ranges..")
-
-        message = ""
-        #url = "https://aipanda007.cern.ch:25443/server/panda"
-        url = "https://pandaserver.cern.ch:25443/server/panda"
-        # eventRanges = [{'eventRangeID': '4001396-1800223966-4426028-1-2', 'eventStatus':'running'}, {'eventRangeID': '4001396-1800223966-4426028-2-2','eventStatus':'running'}]
-
-        node={}
-        node['eventRanges']=json.dumps(event_ranges)
-
-        # open connection
-        ret = pUtil.httpConnect(node, url, path='.', mode="UPDATEEVENTRANGES")
-        # response = json.loads(ret[1])
-
-        status = ret[0]
-        if ret[0]: # non-zero return code
-            message = "Failed to update event range - error code = %d, error: " % (ret[0], ret[1])
-        else:
-            response = json.loads(json.dumps(ret[1]))
-            status = int(response['StatusCode'])
-            message = json.dumps(response['Returns'])
+        return EventRanges.updateEventRanges(event_ranges)
 
         return status, message
 
     def getJobEventRanges(self, job, numRanges=2):
         """ Download event ranges from the Event Server """
+        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=2)
         tolog("Server: Downloading new event ranges..")
 
         if os.environ.has_key('EventRanges') and os.path.exists(os.environ['EventRanges']):
@@ -725,28 +689,16 @@ class RunJobHpcEvent(RunJob):
             except:
                 tolog('Failed to open event ranges json file: %s' % traceback.format_exc())
 
-        message = ""
-        # url = "https://aipanda007.cern.ch:25443/server/panda"
-        url = "https://pandaserver.cern.ch:25443/server/panda"
-
-        node = {}
-        node['pandaID'] = job.jobId
-        node['jobsetID'] = job.jobsetID
-        node['taskID'] = job.taskID
-        node['nRanges'] = numRanges
-
-        # open connection
-        ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")
-        response = ret[1]
-
-        if ret[0]: # non-zero return code
-            message = "Failed to download event range - error code = %d" % (ret[0])
-            tolog(message)
+        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=2)
+        try:
+            if "Failed" in message or "No more events" in message:
+                tolog(message)
+                return []
+            else:
+                return json.loads(message)
+        except:
+            tolog(traceback.format_exc())
             return []
-        else:
-            message = response['eventRanges']
-            return json.loads(message)
-
 
     def updateHPCEventRanges(self):
         for jobId in self.__eventRanges:
@@ -757,7 +709,7 @@ class RunJobHpcEvent(RunJob):
                     else:
                         eventStatus = 'failed'
                     try:
-                        ret, message = self.updateEventRange(eventRangeID, eventStatus)
+                        ret, message = self.updateEventRange(eventRangeID, jobId, eventStatus)
                     except Exception, e:
                         tolog("Failed to update event range: %s, %s, exception: %s " % (eventRangeID, eventStatus, str(e)))
                     else:
@@ -1315,6 +1267,7 @@ class RunJobHpcEvent(RunJob):
             time_start = time.time()
             state = hpcManager.poll()
             self.__hpcStatue = state
+            self.__hpcJobId = hpcManager.getHPCJobId()
             self.updateAllJobsState('starting', self.__hpcStatue, updatePanda=True)
 
             while not hpcManager.isFinished():

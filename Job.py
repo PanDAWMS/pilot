@@ -110,11 +110,16 @@ class Job:
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
         self.pandaProxySecretKey = None    # pandaproxy secret key
+
+        # zipped event outputs to a file, for event service
         self.outputZipName = None
         self.outputZipEventRangesName = None
         self.outputZipBucketID = None
         self.inputZipFiles = []
+
+        # HPC MPI jobid
         self.HPCJobId = None
+
         self.altStageOut = None            # Alt stage-out overrides from the server
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
@@ -126,6 +131,8 @@ class Job:
         # job mode, for example, HPC_normal, HPC_backfill
         self.mode = None
         self.hpcStatus = None
+
+        # yoda accounting info
         self.yodaSetupTime = None
         self.yodaTotalTime = None
         self.yodaTotalCPUHour = None
@@ -134,6 +141,7 @@ class Job:
         self.yodaQueueEvents = None
         self.yodaProcessedEvents = None
         self.avgProcessTimePerEvent = None
+
         self.refreshNow = False
 
         # walltime counting for various steps
@@ -233,10 +241,14 @@ class Job:
 
         # get the input files
         self.inFiles = data.get('inFiles', '').split(',')
+
+        # remove zip:// from input files then mover can stage it in
+        # but record it in inputZipFiles for special handling
         for i in range(len(self.inFiles)):
             if self.inFiles[i].startswith("zip://"):
                 self.inFiles[i] = self.inFiles[i].replace("zip://", "")
                 self.inputZipFiles.append(self.inFiles[i])
+
         self.realDatasetsIn = data.get('realDatasetsIn', '').split(',')
         self.filesizeIn = data.get('fsize', '').split(',')
         self.checksumIn = data.get('checksum', '').split(',')
@@ -319,7 +331,7 @@ class Job:
                     if ec == 0:
                         data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
 
-        # HPC job staus
+        # Yoda job staus and accounting info
         if data.has_key('mode'):
             self.mode = data.get("mode", None)
         if data.has_key('hpcStatus'):

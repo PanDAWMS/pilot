@@ -413,12 +413,13 @@ class Droid(threading.Thread):
                         eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': eventStatus, 'objstoreID': self.__os_bucket_id})
                     if eventStatus == 'stagedOut':
                         eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': 'finished', 'objstoreID': self.__os_bucket_id})
-                status, output = self.updatePandaEventRanges(eventRanges)
-                if status == 0:
-                    self.__tmpLog.debug("Rank %s: updatePandaEventRanges(status: %s, output: %s)" % (self.__rank, status, output))
-                    for stagedRequest in stagedRequests:
-                        if not stagedRequest['eventStatus'].startswith("ERR"):
-                            stagedRequest['eventStatus'] = 'reported'
+                if len(eventRanges):
+                    status, output = self.updatePandaEventRanges(eventRanges)
+                    if status == 0:
+                        self.__tmpLog.debug("Rank %s: updatePandaEventRanges(status: %s, output: %s)" % (self.__rank, status, output))
+                        for stagedRequest in stagedRequests:
+                            if not stagedRequest['eventStatus'].startswith("ERR"):
+                                stagedRequest['eventStatus'] = 'reported'
             requests += stagedRequests
             if requests:
                 self.__tmpLog.debug("Rank %s: updateEventRanges(request: %s)" % (self.__rank, requests))
