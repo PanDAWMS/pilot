@@ -219,6 +219,10 @@ General changes:
 
 65.2:
 
+General changes:
+- Cleanup limit raised from 2 to 12 hours in purgeEmptyDirs(), purgeWorkDirs(), purgeMaxedoutDirs() (Cleaner)
+- Added debugging (sys.exc_info()) info when list_replicas() fails with 'empty dictionary' in getRucioReplicaDictionary() (Mover)
+
 Bug fixes:
 - Removed call to getDDMStorage() which overwrote alternative bucket id (Mover)
 

@@ -3912,7 +3912,7 @@ def handleQueuedata(_queuename, _pshttpurl, error, thisSite, _jobrec, _experimen
     if readpar('glexec') == "True":
         env['glexec'] = 'True'
     elif readpar('glexec') == "test":
-	env['glexec'] = 'test'
+        env['glexec'] = 'test'
     else:
         env['glexec'] = 'False'
 

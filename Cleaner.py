@@ -190,7 +190,7 @@ class Cleaner:
                 pass
             else:
                 mod_time = current_time - file_modification_time
-                if mod_time > 2*3600:
+                if mod_time > 12*3600:
                     try:
                         ls = listdir(_dir)
                     except Exception, e:
@@ -233,7 +233,7 @@ class Cleaner:
                 pass
             else:
                 mod_time = current_time - file_modification_time
-                if mod_time > 2*3600:
+                if mod_time > 12*3600:
                     try:
                         ls = listdir(_dir)
                     except Exception, e:
@@ -303,7 +303,7 @@ class Cleaner:
                 pass
             else:
                 mod_time = current_time - file_modification_time
-                if mod_time > 2*3600:
+                if mod_time > 12*3600:
                     try:
                         ls = listdir(_dir)
                     except Exception, e:
