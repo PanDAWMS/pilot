@@ -912,7 +912,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             # Get the default ddm endpoint from the normal queuedata
             ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
             os_bucket_id = si.getObjectstoreBucketID(ddmendpoint)
-            tolog("Will create a list using the default bucket ID: %d" % (os_bucket_id))
+            tolog("Will create a list using the default bucket ID: %s" % (os_bucket_id))
             os_bucket_ids = [os_bucket_id]*len(prodDBlockToken)
             tolog("os_bucket_ids=%s"%str(os_bucket_ids))
 
@@ -2233,7 +2233,7 @@ def extractInputFileInfo(fileInfoList_nr, lfns):
     filetype = fileInfoList_nr[4]
     copytool = fileInfoList_nr[5]
     os_bucket_id = fileInfoList_nr[6]
-    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool, os_bucket_id) = (%s, %s, %s, %s, %s, %s, %d)" % (guid, gpfn, str(size), checksum, filetype, copytool, os_bucket_id))
+    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool, os_bucket_id) = (%s, %s, %s, %s, %s, %s, %s)" % (guid, gpfn, str(size), checksum, filetype, copytool, os_bucket_id))
 
     # get the corresponding lfn
     lfn = getLFN(gpfn, lfns)

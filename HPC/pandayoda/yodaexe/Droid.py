@@ -99,11 +99,20 @@ class Droid(threading.Thread):
             self.__preSetup = job.get('PreSetup', None)
             self.__postRun = job.get('PostRun', None)
             self.__yodaToOS = job.get('yodaToOS', False)
+            self.__yodaToZip = job.get('yodaToZip', False)
+            self.__zipFileName = job.get('zipFileName', None)
+            self.__zipEventRangesName = job.get('zipEventRangesName', None)
+            self.__tmpLog.debug("Rank %s: zip file %s" % (self.__rank, self.__zipFileName))
+            self.__tmpLog.debug("Rank %s: zip event range file %s" % (self.__rank, self.__zipEventRangesName))
+            if self.__zipFileName is None or self.__zipEventRangesName is None:
+                self.__tmpLog.debug("Rank %s: either zipFileName(%s) is None or zipEventRanagesName(%s) is None, will not use zip output" % (self.__rank, self.__zipFileName, self.__zipEventRangesName))
+                self.__yodaToZip = False
             self.__copyOutputToGlobal =  job.get('copyOutputToGlobal', False)
 
             if self.__yodaToOS:
                 setup = job.get('setup', None)
                 self.__esPath = job.get('esPath', None)
+                self.__os_bucket_id = job.get('os_bucket_id', None)
                 self.__report =  getInitialTracingReport(userid='Yoda', sitename='Yoda', dsname=None, eventType="objectstore", analysisJob=False, jobId=None, jobDefId=None, dn='Yoda')
                 self.__siteMover = objectstoreSiteMover(setup, useTimerCommand=False)
 
@@ -165,56 +174,93 @@ class Droid(threading.Thread):
 
     def copyOutput(self, output):
         if self.__outputDir:
-            filename = output.split(",")[0]
-            base_filename = os.path.basename(filename)
-            new_file_name = os.path.join(self.__outputDir, base_filename)
-            is_copied = False
-            try:
-                os.rename(filename, new_file_name)
-                is_copied = True
-            except:
-                self.__tmpLog.debug("Rank %s: failed to move output %s to %s, %s" % (self.__rank, filename, new_file_name, str(traceback.format_exc())))
+            outputs = output.split(",")[:-3]
+            for filename in outputs:
+                #filename = output.split(",")[0]
+                base_filename = os.path.basename(filename)
+                new_file_name = os.path.join(self.__outputDir, base_filename)
                 is_copied = False
-            if not is_copied:
-                shutil.copy(filename, new_file_name)
-                os.remove(filename)
-            return 0, output.replace(filename, new_file_name)
+                try:
+                    os.rename(filename, new_file_name)
+                    is_copied = True
+                except:
+                    self.__tmpLog.debug("Rank %s: failed to move output %s to %s, %s" % (self.__rank, filename, new_file_name, str(traceback.format_exc())))
+                    is_copied = False
+                if not is_copied:
+                    shutil.copy(filename, new_file_name)
+                    os.remove(filename)
+                output = output.replace(filename, new_file_name)
+            return 0
         elif self.__copyOutputToGlobal:
-            filename = output.split(",")[0]
-            base_filename = os.path.basename(filename)
-            new_file_name = os.path.join(self.__globalWorkingDir, base_filename)
-            is_copied = False
-            try:
-                os.rename(filename, new_file_name)
-                is_copied = True
-            except:
-                self.__tmpLog.debug("Rank %s: failed to move output %s to %s, %s" % (self.__rank, filename, new_file_name, str(traceback.format_exc())))
+            outputs = output.split(",")[:-3]
+            for filename in outputs:
+                #filename = output.split(",")[0]
+                base_filename = os.path.basename(filename)
+                new_file_name = os.path.join(self.__globalWorkingDir, base_filename)
                 is_copied = False
-            if not is_copied:
-                shutil.copy(filename, new_file_name)
-                os.remove(filename)
-            return 0, output.replace(filename, new_file_name)
+                try:
+                    os.rename(filename, new_file_name)
+                    is_copied = True
+                except:
+                    self.__tmpLog.debug("Rank %s: failed to move output %s to %s, %s" % (self.__rank, filename, new_file_name, str(traceback.format_exc())))
+                    is_copied = False
+                if not is_copied:
+                    shutil.copy(filename, new_file_name)
+                    os.remove(filename)
+                output = output.replace(filename, new_file_name)
+            return 0, output
         else:
             if self.__localWorkingDir == self.__globalWorkingDir:
                 return 0, output
 
-            filename = output.split(",")[0]
-            new_file_name = filename.replace(self.__localWorkingDir, self.__globalWorkingDir)
-            dirname = os.path.dirname(new_file_name)
-            if not os.path.exists(dirname):
-                 os.makedirs (dirname)
-            shutil.copy(filename, new_file_name)
-            os.remove(filename)
-            return 0, output.replace(filename, new_file_name)
+            outputs = output.split(",")[:-3]
+            for filename in outputs:
+            #filename = output.split(",")[0]
+                new_file_name = filename.replace(self.__localWorkingDir, self.__globalWorkingDir)
+                dirname = os.path.dirname(new_file_name)
+                if not os.path.exists(dirname):
+                     os.makedirs (dirname)
+                shutil.copy(filename, new_file_name)
+                os.remove(filename)
+                output = output.replace(filename, new_file_name)
+            return 0, output
 
     def stageOut(self, output):
-        filename = output.split(",")[0]
-        ret_status, pilotErrorDiag, surl, size, checksum, arch_type = self.__siteMover.put_data(filename, self.__esPath, lfn=os.path.basename(filename), report=self.__report, token=None, experiment='ATLAS')
-        if ret_status == 0:
-            os.remove(filename)
-            return 0, output.replace(filename, surl)
-        self.__tmpLog.debug("Failed to stageout %s: %s %s" % (output, ret_status, pilotErrorDiag))
+        ret_status = 0
+        try:
+            outputs = output.split(",")[:-3]
+            for filename in outputs:
+                ret_status, pilotErrorDiag, surl, size, checksum, arch_type = self.__siteMover.put_data(filename, self.__esPath, lfn=os.path.basename(filename), report=self.__report, token=None, experiment='ATLAS')
+                if ret_status == 0:
+                    os.remove(filename)
+                    output = output.replace(filename, surl)
+                else:
+                    self.__tmpLog.debug("Failed to stageout %s: %s %s" % (filename, ret_status, pilotErrorDiag))
+                    return ret_status, output
+        except:
+            self.__tmpLog.warning("Rank %s: Droid throws exception when staging out: %s" % (self.__rank, traceback.format_exc()))
+            ret_status = -1
         return ret_status, output
+
+    def zipOutput(self, eventRangeID, eventStatus, output):
+        try:
+            outputs = output.split(",")[:-3]
+            for filename in outputs:
+                command = "zip -j " + self.__zipFileName + " " + filename
+                status, ret = commands.getstatusoutput(command)
+                if status:
+                    self.__tmpLog.debug("Failed to zip %s: %s, %s" % (filename, status, ret))
+                    return status, output
+                else:
+                    os.remove(filename)
+        except:
+            self.__tmpLog.warning("Rank %s: Droid throws exception when zipping out: %s" % (self.__rank, traceback.format_exc()))
+            return -1, output
+        else:
+            handler = open(self.__zipEventRangesName, "a")
+            handler.write("%s %s %s\n" % (eventRangeID, eventStatus, output))
+            handler.close()
+        return 0, output
 
     def getEventRanges(self, nRanges=1):
         #if self.__firstGetEventRanges:
@@ -323,7 +369,19 @@ class Droid(threading.Thread):
                     continue
 
                 copyOutput = True
-                if self.__yodaToOS and not final:
+                if self.__yodaToZip:
+                    copyOutput = False
+                    status, output = self.zipOutput(eventRangeID, eventStatus, output)
+                    if status != 0:
+                        self.__tmpLog.debug("Rank %s: failed to stageout output from local working dir to S3 Objectstore: %s" % (self.__rank, output))
+                        copyOutput = True
+                    else:
+                        request = {"jobId": self.__jobId,
+                                   "eventRangeID": eventRangeID,
+                                   'eventStatus': 'Zipped',
+                                   "output": output}
+                        stagedRequests.append(request)
+                elif self.__yodaToOS:
                     copyOutput = False
                     status, output = self.stageOut(output)
                     if status != 0:
@@ -352,15 +410,16 @@ class Droid(threading.Thread):
                     eventStatus = stagedRequest['eventStatus']
                     if eventStatus.startswith("ERR"):
                         eventStatus = 'failed'
-                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': eventStatus})
+                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': eventStatus, 'objstoreID': self.__os_bucket_id})
                     if eventStatus == 'stagedOut':
-                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': 'finished'})
-                status, output = self.updatePandaEventRanges(eventRanges)
-                if status == 0:
-                    self.__tmpLog.debug("Rank %s: updatePandaEventRanges(status: %s, output: %s)" % (self.__rank, status, output))
-                    for stagedRequest in stagedRequests:
-                        if not stagedRequest['eventStatus'].startswith("ERR"):
-                            stagedRequest['eventStatus'] = 'reported'
+                        eventRanges.append({'eventRangeID': stagedRequest['eventRangeID'], 'eventStatus': 'finished', 'objstoreID': self.__os_bucket_id})
+                if len(eventRanges):
+                    status, output = self.updatePandaEventRanges(eventRanges)
+                    if status == 0:
+                        self.__tmpLog.debug("Rank %s: updatePandaEventRanges(status: %s, output: %s)" % (self.__rank, status, output))
+                        for stagedRequest in stagedRequests:
+                            if not stagedRequest['eventStatus'].startswith("ERR"):
+                                stagedRequest['eventStatus'] = 'reported'
             requests += stagedRequests
             if requests:
                 self.__tmpLog.debug("Rank %s: updateEventRanges(request: %s)" % (self.__rank, requests))
@@ -414,6 +473,25 @@ class Droid(threading.Thread):
         self.__comm.disconnect()
         return False
 
+    def heartbeat(self):
+        request = self.getAccountingMetrics()
+        self.__tmpLog.debug("Rank %s: heartbeat(request: %s)" % (self.__rank, request))
+        status, output = self.__comm.sendRequest('heartbeat',request)
+        self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
+        if status:
+            statusCode = output["StatusCode"]
+            if statusCode == 0:
+                return True
+        return False
+
+    def getAccountingMetrics(self):
+        metrics = {}
+        if self.__esJobManager:
+            metrics = self.__esJobManager.getAccountingMetrics()
+        metrics['jobId'] = self.__jobId
+        metrics['rank'] = self.__rank
+        return metrics
+
     def waitYoda(self):
         self.__tmpLog.debug("Rank %s: WaitYoda" % (self.__rank))
         while True:
@@ -444,6 +522,7 @@ class Droid(threading.Thread):
         # main loop
         failedNum = 0
         #self.__tmpLog.info("Rank %s: isDead: %s" % (self.__rank, self.__esJobManager.isDead()))
+        heartbeatTime = None
         while not self.__esJobManager.isDead():
             #self.__tmpLog.info("Rank %s: isDead: %s" % (self.__rank, self.__esJobManager.isDead()))
             #self.__tmpLog.info("Rank %s: isNeedMoreEvents: %s" % (self.__rank, self.__esJobManager.isNeedMoreEvents()))
@@ -472,7 +551,14 @@ class Droid(threading.Thread):
             self.updateOutputs()
 
             time.sleep(0.001)
+            if heartbeatTime is None:
+                self.heartbeat()
+                heartbeatTime = time.time()
+            elif time.time() - heartbeatTime > 5 * 60:
+                self.heartbeat()
+                heartbeatTime = time.time()
 
+        self.heartbeat()
         self.__esJobManager.flushMessages()
         self.updateOutputs()
 
@@ -511,11 +597,13 @@ class Droid(threading.Thread):
             os.chdir(self.__globalWorkingDir)
             self.__tmpLog.info("Rank %s: Droid finishes to run one job" % self.__rank)
         self.finishDroid()
+        sys.exit(0)
         return 0
             
     def stop(self, signum=None, frame=None):
         self.__tmpLog.info('Rank %s: stop signal received' % self.__rank)
         block_sig(signal.SIGTERM)
+        self.heartbeat()
         self.__esJobManager.terminate()
         self.__esJobManager.flushMessages()
         self.updateOutputs(signal=True, final=True)
@@ -527,6 +615,7 @@ class Droid(threading.Thread):
 
         self.__tmpLog.info('Rank %s: stop' % self.__rank)
         unblock_sig(signal.SIGTERM)
+        sys.exit(0)
 
     def __del_not_use__(self):
         self.__tmpLog.info('Rank %s: __del__ function' % self.__rank)

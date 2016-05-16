@@ -469,6 +469,9 @@ class ATLASSiteInformation(SiteInformation):
         #    ec = self.replaceQueuedataField("envsetup", "export X509_USER_PROXY=/opt/rucio/tools/x509up;")
         #    ec = self.replaceQueuedataField("use_newmover", "true")
 
+        if thisSite.sitename == "ANALY_UIO" or thisSite.sitename == "ANALY_SiGNET":
+            ec = self.replaceQueuedataField("direct_access_lan", "True")
+
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("maxrss", "100")
@@ -523,7 +526,7 @@ class ATLASSiteInformation(SiteInformation):
 
 #        if thisSite.sitename == "BNL_PROD_MCORE":
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
-#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
+#            ec = self.replaceQueuedataField("catchall", "es_to_zip")
 #            ec = self.replaceQueuedataField("timefloor", "0")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov:8443//atlas/logs|https^https://ceph007.usatlas.bnl.gov:8443//atlas/logs")
@@ -593,7 +596,7 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=25,min_nodes=25,max_nodes=30,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=1000")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,mode=normal,queue=debug,plugin=slurm,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=2,max_nodes=101,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=1000")
             # ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=4,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=119,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=500000,initialtime_m=3,time_per_event_m=4,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=170,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,es_to_zip,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=5000000,initialtime_m=3,time_per_event_m=4,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=170,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
 
             if 'cori' in hostname:
                 ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=500000,initialtime_m=3,time_per_event_m=4,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=32,mppnppn=1,ATHENA_PROC_NUMBER=32,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
