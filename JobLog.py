@@ -1,6 +1,7 @@
 import os
 import re
 import commands
+import traceback
 from time import localtime
 from glob import glob
 from shutil import copy2, rmtree
@@ -827,7 +828,11 @@ class JobLog:
                     _retjs = JR.updateJobStateTest(job, site, workerNode, mode="test")
 
                 # register/copy log file
-                ret, job = self.transferLogFile(job, site, experiment, dest=self.__env['logFileDir'], jr=jr)
+                try:
+                    ret, job = self.transferLogFile(job, site, experiment, dest=self.__env['logFileDir'], jr=jr)
+                except:
+                    tolog("Failed to transfer log file: %s" % traceback.format_exc())
+                    ret = False
                 if not ret:
                     tolog("!!%s!!1600!! Could not transfer log file" % (self.__env['errorLabel']))
                     job.result[0] = "holding"

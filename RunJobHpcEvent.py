@@ -878,7 +878,7 @@ class RunJobHpcEvent(RunJob):
             self.__jobs[job.jobId]['tokenExtractorCmd'] = None
 
         if self.__yoda_to_zip:
-            self.__jobs[job.jobId]['job'].outputZipName = os.path.join(self.__pilotWorkingDir, "EventService_premerge_%s.zip" % job.jobId)
+            self.__jobs[job.jobId]['job'].outputZipName = os.path.join(self.__pilotWorkingDir, "EventService_premerge_%s.tar" % job.jobId)
             self.__jobs[job.jobId]['job'].outputZipEventRangesName = os.path.join(self.__pilotWorkingDir, "EventService_premerge_eventranges_%s.txt" % job.jobId)
 
         os.chdir(current_dir)
@@ -1526,7 +1526,9 @@ class RunJobHpcEvent(RunJob):
                 path = found_files[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:
-                    if file.endswith(".dump") or file.startswith("metadata-") or file.startswith("jobState-") or file.startswith("Job_") or file.startswith("jobMetrics-yoda"):
+                    if file.endswith(".dump") or file.startswith("metadata-") or file.startswith("jobState-") \
+                       or file.startswith("Job_") or file.startswith("jobMetrics-yoda") or file.startswith("fileState-") \
+                       or file.startswith("surlDictionary"):
                         if str(jobId) in file:
                             pUtil.recursive_overwrite(path, dest_dir)
                     else:

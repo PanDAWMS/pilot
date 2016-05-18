@@ -21,7 +21,7 @@ from signal_block.signal_block import block_sig, unblock_sig
 class Yoda(threading.Thread):
     
     # constructor
-    def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None, rank=None, nonMPIMode=False, outputDir=None):
+    def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None, rank=None, nonMPIMode=False, outputDir=None, dumpEventOutputs=False):
         threading.Thread.__init__(self)
         self.globalWorkingDir = globalWorkingDir
         self.localWorkingDir = localWorkingDir
@@ -38,6 +38,7 @@ class Yoda(threading.Thread):
         self.tmpLog.info("Current working dir: %s" % self.currentDir)
         self.failed_updates = []
         self.outputDir = outputDir
+        self.dumpEventOutputs = dumpEventOutputs
 
         self.pilotJob = pilotJob
 
@@ -483,6 +484,8 @@ class Yoda(threading.Thread):
             self.tmpLog.debug('updateRunningEventRangesToDB failed: %s, %s' % (str(e), traceback.format_exc()))
 
     def dumpUpdates(self, jobId, outputs, type=''):
+        if self.dumpEventOutputs == False:
+            return
         timeNow = datetime.datetime.utcnow()
         outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
         etadataFileName = 'metadata-' + outFileName.split('.dump')[0] + '.xml'

@@ -246,7 +246,7 @@ class Droid(threading.Thread):
         try:
             outputs = output.split(",")[:-3]
             for filename in outputs:
-                command = "zip -j " + self.__zipFileName + " " + filename
+                command = "tar -rf " + self.__zipFileName + " --directory=%s %s" %(os.path.dirname(filename), os.path.basename(filename))
                 status, ret = commands.getstatusoutput(command)
                 if status:
                     self.__tmpLog.debug("Failed to zip %s: %s, %s" % (filename, status, ret))
