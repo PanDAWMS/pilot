@@ -1,9 +1,10 @@
 #
 
+import json
 import os
 from pUtil import httpConnect, tolog
 
-def downloadEventRanges(jobId, jobsetID, taskID):
+def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10):
     """ Download event ranges from the Event Server """
 
     # Return the server response (instruction to AthenaMP)
@@ -20,6 +21,7 @@ def downloadEventRanges(jobId, jobsetID, taskID):
     node['pandaID'] = jobId
     node['jobsetID'] = jobsetID
     node['taskID'] = taskID 
+    node['nRanges'] = numRanges
 
     # open connection
     ret = httpConnect(node, url, path=os.getcwd(), mode="GETEVENTRANGES")
@@ -36,7 +38,7 @@ def downloadEventRanges(jobId, jobsetID, taskID):
     return message
 
 def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', os_bucket_id=-1):
-    """ Update an event range on the Event Server """
+    """ Update an list of event ranges on the Event Server """
 
     tolog("Updating an event range..")
 
@@ -76,3 +78,30 @@ def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', o
             message = d.get(jobId, "")
 
     return message
+
+def updateEventRanges(event_ranges):
+    """ Update an event range on the Event Server """
+    tolog("Updating event ranges..")
+
+    message = ""
+    #url = "https://aipanda007.cern.ch:25443/server/panda"
+    url = "https://pandaserver.cern.ch:25443/server/panda"
+    # eventRanges = [{'eventRangeID': '4001396-1800223966-4426028-1-2', 'eventStatus':'running'}, {'eventRangeID': '4001396-1800223966-4426028-2-2','eventStatus':'running'}]
+
+    node={}
+    node['eventRanges']=json.dumps(event_ranges)
+
+    # open connection
+    ret = httpConnect(node, url, path='.', mode="UPDATEEVENTRANGES")
+    # response = json.loads(ret[1])
+
+    status = ret[0]
+    if ret[0]: # non-zero return code
+        message = "Failed to update event range - error code = %d, error: " % (ret[0], ret[1])
+    else:
+        response = json.loads(json.dumps(ret[1]))
+        status = int(response['StatusCode'])
+        message = json.dumps(response['Returns'])
+
+    return status, message
+

@@ -73,7 +73,7 @@ class slurm(Plugin):
 
         return res
 
-    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None):
+    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None, dumpEventOutputs=False):
         submit_script = "#!/bin/bash -l" + "\n"
         if queue == 'premium':
             submit_script += "#SBATCH -p regular\n"
@@ -114,7 +114,9 @@ class slurm(Plugin):
         # submit_script += "module list" + "\n"
 
         #submit_script += "srun -n " + str(nodes) + " -N " + str(mppnppn) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
-        submit_script += "srun -N " + str(nodes) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+""
+        submit_script += "srun -N " + str(nodes) + " python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir
+        if dumpEventOutputs:
+            submit_script += " --dumpEventOutputs"
         ###cmd = "mpiexec -n 2 python " + os.path.join(self.__globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+self.__globalWorkingDir+" --localWorkingDir="+self.__localWorkingDir+"&"
         self.__submit_file = os.path.join(globalYodaDir, 'submit_script')
         handle = open(self.__submit_file, 'w')

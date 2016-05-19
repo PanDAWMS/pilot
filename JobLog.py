@@ -1,6 +1,7 @@
 import os
 import re
 import commands
+import traceback
 from time import localtime
 from glob import glob
 from shutil import copy2, rmtree
@@ -296,7 +297,7 @@ class JobLog:
                     # get the site information object
                     #si = getSiteInformation(experiment)
                     job.logBucketID = os_bucket_id #si.getBucketID(os_id, "logs")
-                    tolog("Stored log bucket ID: %d" % (job.logBucketID))
+                    tolog("Stored log bucket ID: %s" % (job.logBucketID)) 
 
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
             if job.result[2] == 0:
@@ -834,7 +835,11 @@ class JobLog:
                     _retjs = JR.updateJobStateTest(job, site, workerNode, mode="test")
 
                 # register/copy log file
-                ret, job = self.transferLogFile(job, site, experiment, dest=self.__env['logFileDir'], jr=jr)
+                try:
+                    ret, job = self.transferLogFile(job, site, experiment, dest=self.__env['logFileDir'], jr=jr)
+                except:
+                    tolog("Failed to transfer log file: %s" % traceback.format_exc())
+                    ret = False
                 if not ret:
                     tolog("!!%s!!1600!! Could not transfer log file" % (self.__env['errorLabel']))
                     job.result[0] = "holding"

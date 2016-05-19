@@ -1948,7 +1948,7 @@ class _Curl:
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
         # write data to temporary config file
         # tmpName = commands.getoutput('uuidgen 2> /dev/null')
-        tmpName = '%s/curl.config' % (path)
+        tmpName = '%s/curl_%s.config' % (path, os.path.basename(url))
         try:
             tmpFile = open(tmpName, 'w')
             tmpFile.write(strData)
@@ -1994,7 +1994,7 @@ class _Curl:
         for key in data.keys():
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
         # write data to temporary config file
-        tmpName = '%s/curl.config' % (path)
+        tmpName = '%s/curl_%s.config' % (path, os.path.basename(url))
         try:
             tmpFile = open(tmpName,'w')
             tmpFile.write(strData)
