@@ -110,16 +110,6 @@ class Job:
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
         self.pandaProxySecretKey = None    # pandaproxy secret key
-
-        # zipped event outputs to a file, for event service
-        self.outputZipName = None
-        self.outputZipEventRangesName = None
-        self.outputZipBucketID = None
-        self.inputZipFiles = []
-
-        # HPC MPI jobid
-        self.HPCJobId = None
-
         self.altStageOut = None            # Alt stage-out overrides from the server
 #        self.eventRangeID = None           # Set for event service jobs
 #        self.startEvent = None             # Set for event service jobs
@@ -131,17 +121,6 @@ class Job:
         # job mode, for example, HPC_normal, HPC_backfill
         self.mode = None
         self.hpcStatus = None
-
-        # yoda accounting info
-        self.yodaSetupTime = None
-        self.yodaTotalTime = None
-        self.yodaTotalCPUHour = None
-        self.yodaProcessCPUHour = None
-        self.yodaCores = None
-        self.yodaQueueEvents = None
-        self.yodaProcessedEvents = None
-        self.avgProcessTimePerEvent = None
-
         self.refreshNow = False
 
         # walltime counting for various steps
@@ -241,14 +220,6 @@ class Job:
 
         # get the input files
         self.inFiles = data.get('inFiles', '').split(',')
-
-        # remove zip:// from input files then mover can stage it in
-        # but record it in inputZipFiles for special handling
-        for i in range(len(self.inFiles)):
-            if self.inFiles[i].startswith("zip://"):
-                self.inFiles[i] = self.inFiles[i].replace("zip://", "")
-                self.inputZipFiles.append(self.inFiles[i])
-
         self.realDatasetsIn = data.get('realDatasetsIn', '').split(',')
         self.filesizeIn = data.get('fsize', '').split(',')
         self.checksumIn = data.get('checksum', '').split(',')
@@ -292,8 +263,6 @@ class Job:
 
         # Event Service variables
         self.eventService = data.get('eventService', '').lower() == "true"
-        self.outputZipName = data.get('outputZipName', None)
-        self.outputZipBucketID = data.get('outputZipBucketID', None)
 
         if self.eventService:
             pUtil.tolog("eventService = %s" % self.eventService)
@@ -331,29 +300,11 @@ class Job:
                     if ec == 0:
                         data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
 
-        # Yoda job staus and accounting info
+        # HPC job staus
         if data.has_key('mode'):
             self.mode = data.get("mode", None)
         if data.has_key('hpcStatus'):
             self.hpcStatus = data.get('hpcStatus', None)
-        if data.has_key('yodaSetupTime'):
-            self.yodaSetupTime = data.get('yodaSetupTime', None)
-        if data.has_key('yodaTotalTime'):
-            self.yodaTotalTime = data.get('yodaTotalTime', None)
-        if data.has_key('yodaTotalCPUHour'):
-            self.yodaTotalCPUHour = data.get('yodaTotalCPUHour', None)
-        if data.has_key('yodaProcessCPUHour'):
-            self.yodaProcessCPUHour = data.get('yodaProcessCPUHour', None)
-        if data.has_key('yodaCores'):
-            self.yodaCores = data.get('yodaCores', None)
-        if data.has_key('yodaQueueEvents'):
-            self.yodaQueueEvents = data.get('yodaQueueEvents', None)
-        if data.has_key('yodaProcessedEvents'):
-            self.yodaProcessedEvents = data.get('yodaProcessedEvents', None)
-        if data.has_key('avgProcessTimePerEvent'):
-            self.avgProcessTimePerEvent = data.get('avgProcessTimePerEvent', None)
-        if data.has_key('HPCJobId'):
-            self.HPCJobId = data.get('HPCJobId', None)
 
 #        self.eventRangeID = data.get('eventRangeID', None)
 #        self.startEvent = data.get('startEvent', None)

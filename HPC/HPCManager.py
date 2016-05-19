@@ -100,7 +100,6 @@ class HPCManager:
         self.__stageout_threads = 1
         self.__pandaJobStateFile = None
         self.__yodaToOS = False
-        self.__yodaToZip = False
 
         self.__pluginName = 'pbs'
         self.__plugin = None
@@ -119,9 +118,6 @@ class HPCManager:
 
     def getStageoutThreads(self):
         return self.__stageout_threads
-
-    def getHPCJobId(self):
-        return self.__jobid
 
     def prepare(self):
         if self.__globalWorkingDir != self.__localWorkingDir:
@@ -216,13 +212,9 @@ class HPCManager:
         self.__ATHENA_PROC_NUMBER = defaultResources['ATHENA_PROC_NUMBER']
         self.__repo = defaultResources['repo']
         self.__yodaToOS = defaultResources.get('yoda_to_os', False)
-        self.__yodaToZip = defaultResources.get('yoda_to_zip', False)
-        if self.__yodaToZip:
-            self.__yodaToOS = False
         self.__copyOutputToGlobal = defaultResources.get('copyOutputToGlobal', False)
         self.__setup = defaultResources.get('setup', None)
         self.__esPath = defaultResources.get('esPath', None)
-        self.__os_bucket_id = defaultResources.get('os_bucket_id', None)
 
     def getCoreCount(self):
         return int(self.__mppwidth)
@@ -249,12 +241,9 @@ class HPCManager:
             job['neededRanks'] = 0
             job['ranks'] = []
             job['yodaToOS'] = self.__yodaToOS
-            job['yodaToZip'] = self.__yodaToZip
-            # job['zipFileName'] = self.__zipFileName
             job['copyOutputToGlobal'] = self.__copyOutputToGlobal
             job['setup'] = self.__setup
             job['esPath'] = self.__esPath
-            job['os_bucket_id'] = self.__os_bucket_id
 
             eventsPerNode = int(self.__ATHENA_PROC_NUMBER) * (int(self.__eventsPerWorker))
             if jobId in eventRanges:
