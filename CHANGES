@@ -232,7 +232,18 @@ OS log transfers:
 Direct Access on ND:
 - Relaxed the input file verification in get_data() to allow for direct access, requested by D. Cameron and A. Filipcic (mvSiteMover)
 
-[testing at analy_uio etc, see ATLASSiteInformation]
+*** testing at analy_uio etc, see ATLASSiteInformation ***
+
+Updates from Wen Guan:
+- Yoda accounting and monitoring: report cpu hour info and processed events to pilot. Pilot then reports theis info to panda with jobMetrics
+- ES zip: Yoda ES zip outputs; Grid job ES zip outputs(RunJobEvent), unzip ES when merging(RunJob)
+- Report MPI job id to panda in jobMetrics
+- Added bulk update event ranges to RunJobEvent
+- Fixed os_bucket_id in Yoda
+- Fixed RunJobEvent with race condition: When asynchronousOutputStager, updateEventRange and main thread getEventRange are running at the same time, the curl.config will be override and asynchronousOutputStager may crash
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -161,7 +161,7 @@ class Monitor:
 
     def __getMaxAllowedWorkDirSize(self):
         """
-        Return the maximum allowed size of the work directory for user jobs
+        Return the maximum allowed size of the work directory
         """
 
         try:
@@ -321,7 +321,7 @@ class Monitor:
 
     def __check_remaining_space(self):
         """
-        Every ten minutes, check the remaining disk space, the size of the workDir
+        Every ten minutes, check the remaining disk space, the size of the workdir
         and the size of the payload stdout file
         """
         if (int(time.time()) - self.__env['curtime_sp']) > self.__env['update_freq_space']:
@@ -332,7 +332,7 @@ class Monitor:
             self.__env['workerNode'].collectWNInfo(self.__env['thisSite'].workdir)
             self.__skip = self.__checkLocalSpace(self.__env['workerNode'].disk)
 
-            # check the size of the workdir for user jobs
+            # check the size of the workdir
             self.__skip = self.__checkWorkDir()
 
             # update the time for checking disk space
@@ -455,7 +455,6 @@ class Monitor:
                             except:
                                 pass
                     if not findFlag and file_name != self.__env['jobDic'][k][1].logFile:
-    #                if not findFlag and not ".log." in file_name:
                         pUtil.tolog("Could not access file %s: %s" % (file_name, out))
 
         return rc, pilotErrorDiag, job_index
@@ -490,7 +489,6 @@ class Monitor:
 
 # FOR TESTING ONLY
 #    def __verify_memory_limits(self):
-#        # verify output file sizes every five minutes
 #        if (int(time.time()) - self.__env['curtime_mem']) > 1*60: #self.__env['update_freq_mem']:
 #            # check the CGROUPS memory
 #            max_memory = getMaxMemoryUsageFromCGroups()
@@ -1025,6 +1023,8 @@ class Monitor:
                 break
 
     def check_unmonitored_jobs(self, global_work_dir=None):
+        """ Make sure all jobs are being monitored. If not,	then add the job to jobDic dictionary """
+
         self.__logguid = None
         all_jobs = {}
         if global_work_dir:
