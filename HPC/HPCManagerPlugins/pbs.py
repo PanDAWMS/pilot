@@ -72,7 +72,7 @@ class pbs(Plugin):
 
         return res
 
-    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None):
+    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None, dumpEventOutputs=False):
         submit_script = "#!/bin/bash -l" + "\n"
         submit_script += "#PBS -q " + queue + "\n"
         if repo:
