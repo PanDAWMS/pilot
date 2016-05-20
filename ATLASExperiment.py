@@ -708,7 +708,7 @@ class ATLASExperiment(Experiment):
         # set up analysis trf
         run_command += './%s %s' % (trfName, job.jobPars)
 
-        # add options for file stager if necessary
+        # sort out direct access info for non-FAX cases
         if dInfo:
             # in case of forced usePFCTurl
             if usePFCTurl and not '--usePFCTurl' in run_command:
@@ -729,6 +729,9 @@ class ATLASExperiment(Experiment):
                 # --directIn should be used in combination with --usePFCTurl, but not --old/newPrefix and --lfcHost
                 if usePFCTurl and not '--usePFCTurl' in run_command:
                     run_command += ' --usePFCTurl'
+
+        if job.transferType == 'fax' and readpar('direct_access_wan').lower() == 'true' and '--directIn' not in run_command:
+            run_command += ' --directIn'
 
         if job.transferType == 'direct':
             # update the copysetup
