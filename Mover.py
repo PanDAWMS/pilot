@@ -3439,6 +3439,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                         eventService=False,    # executed from RunJobEvent: --- workflow to be checked?? --> job.eventService ??
                         job={},                            # Job object
                         os_bucket_id=-1,                          # Objectstore id
+                        copytool=None,
                         jobSite = {}  # to be added        # jobsite object
                         ):
     """
@@ -3931,6 +3932,7 @@ def mover_put_data(outputpoolfcstring,
                    logPath="",
                    eventService=False,
                    os_bucket_id=-1,
+                   copytool=None,
                    job={}):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
@@ -3975,7 +3977,8 @@ def mover_put_data(outputpoolfcstring,
 
     # Get the copy tool
     copycmd, setup = getCopytool()
-
+    if copytool:
+        copycmd = copytool
     tolog("Copy command: %s" % (copycmd))
     tolog("Setup: %s" % (setup))
 

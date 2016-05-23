@@ -689,7 +689,7 @@ class RunJobHpcEvent(RunJob):
             except:
                 tolog('Failed to open event ranges json file: %s' % traceback.format_exc())
 
-        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=2)
+        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=numRanges)
         try:
             if "Failed" in message or "No more events" in message:
                 tolog(message)
@@ -1203,6 +1203,31 @@ class RunJobHpcEvent(RunJob):
         except:
             tolog("Failed in check job metrics: %s" % traceback.format_exc())
 
+    def stageOutZipFile(self, job):
+        try:
+            dsname, datasetDict = self.getJobDatasets(job)
+            report = getInitialTracingReport(userid=job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=False, jobId=job.jobId, jobDefId=job.jobDefinitionID, dn=job.prodUserID)
+            ret_status, pilotErrorDiag, surl, size, checksum, arch_type = self.__siteMover.put_data(zipFileName, espath, lfn=os.path.basename(zipFileName), report=report, token=None, experiment='ATLAS')
+            if ret_status == 0:
+                eventRanges = []
+                self.__jobs[job.jobId]['job'].outputZipBucketID = os_bucket_id
+                self.updateJobState(job, 'running', 'stagingOut', final=False, updatePanda=True)
+                dumpFile = job.outputZipEventRangesName
+                file = open(dumpFile)
+                for line in file:
+                    line = line.strip()
+                    if len(line):
+                        eventRangeID = line.split(" ")[0]
+                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': 'finished', 'objstoreID': os_bucket_id})
+                for chunkEventRanges in pUtil.chunks(eventRanges, 100):
+                    tolog("Update event ranges: %s" % chunkEventRanges)
+                    status, output = self.updateEventRanges(chunkEventRanges)
+                    tolog("Update Event ranges status: %s, output: %s" % (status, output))
+            else:
+                tolog("Failed to stageout %s: %s" % (zipFile, pilotErrorDiag))
+        except:
+            tolog("Failed to stageout zip file for job %s: %s" % (job.jobId, traceback.format_exc()))
+
     def stageOutZipFiles(self):
         try:
             siteInfo = getSiteInformation(self.getExperiment())
@@ -1215,6 +1240,7 @@ class RunJobHpcEvent(RunJob):
             tolog("Will create a list using the default bucket ID: %s for queue %s" % (os_bucket_id, self.__jobSite.computingElement))
 
             self.__siteMover = objectstoreSiteMover(setup)
+            threadpool = ThreadPool(self.__stageout_threads)
 
             for jobId in self.__jobs:
                 try:
@@ -1230,29 +1256,11 @@ class RunJobHpcEvent(RunJob):
                         tolog("Zip event ranges file %s doesn't exits, will not stage out." % (zipEventRangeName))
                         continue
 
-                    job = self.__jobs[jobId]['job']
-                    dsname, datasetDict = self.getJobDatasets(job)
-                    report = getInitialTracingReport(userid=job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=False, jobId=job.jobId, jobDefId=job.jobDefinitionID, dn=job.prodUserID)
-                    ret_status, pilotErrorDiag, surl, size, checksum, arch_type = self.__siteMover.put_data(zipFileName, espath, lfn=os.path.basename(zipFileName), report=report, token=None, experiment='ATLAS')
-                    if ret_status == 0:
-                        eventRanges = []
-                        self.__jobs[jobId]['job'].outputZipBucketID = os_bucket_id
-                        self.updateJobState(job, 'running', 'stagingOut', final=False, updatePanda=True)
-                        dumpFile = self.__jobs[jobId]['job'].outputZipEventRangesName
-                        file = open(dumpFile)
-                        for line in file:
-                            line = line.strip()
-                            if len(line):
-                                eventRangeID = line.split(" ")[0]
-                                eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': 'finished', 'objstoreID': os_bucket_id})
-                        for chunkEventRanges in pUtil.chunks(eventRanges, 100):
-                            tolog("Update event ranges: %s" % chunkEventRanges)
-                            status, output = self.updateEventRanges(chunkEventRanges)
-                            tolog("Update Event ranges status: %s, output: %s" % (status, output))
-                    else:
-                        tolog("Failed to stageout %s: %s" % (zipFile, pilotErrorDiag))
+                    threadpool.add_task(self.stageOutZipFile, self.__jobs[jobId]['job'])
+                    
                 except:
                     tolog("Failed to stageout zip files: %s" % (traceback.format_exc()))
+            threadpool.wait_completion()
         except:
             tolog("Failed to stageout zip files: %s" % traceback.format_exc())
 
