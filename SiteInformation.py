@@ -6,6 +6,8 @@
 import os
 import re
 import commands
+import random
+import time
 import urlparse
 import urllib2
 from datetime import datetime, timedelta
@@ -1428,10 +1430,18 @@ class SiteInformation(object):
 
         os_path = ""
 
-        # First collect all the queuedata
-        if not self.getObjectstoreInfoFile():
-            tolog("!!WARNING!!3333!! No access to AGIS OS info file, forced to abort")
-            return os_path
+        try:
+            # First collect all the queuedata
+            if not self.getObjectstoreInfoFile():
+                tolog("!!WARNING!!3333!! No access to AGIS OS info file, forced to abort")
+                return os_path
+        except:
+            rand = random.randrange(20, 50)
+            tolog("!!WARNING!!3333!! Failed to get AGIS OS info file, sleep %s seconds" % rand)
+            time.sleep(rand)
+            if not self.getObjectstoreInfoFile():
+                tolog("!!WARNING!!3333!! No access to AGIS OS info file, forced to abort")
+                return os_path
 
         # If ddmendpoint is not specified, os_bucket_id must be set
         # In that case, the full objectstore info file will be searched for the corresponding os_bucket_id
@@ -1514,6 +1524,15 @@ class SiteInformation(object):
         return os_bucket_id
 
     def getObjectstoreInfoFile(self):
+        try:
+            return self.getObjectstoreInfoFileReal()
+        except:
+            rand = random.randrange(5, 20)
+            tolog("!!WARNING!!3333!! Failed to get AGIS OS info file, sleep %s seconds" % rand)
+            time.sleep(rand)
+            return getObjectstoreInfoFileReal()
+
+    def getObjectstoreInfoFileReal(self):
         """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
 
         status = False
