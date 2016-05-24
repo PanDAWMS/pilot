@@ -294,7 +294,7 @@ class Monitor:
                                 # Compare the maxRSS with the maxPSS from memory monitor
                                 if maxRSS_int > 0:
                                     if maxPSS_int > 0:
-                                        if maxPSS_int > maxRSS_int:
+                                        if maxPSS_int > maxRSS_int and not isCGROUPSSite():
                                             pilotErrorDiag = "Job has exceeded the memory limit %d kB > %d kB (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
                                             pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
 
@@ -303,11 +303,11 @@ class Monitor:
 
                                             # Kill the job
                                             pUtil.tolog("!!WARNING!!9903!! Could have killed the job")
-                                            #killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                                            #self.__env['jobDic'][k][1].result[0] = "failed"
-                                            #self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
-                                            #self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
-                                            #self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            self.__env['jobDic'][k][1].result[0] = "failed"
+                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
                                             pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
                                     else:

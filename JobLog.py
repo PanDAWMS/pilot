@@ -258,13 +258,19 @@ class JobLog:
                 tolog(".....filesAltStageOut = %d" % (job.filesAltStageOut))
 
             if rc != 0:
-                rmflag = 0 # don't remove the tarball
-                job.result[0] = "holding"
-
                 # remove any trailing "\r" or "\n" (there can be two of them)
                 if rs != None:
                     rs = rs.rstrip()
                     tolog("Error string: %s" % (rs))
+
+                # ignore failed OS log transfers (this might change if we only store logs in OS:s)
+                if os_bucket_id != -1 and specialTransfer:
+                    tolog("Ignoring failed special log transfer to OS (resetting log bucket id)")
+                    os_bucket_id = -1
+                    rc = 0
+
+                rmflag = 0 # don't remove the tarball
+                job.result[0] = "holding"
 
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(rc):

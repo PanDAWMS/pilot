@@ -4097,9 +4097,9 @@ def mover_put_data(outputpoolfcstring,
                     ddm_storage_path = os.path.dirname(_path)
 
                     # in case of file transfer to OS, also update the ddm_storage_path
-                    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
-                    if pilotErrorDiag != "":
-                        return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
+                    #ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
+                    #if pilotErrorDiag != "":
+                    #    return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
@@ -5949,6 +5949,10 @@ def getRucioReplicaDictionary(cat, file_dictionary):
             replicas_list = c.list_replicas(scope_lfn_list, schemes=['srm'])
         except:
             tolog("!!WARNING!!2235!! list_replicas() failed")
+            import sys
+            excType, excValue = sys.exc_info()[:2]  # skip the traceback info to avoid possible circular reference
+            tolog("excType=%s" % (excType))
+            tolog("excValue=%s" % (excValue))
         else:
             if replicas_list != None and replicas_list != []:
                 # Loop over all replicas
