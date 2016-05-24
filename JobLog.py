@@ -112,11 +112,11 @@ class JobLog:
 
             # temporarily modify the schedconfig fields with values for the secondary SE
             tolog("Temporarily modifying queuedata for log file transfer to special SE")
-            ec = si.replaceQueuedataField("copytool", "objectstore")
+            #ec = si.replaceQueuedataField("copytool", "objectstore")
 
             # do log transfer
             tolog("Attempting log file transfer to special SE")
-            ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr, specialTransfer=True)
+            ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr, specialTransfer=True, copytool="objectstore")
             if not ret:
                 tolog("!!WARNING!!1600!! Could not transfer log file to special SE")
                 #status = False
@@ -131,7 +131,7 @@ class JobLog:
 
             # finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
-            ec = si.replaceQueuedataField("copytool", copytool_org)
+            #ec = si.replaceQueuedataField("copytool", copytool_org)
 
         else:
             tolog("Special log file transfer not required")
@@ -145,7 +145,7 @@ class JobLog:
 
         return status, job
 
-    def transferActualLogFile(self, job, site, experiment, dest=None, jr=False, specialTransfer=False):
+    def transferActualLogFile(self, job, site, experiment, dest=None, jr=False, specialTransfer=False, copytool=None):
         """
         Save log tarball in DDM and register it to catalog, or copy it to 'dest'.
         the job recovery will use the current site info known by the current pilot
@@ -233,6 +233,7 @@ class JobLog:
                                                                   recoveryWorkDir = site.workdir,
                                                                   logPath = logPath,
                                                                   os_bucket_id = os_bucket_id,
+                                                                  copytool=copytool,
                                                                   job = job)
         except Exception, e:
             rmflag = 0 # don't remove the tarball
