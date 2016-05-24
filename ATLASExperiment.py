@@ -730,6 +730,9 @@ class ATLASExperiment(Experiment):
                 if usePFCTurl and not '--usePFCTurl' in run_command:
                     run_command += ' --usePFCTurl'
 
+        if job.transferType == 'fax' and readpar('direct_access_wan').lower() == 'true' and '--directIn' not in run_command:
+            run_command += ' --directIn'
+
         if job.transferType == 'direct':
             # update the copysetup
             # transferType is only needed if copysetup does not contain remote I/O info

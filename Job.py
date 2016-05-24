@@ -320,14 +320,18 @@ class Job:
             pUtil.tolog("eventServiceMerge = %s" % str(self.eventServiceMerge))
 
         # Event Service merge job
-        if self.workdir and data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
-            if data.has_key('writeToFile'):
+        if self.workdir and data.has_key('writeToFile'): #data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
+            #if data.has_key('writeToFile'):
                 writeToFile = data['writeToFile']
                 esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(writeToFile)
-                pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
-                pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
+                #pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
+                #pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
                 if esFileDictionary != {}:
-                    ec, fnames = pUtil.writeToInputFile(self.workdir, esFileDictionary, orderedFnameList)
+                    if data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
+                        eventservice = True
+                    else:
+                        eventservice = False
+                    ec, fnames = pUtil.writeToInputFile(self.workdir, esFileDictionary, orderedFnameList, eventservice)
                     if ec == 0:
                         data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
 

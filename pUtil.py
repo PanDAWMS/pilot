@@ -2271,7 +2271,7 @@ def createESFileDictionary(writeToFile):
 
     return esFileDictionary, orderedFnameList
 
-def writeToInputFile(path, esFileDictionary, orderedFnameList):
+def writeToInputFile(path, esFileDictionary, orderedFnameList, eventservice=True):
     """ Write the input file lists to the proper input file """
     # And populate the fname file dictionary
     # fnames = { 'identifier': '/path/filename', .. }
@@ -2292,7 +2292,10 @@ def writeToInputFile(path, esFileDictionary, orderedFnameList):
             tolog("!!WARNING!!4445!! Failed to open file %s: %s" % (_path, e))
             ec = -1
         else:
-            f.write("--inputHitsFile\n")
+            if eventservice:
+                f.write("--inputHitsFile\n")
+            else: # For Reco
+                f.write("--inputAODFile\n")
             for inputFile in esFileDictionary[fname].split(","):
                 pfn = os.path.join(path, inputFile)
                 f.write(pfn + "\n")
@@ -2337,7 +2340,12 @@ def updateJobPars(jobPars, fnames):
     for identifier in fnames.keys():
         jobPars = jobPars.replace("@%s" % (identifier), "@%s" % (fnames[identifier]))
         tolog("%s: %s" % (identifier, fnames[identifier]))
-    jobPars = jobPars.replace("--inputHitsFile=", "")
+    s = ["--inputHitsFile=", "--inputAODFile="]
+    if t in s:
+        if t in jobPars:
+            jobPars = jobPars.replace(t, "")
+            break
+
     return jobPars
 
 def updateDispatcherData4ES(data, experiment, path):
@@ -2348,63 +2356,52 @@ def updateDispatcherData4ES(data, experiment, path):
     # path = pilot_init dir, so we know where the file list files are written
     # data = data={'jobsetID': '2235472772', .. }
 
-    # Is this an event service merge job? If so, the input file list should be updated
-    if data.has_key('eventServiceMerge'):
-        if data['eventServiceMerge'].lower() == "true":
-            # Remove any --postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py from the jobPars
-            #if "--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py" in data['jobPars']:
-            #    data['jobPars'] = data['jobPars'].replace("--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py", "")
-            #    tolog("Removed \'--postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py\' from jobPars")
+    # The input file list should be updated
+    if data.has_key('writeToFile'):
+        writeToFile = data['writeToFile']
+        esFileDictionary, orderedFnameList = createESFileDictionary(writeToFile)
+        tolog("esFileDictionary=%s" % (esFileDictionary))
+        tolog("orderedFnameList=%s" % (orderedFnameList))
+        if esFileDictionary != {}:
+            """
+            # Replace the @inputFor* directorive with the file list
+            for name in orderedFnameList:
+                tolog("Replacing @%s with %s" % (name, esFileDictionary[name]))
+                data['jobPars'] = data['jobPars'].replace("@%s" % (name), esFileDictionary[name])
+            """
 
-            if data.has_key('writeToFile'):
-                writeToFile = data['writeToFile']
-                esFileDictionary, orderedFnameList = createESFileDictionary(writeToFile)
-                tolog("esFileDictionary=%s" % (esFileDictionary))
-                tolog("orderedFnameList=%s" % (orderedFnameList))
-                if esFileDictionary != {}:
-                    """
-                    # Replace the @inputFor* directorive with the file list
-                    for name in orderedFnameList:
-                        tolog("Replacing @%s with %s" % (name, esFileDictionary[name]))
-                        data['jobPars'] = data['jobPars'].replace("@%s" % (name), esFileDictionary[name])
-                    """
+            # Remove the autoconf
+            if "--autoConfiguration=everything " in data['jobPars']:
+                data['jobPars'] = data['jobPars'].replace("--autoConfiguration=everything ", " ")
+            # Write event service file lists to the proper input file
+            #ec, fnames = writeToInputFile(path, esFileDictionary, orderedFnameList)
+            ec = 0
+            if ec == 0:
+                #inputFiles = getESInputFiles(esFileDictionary)
 
-                    # Remove the autoconf
-                    if "--autoConfiguration=everything " in data['jobPars']:
-                        data['jobPars'] = data['jobPars'].replace("--autoConfiguration=everything ", " ")
-                    # Write event service file lists to the proper input file
-                    #ec, fnames = writeToInputFile(path, esFileDictionary, orderedFnameList)
-                    ec = 0
-                    if ec == 0:
-                        #inputFiles = getESInputFiles(esFileDictionary)
+                # Update the inFiles list (not necessary??)
+                #data['inFiles'] = inputFiles
 
-                        # Update the inFiles list (not necessary??)
-                        #data['inFiles'] = inputFiles
+                # Correct the dsname?
+                # filesize and checksum? not known (no file catalog)
 
-                        # Correct the dsname?
-                        # filesize and checksum? not known (no file catalog)
+                # Replace the NULL valued guids for the ES files
+                data['GUID'] = updateESGUIDs(data['GUID'])
 
-                        # Replace the NULL valued guids for the ES files
-                        data['GUID'] = updateESGUIDs(data['GUID'])
+                # Replace the @identifiers in the jobParameters
+                #data['jobPars'] = updateJobPars(data['jobPars'], fnames)
 
-                        # Replace the @identifiers in the jobParameters
-                        #data['jobPars'] = updateJobPars(data['jobPars'], fnames)
+                # Update the copytoolin (should use the proper objectstore site mover)
+                si = getSiteInformation(experiment)
+                if not os.environ.has_key('Nordugrid_pilot'):
+                    ec = si.replaceQueuedataField("copytoolin", "objectstore")
 
-                        # Update the copytoolin (should use the proper objectstore site mover)
-                        si = getSiteInformation(experiment)
-                        if not os.environ.has_key('Nordugrid_pilot'):
-                            ec = si.replaceQueuedataField("copytoolin", "objectstore")
-
-                    else:
-                        tolog("Cannot continue with event service merge job")
-                else:
-                    tolog("Empty event range dictionary")
             else:
-                tolog("writeToFile not present in job def")
+                tolog("Cannot continue with event service merge job")
         else:
-            tolog("eventServiceMerge = %s" % (data['eventServiceMerge']))
-    #else:
-    #    tolog("Not an event service merge job")
+            tolog("Empty event range dictionary")
+    else:
+        tolog("writeToFile not present in job def")
 
     return data
 
