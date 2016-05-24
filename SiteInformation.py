@@ -6,6 +6,8 @@
 import os
 import re
 import commands
+import random
+import time
 import urlparse
 import urllib2
 from datetime import datetime, timedelta
@@ -1428,10 +1430,18 @@ class SiteInformation(object):
 
         os_path = ""
 
-        # First collect all the queuedata
-        if not self.getObjectstoreInfoFile():
-            tolog("!!WARNING!!3333!! No access to AGIS OS info file, forced to abort")
-            return os_path
+        try:
+            # First collect all the queuedata
+            if not self.getObjectstoreInfoFile():
+                tolog("!!WARNING!!3333!! No access to AGIS OS info file, forced to abort")
+                return os_path
+        except:
+            rand = random.randrange(20, 50)
+            tolog("!!WARNING!!3333!! Failed to get AGIS OS info file, sleep %s seconds" % rand)
+            time.sleep(rand)
+            if not self.getObjectstoreInfoFile():
+                tolog("!!WARNING!!3333!! No access to AGIS OS info file, forced to abort")
+                return os_path
 
         # If ddmendpoint is not specified, os_bucket_id must be set
         # In that case, the full objectstore info file will be searched for the corresponding os_bucket_id
@@ -1514,6 +1524,15 @@ class SiteInformation(object):
         return os_bucket_id
 
     def getObjectstoreInfoFile(self):
+        try:
+            return self.getObjectstoreInfoFileReal()
+        except:
+            rand = random.randrange(5, 20)
+            tolog("!!WARNING!!3333!! Failed to get AGIS OS info file, sleep %s seconds" % rand)
+            time.sleep(rand)
+            return getObjectstoreInfoFileReal()
+
+    def getObjectstoreInfoFileReal(self):
         """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
 
         status = False
@@ -1661,7 +1680,7 @@ class SiteInformation(object):
             tries = 2
             for trial in range(tries):
                 tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s\" >%s" % (queuename, filename)
+                cmd = 'curl --connect-timeout 20 --max-time 120 -sS "http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s" >%s' % (queuename, filename)
                 tolog("Executing command: %s" % (cmd))
                 ret, output = commands.getstatusoutput(cmd)
 
@@ -1669,6 +1688,7 @@ class SiteInformation(object):
                 value = self.getField('objectstores', queuename=queuename)
                 if value:
                     status = True
+                    tolog("Downloaded queuedata")
                     break
 
         return status

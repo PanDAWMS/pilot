@@ -22,7 +22,7 @@ class poe(Plugin):
     def getHPCResources(self, partition, max_nodes=None, min_nodes=2, min_walltime_m=30):
         return None
 
-    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None):
+    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None, dumpEventOutputs=False):
 
         submit_script = "#!/bin/bash -l" + "\n"
         submit_script += "#@ tasks_per_node = 1" + "\n"

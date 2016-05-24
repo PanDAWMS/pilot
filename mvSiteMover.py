@@ -98,7 +98,8 @@ class mvSiteMover(SiteMover.SiteMover):
         dest_file = os.path.join(path, src_loc_filename)
 
         # verify that the file exists
-        if not os.path.exists(src_loc_pfn):
+        direct_access_lan = readpar('direct_access_lan')
+        if not os.path.exists(src_loc_pfn) and direct_access_lan and direct_access_lan.lower() == 'false':
             pilotErrorDiag = "No such file or directory: %s" % (src_loc_pfn)
             tolog('!!WARNING!!2100!! %s' % (pilotErrorDiag))
             if src_loc_pfn.find("DBRelease") >= 0:
