@@ -241,7 +241,8 @@ Direct access update:
 
 Bug fix: Direct access with FAX:
 - Adding --directIn for transferType fax and direct_access_wan = True, in getAnalysisRunCommand() (ATLASExperiment)
-
+- Setting old/newPrefix="" in getFileAccessInfo() (SiteInformation)
+[TODO: warning - using transferType fax in Job]
 
 Updates from Wen Guan:
 - Yoda accounting and monitoring: report cpu hour info and processed events to pilot. Pilot then reports theis info to panda with jobMetrics
