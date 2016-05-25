@@ -117,9 +117,16 @@ class JobMover(object):
 
         return ddms
 
-    def resolve_replicas(self, files, protocols):
+    def resolve_replicas(self, files):
+        """
+            populates fdat.inputddms and fdat.replicas of each entry from `files` list
+            fdat.replicas = [(ddmendpoint, replica, ddm_se)]
+            ddm_se -- integration logic -- is used to manualy form TURL when ignore_rucio_replicas=True
+            (quick stab until all protocols are properly populated in Rucio from AGIS)
+        """
 
-        # build list of local ddmendpoints: group by site
+        # build list of local ddmendpoints grouped by site
+
         # load ALL ddmconf
         self.ddmconf.update(self.si.resolveDDMConf([]))
         ddms = {}
@@ -138,7 +145,7 @@ class JobMover(object):
             # sort/filter ddms (as possible input source)
             fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
-        # load replicats from Rucio
+        # load replicas from Rucio
         from rucio.client import Client
         c = Client()
 
@@ -204,15 +211,12 @@ class JobMover(object):
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activity)
 
-        self.log("stage-in: protocols=%s" % protocols)
-
-        if not protocols:
-            raise PilotException("Failed to get files: no protocols defined for input. check aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE)
+        self.log("stage-in: pq.aprotocols=%s, pq.copytools=%s" % (protocols, copytools))
 
         files = self.job.inData
-
-        self.resolve_replicas(files, protocols) # populates also self.ddmconf=self.si.resolveDDMConf([])
+        self.resolve_replicas(files) # populates also self.ddmconf = self.si.resolveDDMConf([])
 
         maxinputsize = self.getMaxInputSize()
         totalsize = reduce(lambda x, y: x + y.filesize, files, 0)
@@ -221,44 +225,72 @@ class JobMover(object):
 
         self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
 
+        # process first PQ specific protocols settings
+        # then protocols supported by copytools
+
+        # protocol generated from aprotocols is {'copytool':'', 'copysetup':'', 'se':'', 'ddm':''}
+        # protocol generated from  copytools is {'copytool':'', 'copysetup', 'scheme':''}
+
+        # build accepted schemes from allowed copytools
+        cprotocols = []
+        for cp, settings in copytools:
+            cprotocols.append({'resolve_scheme':True, 'copytool':cp, 'copysetup':settings.get('setup')})
+
+        protocols = protocols + cprotocols
+        if not protocols:
+            raise PilotException("Failed to get files: neither aprotocols nor allowed copytools defined for input. check copytools/acopytools/aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE)
+
+        sitemover_objects = {}
+
         for dat in protocols:
-
-            copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
-
-            try:
-                sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
-                sitemover.trace_report = self.trace_report
-                sitemover.protocol = dat # ##
-                sitemover.ddmconf = self.ddmconf # self.si.resolveDDMConf([]) # quick workaround  ###
-                sitemover.setup()
-            except Exception, e:
-                self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
-                continue
 
             remain_files = [e for e in files if e.status not in ['direct_access', 'transferred']]
             if not remain_files:
                 self.log('INFO: all input files have been successfully processed')
                 break
 
+            copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
+
+            try:
+                sitemover = sitemover_objects.get(copytool)
+                if not sitemover:
+                    sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
+                    sitemover_objects.setdefault(copytool, sitemover)
+
+                    sitemover.trace_report = self.trace_report
+                    sitemover.ddmconf = self.ddmconf # self.si.resolveDDMConf([]) # quick workaround  ###
+                    sitemover.setup()
+                    if dat.get('resolve_scheme'):
+                        dat['scheme'] = sitemover.schemes
+            except Exception, e:
+                self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
+                continue
+
             self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
             self.log("Copy setup   [stage-in]: %s" % copysetup)
 
-            ddmendpoint = dat.get('ddm')
-            self.trace_report.update(protocol=copytool, localSite=ddmendpoint, remoteSite=ddmendpoint)
+            self.trace_report.update(protocol=copytool)
 
             # verify file sizes and available space for stagein
             sitemover.check_availablespace(maxinputsize, remain_files)
 
             for fdata in remain_files:
 
-                #if fdata.status == 'transferred': # already transferred, skip
-                #    continue
-
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="input")
 
                 self.log("[stage-in] Prepare to get_data: protocol=%s, fspec=%s" % (dat, fdata))
 
-                r = sitemover.resolve_replica(fdata)
+                # check if protocol and fdata.ddmendpoint belong to same site
+                #
+                if dat.get('ddm'):
+                    protocol_site = self.ddmconf.get(dat.get('ddm'), {}).get('site')
+                    replica_site = self.ddmconf.get(fdata.ddmendpoint, {}).get('site')
+
+                    if protocol_site != replica_site:
+                        self.log('INFO: cross-sites checks: protocol_site=%s and (fdata.ddmenpoint) replica_site=%s mismatched .. skip file processing for copytool=%s (protocol=%s)' % (protocol_site, replica_site, copytool, dat))
+                        continue
+
+                r = sitemover.resolve_replica(fdata, dat)
 
                 # quick stub: propagate changes to FileSpec
                 if r.get('surl'):
@@ -271,13 +303,13 @@ class JobMover(object):
                 self.log("[stage-in] found replica to be used: ddmendpoint=%s, pfn=%s" % (fdata.ddmendpoint, fdata.turl))
 
                 # check if protocol and found replica belong to same site
-                #
-                protocol_site = self.ddmconf.get(dat.get('ddm'), {}).get('site')
-                replica_site = self.ddmconf.get(fdata.ddmendpoint, {}).get('site')
+                if dat.get('ddm'):
+                    protocol_site = self.ddmconf.get(dat.get('ddm'), {}).get('site')
+                    replica_site = self.ddmconf.get(fdata.ddmendpoint, {}).get('site')
 
-                if protocol_site != replica_site:
-                    self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
-                    continue
+                    if protocol_site != replica_site:
+                        self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
+                        continue
 
                 # check direct access
                 self.log("fdata.is_directaccess()=%s, job.accessmode=%s, mover.is_directaccess()=%s" % (fdata.is_directaccess(), self.job.accessmode, self.is_directaccess()))

@@ -23,6 +23,8 @@ class lsmSiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "adler32"
 
+    schemes = ['srm'] # list of supported schemes for transfers
+
 
     def shouldVerifyStageIn(self):
         return True # to be disabled
