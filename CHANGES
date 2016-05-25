@@ -228,11 +228,21 @@ Bug fixes:
 
 OS log transfers:
 - Ignoring failed OS log transfer and resetting os_bucket_id, in transferActualLogFile() (JobLog)
+[TODO: set bucket to -1 for failed log transfers in jobMetrics]
 
 Direct Access on ND:
 - Relaxed the input file verification in get_data() to allow for direct access, requested by D. Cameron and A. Filipcic (mvSiteMover)
 
+Direct access update:
+- [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
+[TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
+
 *** testing at analy_uio etc, see ATLASSiteInformation ***
+
+Bug fix: Direct access with FAX:
+- Adding --directIn for transferType fax and direct_access_wan = True, in getAnalysisRunCommand() (ATLASExperiment)
+- Setting old/newPrefix="" in getFileAccessInfo() (SiteInformation)
+[TODO: warning - using transferType fax in Job]
 
 Updates from Wen Guan:
 - Yoda accounting and monitoring: report cpu hour info and processed events to pilot. Pilot then reports theis info to panda with jobMetrics
