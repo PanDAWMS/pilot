@@ -459,7 +459,7 @@ class JobMover(object):
         self.log("Found N=%s files to be transferred, total_size=%.3f MB: %s" % (len(files), totalsize/1024./1024., [e.lfn for e in files]))
 
         # first resolve protocol settings from PQ specific aprotocols settings
-        # then resolve settigs from default ddm.protocols supported by copytools
+        # then resolve settings from default ddm.protocols supported by copytools
 
         # group protocols, files by ddmendpoint
         ddmprotocols, ddmfiles = {}, {}
@@ -472,7 +472,7 @@ class JobMover(object):
         for e in protocols:
             if e['ddm'] not in ddmfiles: # skip not affected protocols settings
                 continue
-            e['copytools'] = [{'copytool':e['copytool'], 'copytsetup':e['copysetup']}]
+            e['copytools'] = [{'copytool':e['copytool'], 'copysetup':e['copysetup']}]
             ddmprotocols.setdefault(e['ddm'], []).append(e)
 
         # generate default protocols from copytools/schemes and ddmconf
@@ -496,7 +496,7 @@ class JobMover(object):
 
         for fspec in files:
             if not fspec.surl: # initialize only if not already set
-                d = self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {}).get('aprotocols', {})
+                d = self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {})
                 xprot = d.get('SE', [])
                 if not xprot:
                     xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and e[0].startswith('srm')]
