@@ -422,7 +422,7 @@ class JobMover(object):
         return self.stageout("pw", self.job.outData)
 
     def stageout_logfiles(self):
-        return self.stageout("pl", self.job.outLog)
+        return self.stageout("pl", self.job.logData)
 
 
     def stageout(self, activity, files):

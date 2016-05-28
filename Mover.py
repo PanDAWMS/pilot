@@ -100,7 +100,7 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
 
 
 # new mover implementation
-def put_data_new(job, jobSite, stageoutTries, log_transfer):
+def put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=None):
     """
         Do jobmover.stageout_outfiles or jobmover.stageout_logfiles respect to the log_transfer flag passed
         :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
@@ -115,7 +115,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer):
     si = getSiteInformation(job.experiment)
     si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
 
-    workDir = os.path.dirname(job.workdir)
+    workDir = workDir or os.path.dirname(job.workdir)
 
     mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
 
@@ -158,9 +158,12 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer):
     #    for err in failed_transfers:
     #        errors.append(str(err))
 
-    not_transferred = [e.lfn for e in job.outData if e.status not in ['transferred']]
+    files = job.outData if not log_transfer else job.logData
+    not_transferred = [e.lfn for e in files if e.status not in ['transferred']]
     if not_transferred:
-        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers])), [], "", 0, 0
+        err_msg = 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers]))
+        tolog("Mover put data finished: error_msg=%s" % err_msg)
+        return PilotErrors.ERR_STAGEOUTFAILED, err_msg, [], "", 0, 0
 
     return 0, "", fields, "", len(transferred_files), 0
 
@@ -3527,7 +3530,11 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                         setattr(self, k, v)
             jobSite = Site_stub(computingElement=queuename, sitename=sitename) ## different work dir! test me
 
-        return put_data_new(job, jobSite, stageoutTries, log_transfer) + (-1,) # os_bucket_id=-1
+        if job.workdir != recoveryWorkDir: # to be checked later if deepcopy is required: Log file is located outside job dir: to be unified?
+            import copy
+            job = copy.deepcopy(job)
+            job.workdir = recoveryWorkDir
+        return put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=recoveryWorkDir) + (-1,) # os_bucket_id=-1
 
 
     # -----
