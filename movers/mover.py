@@ -413,6 +413,8 @@ class JobMover(object):
 
         self.log("stagein finished")
 
+        self.job.print_infiles()
+
         return transferred_files, failed_transfers
 
 
@@ -652,6 +654,7 @@ class JobMover(object):
                 self.log(" -- %s" % e)
 
         self.log("stageout finished")
+        self.job.print_files(files)
 
         return transferred_files, failed_transfers
 

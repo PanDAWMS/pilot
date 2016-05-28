@@ -770,6 +770,16 @@ class Job:
         output = c.communicate()[0]
         pUtil.tolog(msg + '\n' + output)
 
+    def print_files(self, files): # quick stub to be checked later
+
+        ifiles = [os.path.join(self.workdir or '', e.lfn) for e in files]
+        pUtil.tolog("job file(s) state: %s" % ifiles)
+        cmd = 'ls -la %s' % ' '.join(ifiles)
+        msg = "do EXEC cmd=%s" % cmd
+        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+        output = c.communicate()[0]
+        pUtil.tolog(msg + '\n' + output)
+
     def print_infiles(self):
         return self._print_files('inData')
 

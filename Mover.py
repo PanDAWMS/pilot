@@ -99,15 +99,14 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
     return dsname, dsdict, rucio_dataset_dictionary
 
 
-
 # new mover implementation
-def put_data_new(job, jobSite, stageoutTries):
+def put_data_new(job, jobSite, stageoutTries, log_transfer):
     """
+        Do jobmover.stageout_outfiles or jobmover.stageout_logfiles respect to the log_transfer flag passed
         :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
     """
 
     tolog("Mover put data started [new implementation]")
-
 
     from PilotErrors import PilotException
     from movers import JobMover
@@ -128,7 +127,8 @@ def put_data_new(job, jobSite, stageoutTries):
     mover.trace_report.init(job)
 
     try:
-        transferred_files, failed_transfers = mover.stageout_outfiles()
+        do_stageout_func = mover.stageout_logfiles if log_transfer else mover.stageout_outfiles
+        transferred_files, failed_transfers = do_stageout_func()
     except PilotException, e:
         return e.code, str(e), [], "", 0, 0
     except Exception, e:
@@ -139,7 +139,6 @@ def put_data_new(job, jobSite, stageoutTries):
         return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED, exception=%s' % e, [], "", 0, 0
 
     tolog("Mover put data finished")
-    job.print_outfiles()
 
     # prepare compatible output
     # keep track of which files have been copied
@@ -218,7 +217,6 @@ def get_data_new(job,
         return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED, exception=%s' % e, None, {}
 
     tolog("Mover get data finished")
-    job.print_infiles()
 
     # prepare compatible output
 
@@ -3440,7 +3438,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                         job={},                            # Job object
                         os_bucket_id=-1,                          # Objectstore id
                         copytool=None,
-                        jobSite = {}  # to be added        # jobsite object
+                        jobSite = {},  # to be added       # jobsite object,
+                        log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
                         ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
@@ -3516,6 +3515,20 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
           ddm_storage_path - is destination
     """
 
+    isLogTransfer = bool(logPath)
+    if isLogTransfer:
+        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover backward compatible wrapper mover_put_data_new()")
+
+    if log_transfer:
+        if not jobSite: ## QUICK stub integration logic since not all top level functions pass jobSite argument: FIX ME LATER
+            class Site_stub(object):
+                def __init__(self, **kwargs):
+                    for k,v in kwargs.iteritems():
+                        setattr(self, k, v)
+            jobSite = Site_stub(computingElement=queuename, sitename=sitename) ## different work dir! test me
+
+        return put_data_new(job, jobSite, stageoutTries, log_transfer) + (-1,) # os_bucket_id=-1
+
 
     # -----
 
@@ -3548,9 +3561,6 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     if not outfiles and not logfiles:
         raise Exception("Empty Both outputfiles and logfiles data: nothing to do... processing of other cases is not implemented yet for new SiteMover")
 
-    isLogTransfer = bool(logPath)
-    if isLogTransfer:
-        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover")
 
     from movers import JobMover
     from movers.trace_report import TraceReport
@@ -3933,7 +3943,9 @@ def mover_put_data(outputpoolfcstring,
                    eventService=False,
                    os_bucket_id=-1,
                    copytool=None,
-                   job={}):
+                   job={},
+                   log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
+                   ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
     No DS registration in the central catalog is made. pdsname is used only to define the relative path
