@@ -593,7 +593,7 @@ class Job:
 
         # fix scopeOut of log file: to be fixed properly on Panda side: just hard patched here
         logFile = data.get('logFile')
-        if ksources['scopeOut'] and logFile:
+        if logFile:
             scopeOut = []
             for lfn in ksources.get('outFiles', []):
                 if lfn == logFile:
