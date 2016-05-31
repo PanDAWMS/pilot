@@ -221,6 +221,7 @@ General changes:
 
 General changes:
 - Added debugging (sys.exc_info()) info when list_replicas() fails with 'empty dictionary' in getRucioReplicaDictionary() (Mover)
+- Removed duplicate definition of objectstore variable in mover_put_data() (Mover)
 
 Bug fixes:
 - Removed call to getDDMStorage() which overwrote alternative bucket id (Mover)
@@ -229,6 +230,7 @@ Bug fixes:
 
 OS log transfers:
 - Ignoring failed OS log transfer and resetting os_bucket_id, in transferActualLogFile() (JobLog)
+- Only allow alt OS stage-out if "allow_alt_os_stageout" is present in catchall field, in mover_put_data() (Mover)
 
 Direct Access on ND:
 - Relaxed the input file verification in get_data() to allow for direct access, requested by D. Cameron and A. Filipcic (mvSiteMover)
@@ -239,6 +241,13 @@ Direct access updates:
 - Added eventservice argument to writeToInputFile() (pUtil)
 - Selecting --inputHitsFile or --inputAODFile depending on value of eventservice variable in writeToInputFile() (pUtil)
 - Updated updateDispatcherData4ES(), updateJobPars() to work not only with ES jobs (pUtil)
+- Created getPooFilenameFromJobPars(), updateInputFileWithTURLs() (pUtil) [not merged with main-dev]
+- Generating the LFN_to_TURL_dictionary in getTURLs() (Mover)
+- Receiving LFN_to_TURL_dictionary from PFC4TURLs() from _mover_get_data_new(), mover_get_data() (Mover)
+- Returning LFN_to_TURL_dictionary from getTURLs(), createPFC4TURLs(), PFC4TURLs() (Mover)
+- Importing updateInputFileWithTURLs (Mover)
+- Calling updateInputFileWithTURLs() from _mover_get_data_new() and mover_get_data() (Mover)
+- Added dummy return value from PFC4TURLs() call in getPoolFileCatalog() (RunJobEvent)
 
 Memory monitoring:
 - Now enforcing maxPSS from memory monitor is less than 2*maxRSS from schedconfig, otherwise kill job for non-CGROUPS sites, in __check_memory_usage() (Monitor)

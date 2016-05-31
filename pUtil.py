@@ -2341,7 +2341,7 @@ def updateJobPars(jobPars, fnames):
         jobPars = jobPars.replace("@%s" % (identifier), "@%s" % (fnames[identifier]))
         tolog("%s: %s" % (identifier, fnames[identifier]))
     s = ["--inputHitsFile=", "--inputAODFile="]
-    if t in s:
+    for t in s:
         if t in jobPars:
             jobPars = jobPars.replace(t, "")
             break
@@ -4567,3 +4567,71 @@ def merge_dictionaries(*dict_args):
         result.update(dictionary)
 
     return result
+
+def getPooFilenameFromJobPars(jobPars):
+    """ Extract the @poo filename from the job parameters """
+
+    filename = ""
+
+    pattern = re.compile(r" \@(\S+)")
+    found = re.findall(pattern, jobPars)
+    if len(found) > 0:
+        filename = found[0]
+
+    return filename
+
+def updateInputFileWithTURLs(jobPars, LFN_to_TURL_dictionary):
+    """ Update the @poo input file list with TURLs """
+
+    status = False
+
+    # First try to get the @poo filename (which actually contains the full local path to the file)
+    filename = getPooFilenameFromJobPars(jobPars)
+    if filename != "":
+        if os.path.exists(filename):
+            try:
+                f = open(filename, "r")
+            except IOError, e:
+                tolog("!!WARNING!!2997!! Caught exception: %s" % (e))
+            else:
+                # Read file
+                lines = f.readlines()
+                f.close()
+
+                # Process file
+                turls = []
+                header = lines[0]
+                for lfn in lines:
+                    # Note: the 'lfn' is actually a local file path, but will end with an \n
+                    lfn = os.path.basename(lfn)
+                    try:
+                        # Try to get the corresponding dictionary entry (assume there is a corresponding entry in the actual TURL dictionary)
+                        if lfn.endswith('\n'):
+                            lfn = lfn[:-1]
+                        turl = LFN_to_TURL_dictionary[lfn]
+                    except:
+                        pass
+                    else:
+                        turls.append(turl)
+
+                if turls != []:
+                    # Overwrite the old file with updated TURL info
+                    try:
+                        f = open(filename, "w")
+                    except IOError, e:
+                        tolog("!!WARNING!!2997!! Caught exception: %s" % (e))
+                    else:
+                        # Write file
+                        f.write(header)
+                        for turl in turls:
+                            f.write(turl + "\n")
+                        # Process file
+                        f.close()
+                        status = True
+                else:
+                    tolog("!!WARNING!!2998!! Failed to extract TURLs (empty TURL list)")
+                
+        else:
+            tolog("!!WARNING!!2342!! File not found: %s" % (path))
+    else:
+        tolog("!!WARNING!!2343!! Found no @input filename in jobPars: %s" % (jobPars))

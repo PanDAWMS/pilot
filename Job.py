@@ -320,20 +320,24 @@ class Job:
             pUtil.tolog("eventServiceMerge = %s" % str(self.eventServiceMerge))
 
         # Event Service merge job
+
+        #PN
+        #data['writeToFile'] = 'inputFor_panda.jeditest.HITS.8891832d-ec14-4a7b-b490-53ab4a08c197.000002.HITS.pool.root.1:EVNT.01580094._002501.pool.root.1'
+
         if self.workdir and data.has_key('writeToFile'): #data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
             #if data.has_key('writeToFile'):
-                writeToFile = data['writeToFile']
-                esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(writeToFile)
-                #pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
-                #pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
-                if esFileDictionary != {}:
-                    if data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
-                        eventservice = True
-                    else:
-                        eventservice = False
-                    ec, fnames = pUtil.writeToInputFile(self.workdir, esFileDictionary, orderedFnameList, eventservice)
-                    if ec == 0:
-                        data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
+            writeToFile = data['writeToFile']
+            esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(writeToFile)
+            #pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
+            #pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
+            if esFileDictionary != {}:
+                if data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
+                    eventservice = True
+                else:
+                    eventservice = False
+                ec, fnames = pUtil.writeToInputFile(self.workdir, esFileDictionary, orderedFnameList, eventservice)
+                if ec == 0:
+                    data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
 
         # Yoda job staus and accounting info
         if data.has_key('mode'):
