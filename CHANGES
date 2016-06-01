@@ -251,14 +251,15 @@ Direct access updates:
 
 Memory monitoring:
 - Now enforcing maxPSS from memory monitor is less than 2*maxRSS from schedconfig, otherwise kill job for non-CGROUPS sites, in __check_memory_usage() (Monitor)
+- Updated memory monitor from release area 20.1.5.2 to 20.7.5.8 (ATLASExperiment)
 
 Updates from Wen Guan:
-- Yoda accounting and monitoring: report cpu hour info and processed events to pilot. Pilot then reports theis info to panda with jobMetrics
+- Yoda accounting and monitoring: report cpu hour info and processed events to pilot. Pilot then reports this info to panda with jobMetrics
 - ES zip: Yoda ES zip outputs; Grid job ES zip outputs(RunJobEvent), unzip ES when merging(RunJob)
 - Report MPI job id to panda in jobMetrics
 - Added bulk update event ranges to RunJobEvent
 - Fixed os_bucket_id in Yoda
-- Fixed RunJobEvent with race condition: When asynchronousOutputStager, updateEventRange and main thread getEventRange are running at the same time, the curl.config will be override and asynchronousOutputStager may crash
+- Fixed RunJobEvent with race condition: When asynchronousOutputStager, updateEventRange and main thread getEventRange are running at the same time, the curl.config will be overwritten and asynchronousOutputStager may crash
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
