@@ -646,7 +646,7 @@ class RunJob(object):
 
             # Extract any FAX info from the dictionary
             job.filesWithoutFAX = FAX_dictionary.get('N_filesWithoutFAX', 0)
-            job.filesWithFAX = FAX_dictionary.get('N_filesWithFAX', 0)    
+            job.filesWithFAX = FAX_dictionary.get('N_filesWithFAX', 0)
             job.bytesWithoutFAX = FAX_dictionary.get('bytesWithoutFAX', 0)
             job.bytesWithFAX = FAX_dictionary.get('bytesWithFAX', 0)
             usedFAXandDirectIO = FAX_dictionary.get('usedFAXandDirectIO', False)
@@ -1112,7 +1112,7 @@ class RunJob(object):
 
         try:
             t0 = os.times()
-            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry)
+            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry, log_transfer=False)
             t1 = os.times()
 
             job.timeStageOut = int(round(t1[4] - t0[4]))

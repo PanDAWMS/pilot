@@ -169,11 +169,11 @@ class Job:
             _spsetup = "(not defined)"
         pUtil.tolog("\nPandaID=%s\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlocks=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\nscopeOut=%s\nscopeLog=%s" %\
                     (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlocks, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
-        pUtil.tolog("ddmEndPointIn=%s" % self.ddmEndPointIn)
-        pUtil.tolog("ddmEndPointOut=%s" % self.ddmEndPointOut)
-        pUtil.tolog("ddmEndPointLog=%s" % self.ddmEndPointLog)
-        pUtil.tolog("cloneJob=%s" % self.cloneJob)
-        pUtil.tolog("allowNoOutput=%s" % self.allowNoOutput)
+
+        for k in ['ddmEndPointIn', 'ddmEndPointOut', 'ddmEndPointLog', 'cloneJob', 'allowNoOutput',
+                  'siteworkdir', 'workdir', 'datadir', 'newDirNM']:
+            pUtil.tolog("%s=%s" % (k, getattr(self, k, None)))
+
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -597,7 +597,7 @@ class Job:
 
         # fix scopeOut of log file: to be fixed properly on Panda side: just hard patched here
         logFile = data.get('logFile')
-        if ksources['scopeOut'] and logFile:
+        if logFile:
             scopeOut = []
             for lfn in ksources.get('outFiles', []):
                 if lfn == logFile:
@@ -769,6 +769,16 @@ class Job:
         files = [os.path.join(self.workdir or '', e.lfn) for e in getattr(self, key, [])]
         pUtil.tolog("%s file(s): %s" % (key, files))
         cmd = 'ls -la %s' % ' '.join(files)
+        msg = "do EXEC cmd=%s" % cmd
+        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+        output = c.communicate()[0]
+        pUtil.tolog(msg + '\n' + output)
+
+    def print_files(self, files): # quick stub to be checked later
+
+        ifiles = [os.path.join(self.workdir or '', e.lfn) for e in files]
+        pUtil.tolog("job file(s) state: %s" % ifiles)
+        cmd = 'ls -la %s' % ' '.join(ifiles)
         msg = "do EXEC cmd=%s" % cmd
         c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
         output = c.communicate()[0]

@@ -99,15 +99,14 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
     return dsname, dsdict, rucio_dataset_dictionary
 
 
-
 # new mover implementation
-def put_data_new(job, jobSite, stageoutTries):
+def put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=None):
     """
+        Do jobmover.stageout_outfiles or jobmover.stageout_logfiles respect to the log_transfer flag passed
         :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
     """
 
     tolog("Mover put data started [new implementation]")
-
 
     from PilotErrors import PilotException
     from movers import JobMover
@@ -116,7 +115,7 @@ def put_data_new(job, jobSite, stageoutTries):
     si = getSiteInformation(job.experiment)
     si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
 
-    workDir = os.path.dirname(job.workdir)
+    workDir = workDir or os.path.dirname(job.workdir)
 
     mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
 
@@ -128,7 +127,8 @@ def put_data_new(job, jobSite, stageoutTries):
     mover.trace_report.init(job)
 
     try:
-        transferred_files, failed_transfers = mover.stageout_outfiles()
+        do_stageout_func = mover.stageout_logfiles if log_transfer else mover.stageout_outfiles
+        transferred_files, failed_transfers = do_stageout_func()
     except PilotException, e:
         return e.code, str(e), [], "", 0, 0
     except Exception, e:
@@ -139,7 +139,6 @@ def put_data_new(job, jobSite, stageoutTries):
         return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED, exception=%s' % e, [], "", 0, 0
 
     tolog("Mover put data finished")
-    job.print_outfiles()
 
     # prepare compatible output
     # keep track of which files have been copied
@@ -159,9 +158,12 @@ def put_data_new(job, jobSite, stageoutTries):
     #    for err in failed_transfers:
     #        errors.append(str(err))
 
-    not_transferred = [e.lfn for e in job.outData if e.status not in ['transferred']]
+    files = job.outData if not log_transfer else job.logData
+    not_transferred = [e.lfn for e in files if e.status not in ['transferred']]
     if not_transferred:
-        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers])), [], "", 0, 0
+        err_msg = 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers]))
+        tolog("Mover put data finished: error_msg=%s" % err_msg)
+        return PilotErrors.ERR_STAGEOUTFAILED, err_msg, [], "", 0, 0
 
     return 0, "", fields, "", len(transferred_files), 0
 
@@ -218,7 +220,6 @@ def get_data_new(job,
         return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED, exception=%s' % e, None, {}
 
     tolog("Mover get data finished")
-    job.print_infiles()
 
     # prepare compatible output
 
@@ -3455,7 +3456,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                         job={},                            # Job object
                         os_bucket_id=-1,                          # Objectstore id
                         copytool=None,
-                        jobSite = {}  # to be added        # jobsite object
+                        jobSite = {},  # to be added       # jobsite object,
+                        log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
                         ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
@@ -3531,6 +3533,24 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
           ddm_storage_path - is destination
     """
 
+    isLogTransfer = bool(logPath)
+    if isLogTransfer:
+        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover backward compatible wrapper mover_put_data_new()")
+
+    if log_transfer:
+        if not jobSite: ## QUICK stub integration logic since not all top level functions pass jobSite argument: FIX ME LATER
+            class Site_stub(object):
+                def __init__(self, **kwargs):
+                    for k,v in kwargs.iteritems():
+                        setattr(self, k, v)
+            jobSite = Site_stub(computingElement=queuename, sitename=sitename) ## different work dir! test me
+
+        if job.workdir != recoveryWorkDir: # to be checked later if deepcopy is required: Log file is located outside job dir: to be unified?
+            import copy
+            job = copy.deepcopy(job)
+            job.workdir = recoveryWorkDir
+        return put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=recoveryWorkDir) + (-1,) # os_bucket_id=-1
+
 
     # -----
 
@@ -3563,9 +3583,6 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     if not outfiles and not logfiles:
         raise Exception("Empty Both outputfiles and logfiles data: nothing to do... processing of other cases is not implemented yet for new SiteMover")
 
-    isLogTransfer = bool(logPath)
-    if isLogTransfer:
-        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover")
 
     from movers import JobMover
     from movers.trace_report import TraceReport
@@ -3948,7 +3965,9 @@ def mover_put_data(outputpoolfcstring,
                    eventService=False,
                    os_bucket_id=-1,
                    copytool=None,
-                   job={}):
+                   job={},
+                   log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
+                   ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
     No DS registration in the central catalog is made. pdsname is used only to define the relative path

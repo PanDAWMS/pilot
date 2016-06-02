@@ -1043,7 +1043,7 @@ class SiteInformation(object):
         useFileStager = False
         transfer_mode = None
 
-        # get the file access info                                                                                                                                                                                                                  
+        # get the file access info
         directIn, directInType = getDirectAccess()
         useCT, oldPrefix, newPrefix = self.getFileAccessInfo(transferType)
 
@@ -1934,6 +1934,35 @@ class SiteInformation(object):
             ret.setdefault(pandaqueue, protocols)
 
         return ret
+
+
+    def resolvePandaCopytools(self, pandaqueues, activity):
+        """
+            Resolve supported copytools by given pandaqueues
+            Check first settings for requested activity (pr, pw), if not set then return all supported copytools
+            Return ordered list of accepted copytools
+            :return: dict('pandaqueue':[(copytool, {settings}), ('copytool_name', {'setup':''}), ])
+        """
+
+        if isinstance(pandaqueues, (str, unicode)):
+            pandaqueues = [pandaqueues]
+
+        r = self.loadSchedConfData(pandaqueues, cache_time=6000) or {} # quick stub: fix me later: schedconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+        self.schedconf = r
+
+        ret = {}
+        for pandaqueue in set(pandaqueues):
+            copytools = r.get(pandaqueue, {}).get('copytools', {})
+            cptools = []
+            for cp in r.get(pandaqueue, {}).get('acopytools', {}).get(activity, []) or copytools.iterkeys():
+                if cp not in copytools:
+                    continue
+                cptools.append((cp, copytools[cp]))
+
+            ret.setdefault(pandaqueue, cptools)
+
+        return ret
+
 
     # Optional
     def shouldExecuteBenchmark(self):

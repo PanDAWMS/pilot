@@ -17,6 +17,7 @@ class rucioSiteMover(BaseSiteMover):
     """ SiteMover that uses rucio CLI for both get and put functionality """
 
     name = 'rucio'
+    schemes = ['srm'] # list of supported schemes for transfers
 
     def __init__(self, *args, **kwargs):
         super(rucioSiteMover, self).__init__(*args, **kwargs)
@@ -27,7 +28,7 @@ class rucioSiteMover(BaseSiteMover):
         """
         pass
 
-    def resolve_replica(self, fspec):
+    def resolve_replica(self, fspec, protocol):
         """
         Overridden method -- unused
         """
