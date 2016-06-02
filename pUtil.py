@@ -4573,7 +4573,7 @@ def getPooFilenameFromJobPars(jobPars):
 
     filename = ""
 
-    pattern = re.compile(r" \@(\S+)")
+    pattern = re.compile(r"\@(\S+)")
     found = re.findall(pattern, jobPars)
     if len(found) > 0:
         filename = found[0]

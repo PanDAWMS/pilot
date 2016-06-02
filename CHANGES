@@ -222,6 +222,7 @@ General changes:
 General changes:
 - Added debugging (sys.exc_info()) info when list_replicas() fails with 'empty dictionary' in getRucioReplicaDictionary() (Mover)
 - Removed duplicate definition of objectstore variable in mover_put_data() (Mover)
+- Added &schemes=https,http to all occurrences of ?select=geoip when the schedconfig.httpredirector is set, requested by R. Walker, V. Garonne (aria2cSiteMover)
 
 Bug fixes:
 - Removed call to getDDMStorage() which overwrote alternative bucket id (Mover)
