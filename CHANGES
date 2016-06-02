@@ -225,6 +225,9 @@ General changes:
 
 Bug fixes:
 - Removed call to getDDMStorage() which overwrote alternative bucket id (Mover)
+- Adding --directIn for transferType fax and direct_access_wan = True, in getAnalysisRunCommand() (ATLASExperiment)
+- Setting old/newPrefix="" in getFileAccessInfo() (SiteInformation)
+[TODO: warning - using transferType fax in Job]
 
 OS log transfers:
 - Ignoring failed OS log transfer and resetting os_bucket_id, in transferActualLogFile() (JobLog)
@@ -233,16 +236,17 @@ OS log transfers:
 Direct Access on ND:
 - Relaxed the input file verification in get_data() to allow for direct access, requested by D. Cameron and A. Filipcic (mvSiteMover)
 
-Direct access update:
+Direct access updates:
 - [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
 [TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
+- Now accepting writeToFile directive for non-ES jobs in setJobDef() (Job)
+- Sending eventservice variable to writeToInputFile() from setJobDef() (Job)
+- Added eventservice argument to writeToInputFile() (pUtil)
+- Selecting --inputHitsFile or --inputAODFile depending on value of eventservice variable in writeToInputFile() (pUtil)
+- Updated updateDispatcherData4ES(), updateJobPars() to work not only with ES jobs (pUtil)
 
-*** testing at analy_uio etc, see ATLASSiteInformation ***
-
-Bug fix: Direct access with FAX:
-- Adding --directIn for transferType fax and direct_access_wan = True, in getAnalysisRunCommand() (ATLASExperiment)
-- Setting old/newPrefix="" in getFileAccessInfo() (SiteInformation)
-[TODO: warning - using transferType fax in Job]
+Memory monitoring:
+- Now enforcing maxPSS from memory monitor is less than 2*maxRSS from schedconfig, otherwise kill job for non-CGROUPS sites, in __check_memory_usage() (Monitor)
 
 Updates from Wen Guan:
 - Yoda accounting and monitoring: report cpu hour info and processed events to pilot. Pilot then reports theis info to panda with jobMetrics
