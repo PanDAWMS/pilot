@@ -287,7 +287,7 @@ class Monitor:
                         maxRSS = pUtil.readpar('maxrss') # string
                         if maxRSS:
                             try:
-                                maxRSS_int = int(maxRSS)*1024 # Convert to int and B
+                                maxRSS_int = 2*int(maxRSS)*1024 # Convert to int and B
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:
@@ -295,7 +295,7 @@ class Monitor:
                                 if maxRSS_int > 0:
                                     if maxPSS_int > 0:
                                         if maxPSS_int > maxRSS_int and not isCGROUPSSite():
-                                            pilotErrorDiag = "Job has exceeded the memory limit %d kB > %d kB (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
+                                            pilotErrorDiag = "Job has exceeded the memory limit %d kB > %d kB (2*schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
                                             pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
 
                                             # Create a lockfile to let RunJob know that it should not restart the memory monitor after it has been killed
