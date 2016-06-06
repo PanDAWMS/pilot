@@ -262,7 +262,6 @@ Updates from Wen Guan:
 - Fixed os_bucket_id in Yoda
 - Fixed RunJobEvent with race condition: When asynchronousOutputStager, updateEventRange and main thread getEventRange are running at the same time, the curl.config will be overwritten and asynchronousOutputStager may crash
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
