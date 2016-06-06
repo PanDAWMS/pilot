@@ -33,6 +33,8 @@ def lineno():
     return inspect.currentframe().f_back.f_lineno
 
 globalSite = None
+threadpool = None
+jobs_added_to_threadpool = []
 
 class Monitor:
 
@@ -292,7 +294,7 @@ class Monitor:
                                 # Compare the maxRSS with the maxPSS from memory monitor
                                 if maxRSS_int > 0:
                                     if maxPSS_int > 0:
-                                        if maxPSS_int > maxRSS_int:
+                                        if maxPSS_int > maxRSS_int and not isCGROUPSSite():
                                             pilotErrorDiag = "Job has exceeded the memory limit %d kB > %d kB (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
                                             pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
 
@@ -301,11 +303,11 @@ class Monitor:
 
                                             # Kill the job
                                             pUtil.tolog("!!WARNING!!9903!! Could have killed the job")
-                                            #killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                                            #self.__env['jobDic'][k][1].result[0] = "failed"
-                                            #self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
-                                            #self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
-                                            #self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            self.__env['jobDic'][k][1].result[0] = "failed"
+                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
                                             pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
                                     else:
@@ -944,13 +946,95 @@ class Monitor:
                 finally:
                     self.__env['jobDic'][k][1].result = jobResult
 
+    def __cleanUpEndedJob(self, k, stdout_dictionary):
+        try:
+            perr = self.__env['jobDic'][k][1].result[2]
+            terr = self.__env['jobDic'][k][1].result[1]
+            tmp = self.__env['jobDic'][k][1].result[0]
+
+            if tmp == "finished" or tmp == "failed" or tmp == "holding":
+                pUtil.tolog("Clean up the ended job: %s" % str(self.__env['jobDic'][k]))
+            else:
+                return
+
+            # refresh the stdout tail if necessary
+            # get the tail if possible
+            try:
+                self.__env['stdout_tail'] = stdout_dictionary[self.__env['jobDic'][k][1].jobId]
+                index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
+                self.__env['stdout_path'] = stdout_dictionary[index]
+            except:
+                self.__env['stdout_tail'] = "(stdout tail not available)"
+                self.__env['stdout_path'] = ""
+
+            # cleanup the job workdir, save/send the job tarball to DDM, and update
+            # panda server with the final job state
+            pUtil.postJobTask(self.__env['jobDic'][k][1], self.__env['thisSite'], self.__env['workerNode'],
+                                  self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
+            if k == "prod":
+                prodJobDone = True
+
+            # for NG write the error code, if any
+            if os.environ.has_key('Nordugrid_pilot') and (perr != 0 or terr != 0):
+                if perr != 0:
+                    ec = perr
+                else:
+                    ec = terr
+                pUtil.writeToFile(os.path.join(self.__env['thisSite'].workdir, "EXITCODE"), str(ec))
+
+            if k == "prod" or (self.__env['jobDic'][k][0] != self.__env['jobDic']['prod'][0]):
+                # move this job from env['jobDic'] to zombieJobList for later collection
+                self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
+
+                # athena processes can loop indefinately (e.g. pool utils), so kill all subprocesses just in case
+                pUtil.tolog("Killing remaining subprocesses (if any)")
+                if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
+                    killOrphans()
+                #pUtil.tolog("Going to kill pid %d" %lineno())
+                killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
+                    killOrphans()
+                # remove the process id file to prevent cleanup from trying to kill the remaining processes another time
+                # (should only be necessary for jobs killed by the batch system)
+                if os.path.exists(os.path.join(self.__env['thisSite'].workdir, "PROCESSID")):
+                    try:
+                        os.remove(os.path.join(self.__env['thisSite'].workdir, "PROCESSID"))
+                    except Exception, e:
+                        pUtil.tolog("!!WARNING!!2999!! Could not remove process id file: %s" % str(e))
+                    else:
+                        pUtil.tolog("Process id file removed")
+
+            # ready with this object, delete it
+            del self.__env['jobDic'][k]
+        except:
+            pUtil.tolog("Failed to clean up job %s: %s" % (k, traceback.format_exc()))
+
     def __cleanUpEndedJobs(self):
         """ clean up the ended jobs (if there are any) """
 
+        global threadpool
         # after multitasking was removed from the pilot, there is actually only one job
         first = True
         handled_jobs = 0
+        if len(self.__env['jobDic'].keys()) > 1 and threadpool is None:
+            try:
+                from ThreadPool import ThreadPool
+
+                catchalls = pUtil.readpar("catchall")
+                values = {}
+                for catchall in catchalls.split(","):
+                    if '=' in catchall:
+                        values[catchall.split('=')[0]] = catchall.split('=')[1]
+                stageout_threads = int(values.get('stageout_threads', 4))
+
+                threadpool = ThreadPool(stageout_threads)
+            except:
+                pUtil.tolog("Failed to setup threadpool: %s" % (traceback.format_exc()))
+
         for k in self.__env['jobDic'].keys():
+            if k in jobs_added_to_threadpool:
+                # job is already in threadpool
+                continue
             if k == 'prod' and len(self.__env['jobDic'].keys()) > 1:
                 # 'prod' should be the last one to be collected.
                 continue
@@ -959,7 +1043,6 @@ class Monitor:
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
                 handled_jobs += 1
-                pUtil.tolog("Clean up the ended job: %s" % str(self.__env['jobDic'][k]))
 
                 # do not put the getStdoutDictionary() call outside the loop since cleanUpEndedJobs() is called every minute
                 # only call getStdoutDictionary() once
@@ -969,60 +1052,19 @@ class Monitor:
                     stdout_dictionary = pUtil.getStdoutDictionary(self.__env['jobDic'])
                     first = False
 
-                # refresh the stdout tail if necessary
-                # get the tail if possible
-                try:
-                    self.__env['stdout_tail'] = stdout_dictionary[self.__env['jobDic'][k][1].jobId]
-                    index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
-                    self.__env['stdout_path'] = stdout_dictionary[index]
-                except:
-                    self.__env['stdout_tail'] = "(stdout tail not available)"
-                    self.__env['stdout_path'] = ""
-
-                # cleanup the job workdir, save/send the job tarball to DDM, and update
-                # panda server with the final job state
-                pUtil.postJobTask(self.__env['jobDic'][k][1], self.__env['thisSite'], self.__env['workerNode'],
-                                  self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
-                if k == "prod":
-                    prodJobDone = True
-
-                # for NG write the error code, if any
-                if os.environ.has_key('Nordugrid_pilot') and (perr != 0 or terr != 0):
-                    if perr != 0:
-                        ec = perr
-                    else:
-                        ec = terr
-                    pUtil.writeToFile(os.path.join(self.__env['thisSite'].workdir, "EXITCODE"), str(ec))
-
-                if k == "prod" or (self.__env['jobDic'][k][0] != self.__env['jobDic']['prod'][0]):
-                    # move this job from env['jobDic'] to zombieJobList for later collection
-                    self.__env['zombieJobList'].append(self.__env['jobDic'][k][0]) # only needs pid of this job for cleanup
-
-                    # athena processes can loop indefinately (e.g. pool utils), so kill all subprocesses just in case
-                    pUtil.tolog("Killing remaining subprocesses (if any)")
-                    if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
-                        killOrphans()
-                    #pUtil.tolog("Going to kill pid %d" %lineno())
-                    killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                    if self.__env['jobDic'][k][1].result[2] == self.__error.ERR_OUTPUTFILETOOLARGE:
-                        killOrphans()
-                    # remove the process id file to prevent cleanup from trying to kill the remaining processes another time
-                    # (should only be necessary for jobs killed by the batch system)
-                    if os.path.exists(os.path.join(self.__env['thisSite'].workdir, "PROCESSID")):
-                        try:
-                            os.remove(os.path.join(self.__env['thisSite'].workdir, "PROCESSID"))
-                        except Exception, e:
-                            pUtil.tolog("!!WARNING!!2999!! Could not remove process id file: %s" % str(e))
-                        else:
-                            pUtil.tolog("Process id file removed")
-
-                # ready with this object, delete it
-                del self.__env['jobDic'][k]
-
+                if not threadpool or k == 'prod':
+                    self.__cleanUpEndedJob(k, stdout_dictionary)
+                else:
+                    threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
+                    jobs_added_to_threadpool.append(k)
             # let pilot to heartbeat
             if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
                 self.updateTerminatedJobs()
                 break
+        # let pilot to heartbeat
+        if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
+           self.updateTerminatedJobs()
+
 
     def check_unmonitored_jobs(self, global_work_dir=None):
         self.__logguid = None

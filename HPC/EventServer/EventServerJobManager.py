@@ -193,6 +193,7 @@ class EventServerJobManager():
 
             self.__log.debug("Rank %s: Child main loop end" % (self.__rank))
             self.terminateChild()
+            self.__log.debug("Rank %s: Child terminated" % (self.__rank))
             # sys.exit(0)
             os._exit(0)
         else:

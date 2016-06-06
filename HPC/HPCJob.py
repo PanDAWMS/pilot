@@ -9,7 +9,7 @@ import traceback
 logging.basicConfig(filename='HPCJob.log', level=logging.DEBUG)
 
 
-def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None):
+def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEventOutputs=True):
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
     if nonMPIMode:
@@ -43,7 +43,7 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None):
     if mpirank==0:
         try:
             from pandayoda.yodacore import Yoda
-            yoda = Yoda.Yoda(globalWorkDir, localWorkDir, rank=0, nonMPIMode=nonMPIMode, outputDir=outputDir)
+            yoda = Yoda.Yoda(globalWorkDir, localWorkDir, rank=0, nonMPIMode=nonMPIMode, outputDir=outputDir, dumpEventOutputs=dumpEventOutputs)
             yoda.start()
 
             from pandayoda.yodaexe import Droid
@@ -72,7 +72,7 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None):
         except:
             print "Rank %s: Yoda failed: %s" % (mpirank, traceback.format_exc())
         sys.exit(0)
-        os._exit(0)
+        #os._exit(0)
     else:
         try:
             status = 0
@@ -103,6 +103,7 @@ Commands:
     oparser.add_argument('--localWorkingDir', dest="localWorkingDir", default=None, help="Local working directory. if it's not set, it will use global working directory")
     oparser.add_argument('--nonMPIMode', default=False, action='store_true', help="Run Yoda in non-MPI mode")
     oparser.add_argument('--outputDir', dest="outputDir", default=None, help="Copy output files to this directory")
+    oparser.add_argument('--dumpEventOutputs', default=False, action='store_true', help="Dump event output info to xml")
     oparser.add_argument('--verbose', '-v', default=False, action='store_true', help="Print more verbose output.")
 
     if len(sys.argv) == 1:
@@ -120,7 +121,7 @@ Commands:
     rank = None
     try:
         print "Start HPCJob"
-        rank = main(args.globalWorkingDir, args.localWorkingDir, args.nonMPIMode, args.outputDir)
+        rank = main(args.globalWorkingDir, args.localWorkingDir, args.nonMPIMode, args.outputDir, args.dumpEventOutputs)
         print "Rank %s: HPCJob-Yoda success" % rank
         #sys.exit(0)
     except Exception as e:

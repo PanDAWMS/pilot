@@ -100,6 +100,8 @@ class HPCManager:
         self.__stageout_threads = 1
         self.__pandaJobStateFile = None
         self.__yodaToOS = False
+        self.__yodaToZip = False
+        self.__dumpEventOutputs = True
 
         self.__pluginName = 'pbs'
         self.__plugin = None
@@ -212,6 +214,11 @@ class HPCManager:
         self.__ATHENA_PROC_NUMBER = defaultResources['ATHENA_PROC_NUMBER']
         self.__repo = defaultResources['repo']
         self.__yodaToOS = defaultResources.get('yoda_to_os', False)
+        self.__yodaToZip = defaultResources.get('yoda_to_zip', False)
+        if self.__yodaToZip:
+            self.__yodaToOS = False
+        if self.__yodaToOS or self.__yodaToZip:
+            self.__dumpEventOutputs = False
         self.__copyOutputToGlobal = defaultResources.get('copyOutputToGlobal', False)
         self.__setup = defaultResources.get('setup', None)
         self.__esPath = defaultResources.get('esPath', None)
@@ -311,9 +318,9 @@ class HPCManager:
             return
         for i in range(5):
             if self.__plugin.getName() == 'arc12233' and self.__firstJobWorkDir is not None:
-                status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__firstJobWorkDir, self.__firstJobWorkDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes, localSetup=self.__localSetup, cpuPerNode=self.__cpuPerNode)
+                status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__firstJobWorkDir, self.__firstJobWorkDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes, localSetup=self.__localSetup, cpuPerNode=self.__cpuPerNode, dumpEventOutputs=self.__dumpEventOutputs)
             else:
-                status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__globalYodaDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes, localSetup=self.__localSetup, cpuPerNode=self.__cpuPerNode)
+                status, jobid = self.__plugin.submitJob(self.__globalWorkingDir, self.__globalYodaDir, self.__localWorkingDir, self.__queue, self.__repo, self.__mppwidth, self.__mppnppn, self.__walltime, self.__nodes, localSetup=self.__localSetup, cpuPerNode=self.__cpuPerNode, dumpEventOutputs=self.__dumpEventOutputs)
             if status != 0:
                 self.__log.info("Failed to submit this job to HPC. will sleep one minute and retry")
                 time.sleep(60)

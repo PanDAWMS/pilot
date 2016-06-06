@@ -1412,6 +1412,15 @@ class RunJob(object):
 
         return event_ranges
 
+    def unzipStagedFiles(self, job):
+        for inputZipFile in job.inputZipFiles:
+            inputZipFile = os.path.join(job.workdir, inputZipFile)
+            command = "tar -xf %s -C %s" % (inputZipFile, job.workdir)
+            tolog("Unzip file: %s" % command)
+            status, output = commands.getstatusoutput(command)
+            tolog("status: %s, output: %s\n" % (status, output))
+
+
 # main process starts here
 if __name__ == "__main__":
 

@@ -198,12 +198,12 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	else:
             if "http" in httpredirector:
            	tolog("HTTP redirector I am using: %s" %(httpredirector))
-                cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
-                cmd2print = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip"%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
+                cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd2print = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
             else:
            	tolog("HTTP redirector I am using: %s" %(httpredirector))
-                cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
-                cmd2print = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip"%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
+                cmd = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                cmd2print = "curl -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
 
         tolog("curl command to be executed: %s" %(cmd2print))
         metalink_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)
@@ -660,12 +660,12 @@ class aria2cSiteMover(SiteMover.SiteMover):
            else:
                if "http" in httpredirector:
                    tolog("HTTP redirector I am using: %s" %(httpredirector))
-                   cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,scope,filename)
-                   cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip "%(token_rucioi2print,httpredirector,scope,filename)
+                   cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio,httpredirector,scope,filename)
+                   cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem %s/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucioi2print,httpredirector,scope,filename)
                else:
                    tolog("HTTP redirector I am using: %s" %(httpredirector))
-                   cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
-                   cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
+                   cmd = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio,httpredirector,reps[0].scope,reps[0].filename)
+                   cmd2print = "curl -v -1 -v -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://%s/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio2print,httpredirector,reps[0].scope,reps[0].filename)
 
            tolog("Getting remote checksum: command to be executed: %s" %(cmd2print))
            checksum_cmd=Popen(cmd, stdout=PIPE,stderr=PIPE, shell=True)

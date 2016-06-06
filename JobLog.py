@@ -1,6 +1,7 @@
 import os
 import re
 import commands
+import traceback
 from time import localtime
 from glob import glob
 from shutil import copy2, rmtree
@@ -111,11 +112,11 @@ class JobLog:
 
             # temporarily modify the schedconfig fields with values for the secondary SE
             tolog("Temporarily modifying queuedata for log file transfer to special SE")
-            ec = si.replaceQueuedataField("copytool", "objectstore")
+            #ec = si.replaceQueuedataField("copytool", "objectstore")
 
             # do log transfer
             tolog("Attempting log file transfer to special SE")
-            ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr, specialTransfer=True)
+            ret, job = self.transferActualLogFile(job, site, experiment, dest=dest, jr=jr, specialTransfer=True, copytool="objectstore")
             if not ret:
                 tolog("!!WARNING!!1600!! Could not transfer log file to special SE")
                 #status = False
@@ -130,7 +131,7 @@ class JobLog:
 
             # finally restore the modified schedconfig fields
             tolog("Restoring queuedata fields")
-            ec = si.replaceQueuedataField("copytool", copytool_org)
+            #ec = si.replaceQueuedataField("copytool", copytool_org)
 
         else:
             tolog("Special log file transfer not required")
@@ -144,7 +145,7 @@ class JobLog:
 
         return status, job
 
-    def transferActualLogFile(self, job, site, experiment, dest=None, jr=False, specialTransfer=False):
+    def transferActualLogFile(self, job, site, experiment, dest=None, jr=False, specialTransfer=False, copytool=None):
         """
         Save log tarball in DDM and register it to catalog, or copy it to 'dest'.
         the job recovery will use the current site info known by the current pilot
@@ -232,6 +233,7 @@ class JobLog:
                                                                   recoveryWorkDir = site.workdir,
                                                                   logPath = logPath,
                                                                   os_bucket_id = os_bucket_id,
+                                                                  copytool=copytool,
                                                                   job = job)
         except Exception, e:
             rmflag = 0 # don't remove the tarball
@@ -256,13 +258,19 @@ class JobLog:
                 tolog(".....filesAltStageOut = %d" % (job.filesAltStageOut))
 
             if rc != 0:
-                rmflag = 0 # don't remove the tarball
-                job.result[0] = "holding"
-
                 # remove any trailing "\r" or "\n" (there can be two of them)
                 if rs != None:
                     rs = rs.rstrip()
                     tolog("Error string: %s" % (rs))
+
+                # ignore failed OS log transfers (this might change if we only store logs in OS:s)
+                if os_bucket_id != -1 and specialTransfer:
+                    tolog("Ignoring failed special log transfer to OS (resetting log bucket id)")
+                    os_bucket_id = -1
+                    rc = 0
+
+                rmflag = 0 # don't remove the tarball
+                job.result[0] = "holding"
 
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(rc):
@@ -827,7 +835,11 @@ class JobLog:
                     _retjs = JR.updateJobStateTest(job, site, workerNode, mode="test")
 
                 # register/copy log file
-                ret, job = self.transferLogFile(job, site, experiment, dest=self.__env['logFileDir'], jr=jr)
+                try:
+                    ret, job = self.transferLogFile(job, site, experiment, dest=self.__env['logFileDir'], jr=jr)
+                except:
+                    tolog("Failed to transfer log file: %s" % traceback.format_exc())
+                    ret = False
                 if not ret:
                     tolog("!!%s!!1600!! Could not transfer log file" % (self.__env['errorLabel']))
                     job.result[0] = "holding"
