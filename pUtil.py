@@ -2393,7 +2393,7 @@ def updateDispatcherData4ES(data, experiment, path):
 
                 # Update the copytoolin (should use the proper objectstore site mover)
                 si = getSiteInformation(experiment)
-                if not os.environ.has_key('Nordugrid_pilot'):
+                if not os.environ.has_key('Nordugrid_pilot') and data.has_key('eventServiceMerge'):
                     ec = si.replaceQueuedataField("copytoolin", "objectstore")
 
             else:
@@ -4573,7 +4573,7 @@ def getPooFilenameFromJobPars(jobPars):
 
     filename = ""
 
-    pattern = re.compile(r" \@(\S+)")
+    pattern = re.compile(r"\@(\S+)")
     found = re.findall(pattern, jobPars)
     if len(found) > 0:
         filename = found[0]
@@ -4632,6 +4632,6 @@ def updateInputFileWithTURLs(jobPars, LFN_to_TURL_dictionary):
                     tolog("!!WARNING!!2998!! Failed to extract TURLs (empty TURL list)")
 
         else:
-            tolog("!!WARNING!!2342!! File not found: %s" % (path))
+            tolog("!!WARNING!!2342!! File not found: %s" % (filename))
     else:
         tolog("!!WARNING!!2343!! Found no @input filename in jobPars: %s" % (jobPars))

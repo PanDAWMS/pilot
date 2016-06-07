@@ -309,7 +309,7 @@ class Monitor:
                                             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
                                             self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
-                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
+                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (2*maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
                                     else:
                                         pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
                         else:
