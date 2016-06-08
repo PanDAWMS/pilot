@@ -2627,6 +2627,11 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
     if fail == 0:
         # Make sure the PFC has the correct number of files
         fail, pilotErrorDiag = verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, PilotErrors())
+    # since mixing of variables with detailed error message ad-hoc implemented
+    elif pErrorText and s == 1180:
+        s_index = pErrorText.find("globus_xio")
+        if s_index > -1:
+            pilotErrorDiag = pErrorText[s_index:s_index+256]
 
     # Now that the Mover PFC file is no longer needed, back it up and rename the TURL based PFC if it exists
     # (the original PFC is no longer needed. Move it away, and then create the PFC for the trf/runAthena)
@@ -3073,6 +3078,11 @@ def mover_get_data(lfns,
     if fail == 0:
         # Make sure the PFC has the correct number of files
         fail, pilotErrorDiag = verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, error)
+    # since mixing of variables with detailed error message ad-hoc implemented
+    elif pErrorText and s == 1180:
+        s_index = pErrorText.find("globus_xio")
+        if s_index > -1:
+            pilotErrorDiag = pErrorText[s_index:s_index+256]
 
     # Now that the Mover PFC file is no longer needed, back it up and rename the TURL based PFC if it exists
     # (the original PFC is no longer needed. Move it away, and then create the PFC for the trf/runAthena)
