@@ -282,6 +282,9 @@ Direct access updates:
 - [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
 [TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
 
+Site mover update from Alexey Anisenkov:
+- ..
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
