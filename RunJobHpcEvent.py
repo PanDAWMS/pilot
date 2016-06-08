@@ -34,7 +34,6 @@ from pUtil import tolog, getExperiment, isAnalysisJob, httpConnect, createPoolFi
 from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getFilePathForObjectStore, getInitialTracingReport
 from PandaServerClient import PandaServerClient
-import EventRanges
 
 from GetJob import GetJob
 from EventStager import EventStager
@@ -74,7 +73,6 @@ class RunJobHpcEvent(RunJob):
         self.__hpcStatue = 'starting'
         self.__hpcCoreCount = 0
         self.__hpcEventRanges = 0
-        self.__hpcJobId = None
         self.__neededEventRanges = 0
         self.__avail_files = {}
         self.__avail_tag_files = {}
@@ -82,7 +80,6 @@ class RunJobHpcEvent(RunJob):
         # event Stager
         self.__eventStager = None
         self.__yoda_to_os = False
-        self.__yoda_to_zip = False
 
         # for recovery
         self.__jobStateFile = None
@@ -167,12 +164,6 @@ class RunJobHpcEvent(RunJob):
             res['yoda_to_os'] = False
         self.__yoda_to_os = res['yoda_to_os']
 
-        if "es_to_zip" in catchalls:
-            res['yoda_to_zip'] = True
-        else:
-            res['yoda_to_zip'] = False
-        self.__yoda_to_zip = res['yoda_to_zip']
-
         if "copyOutputToGlobal" in catchalls:
             res['copyOutputToGlobal'] = True
         else:
@@ -220,12 +211,9 @@ class RunJobHpcEvent(RunJob):
         tolog("Copy Setup: %s" % (setup))
         espath = getFilePathForObjectStore(filetype="eventservice")
         tolog("ES path: %s" % (espath))
-        os_bucket_id = siteInfo.getObjectstoresField('os_bucket_id', 'eventservice')
-        tolog("The default bucket ID: %s for queue %s" % (os_bucket_id, self.__jobSite.computingElement))
 
         res['setup'] = setup
         res['esPath'] = espath
-        res['os_bucket_id'] = os_bucket_id
 
         return res
 
@@ -475,7 +463,6 @@ class RunJobHpcEvent(RunJob):
         return 0
 
     def updateJobState(self, job, jobState, hpcState, final=False, updatePanda=True):
-        job.HPCJobId = self.__hpcJobId
         job.setMode(self.__hpcMode)
         job.jobState = jobState
         job.setState([job.jobState, 0, 0])
@@ -499,7 +486,6 @@ class RunJobHpcEvent(RunJob):
     def getHPCEventJobs(self):
         self.getHPCEventJobFromEnv()
         tolog("NJobs: %s" % self.__nJobs)
-        failures = 0
         while self.__neededEventRanges > 0 and (len(self.__jobs.keys()) < int(self.__nJobs)):
             tolog("Len(jobs): %s" % len(self.__jobs.keys()))
             tolog("NJobs: %s" % self.__nJobs)
@@ -507,12 +493,11 @@ class RunJobHpcEvent(RunJob):
                 ret = self.getHPCEventJobFromPanda()
                 if ret != 0:
                     tolog("Failed to get a job from panda.")
-                    failures += 1
+                    break
             except:
                 tolog("Failed to get job: %s" % (traceback.format_exc()))
-                failures += 1
-            if failures > 15:
                 break
+
         self.__hpcStatue = ''
         #self.updateAllJobsState('starting', self.__hpcStatue)
             
@@ -650,11 +635,6 @@ class RunJobHpcEvent(RunJob):
                     tolog(traceback.format_exc())
                 except:
                     tolog("Failed to print traceback")
-                job = self.__jobs[jobId]['job']
-                jobResult = PilotErrors.ERR_STAGEINFAILED
-                pilotErrorDiag = "stageInHPCJobsException"
-                failedJobIds.append(jobId)
-                self.failOneJob(0, jobResult, job, ins=job.inFiles, pilotErrorDiag=pilotErrorDiag, updatePanda=True)
 
         for jobId in failedJobIds:
             del self.__jobs[jobId]
@@ -662,22 +642,35 @@ class RunJobHpcEvent(RunJob):
         #    self.failAllJobs(0, jobResult, self.__jobs, pilotErrorDiag=pilotErrorDiag)
 
 
-    def updateEventRange(self, event_range_id, jobid, status='finished', os_bucket_id=-1):
+    def updateEventRange(self, event_range_id, status='finished'):
         """ Update an event range on the Event Server """
-        message = EventRanges.updateEventRange(event_range_id, [], jobid, status, os_bucket_id)
+        tolog("Updating an event range..")
 
-        return 0, message
+        message = ""
+        # url = "https://aipanda007.cern.ch:25443/server/panda"
+        url = "https://pandaserver.cern.ch:25443/server/panda"
+        node = {}
+        node['eventRangeID'] = event_range_id
 
+        # node['cpu'] =  eventRangeList[1]
+        # node['wall'] = eventRangeList[2]
+        node['eventStatus'] = status
+        # tolog("node = %s" % str(node))
 
-    def updateEventRanges(self, event_ranges):
-        """ Update an event range on the Event Server """
-        return EventRanges.updateEventRanges(event_ranges)
+        # open connection
+        ret = httpConnect(node, url, path=self.__pilotWorkingDir, mode="UPDATEEVENTRANGE")
+        # response = ret[1]
 
-        return status, message
+        if ret[0]: # non-zero return code
+            message = "Failed to update event range - error code = %d" % (ret[0])
+        else:
+            message = ""
+
+        return ret[0], message
+
 
     def getJobEventRanges(self, job, numRanges=2):
         """ Download event ranges from the Event Server """
-        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=2)
         tolog("Server: Downloading new event ranges..")
 
         if os.environ.has_key('EventRanges') and os.path.exists(os.environ['EventRanges']):
@@ -699,6 +692,10 @@ class RunJobHpcEvent(RunJob):
         except:
             tolog(traceback.format_exc())
             return []
+        else:
+            message = response['eventRanges']
+            return json.loads(message)
+
 
     def updateHPCEventRanges(self):
         for jobId in self.__eventRanges:
@@ -709,7 +706,7 @@ class RunJobHpcEvent(RunJob):
                     else:
                         eventStatus = 'failed'
                     try:
-                        ret, message = self.updateEventRange(eventRangeID, jobId, eventStatus)
+                        ret, message = self.updateEventRange(eventRangeID, eventStatus)
                     except Exception, e:
                         tolog("Failed to update event range: %s, %s, exception: %s " % (eventRangeID, eventStatus, str(e)))
                     else:
@@ -884,8 +881,7 @@ class RunJobHpcEvent(RunJob):
         os.chdir(current_dir)
         tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
 
-
-        return 0, None, {"TokenExtractCmd": self.__jobs[job.jobId]['tokenExtractorCmd'], "AthenaMPCmd": runCommandList_0, "PreSetup": preSetup, "PostRun": postRun, 'PoolFileCatalog': poolFileCatalog, 'InputFiles': inputFilesGlobal, 'GlobalWorkingDir': job.workdir, 'zipFileName': self.__jobs[job.jobId]['job'].outputZipName, 'zipEventRangesName': self.__jobs[job.jobId]['job'].outputZipEventRangesName}
+        return 0, None, {"TokenExtractCmd": self.__jobs[job.jobId]['tokenExtractorCmd'], "AthenaMPCmd": runCommandList_0, "PreSetup": preSetup, "PostRun": postRun, 'PoolFileCatalog': poolFileCatalog, 'InputFiles': inputFilesGlobal, 'GlobalWorkingDir': job.workdir}
 
     def prepareHPCJobs(self):
         for jobId in self.__jobs:
@@ -1275,7 +1271,6 @@ class RunJobHpcEvent(RunJob):
             time_start = time.time()
             state = hpcManager.poll()
             self.__hpcStatue = state
-            self.__hpcJobId = hpcManager.getHPCJobId()
             self.updateAllJobsState('starting', self.__hpcStatue, updatePanda=True)
 
             while not hpcManager.isFinished():
@@ -1285,7 +1280,6 @@ class RunJobHpcEvent(RunJob):
                     old_state = state
                     time_start = time.time()
                     tolog("HPCManager Job stat: %s" % state)
-                    self.checkJobMetrics()
                     if state and state == 'Running':
                         self.updateAllJobsState('running', self.__hpcStatue, updatePanda=True)
 
@@ -1298,12 +1292,9 @@ class RunJobHpcEvent(RunJob):
 
             tolog("HPCManager Job Finished")
             self.__hpcStatue = 'stagingOut'
-            self.checkJobMetrics()
             self.updateAllJobsState('running', self.__hpcStatue)
         except:
             tolog("RunHPCEvent failed: %s" % traceback.format_exc())
-
-        self.stageOutZipFiles()
 
         if useEventStager:
             try:
@@ -1418,14 +1409,12 @@ class RunJobHpcEvent(RunJob):
         pilotErrorDiag = ""
         if job.inFiles:
             ec = pUtil.removeFiles(job.workdir, job.inFiles)
-        if job.outputZipName:
-            ec = pUtil.removeFiles(job.workdir, [job.outputZipName])
         #if self.__output_es_files:
         #    ec = pUtil.removeFiles("/", self.__output_es_files)
 
 
         errorCode = PilotErrors.ERR_UNKNOWN
-        if job.attemptNr < 10:
+        if job.attemptNr < 4:
             errorCode = PilotErrors.ERR_ESRECOVERABLE
 
         if (not job.jobId in self.__eventRanges) or len(self.__eventRanges[job.jobId]) == 0:

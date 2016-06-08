@@ -913,7 +913,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             # Get the default ddm endpoint from the normal queuedata
             ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
             os_bucket_id = si.getObjectstoreBucketID(ddmendpoint)
-            tolog("Will create a list using the default bucket ID: %s" % (os_bucket_id))
+            tolog("Will create a list using the default bucket ID: %d" % (os_bucket_id))
             os_bucket_ids = [os_bucket_id]*len(prodDBlockToken)
             tolog("os_bucket_ids=%s"%str(os_bucket_ids))
 
@@ -2021,8 +2021,9 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
             tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (replica_number + 1, s, pilotErrorDiag))
             # add metadata to skipped.xml for the last replica retry
             if (replica_number + 1) == get_RETRY_replicas and (get_attempt + 1) == get_RETRY:
-                tolog("Adding replica info to skipped.xml")
-                _ec = addToSkipped(lfn, guid)
+                tolog("Could have added replica info to skipped.xml (skipped since v 64.4)")
+                #tolog("Adding replica info to skipped.xml")
+                #_ec = addToSkipped(lfn, guid)
         else:
             # is the copied file a root file?
             if sitemover.isRootFileName(lfn):
@@ -2236,7 +2237,7 @@ def extractInputFileInfo(fileInfoList_nr, lfns):
     filetype = fileInfoList_nr[4]
     copytool = fileInfoList_nr[5]
     os_bucket_id = fileInfoList_nr[6]
-    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool, os_bucket_id) = (%s, %s, %s, %s, %s, %s, %s)" % (guid, gpfn, str(size), checksum, filetype, copytool, os_bucket_id))
+    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool, os_bucket_id) = (%s, %s, %s, %s, %s, %s, %d)" % (guid, gpfn, str(size), checksum, filetype, copytool, os_bucket_id))
 
     # get the corresponding lfn
     lfn = getLFN(gpfn, lfns)
@@ -2804,11 +2805,11 @@ def mover_get_data(lfns,
         if ec != 0:
             return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 
-    if LFN_to_TURL_dictionary != {}:
-        # Update the @input file (used to send potentially very large input file list to the trf)
-        status = updateInputFileWithTURLs(job.jobPars, LFN_to_TURL_dictionary)
-        if not status:
-            tolog("!!WARNING!!5465!! LFN to TURL replacement in @input file failed - Direct I/O will fail")
+        if LFN_to_TURL_dictionary != {}:
+            # Update the @input file (used to send potentially very large input file list to the trf)
+            status = updateInputFileWithTURLs(job.jobPars, LFN_to_TURL_dictionary)
+            if not status:
+                tolog("!!WARNING!!5465!! LFN to TURL replacement in @input file failed - Direct I/O will fail")
     else:
         tolog("(Skipping PFC4TURL call since it is not necessary in FAX mode)")
         createdPFCTURL = True
@@ -4094,7 +4095,13 @@ def mover_put_data(outputpoolfcstring,
         s = 1
         _attempt = 0
         if stageoutTries > 0 and stageoutTries < 10:
-            put_RETRY = stageoutTries
+            if objectstore:
+                if "allow_alt_os_stageout" in readpar('catchall'):
+                    put_RETRY = 2
+                else:
+                    put_RETRY = 1
+            else:
+                put_RETRY = stageoutTries
         else:
             tolog("!!WARNING!!1888!! Unreasonable number of stage-out tries: %d (reset to default)" % (stageoutTries))
             put_RETRY = 2
@@ -4107,7 +4114,6 @@ def mover_put_data(outputpoolfcstring,
             # to clean up: note the similarity between logPath and ddm_storage_path
             # logPath=s3://cephgw.usatlas.bnl.gov:8443//atlas_logs/953cde21-6c6d-4fd2-b64f-0f2184bc0274_0.job.log.tgz
             # ddm_storage_path=s3://cephgw.usatlas.bnl.gov:8443//atlas_logs
-            objectstore = "objectstore" in copycmd # Is this a transfer to an object store?
 
             # if not first stage-out attempt, take a nap before next attempt
             if _attempt > 1:

@@ -1948,7 +1948,7 @@ class _Curl:
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
         # write data to temporary config file
         # tmpName = commands.getoutput('uuidgen 2> /dev/null')
-        tmpName = '%s/curl_%s.config' % (path, os.path.basename(url))
+        tmpName = '%s/curl.config' % (path)
         try:
             tmpFile = open(tmpName, 'w')
             tmpFile.write(strData)
@@ -1994,7 +1994,7 @@ class _Curl:
         for key in data.keys():
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
         # write data to temporary config file
-        tmpName = '%s/curl_%s.config' % (path, os.path.basename(url))
+        tmpName = '%s/curl.config' % (path)
         try:
             tmpFile = open(tmpName,'w')
             tmpFile.write(strData)
@@ -4585,7 +4585,7 @@ def updateInputFileWithTURLs(jobPars, LFN_to_TURL_dictionary):
 
     status = False
 
-    # First try to get the @poo filename (which actually contains the full path to the file)
+    # First try to get the @poo filename (which actually contains the full local path to the file)
     filename = getPooFilenameFromJobPars(jobPars)
     if filename != "":
         if os.path.exists(filename):
@@ -4630,7 +4630,6 @@ def updateInputFileWithTURLs(jobPars, LFN_to_TURL_dictionary):
                         status = True
                 else:
                     tolog("!!WARNING!!2998!! Failed to extract TURLs (empty TURL list)")
-
         else:
             tolog("!!WARNING!!2342!! File not found: %s" % (filename))
     else:

@@ -39,7 +39,7 @@ from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getD
      tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService, httpConnect,\
      getSiteInformation, getGUID, isAGreaterOrEqualToB
 from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes
-from EventRanges import downloadEventRanges, updateEventRange, updateEventRanges
+from EventRanges import downloadEventRanges, updateEventRange
 
 try:
     from PilotYamplServer import PilotYamplServer as MessageServer
@@ -85,7 +85,6 @@ class RunJobEvent(RunJob):
     __asyncOutputStager_thread = None            #
     __analysisJob = False                        # True for analysis job
     __jobSite = None                             # Site object
-    __node = None
     __job = None                                 # Job object
     __cache = ""                                 # Cache URL, e.g. used by LSST
     __metadata_filename = ""                     # Full path to the metadata file
@@ -95,9 +94,6 @@ class RunJobEvent(RunJob):
     __sending_event_range = False                # True while event range is being sent to payload
     __current_event_range = ""                   # Event range being sent to payload
     __useTokenExtractor = False                  # Should the TE be used?
-
-    # ES zip
-    __esToZip = False
 
     # Getter and setter methods
 
@@ -420,9 +416,6 @@ class RunJobEvent(RunJob):
         """ Setter for __jobSite """
 
         self.__jobSite = jobSite
-
-    def setJobNode(self, node):
-        self.__node = node
 
     def getYamplChannelName(self):
         """ Getter for __yamplChannelName """
@@ -1009,12 +1002,6 @@ class RunJobEvent(RunJob):
 
         return exitCode, exitAcronym, exitMsg
 
-    def initZipConf(self):
-        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.zip" % self.__job.jobId)
-        self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
-        if 'es_to_zip' in readpar('catchall'):
-            self.__esToZip = True
-
     def convertToLFNs(self):
         """ Convert the output file names to LFNs """
         # Remove the file paths
@@ -1318,101 +1305,6 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, os_bucket_id
 
-    def zipOutput(self, event_range_id, outputFileInfo):
-        """ Transfer the output file to the zip file """
-
-        # FORMAT:  outputFileInfo = {'<full path>/filename.ext': (fsize, checksum, guid), ...}
-        # The dictionary will only contain info about a single file
-
-        ec = 0
-        pilotErrorDiag = ""
-
-        # Extract all information from the dictionary
-        for path in outputFileInfo.keys():
-
-            fsize = outputFileInfo[path][0]
-            checksum = outputFileInfo[path][1]
-            guid = outputFileInfo[path][2]
-
-            command = "zip -j " + self.__job.outputZipName + " " + path
-            tolog("Adding file to zip: %s" % command)
-            ec, pilotErrorDiag = commands.getstatusoutput(command)
-            tolog("status: %s, output: %s\n" % (ec, pilotErrorDiag))
-            if ec:
-                tolog("Failed to zip %s: %s, %s" % (path, ec, pilotErrorDiag))
-                return ec, pilotErrorDiag
-
-        tolog("Adding event range to zip event range file: %s %s" % (event_range_id, outputFileInfo))
-        handler = open(self.__job.outputZipEventRangesName, "a")
-        handler.write("%s %s\n" % (event_range_id, outputFileInfo))
-        handler.close()
-
-        return ec, pilotErrorDiag
-
-    def stageOutZipFiles(self):
-        if not self.__esToZip:
-            tolog("ES to zip is not configured")
-            return 0, "ES to zip is not configured.", -1
-        else:
-            tolog("ES to zip is configured, will start to stage out zipped es file to objectstore")
-
-        if not os.path.exists(self.__job.outputZipName):
-            tolog("Zip file %s doesn't exist, will not continue" % self.__job.outputZipName)
-            return -1, "Zip file doesn't exist", -1
-        if not os.path.exists(self.__job.outputZipEventRangesName):
-            tolog("Zip event range file %s doesn't exist, will not continue" % self.__job.outputZipEventRangesName)
-            return -1, "Zip event range file doesn't exist", -1
-
-        ec = 0
-        pilotErrorDiag = ""
-        os_bucket_id = -1
-        event_range_id = "premerge_zip"
-        f = self.__job.outputZipName
-
-        tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
-        ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
-        if ec == 0:
-            try:
-                ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
-            except Exception, e:
-                tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
-            else:
-                tolog("Adding %s to output file list" % (f))
-                self.__output_files.append(f)
-                tolog("output_files = %s" % (self.__output_files))
-                if ec == 0:
-                    status = 'finished'
-                else:
-                    status = 'failed'
-
-                    # Update the global status field in case of failure
-                    self.setStatus(False)
-
-                    # Note: the rec pilot must update the server appropriately
-
-                # update jobMetrics
-                self.__job.outputZipName = self.__job.outputZipName
-                self.__job.outputZipBucketID = os_bucket_id
-                rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
-                JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=self.__job.workdir)
-                JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
-
-                # Time to update the server
-                eventRanges = []
-                dumpFile = self.__job.outputZipEventRangesName
-                file = open(dumpFile)
-                for line in file:
-                    line = line.strip()
-                    if len(line):
-                        eventRangeID = line.split(" ")[0]
-                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': 'finished', 'objstoreID': os_bucket_id})
-                for chunkEventRanges in pUtil.chunks(eventRanges, 100):
-                    tolog("Update event ranges: %s" % chunkEventRanges)
-                    status, output = updateEventRanges(chunkEventRanges)
-                    tolog("Update Event ranges status: %s, output: %s" % (status, output))
-        else:
-            tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
-
     def startMessageThread(self):
         """ Start the message thread """
 
@@ -1450,7 +1342,7 @@ class RunJobEvent(RunJob):
 
         tolog("Asynchronous output stager thread initiated")
         while not self.__asyncOutputStager_thread.stopped():
-          try:
+
             if len(self.__stageout_queue) > 0:
                 for f in self.__stageout_queue:
                     # Create the output file metadata (will be sent to server)
@@ -1462,62 +1354,45 @@ class RunJobEvent(RunJob):
                         tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
                         ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
                         if ec == 0:
-                            if not self.__esToZip:
-                                try:
-                                    ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
-                                except Exception, e:
-                                    tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
-                                    tolog("Removing %s from stage-out queue to prevent endless loop" % (f))
-                                    self.__stageout_queue.remove(f)
-                                else:
-                                    tolog("Removing %s from stage-out queue" % (f))
-                                    self.__stageout_queue.remove(f)
-                                    tolog("Adding %s to output file list" % (f))
-                                    self.__output_files.append(f)
-                                    tolog("output_files = %s" % (self.__output_files))
-                                    if ec == 0:
-                                        status = 'finished'
-                                    else:
-                                        status = 'failed'
-
-                                        # Update the global status field in case of failure
-                                        self.setStatus(False)
-
-                                        # Note: the rec pilot must update the server appropriately
-
-                                    try:
-                                        # Time to update the server
-                                        msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
-
-                                        # Did the updateEventRange back channel contain an instruction?
-                                        if msg == "tobekilled":
-                                            tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
-                                            self.setAbort()
-                                            self.setToBeKilled()
-                                        if msg == "softkill":
-                                            tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
-                                            self.sendMessage("No more events")
-                                            self.setAbort()
-                                    except:
-                                        tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+                            try:
+                                ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
+                            except Exception, e:
+                                tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
+                                tolog("Removing %s from stage-out queue to prevent endless loop" % (f))
+                                self.__stageout_queue.remove(f)
                             else:
-                                try:
-                                    status, output = self.zipOutput(event_range_id, outputFileInfo)
-                                except:
-                                    tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
-                                    tolog("Removing %s from stage-out queue to prevent endless loop" % (f))
-                                    self.__stageout_queue.remove(f)
+                                tolog("Removing %s from stage-out queue" % (f))
+                                self.__stageout_queue.remove(f)
+                                tolog("Adding %s to output file list" % (f))
+                                self.__output_files.append(f)
+                                tolog("output_files = %s" % (self.__output_files))
+                                if ec == 0:
+                                    status = 'finished'
                                 else:
-                                    tolog("Removing %s from stage-out queue" % (f))
-                                    self.__stageout_queue.remove(f)
-                                    tolog("Adding %s to output file list" % (f))
-                                    self.__output_files.append(f)
-                                    tolog("output_files = %s" % (self.__output_files))
+                                    status = 'failed'
+
+                                    # Update the global status field in case of failure
+                                    self.setStatus(False)
+
+                                    # Note: the rec pilot must update the server appropriately
+
+                                # Time to update the server
+                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
+
+                                # Did the updateEventRange back channel contain an instruction?
+                                if msg == "tobekilled":
+                                    tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+                                    self.setAbort()
+                                    self.setToBeKilled()
+                                if msg == "softkill":
+                                    tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+                                    self.sendMessage("No more events")
+                                    self.setAbort()
+
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
             time.sleep(1)
-          except:
-               tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+
         tolog("Asynchronous output stager thread has been stopped")
 
     def listener(self):
@@ -2143,7 +2018,6 @@ if __name__ == "__main__":
         node = Node.Node()
         node.setNodeName(os.uname()[1])
         node.collectWNInfo(jobSite.workdir)
-        runJob.setJobNode(node)
 
         # Redirect stderr
         sys.stderr = open("%s/runevent.stderr" % (jobSite.workdir), "w")
@@ -2265,7 +2139,6 @@ if __name__ == "__main__":
         tolog("Setup has finished successfully")
         runJob.setJob(job)
 
-        runJob.initZipConf()
         # Job has been updated, display it again
         job.displayJob()
 
@@ -2724,8 +2597,6 @@ if __name__ == "__main__":
                 tolog("Aborting stage-out thread (timeout)")
                 break
             time.sleep(30)
-
-        runJob.stageOutZipFiles()
 
         # replace the default job output file list which is anyway not correct
         # (it is only used by AthenaMP for generating output file names)

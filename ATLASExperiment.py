@@ -3618,12 +3618,12 @@ class ATLASExperiment(Experiment):
         workdir = argdict.get('workdir', '.')
         interval = 60
 
-        default_release = "20.1.5"
-        default_patch_release = "20.1.5.2" #"20.1.4.1"
-        default_cmtconfig = "x86_64-slc6-gcc48-opt"
+        default_release = "20.7.5" #"20.1.5"
+        default_patch_release = "20.7.5.8" #"20.1.5.2" #"20.1.4.1"
+        default_cmtconfig = "x86_64-slc6-gcc49-opt"
         default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
-        #default_path = "%s/%s/%s/AtlasProduction/%s/InstallArea/%s/bin/MemoryMonitor" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
-        default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest --cmtconfig %s" % (default_swbase, default_cmtconfig, default_release, default_patch_release, default_cmtconfig)
+        default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
+        # source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc49-opt/20.7.5/cmtsite/asetup.sh 20.7.5.8,notest
 
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):

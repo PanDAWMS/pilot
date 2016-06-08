@@ -55,8 +55,6 @@ class Yoda(threading.Thread):
 
         self.updateEventRangesToDBTime = None
 
-        self.jobMetrics = {}
-
         signal.signal(signal.SIGTERM, self.stop)
         signal.signal(signal.SIGQUIT, self.stop)
         signal.signal(signal.SIGSEGV, self.stop)
@@ -561,58 +559,6 @@ class Yoda(threading.Thread):
         self.comm.sendMessage(res)
         self.comm.disconnect()
 
-    def collectMetrics(self, ranks):
-        metrics = {}
-        for rank in ranks.keys():
-            for key in ranks[rank].keys():
-                if key in ["setupTime", "totalTime", "cores", "processCPUHour", "totalCPUHour", "queuedEvents", "processedEvents"]:
-                    if key not in metrics:
-                        metrics[key] = 0
-                    metrics[key] += ranks[rank][key]
-        num_ranks = len(ranks.keys())
-        if num_ranks < 1:
-            num_ranks = 1
-        processedEvents = metrics['processedEvents']
-        if processedEvents < 1:
-            processedEvents = 1
-        metrics['setupTime'] = metrics['setupTime']/num_ranks
-        metrics['avgTimePerEvent'] = metrics['processCPUHour']/processedEvents
-        return metrics
-
-    def heartbeat(self, params):
-        """
-        {"jobId": , "rank": , "startTime": ,"readyTime": , "endTime": , "setupTime": , "totalTime": , "cores": , "processCPUHour": , "totalCPUHour": , "queuedEvents": , "processedEvents": }
-        """
-        self.tmpLog.debug('heartbeat')
-        jobId = params['jobId']
-        rank = params['rank']
-        if jobId not in self.jobMetrics:
-            self.jobMetrics[jobId] = {'ranks': {}, 'collect': {}}
-
-        self.jobMetrics[jobId]['ranks'][rank] = params
-        self.jobMetrics[jobId]['collect'] = self.collectMetrics(self.jobMetrics[jobId]['ranks'])
-
-        # make response
-        res = {'StatusCode':0}
-        # return
-        self.tmpLog.debug('res={0}'.format(str(res)))
-        self.comm.returnResponse(res)
-        self.tmpLog.debug('return response')
-
-        jobMetricsFileName = "jobMetrics-yoda-%s.json" % jobId
-        #if self.outputDir:
-        #    jobMetrics = os.path.join(self.outputDir, jobMetricsFileName)
-        #else:
-        try:
-            outputDir = self.jobs[jobId]["GlobalWorkingDir"]
-        except:
-            self.tmpLog.debug("Failed to get job's global working dir: %s" % (traceback.format_exc()))
-            outputDir = self.globalWorkingDir
-        jobMetrics = os.path.join(outputDir, jobMetricsFileName)
-        self.tmpLog.debug("JobMetrics file: %s" % jobMetrics)
-        tmpFile = open(jobMetrics, "w")
-        json.dump(self.jobMetrics, tmpFile)
-        tmpFile.close()
 
     # main
     def run(self):
@@ -674,8 +620,7 @@ class Yoda(threading.Thread):
         self.postExecJob()
         self.finishDroids()
         self.tmpLog.info('done')
-        #os._exit(0)
-        sys.exit(0)
+        os._exit(0)
         return 0
 
 
