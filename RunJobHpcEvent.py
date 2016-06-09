@@ -677,7 +677,6 @@ class RunJobHpcEvent(RunJob):
 
     def getJobEventRanges(self, job, numRanges=2):
         """ Download event ranges from the Event Server """
-        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=2)
         tolog("Server: Downloading new event ranges..")
 
         if os.environ.has_key('EventRanges') and os.path.exists(os.environ['EventRanges']):
@@ -785,11 +784,11 @@ class RunJobHpcEvent(RunJob):
         # 3. create Pool File Catalog
         inputFileDict = dict(zip(job.inFilesGuids, inputFilesGlobal))
         poolFileCatalog = os.path.join(job.workdir, "PoolFileCatalog_HPC.xml")
-        createPoolFileCatalog(inputFileDict, poolFileCatalog)
+        createPoolFileCatalog(inputFileDict, [], pfc_name=poolFileCatalog)
         inputFileDictTemp = dict(zip(job.inFilesGuids, inputFiles))
         poolFileCatalogTemp = os.path.join(job.workdir, "PoolFileCatalog_Temp.xml")
         poolFileCatalogTempName = "HPCWORKINGDIR/PoolFileCatalog_Temp.xml"
-        createPoolFileCatalog(inputFileDictTemp, poolFileCatalogTemp)
+        createPoolFileCatalog(inputFileDictTemp, [], pfc_name=poolFileCatalogTemp)
         self.__jobs[job.jobId]['poolFileCatalog'] = poolFileCatalog
         self.__jobs[job.jobId]['poolFileCatalogTemp'] = poolFileCatalogTemp
         self.__jobs[job.jobId]['poolFileCatalogTempName'] = poolFileCatalogTempName
@@ -820,7 +819,12 @@ class RunJobHpcEvent(RunJob):
         #     runCommandList_0 = runCommandList_0.replace(source_setup, yoda_setup_command)
         if not self.__copyInputFiles:
             jobInputFileList = None
-            jobInputFileList = inputFilesGlobal[0]
+            # jobInputFileList = inputFilesGlobal[0]
+            for inputFile in job.inFiles:
+                if not jobInputFileList:
+                    jobInputFileList = os.path.join(job.workdir, inputFile)
+                else:
+                    jobInputFileList += "," + os.path.join(job.workdir, inputFile)
             command_list = runCommandList_0.split(" ")
             command_list_new = []
             for command_part in command_list:
@@ -889,7 +893,12 @@ class RunJobHpcEvent(RunJob):
 
     def prepareHPCJobs(self):
         for jobId in self.__jobs:
-            status, output, hpcJob = self.prepareHPCJob(self.__jobs[jobId]['job'])
+            try:
+                status, output, hpcJob = self.prepareHPCJob(self.__jobs[jobId]['job'])
+            except:
+                tolog("Failed to prepare HPC Job: %s" % jobId)
+                self.__jobs[jobId]['hpcJob'] = None
+                continue
             tolog("HPC Job %s: %s " % (jobId, hpcJob))
             if status == 0:
                 self.__jobs[jobId]['hpcJob'] = hpcJob
@@ -992,7 +1001,7 @@ class RunJobHpcEvent(RunJob):
         hpcJobs = {}
         for jobId in self.__jobs:
             self.__jobs[jobId]['job'].coreCount = avgCores
-            if len(self.__eventRanges[jobId]) > 0:
+            if len(self.__eventRanges[jobId]) > 0 and 'hpcJob' in self.__jobs[jobId] and self.__jobs[jobId]['hpcJob']:
                 hpcJobs[jobId] = self.__jobs[jobId]['hpcJob']
         hpcManager.initJobs(hpcJobs, self.__jobEventRanges)
 
@@ -1186,7 +1195,7 @@ class RunJobHpcEvent(RunJob):
                     if coreCount < 1:
                         coreCount = 1
                     self.__jobs[jobId]['job'].coreCount = jobMetrics[jobId]['collect']['cores']
-                    self.__jobs[jobId]['job'].cpuConsumptionTime = jobMetrics[jobId]['collect']['totalCPUHour']/coreCount
+                    self.__jobs[jobId]['job'].cpuConsumptionTime = jobMetrics[jobId]['collect']['totalCPUHour']
                     self.__jobs[jobId]['job'].timeExe = jobMetrics[jobId]['collect']['totalTime']
                     self.__jobs[jobId]['job'].yodaSetupTime = jobMetrics[jobId]['collect']['setupTime']
                     self.__jobs[jobId]['job'].yodaTotalTime = jobMetrics[jobId]['collect']['totalTime']
@@ -1506,6 +1515,8 @@ class RunJobHpcEvent(RunJob):
         found_files = {}
         all_files = os.listdir(self.__pilotWorkingDir)
         for file in all_files:
+            if "job.log.tgz." in file or "LOCKFILE" in file or "tarball_PandaJob" in file:
+                continue
             path = os.path.join(self.__pilotWorkingDir, file)
             if os.path.isdir(path):
                 if file not in ['HPC', 'lib', 'radical', 'saga'] and not file.startswith("PandaJob_"):
@@ -1534,6 +1545,8 @@ class RunJobHpcEvent(RunJob):
                 path = found_files[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:
+                    if "job.log.tgz." in file or "LOCKFILE" in file or "tarball_PandaJob" in file:
+                        continue
                     if file.endswith(".dump") or file.startswith("metadata-") or file.startswith("jobState-") \
                        or file.startswith("Job_") or file.startswith("jobMetrics-yoda") or file.startswith("fileState-") \
                        or file.startswith("surlDictionary"):
