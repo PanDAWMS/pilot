@@ -124,6 +124,7 @@ class PandaServerClient:
                 coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
             except:
                 tolog("env ATHENA_PROC_NUMBER is not set. corecount is not set")
+        job.coreCount = coreCount
         jobMetrics = ""
         if coreCount and coreCount != "NULL":
             jobMetrics += self.jobMetric(key="coreCount", value=coreCount)
@@ -312,6 +313,11 @@ class PandaServerClient:
             node['jobSubStatus'] = job.hpcStatus
         else:
             node['jobSubStatus'] = ''
+
+        if job.coreCount:
+            node['coreCount'] = job.coreCount
+        if job.HPCJobId:
+            node['batchID'] = job.HPCJobId
 
         # check to see if there were any high priority errors reported
         errorInfo = getHighestPriorityError(job.jobId, self.__pilot_initdir)
