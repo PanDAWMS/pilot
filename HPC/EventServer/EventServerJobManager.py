@@ -97,6 +97,8 @@ class EventServerJobManager():
         self.__startTime = time.time()
         self.__readyForEventTime = None
         self.__endTime = None
+        self.__startOSTimes = os.times()
+        self.__endOSTimes = None
         self.__totalQueuedEvents = 0
         self.__totalProcessedEvents = 0
 
@@ -126,6 +128,14 @@ class EventServerJobManager():
             ret = time.time() - self.__startTime
         return ret
 
+    def getCPUConsumptionTime(self):
+        endOSTimes = os.times()
+        if self.__endOSTimes:
+            endOSTimes = self.__endOSTimes
+        t = map(lambda x, y:x-y, endOSTimes, self.__startOSTimes)
+        t_tot = reduce(lambda x, y:x+y, t[2:3])
+        return t_tot
+
     def getCores(self):
         return self.__ATHENA_PROC_NUMBER
 
@@ -150,6 +160,7 @@ class EventServerJobManager():
                 "cores": self.getCores(),
                 "processCPUHour": self.getProcessCPUHour(),
                 "totalCPUHour": self.getTotalCPUHour(),
+                "cpuConsumptionTime": self.getCPUConsumptionTime(),
                 "queuedEvents": self.getTotalQueuedEvents(),
                 "processedEvents": self.getTotalProcessedEvents()}
 

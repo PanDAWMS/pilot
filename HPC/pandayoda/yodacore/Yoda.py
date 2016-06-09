@@ -565,10 +565,17 @@ class Yoda(threading.Thread):
         metrics = {}
         for rank in ranks.keys():
             for key in ranks[rank].keys():
-                if key in ["setupTime", "totalTime", "cores", "processCPUHour", "totalCPUHour", "queuedEvents", "processedEvents"]:
+                if key in ["setupTime", "totalTime", "cores", "processCPUHour", "totalCPUHour", "queuedEvents", "processedEvents", "cpuConsumptionTime"]:
                     if key not in metrics:
                         metrics[key] = 0
                     metrics[key] += ranks[rank][key]
+        totalCPUHour = 0
+        for rank in ranks.keys():
+            if 'timeDroidRunOneJob' in ranks[rank]:
+                totalCPUHour += ranks[rank]['timeDroidRunOneJob'] * ranks[rank]['cores']
+        if totalCPUHour > 0:
+            metrics['oldTotalCPUHour'] = metrics['totalCPUHour']
+            metrics['totalCPUHour'] = totalCPUHour
         num_ranks = len(ranks.keys())
         if num_ranks < 1:
             num_ranks = 1
@@ -576,12 +583,16 @@ class Yoda(threading.Thread):
         if processedEvents < 1:
             processedEvents = 1
         metrics['setupTime'] = metrics['setupTime']/num_ranks
+        metrics['totalTime'] = metrics['totalTime']/num_ranks
         metrics['avgTimePerEvent'] = metrics['processCPUHour']/processedEvents
+
+        for key in metrics:
+            metrics[key] = int(metrics[key])
         return metrics
 
     def heartbeat(self, params):
         """
-        {"jobId": , "rank": , "startTime": ,"readyTime": , "endTime": , "setupTime": , "totalTime": , "cores": , "processCPUHour": , "totalCPUHour": , "queuedEvents": , "processedEvents": }
+        {"jobId": , "rank": , "startTime": ,"readyTime": , "endTime": , "setupTime": , "totalTime": , "cores": , "processCPUHour": , "totalCPUHour": , "queuedEvents": , "processedEvents": , "cpuConsumptionTime": }
         """
         self.tmpLog.debug('heartbeat')
         jobId = params['jobId']

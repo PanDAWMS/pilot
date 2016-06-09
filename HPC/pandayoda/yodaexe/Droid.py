@@ -42,6 +42,8 @@ class Droid(threading.Thread):
         self.__tmpLog.info("Rank %s: Current working dir: %s" % (self.__rank, self.__currentDir))
 
         self.__jobId = None
+        self.__startOneJobDroid = None
+        self.__cpuTimeOneJobDroid = None
         self.__poolFileCatalog = None
         self.__inputFiles = None
         self.__copyInputFiles = None
@@ -94,6 +96,8 @@ class Droid(threading.Thread):
     def setup(self, job):
         try:
             self.__jobId = job.get("JobId", None)
+            self.__startOneJobDroid = time.time()
+            self.__cpuTimeOneJobDroid = os.times()
             self.__poolFileCatalog = job.get('PoolFileCatalog', None)
             self.__inputFiles = job.get('InputFiles', None)
             self.__copyInputFiles = job.get('CopyInputFiles', False)
@@ -177,6 +181,7 @@ class Droid(threading.Thread):
         self.__stagerThread.stop()
         self.__tmpLog.debug("Rank %s: waiting stager thread to finish" %(self.__rank))
         while not self.__stagerThread.isFinished():
+            self.updateOutputs()
             time.sleep(1)
         self.__tmpLog.debug("Rank %s: stager thread finished" %(self.__rank))
 
@@ -330,6 +335,15 @@ class Droid(threading.Thread):
             metrics = self.__esJobManager.getAccountingMetrics()
         metrics['jobId'] = self.__jobId
         metrics['rank'] = self.__rank
+        if self.__startOneJobDroid:
+            metrics['timeDroidRunOneJob'] =  time.time() - self.__startOneJobDroid
+        else:
+            metrics['timeDroidRunOneJob'] = 0
+
+        if self.__cpuTimeOneJobDroid:
+            t = map(lambda x, y:x-y, os.times(), self.__cpuTimeOneJobDroid)
+            metrics['cpuConsumptionTime'] = reduce(lambda x, y:x+y, t[2:3])
+
         return metrics
 
     def waitYoda(self):
@@ -405,6 +419,7 @@ class Droid(threading.Thread):
 
         self.__tmpLog.info("Rank %s: post exec job" % self.__rank)
         self.postExecJob()
+        self.heartbeat()
         self.__tmpLog.info("Rank %s: finish job" % self.__rank)
         self.finishJob()
         #self.waitYoda()
@@ -445,7 +460,7 @@ class Droid(threading.Thread):
         self.__tmpLog.info('Rank %s: stop signal received' % self.__rank)
         block_sig(signal.SIGTERM)
         self.heartbeat()
-        self.__esJobManager.terminate()
+        #self.__esJobManager.terminate()
         self.__esJobManager.flushMessages()
         self.updateOutputs(signal=True, final=True)
 
