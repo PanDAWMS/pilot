@@ -275,6 +275,9 @@ Added missing factor of 2 in maxrss (Monitor)
 General changes:
 - Cleanup limit raised from 2 to 12 hours in purgeEmptyDirs(), purgeWorkDirs(), purgeMaxedoutDirs() (Cleaner)
 
+Bug fixes:
+- Corrected from variable name (errorOuput -> errorOutput) in put_data() (GFAL2SiteMover)
+
 OS log transfers:
 [TODO: set bucket to -1 for failed log transfers in jobMetrics]
 

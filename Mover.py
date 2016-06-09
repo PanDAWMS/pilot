@@ -913,7 +913,7 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
             # Get the default ddm endpoint from the normal queuedata
             ddmendpoint = si.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
             os_bucket_id = si.getObjectstoreBucketID(ddmendpoint)
-            tolog("Will create a list using the default bucket ID: %d" % (os_bucket_id))
+            tolog("Will create a list using the default bucket ID: %s" % (os_bucket_id))
             os_bucket_ids = [os_bucket_id]*len(prodDBlockToken)
             tolog("os_bucket_ids=%s"%str(os_bucket_ids))
 
@@ -2237,7 +2237,7 @@ def extractInputFileInfo(fileInfoList_nr, lfns):
     filetype = fileInfoList_nr[4]
     copytool = fileInfoList_nr[5]
     os_bucket_id = fileInfoList_nr[6]
-    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool, os_bucket_id) = (%s, %s, %s, %s, %s, %s, %d)" % (guid, gpfn, str(size), checksum, filetype, copytool, os_bucket_id))
+    tolog("Extracted (guid, gpfn, size, checksum, filetype, copytool, os_bucket_id) = (%s, %s, %s, %s, %s, %s, %s)" % (guid, gpfn, str(size), checksum, filetype, copytool, os_bucket_id))
 
     # get the corresponding lfn
     lfn = getLFN(gpfn, lfns)
@@ -4129,15 +4129,10 @@ def mover_put_data(outputpoolfcstring,
                         tolog("Updating the logPath (replacing \'%s\' with \'%s\')" % (logPath, _path))
                         # this function can decide to use a new OS, so update the os_bucket_id
                         logPath = _path
-                        tolog("Using os_bucket_id=%d" % (os_bucket_id))
+                        tolog("Using os_bucket_id=%s" % (os_bucket_id))
 
                     # for normal OS file transfers, the logPath will not be set and thus an alternative OS has to be found separately (otherwise found by getNewOSStoragePath())
                     ddm_storage_path = os.path.dirname(_path)
-
-                    # in case of file transfer to OS, also update the ddm_storage_path
-                    #ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
-                    #if pilotErrorDiag != "":
-                    #    return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
