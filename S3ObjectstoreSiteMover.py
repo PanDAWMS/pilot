@@ -113,7 +113,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
                 hosts = []
                 socket_hosts = socket.getaddrinfo(hostname, port)
                 for socket_host in socket_hosts:
-                    if socket_host[4][0] not in hosts:
+                    if socket_host[4][0] not in hosts and not ":" in socket_host[4][0]:
                         hosts.append(socket_host[4][0])
                 if hosts:
                     self.__hosts[hostname] = hosts
