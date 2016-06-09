@@ -2,6 +2,7 @@ import sys, os, signal, time, shutil, cgi
 import commands, re
 import urllib
 import json
+import traceback
 
 from xml.dom import minidom
 from xml.dom.minidom import Document
@@ -157,7 +158,7 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
         module_name = os.path.basename(inspect.stack()[1][1])
     except Exception, e:
         module_name = "unknown"
-        print "Exception caught by tolog():", e
+        #print "Exception caught by tolog(): ", e,
     module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
     msg = "%s| %s" % (module_name_cut, msg)
 
@@ -1993,8 +1994,11 @@ class _Curl:
         strData = ''
         for key in data.keys():
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
+        jobId = ''
+        if 'jobId' is data:
+            jobId = '_%s' % data['jobId']
         # write data to temporary config file
-        tmpName = '%s/curl_%s.config' % (path, os.path.basename(url))
+        tmpName = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
         try:
             tmpFile = open(tmpName,'w')
             tmpFile.write(strData)
