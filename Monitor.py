@@ -287,29 +287,28 @@ class Monitor:
                         maxRSS = pUtil.readpar('maxrss') # string
                         if maxRSS:
                             try:
-                                maxRSS_int = int(maxRSS)*1024 # Convert to int and B
+                                maxRSS_int = 2*int(maxRSS)*1024 # Convert to int and kB
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:
                                 # Compare the maxRSS with the maxPSS from memory monitor
                                 if maxRSS_int > 0:
                                     if maxPSS_int > 0:
-                                        if maxPSS_int > maxRSS_int:
-                                            pilotErrorDiag = "Job has exceeded the memory limit %d B > %d B (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
+                                        if maxPSS_int > maxRSS_int and not isCGROUPSSite():
+                                            pilotErrorDiag = "Job has exceeded the memory limit %d kB > %d kB (2*schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
                                             pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
 
                                             # Create a lockfile to let RunJob know that it should not restart the memory monitor after it has been killed
                                             pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORYEXCEEDED")
 
                                             # Kill the job
-                                            pUtil.tolog("!!WARNING!!9903!! Could have killed the job")
-                                            #killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                                            #self.__env['jobDic'][k][1].result[0] = "failed"
-                                            #self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
-                                            #self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
-                                            #self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            self.__env['jobDic'][k][1].result[0] = "failed"
+                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
-                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
+                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (2*maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
                                     else:
                                         pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
                         else:
@@ -926,7 +925,8 @@ class Monitor:
             pUtil.tolog("!!WARNING!!1999!! Could not backup job definition since file %s does not exist" % (self.__env['pandaJobDataFileName']))
 
     def updateTerminatedJobs(self):
-        """ For multiple jobs, pilot may took long time collect logs. We need to heartbeat for these jobs. """
+        """ For multiple jobs, pilot may take long time collect logs. Send heartbeats for these jobs. """
+
         for k in self.__env['jobDic'].keys():
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
@@ -1011,7 +1011,6 @@ class Monitor:
         """ clean up the ended jobs (if there are any) """
 
         global threadpool
-        # after multitasking was removed from the pilot, there is actually only one job
         first = True
         handled_jobs = 0
         if len(self.__env['jobDic'].keys()) > 1 and threadpool is None:
@@ -1055,11 +1054,11 @@ class Monitor:
                 else:
                     threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
                     jobs_added_to_threadpool.append(k)
-            # let pilot to heartbeat
+            # send heartbeat
             if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
                 self.updateTerminatedJobs()
                 break
-        # let pilot to heartbeat
+        # send heartbeat
         if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
            self.updateTerminatedJobs()
 

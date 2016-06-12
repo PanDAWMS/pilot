@@ -260,7 +260,6 @@ class JobLog:
                 tolog(".....filesAltStageOut = %d" % (job.filesAltStageOut))
 
             if rc != 0:
-
                 # remove any trailing "\r" or "\n" (there can be two of them)
                 if rs != None:
                     rs = rs.rstrip()
@@ -272,7 +271,7 @@ class JobLog:
                     os_bucket_id = -1
                     rc = 0
 
-                rmflag = 0  # don't remove the tarball
+                rmflag = 0 # don't remove the tarball
                 job.result[0] = "holding"
 
                 # is the job recoverable?

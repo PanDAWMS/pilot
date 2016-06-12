@@ -1912,7 +1912,7 @@ class RunJobEvent(RunJob):
 
             # Create a TURL based PFC
             tokens_dictionary = {} # not needed here, so set it to an empty dictionary
-            ec, pilotErrorDiag, createdPFCTURL, usect = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
+            ec, pilotErrorDiag, createdPFCTURL, usect, dummy = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
                                                                             sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict, self.__experiment)
             if ec != 0:
                 tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))

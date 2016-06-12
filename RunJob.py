@@ -1597,7 +1597,9 @@ if __name__ == "__main__":
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
         #runJob.copyInputForFiles(job.workdir)
 
+        # unzip the staged in file if necessary
         runJob.unzipStagedFiles(job)
+
         # (stage-in ends here) .............................................................................
 
         # change to running state since all input files have been staged

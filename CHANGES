@@ -220,43 +220,75 @@ General changes:
 65.2:
 
 General changes:
-- Cleanup limit raised from 2 to 12 hours in purgeEmptyDirs(), purgeWorkDirs(), purgeMaxedoutDirs() (Cleaner)
 - Added debugging (sys.exc_info()) info when list_replicas() fails with 'empty dictionary' in getRucioReplicaDictionary() (Mover)
+- Removed duplicate definition of objectstore variable in mover_put_data() (Mover)
+- Added &schemes=https,http to all occurrences of ?select=geoip when the schedconfig.httpredirector is set, requested by R. Walker, V. Garonne (aria2cSiteMover)
 
 Bug fixes:
 - Removed call to getDDMStorage() which overwrote alternative bucket id (Mover)
+- Adding --directIn for transferType fax and direct_access_wan = True, in getAnalysisRunCommand() (ATLASExperiment)
+- Setting old/newPrefix="" in getFileAccessInfo() (SiteInformation)
 
 OS log transfers:
 - Ignoring failed OS log transfer and resetting os_bucket_id, in transferActualLogFile() (JobLog)
-[TODO: set bucket to -1 for failed log transfers in jobMetrics]
+- Only allow alt OS stage-out if "allow_alt_os_stageout" is present in catchall field, in mover_put_data() (Mover)
 
 Direct Access on ND:
 - Relaxed the input file verification in get_data() to allow for direct access, requested by D. Cameron and A. Filipcic (mvSiteMover)
 
-Direct access update:
-- [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
-[TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
+Direct access updates:
+- Now accepting writeToFile directive for non-ES jobs in setJobDef() (Job)
+- Sending eventservice variable to writeToInputFile() from setJobDef() (Job)
+- Added eventservice argument to writeToInputFile() (pUtil)
+- Selecting --inputHitsFile or --inputAODFile depending on value of eventservice variable in writeToInputFile() (pUtil)
+- Updated updateDispatcherData4ES(), updateJobPars() to work not only with ES jobs (pUtil)
+- Created getPooFilenameFromJobPars(), updateInputFileWithTURLs() (pUtil) [not merged with main-dev]
+- Generating the LFN_to_TURL_dictionary in getTURLs() (Mover)
+- Receiving LFN_to_TURL_dictionary from PFC4TURLs() from _mover_get_data_new(), mover_get_data() (Mover)
+- Returning LFN_to_TURL_dictionary from getTURLs(), createPFC4TURLs(), PFC4TURLs() (Mover)
+- Importing updateInputFileWithTURLs (Mover)
+- Calling updateInputFileWithTURLs() from _mover_get_data_new() and mover_get_data() (Mover)
+- Added dummy return value from PFC4TURLs() call in getPoolFileCatalog() (RunJobEvent)
 
-*** testing at analy_uio etc, see ATLASSiteInformation ***
-
-Bug fix: Direct access with FAX:
-- Adding --directIn for transferType fax and direct_access_wan = True, in getAnalysisRunCommand() (ATLASExperiment)
-- Setting old/newPrefix="" in getFileAccessInfo() (SiteInformation)
-[TODO: warning - using transferType fax in Job]
+Memory monitoring:
+- Now enforcing maxPSS from memory monitor is less than 2*maxRSS from schedconfig, otherwise kill job for non-CGROUPS sites, in __check_memory_usage() (Monitor)
+- Updated memory monitor from release area 20.1.5.2 to 20.7.5.8 (ATLASExperiment)
 
 Updates from Wen Guan:
-- Yoda accounting and monitoring: report cpu hour info and processed events to pilot. Pilot then reports theis info to panda with jobMetrics
+- Yoda accounting and monitoring: report cpu hour info and processed events to pilot. Pilot then reports this info to panda with jobMetrics
 - ES zip: Yoda ES zip outputs; Grid job ES zip outputs(RunJobEvent), unzip ES when merging(RunJob)
 - Report MPI job id to panda in jobMetrics
 - Added bulk update event ranges to RunJobEvent
 - Fixed os_bucket_id in Yoda
-- Fixed RunJobEvent with race condition: When asynchronousOutputStager, updateEventRange and main thread getEventRange are running at the same time, the curl.config will be override and asynchronousOutputStager may crash
-
-
-
+- Fixed RunJobEvent with race condition: When asynchronousOutputStager, updateEventRange and main thread getEventRange are running at the same time, the curl.config will be overwritten and asynchronousOutputStager may crash
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+65.3:
+
+Added missing factor of 2 in maxrss (Monitor)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+65.4:
+
+General changes:
+- Cleanup limit raised from 2 to 12 hours in purgeEmptyDirs(), purgeWorkDirs(), purgeMaxedoutDirs() (Cleaner)
+
+Bug fixes:
+- Corrected from variable name (errorOuput -> errorOutput) in put_data() (GFAL2SiteMover)
+
+OS log transfers:
+[TODO: set bucket to -1 for failed log transfers in jobMetrics]
+
+Direct access updates:
+- [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
+[TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
+
+Site mover update from Alexey Anisenkov:
+- ..
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
 
