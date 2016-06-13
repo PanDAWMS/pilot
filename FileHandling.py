@@ -597,7 +597,7 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
     return output_files
 
 def getDestinationDBlockItems(filename, original_output_files, destinationDBlockToken, destinationDblock, scopeOut):
-    """ Return destinationDBlock items (destinationDBlockToken, destinationDblock) for given file """
+    """ Return destinationDBlock items (destinationDBlockToken, destinationDblock, scope) for given file """
 
     # Note: in case of spill-over file, the file name will end with _NNN or ._NNN. This will be removed from the file name
     # so that the destinationDBlockToken of the original output file will be used
