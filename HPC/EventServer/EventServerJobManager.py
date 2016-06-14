@@ -97,6 +97,8 @@ class EventServerJobManager():
         self.__startTime = time.time()
         self.__readyForEventTime = None
         self.__endTime = None
+        self.__totalQueuedEvents = 0
+        self.__totalProcessedEvents = 0
 
     def handler(self, signal, frame):
         self.__log.debug("!!FAILED!!3000!! Signal %s is caught" % signal)
@@ -109,6 +111,47 @@ class EventServerJobManager():
         #signal.signal(signal.SIGSEGV, self.handler)
         #signal.signal(signal.SIGINT, self.handler)
         pass
+
+    def getSetupTime(self):
+        if self.__readyForEventTime:
+            ret = self.__readyForEventTime - self.__startTime
+        else:
+            ret = time.time() - self.__startTime
+        return ret
+
+    def getTotalTime(self):
+        if self.__endTime:
+            ret = self.__endTime - self.__startTime
+        else:
+            ret = time.time() - self.__startTime
+        return ret
+
+    def getCores(self):
+        return self.__ATHENA_PROC_NUMBER
+
+    def getProcessCPUHour(self):
+        return (self.getTotalTime() - self.getSetupTime()) * self.getCores()
+
+    def getTotalCPUHour(self):
+        return self.getTotalTime() * self.getCores()
+
+    def getTotalQueuedEvents(self):
+        return self.__totalQueuedEvents
+
+    def getTotalProcessedEvents(self):
+        return self.__totalProcessedEvents
+
+    def getAccountingMetrics(self):
+        return {"startTime": self.__startTime,
+                "readyTime": self.__readyForEventTime,
+                "endTime": self.__endTime,
+                "setupTime": self.getSetupTime(),
+                "totalTime": self.getTotalTime(),
+                "cores": self.getCores(),
+                "processCPUHour": self.getProcessCPUHour(),
+                "totalCPUHour": self.getTotalCPUHour(),
+                "queuedEvents": self.getTotalQueuedEvents(),
+                "processedEvents": self.getTotalProcessedEvents()}
 
     def preSetup(self, preSetup):
         if preSetup:
@@ -254,6 +297,7 @@ class EventServerJobManager():
             eventRangeFormat = json.dumps(eventRanges)
             self.__log.debug("Rank %s: sendEventRangeToAthenaMP: %s" % (self.__rank, eventRangeFormat))
             self.__messageInQueue.put(eventRangeFormat)
+            self.__totalQueuedEvents += 1
 
             for eventRange in eventRanges:
                 eventRangeID = eventRange['eventRangeID']
@@ -438,10 +482,12 @@ class EventServerJobManager():
                 self.__athenaMP_isReady = True
                 self.__athenaMP_needEvents += 1
             elif message.startswith("/"):
+                self.__totalProcessedEvents += 1
                 self.__numOutputs += 1
                 # self.__outputMessage.append(message)
                 try:
-                    eventRangeID = message.split(',')[0].split('.')[-1]
+                    # eventRangeID = message.split(',')[0].split('.')[-1]
+                    eventRangeID = message.split(',')[-3].replace("ID:", "").replace("ID: ", "")
                     self.__eventRangesStatus[eventRangeID]['status'] = 'finished'
                     self.__eventRangesStatus[eventRangeID]['output'] = message
                     self.__outputMessage.append((eventRangeID, 'finished', message))

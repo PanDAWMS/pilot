@@ -99,6 +99,7 @@ class Droid(threading.Thread):
             self.__copyInputFiles = job.get('CopyInputFiles', False)
             self.__preSetup = job.get('PreSetup', None)
             self.__postRun = job.get('PostRun', None)
+
             self.__ATHENA_PROC_NUMBER = int(job.get('ATHENA_PROC_NUMBER', 1))
             self.__ATHENA_PROC_NUMBER -= self.reserveCores
             if self.__ATHENA_PROC_NUMBER < 0:
@@ -312,6 +313,25 @@ class Droid(threading.Thread):
         self.__comm.disconnect()
         return False
 
+    def heartbeat(self):
+        request = self.getAccountingMetrics()
+        self.__tmpLog.debug("Rank %s: heartbeat(request: %s)" % (self.__rank, request))
+        status, output = self.__comm.sendRequest('heartbeat',request)
+        self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
+        if status:
+            statusCode = output["StatusCode"]
+            if statusCode == 0:
+                return True
+        return False
+
+    def getAccountingMetrics(self):
+        metrics = {}
+        if self.__esJobManager:
+            metrics = self.__esJobManager.getAccountingMetrics()
+        metrics['jobId'] = self.__jobId
+        metrics['rank'] = self.__rank
+        return metrics
+
     def waitYoda(self):
         self.__tmpLog.debug("Rank %s: WaitYoda" % (self.__rank))
         while True:
@@ -342,6 +362,7 @@ class Droid(threading.Thread):
         # main loop
         failedNum = 0
         #self.__tmpLog.info("Rank %s: isDead: %s" % (self.__rank, self.__esJobManager.isDead()))
+        heartbeatTime = None
         while not self.__esJobManager.isDead():
             #self.__tmpLog.info("Rank %s: isDead: %s" % (self.__rank, self.__esJobManager.isDead()))
             #self.__tmpLog.info("Rank %s: isNeedMoreEvents: %s" % (self.__rank, self.__esJobManager.isNeedMoreEvents()))
@@ -370,7 +391,14 @@ class Droid(threading.Thread):
             self.updateOutputs()
 
             time.sleep(0.001)
+            if heartbeatTime is None:
+                self.heartbeat()
+                heartbeatTime = time.time()
+            elif time.time() - heartbeatTime > 5 * 60:
+                self.heartbeat()
+                heartbeatTime = time.time()
 
+        self.heartbeat()
         self.__esJobManager.flushMessages()
         self.stopStagerThread()
         self.updateOutputs()
@@ -410,11 +438,13 @@ class Droid(threading.Thread):
             os.chdir(self.__globalWorkingDir)
             self.__tmpLog.info("Rank %s: Droid finishes to run one job" % self.__rank)
         self.finishDroid()
+        sys.exit(0)
         return 0
             
     def stop(self, signum=None, frame=None):
         self.__tmpLog.info('Rank %s: stop signal received' % self.__rank)
         block_sig(signal.SIGTERM)
+        self.heartbeat()
         self.__esJobManager.terminate()
         self.__esJobManager.flushMessages()
         self.updateOutputs(signal=True, final=True)
@@ -426,6 +456,7 @@ class Droid(threading.Thread):
 
         self.__tmpLog.info('Rank %s: stop' % self.__rank)
         unblock_sig(signal.SIGTERM)
+        sys.exit(0)
 
     def __del_not_use__(self):
         self.__tmpLog.info('Rank %s: __del__ function' % self.__rank)
