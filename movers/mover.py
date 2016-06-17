@@ -190,17 +190,11 @@ class JobMover(object):
         """
 
         try:
-            from Mover import getDirectAccess
-        except:
-            return False
-
-        try:
-            from Mover import useDirectAccessLAN
+            from FileHandling import useDirectAccessLAN
             return useDirectAccessLAN()
-        except:
+        except Exception, e:
+            self.log("mover.is_directaccess(): Failed to resolve direct access settings: exception=%s" % e)
             return False
-
-        return getDirectAccess()[0]
 
     def stagein(self):
         """
