@@ -1064,7 +1064,7 @@ class Monitor:
                     first = False
 
                 if not threadpool or k == 'prod':
-                    if threadpool.is_empty():
+                    if not threadpool or threadpool.is_empty():
                         self.__cleanUpEndedJob(k, stdout_dictionary)
                 else:
                     threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
