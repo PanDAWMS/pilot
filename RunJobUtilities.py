@@ -1,4 +1,5 @@
 import commands
+import json
 import os
 import socket
 import time
@@ -90,22 +91,8 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
         msgdic["mode"] = job.mode
     if job.hpcStatus:
         msgdic['hpcStatus'] = job.hpcStatus
-    if job.yodaSetupTime:
-        msgdic["yodaSetupTime"] = job.yodaSetupTime
-    if job.yodaTotalTime:
-        msgdic["yodaTotalTime"] = job.yodaTotalTime
-    if job.yodaTotalCPUHour:
-        msgdic['yodaTotalCPUHour'] = job.yodaTotalCPUHour
-    if job.yodaProcessCPUHour:
-        msgdic['yodaProcessCPUHour'] = job.yodaProcessCPUHour
-    if job.yodaCores:
-        msgdic['yodaCores'] = job.yodaCores
-    if job.yodaQueueEvents:
-        msgdic['yodaQueueEvents'] = job.yodaQueueEvents
-    if job.yodaProcessedEvents:
-        msgdic['yodaProcessedEvents'] = job.yodaProcessedEvents
-    if job.avgProcessTimePerEvent:
-        msgdic['avgProcessTimePerEvent'] = job.avgProcessTimePerEvent
+    if job.yodaJobMetrics:
+        msgdic["yodaJobMetrics"] = json.dumps(job.yodaJobMetrics)
     if job.HPCJobId:
         msgdic['HPCJobId'] = job.HPCJobId
 
