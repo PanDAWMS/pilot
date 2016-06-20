@@ -87,7 +87,10 @@ class TimerCommand(object):
 
         retQ = Queue()
         process = Process(target=target, args=(func, args, retQ))
-        process.start()
+        try:
+            process.start()
+        except:
+            timeout = 1
         try:
             ret = retQ.get(block=True, timeout=timeout)
         except Empty:
