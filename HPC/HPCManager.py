@@ -263,9 +263,9 @@ class HPCManager:
             if jobId in eventRanges:
                 job['neededRanks'] = len(eventRanges[jobId]) / eventsPerNode + (len(eventRanges[jobId]) % eventsPerNode + eventsPerNode - 1)/eventsPerNode
                 if len(eventRanges[jobId]) >= eventsPerNode * 4:
-                    job['neededRanks'] += 2
+                    job['neededRanks'] += 0
                 elif len(eventRanges[jobId]) > eventsPerNode:
-                    job['neededRanks'] += 1
+                    job['neededRanks'] += 0
                 totalNeededRanks += job['neededRanks']
             self.__jobs[jobId] = job
 

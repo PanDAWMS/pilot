@@ -148,7 +148,7 @@ class DroidStager(threading.Thread):
             ret_status = -1
         return ret_status, ret_outputs
 
-    def zipOutputs(self, outputs):
+    def zipOutputs(self, eventRangeID, eventStatus, outputs):
         try:
             for filename in outputs:
                 command = "tar -rf " + self.__zipFileName + " --directory=%s %s" %(os.path.dirname(filename), os.path.basename(filename))
@@ -163,9 +163,9 @@ class DroidStager(threading.Thread):
             return -1, "Failed to zip outputs"
         else:
             handler = open(self.__zipEventRangesName, "a")
-            handler.write("%s %s %s\n" % (eventRangeID, eventStatus, output))
+            handler.write("%s %s %s\n" % (eventRangeID, eventStatus, outputs))
             handler.close()
-        return 0, output
+        return 0, outputs
 
     def stageOut(self, eventRangeID, eventStatus, output, retries=0):
         if eventStatus.startswith("ERR"):
@@ -174,7 +174,7 @@ class DroidStager(threading.Thread):
             outputs = output.split(",")[:-3]
             if self.__yodaToZip:
                 self.__tmpLog.debug("Rank %s: start to zip outputs: %s" % (self.__rank, outputs))
-                retStatus, retOutput = self.zipOutputs(outputs)
+                retStatus, retOutput = self.zipOutputs(eventRangeID, eventStatus, outputs)
                 if retStatus != 0:
                     self.__tmpLog.error("Rank %s: failed to zip outputs %s: %s" % (self.__rank, outputs, retOutput))
                     request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": output}

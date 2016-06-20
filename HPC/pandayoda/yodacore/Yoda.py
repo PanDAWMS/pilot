@@ -56,6 +56,8 @@ class Yoda(threading.Thread):
         self.updateEventRangesToDBTime = None
 
         self.jobMetrics = {}
+        self.jobsTimestamp = {}
+        self.jobsRuningRanks = {}
 
         signal.signal(signal.SIGTERM, self.stop)
         signal.signal(signal.SIGQUIT, self.stop)
@@ -278,6 +280,7 @@ class Yoda(threading.Thread):
     def getJob(self,params):
         rank = params['rank']
         job = None
+        jobId = None
         while len(self.jobRanks):
             jobId = self.jobRanks.pop(0)
             if len(self.readyJobsEventRanges[jobId]) > 0:
@@ -295,6 +298,14 @@ class Yoda(threading.Thread):
         res = {'StatusCode':0,
                'job': job}
         self.tmpLog.debug('res={0}'.format(str(res)))
+
+        if jobId:
+            if jobId not in self.jobsRuningRanks:
+                self.jobsRuningRanks[jobId] = []
+            self.jobsRuningRanks[jobId].append(rank)
+            if jobId not in self.jobsTimestamp:
+                self.jobsTimestamp[jobId] = {'startTime': time.time(), 'endTime': None}
+
         self.comm.returnResponse(res)
         self.tmpLog.debug('return response')
 
@@ -305,6 +316,26 @@ class Yoda(threading.Thread):
         if params['state'] in ['finished','failed']:
             # self.comm.decrementNumRank()
             pass
+        # make response
+        res = {'StatusCode':0,
+               'command':'NULL'}
+        # return
+        self.tmpLog.debug('res={0}'.format(str(res)))
+        self.comm.returnResponse(res)
+        self.tmpLog.debug('return response')
+
+
+    # finish job
+    def finishJob(self,params):
+        # final heartbeat
+        jobId = params['jobId']
+        rank = params['rank']
+        if params['state'] in ['finished','failed']:
+            # self.comm.decrementNumRank()
+            self.jobsRuningRanks[jobId].remove(rank)
+            endTime = time.time()
+            if self.jobsTimestamp[params['jobId']]['endTime'] is None or self.jobsTimestamp[params['jobId']]['endTime'] < endTime:
+                self.jobsTimestamp[params['jobId']]['endTime'] = endTime
         # make response
         res = {'StatusCode':0,
                'command':'NULL'}
@@ -563,32 +594,51 @@ class Yoda(threading.Thread):
 
     def collectMetrics(self, ranks):
         metrics = {}
+        metricsReport = {}
         for rank in ranks.keys():
             for key in ranks[rank].keys():
-                if key in ["setupTime", "totalTime", "cores", "processCPUHour", "totalCPUHour", "queuedEvents", "processedEvents", "cpuConsumptionTime"]:
+                if key in ["setupTime", "runningTime", 'totalTime', "cores", "queuedEvents", "processedEvents", "cpuConsumptionTime", 'avgTimePerEvent']:
                     if key not in metrics:
                         metrics[key] = 0
                     metrics[key] += ranks[rank][key]
-        totalCPUHour = 0
+
+        setupTime = []
+        runningTime = []
+        totalTime = []
+        stageoutTime = []
         for rank in ranks.keys():
-            if 'timeDroidRunOneJob' in ranks[rank]:
-                totalCPUHour += ranks[rank]['timeDroidRunOneJob'] * ranks[rank]['cores']
-        if totalCPUHour > 0:
-            metrics['oldTotalCPUHour'] = metrics['totalCPUHour']
-            metrics['totalCPUHour'] = totalCPUHour
+            setupTime.append(ranks[rank]['setupTime'])
+            runningTime.append(ranks[rank]['runningTime'])
+            totalTime.append(ranks[rank]['totalTime'])
+            stageoutTime.append(ranks[rank]['totalTime'] - ranks[rank]['setupTime'] - ranks[rank]['runningTime'])
         num_ranks = len(ranks.keys())
         if num_ranks < 1:
             num_ranks = 1
         processedEvents = metrics['processedEvents']
         if processedEvents < 1:
             processedEvents = 1
-        metrics['setupTime'] = metrics['setupTime']/num_ranks
-        metrics['totalTime'] = metrics['totalTime']/num_ranks
-        metrics['avgTimePerEvent'] = metrics['processCPUHour']/processedEvents
 
-        for key in metrics:
-            metrics[key] = int(metrics[key])
-        return metrics
+        metricsReport['avgYodaSetupTime'] = metrics['setupTime']/num_ranks
+        metricsReport['avgYodaRunningTime'] = metrics['runningTime']/num_ranks
+        metricsReport['avgYodaStageoutTime'] = (metrics['totalTime'] - metrics['setupTime'] - metrics['runningTime'])/num_ranks
+        metricsReport['avgYodaTotalTime'] = metrics['totalTime']/num_ranks
+        metricsReport['maxYodaSetupTime'] = max(setupTime)
+        metricsReport['maxYodaRunningTime'] = max(runningTime)
+        metricsReport['maxYodaStageoutTime'] = max(stageoutTime)
+        metricsReport['maxYodaTotalTime'] = max(totalTime)
+        metricsReport['minYodaSetupTime'] = min(setupTime)
+        metricsReport['minYodaRunningTime'] = min(runningTime)
+        metricsReport['minYodaStageoutTime'] = min(stageoutTime)
+        metricsReport['minYodaTotalTime'] = min(totalTime)
+        metricsReport['cores'] = metrics['cores']
+        metricsReport['cpuConsumptionTime'] = metrics['cpuConsumptionTime']
+        metricsReport['totalQueuedEvents'] = metrics['queuedEvents']
+        metricsReport['totalProcessedEvents'] = metrics['processedEvents']
+        metricsReport['avgTimePerEvent'] = metrics['avgTimePerEvent']/ num_ranks
+
+        for key in metricsReport:
+            metricsReport[key] = int(metricsReport[key])
+        return metricsReport
 
     def heartbeat(self, params):
         """
@@ -597,11 +647,6 @@ class Yoda(threading.Thread):
         self.tmpLog.debug('heartbeat')
         jobId = params['jobId']
         rank = params['rank']
-        if jobId not in self.jobMetrics:
-            self.jobMetrics[jobId] = {'ranks': {}, 'collect': {}}
-
-        self.jobMetrics[jobId]['ranks'][rank] = params
-        self.jobMetrics[jobId]['collect'] = self.collectMetrics(self.jobMetrics[jobId]['ranks'])
 
         # make response
         res = {'StatusCode':0}
@@ -610,12 +655,24 @@ class Yoda(threading.Thread):
         self.comm.returnResponse(res)
         self.tmpLog.debug('return response')
 
-        jobMetricsFileName = "jobMetrics-yoda-%s.json" % jobId
+        if jobId not in self.jobMetrics:
+            self.jobMetrics[jobId] = {'ranks': {}, 'collect': {}}
+
+        self.jobMetrics[jobId]['ranks'][rank] = params
+        self.jobMetrics[jobId]['collect'] = self.collectMetrics(self.jobMetrics[jobId]['ranks'])
+
+        #self.dumpJobMetrics()
+
+
+    def dumpJobMetrics(self):
+        #jobMetricsFileName = "jobMetrics-yoda-%s.json" % jobId
+        jobMetricsFileName = "jobMetrics-yoda.json"
         #if self.outputDir:
         #    jobMetrics = os.path.join(self.outputDir, jobMetricsFileName)
         #else:
         try:
-            outputDir = self.jobs[jobId]["GlobalWorkingDir"]
+            #outputDir = self.jobs[jobId]["GlobalWorkingDir"]
+            outputDir = self.globalWorkingDir
         except:
             self.tmpLog.debug("Failed to get job's global working dir: %s" % (traceback.format_exc()))
             outputDir = self.globalWorkingDir
@@ -623,6 +680,15 @@ class Yoda(threading.Thread):
         self.tmpLog.debug("JobMetrics file: %s" % jobMetrics)
         tmpFile = open(jobMetrics, "w")
         json.dump(self.jobMetrics, tmpFile)
+        tmpFile.close()
+
+    def dumpJobsStartTime(self):
+        jobsTimestampFileName = "jobsTimestamp-yoda.json"
+        outputDir = self.globalWorkingDir
+        jobsTimestampFile = os.path.join(outputDir, jobsTimestampFileName)
+        self.tmpLog.debug("JobsStartTime file: %s" % jobsTimestampFile)
+        tmpFile = open(jobsTimestampFile, "w")
+        json.dump(self.jobsTimestamp, tmpFile)
         tmpFile.close()
 
     # main
@@ -653,6 +719,7 @@ class Yoda(threading.Thread):
 
         # main loop
         self.tmpLog.info('main loop')
+        time_dupmJobMetrics = time.time()
         while self.comm.activeRanks():
             #self.injectEvents()
             # get request
@@ -673,11 +740,16 @@ class Yoda(threading.Thread):
                                                                                       self.comm.getRequesterRank()))
             # flush the updated event ranges to db
             self.updateEventRangesToDB(force=False)
-
+            if time_dupmJobMetrics < time.time() - 60:
+                self.dumpJobMetrics()
+                self.dumpJobsStartTime()
+                time_dupmJobMetrics = time.time()
 
         self.flushMessages()
         #self.updateFailedEventRanges()
         self.updateEventRangesToDB(force=True)
+        self.dumpJobMetrics()
+        self.dumpJobsStartTime()
         # final dump
         #self.tmpLog.info('final dumping')
         #self.db.dumpUpdates(True)
@@ -713,6 +785,13 @@ class Yoda(threading.Thread):
     def stop(self, signum=None, frame=None):
         self.tmpLog.info('stop signal received')
         block_sig(signal.SIGTERM)
+        self.dumpJobMetrics()
+        for jobId in self.jobsTimestamp:
+            if self.jobsTimestamp[jobId]['endTime'] is None:
+                self.jobsTimestamp[jobId]['endTime'] = time.time()
+            if len(self.jobsRuningRanks[jobId]) > 0:
+                self.jobsTimestamp[jobId]['endTime'] = time.time()
+        self.dumpJobsStartTime()
         #self.flushMessages()
         #self.updateFailedEventRanges()
         # final dump
@@ -723,7 +802,7 @@ class Yoda(threading.Thread):
         self.postExecJob()
         self.tmpLog.info('stop')
         unblock_sig(signal.SIGTERM)
-
+        sys.exit(0)
 
     def getOutputs(self):
         pass
