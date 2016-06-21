@@ -1673,7 +1673,7 @@ if __name__ == "__main__":
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
         dumpFileStates(runJob.getParentWorkDir(), job.jobId)
 
-        # create xml string to pass to dispatcher for atlas jobs
+        # create xml string to pass to server
         outputFileInfo = {}
         if outs or (job.logFile and job.logFile != ''):
             # get the datasets for the output files
@@ -1698,7 +1698,6 @@ if __name__ == "__main__":
             # If clone job, make sure that stage-out should be performed
             if job.cloneJob == "storeonce":
                 try:
-                    # If the event is still available, the go ahead and run the payload
                     message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
 
                     # Create a list of event ranges from the downloaded message

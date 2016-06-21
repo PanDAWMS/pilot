@@ -2135,7 +2135,6 @@ if __name__ == "__main__":
         # Done with setting jobSite data members, not save the object so that the runJob methods have access to it
         runJob.setJobSite(jobSite)
 
-        tolog("runJob.getPilotLogFilename=%s"%runJob.getPilotLogFilename())
         if runJob.getPilotLogFilename() != "":
             pUtil.setPilotlogFilename(runJob.getPilotLogFilename())
 
