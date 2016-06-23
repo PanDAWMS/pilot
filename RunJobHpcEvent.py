@@ -1617,7 +1617,7 @@ class RunJobHpcEvent(RunJob):
                         continue
                     if file.endswith(".dump") or file.startswith("metadata-") or "jobState-" in file \
                        or file.startswith("Job_") or file.startswith("fileState-") or file.startswith("curl_updateJob_")\
-                       or file.startswith("surlDictionary"):
+                       or file.startswith("surlDictionary") or file.startswith("jobMetrics-rank"):
                         if str(jobId) in file:
                             pUtil.recursive_overwrite(path, dest_dir)
                     else:
