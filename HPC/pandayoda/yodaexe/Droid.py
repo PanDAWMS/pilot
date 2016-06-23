@@ -328,6 +328,9 @@ class Droid(threading.Thread):
         self.__tmpLog.debug("Rank %s: heartbeat(request: %s)" % (self.__rank, request))
         status, output = self.__comm.sendRequest('heartbeat',request)
         self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
+
+        self.dumpJobMetrics()
+
         if status:
             statusCode = output["StatusCode"]
             if statusCode == 0:
@@ -354,7 +357,7 @@ class Droid(threading.Thread):
 
     def dumpJobMetrics(self):
         jobMetricsFileName = "jobMetrics-rank_%s.json" % self.__rank
-        outputDir = self.__globalWorkingDir
+        outputDir = self.__currentDir
         jobMetrics = os.path.join(outputDir, jobMetricsFileName)
         self.__tmpLog.debug("JobMetrics file: %s" % jobMetrics)
         tmpFile = open(jobMetrics, "w")

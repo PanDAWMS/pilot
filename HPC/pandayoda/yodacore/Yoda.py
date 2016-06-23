@@ -42,6 +42,7 @@ class Yoda(threading.Thread):
 
         self.pilotJob = pilotJob
 
+        self.cores = 10
         self.jobs = []
         self.jobRanks = []
         self.readyEventRanges = []
@@ -135,6 +136,12 @@ class Yoda(threading.Thread):
             neededRanks = {}
             for jobId in self.jobs:
                 job = self.jobs[jobId]
+                try:
+                    self.cores = int(job.get('ATHENA_PROC_NUMBER', 10))
+                    if self.cores < 1:
+                        self.cores = 10
+                except:
+                     self.tmpLog.debug("Rank %s: failed to get core count" % (self.rank, traceback.format_exc()))
                 if job['neededRanks'] not in neededRanks:
                     neededRanks[job['neededRanks']] = []
                 neededRanks[job['neededRanks']].append(jobId)
@@ -269,7 +276,7 @@ class Yoda(threading.Thread):
             keys.sort(reverse=True)
             for key in keys:
                 for jobId in numEvents[key]:
-                    for i in range(key/100):
+                    for i in range(key/self.cores):
                         self.jobRanks.append(jobId)
         except:
             errtype,errvalue = sys.exc_info()[:2]
