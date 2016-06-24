@@ -234,7 +234,9 @@ class JobLog:
                                                                   logPath = logPath,
                                                                   os_bucket_id = os_bucket_id,
                                                                   copytool=copytool,
-                                                                  job = job)
+                                                                  job = job,
+                                                                  log_transfer = True # new sitemovers required integration parameter
+                                                                  )
         except Exception, e:
             rmflag = 0 # don't remove the tarball
             status = False
@@ -258,13 +260,19 @@ class JobLog:
                 tolog(".....filesAltStageOut = %d" % (job.filesAltStageOut))
 
             if rc != 0:
-                rmflag = 0 # don't remove the tarball
-                job.result[0] = "holding"
-
                 # remove any trailing "\r" or "\n" (there can be two of them)
                 if rs != None:
                     rs = rs.rstrip()
                     tolog("Error string: %s" % (rs))
+
+                # ignore failed OS log transfers (this might change if we only store logs in OS:s)
+                if os_bucket_id != -1 and specialTransfer:
+                    tolog("Ignoring failed special log transfer to OS (resetting log bucket id)")
+                    os_bucket_id = -1
+                    rc = 0
+
+                rmflag = 0 # don't remove the tarball
+                job.result[0] = "holding"
 
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(rc):
@@ -291,7 +299,7 @@ class JobLog:
                     # get the site information object
                     #si = getSiteInformation(experiment)
                     job.logBucketID = os_bucket_id #si.getBucketID(os_id, "logs")
-                    tolog("Stored log bucket ID: %s" % (job.logBucketID)) 
+                    tolog("Stored log bucket ID: %s" % (job.logBucketID))
 
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
             if job.result[2] == 0:

@@ -164,7 +164,7 @@ class Monitor:
 
     def __getMaxAllowedWorkDirSize(self):
         """
-        Return the maximum allowed size of the work directory for user jobs
+        Return the maximum allowed size of the work directory
         """
 
         try:
@@ -288,29 +288,28 @@ class Monitor:
                         maxRSS = pUtil.readpar('maxrss') # string
                         if maxRSS:
                             try:
-                                maxRSS_int = int(maxRSS)*1024 # Convert to int and B
+                                maxRSS_int = 2*int(maxRSS)*1024 # Convert to int and kB
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:
                                 # Compare the maxRSS with the maxPSS from memory monitor
                                 if maxRSS_int > 0:
                                     if maxPSS_int > 0:
-                                        if maxPSS_int > maxRSS_int:
-                                            pilotErrorDiag = "Job has exceeded the memory limit %d B > %d B (schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
+                                        if maxPSS_int > maxRSS_int and not isCGROUPSSite():
+                                            pilotErrorDiag = "Job has exceeded the memory limit %d kB > %d kB (2*schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
                                             pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
 
                                             # Create a lockfile to let RunJob know that it should not restart the memory monitor after it has been killed
                                             pUtil.createLockFile(False, self.__env['jobDic'][k][1].workdir, lockfile="MEMORYEXCEEDED")
 
                                             # Kill the job
-                                            pUtil.tolog("!!WARNING!!9903!! Could have killed the job")
-                                            #killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-                                            #self.__env['jobDic'][k][1].result[0] = "failed"
-                                            #self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
-                                            #self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
-                                            #self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                                            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                                            self.__env['jobDic'][k][1].result[0] = "failed"
+                                            self.__env['jobDic'][k][1].currentState = self.__env['job'].result[0]
+                                            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
+                                            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
-                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
+                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d B (2*maxRSS=%d B)" % (maxPSS_int, maxRSS_int))
                                     else:
                                         pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
                         else:
@@ -324,7 +323,7 @@ class Monitor:
 
     def __check_remaining_space(self):
         """
-        Every ten minutes, check the remaining disk space, the size of the workDir
+        Every ten minutes, check the remaining disk space, the size of the workdir
         and the size of the payload stdout file
         """
         if (int(time.time()) - self.__env['curtime_sp']) > self.__env['update_freq_space']:
@@ -335,7 +334,7 @@ class Monitor:
             self.__env['workerNode'].collectWNInfo(self.__env['thisSite'].workdir)
             self.__skip = self.__checkLocalSpace(self.__env['workerNode'].disk)
 
-            # check the size of the workdir for user jobs
+            # check the size of the workdir
             self.__skip = self.__checkWorkDir()
 
             # update the time for checking disk space
@@ -458,7 +457,6 @@ class Monitor:
                             except:
                                 pass
                     if not findFlag and file_name != self.__env['jobDic'][k][1].logFile:
-    #                if not findFlag and not ".log." in file_name:
                         pUtil.tolog("Could not access file %s: %s" % (file_name, out))
 
         return rc, pilotErrorDiag, job_index
@@ -493,7 +491,6 @@ class Monitor:
 
 # FOR TESTING ONLY
 #    def __verify_memory_limits(self):
-#        # verify output file sizes every five minutes
 #        if (int(time.time()) - self.__env['curtime_mem']) > 1*60: #self.__env['update_freq_mem']:
 #            # check the CGROUPS memory
 #            max_memory = getMaxMemoryUsageFromCGroups()
@@ -929,7 +926,8 @@ class Monitor:
             pUtil.tolog("!!WARNING!!1999!! Could not backup job definition since file %s does not exist" % (self.__env['pandaJobDataFileName']))
 
     def updateTerminatedJobs(self):
-        """ For multiple jobs, pilot may took long time collect logs. We need to heartbeat for these jobs. """
+        """ For multiple jobs, pilot may take long time collect logs. Send heartbeats for these jobs. """
+
         for k in self.__env['jobDic'].keys():
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
@@ -1069,16 +1067,18 @@ class Monitor:
                 else:
                     threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
                     jobs_added_to_threadpool.append(k)
-            # let pilot to heartbeat
+            # send heartbeat
             if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
                 self.updateTerminatedJobs()
                 break
-        # let pilot to heartbeat
+        # send heartbeat
         if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
            self.updateTerminatedJobs()
 
 
     def check_unmonitored_jobs(self, global_work_dir=None):
+        """ Make sure all jobs are being monitored. If not,	then add the job to jobDic dictionary """
+
         self.__logguid = None
         all_jobs = {}
         if global_work_dir:

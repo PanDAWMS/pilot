@@ -646,7 +646,7 @@ class RunJob(object):
 
             # Extract any FAX info from the dictionary
             job.filesWithoutFAX = FAX_dictionary.get('N_filesWithoutFAX', 0)
-            job.filesWithFAX = FAX_dictionary.get('N_filesWithFAX', 0)    
+            job.filesWithFAX = FAX_dictionary.get('N_filesWithFAX', 0)
             job.bytesWithoutFAX = FAX_dictionary.get('bytesWithoutFAX', 0)
             job.bytesWithFAX = FAX_dictionary.get('bytesWithFAX', 0)
             usedFAXandDirectIO = FAX_dictionary.get('usedFAXandDirectIO', False)
@@ -1112,7 +1112,7 @@ class RunJob(object):
 
         try:
             t0 = os.times()
-            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry)
+            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry, log_transfer=False)
             t1 = os.times()
 
             job.timeStageOut = int(round(t1[4] - t0[4]))
@@ -1597,7 +1597,9 @@ if __name__ == "__main__":
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
         #runJob.copyInputForFiles(job.workdir)
 
+        # unzip the staged in file if necessary
         runJob.unzipStagedFiles(job)
+
         # (stage-in ends here) .............................................................................
 
         # change to running state since all input files have been staged
@@ -1671,7 +1673,7 @@ if __name__ == "__main__":
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
         dumpFileStates(runJob.getParentWorkDir(), job.jobId)
 
-        # create xml string to pass to dispatcher for atlas jobs
+        # create xml string to pass to server
         outputFileInfo = {}
         if outs or (job.logFile and job.logFile != ''):
             # get the datasets for the output files
@@ -1696,7 +1698,6 @@ if __name__ == "__main__":
             # If clone job, make sure that stage-out should be performed
             if job.cloneJob == "storeonce":
                 try:
-                    # If the event is still available, the go ahead and run the payload
                     message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
 
                     # Create a list of event ranges from the downloaded message

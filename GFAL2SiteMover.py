@@ -911,7 +911,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
             outputRet["errorLog"] = pilotErrorDiag
             return PilotErrors.ERR_NOPROXY, outputRet
         elif "globus_xio:" in errorOutput:
-            pilotErrorDiag = "Globus system error: %s" % (errorOuput)
+            pilotErrorDiag = "Globus system error: %s" % (errorOutput)
             self.log("Globus system error encountered")
             #self.prepareReport('GLOBUS_FAIL', report)
             outputRet["report"]["clientState"] = 'GLOBUS_FAIL'

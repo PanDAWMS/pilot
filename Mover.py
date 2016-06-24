@@ -13,7 +13,7 @@ from timed_command import timed_command
 
 from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems,\
      hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, headPilotErrorDiag, getCopysetup,\
-     getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile
+     getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile, updateInputFileWithTURLs
 from FileHandling import getExtension, getTracingReportFilename, readJSON, getHashedBucketEndpoint, getDirectAccess, useDirectAccessWAN
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
@@ -99,15 +99,14 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
     return dsname, dsdict, rucio_dataset_dictionary
 
 
-
 # new mover implementation
-def put_data_new(job, jobSite, stageoutTries):
+def put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=None):
     """
+        Do jobmover.stageout_outfiles or jobmover.stageout_logfiles respect to the log_transfer flag passed
         :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
     """
 
     tolog("Mover put data started [new implementation]")
-
 
     from PilotErrors import PilotException
     from movers import JobMover
@@ -116,7 +115,7 @@ def put_data_new(job, jobSite, stageoutTries):
     si = getSiteInformation(job.experiment)
     si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
 
-    workDir = os.path.dirname(job.workdir)
+    workDir = workDir or os.path.dirname(job.workdir)
 
     mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
 
@@ -128,7 +127,8 @@ def put_data_new(job, jobSite, stageoutTries):
     mover.trace_report.init(job)
 
     try:
-        transferred_files, failed_transfers = mover.stageout_outfiles()
+        do_stageout_func = mover.stageout_logfiles if log_transfer else mover.stageout_outfiles
+        transferred_files, failed_transfers = do_stageout_func()
     except PilotException, e:
         return e.code, str(e), [], "", 0, 0
     except Exception, e:
@@ -139,7 +139,6 @@ def put_data_new(job, jobSite, stageoutTries):
         return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED, exception=%s' % e, [], "", 0, 0
 
     tolog("Mover put data finished")
-    job.print_outfiles()
 
     # prepare compatible output
     # keep track of which files have been copied
@@ -159,9 +158,12 @@ def put_data_new(job, jobSite, stageoutTries):
     #    for err in failed_transfers:
     #        errors.append(str(err))
 
-    not_transferred = [e.lfn for e in job.outData if e.status not in ['transferred']]
+    files = job.outData if not log_transfer else job.logData
+    not_transferred = [e.lfn for e in files if e.status not in ['transferred']]
     if not_transferred:
-        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers])), [], "", 0, 0
+        err_msg = 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers]))
+        tolog("Mover put data finished: error_msg=%s" % err_msg)
+        return PilotErrors.ERR_STAGEOUTFAILED, err_msg, [], "", 0, 0
 
     return 0, "", fields, "", len(transferred_files), 0
 
@@ -218,7 +220,6 @@ def get_data_new(job,
         return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED, exception=%s' % e, None, {}
 
     tolog("Mover get data finished")
-    job.print_infiles()
 
     # prepare compatible output
 
@@ -1219,6 +1220,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, co
     # and fall back to lcg-getturls if the previous attempts fail
 
     turlFileInfoDic = {}
+    LFN_to_TURL_dictionary = {}
     error = PilotErrors()
     ec = 0
     pilotErrorDiag = ""
@@ -1277,7 +1279,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, co
                     pilotErrorDiag = "Could not identify lfn/dataset/scope: %s" % (e)
                     tolog("!!WARNING!!3432!! %s" % (pilotErrorDiag))
                     ec = error.ERR_LCGGETTURLS
-                    return ec, pilotErrorDiag, convertedTurlDic
+                    return ec, pilotErrorDiag, convertedTurlDic, LFN_to_TURL_dictionary
                 else:
                     tolog("Identified LFN=%s, dataset=%s, scope=%s" % (lfn, dataset, scope))
 
@@ -1287,6 +1289,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, co
                 else:
                     token = ""
                 convertedTurlDic[guidList[i]] = convertSURLtoTURL(fileList[i], scope, dataset, token, computingSite, sourceSite, old_prefix=oldPrefix, new_prefix=newPrefix, prefix_dictionary=prefix_dictionary)
+                LFN_to_TURL_dictionary[lfn] = convertedTurlDic[guidList[i]]
         else:
             excludedFilesDic[guidList[i]] = fileList[i]
 
@@ -1297,7 +1300,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, co
             tolog("No need to convert SURLs with lcg-getturls (no root files)")
         else:
             tolog("No need to convert SURLs with lcg-getturls, got a populated TURL dictionary already (%d item(s))" % len(convertedTurlDic))
-        return ec, pilotErrorDiag, convertedTurlDic
+        return ec, pilotErrorDiag, convertedTurlDic, LFN_to_TURL_dictionary
 
     # proceed with lcg-getturls
     fileList = _fileList
@@ -1401,7 +1404,7 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, co
     # add the excluded files (if any) to the TURL dictionary
     # turlFileInfoDic = dict(turlFileInfoDic.items() + excludedFilesDic.items())
 
-    return ec, pilotErrorDiag, turlFileInfoDic
+    return ec, pilotErrorDiag, turlFileInfoDic, LFN_to_TURL_dictionary
 
 def getPlainCopyPrefices():
     """ Return the old/newPrefix as defined in copyprefix """
@@ -1781,7 +1784,7 @@ def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_d
     thinFileInfoDic = getThinFileInfoDic(fileInfoDic)
 
     # get the TURLs
-    ec, pilotErrorDiag, turlFileInfoDic = getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, transferType, experiment)
+    ec, pilotErrorDiag, turlFileInfoDic, LFN_to_TURL_dictionary = getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, transferType, experiment)
     if ec == 0:
         tolog("getTURL returned dictionary: %s" % str(turlFileInfoDic))
 
@@ -1797,7 +1800,7 @@ def createPFC4TURLs(fileInfoDic, pfc_name, sitemover, sitename, dsdict, tokens_d
     else:
         tolog("!!WARNING!!2998!! getTURLs failed: %s" % (pilotErrorDiag))
 
-    return ec, pilotErrorDiag
+    return ec, pilotErrorDiag, LFN_to_TURL_dictionary
 
 def shouldPFC4TURLsBeCreated(analysisJob, transferType, experiment, eventService):
     """ determine whether a TURL based PFC should be created """
@@ -2018,8 +2021,9 @@ def sitemover_get_data(sitemover, error, get_RETRY, get_RETRY_replicas, get_atte
             tolog('!!WARNING!!2999!! Error in copying (attempt %s): %s - %s' % (replica_number + 1, s, pilotErrorDiag))
             # add metadata to skipped.xml for the last replica retry
             if (replica_number + 1) == get_RETRY_replicas and (get_attempt + 1) == get_RETRY:
-                tolog("Adding replica info to skipped.xml")
-                _ec = addToSkipped(lfn, guid)
+                tolog("Could have added replica info to skipped.xml (skipped since v 64.4)")
+                #tolog("Adding replica info to skipped.xml")
+                #_ec = addToSkipped(lfn, guid)
         else:
             # is the copied file a root file?
             if sitemover.isRootFileName(lfn):
@@ -2204,10 +2208,11 @@ def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, 
     ec = 0
     pilotErrorDiag = ""
     createdPFCTURL = False
+    LFN_to_TURL_dictionary = {}
 
     # first check if there is a need to create the PFC
     if shouldPFC4TURLsBeCreated(analysisJob, transferType, experiment, eventService):
-        ec, pilotErrorDiag = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, transferType, experiment)
+        ec, pilotErrorDiag, LFN_to_TURL_dictionary = createPFC4TURLs(fileInfoDic, pfc_name_turl, sitemover, sitename, dsdict, tokens_dictionary, computingSite, sourceSite, lfns, scope_dict, transferType, experiment)
         if ec == 0:
             tolog("PFC created with TURLs")
             createdPFCTURL = True
@@ -2220,7 +2225,7 @@ def PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, 
         else:
             tolog("Will not switch to copy-to-scratch for production job (fail immediately)")
 
-    return ec, pilotErrorDiag, createdPFCTURL, usect
+    return ec, pilotErrorDiag, createdPFCTURL, usect, LFN_to_TURL_dictionary
 
 def extractInputFileInfo(fileInfoList_nr, lfns):
     """ Extract the file info for the given input file """
@@ -2389,9 +2394,15 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
     # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
     if xml_source != "FAX":
         tokens_dictionary = getSurlTokenDictionary(lfns, tokens) # Create a SURL to space token dictionary
-        ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict, job.experiment)
+        ec, pilotErrorDiag, createdPFCTURL, usect, LFN_to_TURL_dictionary = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict, job.experiment)
         if ec: # error
             return ec, pilotErrorDiag, None, {}
+
+        if LFN_to_TURL_dictionary != {}:
+            # Update the @input file (used to send potentially very large input file list to the trf)
+            status = updateInputFileWithTURLs(job.jobPars, LFN_to_TURL_dictionary)
+            if not status:
+                tolog("!!WARNING!!5465!! LFN to TURL replacement in @input file failed - Direct I/O will fail")
     else:
         tolog("(Skipping PFC4TURL call since it is not necessary in FAX mode)")
         createdPFCTURL = True
@@ -2617,6 +2628,10 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
     if fail == 0:
         # Make sure the PFC has the correct number of files
         fail, pilotErrorDiag = verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, PilotErrors())
+    elif pErrorText and s == 1180:
+        s_index = pErrorText.find("globus_xio")
+        if s_index > -1:
+            pilotErrorDiag = pErrorText[s_index:s_index+256]
 
     # Now that the Mover PFC file is no longer needed, back it up and rename the TURL based PFC if it exists
     # (the original PFC is no longer needed. Move it away, and then create the PFC for the trf/runAthena)
@@ -2790,9 +2805,15 @@ def mover_get_data(lfns,
     # Create a TURL based PFC if necessary/requested (i.e. if copy tool should not be used [useCT=False] and
     # if oldPrefix and newPrefix are not already set in copysetup [useSetPrefixes=False])
     if xml_source != "FAX":
-        ec, pilotErrorDiag, createdPFCTURL, usect = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict, job.experiment)
+        ec, pilotErrorDiag, createdPFCTURL, usect, LFN_to_TURL_dictionary = PFC4TURLs(analysisJob, transferType, fileInfoDic, pfc_name_turl, sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, sourceSite, lfns, scope_dict, job.experiment)
         if ec != 0:
             return ec, pilotErrorDiag, statusPFCTurl, FAX_dictionary
+
+        if LFN_to_TURL_dictionary != {}:
+            # Update the @input file (used to send potentially very large input file list to the trf)
+            status = updateInputFileWithTURLs(job.jobPars, LFN_to_TURL_dictionary)
+            if not status:
+                tolog("!!WARNING!!5465!! LFN to TURL replacement in @input file failed - Direct I/O will fail")
     else:
         tolog("(Skipping PFC4TURL call since it is not necessary in FAX mode)")
         createdPFCTURL = True
@@ -3057,6 +3078,10 @@ def mover_get_data(lfns,
     if fail == 0:
         # Make sure the PFC has the correct number of files
         fail, pilotErrorDiag = verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, error)
+    elif pErrorText and s == 1180:
+        s_index = pErrorText.find("globus_xio")
+        if s_index > -1:
+            pilotErrorDiag = pErrorText[s_index:s_index+256]
 
     # Now that the Mover PFC file is no longer needed, back it up and rename the TURL based PFC if it exists
     # (the original PFC is no longer needed. Move it away, and then create the PFC for the trf/runAthena)
@@ -3440,7 +3465,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                         job={},                            # Job object
                         os_bucket_id=-1,                          # Objectstore id
                         copytool=None,
-                        jobSite = {}  # to be added        # jobsite object
+                        jobSite = {},  # to be added       # jobsite object,
+                        log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
                         ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
@@ -3516,6 +3542,24 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
           ddm_storage_path - is destination
     """
 
+    isLogTransfer = bool(logPath)
+    if isLogTransfer:
+        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover backward compatible wrapper mover_put_data_new()")
+
+    if log_transfer:
+        if not jobSite: ## QUICK stub integration logic since not all top level functions pass jobSite argument: FIX ME LATER
+            class Site_stub(object):
+                def __init__(self, **kwargs):
+                    for k,v in kwargs.iteritems():
+                        setattr(self, k, v)
+            jobSite = Site_stub(computingElement=queuename, sitename=sitename) ## different work dir! test me
+
+        if job.workdir != recoveryWorkDir: # to be checked later if deepcopy is required: Log file is located outside job dir: to be unified?
+            import copy
+            job = copy.deepcopy(job)
+            job.workdir = recoveryWorkDir
+        return put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=recoveryWorkDir) + (-1,) # os_bucket_id=-1
+
 
     # -----
 
@@ -3548,9 +3592,6 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     if not outfiles and not logfiles:
         raise Exception("Empty Both outputfiles and logfiles data: nothing to do... processing of other cases is not implemented yet for new SiteMover")
 
-    isLogTransfer = bool(logPath)
-    if isLogTransfer:
-        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover")
 
     from movers import JobMover
     from movers.trace_report import TraceReport
@@ -3933,7 +3974,9 @@ def mover_put_data(outputpoolfcstring,
                    eventService=False,
                    os_bucket_id=-1,
                    copytool=None,
-                   job={}):
+                   job={},
+                   log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
+                   ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
     No DS registration in the central catalog is made. pdsname is used only to define the relative path
@@ -4060,7 +4103,13 @@ def mover_put_data(outputpoolfcstring,
         s = 1
         _attempt = 0
         if stageoutTries > 0 and stageoutTries < 10:
-            put_RETRY = stageoutTries
+            if objectstore:
+                if "allow_alt_os_stageout" in readpar('catchall'):
+                    put_RETRY = 2
+                else:
+                    put_RETRY = 1
+            else:
+                put_RETRY = stageoutTries
         else:
             tolog("!!WARNING!!1888!! Unreasonable number of stage-out tries: %d (reset to default)" % (stageoutTries))
             put_RETRY = 2
@@ -4073,7 +4122,6 @@ def mover_put_data(outputpoolfcstring,
             # to clean up: note the similarity between logPath and ddm_storage_path
             # logPath=s3://cephgw.usatlas.bnl.gov:8443//atlas_logs/953cde21-6c6d-4fd2-b64f-0f2184bc0274_0.job.log.tgz
             # ddm_storage_path=s3://cephgw.usatlas.bnl.gov:8443//atlas_logs
-            objectstore = "objectstore" in copycmd # Is this a transfer to an object store?
 
             # if not first stage-out attempt, take a nap before next attempt
             if _attempt > 1:
@@ -4081,24 +4129,18 @@ def mover_put_data(outputpoolfcstring,
                     _rest = 10*60
                     tolog("(Waiting %d seconds before next stage-out attempt)" % (_rest))
                     sleep(_rest)
-
-                # in case of file transfer to OS, update file paths
-                if objectstore:
+                else:
+                    # in case of file transfer to OS, update file paths
                     _path, os_bucket_id = getNewOSStoragePath(si, eventService)
                     _path = os.path.join(_path, lfn)
                     if logPath != "":
                         tolog("Updating the logPath (replacing \'%s\' with \'%s\')" % (logPath, _path))
                         # this function can decide to use a new OS, so update the os_bucket_id
                         logPath = _path
-                        tolog("Using os_bucket_id=%d" % (os_bucket_id))
+                        tolog("Using os_bucket_id=%s" % (os_bucket_id))
 
                     # for normal OS file transfers, the logPath will not be set and thus an alternative OS has to be found separately (otherwise found by getNewOSStoragePath())
                     ddm_storage_path = os.path.dirname(_path)
-
-                    # in case of file transfer to OS, also update the ddm_storage_path
-                    ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
-                    if pilotErrorDiag != "":
-                        return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
@@ -5948,6 +5990,10 @@ def getRucioReplicaDictionary(cat, file_dictionary):
             replicas_list = c.list_replicas(scope_lfn_list, schemes=['srm'])
         except:
             tolog("!!WARNING!!2235!! list_replicas() failed")
+            import sys
+            excType, excValue = sys.exc_info()[:2]  # skip the traceback info to avoid possible circular reference
+            tolog("excType=%s" % (excType))
+            tolog("excValue=%s" % (excValue))
         else:
             if replicas_list != None and replicas_list != []:
                 # Loop over all replicas

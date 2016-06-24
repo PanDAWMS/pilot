@@ -1027,6 +1027,8 @@ class SiteInformation(object):
             newPrefix = dInfo['newPrefix']
         if transferType == 'direct' or (transferType == 'fax' and self.readpar('direct_access_wan').lower() == 'true'):
             useCT = False
+            oldPrefix = ""
+            newPrefix = ""
         elif useCT:
             tolog("Copy tool will be used for stage-in")
         else:
@@ -1042,7 +1044,7 @@ class SiteInformation(object):
         useFileStager = False
         transfer_mode = None
 
-        # get the file access info                                                                                                                                                                                                                  
+        # get the file access info
         directIn, directInType = getDirectAccess()
         useCT, oldPrefix, newPrefix = self.getFileAccessInfo(transferType)
 
@@ -1682,7 +1684,7 @@ class SiteInformation(object):
             tries = 2
             for trial in range(tries):
                 tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-                cmd = 'curl --connect-timeout 20 --max-time 120 -sS "http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s" >%s' % (queuename, filename)
+                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s\" >%s" % (queuename, filename)
                 tolog("Executing command: %s" % (cmd))
                 ret, output = commands.getstatusoutput(cmd)
 
@@ -1690,7 +1692,6 @@ class SiteInformation(object):
                 value = self.getField('objectstores', queuename=queuename)
                 if value:
                     status = True
-                    tolog("Downloaded queuedata")
                     break
 
         return status
@@ -1935,6 +1936,35 @@ class SiteInformation(object):
             ret.setdefault(pandaqueue, protocols)
 
         return ret
+
+
+    def resolvePandaCopytools(self, pandaqueues, activity):
+        """
+            Resolve supported copytools by given pandaqueues
+            Check first settings for requested activity (pr, pw), if not set then return all supported copytools
+            Return ordered list of accepted copytools
+            :return: dict('pandaqueue':[(copytool, {settings}), ('copytool_name', {'setup':''}), ])
+        """
+
+        if isinstance(pandaqueues, (str, unicode)):
+            pandaqueues = [pandaqueues]
+
+        r = self.loadSchedConfData(pandaqueues, cache_time=6000) or {} # quick stub: fix me later: schedconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+        self.schedconf = r
+
+        ret = {}
+        for pandaqueue in set(pandaqueues):
+            copytools = r.get(pandaqueue, {}).get('copytools', {})
+            cptools = []
+            for cp in r.get(pandaqueue, {}).get('acopytools', {}).get(activity, []) or copytools.iterkeys():
+                if cp not in copytools:
+                    continue
+                cptools.append((cp, copytools[cp]))
+
+            ret.setdefault(pandaqueue, cptools)
+
+        return ret
+
 
     # Optional
     def shouldExecuteBenchmark(self):

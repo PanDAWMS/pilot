@@ -2696,8 +2696,8 @@ def runMain(runpars):
             if env['glexec'] == 'False':
                 monitor = Monitor(env)
                 monitor.monitor_job()
-	    elif env['glexec'] == 'test': ##
-		pUtil.tolog('glexec is set to test, we will hard-fail miserably in case of errors')
+            elif env['glexec'] == 'test':
+                pUtil.tolog('glexec is set to test, we will hard-fail miserably in case of errors')
                 payload = 'python -m glexec_aux'
                 my_proxy_interface_instance = glexec_utils.MyProxyInterface(env['userProxy'])
                 glexec_interface = glexec_utils.GlexecInterface(my_proxy_interface_instance, payload=payload)
@@ -2708,7 +2708,7 @@ def runMain(runpars):
 
                 if os.environ.has_key('OSG_GLEXEC_LOCATION'):
                     if os.environ['OSG_GLEXEC_LOCATION'] != '':
-		       	glexec_path = os.environ['OSG_GLEXEC_LOCATION']
+                        glexec_path = os.environ['OSG_GLEXEC_LOCATION']
                     else:
                         glexec_path = '/usr/sbin/glexec'
                         os.environ['OSG_GLEXEC_LOCATION'] = '/usr/sbin/glexec'
@@ -2718,7 +2718,7 @@ def runMain(runpars):
                     else:
                         glexec_path = '/usr/sbin/glexec'
                         os.environ['GLEXEC_LOCATION'] = '/usr'
-		elif os.path.exists('/usr/sbin/glexec'):
+                elif os.path.exists('/usr/sbin/glexec'):
                     glexec_path = '/usr/sbin/glexec'
                     os.environ['GLEXEC_LOCATION'] = '/usr'
                 elif os.environ.has_key('GLITE_LOCATION'):
