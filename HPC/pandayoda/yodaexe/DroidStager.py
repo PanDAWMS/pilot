@@ -76,7 +76,7 @@ class DroidStager(threading.Thread):
                 self.__cores = int(job.get('ATHENA_PROC_NUMBER', 1))
 
                 self.__tmpLog.debug("Rank %s: start threadpool" % (self.__rank))
-                self.__threadpool = ThreadPool(self.__cores)
+                self.__threadpool = ThreadPool(self.__cores/8)
 
         except:
             self.__tmpLog.error("Failed to setup Droid stager: %s" % str(traceback.format_exc()))
@@ -148,7 +148,7 @@ class DroidStager(threading.Thread):
             ret_status = -1
         return ret_status, ret_outputs
 
-    def zipOutputs(self, outputs):
+    def zipOutputs(self, eventRangeID, eventStatus, outputs):
         try:
             for filename in outputs:
                 command = "tar -rf " + self.__zipFileName + " --directory=%s %s" %(os.path.dirname(filename), os.path.basename(filename))
@@ -163,18 +163,18 @@ class DroidStager(threading.Thread):
             return -1, "Failed to zip outputs"
         else:
             handler = open(self.__zipEventRangesName, "a")
-            handler.write("%s %s %s\n" % (eventRangeID, eventStatus, output))
+            handler.write("%s %s %s\n" % (eventRangeID, eventStatus, outputs))
             handler.close()
-        return 0, output
+        return 0, outputs
 
-    def stageOut(self, eventRangeID, eventStatus, output):
+    def stageOut(self, eventRangeID, eventStatus, output, retries=0):
         if eventStatus.startswith("ERR"):
             request = {"eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": output}
         else:
             outputs = output.split(",")[:-3]
             if self.__yodaToZip:
                 self.__tmpLog.debug("Rank %s: start to zip outputs: %s" % (self.__rank, outputs))
-                retStatus, retOutput = self.zipOutputs(outputs)
+                retStatus, retOutput = self.zipOutputs(eventRangeID, eventStatus, outputs)
                 if retStatus != 0:
                     self.__tmpLog.error("Rank %s: failed to zip outputs %s: %s" % (self.__rank, outputs, retOutput))
                     request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": output}
@@ -186,7 +186,11 @@ class DroidStager(threading.Thread):
                 retStatus, retOutput = self.stageOutToOS(outputs)
                 if retStatus != 0:
                     self.__tmpLog.error("Rank %s: failed to stagout outputs %s to objectstore: %s" % (self.__rank, outputs, retOutput))
-                    request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": output}
+                    if retries < 1:
+                        self.stageOut(eventRangeID, eventStatus, output, retries=retries+1)
+                        request = None
+                    else:
+                        request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": output}
                 else:
                     self.__tmpLog.info("Rank %s: finished to stageout outputs %s to objectstore: %s" % (self.__rank, outputs, retOutput))
                     request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': 'stagedOut', "output": retOutput, 'objstoreID': self.__os_bucket_id}
@@ -199,7 +203,8 @@ class DroidStager(threading.Thread):
                 else:
                     self.__tmpLog.info("Rank %s: finished to copy outputs %s: %s" % (self.__rank, outputs, retOutput))
                     request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": retOutput}
-        self.__outputs.put(request)
+        if request:
+            self.__outputs.put(request)
             
     def stop(self):
         self.__stop.set()
@@ -218,9 +223,9 @@ class DroidStager(threading.Thread):
                             eventRangeID, eventStatus, output = outputMsg
                             if self.__threadpool:
                                 self.__tmpLog.debug("Rank %s: add event output to threadpool: %s" % (self.__rank, outputMsg))
-                                self.__threadpool.add_task(self.stageOut, eventRangeID, eventStatus, output)
+                                self.__threadpool.add_task(self.stageOut, eventRangeID, eventStatus, output, retries=0)
                             else:
-                                self.stageOut(eventRangeID, eventStatus, output)
+                                self.stageOut(eventRangeID, eventStatus, output, retries=0)
                         except:
                             self.__tmpLog.warning("Rank %s: error message: %s" % (self.__rank, traceback.format_exc()))
                             continue

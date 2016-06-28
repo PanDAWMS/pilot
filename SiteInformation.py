@@ -60,6 +60,7 @@ class SiteInformation(object):
 
         value = ""
 
+        # tolog("par: %s, alt: %s, version:%s, queuename: %s" % (par, alt, version, queuename))
         # Should we should use the new queuedata JSON version?
         if version == 1:
             return self.getField(par, queuename=queuename)
@@ -1311,6 +1312,7 @@ class SiteInformation(object):
         if objectstoresInfo == []:
             objectstoresInfo = self.getObjectstoresInfo()
 
+        tolog("objectstoresInfo: %s" % objectstoresInfo)
         if objectstoresInfo:
             ddmendpoint = self.getObjectstoresField('ddmendpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
             if ddmendpoint == "":
@@ -1532,7 +1534,7 @@ class SiteInformation(object):
             rand = random.randrange(5, 20)
             tolog("!!WARNING!!3333!! Failed to get AGIS OS info file, sleep %s seconds" % rand)
             time.sleep(rand)
-            return getObjectstoreInfoFileReal()
+            return self.getObjectstoreInfoFileReal()
 
     def getObjectstoreInfoFileReal(self):
         """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
@@ -1699,6 +1701,7 @@ class SiteInformation(object):
 
         value = None
         filename = self.getQueuedataFileName(version=version, check=False, queuename=queuename, os_bucket_id=os_bucket_id)
+        tolog("queuedata file: %s" % filename)
         if os.path.exists(filename):
 
             # Load the dictionary

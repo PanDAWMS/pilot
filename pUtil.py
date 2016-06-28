@@ -2,6 +2,7 @@ import sys, os, signal, time, shutil, cgi
 import commands, re
 import urllib
 import json
+import traceback
 
 from xml.dom import minidom
 from xml.dom.minidom import Document
@@ -157,7 +158,7 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
         module_name = os.path.basename(inspect.stack()[1][1])
     except Exception, e:
         module_name = "unknown"
-        print "Exception caught by tolog():", e
+        #print "Exception caught by tolog(): ", e,
     module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
     msg = "%s| %s" % (module_name_cut, msg)
 
@@ -1943,12 +1944,17 @@ class _Curl:
             com += ' --key %s' % self.sslKey
         #com += ' --verbose'
         # data
+        if 'nJobs' in data:
+            com += ' --header "Accept: application/json"'
         strData = ''
         for key in data.keys():
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
+        jobId = ''
+        if 'jobId' in data.keys():
+            jobId = '_%s' % data['jobId']
         # write data to temporary config file
         # tmpName = commands.getoutput('uuidgen 2> /dev/null')
-        tmpName = '%s/curl.config' % (path)
+        tmpName = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
         try:
             tmpFile = open(tmpName, 'w')
             tmpFile.write(strData)
@@ -1990,11 +1996,16 @@ class _Curl:
             com += ' --key %s' % self.sslKey
         #com += ' --verbose'
         # data
+        if 'nJobs' in data:
+            com += ' --header "Accept: application/json"'
         strData = ''
         for key in data.keys():
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
+        jobId = ''
+        if 'jobId' in data.keys():
+            jobId = '_%s' % data['jobId']
         # write data to temporary config file
-        tmpName = '%s/curl.config' % (path)
+        tmpName = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
         try:
             tmpFile = open(tmpName,'w')
             tmpFile.write(strData)
@@ -2103,7 +2114,7 @@ def toPandaLogger(data):
 
     except:
         _type, value, traceBack = sys.exc_info()
-        tolog("ERROR : %s %s" % ( _type, value))
+        tolog("ERROR : %s %s" % ( _type, traceback.format_exc()))
         return EC_Failed, None, None
 
 def verifyJobState(state):
@@ -2192,7 +2203,7 @@ def toServer(baseURL, cmd, data, path, experiment):
             return status, None, None
     except:
         _type, value, traceBack = sys.exc_info()
-        tolog("ERROR %s : %s %s" % (cmd, _type, value))
+        tolog("ERROR %s : %s %s" % (cmd, _type, traceback.format_exc()))
         return EC_Failed, None, None
 
 def getPilotToken(tofile=False):
@@ -2413,18 +2424,30 @@ def parseDispatcherResponse(response):
 #    if "_sub" in response:
 #        response = removeSubFromResponse(response)
 
-    parList = cgi.parse_qsl(response, keep_blank_values=True)
+    try:
+        parList = json.loads(response)
+    except:
+        data = {}
+        parList = cgi.parse_qsl(response, keep_blank_values=True)
+        for p in parList:
+            data[p[0]] = p[1]
 
-    data = {}
-    for p in parList:
-        data[p[0]] = p[1]
-
-    if 'userProxy' in str(parList) or 'privateKey' in str(parList):
-	for i in range(len(parList)):
-		if parList[i][0] == 'userProxy' or parList[i][0] == 'publicKey' or parList[i][0] == 'privateKey':
-			newList = list(parList[i])
-			newList[1] = 'hidden'
-			parList[i] = newList
+        if 'userProxy' in str(parList) or 'privateKey' in str(parList):
+            for i in range(len(parList)):
+                if parList[i][0] == 'userProxy' or parList[i][0] == 'publicKey' or parList[i][0] == 'privateKey':
+                    newList = list(parList[i])
+                    newList[1] = 'hidden'
+                    parList[i] = newList
+    else:
+        data = parList.copy()
+        if 'jobs' in parList:
+            for p in parList['jobs']:
+                if 'userProxy' in p:
+                     p['userProxy'] = 'hidden'
+                if 'privateKey' in p:
+                    p['privateKey'] = 'hidden'
+                if 'publicKey' in p:
+                    p['publicKey'] = 'hidden'
 
     tolog("Dispatcher response: %s" % str(parList))
 

@@ -1,5 +1,5 @@
 import os
-from time import time
+from time import time, gmtime, strftime
 from datetime import date
 from commands import getstatusoutput, getoutput
 from shutil import copy2
@@ -124,6 +124,7 @@ class PandaServerClient:
                 coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
             except:
                 tolog("env ATHENA_PROC_NUMBER is not set. corecount is not set")
+        job.coreCount = coreCount
         jobMetrics = ""
         if coreCount and coreCount != "NULL":
             jobMetrics += self.jobMetric(key="coreCount", value=coreCount)
@@ -137,22 +138,13 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="mode", value=job.mode)
         if job.hpcStatus:
             jobMetrics += self.jobMetric(key="HPCStatus", value=job.hpcStatus)
-        if job.yodaSetupTime:
-            jobMetrics += self.jobMetric(key="yodaSetupTime", value=job.yodaSetupTime)
-        if job.yodaTotalTime:
-            jobMetrics += self.jobMetric(key="yodaTotalTime", value=job.yodaTotalTime)
-        if job.yodaTotalCPUHour:
-            jobMetrics += self.jobMetric(key="yodaTotalCPUHour", value=job.yodaTotalCPUHour)
-        if job.yodaProcessCPUHour:
-            jobMetrics += self.jobMetric(key="yodaProcessCPUHour", value=job.yodaProcessCPUHour)
-        if job.yodaCores:
-            jobMetrics += self.jobMetric(key="yodaCores", value=job.yodaCores)
-        if job.yodaQueueEvents:
-            jobMetrics += self.jobMetric(key="yodaQueueEvents", value=job.yodaQueueEvents)
-        if job.yodaProcessedEvents:
-            jobMetrics += self.jobMetric(key="yodaProcessedEvents", value=job.yodaProcessedEvents)
-        if job.avgProcessTimePerEvent:
-            jobMetrics += self.jobMetric(key="avgProcessTimePerEvent", value=job.avgProcessTimePerEvent)
+        if job.yodaJobMetrics:
+            for key in job.yodaJobMetrics:
+                if key == 'startTime' or key == 'endTime':
+                    value = strftime("%Y-%m-%dT%H:%M:%S", gmtime(job.yodaJobMetrics[key]))
+                    jobMetrics += self.jobMetric(key=key, value=value)
+                else:
+                    jobMetrics += self.jobMetric(key=key, value=job.yodaJobMetrics[key])
         if job.HPCJobId:
             jobMetrics += self.jobMetric(key="HPCJobId", value=job.HPCJobId)
 
@@ -304,6 +296,14 @@ class PandaServerClient:
             startTime = readStringFromFile(_path)
             node['startTime'] = startTime
 
+        if job.yodaJobMetrics:
+            if 'startTime' in job.yodaJobMetrics and job.yodaJobMetrics['startTime']:
+                node['startTime'] = strftime("%Y-%m-%dT%H:%M:%S", gmtime(job.yodaJobMetrics['startTime']))
+                #job.yodaJobMetrics['startTime'] = node['startTime']
+            if 'endTime' in job.yodaJobMetrics and job.yodaJobMetrics['endTime']:
+                node['endTime'] = strftime("%Y-%m-%dT%H:%M:%S", gmtime(job.yodaJobMetrics['endTime']))
+                #job.yodaJobMetrics['endTime'] = node['endTime']
+
         # build the jobMetrics
         node['jobMetrics'] = self.getJobMetrics(job, site, workerNode)
 
@@ -312,6 +312,11 @@ class PandaServerClient:
             node['jobSubStatus'] = job.hpcStatus
         else:
             node['jobSubStatus'] = ''
+
+        if job.coreCount:
+            node['coreCount'] = job.coreCount
+        if job.HPCJobId:
+            node['batchID'] = job.HPCJobId
 
         # check to see if there were any high priority errors reported
         errorInfo = getHighestPriorityError(job.jobId, self.__pilot_initdir)

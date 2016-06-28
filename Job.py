@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import pUtil
@@ -133,14 +134,7 @@ class Job:
         self.hpcStatus = None
 
         # yoda accounting info
-        self.yodaSetupTime = None
-        self.yodaTotalTime = None
-        self.yodaTotalCPUHour = None
-        self.yodaProcessCPUHour = None
-        self.yodaCores = None
-        self.yodaQueueEvents = None
-        self.yodaProcessedEvents = None
-        self.avgProcessTimePerEvent = None
+        self.yodaJobMetrics = None
 
         self.refreshNow = False
 
@@ -224,8 +218,8 @@ class Job:
         """ set values for a job object from a dictionary data
         which is usually from cgi messages from panda server """
 
-        self.jobId = data.get('PandaID', '0')
-        self.taskID = data.get('taskID', '')
+        self.jobId = str(data.get('PandaID', '0'))
+        self.taskID = str(data.get('taskID', ''))
 
         self.outputFilesXML = "OutputFiles-%s.xml" % self.jobId
 
@@ -301,7 +295,7 @@ class Job:
             pUtil.tolog("Normal job (not an eventService job)")
 
         self.eventRanges = data.get('eventRanges')
-        self.jobsetID = data.get('jobsetID')
+        self.jobsetID = str(data.get('jobsetID'))
 
         pUtil.tolog("jobsetID=%s" % self.jobsetID)
 
@@ -340,22 +334,10 @@ class Job:
             self.mode = data.get("mode", None)
         if data.has_key('hpcStatus'):
             self.hpcStatus = data.get('hpcStatus', None)
-        if data.has_key('yodaSetupTime'):
-            self.yodaSetupTime = data.get('yodaSetupTime', None)
-        if data.has_key('yodaTotalTime'):
-            self.yodaTotalTime = data.get('yodaTotalTime', None)
-        if data.has_key('yodaTotalCPUHour'):
-            self.yodaTotalCPUHour = data.get('yodaTotalCPUHour', None)
-        if data.has_key('yodaProcessCPUHour'):
-            self.yodaProcessCPUHour = data.get('yodaProcessCPUHour', None)
-        if data.has_key('yodaCores'):
-            self.yodaCores = data.get('yodaCores', None)
-        if data.has_key('yodaQueueEvents'):
-            self.yodaQueueEvents = data.get('yodaQueueEvents', None)
-        if data.has_key('yodaProcessedEvents'):
-            self.yodaProcessedEvents = data.get('yodaProcessedEvents', None)
-        if data.has_key('avgProcessTimePerEvent'):
-            self.avgProcessTimePerEvent = data.get('avgProcessTimePerEvent', None)
+        if data.has_key('yodaJobMetrics'):
+            self.yodaJobMetrics = data.get('yodaJobMetrics', None)
+        if self.yodaJobMetrics:
+            self.yodaJobMetrics = json.loads(self.yodaJobMetrics)
         if data.has_key('HPCJobId'):
             self.HPCJobId = data.get('HPCJobId', None)
 

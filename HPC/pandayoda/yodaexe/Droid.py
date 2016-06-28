@@ -33,7 +33,10 @@ class Droid(threading.Thread):
         self.__tmpLog = Logger.Logger(filename='Droid.log')
         self.__esJobManager = None
         self.__isFinished = False
-        self.__rank = self.__comm.getRank()
+        if nonMPIMode:
+            self.__rank = rank
+        else:
+            self.__rank = self.__comm.getRank()
         self.__tmpLog.info("Rank %s: Global working dir: %s" % (self.__rank, self.__globalWorkingDir))
         if not os.environ.has_key('PilotHomeDir'):
             os.environ['PilotHomeDir'] = self.__globalWorkingDir
@@ -42,6 +45,8 @@ class Droid(threading.Thread):
         self.__tmpLog.info("Rank %s: Current working dir: %s" % (self.__rank, self.__currentDir))
 
         self.__jobId = None
+        self.__startTimeOneJobDroid = None
+        self.__cpuTimeOneJobDroid = None
         self.__poolFileCatalog = None
         self.__inputFiles = None
         self.__copyInputFiles = None
@@ -55,15 +60,16 @@ class Droid(threading.Thread):
         self.__hostname = socket.getfqdn()
 
         self.__outputs = Queue()
-
+        self.__jobMetrics = {}
         self.__stagerThread = None
 
-        signal.signal(signal.SIGTERM, self.stop)
-        signal.signal(signal.SIGQUIT, self.stop)
-        signal.signal(signal.SIGSEGV, self.stop)
-        signal.signal(signal.SIGXCPU, self.stop)
-        signal.signal(signal.SIGUSR1, self.stop)
-        signal.signal(signal.SIGBUS, self.stop)
+        if not nonMPIMode:
+            signal.signal(signal.SIGTERM, self.stop)
+            signal.signal(signal.SIGQUIT, self.stop)
+            signal.signal(signal.SIGSEGV, self.stop)
+            signal.signal(signal.SIGXCPU, self.stop)
+            signal.signal(signal.SIGUSR1, self.stop)
+            signal.signal(signal.SIGBUS, self.stop)
 
     def initWorkingDir(self):
         # Create separate working directory for each rank
@@ -94,6 +100,8 @@ class Droid(threading.Thread):
     def setup(self, job):
         try:
             self.__jobId = job.get("JobId", None)
+            self.__startTimeOneJobDroid = time.time()
+            self.__cpuTimeOneJobDroid = os.times()
             self.__poolFileCatalog = job.get('PoolFileCatalog', None)
             self.__inputFiles = job.get('InputFiles', None)
             self.__copyInputFiles = job.get('CopyInputFiles', False)
@@ -177,6 +185,7 @@ class Droid(threading.Thread):
         self.__stagerThread.stop()
         self.__tmpLog.debug("Rank %s: waiting stager thread to finish" %(self.__rank))
         while not self.__stagerThread.isFinished():
+            self.updateOutputs()
             time.sleep(1)
         self.__tmpLog.debug("Rank %s: stager thread finished" %(self.__rank))
 
@@ -279,9 +288,9 @@ class Droid(threading.Thread):
 
     def finishJob(self):
         if not self.__isFinished:
-            request = {'jobId': self.__jobId, 'state': 'finished'}
-            self.__tmpLog.debug("Rank %s: updateJob(request: %s)" % (self.__rank, request))
-            status, output = self.__comm.sendRequest('updateJob',request)
+            request = {'jobId': self.__jobId, 'rank': self.__rank, 'state': 'finished'}
+            self.__tmpLog.debug("Rank %s: finishJob(request: %s)" % (self.__rank, request))
+            status, output = self.__comm.sendRequest('finishJob',request)
             self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
             if status:
                 statusCode = output["StatusCode"]
@@ -291,9 +300,9 @@ class Droid(threading.Thread):
         return False
 
     def failedJob(self):
-        request = {'jobId': self.__jobId, 'state': 'failed'}
-        self.__tmpLog.debug("Rank %s: updateJob(request: %s)" % (self.__rank, request))
-        status, output = self.__comm.sendRequest('updateJob',request)
+        request = {'jobId': self.__jobId, 'rank': self.__rank, 'state': 'failed'}
+        self.__tmpLog.debug("Rank %s: finishJob(request: %s)" % (self.__rank, request))
+        status, output = self.__comm.sendRequest('finishJob',request)
         self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
         if status:
             statusCode = output["StatusCode"]
@@ -315,9 +324,13 @@ class Droid(threading.Thread):
 
     def heartbeat(self):
         request = self.getAccountingMetrics()
+        self.__jobMetrics[self.__jobId] = request
         self.__tmpLog.debug("Rank %s: heartbeat(request: %s)" % (self.__rank, request))
         status, output = self.__comm.sendRequest('heartbeat',request)
         self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
+
+        self.dumpJobMetrics()
+
         if status:
             statusCode = output["StatusCode"]
             if statusCode == 0:
@@ -330,7 +343,26 @@ class Droid(threading.Thread):
             metrics = self.__esJobManager.getAccountingMetrics()
         metrics['jobId'] = self.__jobId
         metrics['rank'] = self.__rank
+        if self.__startTimeOneJobDroid:
+            metrics['totalTime'] =  time.time() - self.__startTimeOneJobDroid
+        else:
+            metrics['totalTime'] = 0
+        processedEvents = metrics['processedEvents']
+        if processedEvents < 1:
+            processedEvents = 1
+
+        metrics['avgTimePerEvent'] = metrics['totalTime'] * metrics['cores'] / processedEvents
+
         return metrics
+
+    def dumpJobMetrics(self):
+        jobMetricsFileName = "jobMetrics-rank_%s.json" % self.__rank
+        outputDir = self.__currentDir
+        jobMetrics = os.path.join(outputDir, jobMetricsFileName)
+        self.__tmpLog.debug("JobMetrics file: %s" % jobMetrics)
+        tmpFile = open(jobMetrics, "w")
+        json.dump(self.__jobMetrics, tmpFile)
+        tmpFile.close()
 
     def waitYoda(self):
         self.__tmpLog.debug("Rank %s: WaitYoda" % (self.__rank))
@@ -394,7 +426,7 @@ class Droid(threading.Thread):
             if heartbeatTime is None:
                 self.heartbeat()
                 heartbeatTime = time.time()
-            elif time.time() - heartbeatTime > 5 * 60:
+            elif time.time() - heartbeatTime > 60:
                 self.heartbeat()
                 heartbeatTime = time.time()
 
@@ -405,6 +437,7 @@ class Droid(threading.Thread):
 
         self.__tmpLog.info("Rank %s: post exec job" % self.__rank)
         self.postExecJob()
+        self.heartbeat()
         self.__tmpLog.info("Rank %s: finish job" % self.__rank)
         self.finishJob()
         #self.waitYoda()
@@ -444,8 +477,9 @@ class Droid(threading.Thread):
     def stop(self, signum=None, frame=None):
         self.__tmpLog.info('Rank %s: stop signal received' % self.__rank)
         block_sig(signal.SIGTERM)
+        self.dumpJobMetrics()
         self.heartbeat()
-        self.__esJobManager.terminate()
+        #self.__esJobManager.terminate()
         self.__esJobManager.flushMessages()
         self.updateOutputs(signal=True, final=True)
 
