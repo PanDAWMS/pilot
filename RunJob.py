@@ -1636,7 +1636,7 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # are there any additional output files created by the trf/payload?
-        extracted_output_files = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles)
+        extracted_output_files, extracted_guids = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles, job.outFilesGuids)
         if extracted_output_files != []:
             tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
 
@@ -1657,11 +1657,12 @@ if __name__ == "__main__":
                 job.destinationDblock = new_destinationDblock
                 job.destinationDBlockToken = new_destinationDBlockToken
                 job.scopeOut = new_scopeOut
-
+                job.outFilesGuids = extracted_guids
                 tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
                 tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
                 tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
                 tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
+                tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
 
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)

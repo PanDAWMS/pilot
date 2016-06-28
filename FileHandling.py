@@ -502,10 +502,12 @@ def getJobReportOld(workDir):
 
     return jobReport_dictionary
 
-def removeNoOutputFiles(workdir, outFiles, allowNoOutput):
+def removeNoOutputFiles(workdir, outFiles, allowNoOutput, outFilesGuids):
     """ Remove files from output file list if they are listed in allowNoOutput and do not exist """
 
     _outFiles = []
+    _guids = []
+    i = 0
     for filename in outFiles:
         path = os.path.join(workdir, filename)
 
@@ -513,6 +515,7 @@ def removeNoOutputFiles(workdir, outFiles, allowNoOutput):
             if os.path.exists(path):
                 tolog("File %s is listed in allowNoOutput but exists (will not be removed from list of files to be staged-out)" % (filename))
                 _outFiles.append(filename)
+                _guids.append(outFilesGuids[i])
             else:
                 tolog("File %s is listed in allowNoOutput and does not exist (will be removed from list of files to be staged-out)" % (filename))
         else:
@@ -521,29 +524,31 @@ def removeNoOutputFiles(workdir, outFiles, allowNoOutput):
             else:
                 tolog("!!WARNING!!4343!! File %s is not listed in allowNoOutput and does not exist (job will fail)" % (filename))
             _outFiles.append(filename) # Append here, fail later
+            _guids.append(outFilesGuids[i])
+        i += 1
 
     return _outFiles
 
-
-def extractOutputFiles(analysisJob, workdir, allowNoOutput, outFiles):
+def extractOutputFiles(analysisJob, workdir, allowNoOutput, outFiles, outFilesGuids):
     """ Extract the output files from the JSON if possible """
     try:
         if not analysisJob:
-            extracted_output_files = extractOutputFilesFromJSON(workdir, allowNoOutput)
+            extracted_output_files, extracted_guids = extractOutputFilesFromJSON(workdir, allowNoOutput)
         else:
             if allowNoOutput == []:
                 tolog("Will not extract output files from jobReport for user job (and allowNoOut list is empty)")
                 extracted_output_files = []
+                extracted_guids = []
             else:
                 # Remove the files listed in allowNoOutput if they don't exist
-                extracted_output_files = removeNoOutputFiles(workdir, outFiles, allowNoOutput)
+                extracted_output_files, extracted_guids = removeNoOutputFiles(workdir, outFiles, allowNoOutput, outFilesGuids)
     except Exception, e:
         tolog("!!WARNING!!2327!! Exception caught: %s" % (e))
         extracted_output_files = []
-    return extracted_output_files
+    return extracted_output_files, extracted_guids
 
 def extractOutputFilesFromJSON(workDir, allowNoOutput):
-    """ In case the trf has produced additional output files, extract all output files from the jobReport """
+    """ In case the trf has produced additional output files (spill-over), extract all output files from the jobReport """
     # Note: ignore files with nentries = 0
 
     output_files = []
@@ -586,7 +591,7 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
                                         guids.append(f_names_dictionary['file_guid'])
                                     else:
                                         tolog("!!WARNING!!1212!! Did not find any guid for this file: %s (will be generated)" % (f_names_dictionary['name']))
-                                        guids.append("")
+                                        guids.append(None)
                             else:
                                 tolog("No such key: name/nentries")
                     else:

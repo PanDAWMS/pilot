@@ -295,6 +295,10 @@ Direct access updates:
 
 Spill-over guids:
 - Now extracting guids for spill-over files in extractOutputFilesFromJSON() (FileHandling)
+- Sending job.outFilesGuids to extractOutputFiles() (RunJob)
+- Updated output file guids (RunJob)
+- Sending outFilesGuids to removeNoOutputFiles() (FileHandling)
+- Added outFilesGuids argument and handling to removeNoOutputFiles() (FileHandling)
 
 Site mover update from Alexey Anisenkov:
 - ..
