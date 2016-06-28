@@ -547,6 +547,7 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
     # Note: ignore files with nentries = 0
 
     output_files = []
+    guids = []
     tolog("Extracting output files from jobReport")
 
     jobReport_dictionary = getJobReport(workDir)
@@ -580,6 +581,12 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
                                     else:
                                         tolog("Will not ignore empty file %s since file is not in allowNoOutput list" % (f_names_dictionary['name']))
                                         output_files.append(f_names_dictionary['name'])
+                                    # Also get the file guid
+                                    if f_names_dictionary.has_key('file_guid'):
+                                        guids.append(f_names_dictionary['file_guid'])
+                                    else:
+                                        tolog("!!WARNING!!1212!! Did not find any guid for this file: %s (will be generated)" % (f_names_dictionary['name']))
+                                        guids.append("")
                             else:
                                 tolog("No such key: name/nentries")
                     else:
@@ -594,7 +601,7 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
         else:
             tolog("Output files found in jobReport: %s" % (output_files))
 
-    return output_files
+    return output_files, guids
 
 def getDestinationDBlockItems(filename, original_output_files, destinationDBlockToken, destinationDblock, scopeOut):
     """ Return destinationDBlock items (destinationDBlockToken, destinationDblock, scope) for given file """

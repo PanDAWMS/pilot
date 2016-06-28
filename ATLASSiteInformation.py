@@ -474,6 +474,7 @@ class ATLASSiteInformation(SiteInformation):
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
+#            ec = self.replaceQueuedataField("use_newmover", "True")
 #            ec = self.replaceQueuedataField("maxrss", "100")
 #            ec = self.replaceQueuedataField("direct_access_lan", "True")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
@@ -493,7 +494,7 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
-            ec = self.replaceQueuedataField("copytoolin", "lsm")
+#            ec = self.replaceQueuedataField("copytoolin", "lsm")
 #            ec = self.replaceQueuedataField("copytool", "lsm")
 #            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
             ec = self.replaceQueuedataField("faxredirector", "atlas-xrd-us.usatlas.org:1094/")

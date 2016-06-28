@@ -272,6 +272,14 @@ Added missing factor of 2 in maxrss (Monitor)
 
 65.4:
 
+Updates from Wen Guan:
+- Created init_guid_list() (RunJobEvent)
+- Using new function init_guid_list() to fix problem with having more than one input file in event service job (RunJobEvent)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+65.5:
+
 General changes:
 - Cleanup limit raised from 2 to 12 hours in purgeEmptyDirs(), purgeWorkDirs(), purgeMaxedoutDirs() (Cleaner)
 
@@ -285,8 +293,14 @@ Direct access updates:
 - [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
 [TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
 
+Spill-over guids:
+- Now extracting guids for spill-over files in extractOutputFilesFromJSON() (FileHandling)
+
 Site mover update from Alexey Anisenkov:
 - ..
+
+Mover updates from Danila Oleynik:
+- Improved pilotErrorDiag for globus system errors in _mover_get_data_new() and mover_get_data(). Requested in GGUS ticket https://ggus.eu/index.php?mode=ticket_info&ticket_id=121542 (Mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

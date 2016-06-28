@@ -639,6 +639,13 @@ class RunJobEvent(RunJob):
         else:
             tolog("Token Extractor is not needed")
 
+    def init_guid_list(self):
+        """ Init guid and lfn list for stagein files"""
+        for guid in self.__job.inFilesGuids:
+            self.__guid_list.append(guid)
+        for lfn in self.__job.inFiles:
+            self.__lfn_list.append(lfn)
+
     # Required methods
 
     def __init__(self):
@@ -2291,6 +2298,9 @@ if __name__ == "__main__":
             tolog("Failing job with ec: %d" % (ec))
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
+
+        # already stagein files should be in the guid list and lfn list
+        runJob.init_guid_list()
 
         # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
         # consult the FileState file dictionary if cmd3 should be updated (--directIn should not be set if all
