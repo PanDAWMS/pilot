@@ -2168,16 +2168,6 @@ def toServer(baseURL, cmd, data, path, experiment):
         tolog("Elapsed seconds: %d" % ((tpost-tpre).seconds))
     except:
         pass
-
-    curl_config = '%s/curl.config' % path
-    try:
-        jobId = ''
-        if 'jobId' in data.keys():
-            jobId = '_%s' % data['jobId']
-        curl_config = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
-    except:
-        pass
-
     try:
         if curlstat == 0:
             # parse response message
@@ -2199,13 +2189,13 @@ def toServer(baseURL, cmd, data, path, experiment):
             status = int(data['StatusCode'])
             if status != 0:
                 # pilotErrorDiag = getDispatcherErrorDiag(status)
-                tolog("Dumping curl config file: %s" % (curl_config))
-                dumpFile(curl_config, topilotlog=True)
+                tolog("Dumping %s/curl.config file:" % (path))
+                dumpFile('%s/curl.config' % (path), topilotlog=True)
         else:
             tolog("!!WARNING!!2999!! Dispatcher message curl error: %d " % (curlstat))
             tolog("Response = %s" % (response))
-            tolog("Dumping curl.config file: %s" % curl_config)
-            dumpFile(curl_config, topilotlog=True)
+            tolog("Dumping curl.config file:")
+            dumpFile('%s/curl.config' % (path), topilotlog=True)
             return curlstat, None, None
         if status == 0:
             return status, data, response
