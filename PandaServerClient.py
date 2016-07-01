@@ -126,7 +126,7 @@ class PandaServerClient:
                 tolog("env ATHENA_PROC_NUMBER is not set. corecount is not set")
         job.coreCount = coreCount
         jobMetrics = ""
-        if coreCount and coreCount != "NULL":
+        if coreCount and coreCount != "NULL" and coreCount != 'null':
             jobMetrics += self.jobMetric(key="coreCount", value=coreCount)
         if job.nEvents > 0:
             jobMetrics += self.jobMetric(key="nEvents", value=job.nEvents)
@@ -313,7 +313,7 @@ class PandaServerClient:
         else:
             node['jobSubStatus'] = ''
 
-        if job.coreCount:
+        if job.coreCount and job.coreCount != 'null' and job.coreCount != 'NULL':
             node['coreCount'] = job.coreCount
         if job.HPCJobId:
             node['batchID'] = job.HPCJobId

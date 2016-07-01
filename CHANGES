@@ -282,6 +282,7 @@ Updates from Wen Guan:
 
 General changes:
 - Cleanup limit raised from 2 to 12 hours in purgeEmptyDirs(), purgeWorkDirs(), purgeMaxedoutDirs() (Cleaner)
+- Avoiding sending coreCount = NULL/null in getJobMetrics(), getNodeStructure() (PandaServerClient)
 
 Bug fixes:
 - Corrected from variable name (errorOuput -> errorOutput) in put_data() (GFAL2SiteMover)
