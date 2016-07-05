@@ -193,8 +193,8 @@ class aria2cSiteMover(SiteMover.SiteMover):
 			tolog("Token I am using: %s" %(token_rucio2print))
 	httpredirector = readpar('httpredirector')
 	if not httpredirector:
-            cmd = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio,reps[0].scope,reps[0].filename)
-            cmd2print = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip"%(token_rucio2print,reps[0].scope,reps[0].filename)
+            cmd = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio,reps[0].scope,reps[0].filename)
+            cmd2print = "curl -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio2print,reps[0].scope,reps[0].filename)
 	else:
             if "http" in httpredirector:
            	tolog("HTTP redirector I am using: %s" %(httpredirector))
@@ -655,8 +655,8 @@ class aria2cSiteMover(SiteMover.SiteMover):
 	   trial_n+=1
            if not httpredirector:
                #cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip |awk \'{FS=\"hash type=\"}; {print $2}\' |awk \'{FS=\">\"}; {print $2}\' |awk \'{FS=\"<\"} {print $1}\'| grep -v \'^$\'"%(token_rucio,scope,filename)
-               cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio,scope,filename)
-               cmd2print = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip "%(token_rucio2print,scope,filename)
+               cmd = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio,scope,filename)
+               cmd2print = "curl -v -1 -H \"%s\" -H 'Accept: application/metalink4+xml'  --cacert cabundle.pem https://rucio-lb-prod.cern.ch/replicas/%s/%s?select=geoip&schemes=https,http "%(token_rucio2print,scope,filename)
            else:
                if "http" in httpredirector:
                    tolog("HTTP redirector I am using: %s" %(httpredirector))

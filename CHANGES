@@ -287,13 +287,6 @@ General changes:
 Bug fixes:
 - Corrected from variable name (errorOuput -> errorOutput) in put_data() (GFAL2SiteMover)
 
-OS log transfers:
-[TODO: set bucket to -1 for failed log transfers in jobMetrics]
-
-Direct access updates:
-- [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
-[TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
-
 Spill-over guids:
 - Now extracting guids for spill-over files in extractOutputFilesFromJSON() (FileHandling)
 - Sending job.outFilesGuids to extractOutputFiles() (RunJob)
@@ -301,15 +294,94 @@ Spill-over guids:
 - Sending outFilesGuids to removeNoOutputFiles() (FileHandling)
 - Added outFilesGuids argument and handling to removeNoOutputFiles() (FileHandling)
 
-Site mover update from Alexey Anisenkov:
-- ..
+Fix for bad TURLs (aria2cSiteMover)
+- Added "?select=geoip&schemes=https,http"
 
 Mover updates from Danila Oleynik:
 - Improved pilotErrorDiag for globus system errors in _mover_get_data_new() and mover_get_data(). Requested in GGUS ticket https://ggus.eu/index.php?mode=ticket_info&ticket_id=121542 (Mover)
 
+AES@HPC updates from Wen Guan:
+- add accounting for droid waiting transfer time
+- enable retry in droid stager
+- report batchid
+- fix log collection in multiple job mode
+- load balance dns name in s3 objectstore
+- fix bug in get objectstore info file
+- fix postJob in multiple job mode
+- using different curl.config for different job
+- fix to avoid for ipv6 in s3objectstore balance
+- fix bug in monitor
+- fix bug in Timercommand
+- support bulk getJobs with json returns
+- new jobmetrics from Yoda
+- new yoda accounting info
+- update job to support new jobmetrics and bulk getjobs
+- disable jobmetrics copying in log collection
+- more flexible to schedule jobs in yoda
+- fix yoda arc plugin
+- merge 20160624
+
+Site mover update from Alexey Anisenkov:
+- sitemovers: upgraded stagein workflow:
+- Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+- cosmetic fix
+- movers: stage-out workflow updated
+- movers: cosmetic fixes
+- sitemovers: transferring logfiles to normal SE switched to new sitemover implementation (JobMover.stageout_logfiles via wrapper mover.put_data_new)
+- sitemovers updates
+- fix scopeLog initialization in Job
+
+Documentation
+
+Sitemovers workflow upgraded to properly consider DDMEndpoint protocols declaration for transfers.
+
+1 . General concept and workflow description:
+
+-- Pilot executes Panda's command in terms of DDMEndpoint (as a main identifier) where to store data/log files and from which DDMEndpoints (actually from all local ddmendpoints belong to same ATLAS site resolved by suggested ddms from Job.ddmendpointIn input) 
+-- PandaQueue specifies in the shedconfig fields which copytools (e.g. xrdcp, rucio, lsm) are supported/enabled by given PandaQueue. It's possible to specify separately prioritized list of copytools specific for stage-in (activity='pr'), stage-out (activity='pw') and stage-out-logs 
+(activity='pl') (via PQ.acopytools field). If no specific copytools assigned to given activity (e.g. 'pr') then all supported copytools defined in PQ.copytools field will be used by default.
+-- Each sitemover implementation should provide the list of accepted protocol schemes that can be used by this sitemover instance (e.g. the xrdcp sitemover expects to operate with root:// protocol)
+-- Top sitemover manager takes each Job file to be transferred, fetches all protocol settings from the DDM JSON export (specific for given panda activity - e.g. activity='pw' if not set then fallback to normal DDM activity, e.g activity='r'), then iterates over supported copytools and considers only accepted protocols (matched to copytool.schemes) for real transfers.
+-- If one copytool is not able to transfer file (for whatever reasons: code exception, site mover logic broken or resource/file is not accessible through given copytool/protocol) then next available copytool will be used for transfer the file
+-- PandaQueue Specific protocols/copytools can be declared at the level of PandaQueue - PQ.aprotocols filed - and will be used first (overwrites default settings from the DDM protocols)
+-- for stageg-in sitemover considers input replicas resolved by Rucio as is. It's still possible to overwrite base protocol path using PQ.aprotocols settings. Real filename (lfn value) is resolved from one known replica by matching SURL replica (srm, or whatever default protocol specified under specific activity 'SE' -> then fallback to 'a' then to 'r' of DDMEndpoint,aprotocols) against all replicas returned by Rucio.
+
+Stage-in updates:
+-- logic changed to following:
+
+Fist process/resolve copytool values from PQ specific aprotocols settings (used for corner-cases, test settings) (the protocol of input replica is modified with appropriate PQ.protocol.SE settings attached to PQ)
+then check allowed schemes from PQ.acopytools or PQ.copytools settings (consider input replica provided by Rucio as is)
+Stage-out updates:
+-- SURL protocol look up fixed to following protocol activity order: 'SE' -> 'a' -> 'r'
+-- changed logic of protocol settings look up:
+-- first resolve protocol settings from PQ specific aprotocols settings (use them as a master data)
+-- then for unknown ddmendpoints resolve settings from default ddm.protocols and consider only protocols supported by specified copytools
+
+Stage-out of log files updates:
+-- transferring logfiles to normal SE switched to new sitemover implementation (JobMover.stageout_logfiles via wrapper mover.put_data_new)
+
+other updates
+-- Various sitemovers fixes and updates 
+-- fix scopeLog initialization in Job
+-- new log_transfer integration input field introduced to mover.mover_put_data wrapper to specify if it's normal stageout of logfile
+-- new schedconfig settings structures:
+
+PQ.acopytools should represent accepted/support copytool names for given PQ.
+for example:
+PQ.acopytools = {'pr':['xrdcp', 'rucio'], 'pw':['lsm', 'rucio']}
+PQ.copytools exposes settings for copytools enabled for given PQ
+PQ.copytools = {'xrdcp': {'setup':''}, 'lsm': {'setup':''} }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
+
+OS log transfers:
+[TODO: set bucket to -1 for failed log transfers in jobMetrics]
+
+Direct access updates:
+- [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
+[TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
 
 Remove singletons:
 - Change __experiment to experiment in Experiment classes
