@@ -297,6 +297,12 @@ Spill-over guids:
 Fix for bad TURLs (aria2cSiteMover)
 - Added "?select=geoip&schemes=https,http"
 
+Improving the "Empty rucio dictionary"-error
+- Now returning pilotErrorDiag from getRucioReplicaDictionary() (Mover)
+- Receiving pilotErrorDiag in getReplicaDictionaryRucio() (Mover)
+- Sending pilotErrorDiag to verifySURLGUIDDictionary() from getReplicaDictionaryRucio() (Mover)
+- Added pilotErrorDiag argument to verifySURLGUIDDictionary() (Mover)
+
 Mover updates from Danila Oleynik:
 - Improved pilotErrorDiag for globus system errors in _mover_get_data_new() and mover_get_data(). Requested in GGUS ticket https://ggus.eu/index.php?mode=ticket_info&ticket_id=121542 (Mover)
 

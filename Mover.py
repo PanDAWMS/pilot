@@ -557,14 +557,13 @@ def getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, replicas_d
 
     return ec, pilotErrorDiag, replicas_dict
 
-def verifySURLGUIDDictionary(surl_guid_dictionary):
+def verifySURLGUIDDictionary(surl_guid_dictionary, pilotErrorDiag):
     """ Verify that all SURLs are set in the dictionary """
 
     # A lost file will show up as an empty list in the dictionary
     # Return status True if there are at least one valid SURL
 
     status = False
-    pilotErrorDiag = ""
 
     tolog("Verifying SURLs")
     if surl_guid_dictionary != {}:
@@ -578,7 +577,8 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
                 status = True
                 tolog("GUID=%s has a valid (set) SURL list" % (guid))
     else:
-        pilotErrorDiag = "Rucio returned an empty replica dictionary"
+        if pilotErrorDiag == "":
+            pilotErrorDiag = "Rucio returned an empty replica dictionary"
         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
     return status, pilotErrorDiag
@@ -609,7 +609,7 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
     tolog("file_dictionary=%s" % (file_dictionary))
 
     # then get the replica dictionary from Rucio
-    rucio_replica_dictionary, rucio_surl_dictionary = getRucioReplicaDictionary(host, file_dictionary)
+    rucio_replica_dictionary, rucio_surl_dictionary, pilotErrorDiag = getRucioReplicaDictionary(host, file_dictionary)
     tolog("rucio_replica_dictionary=%s" % str(rucio_replica_dictionary))
     tolog("rucio_surl_dictionary=%s" % str(rucio_surl_dictionary))
 
@@ -625,7 +625,7 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
     tolog("surl_guid_dictionary=%s"%str(surl_guid_dictionary))
 
     # verify the rucio replica dictionary (only fail at this point if there were no valid SURLs - if there are at least one valid SURL, continue)
-    status, pilotErrorDiag = verifySURLGUIDDictionary(surl_guid_dictionary)
+    status, pilotErrorDiag = verifySURLGUIDDictionary(surl_guid_dictionary, pilotErrorDiag)
     if not status and pilotErrorDiag != "":
         tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
         ec = -1
@@ -5977,6 +5977,7 @@ def getRucioReplicaDictionary(cat, file_dictionary):
     replica_dictionary = {}
     surl_dictionary = {}
     replicas_list = []
+    pilotErrorDiag = ""
 
     # First build the replica list using the file_dictionary
     scope_lfn_list = getScopeLFNListFromDictionary(file_dictionary)
@@ -5989,11 +5990,11 @@ def getRucioReplicaDictionary(cat, file_dictionary):
         try:
             replicas_list = c.list_replicas(scope_lfn_list, schemes=['srm'])
         except:
-            tolog("!!WARNING!!2235!! list_replicas() failed")
             import sys
             excType, excValue = sys.exc_info()[:2]  # skip the traceback info to avoid possible circular reference
             tolog("excType=%s" % (excType))
-            tolog("excValue=%s" % (excValue))
+            pilotErrorDiag = "list_replicas() failed: %s" % (excValue)
+            tolog("!!WARNING!!2235!! %s" % (pilotErrorDiag))
         else:
             if replicas_list != None and replicas_list != []:
                 # Loop over all replicas
@@ -6034,9 +6035,10 @@ def getRucioReplicaDictionary(cat, file_dictionary):
                             surl_dictionary[surl] = pfns[surl]
 
                     except Exception, e:
-                        tolog("!!WARNING!!2235!! Failed to extract info from replicas_list: %s" % (e))
+                        pilotErrorDiag = "Failed to extract info from replicas_list: %s" % (e)
+                        tolog("!!WARNING!!2235!! %s" % (pilotErrorDiag))
 
     else:
         tolog("!!WARNING!!2234!! Empty replica list, can not continue with Rucio replica query")
 
-    return replica_dictionary, surl_dictionary
+    return replica_dictionary, surl_dictionary, pilotErrorDiag
