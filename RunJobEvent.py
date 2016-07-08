@@ -45,7 +45,7 @@ try:
     from PilotYamplServer import PilotYamplServer as MessageServer
 except Exception, e:
     MessageServer = None
-    print "RunJobEvent caught exception:",e
+    tolog("RunJobEvent caught exception: %s" % str(e))
 
 class RunJobEvent(RunJob):
 
@@ -2093,6 +2093,8 @@ class RunJobEvent(RunJob):
         return filename
 
     def checkSetupObjectstore(self):
+        if self.__esToZip and os.environ.has_key('Nordugrid_pilot'):
+            return 0, ""
         try:
             from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
             testSiteMover = S3ObjectstoreSiteMover('')
@@ -2232,6 +2234,7 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
 
+        runJob.initZipConf()
         status, output = runJob.checkSetupObjectstore()
         if status != 0:
             tolog("ObjectStore setup test failed. Will exit: %s" % output)
@@ -2265,7 +2268,6 @@ if __name__ == "__main__":
         tolog("Setup has finished successfully")
         runJob.setJob(job)
 
-        runJob.initZipConf()
         # Job has been updated, display it again
         job.displayJob()
 
