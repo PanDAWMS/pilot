@@ -99,6 +99,7 @@ class EventServerJobManager():
         self.__readyForEventTime = None
         self.__endTime = None
         self.__startOSTimes = os.times()
+        self.__log.debug("Rank %s: startOSTimes: %s" % (self.__rank, self.__startOSTimes))
         self.__endOSTimes = None
         self.__totalQueuedEvents = 0
         self.__totalProcessedEvents = 0
@@ -129,14 +130,50 @@ class EventServerJobManager():
             ret = time.time() - self.__startTime
         return ret
 
+    def getCPUConsumptionTimeFromProcPid(self, pid):
+        try:
+            with open(os.path.join('/proc/', str(pid), 'stat'), 'r') as pidfile:
+                proctimes = pidfile.readline()
+                # get utime from /proc/<pid>/stat, 14 item
+                utime = proctimes.split(' ')[13]
+                # get stime from proc/<pid>/stat, 15 item
+                stime = proctimes.split(' ')[14]
+                # count total process used time
+                proctotal = int(utime) + int(stime)
+            return(float(proctotal))
+        except:
+            self.__log.debug("Rank %s: Failed to get cpu consumption time for pid %s: %s" % (self.__rank, pid, traceback.format_exc()))
+            return 0
+
+    def getCPUConsumptionTimeFromProc(self):
+        cpuConsumptionTime = 0L
+        try:
+            if self.__child_pid:
+                self.__childProcs = []
+                self.getChildren(self.__child_pid)
+                for process in self.__childProcs:
+                    cpuConsumptionTime += self.getCPUConsumptionTimeFromProcPid(process)
+        except:
+            self.__log.debug("Rank %s: Failed to get cpu consumption time from proc: %s" % (self.__rank, traceback.format_exc()))
+        return cpuConsumptionTime
+
     def getCPUConsumptionTime(self):
         cpuConsumptionUnit, cpuConsumptionTime, cpuConversionFactor = getCPUTimes(os.getcwd())
+        self.__log.debug("Rank %s: cpuConsumptionTime: %s" % (self.__rank, cpuConsumptionTime))
+        self.__log.debug("Rank %s: start os.times: %s" % (self.__rank, self.__startOSTimes))
+        self.__log.debug("Rank %s: os.times: %s" % (self.__rank, os.times()))
         if cpuConsumptionTime < 1:
             endOSTimes = os.times()
             if self.__endOSTimes:
                 endOSTimes = self.__endOSTimes
-            t = map(lambda x, y:x-y, endOSTimes, self.__startOSTimes)
-            cpuConsumptionTime = reduce(lambda x, y:x+y, t[2:3])
+            cpuConsumptionTime = endOSTimes[2] + endOSTimes[3] - self.__startOSTimes[2] - self.__startOSTimes[3]
+            if cpuConsumptionTime < 0:
+                cpuConsumptionTime = 0
+        procCPUConsumptionTime = self.getCPUConsumptionTimeFromProc()
+        self.__log.debug("Rank %s: cpuConsumptionTime from proc: %s" % (self.__rank, procCPUConsumptionTime))
+        #if cpuConsumptionTime < procCPUConsumptionTime:
+        #    cpuConsumptionTime = procCPUConsumptionTime
+        self.__log.debug("Rank %s: cpuConsumptionTime: %s" % (self.__rank, cpuConsumptionTime))
         return cpuConsumptionTime
 
     def getCores(self):
@@ -553,7 +590,8 @@ class EventServerJobManager():
 
     def getChildren(self, pid):
         #self.__childProcs = []
-        self.__childProcs.append(pid)
+        if pid not in self.__childProcs:
+            self.__childProcs.append(pid)
         childProcs = self.findChildProcesses(pid)
         for child in childProcs:
             #print "Child Process found: %s" % child
@@ -562,6 +600,7 @@ class EventServerJobManager():
 
     def killProcess(self, pid):
         if pid > -1:
+            self.__childProcs = []
             self.getChildren(pid)
             for process in self.__childProcs:
                 try:
@@ -609,13 +648,28 @@ class EventServerJobManager():
             self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
 
         # Frequently the process is not stopped. So kill them with SIGKILL
-        time.sleep(1)
+        time.sleep(5)
         try:
             if not self.isDead():
                 self.killProcess(self.__child_pid)
         except:
             self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
 
+    def kill(self):
+        self.__log.debug("Rank %s: ESJobManager is terminating" % self.__rank)
+        try:
+            self.__messageInQueue.put("Stop_Message_Process")
+            if not self.isDead():
+                os.killpg(self.__child_pid, signal.SIGTERM)
+        except:
+            self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
+
+        # Frequently the process is not stopped. So kill them with SIGKILL
+        try:
+            if not self.isDead():
+                self.killProcess(self.__child_pid)
+        except:
+            self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
 
     def finish(self):
         if self.__waitTerminate and (time.time() - self.__startTerminateTime) < self.__waitTerminateTime:
