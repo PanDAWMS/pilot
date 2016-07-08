@@ -91,6 +91,7 @@ class slurm(Plugin):
             submit_script += "#SBATCH -A " + repo + "\n"
         # submit_script += "#SBATCH -n " + str(mppwidth) + "\n"
         submit_script += "#SBATCH -N " + str(nodes) + "\n"
+        submit_script += "#SBATCH --signal=SIGUSR1@60\n"
         submit_script += "#SBATCH -t " + walltime + "\n"
         submit_script += "#SBATCH --ntasks-per-node=1\n"
         submit_script += "#SBATCH --cpus-per-task=" + str(cpuPerNode) + "\n"
