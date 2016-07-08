@@ -85,6 +85,7 @@ class RunJobHpcEvent(RunJob):
         self.__eventStager = None
         self.__yoda_to_os = False
         self.__yoda_to_zip = False
+        self.__es_to_zip = False
 
         # for recovery
         self.__jobStateFile = None
@@ -170,6 +171,12 @@ class RunJobHpcEvent(RunJob):
         self.__yoda_to_os = res['yoda_to_os']
 
         if "es_to_zip" in catchalls:
+            res['es_to_zip'] = True
+        else:
+            res['es_to_zip'] = False
+        self.__es_to_zip = res['es_to_zip']
+
+        if "yoda_to_zip" in catchalls:
             res['yoda_to_zip'] = True
         else:
             res['yoda_to_zip'] = False
@@ -910,7 +917,7 @@ class RunJobHpcEvent(RunJob):
         else:
             self.__jobs[job.jobId]['tokenExtractorCmd'] = None
 
-        if self.__yoda_to_zip:
+        if self.__yoda_to_zip or self.__es_to_zip:
             self.__jobs[job.jobId]['job'].outputZipName = os.path.join(self.__pilotWorkingDir, "EventService_premerge_%s.tar" % job.jobId)
             self.__jobs[job.jobId]['job'].outputZipEventRangesName = os.path.join(self.__pilotWorkingDir, "EventService_premerge_eventranges_%s.txt" % job.jobId)
 
@@ -918,7 +925,7 @@ class RunJobHpcEvent(RunJob):
         tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
 
 
-        return 0, None, {"TokenExtractCmd": self.__jobs[job.jobId]['tokenExtractorCmd'], "AthenaMPCmd": runCommandList_0, "PreSetup": preSetup, "PostRun": postRun, 'PoolFileCatalog': poolFileCatalog, 'InputFiles': inputFilesGlobal, 'GlobalWorkingDir': job.workdir, 'zipFileName': self.__jobs[job.jobId]['job'].outputZipName, 'zipEventRangesName': self.__jobs[job.jobId]['job'].outputZipEventRangesName}
+        return 0, None, {"TokenExtractCmd": self.__jobs[job.jobId]['tokenExtractorCmd'], "AthenaMPCmd": runCommandList_0, "PreSetup": preSetup, "PostRun": postRun, 'PoolFileCatalog': poolFileCatalog, 'InputFiles': inputFilesGlobal, 'GlobalWorkingDir': job.workdir, 'zipFileName': self.__jobs[job.jobId]['job'].outputZipName, 'zipEventRangesName': self.__jobs[job.jobId]['job'].outputZipEventRangesName, 'stageout_threads': self.__stageout_threads}
 
     def prepareHPCJobs(self):
         for jobId in self.__jobs:
@@ -1204,13 +1211,23 @@ class RunJobHpcEvent(RunJob):
 
     def getJobMetrics(self):
         try:
+            jobMetrics = None
             jobMetricsFileName = "jobMetrics-yoda.json"
             jobMetricsFile = os.path.join(self.__pilotWorkingDir, jobMetricsFileName)
             if not os.path.exists(jobMetricsFile):
                 tolog("Yoda job metrics file %s doesn't exist" % jobMetricsFile)
             else:
                 file = open(jobMetricsFile)
-                jobMetrics = json.load(file)
+                try:
+                    jobMetrics = json.load(file)
+                except:
+                    tolog("Failed to load job Metrics: %s" % traceback.format_exc())
+                    tolog("Check backup jobmetrics file")
+                    file.close()
+                    if os.path.exists(jobMetricsFile + ".backup"):
+                        file = open(jobMetricsFile + ".backup")
+                        jobMetrics = json.load(file)
+                        file.close()
                 return jobMetrics
         except:
             tolog("Failed to load job Metrics: %s" % traceback.format_exc())
@@ -1233,12 +1250,14 @@ class RunJobHpcEvent(RunJob):
     def checkJobMetrics(self):
         try:
             jobMetrics = self.getJobMetrics()
-            if jobMetrics:
-                for jobId in jobMetrics:
+            jobsTimestamp = self.getJobsTimestamp()
+
+            for jobId in self.__jobs:
+                if jobMetrics and jobId in jobMetrics:
                     self.__jobs[jobId]['job'].cpuConsumptionUnit = 's'
                     coreCount = self.__jobs[jobId]['job'].coreCount
                     if coreCount < 1:
-                        coreCount = 1
+                        coreCount = 0
                     self.__jobs[jobId]['job'].coreCount = jobMetrics[jobId]['collect']['cores']
                     self.__jobs[jobId]['job'].cpuConsumptionTime = jobMetrics[jobId]['collect']['cpuConsumptionTime']
                     self.__jobs[jobId]['job'].timeExe = jobMetrics[jobId]['collect']['avgYodaRunningTime']
@@ -1251,10 +1270,22 @@ class RunJobHpcEvent(RunJob):
                     job.cpuConversionFactor = 1
                     tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
                     tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
+                else:
+                    self.__jobs[jobId]['job'].cpuConsumptionUnit = 's'
+                    self.__jobs[jobId]['job'].coreCount = 0
+                    self.__jobs[jobId]['job'].cpuConsumptionTime = 0
+                    self.__jobs[jobId]['job'].timeExe = 0
+                    self.__jobs[jobId]['job'].timeSetup = 0
+                    self.__jobs[jobId]['job'].timeStageOut = 0
+                    self.__jobs[jobId]['job'].nEvents = 0
+                    self.__jobs[jobId]['job'].nEventsW = 0
+                    self.__jobs[jobId]['job'].yodaJobMetrics = None
+                    job = self.__jobs[jobId]['job']
+                    job.cpuConversionFactor = 1
+                    tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
+                    tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
 
-            jobsTimestamp = self.getJobsTimestamp()
-            if jobsTimestamp:
-                for jobId in jobsTimestamp:
+                if jobsTimestamp and jobId in jobsTimestamp:
                     if not self.__jobs[jobId]['job'].yodaJobMetrics:
                         self.__jobs[jobId]['job'].yodaJobMetrics = {}
                     self.__jobs[jobId]['job'].yodaJobMetrics['startTime'] = jobsTimestamp[jobId]['startTime']
@@ -1262,19 +1293,59 @@ class RunJobHpcEvent(RunJob):
                     if jobsTimestamp[jobId]['startTime']:
                         if not jobsTimestamp[jobId]['endTime']:
                             if not self.__jobs[jobId]['job'].jobState == 'running':
-                                self.updateJobState(job, 'running', 'running', final=False, updatePanda=True)
+                                self.updateJobState(self.__jobs[jobId]['job'], 'running', 'running', final=False, updatePanda=True)
                         else:
                             if self.__jobs[jobId]['job'].jobState == 'running':
-                                self.updateJobState(job, 'transferring', 'finished', final=False, updatePanda=True)
+                                self.updateJobState(self.__jobs[jobId]['job'], 'transferring', 'finished', final=False, updatePanda=True)
         except:
             tolog("Failed in check job metrics: %s" % traceback.format_exc())
+
+    def zipOutputs(self, job, zipEventRangeName, zipFileName):
+        eventstatus = str(job.jobId) + "_event_status.dump"
+        if not os.path.exists(eventstatus):
+            tolog("Event status dump file %s doesn't exist. checking backup file" % eventstatus)
+            eventstatus = eventstatus + ".backup"
+            if not os.path.exists(eventstatus):
+                tolog("Event status backup dump file %s doesn't exist." % eventstatus)
+                return
+
+        file = open(eventstatus)
+        import tarfile
+        tar = tarfile.open(zipFileName, 'w')
+        zipEventRange = open(zipEventRangeName, 'w')
+
+        tolog("Creating zip/tar file: %s" % zipFileName)
+        for line in file:
+            #tolog("line: %s" % line)
+            jobId, eventRangeID,status,output = line.split(" ")
+            if not status == 'finished':
+                continue
+            outputs = output.split(",")[:-3]
+            for out in outputs:
+                #tolog("Adding file: %s" % out)
+                tar.add(out, arcname=os.path.basename(out))
+                os.remove(out)
+            zipEventRange.write("%s %s %s\n" % (eventRangeID, status, output))
+        tar.close()
+        zipEventRange.close()
 
     def stageOutZipFile(self, job, espath, os_bucket_id):
         try:
             dsname, datasetDict = self.getJobDatasets(job)
+
+            tolog("Checking zip status of job %s" % job.jobId)
             zipFileName = job.outputZipName
-            zipFileName = os.path.join(job.workdir, zipFileName)
+            zipEventRangeName = job.outputZipEventRangesName
             tolog("Checking zip file: %s" % zipFileName)
+            if self.__es_to_zip:
+                self.zipOutputs(job, zipEventRangeName, zipFileName)
+
+            if zipFileName is None or (not os.path.exists(zipFileName)):
+                tolog("Zip file %s doesn't exits, will not stage out." % (zipFileName))
+                return
+            if  zipEventRangeName is None or (not os.path.exists(zipEventRangeName)):
+                tolog("Zip event ranges file %s doesn't exits, will not stage out." % (zipEventRangeName))
+                return
 
             report = getInitialTracingReport(userid=job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=False, jobId=job.jobId, jobDefId=job.jobDefinitionID, dn=job.prodUserID)
             ret_status, pilotErrorDiag, surl, size, checksum, arch_type = self.__siteMover.put_data(zipFileName, espath, lfn=os.path.basename(zipFileName), report=report, token=None, experiment='ATLAS')
@@ -1289,6 +1360,9 @@ class RunJobHpcEvent(RunJob):
                     if len(line):
                         eventRangeID = line.split(" ")[0]
                         eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': 'finished', 'objstoreID': os_bucket_id})
+                if job.yodaJobMetrics and 'totalProcessedEvents' in job.yodaJobMetrics:
+                    job.yodaJobMetrics['totalProcessedEvents'] = len(eventRanges)
+                    job.nEventsW = job.yodaJobMetrics['totalProcessedEvents']
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = self.updateEventRanges(chunkEventRanges)
@@ -1318,6 +1392,7 @@ class RunJobHpcEvent(RunJob):
 
             for jobId in self.__jobs:
                 try:
+                    """
                     tolog("Checking zip status of job %s" % jobId)
                     zipFileName = self.__jobs[jobId]['job'].outputZipName
                     #zipFile = os.path.join(self.__jobs[jobId]['job'].workdir, zipFileName)
@@ -1329,7 +1404,7 @@ class RunJobHpcEvent(RunJob):
                     if  zipEventRangeName is None or (not os.path.exists(zipEventRangeName)):
                         tolog("Zip event ranges file %s doesn't exits, will not stage out." % (zipEventRangeName))
                         continue
-
+                    """
                     threadpool.add_task(self.stageOutZipFile, self.__jobs[jobId]['job'], espath, os_bucket_id)
                     
                 except:
@@ -1514,20 +1589,20 @@ class RunJobHpcEvent(RunJob):
             if job.jobId in self.__eventRanges:
                 eventRanges = self.__eventRanges[job.jobId]
                 # check whether all event ranges are handled
-                tolog("Total event ranges: %s" % len(eventRanges))
-                not_handled_events = eventRanges.values().count('new')
-                tolog("Not handled events: %s" % not_handled_events)
-                done_events = eventRanges.values().count('Done')
-                tolog("Finished events: %s" % done_events)
-                stagedOut_events = eventRanges.values().count('stagedOut')
-                tolog("stagedOut but not updated to panda server events: %s" % stagedOut_events)
-                if done_events + stagedOut_events:
-                    errorCode = PilotErrors.ERR_ESRECOVERABLE
-                if not_handled_events + stagedOut_events:
+                tolog("Total event ranges: %s" % job.nEvents)
+                # not_handled_events = eventRanges.values().count('new')
+                # tolog("Not handled events: %s" % not_handled_events)
+                # done_events = eventRanges.values().count('Done')
+                tolog("Finished events: %s" % job.nEventsW)
+                #stagedOut_events = eventRanges.values().count('stagedOut')
+                #tolog("stagedOut but not updated to panda server events: %s" % stagedOut_events)
+                #if done_events + stagedOut_events:
+                #    errorCode = PilotErrors.ERR_ESRECOVERABLE
+                if job.nEvents - job.nEventsW:
                     tolog("Not all event ranges are handled. failed job")
                     # self.failOneJob(0, errorCode, job, pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(eventRanges), not_handled_events + stagedOut_events), final=True, updatePanda=False)
                     # return -1
-                    pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (len(eventRanges), not_handled_events + stagedOut_events)
+                    pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (job.nEvents, job.nEventsW)
 
         dsname, datasetDict = self.getJobDatasets(job)
         tolog("dsname = %s" % (dsname))
@@ -1615,9 +1690,10 @@ class RunJobHpcEvent(RunJob):
                 try:
                     if "job.log.tgz." in file or "LOCKFILE" in file or "tarball_PandaJob" in file:
                         continue
-                    if file.endswith(".dump") or file.startswith("metadata-") or "jobState-" in file \
+                    if file.endswith(".dump") or file.startswith("metadata-") or "jobState-" in file\
+                       or file.startswith("jobState-")\
                        or file.startswith("Job_") or file.startswith("fileState-") or file.startswith("curl_updateJob_")\
-                       or file.startswith("surlDictionary") or file.startswith("jobMetrics-rank"):
+                       or file.startswith("surlDictionary") or file.startswith("jobMetrics-rank") or "event_status.dump" in file:
                         if str(jobId) in file:
                             pUtil.recursive_overwrite(path, dest_dir)
                     else:

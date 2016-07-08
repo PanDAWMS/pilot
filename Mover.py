@@ -1836,7 +1836,8 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, experiment, eventService
 
     # override if necessary for event service
     if eventService:
-        if not 'HPC_HPC' in readpar('catchall'):
+        copycmd, setup = getCopytool(mode="get")
+        if (copycmd and not 'mv' in copycmd) and not 'HPC_HPC' in readpar('catchall'):
             status = True
 
     if status:
@@ -5454,7 +5455,8 @@ def getPoolFileCatalogND(guids, lfns, pinitdir):
                 return error.ERR_NOPFC, pilotErrorDiag, xml_from_PFC, xml_source
             file_dic[guid] = os.path.join(pinitdir, lfns[lfn_id])
             lfn_id += 1
-        tolog("File list generated with %d entries" % len(file_dic))
+        tolog("Pilot initdir: %s" % pinitdir)
+        tolog("File list generated with %d entries: %s" % (len(file_dic), file_dic))
 
         # create a pool file catalog
         xml_from_PFC = createPoolFileCatalog(file_dic, lfns)

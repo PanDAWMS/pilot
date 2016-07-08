@@ -75,8 +75,12 @@ class DroidStager(threading.Thread):
                 self.__siteMover = objectstoreSiteMover(setup, useTimerCommand=False)
                 self.__cores = int(job.get('ATHENA_PROC_NUMBER', 1))
 
-                self.__tmpLog.debug("Rank %s: start threadpool" % (self.__rank))
-                self.__threadpool = ThreadPool(self.__cores/8)
+                try:
+                    self.__stageout_threads = int(job.get('stageout_threads', None))
+                except:
+                    self.__stageout_threads = self.__cores/8
+                self.__tmpLog.debug("Rank %s: start threadpool with %s threads" % (self.__rank, self.__stageout_threads))
+                self.__threadpool = ThreadPool(self.__stageout_threads)
 
         except:
             self.__tmpLog.error("Failed to setup Droid stager: %s" % str(traceback.format_exc()))
@@ -148,10 +152,36 @@ class DroidStager(threading.Thread):
             ret_status = -1
         return ret_status, ret_outputs
 
+    def createAtomicLockFile(self, file_path):
+        lockfile_name = os.path.join(os.path.dirname(file_path), "ATOMIC_LOCKFILE")
+        try:
+            # acquire the lock
+            fd = os.open(lockfile_name, os.O_EXCL|os.O_CREAT)
+        except OSError:
+            # work dir is locked, so exit
+            self.__tmpLog.warning("Found lock file: %s (wait)" % (lockfile_name))
+            fd = None
+        else:
+            self.__tmpLog.debug("Created lock file: %s" % (lockfile_name))
+        return fd, lockfile_name
+
+    def releaseAtomicLockFile(self, fd, lockfile_name):
+        try:
+            os.close(fd)
+            os.unlink(lockfile_name)
+        except Exception, e:
+            if "Bad file descriptor" in str(e):
+                self.__tmpLog.warning("Lock file already released")
+            else:
+                self.__tmpLog.warning("WARNING: Could not release lock file: %s" % str(e))
+        else:
+            self.__tmpLog.warning("Released lock file: %s" % (lockfile_name))
+
     def zipOutputs(self, eventRangeID, eventStatus, outputs):
         try:
             for filename in outputs:
                 command = "tar -rf " + self.__zipFileName + " --directory=%s %s" %(os.path.dirname(filename), os.path.basename(filename))
+                self.__tmpLog.debug("Tar/zip: %s" % (command))
                 status, ret = commands.getstatusoutput(command)
                 if status:
                     self.__tmpLog.debug("Failed to zip %s: %s, %s" % (filename, status, ret))
@@ -169,7 +199,7 @@ class DroidStager(threading.Thread):
 
     def stageOut(self, eventRangeID, eventStatus, output, retries=0):
         if eventStatus.startswith("ERR"):
-            request = {"eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": output}
+            request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": output}
         else:
             outputs = output.split(",")[:-3]
             if self.__yodaToZip:
@@ -196,7 +226,7 @@ class DroidStager(threading.Thread):
                     request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': 'stagedOut', "output": retOutput, 'objstoreID': self.__os_bucket_id}
             else:
                 self.__tmpLog.debug("Rank %s: start to copy outputs: %s" % (self.__rank, outputs))
-                retStatus, retOutput = self.copyOutputs(output, outputs)
+                retStatus, retOutput = self.copyOutput(output, outputs)
                 if retStatus != 0:
                     self.__tmpLog.error("Rank %s: failed to copy outputs %s: %s" % (self.__rank, outputs, retOutput))
                     request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": output}
@@ -205,7 +235,25 @@ class DroidStager(threading.Thread):
                     request = {"jobId": self.__jobId, "eventRangeID": eventRangeID, 'eventStatus': eventStatus, "output": retOutput}
         if request:
             self.__outputs.put(request)
-            
+
+    def bulkZipOutputs(self, outputs):
+        try:
+            while True:
+                fd, lockfile = self.createAtomicLockFile(self.__zipFileName)
+                if fd:
+                    break
+                time.sleep(0.1)
+            for outputMsg in outputs:
+                try:
+                    eventRangeID, eventStatus, output = outputMsg
+                    self.stageOut(eventRangeID, eventStatus, output, retries=0)
+                except:
+                    self.__tmpLog.warning("Rank %s: error message: %s" % (self.__rank, traceback.format_exc()))
+        except:
+            self.__tmpLog.warning("Rank %s: error message: %s" % (self.__rank, traceback.format_exc()))
+        finally:
+            self.releaseAtomicLockFile(fd, lockfile)
+
     def stop(self):
         self.__stop.set()
 
@@ -218,17 +266,20 @@ class DroidStager(threading.Thread):
                 outputs = self.__esJobManager.getOutputs()
                 if outputs:
                     self.__tmpLog.debug("Rank %s: getOutputs: %s" % (self.__rank, outputs))
-                    for outputMsg in outputs:
-                        try:
-                            eventRangeID, eventStatus, output = outputMsg
-                            if self.__threadpool:
-                                self.__tmpLog.debug("Rank %s: add event output to threadpool: %s" % (self.__rank, outputMsg))
-                                self.__threadpool.add_task(self.stageOut, eventRangeID, eventStatus, output, retries=0)
-                            else:
-                                self.stageOut(eventRangeID, eventStatus, output, retries=0)
-                        except:
-                            self.__tmpLog.warning("Rank %s: error message: %s" % (self.__rank, traceback.format_exc()))
-                            continue
+                    if self.__yodaToZip:
+                        self.bulkZipOutputs(outputs)
+                    else:
+                        for outputMsg in outputs:
+                            try:
+                                eventRangeID, eventStatus, output = outputMsg
+                                if self.__threadpool:
+                                    self.__tmpLog.debug("Rank %s: add event output to threadpool: %s" % (self.__rank, outputMsg))
+                                    self.__threadpool.add_task(self.stageOut, eventRangeID, eventStatus, output, retries=0)
+                                else:
+                                    self.stageOut(eventRangeID, eventStatus, output, retries=0)
+                            except:
+                                self.__tmpLog.warning("Rank %s: error message: %s" % (self.__rank, traceback.format_exc()))
+                                continue
             except:
                 self.__tmpLog.error("Rank %s: Stager Thread failed: %s" % (self.__rank, traceback.format_exc()))
             if self.__stop.isSet():
