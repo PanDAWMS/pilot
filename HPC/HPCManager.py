@@ -261,7 +261,8 @@ class HPCManager:
 
             eventsPerNode = int(self.__ATHENA_PROC_NUMBER) * (int(self.__eventsPerWorker))
             if jobId in eventRanges:
-                job['neededRanks'] = len(eventRanges[jobId]) / eventsPerNode + (len(eventRanges[jobId]) % eventsPerNode + eventsPerNode - 1)/eventsPerNode
+                #job['neededRanks'] = len(eventRanges[jobId]) / eventsPerNode + (len(eventRanges[jobId]) % eventsPerNode + eventsPerNode - 1)/eventsPerNode
+                job['neededRanks'] = round(len(eventRanges[jobId]) * 1.0 / eventsPerNode, 2)
                 if len(eventRanges[jobId]) >= eventsPerNode * 4:
                     job['neededRanks'] += 0
                 elif len(eventRanges[jobId]) > eventsPerNode:
@@ -273,8 +274,8 @@ class HPCManager:
                 self.__firstJobWorkDir = job['GlobalWorkingDir']
 
         if totalNeededRanks < self.__nodes:
-            self.__nodes = totalNeededRanks
-        # if self.__nodes < 2:
+            self.__nodes = int(totalNeededRanks)
+        #if self.__nodes < 2:
         #     self.__nodes = 2
         self.__mppwidth = int(self.__nodes) * int(self.__cpuPerNode)
 
