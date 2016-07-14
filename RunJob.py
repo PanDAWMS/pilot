@@ -1657,13 +1657,15 @@ if __name__ == "__main__":
                 job.destinationDblock = new_destinationDblock
                 job.destinationDBlockToken = new_destinationDBlockToken
                 job.scopeOut = new_scopeOut
-                job.outFilesGuids = extracted_guids
                 tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
                 tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
                 tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
                 tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
-                tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
-
+                if extracted_guids != []:
+                    job.outFilesGuids = extracted_guids
+                    tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
+                else:
+                    tolog("Empty extracted guids list")
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
         if ec:

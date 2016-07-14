@@ -545,6 +545,7 @@ def extractOutputFiles(analysisJob, workdir, allowNoOutput, outFiles, outFilesGu
     except Exception, e:
         tolog("!!WARNING!!2327!! Exception caught: %s" % (e))
         extracted_output_files = []
+        extracted_guids = []
     return extracted_output_files, extracted_guids
 
 def extractOutputFilesFromJSON(workDir, allowNoOutput):
@@ -570,6 +571,13 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
                                 # Only add the file is nentries > 0
                                 if type(f_names_dictionary['nentries']) == int and f_names_dictionary['nentries'] > 0:
                                     output_files.append(f_names_dictionary['name'])
+
+                                    # Also get the file guid
+                                    if f_names_dictionary.has_key('file_guid'):
+                                        guids.append(f_names_dictionary['file_guid'])
+                                    else:
+                                        tolog("!!WARNING!!1212!! Did not find any guid for this file: %s (will be generated)" % (f_names_dictionary['name']))
+                                        guids.append(None)
                                 else:
                                     # Only ignore the file if it is allowed to be ignored
                                     if not type(f_names_dictionary['nentries']) == int:
@@ -586,12 +594,14 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
                                     else:
                                         tolog("Will not ignore empty file %s since file is not in allowNoOutput list" % (f_names_dictionary['name']))
                                         output_files.append(f_names_dictionary['name'])
-                                    # Also get the file guid
-                                    if f_names_dictionary.has_key('file_guid'):
-                                        guids.append(f_names_dictionary['file_guid'])
-                                    else:
-                                        tolog("!!WARNING!!1212!! Did not find any guid for this file: %s (will be generated)" % (f_names_dictionary['name']))
-                                        guids.append(None)
+
+                                        # Also get the file guid
+                                        if f_names_dictionary.has_key('file_guid'):
+                                            guids.append(f_names_dictionary['file_guid'])
+                                        else:
+                                            tolog("!!WARNING!!1212!! Did not find any guid for this file: %s (will be generated)" % (f_names_dictionary['name']))
+                                            guids.append(None)
+
                             else:
                                 tolog("No such key: name/nentries")
                     else:

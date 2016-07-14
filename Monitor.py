@@ -33,9 +33,6 @@ def lineno():
     return inspect.currentframe().f_back.f_lineno
 
 globalSite = None
-threadpool = None
-jobs_added_to_threadpool = []
-jobs_cleaned_up = []
 
 class Monitor:
 
@@ -53,6 +50,11 @@ class Monitor:
         self.__env['lastTimeFilesWereModified'] = {}
         self.__wdog = WatchDog()
         self.__runJob = None # Remember the RunJob instance
+
+        # using thread pool
+        self.__threadpool = None
+        self.__jobs_added_to_threadpool = []
+        self.__jobs_cleaned_up = []
 
         # register cleanup function
         atexit.register(pUtil.cleanup, self.__wdog, self.__env['pilot_initdir'], self.__env['wrapperFlag'], self.__env['rmwkdir'])
@@ -947,8 +949,6 @@ class Monitor:
 
     def __cleanUpEndedJob(self, k, stdout_dictionary):
         try:
-            global jobs_cleaned_up
-
             perr = self.__env['jobDic'][k][1].result[2]
             terr = self.__env['jobDic'][k][1].result[1]
             tmp = self.__env['jobDic'][k][1].result[0]
@@ -1007,25 +1007,21 @@ class Monitor:
 
             # ready with this object, delete it
             # del self.__env['jobDic'][k]
-            jobs_cleaned_up.append(k)
+            self.__jobs_cleaned_up.append(k)
         except:
             pUtil.tolog("Failed to clean up job %s: %s" % (k, traceback.format_exc()))
 
     def __cleanUpEndedJobs(self):
         """ clean up the ended jobs (if there are any) """
 
-        global threadpool
-        global jobs_added_to_threadpool
-        global jobs_cleaned_up
-
-        for k in jobs_cleaned_up:
+        for k in self.__jobs_cleaned_up:
             if k in self.__env['jobDic'].keys():
                 del self.__env['jobDic'][k]
 
         # after multitasking was removed from the pilot, there is actually only one job
         first = True
         handled_jobs = 0
-        if len(self.__env['jobDic'].keys()) > 1 and threadpool is None:
+        if len(self.__env['jobDic'].keys()) > 1 and self.__threadpool is None:
             try:
                 from ThreadPool import ThreadPool
 
@@ -1036,12 +1032,12 @@ class Monitor:
                         values[catchall.split('=')[0]] = catchall.split('=')[1]
                 stageout_threads = int(values.get('stageout_threads', 4))
 
-                threadpool = ThreadPool(stageout_threads)
+                self.__threadpool = ThreadPool(stageout_threads)
             except:
                 pUtil.tolog("Failed to setup threadpool: %s" % (traceback.format_exc()))
 
         for k in self.__env['jobDic'].keys():
-            if k in jobs_added_to_threadpool:
+            if k in self.__jobs_added_to_threadpool:
                 # job is already in threadpool
                 continue
             if k == 'prod' and len(self.__env['jobDic'].keys()) > 1:
@@ -1061,12 +1057,12 @@ class Monitor:
                     stdout_dictionary = pUtil.getStdoutDictionary(self.__env['jobDic'])
                     first = False
 
-                if not threadpool or k == 'prod':
-                    if not threadpool or threadpool.is_empty():
+                if not self.__threadpool or k == 'prod':
+                    if not self.__threadpool or self.__threadpool.is_empty():
                         self.__cleanUpEndedJob(k, stdout_dictionary)
                 else:
-                    threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
-                    jobs_added_to_threadpool.append(k)
+                    self.__threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
+                    self.__jobs_added_to_threadpool.append(k)
             # send heartbeat
             if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
                 self.updateTerminatedJobs()
