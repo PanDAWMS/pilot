@@ -984,14 +984,15 @@ class RunJob(object):
             else:
                 tolog("Metadata was transferred to site work dir: %s/%s" % (self.__pworkdir, _filename))
 
-    def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analysisJob=False):
+    def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analysisJob=False, fromJSON=False):
         """ create the metadata for the output + log files """
+        # Note: if file names and guids were extracted from the jobReport.json file, then the getOutFilesGuids() should not be called
 
         ec = 0
 
         # get/assign guids to the output files
         if outFiles:
-            if not pUtil.isBuildJob(outFiles):
+            if not pUtil.isBuildJob(outFiles) and not fromJSON:
                 ec, job.pilotErrorDiag, job.outFilesGuids = RunJobUtilities.getOutFilesGuids(job.outFiles, job.workdir, self.__experiment)
                 if ec:
                     # missing PoolFileCatalog (only error code from getOutFilesGuids)
@@ -1636,6 +1637,7 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # are there any additional output files created by the trf/payload?
+        fromJSON = False
         extracted_output_files, extracted_guids = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles, job.outFilesGuids)
         if extracted_output_files != []:
             tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
@@ -1662,6 +1664,7 @@ if __name__ == "__main__":
                 tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
                 tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
                 if extracted_guids != []:
+                    fromJSON = True
                     job.outFilesGuids = extracted_guids
                     tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
                 else:
@@ -1690,7 +1693,7 @@ if __name__ == "__main__":
                 runJob.moveTrfMetadata(job.workdir, job.jobId)
 
             # create the metadata for the output + log files
-            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob)
+            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
             if ec:
                 runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 

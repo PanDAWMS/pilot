@@ -293,6 +293,8 @@ Spill-over guids:
 - Updated output file guids (RunJob)
 - Sending outFilesGuids to removeNoOutputFiles() (FileHandling)
 - Added outFilesGuids argument and handling to removeNoOutputFiles() (FileHandling)
+- Added argument fromJSON to createFileMetadata() (RunJob)
+- Sending fromJSON to createFileMetadata() (RunJob)
 
 Fix for bad TURLs (aria2cSiteMover)
 - Added "?select=geoip&schemes=https,http"
