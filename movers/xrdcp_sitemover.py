@@ -23,6 +23,8 @@ class xrdcpSiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "xrdadler32"
 
+    schemes = ['root'] # list of supported schemes for transfers
+
     def __init__(self, *args, **kwargs):
 
         super(xrdcpSiteMover, self).__init__(*args, **kwargs)

@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import pUtil
@@ -133,14 +134,7 @@ class Job:
         self.hpcStatus = None
 
         # yoda accounting info
-        self.yodaSetupTime = None
-        self.yodaTotalTime = None
-        self.yodaTotalCPUHour = None
-        self.yodaProcessCPUHour = None
-        self.yodaCores = None
-        self.yodaQueueEvents = None
-        self.yodaProcessedEvents = None
-        self.avgProcessTimePerEvent = None
+        self.yodaJobMetrics = None
 
         self.refreshNow = False
 
@@ -169,11 +163,11 @@ class Job:
             _spsetup = "(not defined)"
         pUtil.tolog("\nPandaID=%s\nRelease=%s\nhomePackage=%s\ntrfName=%s\ninputFiles=%s\nrealDatasetsIn=%s\nfilesizeIn=%s\nchecksumIn=%s\nprodDBlocks=%s\nprodDBlockToken=%s\nprodDBlockTokenForOutput=%s\ndispatchDblock=%s\ndispatchDBlockToken=%s\ndispatchDBlockTokenForOut=%s\ndestinationDBlockToken=%s\noutputFiles=%s\ndestinationDblock=%s\nlogFile=%s\nlogFileDblock=%s\njobPars=%s\nThe job state=%s\nJob workdir=%s\nTarFileGuid=%s\noutFilesGuids=%s\ndestinationSE=%s\nfileDestinationSE=%s\nprodSourceLabel=%s\nspsetup=%s\ncredname=%s\nmyproxy=%s\ncloud=%s\ntaskID=%s\nprodUserID=%s\ndebug=%s\ntransferType=%s\nscopeIn=%s\nscopeOut=%s\nscopeLog=%s" %\
                     (self.jobId, self.release, self.homePackage, self.trf, self.inFiles, self.realDatasetsIn, self.filesizeIn, self.checksumIn, self.prodDBlocks, self.prodDBlockToken, self.prodDBlockTokenForOutput, self.dispatchDblock, self.dispatchDBlockToken, self.dispatchDBlockTokenForOut, self.destinationDBlockToken, self.outFiles, self.destinationDblock, self.logFile, self.logDblock, self.jobPars, self.result, self.workdir, self.tarFileGuid, self.outFilesGuids, self.destinationSE, self.fileDestinationSE, self.prodSourceLabel, _spsetup, self.credname, self.myproxy, self.cloud, self.taskID, self.prodUserID, self.debug, self.transferType, self.scopeIn, self.scopeOut, self.scopeLog))
-        pUtil.tolog("ddmEndPointIn=%s" % self.ddmEndPointIn)
-        pUtil.tolog("ddmEndPointOut=%s" % self.ddmEndPointOut)
-        pUtil.tolog("ddmEndPointLog=%s" % self.ddmEndPointLog)
-        pUtil.tolog("cloneJob=%s" % self.cloneJob)
-        pUtil.tolog("allowNoOutput=%s" % self.allowNoOutput)
+
+        for k in ['ddmEndPointIn', 'ddmEndPointOut', 'ddmEndPointLog', 'cloneJob', 'allowNoOutput',
+                  'siteworkdir', 'workdir', 'datadir', 'newDirNM']:
+            pUtil.tolog("%s=%s" % (k, getattr(self, k, None)))
+
 
     def mkJobWorkdir(self, sitewd):
         """ create the job workdir under pilot workdir """
@@ -224,8 +218,8 @@ class Job:
         """ set values for a job object from a dictionary data
         which is usually from cgi messages from panda server """
 
-        self.jobId = data.get('PandaID', '0')
-        self.taskID = data.get('taskID', '')
+        self.jobId = str(data.get('PandaID', '0'))
+        self.taskID = str(data.get('taskID', ''))
 
         self.outputFilesXML = "OutputFiles-%s.xml" % self.jobId
 
@@ -301,7 +295,7 @@ class Job:
             pUtil.tolog("Normal job (not an eventService job)")
 
         self.eventRanges = data.get('eventRanges')
-        self.jobsetID = data.get('jobsetID')
+        self.jobsetID = str(data.get('jobsetID'))
 
         pUtil.tolog("jobsetID=%s" % self.jobsetID)
 
@@ -320,10 +314,6 @@ class Job:
             pUtil.tolog("eventServiceMerge = %s" % str(self.eventServiceMerge))
 
         # Event Service merge job
-
-        #PN
-        #data['writeToFile'] = 'inputFor_panda.jeditest.HITS.8891832d-ec14-4a7b-b490-53ab4a08c197.000002.HITS.pool.root.1:EVNT.01580094._002501.pool.root.1'
-
         if self.workdir and data.has_key('writeToFile'): #data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
             #if data.has_key('writeToFile'):
             writeToFile = data['writeToFile']
@@ -339,27 +329,15 @@ class Job:
                 if ec == 0:
                     data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
 
-        # Yoda job staus and accounting info
+        # Yoda job status and accounting info
         if data.has_key('mode'):
             self.mode = data.get("mode", None)
         if data.has_key('hpcStatus'):
             self.hpcStatus = data.get('hpcStatus', None)
-        if data.has_key('yodaSetupTime'):
-            self.yodaSetupTime = data.get('yodaSetupTime', None)
-        if data.has_key('yodaTotalTime'):
-            self.yodaTotalTime = data.get('yodaTotalTime', None)
-        if data.has_key('yodaTotalCPUHour'):
-            self.yodaTotalCPUHour = data.get('yodaTotalCPUHour', None)
-        if data.has_key('yodaProcessCPUHour'):
-            self.yodaProcessCPUHour = data.get('yodaProcessCPUHour', None)
-        if data.has_key('yodaCores'):
-            self.yodaCores = data.get('yodaCores', None)
-        if data.has_key('yodaQueueEvents'):
-            self.yodaQueueEvents = data.get('yodaQueueEvents', None)
-        if data.has_key('yodaProcessedEvents'):
-            self.yodaProcessedEvents = data.get('yodaProcessedEvents', None)
-        if data.has_key('avgProcessTimePerEvent'):
-            self.avgProcessTimePerEvent = data.get('avgProcessTimePerEvent', None)
+        if data.has_key('yodaJobMetrics'):
+            self.yodaJobMetrics = data.get('yodaJobMetrics', None)
+        if self.yodaJobMetrics:
+            self.yodaJobMetrics = json.loads(self.yodaJobMetrics)
         if data.has_key('HPCJobId'):
             self.HPCJobId = data.get('HPCJobId', None)
 
@@ -601,7 +579,7 @@ class Job:
 
         # fix scopeOut of log file: to be fixed properly on Panda side: just hard patched here
         logFile = data.get('logFile')
-        if ksources['scopeOut'] and logFile:
+        if logFile:
             scopeOut = []
             for lfn in ksources.get('outFiles', []):
                 if lfn == logFile:
@@ -773,6 +751,16 @@ class Job:
         files = [os.path.join(self.workdir or '', e.lfn) for e in getattr(self, key, [])]
         pUtil.tolog("%s file(s): %s" % (key, files))
         cmd = 'ls -la %s' % ' '.join(files)
+        msg = "do EXEC cmd=%s" % cmd
+        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+        output = c.communicate()[0]
+        pUtil.tolog(msg + '\n' + output)
+
+    def print_files(self, files): # quick stub to be checked later
+
+        ifiles = [os.path.join(self.workdir or '', e.lfn) for e in files]
+        pUtil.tolog("job file(s) state: %s" % ifiles)
+        cmd = 'ls -la %s' % ' '.join(ifiles)
         msg = "do EXEC cmd=%s" % cmd
         c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
         output = c.communicate()[0]

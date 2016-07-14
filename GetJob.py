@@ -59,7 +59,7 @@ class GetJob:
 
         return prodSourceLabel
 
-    def getDispatcherDictionary(self, _diskSpace, tofile):
+    def getDispatcherDictionary(self, _diskSpace, tofile, nJobs=1):
         """ Construct a dictionary for passing to jobDispatcher """
 
         pilotErrorDiag = ""
@@ -80,6 +80,7 @@ class GetJob:
                  'node':             nodename,
                  'computingElement': self.__env['thisSite'].computingElement,
                  'getProxyKey':      _getProxyKey,
+                 'nJobs':            nJobs,
                  'workingGroup':     self.__env['workingGroup']}
 
         if self.__env['countryGroup'] == "":
@@ -201,7 +202,7 @@ class GetJob:
         with open(filename, 'w') as outputFile:
             json.dump(content, outputFile)
 
-    def getNewJob(self, tofile=True):
+    def getNewJob(self, tofile=True, nJobs=1):
         try:
             _maxinputsize = pUtil.getMaxInputSize(MB=True)
             _disk = self.__node.disk
@@ -210,7 +211,7 @@ class GetJob:
             pUtil.tolog("Sending disk space %d MB to dispatcher" % (_diskSpace))
 
             # construct a dictionary for passing to jobDispatcher and get the prodSourceLabel
-            jNode, prodSourceLabel, pilotErrorDiag = self.getDispatcherDictionary(_diskSpace, tofile)
+            jNode, prodSourceLabel, pilotErrorDiag = self.getDispatcherDictionary(_diskSpace, tofile, nJobs)
             if jNode == {}:
                 errorText = "!!FAILED!!1200!! %s" % (pilotErrorDiag)
                 pUtil.tolog(errorText, tofile=tofile)
@@ -244,102 +245,112 @@ class GetJob:
                 pUtil.tolog("%s" % (pilotErrorDiag), tofile=tofile)
                 return None, None, pilotErrorDiag
 
-            # test if he attempt number was sent
-            try:
-                attemptNr = int(data['attemptNr'])
-            except Exception,e:
-                pUtil.tolog("!!WARNING!!1200!! Failed to get attempt number from server: %s" % str(e), tofile=tofile)
-            else:
-                pUtil.tolog("Attempt number from server: %d" % attemptNr)
-
-            # should there be a delay before setting running state?
-            try:
-                nSent = int(data['nSent'])
-            except Exception,e:
-                nSent = 0
-            else:
-                pUtil.tolog("Received nSent: %d" % (nSent))
-
             # backup response (will be copied to workdir later)
             self.backupDispatcherResponse(response, tofile)
 
-            if data.has_key('prodSourceLabel'):
-                if data['prodSourceLabel'] == "":
-                    pUtil.tolog("Setting prodSourceLabel in job def data: %s" % (prodSourceLabel))
-                    data['prodSourceLabel'] = prodSourceLabel
-                else:
-                    pUtil.tolog("prodSourceLabel already set in job def data: %s" % (data['prodSourceLabel']))
-
-                    # override ptest value if install job to allow testing using dev pilot
-                    if prodSourceLabel == "ptest" and "atlpan/install/sw-mgr" in data['transformation']:
-                        pUtil.tolog("Dev pilot will run test install job (job.prodSourceLabel set to \'install\')")
-                        data['prodSourceLabel'] = "install"
+            if not data.has_key("jobs"):
+                jobs = [data]
             else:
-                pUtil.tolog("Adding prodSourceLabel to job def data: %s" % (prodSourceLabel))
-                data['prodSourceLabel'] = prodSourceLabel
+                jobs = data['jobs']
 
-            # look for special commands in the job parameters (can be set by HammerCloud jobs; --overwriteQueuedata, --disableFAX)
-            # if present, queuedata needs to be updated (as well as jobParameters - special commands need to be removed from the string)
-            data['jobPars'], transferType = self.__siteInfo.updateQueuedataFromJobParameters(data['jobPars'])
-            if transferType != "":
-                # we will overwrite whatever is in job.transferType using jobPars
-                data['transferType'] = transferType
+            newJobs = []
+            newJobsData = {}
+            for job in jobs:
+                # test if he attempt number was sent
+                try:
+                    attemptNr = int(job['attemptNr'])
+                except Exception,e:
+                    pUtil.tolog("!!WARNING!!1200!! Failed to get attempt number from server: %s" % str(e), tofile=tofile)
+                else:
+                    pUtil.tolog("Attempt number from server: %d" % attemptNr)
 
-            # update the copytoolin if transferType is set to fax/xrd
-            if data.has_key('transferType'):
-                if data['transferType'] == 'fax' or data['transferType']== 'xrd':
-                    if pUtil.readpar('faxredirector') != "":
-                        pUtil.tolog("Encountered transferType=%s, will use FAX site mover for stage-in" % (data['transferType']))
-                        ec = self.__siteInfo.replaceQueuedataField("copytoolin", "fax")
-                        ec = self.__siteInfo.replaceQueuedataField("allowfax", "True")
-                        ec = self.__siteInfo.replaceQueuedataField("timefloor", "")
+                # should there be a delay before setting running state?
+                try:
+                    nSent = int(job['nSent'])
+                except Exception,e:
+                    nSent = 0
+                else:
+                    pUtil.tolog("Received nSent: %d" % (nSent))
+
+                if job.has_key('prodSourceLabel'):
+                    if job['prodSourceLabel'] == "":
+                        pUtil.tolog("Setting prodSourceLabel in job def data: %s" % (prodSourceLabel))
+                        job['prodSourceLabel'] = prodSourceLabel
                     else:
-                        pilotErrorDiag = "Cannot switch to FAX site mover for transferType=%s since faxredirector is not set" % (data['transferType'])
-                        pUtil.tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
-                        return None, None, pilotErrorDiag
+                        pUtil.tolog("prodSourceLabel already set in job def data: %s" % (job['prodSourceLabel']))
 
-            # convert the data into a file for child process to pick for running real job later
-            try:
-                f = open("Job_%s.py" % data['PandaID'], "w")
-                print >>f, "job=", data
-                f.close()
-            except Exception,e:
-                pilotErrorDiag = "[pilot] Exception caught: %s" % str(e)
-                pUtil.tolog("!!WARNING!!1200!! %s" % (pilotErrorDiag), tofile=tofile)
-                return None, None, pilotErrorDiag
-
-            # create the new job
-            newJob = Job.Job()
-            newJob.setJobDef(data)  # fill up the fields with correct values now
-            newJob.mkJobWorkdir(self.__pilotWorkingDir)
-            self.backupJobData(newJob, data)
-            newJob.datadir = self.__jobSite.workdir + "/PandaJob_%s_data" % (newJob.jobId)
-            newJob.experiment = self.__thisExperiment
-
-            if data.has_key('logGUID'):
-                logGUID = data['logGUID']
-                if logGUID != "NULL" and logGUID != "":
-                    newJob.tarFileGuid = logGUID
-                    pUtil.tolog("Got logGUID from server: %s" % (logGUID), tofile=tofile)
+                        # override ptest value if install job to allow testing using dev pilot
+                        if prodSourceLabel == "ptest" and "atlpan/install/sw-mgr" in job['transformation']:
+                            pUtil.tolog("Dev pilot will run test install job (job.prodSourceLabel set to \'install\')")
+                            job['prodSourceLabel'] = "install"
                 else:
-                    pUtil.tolog("!!WARNING!!1200!! Server returned NULL logGUID", tofile=tofile)
+                    pUtil.tolog("Adding prodSourceLabel to job def data: %s" % (prodSourceLabel))
+                    job['prodSourceLabel'] = prodSourceLabel
+
+                # look for special commands in the job parameters (can be set by HammerCloud jobs; --overwriteQueuedata, --disableFAX)
+                # if present, queuedata needs to be updated (as well as jobParameters - special commands need to be removed from the string)
+                job['jobPars'], transferType = self.__siteInfo.updateQueuedataFromJobParameters(job['jobPars'])
+                if transferType != "":
+                    # we will overwrite whatever is in job.transferType using jobPars
+                    job['transferType'] = transferType
+
+                # update the copytoolin if transferType is set to fax/xrd
+                if job.has_key('transferType'):
+                    if job['transferType'] == 'fax' or job['transferType']== 'xrd':
+                        if pUtil.readpar('faxredirector') != "":
+                            pUtil.tolog("Encountered transferType=%s, will use FAX site mover for stage-in" % (job['transferType']))
+                            ec = self.__siteInfo.replaceQueuedataField("copytoolin", "fax")
+                            ec = self.__siteInfo.replaceQueuedataField("allowfax", "True")
+                            ec = self.__siteInfo.replaceQueuedataField("timefloor", "")
+                        else:
+                            pilotErrorDiag = "Cannot switch to FAX site mover for transferType=%s since faxredirector is not set" % (job['transferType'])
+                            pUtil.tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
+                            return None, None, pilotErrorDiag
+
+                # convert the data into a file for child process to pick for running real job later
+                try:
+                    f = open("Job_%s.py" % job['PandaID'], "w")
+                    print >>f, "job=", job
+                    f.close()
+                except Exception,e:
+                    pilotErrorDiag = "[pilot] Exception caught: %s" % str(e)
+                    pUtil.tolog("!!WARNING!!1200!! %s" % (pilotErrorDiag), tofile=tofile)
+                    return None, None, pilotErrorDiag
+
+                # create the new job
+                newJob = Job.Job()
+                newJob.setJobDef(job)  # fill up the fields with correct values now
+                newJob.mkJobWorkdir(self.__pilotWorkingDir)
+                self.backupJobData(newJob, job)
+                newJob.datadir = self.__jobSite.workdir + "/PandaJob_%s_data" % (newJob.jobId)
+                newJob.experiment = self.__thisExperiment
+
+                if job.has_key('logGUID'):
+                    logGUID = job['logGUID']
+                    if logGUID != "NULL" and logGUID != "":
+                        newJob.tarFileGuid = logGUID
+                        pUtil.tolog("Got logGUID from server: %s" % (logGUID), tofile=tofile)
+                    else:
+                        pUtil.tolog("!!WARNING!!1200!! Server returned NULL logGUID", tofile=tofile)
+                        pUtil.tolog("Using generated logGUID: %s" % (newJob.tarFileGuid), tofile=tofile)
+                else:
+                    pUtil.tolog("!!WARNING!!1200!! Server did not return logGUID", tofile=tofile)
                     pUtil.tolog("Using generated logGUID: %s" % (newJob.tarFileGuid), tofile=tofile)
-            else:
-                pUtil.tolog("!!WARNING!!1200!! Server did not return logGUID", tofile=tofile)
-                pUtil.tolog("Using generated logGUID: %s" % (newJob.tarFileGuid), tofile=tofile)
 
-            if newJob.prodSourceLabel == "":
-                pUtil.tolog("Giving new job prodSourceLabel=%s" % (prodSourceLabel))
-                newJob.prodSourceLabel = prodSourceLabel
-            else:
-                pUtil.tolog("New job has prodSourceLabel=%s" % (newJob.prodSourceLabel))
+                if newJob.prodSourceLabel == "":
+                    pUtil.tolog("Giving new job prodSourceLabel=%s" % (prodSourceLabel))
+                    newJob.prodSourceLabel = prodSourceLabel
+                else:
+                    pUtil.tolog("New job has prodSourceLabel=%s" % (newJob.prodSourceLabel))
 
-            # should we use debug mode?
-            if data.has_key('debug'):
-                if data['debug'].lower() == "true":
-                    self.__env['update_freq_server'] = 5*30
-                    pUtil.tolog("Debug mode requested: Updating server update frequency to %d s" % (self.__env['update_freq_server']))
-            return newJob, data, ""
+                # should we use debug mode?
+                if job.has_key('debug'):
+                    if job['debug'].lower() == "true":
+                        self.__env['update_freq_server'] = 5*30
+                        pUtil.tolog("Debug mode requested: Updating server update frequency to %d s" % (self.__env['update_freq_server']))
+                newJobs.append(newJob)
+                newJobsData[newJob.jobId] = job
+            return newJobs, newJobsData, ""
         except:
             errLog = "Failed to get New job: %s" % (traceback.format_exc())
             tolog(errLog)

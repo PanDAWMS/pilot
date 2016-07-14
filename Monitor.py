@@ -33,8 +33,6 @@ def lineno():
     return inspect.currentframe().f_back.f_lineno
 
 globalSite = None
-threadpool = None
-jobs_added_to_threadpool = []
 
 class Monitor:
 
@@ -52,6 +50,11 @@ class Monitor:
         self.__env['lastTimeFilesWereModified'] = {}
         self.__wdog = WatchDog()
         self.__runJob = None # Remember the RunJob instance
+
+        # using thread pool
+        self.__threadpool = None
+        self.__jobs_added_to_threadpool = []
+        self.__jobs_cleaned_up = []
 
         # register cleanup function
         atexit.register(pUtil.cleanup, self.__wdog, self.__env['pilot_initdir'], self.__env['wrapperFlag'], self.__env['rmwkdir'])
@@ -163,7 +166,7 @@ class Monitor:
 
     def __getMaxAllowedWorkDirSize(self):
         """
-        Return the maximum allowed size of the work directory for user jobs
+        Return the maximum allowed size of the work directory
         """
 
         try:
@@ -287,7 +290,7 @@ class Monitor:
                         maxRSS = pUtil.readpar('maxrss') # string
                         if maxRSS:
                             try:
-                                maxRSS_int = 2*int(maxRSS)*1024 # Convert to int and B
+                                maxRSS_int = 2*int(maxRSS)*1024 # Convert to int and kB
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:
@@ -322,7 +325,7 @@ class Monitor:
 
     def __check_remaining_space(self):
         """
-        Every ten minutes, check the remaining disk space, the size of the workDir
+        Every ten minutes, check the remaining disk space, the size of the workdir
         and the size of the payload stdout file
         """
         if (int(time.time()) - self.__env['curtime_sp']) > self.__env['update_freq_space']:
@@ -333,7 +336,7 @@ class Monitor:
             self.__env['workerNode'].collectWNInfo(self.__env['thisSite'].workdir)
             self.__skip = self.__checkLocalSpace(self.__env['workerNode'].disk)
 
-            # check the size of the workdir for user jobs
+            # check the size of the workdir
             self.__skip = self.__checkWorkDir()
 
             # update the time for checking disk space
@@ -456,7 +459,6 @@ class Monitor:
                             except:
                                 pass
                     if not findFlag and file_name != self.__env['jobDic'][k][1].logFile:
-    #                if not findFlag and not ".log." in file_name:
                         pUtil.tolog("Could not access file %s: %s" % (file_name, out))
 
         return rc, pilotErrorDiag, job_index
@@ -491,7 +493,6 @@ class Monitor:
 
 # FOR TESTING ONLY
 #    def __verify_memory_limits(self):
-#        # verify output file sizes every five minutes
 #        if (int(time.time()) - self.__env['curtime_mem']) > 1*60: #self.__env['update_freq_mem']:
 #            # check the CGROUPS memory
 #            max_memory = getMaxMemoryUsageFromCGroups()
@@ -927,7 +928,8 @@ class Monitor:
             pUtil.tolog("!!WARNING!!1999!! Could not backup job definition since file %s does not exist" % (self.__env['pandaJobDataFileName']))
 
     def updateTerminatedJobs(self):
-        """ For multiple jobs, pilot may took long time collect logs. We need to heartbeat for these jobs. """
+        """ For multiple jobs, pilot may take long time collect logs. Send heartbeats for these jobs. """
+
         for k in self.__env['jobDic'].keys():
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
@@ -1004,18 +1006,22 @@ class Monitor:
                         pUtil.tolog("Process id file removed")
 
             # ready with this object, delete it
-            del self.__env['jobDic'][k]
+            # del self.__env['jobDic'][k]
+            self.__jobs_cleaned_up.append(k)
         except:
             pUtil.tolog("Failed to clean up job %s: %s" % (k, traceback.format_exc()))
 
     def __cleanUpEndedJobs(self):
         """ clean up the ended jobs (if there are any) """
 
-        global threadpool
+        for k in self.__jobs_cleaned_up:
+            if k in self.__env['jobDic'].keys():
+                del self.__env['jobDic'][k]
+
         # after multitasking was removed from the pilot, there is actually only one job
         first = True
         handled_jobs = 0
-        if len(self.__env['jobDic'].keys()) > 1 and threadpool is None:
+        if len(self.__env['jobDic'].keys()) > 1 and self.__threadpool is None:
             try:
                 from ThreadPool import ThreadPool
 
@@ -1026,12 +1032,12 @@ class Monitor:
                         values[catchall.split('=')[0]] = catchall.split('=')[1]
                 stageout_threads = int(values.get('stageout_threads', 4))
 
-                threadpool = ThreadPool(stageout_threads)
+                self.__threadpool = ThreadPool(stageout_threads)
             except:
                 pUtil.tolog("Failed to setup threadpool: %s" % (traceback.format_exc()))
 
         for k in self.__env['jobDic'].keys():
-            if k in jobs_added_to_threadpool:
+            if k in self.__jobs_added_to_threadpool:
                 # job is already in threadpool
                 continue
             if k == 'prod' and len(self.__env['jobDic'].keys()) > 1:
@@ -1051,21 +1057,24 @@ class Monitor:
                     stdout_dictionary = pUtil.getStdoutDictionary(self.__env['jobDic'])
                     first = False
 
-                if not threadpool or k == 'prod':
-                    self.__cleanUpEndedJob(k, stdout_dictionary)
+                if not self.__threadpool or k == 'prod':
+                    if not self.__threadpool or self.__threadpool.is_empty():
+                        self.__cleanUpEndedJob(k, stdout_dictionary)
                 else:
-                    threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
-                    jobs_added_to_threadpool.append(k)
-            # let pilot to heartbeat
+                    self.__threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
+                    self.__jobs_added_to_threadpool.append(k)
+            # send heartbeat
             if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
                 self.updateTerminatedJobs()
                 break
-        # let pilot to heartbeat
+        # send heartbeat
         if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
            self.updateTerminatedJobs()
 
 
     def check_unmonitored_jobs(self, global_work_dir=None):
+        """ Make sure all jobs are being monitored. If not,	then add the job to jobDic dictionary """
+
         self.__logguid = None
         all_jobs = {}
         if global_work_dir:

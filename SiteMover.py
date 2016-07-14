@@ -957,7 +957,7 @@ class SiteMover(object):
                 except:
                     tolog("!!WARNING!!1800!! JobState could not deserialize file: %s" % (filename))
                 else:
-                    tolog("Deserialized surl dictionary with %d keys" % len(surlDictionary.keys()))
+                    tolog("Deserialized surl dictionary with %d keys: filename=%s" % (len(surlDictionary.keys()), filename))
                     #tolog("surlDictionary=%s" % str(surlDictionary))
             fp.close()
 

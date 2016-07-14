@@ -646,7 +646,7 @@ class RunJob(object):
 
             # Extract any FAX info from the dictionary
             job.filesWithoutFAX = FAX_dictionary.get('N_filesWithoutFAX', 0)
-            job.filesWithFAX = FAX_dictionary.get('N_filesWithFAX', 0)    
+            job.filesWithFAX = FAX_dictionary.get('N_filesWithFAX', 0)
             job.bytesWithoutFAX = FAX_dictionary.get('bytesWithoutFAX', 0)
             job.bytesWithFAX = FAX_dictionary.get('bytesWithFAX', 0)
             usedFAXandDirectIO = FAX_dictionary.get('usedFAXandDirectIO', False)
@@ -984,14 +984,15 @@ class RunJob(object):
             else:
                 tolog("Metadata was transferred to site work dir: %s/%s" % (self.__pworkdir, _filename))
 
-    def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analysisJob=False):
+    def createFileMetadata(self, outFiles, job, outsDict, dsname, datasetDict, sitename, analysisJob=False, fromJSON=False):
         """ create the metadata for the output + log files """
+        # Note: if file names and guids were extracted from the jobReport.json file, then the getOutFilesGuids() should not be called
 
         ec = 0
 
         # get/assign guids to the output files
         if outFiles:
-            if not pUtil.isBuildJob(outFiles):
+            if not pUtil.isBuildJob(outFiles) and not fromJSON:
                 ec, job.pilotErrorDiag, job.outFilesGuids = RunJobUtilities.getOutFilesGuids(job.outFiles, job.workdir, self.__experiment)
                 if ec:
                     # missing PoolFileCatalog (only error code from getOutFilesGuids)
@@ -1112,7 +1113,7 @@ class RunJob(object):
 
         try:
             t0 = os.times()
-            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry)
+            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry, log_transfer=False)
             t1 = os.times()
 
             job.timeStageOut = int(round(t1[4] - t0[4]))
@@ -1597,6 +1598,9 @@ if __name__ == "__main__":
         # copy any present @inputFor_* files from the pilot init dir to the rundirectory (used for ES merge jobs)
         #runJob.copyInputForFiles(job.workdir)
 
+        # unzip the staged in file if necessary
+        runJob.unzipStagedFiles(job)
+
         # (stage-in ends here) .............................................................................
 
         # change to running state since all input files have been staged
@@ -1633,7 +1637,8 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # are there any additional output files created by the trf/payload?
-        extracted_output_files = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles)
+        fromJSON = False
+        extracted_output_files, extracted_guids = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles, job.outFilesGuids)
         if extracted_output_files != []:
             tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
 
@@ -1654,12 +1659,16 @@ if __name__ == "__main__":
                 job.destinationDblock = new_destinationDblock
                 job.destinationDBlockToken = new_destinationDBlockToken
                 job.scopeOut = new_scopeOut
-
                 tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
                 tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
                 tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
                 tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
-
+                if extracted_guids != []:
+                    fromJSON = True
+                    job.outFilesGuids = extracted_guids
+                    tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
+                else:
+                    tolog("Empty extracted guids list")
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
         if ec:
@@ -1670,7 +1679,7 @@ if __name__ == "__main__":
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
         dumpFileStates(runJob.getParentWorkDir(), job.jobId)
 
-        # create xml string to pass to dispatcher for atlas jobs
+        # create xml string to pass to server
         outputFileInfo = {}
         if outs or (job.logFile and job.logFile != ''):
             # get the datasets for the output files
@@ -1684,7 +1693,7 @@ if __name__ == "__main__":
                 runJob.moveTrfMetadata(job.workdir, job.jobId)
 
             # create the metadata for the output + log files
-            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob)
+            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
             if ec:
                 runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
@@ -1695,7 +1704,6 @@ if __name__ == "__main__":
             # If clone job, make sure that stage-out should be performed
             if job.cloneJob == "storeonce":
                 try:
-                    # If the event is still available, the go ahead and run the payload
                     message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
 
                     # Create a list of event ranges from the downloaded message
