@@ -265,6 +265,7 @@ class RunJobHpcEvent(RunJob):
             self.__copyInputFiles = False
         self.__nJobs = defRes['parallel_jobs']
         self.__stageout_threads = defRes['stageout_threads']
+        self.__copyOutputToGlobal = defRes['copyOutputToGlobal']
 
         tolog("Setup HPC Manager")
         hpcManager = HPCManager(globalWorkingDir=self.__pilotWorkingDir, localWorkingDir=defRes['localWorkingDir'], logFileName=logFileName, copyInputFiles=self.__copyInputFiles)
@@ -714,15 +715,6 @@ class RunJobHpcEvent(RunJob):
     def getJobEventRanges(self, job, numRanges=2):
         """ Download event ranges from the Event Server """
         tolog("Server: Downloading new event ranges..")
-
-        if os.environ.has_key('EventRanges') and os.path.exists(os.environ['EventRanges']):
-            try:
-                with open(os.environ['EventRanges']) as json_file:
-                    events = json.load(json_file)
-                    tolog(events)
-                    return events
-            except:
-                tolog('Failed to open event ranges json file: %s' % traceback.format_exc())
 
         message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=numRanges)
         try:
@@ -1317,7 +1309,18 @@ class RunJobHpcEvent(RunJob):
         tolog("Creating zip/tar file: %s" % zipFileName)
         for line in file:
             #tolog("line: %s" % line)
-            jobId, eventRangeID,status,output = line.split(" ")
+            try:
+                # jobId, eventRangeID,status,output = line.split(" ")
+                jobId = line.split(" ")[0]
+                eventRangeID = line.split(" ")[1]
+                status = line.split(" ")[2]
+                output = line.split(" ")[3]
+                if status.startswith("ERR"):
+                    status = 'failed'
+            except:
+                tolog("Failed to parse %s at line: %s: %s" % (eventstatus, line, traceback.format_exc()))
+            if status == 'failed':
+                zipEventRange.write("%s %s %s\n" % (eventRangeID, status, output))
             if not status == 'finished':
                 continue
             outputs = output.split(",")[:-3]
@@ -1347,6 +1350,14 @@ class RunJobHpcEvent(RunJob):
                 tolog("Zip event ranges file %s doesn't exits, will not stage out." % (zipEventRangeName))
                 return
 
+            if self.__copyOutputToGlobal:
+                outputDir = os.path.dirname(os.path.dirname(zipFileName))
+                tolog("Copying tar/zip file %s to %s" % (zipFileName, os.path.join(outputDir, os.path.basename(zipFileName))))
+                os.rename(zipFileName, os.path.join(outputDir, os.path.basename(zipFileName)))
+                tolog("Copying tar/zip file %s to %s" % (zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName))))
+                os.rename(zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName)))
+                return
+
             report = getInitialTracingReport(userid=job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=False, jobId=job.jobId, jobDefId=job.jobDefinitionID, dn=job.prodUserID)
             ret_status, pilotErrorDiag, surl, size, checksum, arch_type = self.__siteMover.put_data(zipFileName, espath, lfn=os.path.basename(zipFileName), report=report, token=None, experiment='ATLAS')
             if ret_status == 0:
@@ -1365,8 +1376,16 @@ class RunJobHpcEvent(RunJob):
                     job.nEventsW = job.yodaJobMetrics['totalProcessedEvents']
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
-                    status, output = self.updateEventRanges(chunkEventRanges)
-                    tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    try:
+                        status, output = self.updateEventRanges(chunkEventRanges)
+                        tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    except:
+                        tolog("Failed to update EventRanges: %s" % traceback.format_exc())
+                        try:
+                            status, output = self.updateEventRanges(chunkEventRanges)
+                            tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                        except:
+                            tolog("Failed to update EventRanges: %s" % traceback.format_exc())
                 command = "rm -f %s" % zipFileName
                 tolog("delete zip file: %s" % command)
                 status, output = commands.getstatusoutput(command)
@@ -1688,11 +1707,12 @@ class RunJobHpcEvent(RunJob):
                 path = found_files[file]
                 dest_dir = os.path.join(job.workdir, file)
                 try:
-                    if "job.log.tgz." in file or "LOCKFILE" in file or "tarball_PandaJob" in file:
+                    if "job.log.tgz." in file or "LOCKFILE" in file or "tarball_PandaJob" in file or "objectstore_info" in file:
                         continue
                     if file.endswith(".dump") or file.startswith("metadata-") or "jobState-" in file\
-                       or file.startswith("jobState-")\
+                       or file.startswith("jobState-") or file.startswith("EventService_premerge")\
                        or file.startswith("Job_") or file.startswith("fileState-") or file.startswith("curl_updateJob_")\
+                       or file.startswith("curl_updateEventRanges_")\
                        or file.startswith("surlDictionary") or file.startswith("jobMetrics-rank") or "event_status.dump" in file:
                         if str(jobId) in file:
                             pUtil.recursive_overwrite(path, dest_dir)
