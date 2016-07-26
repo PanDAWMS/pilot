@@ -2001,11 +2001,21 @@ class _Curl:
         strData = ''
         for key in data.keys():
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
-        jobId = ''
-        if 'jobId' in data.keys():
-            jobId = '_%s' % data['jobId']
+
+        curl_config = '%s/curl.config' % path
+        try:
+            jobId = ''
+            if 'jobId' in data.keys():
+                jobId = '_%s' % data['jobId']
+            elif 'eventRanges' in data.keys():
+                eventRanges = json.loads(data['eventRanges'])
+                jobId = '_%s' % eventRanges[0]['eventRangeID'].split('-')[1]
+            curl_config = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
+        except:
+            tolog("%s" % traceback.format_exc())
+
         # write data to temporary config file
-        tmpName = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
+        tmpName = curl_config
         try:
             tmpFile = open(tmpName,'w')
             tmpFile.write(strData)
@@ -2174,6 +2184,8 @@ def toServer(baseURL, cmd, data, path, experiment):
         jobId = ''
         if 'jobId' in data.keys():
             jobId = '_%s' % data['jobId']
+        elif 'eventRanges' in data.keys():
+            jobId = '_%s' % data['eventRanges'][0]['eventRangeID'].split('-')[1]
         curl_config = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
     except:
         pass
@@ -2196,7 +2208,11 @@ def toServer(baseURL, cmd, data, path, experiment):
             if experiment != "": # experiment is only set for GETJOB, skip this otherwise
                 data = updateDispatcherData4ES(data, experiment, path)
 
-            status = int(data['StatusCode'])
+            if 'StatusCode' not in data:
+                status = EC_Failed
+                tolog("!!WARNING!!2999!! Dispatcher response: %s" % data)
+            else:
+                status = int(data['StatusCode'])
             if status != 0:
                 # pilotErrorDiag = getDispatcherErrorDiag(status)
                 tolog("Dumping curl config file: %s" % (curl_config))
