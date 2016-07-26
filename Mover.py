@@ -866,6 +866,7 @@ def getFileInfoFromXML(thisfile):
 def getFileInfoDictionaryFromXML(xml_file):
     """ Create a file info dictionary from the PoolFileCatalog """
 
+    tolog("Get file catalog from: %s" % xml_file)
     # Format: { lfn : [pfn, guid] }
     # Example:
     # lfn = "EVNT.01461041._000001.pool.root.1"
@@ -3382,8 +3383,8 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
         traceback.print_tb(tb)
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        if os_bucket_id == -1: # skip sending tracing report for objectstore transfers
-            finishTracingReport(sitemover, r_gpfn, pilotErrorDiag)
+        # if os_bucket_id == -1: # skip sending tracing report for objectstore transfers
+        finishTracingReport(sitemover, r_gpfn, pilotErrorDiag)
 
         # add the guid and surl to the surl dictionary if possible
         if guid != "" and r_gpfn != "":
@@ -5419,6 +5420,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
 
     if os.environ.has_key('Nordugrid_pilot') or region == 'testregion':
         # Build a new PFC for NG
+        ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogND(guids, lfns, pinitdir, pfc_name=pfc_name)
         ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogND(guids, lfns, pinitdir)
 
     # As a last step, remove any multiple identical copies of the replicas (SURLs)
@@ -5436,7 +5438,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             tolog("!!WARNING!!4444!! Caught exception: %s" % (e))
     return ec, pilotErrorDiag, xml_from_PFC, xml_source, final_replicas_dict, surl_filetype_dictionary, copytool_dictionary
 
-def getPoolFileCatalogND(guids, lfns, pinitdir):
+def getPoolFileCatalogND(guids, lfns, pinitdir, pfc_name=None):
     """ build a new PFC for ND """
 
     xml_from_PFC = ""
@@ -5453,13 +5455,17 @@ def getPoolFileCatalogND(guids, lfns, pinitdir):
                 pilotErrorDiag = "Guid (%s) was not provided by server for file %s" % (str(guid), lfns[lfn_id])
                 tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
                 return error.ERR_NOPFC, pilotErrorDiag, xml_from_PFC, xml_source
-            file_dic[guid] = os.path.join(pinitdir, lfns[lfn_id])
+            # file_dic[guid] = os.path.join(pinitdir, lfns[lfn_id])
+            file_dic[guid] = lfns[lfn_id]
             lfn_id += 1
         tolog("Pilot initdir: %s" % pinitdir)
         tolog("File list generated with %d entries: %s" % (len(file_dic), file_dic))
 
         # create a pool file catalog
-        xml_from_PFC = createPoolFileCatalog(file_dic, lfns)
+        if pfc_name:
+            xml_from_PFC = createPoolFileCatalog(file_dic, lfns, forceLogical=True, pfc_name=pfc_name)
+        else:
+            xml_from_PFC = createPoolFileCatalog(file_dic, lfns, forceLogical=True)
     else:
         pilotErrorDiag = "Guids were not provided by server"
         tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
