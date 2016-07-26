@@ -1904,7 +1904,7 @@ class RunJobEvent(RunJob):
             lfnList = self.__lfn_list
 
         # Create the PFC
-        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary, copytool_dictionary = mover.getPoolFileCatalog("", inFilesGuids, lfnList, workdir,\
+        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary, copytool_dictionary = mover.getPoolFileCatalog("", inFilesGuids, lfnList, self.__pilot_initdir,\
                                                                                                   self.__analysisJob, tokens, workdir, dbh,\
                                                                                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                                                                                   sitemover, thisExperiment=thisExperiment, ddmEndPointIn=ddmEndPointIn,\
@@ -1967,8 +1967,7 @@ class RunJobEvent(RunJob):
         dbh = None
         DBReleaseIsAvailable = False
 
-        # self.setPoolFileCatalogPath(os.path.join(workdir, "PFC.xml"))
-        self.setPoolFileCatalogPath(os.path.join(workdir, "PoolFileCatalog.xml"))
+        self.setPoolFileCatalogPath(os.path.join(workdir, "PFC.xml"))
         tolog("Using PFC path: %s" % (self.getPoolFileCatalogPath()))
 
         # Get the TURL based PFC
@@ -2423,10 +2422,8 @@ if __name__ == "__main__":
 
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
-        # ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
-        #                                                                             job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir(), job.ddmEndPointIn)
         ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
-                                                                                    job.filesizeIn, job.checksumIn, thisExperiment, runJob.getJobWorkDir(), job.ddmEndPointIn)
+                                                                                    job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir(), job.ddmEndPointIn)
         if ec != 0:
             tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
