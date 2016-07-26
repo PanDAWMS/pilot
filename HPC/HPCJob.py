@@ -47,7 +47,10 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEven
             yoda.start()
 
             from pandayoda.yodaexe import Droid
-            reserveCores = 1
+            if nonMPIMode:
+                reserveCores = 0
+            else:
+                reserveCores = 1
             droid = Droid.Droid(globalWorkDir, localWorkDir, rank=0, nonMPIMode=True, reserveCores=reserveCores, outputDir=outputDir)
             droid.start()
 
