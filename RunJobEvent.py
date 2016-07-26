@@ -150,6 +150,7 @@ class RunJobEvent(RunJob):
         """ Setter for __pworkdir """
 
         self.__pworkdir = pworkdir
+        super(RunJobEvent, self).setParentWorkDir(pworkdir)
 
     def getLogGUID(self):
         """ Getter for __logguid """
@@ -180,6 +181,7 @@ class RunJobEvent(RunJob):
         """ Setter for __stageinretry """
 
         self.__stageinretry = stageinretry
+        super(RunJobEvent, self).setStageInRetry(stageinretry)
 
     def getStageOutRetry(self):
         """ Getter for __stageoutretry """
@@ -200,6 +202,7 @@ class RunJobEvent(RunJob):
         """ Setter for __pilot_initdir """
 
         self.__pilot_initdir = pilot_initdir
+        super(RunJobEvent, self).setPilotInitDir(pilot_initdir)
 
     def getProxyCheckFlag(self):
         """ Getter for __proxycheckFlag """
@@ -250,6 +253,7 @@ class RunJobEvent(RunJob):
         """ Setter for __inputDir """
 
         self.__inputDir = inputDir
+        super(RunJobEvent, self).setInputDir(inputDir)
 
     def getOutputDir(self):
         """ Getter for __outputDir """
@@ -746,8 +750,10 @@ class RunJobEvent(RunJob):
                 self.__logguid = options.logguid
             if options.inputDir:
                 self.__inputDir = options.inputDir
+                self.setInputDir(self.__inputDir)
             if options.pilot_initdir:
                 self.__pilot_initdir = options.pilot_initdir
+                self.setPilotInitDir(self.__pilot_initdir)
             if options.pilotlogfilename:
                 self.__pilotlogfilename = options.pilotlogfilename
             if options.pilotserver:
@@ -761,6 +767,7 @@ class RunJobEvent(RunJob):
                 self.__proxycheckFlag = True
             if options.pworkdir:
                 self.__pworkdir = options.pworkdir
+                self.setParentWorkDir(self.__pworkdir)
             if options.outputDir:
                 self.__outputDir = options.outputDir
             if options.pilotport:
@@ -776,6 +783,7 @@ class RunJobEvent(RunJob):
             if options.stageinretry:
                 try:
                     self.__stageinretry = int(options.stageinretry)
+                    self.setStageInRetry(self.__stageinretry)
                 except Exception, e:
                     tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
             if options.stageoutretry:
@@ -1017,7 +1025,7 @@ class RunJobEvent(RunJob):
         return exitCode, exitAcronym, exitMsg
 
     def initZipConf(self):
-        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.zip" % self.__job.jobId)
+        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.tar" % self.__job.jobId)
         self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
         if 'es_to_zip' in readpar('catchall'):
             self.__esToZip = True
@@ -1341,7 +1349,7 @@ class RunJobEvent(RunJob):
             checksum = outputFileInfo[path][1]
             guid = outputFileInfo[path][2]
 
-            command = "zip -j " + self.__job.outputZipName + " " + path
+            command = "tar -rf " + self.__job.outputZipName + " --directory=%s %s" %(os.path.dirname(path), os.path.basename(path))
             tolog("Adding file to zip: %s" % command)
             ec, pilotErrorDiag = commands.getstatusoutput(command)
             tolog("status: %s, output: %s\n" % (ec, pilotErrorDiag))
@@ -1379,6 +1387,14 @@ class RunJobEvent(RunJob):
         tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
         ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
         if ec == 0:
+            if os.environ.has_key('Nordugrid_pilot'):
+                outputDir = os.path.dirname(os.path.dirname(self.__job.outputZipName))
+                tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName))))
+                os.rename(self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName)))
+                tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName))))
+                os.rename(self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName)))
+                return 0, None
+
             try:
                 ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
             except Exception, e:
@@ -1888,7 +1904,7 @@ class RunJobEvent(RunJob):
             lfnList = self.__lfn_list
 
         # Create the PFC
-        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary, copytool_dictionary = mover.getPoolFileCatalog("", inFilesGuids, lfnList, self.__pilot_initdir,\
+        ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dic, surl_filetype_dictionary, copytool_dictionary = mover.getPoolFileCatalog("", inFilesGuids, lfnList, workdir,\
                                                                                                   self.__analysisJob, tokens, workdir, dbh,\
                                                                                                   DBReleaseIsAvailable, scope_dict, filesizeIn, checksumIn,\
                                                                                                   sitemover, thisExperiment=thisExperiment, ddmEndPointIn=ddmEndPointIn,\
@@ -1951,7 +1967,8 @@ class RunJobEvent(RunJob):
         dbh = None
         DBReleaseIsAvailable = False
 
-        self.setPoolFileCatalogPath(os.path.join(workdir, "PFC.xml"))
+        # self.setPoolFileCatalogPath(os.path.join(workdir, "PFC.xml"))
+        self.setPoolFileCatalogPath(os.path.join(workdir, "PoolFileCatalog.xml"))
         tolog("Using PFC path: %s" % (self.getPoolFileCatalogPath()))
 
         # Get the TURL based PFC
@@ -2100,7 +2117,7 @@ class RunJobEvent(RunJob):
         return filename
 
     def checkSetupObjectstore(self):
-        if self.__esToZip and os.environ.has_key('Nordugrid_pilot'):
+        if os.environ.has_key('Nordugrid_pilot'):
             return 0, ""
         try:
             from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
@@ -2406,8 +2423,10 @@ if __name__ == "__main__":
 
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
+        # ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
+        #                                                                             job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir(), job.ddmEndPointIn)
         ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
-                                                                                    job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir(), job.ddmEndPointIn)
+                                                                                    job.filesizeIn, job.checksumIn, thisExperiment, runJob.getJobWorkDir(), job.ddmEndPointIn)
         if ec != 0:
             tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
