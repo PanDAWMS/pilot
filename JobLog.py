@@ -1160,8 +1160,8 @@ class JobLog:
                 else:
                     try:
                         os.rename("%s.gz" % (tarballNM), job.logFile)
-                        command = "cp %s ../" % job.logFile
-                        os.system(command)
+                        #command = "cp %s ../" % job.logFile
+                        #os.system(command)
                     except OSError:
                         tolog("!!WARNING!!1400!! Could not rename gzipped tarball %s" % job.logFile)
                     else:
