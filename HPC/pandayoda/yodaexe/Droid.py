@@ -138,7 +138,7 @@ class Droid(threading.Thread):
                     
                 job["AthenaMPCmd"] = job["AthenaMPCmd"].replace('HPCWORKINGDIR', os.getcwd())
 
-            self.__esJobManager = EventServerJobManager(self.__rank, self.__ATHENA_PROC_NUMBER)
+            self.__esJobManager = EventServerJobManager(self.__rank, self.__ATHENA_PROC_NUMBER, workingDir=self.__jobWorkingDir)
             status, output = self.__esJobManager.preSetup(self.__preSetup)
             if status != 0:
                 return False, output

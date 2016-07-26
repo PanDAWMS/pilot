@@ -223,6 +223,8 @@ class HPCManager:
         if self.__yodaToOS or self.__yodaToZip:
             self.__dumpEventOutputs = False
         self.__copyOutputToGlobal = defaultResources.get('copyOutputToGlobal', False)
+        if defaultResources.get('yoda_to_zip', False) or defaultResources.get('es_to_zip', False):
+            self.__copyOutputToGlobal = False
         self.__setup = defaultResources.get('setup', None)
         self.__esPath = defaultResources.get('esPath', None)
         self.__os_bucket_id = defaultResources.get('os_bucket_id', None)
