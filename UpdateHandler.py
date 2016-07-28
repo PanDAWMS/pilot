@@ -17,7 +17,7 @@ class UpdateHandler(BaseRequestHandler):
             pUtil.tolog("Connected from %s" % str(self.client_address))
             data = self.request.recv(4096)
             jobmsg = data.split(";")
-            pUtil.tolog("--- TCPServer: Message received from child is : %s" % str(jobmsg))
+            pUtil.tolog("--- TCPServer: Message received from child is : %s" % json.dumps(jobmsg))
             jobinfo = {}
             for i in jobmsg:
                 if not i: continue # skip empty line

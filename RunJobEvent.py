@@ -45,7 +45,7 @@ try:
     from PilotYamplServer import PilotYamplServer as MessageServer
 except Exception, e:
     MessageServer = None
-    print "RunJobEvent caught exception:",e
+    tolog("RunJobEvent caught exception: %s" % str(e))
 
 class RunJobEvent(RunJob):
 
@@ -150,6 +150,7 @@ class RunJobEvent(RunJob):
         """ Setter for __pworkdir """
 
         self.__pworkdir = pworkdir
+        super(RunJobEvent, self).setParentWorkDir(pworkdir)
 
     def getLogGUID(self):
         """ Getter for __logguid """
@@ -180,6 +181,7 @@ class RunJobEvent(RunJob):
         """ Setter for __stageinretry """
 
         self.__stageinretry = stageinretry
+        super(RunJobEvent, self).setStageInRetry(stageinretry)
 
     def getStageOutRetry(self):
         """ Getter for __stageoutretry """
@@ -200,6 +202,7 @@ class RunJobEvent(RunJob):
         """ Setter for __pilot_initdir """
 
         self.__pilot_initdir = pilot_initdir
+        super(RunJobEvent, self).setPilotInitDir(pilot_initdir)
 
     def getProxyCheckFlag(self):
         """ Getter for __proxycheckFlag """
@@ -250,6 +253,7 @@ class RunJobEvent(RunJob):
         """ Setter for __inputDir """
 
         self.__inputDir = inputDir
+        super(RunJobEvent, self).setInputDir(inputDir)
 
     def getOutputDir(self):
         """ Getter for __outputDir """
@@ -746,8 +750,10 @@ class RunJobEvent(RunJob):
                 self.__logguid = options.logguid
             if options.inputDir:
                 self.__inputDir = options.inputDir
+                self.setInputDir(self.__inputDir)
             if options.pilot_initdir:
                 self.__pilot_initdir = options.pilot_initdir
+                self.setPilotInitDir(self.__pilot_initdir)
             if options.pilotlogfilename:
                 self.__pilotlogfilename = options.pilotlogfilename
             if options.pilotserver:
@@ -761,6 +767,7 @@ class RunJobEvent(RunJob):
                 self.__proxycheckFlag = True
             if options.pworkdir:
                 self.__pworkdir = options.pworkdir
+                self.setParentWorkDir(self.__pworkdir)
             if options.outputDir:
                 self.__outputDir = options.outputDir
             if options.pilotport:
@@ -776,6 +783,7 @@ class RunJobEvent(RunJob):
             if options.stageinretry:
                 try:
                     self.__stageinretry = int(options.stageinretry)
+                    self.setStageInRetry(self.__stageinretry)
                 except Exception, e:
                     tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
             if options.stageoutretry:
@@ -1017,7 +1025,7 @@ class RunJobEvent(RunJob):
         return exitCode, exitAcronym, exitMsg
 
     def initZipConf(self):
-        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.zip" % self.__job.jobId)
+        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.tar" % self.__job.jobId)
         self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
         if 'es_to_zip' in readpar('catchall'):
             self.__esToZip = True
@@ -1341,7 +1349,7 @@ class RunJobEvent(RunJob):
             checksum = outputFileInfo[path][1]
             guid = outputFileInfo[path][2]
 
-            command = "zip -j " + self.__job.outputZipName + " " + path
+            command = "tar -rf " + self.__job.outputZipName + " --directory=%s %s" %(os.path.dirname(path), os.path.basename(path))
             tolog("Adding file to zip: %s" % command)
             ec, pilotErrorDiag = commands.getstatusoutput(command)
             tolog("status: %s, output: %s\n" % (ec, pilotErrorDiag))
@@ -1379,6 +1387,14 @@ class RunJobEvent(RunJob):
         tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
         ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
         if ec == 0:
+            if os.environ.has_key('Nordugrid_pilot'):
+                outputDir = os.path.dirname(os.path.dirname(self.__job.outputZipName))
+                tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName))))
+                os.rename(self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName)))
+                tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName))))
+                os.rename(self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName)))
+                return 0, None
+
             try:
                 ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
             except Exception, e:
@@ -2100,6 +2116,8 @@ class RunJobEvent(RunJob):
         return filename
 
     def checkSetupObjectstore(self):
+        if os.environ.has_key('Nordugrid_pilot'):
+            return 0, ""
         try:
             from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
             testSiteMover = S3ObjectstoreSiteMover('')
@@ -2238,6 +2256,7 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
 
+        runJob.initZipConf()
         status, output = runJob.checkSetupObjectstore()
         if status != 0:
             tolog("ObjectStore setup test failed. Will exit: %s" % output)
@@ -2271,7 +2290,6 @@ if __name__ == "__main__":
         tolog("Setup has finished successfully")
         runJob.setJob(job)
 
-        runJob.initZipConf()
         # Job has been updated, display it again
         job.displayJob()
 

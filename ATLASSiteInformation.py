@@ -566,18 +566,23 @@ class ATLASSiteInformation(SiteInformation):
         if 'pdsf' in hostname:
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,,yoda_to_os,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=4,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=119,walltime_m=120,max_walltime_m=120,cpu_per_node=8,mppnppn=1,ATHENA_PROC_NUMBER=8,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
 
-        if thisSite.sitename == "NERSC_Edison" and not 'pdsf' in hostname:
+        if thisSite.sitename == "NERSC_Edison" or thisSite.sitename == "NERSC_Cori":
             # Edison
             #ec = self.replaceQueuedataField("appdir", "/project/projectdirs/atlas/software")
             ec = self.replaceQueuedataField("appdir", "/scratch1/scratchdirs/tsulaia/sw/software")
             ec = self.replaceQueuedataField("appdir", "/global/project/projectdirs/atlas/pilot/software")
             ##ec = self.replaceQueuedataField("envsetup", "source /global/homes/w/wguan/software/emi/current/setup.sh")
             ec = self.replaceQueuedataField("envsetup", "source /global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
-            ec = self.replaceQueuedataField("envsetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
+            ec = self.replaceQueuedataField("envsetup", "source /global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
             ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/emi/current/setup.sh")
             ec = self.replaceQueuedataField("copysetup", "/global/project/projectdirs/atlas/pilot/grid_env/setup.sh")
             ec = self.replaceQueuedataField("objectstore", "s3://s3.amazonaws.com:80/|eventservice^/atlas_eventservice|logs^/atlas_logs")
-            ec = self.replaceQueuedataField("objectstore", "s3://cephgw.usatlas.bnl.gov:8443/|eventservice^/atlas_eventservice|logs^/atlas_logs")
+            ec = self.replaceQueuedataField("objectstore", "s3://cephgw-test.usatlas.bnl.gov:8443/|eventservice^/atlas-eventservice|logs^/atlas-logs")
+            #ec = self.replaceQueuedataField("objectstores", "[{\"os_secret_key\": \"Amazon_ObjectStoreKey\", \"os_access_key\": \"Amazon_ObjectStoreKey.pub\", \"os_name\": \"AMAZON_OS_0\", \"os_bucket_id\": 45, \"os_is_secure\": false, \"ddmendpoint\": \"AMAZON-0_ES\", \"protocol_pk\": 7, \"os_bucket_name\": \"eventservice\", \"os_flavour\": \"AWS-S3\", \"os_bucket_endpoint\": \"/atlas_eventservice\", \"type\": \"OS_ES\", \"os_endpoint\": \"s3://s3.amazonaws.com:80/\"}, {\"os_secret_key\": \"Amazon_ObjectStoreKey\", \"os_access_key\": \"Amazon_ObjectStoreKey.pub\", \"os_name\": \"AMAZON_OS_0\", \"os_bucket_id\": 46, \"os_is_secure\": false, \"ddmendpoint\": \"AMAZON-0_LOGS\", \"protocol_pk\": 7, \"os_bucket_name\": \"logs\", \"os_flavour\": \"AWS-S3\", \"os_bucket_endpoint\": \"/atlas_logs\", \"type\": \"OS_LOGS\", \"os_endpoint\": \"s3://s3.amazonaws.com:80/\"}]")
+
+            #ec = self.replaceQueuedataField("objectstore", "s3://ceph-s3.mwt2.org:80/|eventservice^/atlas_eventservice|logs^/atlas_logs")
+            #ec = self.replaceQueuedataField("objectstores", "[{\"os_secret_key\": \"MWT2_ObjectStoreKey\", \"os_access_key\": \"MWT2_ObjectStoreKey.pub\", \"os_name\": \"MWT2_OS_0\", \"os_bucket_id\": 115, \"os_is_secure\": false, \"ddmendpoint\": \"MWT2_ES\", \"protocol_pk\": 13, \"os_bucket_name\": \"eventservice\", \"os_flavour\": \"AWS-S3\", \"os_bucket_endpoint\": \"/atlas-eventservice\", \"type\": \"OS_ES\", \"os_endpoint\": \"s3://ceph-s3.mwt2.org:80/\"}, {\"os_secret_key\": \"MWT2_ObjectStoreKey\", \"os_access_key\": \"MWT2_ObjectStoreKey.pub\", \"os_name\": \"MWT2_OS_0\", \"os_bucket_id\": 116, \"os_is_secure\": false, \"ddmendpoint\": \"MWT2_LOGS\", \"protocol_pk\": 13, \"os_bucket_name\": \"logs\", \"os_flavour\": \"AWS-S3\", \"os_bucket_endpoint\": \"/atlas-logs\", \"type\": \"OS_LOGS\", \"os_endpoint\": \"s3://ceph-s3.mwt2.org:80/\"}]")
+
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("coreCount", "0")
             ec = self.replaceQueuedataField("retry", "True")
@@ -597,7 +602,7 @@ class ATLASSiteInformation(SiteInformation):
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=25,min_nodes=25,max_nodes=30,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=12,copy_input_files=false,parallel_jobs=1000")
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,mode=normal,queue=debug,plugin=slurm,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=2,max_nodes=101,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=1000")
             # ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=4,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=119,walltime_m=120,max_walltime_m=120,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
-            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=5000000,initialtime_m=3,time_per_event_m=4,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=70,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
+            ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,es_to_zip,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=5000000,initialtime_m=3,time_per_event_m=3,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=70,max_walltime_m=180,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false,parallel_jobs=10000")
 
             if 'cori' in hostname:
                 ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=500000,initialtime_m=3,time_per_event_m=4,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=32,mppnppn=1,ATHENA_PROC_NUMBER=32,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
@@ -607,7 +612,7 @@ class ATLASSiteInformation(SiteInformation):
             #debug
             #ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,mode=normal,queue=debug,backfill_queue=regular,max_events=200000,initialtime_m=13,time_per_event_m=13,repo=m2015,nodes=2,min_nodes=2,max_nodes=3,partition=edison,min_walltime_m=28,walltime_m=30,max_walltime_m=30,cpu_per_node=24,mppnppn=1,ATHENA_PROC_NUMBER=24,stageout_threads=8,copy_input_files=false")
 
-        if thisSite.sitename == "NERSC_Cori":
+        if thisSite.sitename == "NERSC_Cori1":
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,yoda_to_os,PandaProxy,proxyCache=atlpilo1:pilot,plugin=slurm,yoda_to_os,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=3,min_nodes=3,max_nodes=1001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=2,mppnppn=1,ATHENA_PROC_NUMBER=2,stageout_threads=20,copy_input_files=false,parallel_jobs=3")
             ec = self.replaceQueuedataField("catchall", "HPC_HPC,log_to_objectstore,yoda_to_os,plugin=slurm,mode=normal,queue=regular,backfill_queue=regular,max_events=200000,initialtime_m=3,time_per_event_m=13,repo=m2015,nodes=50,min_nodes=1,max_nodes=2001,partition=edison,min_walltime_m=59,walltime_m=60,max_walltime_m=180,cpu_per_node=32,mppnppn=1,ATHENA_PROC_NUMBER=32,stageout_threads=20,copy_input_files=false,parallel_jobs=10000")
 

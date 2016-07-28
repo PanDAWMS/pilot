@@ -7,6 +7,16 @@ from pUtil import httpConnect, tolog
 def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10):
     """ Download event ranges from the Event Server """
 
+    if os.environ.has_key('EventRanges') and os.path.exists(os.environ['EventRanges']):
+        try:
+            with open(os.environ['EventRanges']) as json_file:
+                events = json.load(json_file)
+            os.rename(os.environ['EventRanges'], os.environ['EventRanges'] + ".loaded")
+            tolog(events)
+            return json.dumps(events)
+        except:
+            tolog('Failed to open event ranges json file: %s' % traceback.format_exc())
+
     # Return the server response (instruction to AthenaMP)
     # Note: the returned message is a string (of a list of dictionaries). If it needs to be converted back to a list, use json.loads(message)
 
@@ -92,12 +102,12 @@ def updateEventRanges(event_ranges):
     node['eventRanges']=json.dumps(event_ranges)
 
     # open connection
-    ret = httpConnect(node, url, path='.', mode="UPDATEEVENTRANGES")
+    ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGES")
     # response = json.loads(ret[1])
 
     status = ret[0]
     if ret[0]: # non-zero return code
-        message = "Failed to update event range - error code = %d, error: " % (ret[0], ret[1])
+        message = "Failed to update event range - error code = %d, error: %s" % (ret[0], ret[1])
     else:
         response = json.loads(json.dumps(ret[1]))
         status = int(response['StatusCode'])

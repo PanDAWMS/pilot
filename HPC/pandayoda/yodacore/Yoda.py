@@ -2,7 +2,9 @@ import commands
 import datetime
 import json
 import logging
+import math
 import os
+import shutil
 import sys
 import time
 import traceback
@@ -26,13 +28,15 @@ class Yoda(threading.Thread):
         self.globalWorkingDir = globalWorkingDir
         self.localWorkingDir = localWorkingDir
         self.currentDir = None
-        # communication channel
-        self.comm = Interaction.Receiver(rank=rank, nonMPIMode=nonMPIMode)
-        self.rank = self.comm.getRank()
         # database backend
         self.db = Database.Backend(self.globalWorkingDir)
         # logger
         self.tmpLog = Logger.Logger(filename='Yoda.log')
+
+        # communication channel
+        self.comm = Interaction.Receiver(rank=rank, nonMPIMode=nonMPIMode, logger=self.tmpLog)
+        self.rank = self.comm.getRank()
+
         self.tmpLog.info("Global working dir: %s" % self.globalWorkingDir)
         self.initWorkingDir()
         self.tmpLog.info("Current working dir: %s" % self.currentDir)
@@ -60,12 +64,15 @@ class Yoda(threading.Thread):
         self.jobsTimestamp = {}
         self.jobsRuningRanks = {}
 
+        self.originSigHandler = {}
+        for sig in [signal.SIGTERM, signal.SIGQUIT, signal.SIGSEGV, signal.SIGXCPU, signal.SIGUSR1, signal.SIGBUS]:
+            self.originSigHandler[sig] = signal.getsignal(sig)
         signal.signal(signal.SIGTERM, self.stop)
         signal.signal(signal.SIGQUIT, self.stop)
         signal.signal(signal.SIGSEGV, self.stop)
-        signal.signal(signal.SIGXCPU, self.stop)
-        signal.signal(signal.SIGUSR1, self.stop)
-        signal.signal(signal.SIGBUS, self.stop)
+        signal.signal(signal.SIGXCPU, self.stopYoda)
+        signal.signal(signal.SIGUSR1, self.stopYoda)
+        signal.signal(signal.SIGBUS, self.stopYoda)
 
     def initWorkingDir(self):
         # Create separate working directory for each rank
@@ -148,8 +155,8 @@ class Yoda(threading.Thread):
             keys = neededRanks.keys()
             keys.sort()
             for key in keys:
-                for jobId in neededRanks[key]:
-                    for i in range(key):
+                for jobId in neededRanks[key]:            
+                    for i in range(int(math.ceil(key))):
                         self.jobRanks.append(jobId)
             return True,self.jobRanks
         except:
@@ -522,16 +529,23 @@ class Yoda(threading.Thread):
             self.tmpLog.debug('updateRunningEventRangesToDB failed: %s, %s' % (str(e), traceback.format_exc()))
 
     def dumpUpdates(self, jobId, outputs, type=''):
-        if self.dumpEventOutputs == False:
-            return
+        #if self.dumpEventOutputs == False:
+        #    return
         timeNow = datetime.datetime.utcnow()
-        outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
+        #outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
+        outFileName = str(jobId) + "_event_status.dump" + type
         etadataFileName = 'metadata-' + outFileName.split('.dump')[0] + '.xml'
         outFileName = os.path.join(self.globalWorkingDir, outFileName)
         if self.outputDir:
             metadataFileName = os.path.join(self.outputDir, etadataFileName)
         else:
             metadataFileName = os.path.join(self.globalWorkingDir, etadataFileName)
+
+        if os.path.exists(outFileName):
+            shutil.copyfile(outFileName, outFileName + ".backup")
+        if os.path.exists(metadataFileName):
+            shutil.copyfile(metadataFileName, metadataFileName + ".backup")
+
         outFile = open(outFileName,'w')
 
         self.tmpLog.debug("dumpUpdates: outputDir %s, metadataFileName %s" % (self.outputDir, metadataFileName))
@@ -542,11 +556,16 @@ class Yoda(threading.Thread):
         metafd.write("<POOLFILECATALOG>\n")
 
         for eventRangeID,status,output in outputs:
-            outFile.write('{0} {1} {2} {3}\n'.format(jobId, eventRangeID,status,output))
+            outFile.write('{0} {1} {2} {3}\n'.format(str(jobId), str(eventRangeID), str(status), str(output)))
 
             metafd.write('  <File EventRangeID="%s">\n' % (eventRangeID))
             metafd.write("    <physical>\n")
-            metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (output.split(",")[0]))
+            if isinstance(output, (list, tuple)):
+                for output1 in output:
+                    metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (str(output1)))
+            else:
+                for output1 in output.split(",")[:-3]:
+                    metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (str(output1)))
             metafd.write("    </physical>\n")
             metafd.write("  </File>\n")
 
@@ -561,18 +580,17 @@ class Yoda(threading.Thread):
             for jobId in self.stagedOutJobsEventRanges:
                 if len(self.stagedOutJobsEventRanges[jobId]):
                     self.dumpUpdates(jobId, self.stagedOutJobsEventRanges[jobId], type='.stagedOut')
-                    #self.db.updateEventRanges(self.finishedEventRanges)
-                    for i in self.stagedOutJobsEventRanges[jobId]:
-                        self.stagedOutJobsEventRanges[jobId].remove(i)
-                    self.stagedOutJobsEventRanges[jobId] = []
+                    #for i in self.stagedOutJobsEventRanges[jobId]:
+                    #    self.stagedOutJobsEventRanges[jobId].remove(i)
+                    #self.stagedOutJobsEventRanges[jobId] = []
 
             for jobId in self.finishedJobsEventRanges:
                 if len(self.finishedJobsEventRanges[jobId]):
                     self.dumpUpdates(jobId, self.finishedJobsEventRanges[jobId])
                     #self.db.updateEventRanges(self.finishedEventRanges)
-                    for i in self.finishedJobsEventRanges[jobId]:
-                        self.finishedJobsEventRanges[jobId].remove(i)
-                    self.finishedJobsEventRanges[jobId] = []
+                    #for i in self.finishedJobsEventRanges[jobId]:
+                    #    self.finishedJobsEventRanges[jobId].remove(i)
+                    #self.finishedJobsEventRanges[jobId] = []
             self.tmpLog.debug('finished to updateFinishedEventRangesToDB')
         except Exception as e:
             self.tmpLog.debug('updateFinishedEventRangesToDB failed: %s, %s' % (str(e), traceback.format_exc()))
@@ -597,7 +615,7 @@ class Yoda(threading.Thread):
         res = {'StatusCode':0, 'State': 'finished'}
         self.tmpLog.debug('res={0}'.format(str(res)))
         self.comm.sendMessage(res)
-        self.comm.disconnect()
+        #self.comm.disconnect()
 
     def collectMetrics(self, ranks):
         metrics = {}
@@ -677,6 +695,9 @@ class Yoda(threading.Thread):
         #if self.outputDir:
         #    jobMetrics = os.path.join(self.outputDir, jobMetricsFileName)
         #else:
+        # backup file first
+        if os.path.exists(jobMetricsFileName):
+            shutil.copyfile(jobMetricsFileName, jobMetricsFileName + ".backup")
         try:
             #outputDir = self.jobs[jobId]["GlobalWorkingDir"]
             outputDir = self.globalWorkingDir
@@ -698,8 +719,8 @@ class Yoda(threading.Thread):
         json.dump(self.jobsTimestamp, tmpFile)
         tmpFile.close()
 
-    # main
-    def run(self):
+    # main yoda
+    def runYoda(self):
         # get logger
         self.tmpLog.info('start')
         # load job
@@ -741,7 +762,10 @@ class Yoda(threading.Thread):
                                                                 method,str(params)))
             if hasattr(self,method):
                 methodObj = getattr(self,method)
-                apply(methodObj,[params])
+                try:
+                    apply(methodObj,[params])
+                except:
+                    self.tmpLog.debug("Failed to run function %s: %s" % (method, traceback.format_exc()))
             else:
                 self.tmpLog.error('unknown method={0} was requested from rank={1} '.format(method,
                                                                                       self.comm.getRequesterRank()))
@@ -768,6 +792,13 @@ class Yoda(threading.Thread):
         sys.exit(0)
         return 0
 
+    # main
+    def run(self):
+        try:
+            self.runYoda()
+        except:
+            self.tmpLog.info("Excpetion to run Yoda: %s" % traceback.format_exc())
+            sys.exit(1)
 
     def flushMessages(self):
         self.tmpLog.info('flush messages')
@@ -789,9 +820,27 @@ class Yoda(threading.Thread):
                 self.tmpLog.error('unknown method={0} was requested from rank={1} '.format(method, self.comm.getRequesterRank()))
 
 
+    def stopYoda(self, signum=None, frame=None):
+        self.tmpLog.info('stopYoda signal %s received' % signum)
+        #signal.signal(signum, self.originSigHandler[signum])
+        # make message
+        res = {'StatusCode':0, 'State': 'signal', 'signum': signum}
+        self.tmpLog.debug('res={0}'.format(str(res)))
+        self.comm.sendMessage(res)
+
+        self.dumpJobMetrics()
+        for jobId in self.jobsTimestamp:
+            if self.jobsTimestamp[jobId]['endTime'] is None:
+                self.jobsTimestamp[jobId]['endTime'] = time.time()
+            if len(self.jobsRuningRanks[jobId]) > 0:
+                self.jobsTimestamp[jobId]['endTime'] = time.time()
+        self.dumpJobsStartTime()
+        self.updateEventRangesToDB(force=True, final=True)
+
     def stop(self, signum=None, frame=None):
-        self.tmpLog.info('stop signal received')
-        block_sig(signal.SIGTERM)
+        self.tmpLog.info('stop signal %s received' % signum)
+        block_sig(signum)
+        signal.siginterrupt(signum, False)
         self.dumpJobMetrics()
         for jobId in self.jobsTimestamp:
             if self.jobsTimestamp[jobId]['endTime'] is None:
@@ -808,7 +857,8 @@ class Yoda(threading.Thread):
         self.tmpLog.info("post Exec job")
         self.postExecJob()
         self.tmpLog.info('stop')
-        unblock_sig(signal.SIGTERM)
+        #signal.siginterrupt(signum, True)
+        unblock_sig(signum)
         sys.exit(0)
 
     def getOutputs(self):
