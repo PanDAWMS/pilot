@@ -396,6 +396,49 @@ User job setup:
 PoolFileCatalog updates:
 - Removing any paths from filenames in verifyPFCIntegrity() (Mover)
 - Setting absolute path for guidfname[guid] in mover_get_data() and _mover_get_data_new() (Mover)
+- Discussed in ticket: https://its.cern.ch/jira/browse/ATEAM-313
+- Summary: it was observed that AthenaMP jobs can't process more than one input file, at least when running DAOD building.
+- Solution: pilot writes explicit absolute paths for files listen in PoolFileCatalog
+
+Updates from Wen Guan:
+- Test cpuconsumptiontime from proc
+- Tight yoda job scheduling
+- Send user signal to Yoda before job finished
+- Yoda fixes, signal handler, arc fix
+- ARC non-mpi should not reserve cores
+- Using different name when update events
+- Fix ES on ARC, enable os report
+- Enable arc to support es_to_zip
+- Fix that parameters values in sub-class not update in parent class, fix ARC issue
+- Enable Yoda to support ARC
+- Finalize cpuconsumption time, fix es log path
+- Enable ARC to support ES
+- Local parameters
+- Disable log copying
+- Rollback some changes
+
+File changes from Wen Guan:
+M ATLASSiteInformation.py (15)
+M EventRanges.py (14)
+M EventServiceFactory.py (3)
+M HPC/EventServer/EventServerJobManager.py (90)
+M HPC/HPCJob.py (5)
+M HPC/HPCManager.py (9)
+M HPC/HPCManagerPlugins/slurm.py (1)
+M HPC/pandayoda/yodacore/Interaction.py (54)
+M HPC/pandayoda/yodacore/Yoda.py (104)
+M HPC/pandayoda/yodaexe/Droid.py (46)
+M HPC/pandayoda/yodaexe/DroidStager.py (83)
+M JobLog.py (2)
+M Mover.py (22)
+M PandaServerClient.py (56)
+M RunJob.py (20)
+M RunJobEvent.py (26)
+M RunJobHpcEvent.py (172)
+M RunJobHpcarcEvent.py (6)
+M S3ObjectstoreSiteMover.py (4)
+M UpdateHandler.py (2)
+M pUtil.py (26)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
