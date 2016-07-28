@@ -1064,11 +1064,11 @@ class Monitor:
                     self.__threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
                     self.__jobs_added_to_threadpool.append(k)
             # send heartbeat
-            if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
+            if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] * 0.7 and not self.__skip:
                 self.updateTerminatedJobs()
                 break
         # send heartbeat
-        if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
+        if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] * 0.7 and not self.__skip:
            self.updateTerminatedJobs()
 
 
