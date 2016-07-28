@@ -541,15 +541,15 @@ class Yoda(threading.Thread):
         else:
             metadataFileName = os.path.join(self.globalWorkingDir, etadataFileName)
 
-        if os.path.exists(outFileName):
-            shutil.copyfile(outFileName, outFileName + ".backup")
-        if os.path.exists(metadataFileName):
-            shutil.copyfile(metadataFileName, metadataFileName + ".backup")
+        #if os.path.exists(outFileName):
+        #    shutil.copyfile(outFileName, outFileName + ".backup")
+        #if os.path.exists(metadataFileName):
+        #    shutil.copyfile(metadataFileName, metadataFileName + ".backup")
 
-        outFile = open(outFileName,'w')
+        outFile = open(outFileName + ".new", 'w')
 
         self.tmpLog.debug("dumpUpdates: outputDir %s, metadataFileName %s" % (self.outputDir, metadataFileName))
-        metafd = open(metadataFileName, "w")
+        metafd = open(metadataFileName + ".new", "w")
         metafd.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
         metafd.write("<!-- Edited By POOL -->\n")
         metafd.write('<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">\n')
@@ -572,6 +572,16 @@ class Yoda(threading.Thread):
         outFile.close()
         metafd.write("</POOLFILECATALOG>\n")
         metafd.close()
+
+        # mv the new file to overwrite the current one
+        command = "mv %s.new %s" % (outFileName, outFileName)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
+        command = "mv %s.new %s" % (metadataFileName, metadataFileName)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
 
     def updateFinishedEventRangesToDB(self):
         try:

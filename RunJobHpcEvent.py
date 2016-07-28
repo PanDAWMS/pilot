@@ -228,6 +228,7 @@ class RunJobHpcEvent(RunJob):
         setup = siteInfo.getCopySetup(stageIn=False)
         tolog("Copy Setup: %s" % (setup))
         espath = getFilePathForObjectStore(filetype="eventservice")
+        #espath = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i], label='r')
         tolog("ES path: %s" % (espath))
         os_bucket_id = siteInfo.getObjectstoresField('os_bucket_id', 'eventservice')
         tolog("The default bucket ID: %s for queue %s" % (os_bucket_id, self.__jobSite.computingElement))
