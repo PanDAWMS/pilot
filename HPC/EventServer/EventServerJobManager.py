@@ -20,6 +20,7 @@ except:
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from pandayoda.yodacore import Logger
+from FileHandling import getCPUTimes
 
 from signal_block.signal_block import block_sig, unblock_sig
 
@@ -97,6 +98,8 @@ class EventServerJobManager():
         self.__startTime = time.time()
         self.__readyForEventTime = None
         self.__endTime = None
+        self.__startOSTimes = os.times()
+        self.__endOSTimes = None
         self.__totalQueuedEvents = 0
         self.__totalProcessedEvents = 0
 
@@ -126,6 +129,16 @@ class EventServerJobManager():
             ret = time.time() - self.__startTime
         return ret
 
+    def getCPUConsumptionTime(self):
+        cpuConsumptionUnit, cpuConsumptionTime, cpuConversionFactor = getCPUTimes(os.getcwd())
+        if cpuConsumptionTime < 1:
+            endOSTimes = os.times()
+            if self.__endOSTimes:
+                endOSTimes = self.__endOSTimes
+            t = map(lambda x, y:x-y, endOSTimes, self.__startOSTimes)
+            cpuConsumptionTime = reduce(lambda x, y:x+y, t[2:3])
+        return cpuConsumptionTime
+
     def getCores(self):
         return self.__ATHENA_PROC_NUMBER
 
@@ -146,10 +159,11 @@ class EventServerJobManager():
                 "readyTime": self.__readyForEventTime,
                 "endTime": self.__endTime,
                 "setupTime": self.getSetupTime(),
-                "totalTime": self.getTotalTime(),
+                "runningTime": self.getTotalTime() - self.getSetupTime(),
                 "cores": self.getCores(),
-                "processCPUHour": self.getProcessCPUHour(),
-                "totalCPUHour": self.getTotalCPUHour(),
+                #"processCPUHour": self.getProcessCPUHour(),
+                #"totalCPUHour": self.getTotalCPUHour(),
+                "cpuConsumptionTime": self.getCPUConsumptionTime(),
                 "queuedEvents": self.getTotalQueuedEvents(),
                 "processedEvents": self.getTotalProcessedEvents()}
 
@@ -497,9 +511,9 @@ class EventServerJobManager():
             elif message.startswith('ERR'):
                 self.__log.error("Rank %s: Received an error message: %s" % (self.__rank, message))
                 error_acronym, eventRangeID, error_diagnostics = self.extractErrorMessage(message)
-                if event_range_id != "":
+                if eventRangeID != "":
                     try:
-                        self.__log.error("Rank %s: !!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (self.__rank, error_acronym, error_diagnostics, event_range_id))
+                        self.__log.error("Rank %s: !!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (self.__rank, error_acronym, error_diagnostics, eventRangeID))
                         self.__eventRangesStatus[eventRangeID]['status'] = 'failed'
                         self.__eventRangesStatus[eventRangeID]['output'] = message
                         self.__outputMessage.append((eventRangeID, error_acronym, message))

@@ -474,6 +474,7 @@ class ATLASSiteInformation(SiteInformation):
 
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
+#            ec = self.replaceQueuedataField("use_newmover", "True")
 #            ec = self.replaceQueuedataField("maxrss", "100")
 #            ec = self.replaceQueuedataField("direct_access_lan", "True")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^root://atlas-objectstore.cern.ch//atlas/eventservice|logs^root://xrados.cern.ch//atlas/logs")
@@ -493,7 +494,7 @@ class ATLASSiteInformation(SiteInformation):
             ec = self.replaceQueuedataField("allowfax", "True")
             ec = self.replaceQueuedataField("timefloor", "0")
             ec = self.replaceQueuedataField("copytool", "lsm")
-            ec = self.replaceQueuedataField("copytoolin", "lsm")
+#            ec = self.replaceQueuedataField("copytoolin", "lsm")
 #            ec = self.replaceQueuedataField("copytool", "lsm")
 #            ec = self.replaceQueuedataField("catchall", "stdout_to_text_indexer")
             ec = self.replaceQueuedataField("faxredirector", "atlas-xrd-us.usatlas.org:1094/")
@@ -526,7 +527,7 @@ class ATLASSiteInformation(SiteInformation):
 
 #        if thisSite.sitename == "BNL_PROD_MCORE":
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw.usatlas.bnl.gov:8443//atlas_eventservice|logs^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs|https^s3://cephgw.usatlas.bnl.gov:8443//atlas_logs")
-#            ec = self.replaceQueuedataField("catchall", "es_to_zip")
+#            ec = self.replaceQueuedataField("catchall", "log_to_objectstore stdout_to_text_indexer")
 #            ec = self.replaceQueuedataField("timefloor", "0")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/eventservice|logs^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs|https^s3://cephgw02.usatlas.bnl.gov:8443//atlas_pilot_bucket/logs")
 #            ec = self.replaceQueuedataField("objectstore", "eventservice^s3://ceph003.usatlas.bnl.gov:8443//atlas/eventservice|logs^s3://ceph003.usatlas.bnl.gov:8443//atlas/logs|https^https://ceph007.usatlas.bnl.gov:8443//atlas/logs")

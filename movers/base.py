@@ -25,6 +25,7 @@ class BaseSiteMover(object):
 
     """
 
+    schemes = ['srm'] # list of supported schemes for transfers
     name = "" # unique ID of the Mover implementation, if not set copy_command will be used
     copy_command = None
 
@@ -200,24 +201,29 @@ class BaseSiteMover(object):
 
         return None
 
-    def resolve_replica(self, fspec):
+    def resolve_replica(self, fspec, protocol):
         """
-            fspec is FileSpec object
+            :fspec: FileSpec object
+            :protocol: dict('se':'', 'scheme':'str' or list)
+
+            Resolve input replica either by protocol scheme
+            or manually construct pfn according to protocol.se value (full local path is matched respect to ddm_se default protocol)
             :return: input file replica details: {'surl':'', 'ddmendpoint':'', 'pfn':''}
             :raise: PilotException in case of controlled error
         """
 
-        # resolve proper surl and find related replica
+        # resolve proper surl (main srm replica) and find related replica
 
-        ignore_rucio_replicas = True # quick stab until protocols are properly populated in Rucio: CHANGE ME LATER
-        #if '.root' in fspec.lfn:
-        #    ignore_rucio_replicas = False
+        if protocol.get('se'):
+            scheme = str(protocol.get('se')).split(':', 1)[0]
+        else:
+            scheme = protocol.get('scheme')
 
-        protocol = self.protocol
-
-        scheme = protocol.get('se', '').split(':')[0]
         if not scheme:
             raise Exception('Failed to resolve copytool scheme to be used, se field is corrupted?: protocol=%s' % protocol)
+
+        if isinstance(scheme, str):
+            scheme = [scheme]
 
         replica = None # find first matched to protocol spec replica
         surl = None
@@ -230,13 +236,16 @@ class BaseSiteMover(object):
 
             for r in replicas:
                 # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
-                if ignore_rucio_replicas and r.startswith(ddm_se): # manually form pfn based of protocol.se
+                if protocol.get('se') and r.startswith(ddm_se): # manually form pfn based on protocol.se
                     replica = protocol.get('se') + r.replace(ddm_se, '')
-                    self.log("[stage-in] ignore_rucio_replicas=True: found replica=%s matched ddm.se=%s .. will use TURL=%s" % (surl, ddm_se, replica))
+                    self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s: found replica=%s matched ddm.se=%s .. will use TURL=%s" % (protocol.get('se'), surl, ddm_se, replica))
                     break
                 # use exact pfn from Rucio replicas
-                if not replica and r.startswith("%s://" % scheme):
-                    replica = r
+                if not replica:
+                    for sval in scheme:
+                        if r.startswith("%s://" % sval):
+                            replica = r
+                            break
             if replica:
                 break
 

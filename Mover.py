@@ -99,15 +99,14 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
     return dsname, dsdict, rucio_dataset_dictionary
 
 
-
 # new mover implementation
-def put_data_new(job, jobSite, stageoutTries):
+def put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=None):
     """
+        Do jobmover.stageout_outfiles or jobmover.stageout_logfiles respect to the log_transfer flag passed
         :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
     """
 
     tolog("Mover put data started [new implementation]")
-
 
     from PilotErrors import PilotException
     from movers import JobMover
@@ -116,7 +115,7 @@ def put_data_new(job, jobSite, stageoutTries):
     si = getSiteInformation(job.experiment)
     si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
 
-    workDir = os.path.dirname(job.workdir)
+    workDir = workDir or os.path.dirname(job.workdir)
 
     mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
 
@@ -128,7 +127,8 @@ def put_data_new(job, jobSite, stageoutTries):
     mover.trace_report.init(job)
 
     try:
-        transferred_files, failed_transfers = mover.stageout_outfiles()
+        do_stageout_func = mover.stageout_logfiles if log_transfer else mover.stageout_outfiles
+        transferred_files, failed_transfers = do_stageout_func()
     except PilotException, e:
         return e.code, str(e), [], "", 0, 0
     except Exception, e:
@@ -139,7 +139,6 @@ def put_data_new(job, jobSite, stageoutTries):
         return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED, exception=%s' % e, [], "", 0, 0
 
     tolog("Mover put data finished")
-    job.print_outfiles()
 
     # prepare compatible output
     # keep track of which files have been copied
@@ -159,9 +158,12 @@ def put_data_new(job, jobSite, stageoutTries):
     #    for err in failed_transfers:
     #        errors.append(str(err))
 
-    not_transferred = [e.lfn for e in job.outData if e.status not in ['transferred']]
+    files = job.outData if not log_transfer else job.logData
+    not_transferred = [e.lfn for e in files if e.status not in ['transferred']]
     if not_transferred:
-        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers])), [], "", 0, 0
+        err_msg = 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers]))
+        tolog("Mover put data finished: error_msg=%s" % err_msg)
+        return PilotErrors.ERR_STAGEOUTFAILED, err_msg, [], "", 0, 0
 
     return 0, "", fields, "", len(transferred_files), 0
 
@@ -218,7 +220,6 @@ def get_data_new(job,
         return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED, exception=%s' % e, None, {}
 
     tolog("Mover get data finished")
-    job.print_infiles()
 
     # prepare compatible output
 
@@ -556,14 +557,13 @@ def getReplicaDictionary(thisExperiment, guids, lfn_dict, scope_dict, replicas_d
 
     return ec, pilotErrorDiag, replicas_dict
 
-def verifySURLGUIDDictionary(surl_guid_dictionary):
+def verifySURLGUIDDictionary(surl_guid_dictionary, pilotErrorDiag):
     """ Verify that all SURLs are set in the dictionary """
 
     # A lost file will show up as an empty list in the dictionary
     # Return status True if there are at least one valid SURL
 
     status = False
-    pilotErrorDiag = ""
 
     tolog("Verifying SURLs")
     if surl_guid_dictionary != {}:
@@ -577,7 +577,8 @@ def verifySURLGUIDDictionary(surl_guid_dictionary):
                 status = True
                 tolog("GUID=%s has a valid (set) SURL list" % (guid))
     else:
-        pilotErrorDiag = "Rucio returned an empty replica dictionary"
+        if pilotErrorDiag == "":
+            pilotErrorDiag = "Rucio returned an empty replica dictionary"
         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
     return status, pilotErrorDiag
@@ -608,7 +609,7 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
     tolog("file_dictionary=%s" % (file_dictionary))
 
     # then get the replica dictionary from Rucio
-    rucio_replica_dictionary, rucio_surl_dictionary = getRucioReplicaDictionary(host, file_dictionary)
+    rucio_replica_dictionary, rucio_surl_dictionary, pilotErrorDiag = getRucioReplicaDictionary(host, file_dictionary)
     tolog("rucio_replica_dictionary=%s" % str(rucio_replica_dictionary))
     tolog("rucio_surl_dictionary=%s" % str(rucio_surl_dictionary))
 
@@ -624,7 +625,7 @@ def getReplicaDictionaryRucio(lfn_dict, scope_dict, replicas_dic, host):
     tolog("surl_guid_dictionary=%s"%str(surl_guid_dictionary))
 
     # verify the rucio replica dictionary (only fail at this point if there were no valid SURLs - if there are at least one valid SURL, continue)
-    status, pilotErrorDiag = verifySURLGUIDDictionary(surl_guid_dictionary)
+    status, pilotErrorDiag = verifySURLGUIDDictionary(surl_guid_dictionary, pilotErrorDiag)
     if not status and pilotErrorDiag != "":
         tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
         ec = -1
@@ -2627,6 +2628,10 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
     if fail == 0:
         # Make sure the PFC has the correct number of files
         fail, pilotErrorDiag = verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, PilotErrors())
+    elif pErrorText and s == 1180:
+        s_index = pErrorText.find("globus_xio")
+        if s_index > -1:
+            pilotErrorDiag = pErrorText[s_index:s_index+256]
 
     # Now that the Mover PFC file is no longer needed, back it up and rename the TURL based PFC if it exists
     # (the original PFC is no longer needed. Move it away, and then create the PFC for the trf/runAthena)
@@ -3073,6 +3078,10 @@ def mover_get_data(lfns,
     if fail == 0:
         # Make sure the PFC has the correct number of files
         fail, pilotErrorDiag = verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, error)
+    elif pErrorText and s == 1180:
+        s_index = pErrorText.find("globus_xio")
+        if s_index > -1:
+            pilotErrorDiag = pErrorText[s_index:s_index+256]
 
     # Now that the Mover PFC file is no longer needed, back it up and rename the TURL based PFC if it exists
     # (the original PFC is no longer needed. Move it away, and then create the PFC for the trf/runAthena)
@@ -3456,7 +3465,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                         job={},                            # Job object
                         os_bucket_id=-1,                          # Objectstore id
                         copytool=None,
-                        jobSite = {}  # to be added        # jobsite object
+                        jobSite = {},  # to be added       # jobsite object,
+                        log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
                         ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
@@ -3532,6 +3542,24 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
           ddm_storage_path - is destination
     """
 
+    isLogTransfer = bool(logPath)
+    if isLogTransfer:
+        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover backward compatible wrapper mover_put_data_new()")
+
+    if log_transfer:
+        if not jobSite: ## QUICK stub integration logic since not all top level functions pass jobSite argument: FIX ME LATER
+            class Site_stub(object):
+                def __init__(self, **kwargs):
+                    for k,v in kwargs.iteritems():
+                        setattr(self, k, v)
+            jobSite = Site_stub(computingElement=queuename, sitename=sitename) ## different work dir! test me
+
+        if job.workdir != recoveryWorkDir: # to be checked later if deepcopy is required: Log file is located outside job dir: to be unified?
+            import copy
+            job = copy.deepcopy(job)
+            job.workdir = recoveryWorkDir
+        return put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=recoveryWorkDir) + (-1,) # os_bucket_id=-1
+
 
     # -----
 
@@ -3564,9 +3592,6 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     if not outfiles and not logfiles:
         raise Exception("Empty Both outputfiles and logfiles data: nothing to do... processing of other cases is not implemented yet for new SiteMover")
 
-    isLogTransfer = bool(logPath)
-    if isLogTransfer:
-        raise Exception("isLogTransfer is True: special log transfer processing is not implemented yet for new SiteMover")
 
     from movers import JobMover
     from movers.trace_report import TraceReport
@@ -3949,7 +3974,9 @@ def mover_put_data(outputpoolfcstring,
                    eventService=False,
                    os_bucket_id=-1,
                    copytool=None,
-                   job={}):
+                   job={},
+                   log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
+                   ):
     """
     Move the output files in the pool file catalog to the local storage, change the pfns to grid accessable pfns.
     No DS registration in the central catalog is made. pdsname is used only to define the relative path
@@ -4102,24 +4129,18 @@ def mover_put_data(outputpoolfcstring,
                     _rest = 10*60
                     tolog("(Waiting %d seconds before next stage-out attempt)" % (_rest))
                     sleep(_rest)
-
-                # in case of file transfer to OS, update file paths
-                if objectstore:
+                else:
+                    # in case of file transfer to OS, update file paths
                     _path, os_bucket_id = getNewOSStoragePath(si, eventService)
                     _path = os.path.join(_path, lfn)
                     if logPath != "":
                         tolog("Updating the logPath (replacing \'%s\' with \'%s\')" % (logPath, _path))
                         # this function can decide to use a new OS, so update the os_bucket_id
                         logPath = _path
-                        tolog("Using os_bucket_id=%d" % (os_bucket_id))
+                        tolog("Using os_bucket_id=%s" % (os_bucket_id))
 
                     # for normal OS file transfers, the logPath will not be set and thus an alternative OS has to be found separately (otherwise found by getNewOSStoragePath())
                     ddm_storage_path = os.path.dirname(_path)
-
-                    # in case of file transfer to OS, also update the ddm_storage_path
-                    #ddm_storage_path, os_bucket_id, pilotErrorDiag = getDDMStorage(si, analysisJob, region, objectstore, isLogTransfer(logPath))
-                    #if pilotErrorDiag != "":
-                    #    return error.ERR_NOSTORAGE, pilotErrorDiag, fields, None, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id
 
             tolog("Put attempt %d/%d" % (_attempt, put_RETRY))
 
@@ -5956,6 +5977,7 @@ def getRucioReplicaDictionary(cat, file_dictionary):
     replica_dictionary = {}
     surl_dictionary = {}
     replicas_list = []
+    pilotErrorDiag = ""
 
     # First build the replica list using the file_dictionary
     scope_lfn_list = getScopeLFNListFromDictionary(file_dictionary)
@@ -5968,11 +5990,11 @@ def getRucioReplicaDictionary(cat, file_dictionary):
         try:
             replicas_list = c.list_replicas(scope_lfn_list, schemes=['srm'])
         except:
-            tolog("!!WARNING!!2235!! list_replicas() failed")
             import sys
             excType, excValue = sys.exc_info()[:2]  # skip the traceback info to avoid possible circular reference
             tolog("excType=%s" % (excType))
-            tolog("excValue=%s" % (excValue))
+            pilotErrorDiag = "list_replicas() failed: %s" % (excValue)
+            tolog("!!WARNING!!2235!! %s" % (pilotErrorDiag))
         else:
             if replicas_list != None and replicas_list != []:
                 # Loop over all replicas
@@ -6013,9 +6035,10 @@ def getRucioReplicaDictionary(cat, file_dictionary):
                             surl_dictionary[surl] = pfns[surl]
 
                     except Exception, e:
-                        tolog("!!WARNING!!2235!! Failed to extract info from replicas_list: %s" % (e))
+                        pilotErrorDiag = "Failed to extract info from replicas_list: %s" % (e)
+                        tolog("!!WARNING!!2235!! %s" % (pilotErrorDiag))
 
     else:
         tolog("!!WARNING!!2234!! Empty replica list, can not continue with Rucio replica query")
 
-    return replica_dictionary, surl_dictionary
+    return replica_dictionary, surl_dictionary, pilotErrorDiag

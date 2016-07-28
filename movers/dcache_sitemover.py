@@ -24,8 +24,7 @@ class dcacheSiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "adler32"
 
-    #def __init__(self, *args, **kwargs):
-    #    super(dcacheSiteMover, self).__init__(*args, **kwargs)
+    schemes = ['dcap'] # list of supported schemes for transfers
 
     def is_stagein_allowed(self, fspec, job):
         """

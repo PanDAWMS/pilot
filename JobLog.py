@@ -234,7 +234,9 @@ class JobLog:
                                                                   logPath = logPath,
                                                                   os_bucket_id = os_bucket_id,
                                                                   copytool=copytool,
-                                                                  job = job)
+                                                                  job = job,
+                                                                  log_transfer = True # new sitemovers required integration parameter
+                                                                  )
         except Exception, e:
             rmflag = 0 # don't remove the tarball
             status = False
@@ -297,7 +299,7 @@ class JobLog:
                     # get the site information object
                     #si = getSiteInformation(experiment)
                     job.logBucketID = os_bucket_id #si.getBucketID(os_id, "logs")
-                    tolog("Stored log bucket ID: %s" % (job.logBucketID)) 
+                    tolog("Stored log bucket ID: %s" % (job.logBucketID))
 
             # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
             if job.result[2] == 0:

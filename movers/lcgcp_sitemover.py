@@ -23,8 +23,7 @@ class lcgcpSiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "lcg-get-checksum"
 
-    #def __init__(self, *args, **kwargs):
-    #    super(lcgcpSiteMover, self).__init__(*args, **kwargs)
+    schemes = ['srm'] # list of supported schemes for transfers
 
     def _stagefile(self, cmd, source, destination, filesize, is_stagein):
         """

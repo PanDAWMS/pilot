@@ -47,15 +47,7 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEven
             yoda.start()
 
             from pandayoda.yodaexe import Droid
-            reserveCores = 0
-            if mpisize > 500:
-                reserveCores = 4
-            elif mpisize > 200:
-                reserveCores = 3
-            elif mpisize > 100:
-                reserveCores = 2
-            elif mpisize > 50:
-                reserveCores = 1
+            reserveCores = 1
             droid = Droid.Droid(globalWorkDir, localWorkDir, rank=0, nonMPIMode=True, reserveCores=reserveCores, outputDir=outputDir)
             droid.start()
 
@@ -123,10 +115,12 @@ Commands:
         print "Start HPCJob"
         rank = main(args.globalWorkingDir, args.localWorkingDir, args.nonMPIMode, args.outputDir, args.dumpEventOutputs)
         print "Rank %s: HPCJob-Yoda success" % rank
-        #sys.exit(0)
+        if rank == 0:
+            sys.exit(0)
     except Exception as e:
         print "Rank %s: HPCJob-Yoda failed" % rank
         print(e)
         print(traceback.format_exc())
-        #sys.exit(0)
+        if rank == 0:
+            sys.exit(0)
     #os._exit(0)

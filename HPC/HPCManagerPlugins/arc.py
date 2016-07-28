@@ -45,7 +45,7 @@ class arc(Plugin):
             self.__log.debug(traceback.format_exc())
             return nodelist
 
-    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None):
+    def submitJob(self, globalWorkingDir, globalYodaDir, localWorkingDir, queue, repo, mppwidth, mppnppn, walltime, nodes, localSetup=None, cpuPerNode=None, dumpEventOutputs=False):
 
         nodelist = ""
         if os.environ.has_key('SLURM_NODELIST'):

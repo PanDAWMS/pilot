@@ -60,6 +60,7 @@ class SiteInformation(object):
 
         value = ""
 
+        # tolog("par: %s, alt: %s, version:%s, queuename: %s" % (par, alt, version, queuename))
         # Should we should use the new queuedata JSON version?
         if version == 1:
             return self.getField(par, queuename=queuename)
@@ -1043,7 +1044,7 @@ class SiteInformation(object):
         useFileStager = False
         transfer_mode = None
 
-        # get the file access info                                                                                                                                                                                                                  
+        # get the file access info
         directIn, directInType = getDirectAccess()
         useCT, oldPrefix, newPrefix = self.getFileAccessInfo(transferType)
 
@@ -1311,6 +1312,7 @@ class SiteInformation(object):
         if objectstoresInfo == []:
             objectstoresInfo = self.getObjectstoresInfo()
 
+        tolog("objectstoresInfo: %s" % objectstoresInfo)
         if objectstoresInfo:
             ddmendpoint = self.getObjectstoresField('ddmendpoint', os_bucket_name=os_bucket_name, os_bucket_id=os_bucket_id, objectstoresInfo=objectstoresInfo)
             if ddmendpoint == "":
@@ -1532,7 +1534,7 @@ class SiteInformation(object):
             rand = random.randrange(5, 20)
             tolog("!!WARNING!!3333!! Failed to get AGIS OS info file, sleep %s seconds" % rand)
             time.sleep(rand)
-            return getObjectstoreInfoFileReal()
+            return self.getObjectstoreInfoFileReal()
 
     def getObjectstoreInfoFileReal(self):
         """ Download the Objectstore info primarily from CVMFS and secondarily from the AGIS server """
@@ -1682,7 +1684,7 @@ class SiteInformation(object):
             tries = 2
             for trial in range(tries):
                 tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-                cmd = 'curl --connect-timeout 20 --max-time 120 -sS "http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s" >%s' % (queuename, filename)
+                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s\" >%s" % (queuename, filename)
                 tolog("Executing command: %s" % (cmd))
                 ret, output = commands.getstatusoutput(cmd)
 
@@ -1690,7 +1692,6 @@ class SiteInformation(object):
                 value = self.getField('objectstores', queuename=queuename)
                 if value:
                     status = True
-                    tolog("Downloaded queuedata")
                     break
 
         return status
@@ -1700,6 +1701,7 @@ class SiteInformation(object):
 
         value = None
         filename = self.getQueuedataFileName(version=version, check=False, queuename=queuename, os_bucket_id=os_bucket_id)
+        tolog("queuedata file: %s" % filename)
         if os.path.exists(filename):
 
             # Load the dictionary
@@ -1934,6 +1936,35 @@ class SiteInformation(object):
             ret.setdefault(pandaqueue, protocols)
 
         return ret
+
+
+    def resolvePandaCopytools(self, pandaqueues, activity):
+        """
+            Resolve supported copytools by given pandaqueues
+            Check first settings for requested activity (pr, pw), if not set then return all supported copytools
+            Return ordered list of accepted copytools
+            :return: dict('pandaqueue':[(copytool, {settings}), ('copytool_name', {'setup':''}), ])
+        """
+
+        if isinstance(pandaqueues, (str, unicode)):
+            pandaqueues = [pandaqueues]
+
+        r = self.loadSchedConfData(pandaqueues, cache_time=6000) or {} # quick stub: fix me later: schedconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+        self.schedconf = r
+
+        ret = {}
+        for pandaqueue in set(pandaqueues):
+            copytools = r.get(pandaqueue, {}).get('copytools', {})
+            cptools = []
+            for cp in r.get(pandaqueue, {}).get('acopytools', {}).get(activity, []) or copytools.iterkeys():
+                if cp not in copytools:
+                    continue
+                cptools.append((cp, copytools[cp]))
+
+            ret.setdefault(pandaqueue, cptools)
+
+        return ret
+
 
     # Optional
     def shouldExecuteBenchmark(self):

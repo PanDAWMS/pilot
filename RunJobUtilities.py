@@ -1,4 +1,5 @@
 import commands
+import json
 import os
 import socket
 import time
@@ -90,22 +91,8 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
         msgdic["mode"] = job.mode
     if job.hpcStatus:
         msgdic['hpcStatus'] = job.hpcStatus
-    if job.yodaSetupTime:
-        msgdic["yodaSetupTime"] = job.yodaSetupTime
-    if job.yodaTotalTime:
-        msgdic["yodaTotalTime"] = job.yodaTotalTime
-    if job.yodaTotalCPUHour:
-        msgdic['yodaTotalCPUHour'] = job.yodaTotalCPUHour
-    if job.yodaProcessCPUHour:
-        msgdic['yodaProcessCPUHour'] = job.yodaProcessCPUHour
-    if job.yodaCores:
-        msgdic['yodaCores'] = job.yodaCores
-    if job.yodaQueueEvents:
-        msgdic['yodaQueueEvents'] = job.yodaQueueEvents
-    if job.yodaProcessedEvents:
-        msgdic['yodaProcessedEvents'] = job.yodaProcessedEvents
-    if job.avgProcessTimePerEvent:
-        msgdic['avgProcessTimePerEvent'] = job.avgProcessTimePerEvent
+    if job.yodaJobMetrics:
+        msgdic["yodaJobMetrics"] = json.dumps(job.yodaJobMetrics)
     if job.HPCJobId:
         msgdic['HPCJobId'] = job.HPCJobId
 
@@ -365,7 +352,7 @@ def prepareInFiles(inFiles, filesizeIn, checksumIn):
     return ins, fIn, cIn
 
 def prepareOutFiles(outFiles, logFile, workdir, fullpath=False):
-    """ verify and prepare and the output files for transfer """
+    """ verify and prepare the output files for transfer """
 
     # fullpath = True means that the file in outFiles already has a full path, adding it to workdir is then not needed
     ec = 0
@@ -376,7 +363,7 @@ def prepareOutFiles(outFiles, logFile, workdir, fullpath=False):
     from SiteMover import SiteMover
     for outf in outFiles:
         if outf and outf != 'NULL': # non-empty string and not NULL
-            if (not os.path.isfile("%s/%s" % (workdir, outf)) and not fullpath) or (not os.path.isfile(outf) and fullpath): # expected output file is missing
+            if (not os.path.isfile("%s/%s" % (workdir, outf)) and not fullpath) or (not os.path.isfile(outf) and fullpath):
                 pilotErrorDiag = "Expected output file %s does not exist" % (outf)
                 tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
                 error = PilotErrors()

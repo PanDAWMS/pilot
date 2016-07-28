@@ -1,6 +1,8 @@
 import os, re, sys
 import commands
 from time import time, sleep
+import random
+import socket
 import urlparse
 import traceback
 
@@ -29,6 +31,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         self.s3Objectstore = None
         self.__isBotoLoaded = False
         self._useTimerCommand = useTimerCommand
+        self.__hosts = {}
 
     def get_timeout(self):
         return self.timeout
@@ -58,7 +61,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         hostname = None
         try:
-            import socket
             hostname = socket.getfqdn()
         except:
             tolog(traceback.format_exc())
@@ -100,6 +102,29 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 #
 #        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"])
         return 0, ""
+
+    def loadBalanceURL(self, url):
+        try:
+            parsed = urlparse.urlparse(url)
+            hostname = parsed.netloc.partition(':')[0]
+            port = int(parsed.netloc.partition(':')[2])
+
+            if hostname not in self.__hosts:
+                hosts = []
+                socket_hosts = socket.getaddrinfo(hostname, port)
+                for socket_host in socket_hosts:
+                    if socket_host[4][0] not in hosts and not ":" in socket_host[4][0]:
+                        hosts.append(socket_host[4][0])
+                if hosts:
+                    self.__hosts[hostname] = hosts
+
+            if hostname in self.__hosts:
+                new_host = random.choice(self.__hosts[hostname])
+                if new_host:
+                    return url.replace(hostname, new_host)
+        except:
+            tolog("Failed to load balance for url %s: %s" % (url, traceback.format_exc()))
+        return url
 
     def fixStageInPath(self, path):
         """Fix the path"""
@@ -268,6 +293,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if status:
             return status, output
 
+        ldSource = self.loadBalanceURL(source)
+        if ldSource:
+            self.log("Change url %s to load balance url %s" % (source, ldSource))
+            source = ldSource
+
         remoteSize = sourceSize
         remoteChecksum = sourceChecksum
         if remoteChecksum == None or remoteChecksum == "":
@@ -302,7 +332,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def stageOut(self, source, destination, token, experiment=None, outputDir=None, timeout=3600, os_bucket_id=-1):
         """Stage in the source file"""
-        self.log("Starting to stageout file %s to %s with token: %s" % (source, destination, token))
+        self.log("Starting to stageout file %s to %s with token: %s, os_bucket_id: %s" % (source, destination, token, os_bucket_id))
 
         status, output = self.setup(experiment, destination, os_bucket_id=os_bucket_id, label='w')
         if status:
@@ -313,6 +343,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         if status:
             self.log("Failed to get local file(%s) info." % destination)
             return status, output, None, None
+
+        ldDest = self.loadBalanceURL(destination)
+        if ldDest:
+            self.log("Change url %s to load balance url %s" % (destination, ldDest))
+            destination = ldDest
 
         status, output = self.stageOutFile(source, destination, localSize, localChecksum, token, outputDir=outputDir, timeout=timeout)
         self.log("stageOutFile status: %s, output: %s" % (status, output))
