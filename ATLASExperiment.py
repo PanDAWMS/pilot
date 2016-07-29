@@ -3673,7 +3673,7 @@ class ATLASExperiment(Experiment):
                         avgRSS = int(float(totalRSS)/float(N))
                         avgSwap = int(float(totalSwap)/float(N))
                     summary_dictionary["Avg"] = { "avgVMEM":avgVMEM, "avgPSS":avgPSS, "avgRSS":avgRSS, "avgSwap":avgSwap }
-                    tolog("summary_dictionary=%s"%str(summary_dictionary))
+
                 f.close()
         else:
             if path == "":
