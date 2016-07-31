@@ -150,31 +150,37 @@ def tologNew(msg, tofile=True, label='INFO', essential=False):
 def tolog(msg, tofile=True, label='INFO', essential=False):
     """ Write date+msg to pilot log and to stdout """
 
-    import inspect
-
-    MAXLENGTH = 12
-    # getting the name of the module that is invoking tolog() and adjust the length
     try:
-        module_name = os.path.basename(inspect.stack()[1][1])
-    except Exception, e:
-        module_name = "unknown"
-        #print "Exception caught by tolog(): ", e,
-    module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
-    msg = "%s| %s" % (module_name_cut, msg)
+        import inspect
 
-    t = timeStampUTC()
-    if tofile:
-        appendToLog("%s|%s\n" % (t, msg))
+        MAXLENGTH = 12
+        # getting the name of the module that is invoking tolog() and adjust the length
+        try:
+            module_name = os.path.basename(inspect.stack()[1][1])
+        except Exception, e:
+            module_name = "unknown"
+            #print "Exception caught by tolog(): ", e,
+        module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
+        msg = "%s| %s" % (module_name_cut, msg)
 
-    # remove backquotes from the msg since they cause problems with batch submission of pilot
-    # (might be present in error messages from the OS)
-    msg = msg.replace("`","'")
-    msg = msg.replace('"','\\"')
-    print "%s| %s" % (t, msg)
+        t = timeStampUTC()
+        if tofile:
+            appendToLog("%s|%s\n" % (t, msg))
 
-    # write any FAILED messages to stderr
-    if "!!FAILED!!" in msg:
-        print >> sys.stderr, "%s| %s" % (t, msg)
+        # remove backquotes from the msg since they cause problems with batch submission of pilot
+        # (might be present in error messages from the OS)
+        msg = msg.replace("`","'")
+        msg = msg.replace('"','\\"')
+        print "%s| %s" % (t, msg)
+
+        # write any FAILED messages to stderr
+        if "!!FAILED!!" in msg:
+            try:
+                print >> sys.stderr, "%s| %s" % (t, msg)
+            except:
+                print "Failed to print to sys.stderr: %s" % (t, msg)
+    except:
+        print "!!WARNING!!4000!! %s" % traceback.format_exc()
 
 def tolog_err(msg):
     """ write error string to log """
