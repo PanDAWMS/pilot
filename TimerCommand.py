@@ -17,7 +17,7 @@ import traceback
 
 from Queue import Empty, Full
 import subprocess, threading
-from multiprocessing import Process, Queue
+import multiprocessing
 
 class TimerCommand(object):
     def __init__(self, cmd=None):
@@ -85,8 +85,8 @@ class TimerCommand(object):
             except:
                 retQ.put((-1, error + '%s\n' % traceback.format_exc()))
 
-        retQ = Queue()
-        process = Process(target=target, args=(func, args, retQ))
+        retQ = multiprocessing.Queue()
+        process = multiprocessing.Process(target=target, args=(func, args, retQ))
         try:
             process.start()
         except:
@@ -111,4 +111,9 @@ class TimerCommand(object):
                     except:
                         pass
                     process.join(2)
+        finally:
+            while process.is_alive():
+                process.join(2)
+            multiprocessing.active_children()
+                
         return ret
