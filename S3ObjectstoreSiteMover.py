@@ -89,18 +89,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure, self._useTimerCommand)
 
-#        keyPair = None
-#        if re.search("^s3://.*\.usatlas\.bnl\.gov:8443", surl) != None:
-#            keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
-#        if re.search("^s3://.*\.cern\.ch:443", surl) != None:
-#            keyPair = si.getSecurityKey('CERN_ObjectStoreKey', 'CERN_ObjectStoreKey.pub')
-#        if surl.startswith("s3://s3.amazonaws.com:80"):
-#            keyPair = si.getSecurityKey('Amazon_ObjectStoreKey', 'Amazon_ObjectStoreKey.pub')
-#        if keyPair == None or keyPair["publicKey"] == None or keyPair["privateKey"] == None:
-#            tolog("Failed to get the keyPair for S3 objectstore %s " % (surl))
-#            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
-#
-#        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"])
         return 0, ""
 
     def loadBalanceURL(self, url):
