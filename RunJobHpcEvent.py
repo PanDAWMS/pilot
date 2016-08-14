@@ -228,7 +228,10 @@ class RunJobHpcEvent(RunJob):
         setup = siteInfo.getCopySetup(stageIn=False)
         tolog("Copy Setup: %s" % (setup))
         espath = getFilePathForObjectStore(filetype="eventservice")
-        #espath = si.getObjectstorePath(os_bucket_id=os_bucket_ids[i], label='r')
+        #ddmendpoint = siteInfo.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
+        #os_bucket_id = siteInfo.getObjectstoreBucketID(ddmendpoint)
+        #tolog("Will use the default bucket ID: %s" % (os_bucket_id))
+        #espath = siteInfo.getObjectstorePath(os_bucket_id=os_bucket_id, label='w')
         tolog("ES path: %s" % (espath))
         os_bucket_id = siteInfo.getObjectstoresField('os_bucket_id', 'eventservice')
         tolog("The default bucket ID: %s for queue %s" % (os_bucket_id, self.__jobSite.computingElement))
@@ -321,7 +324,7 @@ class RunJobHpcEvent(RunJob):
             self.failOneJob(0, PilotErrors.ERR_UNKNOWN, job, pilotErrorDiag=pilotErrorDiag, final=True, updatePanda=False)
             return -1
 
-        current_dir = os.getcwd()
+        current_dir = self.__pilotWorkingDir
         os.chdir(job.workdir)
 
         tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
@@ -558,7 +561,7 @@ class RunJobHpcEvent(RunJob):
     def stageInOneJob(self, job, jobSite, analysisJob, avail_files={}, pfc_name="PoolFileCatalog.xml"):
         """ Perform the stage-in """
 
-        current_dir = os.getcwd()
+        current_dir = self.__pilotWorkingDir
         os.chdir(job.workdir)
         tolog("Start to stage in input files for job %s" % job.jobId)
         tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
@@ -630,7 +633,7 @@ class RunJobHpcEvent(RunJob):
     def failOneJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True, final=True, updatePanda=False):
         """ set the fail code and exit """
 
-        current_dir = os.getcwd()
+        current_dir = self.__pilotWorkingDir
         if pilotExitCode and job.attemptNr < 4 and job.eventServiceMerge:
             pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
         job.setState(["failed", transExitCode, pilotExitCode])
@@ -749,7 +752,7 @@ class RunJobHpcEvent(RunJob):
 
     def prepareHPCJob(self, job):
         tolog("Prepare for job %s" % job.jobId)
-        current_dir = os.getcwd()
+        current_dir = self.__pilotWorkingDir
         os.chdir(job.workdir)
         tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
 
@@ -959,12 +962,16 @@ class RunJobHpcEvent(RunJob):
             siteInfo = getSiteInformation(self.getExperiment())
             objectstore_orig = siteInfo.readpar("objectstore")
             #siteInfo.replaceQueuedataField("objectstore", self.__job.prodDBlockTokenForOutput[0])
-            espath = getFilePathForObjectStore(filetype="eventservice")
         else:
             #siteInfo = getSiteInformation(self.getExperiment())
             #objectstore = siteInfo.readpar("objectstore")
-            espath = getFilePathForObjectStore(filetype="eventservice")
+            pass
         espath = getFilePathForObjectStore(filetype="eventservice")
+        #siteInfo = getSiteInformation(self.getExperiment())
+        #ddmendpoint = siteInfo.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
+        #os_bucket_id = siteInfo.getObjectstoreBucketID(ddmendpoint)
+        #tolog("Will use the default bucket ID: %s" % (os_bucket_id))
+        #espath = siteInfo.getObjectstorePath(os_bucket_id=os_bucket_id, label='w')
         tolog("EventServer objectstore path: " + espath)
 
         siteInfo = getSiteInformation(self.getExperiment())
@@ -1143,6 +1150,13 @@ class RunJobHpcEvent(RunJob):
             setup = self.__siteInfo.getCopySetup(stageIn=False)
 
             espath = getFilePathForObjectStore(filetype="eventservice")
+            #siteInfo = getSiteInformation(self.getExperiment())
+            #ddmendpoint = siteInfo.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
+            #os_bucket_id = siteInfo.getObjectstoreBucketID(ddmendpoint)
+            #tolog("Will use the default bucket ID: %s" % (os_bucket_id))
+            #espath = siteInfo.getObjectstorePath(os_bucket_id=os_bucket_id, label='w')
+            #tolog("EventServer objectstore path: " + espath)
+
             token = None
             
             self.__eventStager = EventStager(workDir=self.__pilotWorkingDir, setup=setup, esPath=espath, token=token, experiment=self.getExperiment(), userid=self.__userid, sitename=self.__jobSite.sitename, threads=self.__stageout_threads, outputDir=self.getOutputDir(), yodaToOS=self.__yoda_to_os)
@@ -1403,6 +1417,10 @@ class RunJobHpcEvent(RunJob):
             setup = siteInfo.getCopySetup(stageIn=False)
             tolog("Copy Setup: %s" % (setup))
             espath = getFilePathForObjectStore(filetype="eventservice")
+            #ddmendpoint = siteInfo.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
+            #os_bucket_id = siteInfo.getObjectstoreBucketID(ddmendpoint)
+            #tolog("Will use the default bucket ID: %s" % (os_bucket_id))
+            #espath = siteInfo.getObjectstorePath(os_bucket_id=os_bucket_id, label='w')
             tolog("ES path: %s" % (espath))
             os_bucket_id = siteInfo.getObjectstoresField('os_bucket_id', 'eventservice')
             tolog("Will create a list using the default bucket ID: %s for queue %s" % (os_bucket_id, self.__jobSite.computingElement))
@@ -1454,12 +1472,13 @@ class RunJobHpcEvent(RunJob):
                 state = hpcManager.poll()
                 self.__hpcStatue = state
                 if old_state is None or old_state != state or time.time() > (time_start + 60*10):
-                    old_state = state
                     time_start = time.time()
                     tolog("HPCManager Job stat: %s" % state)
                     self.checkJobMetrics()
-                    #if state and state == 'Running':
-                    #    self.updateAllJobsState('running', self.__hpcStatue, updatePanda=True)
+                #if state and state == 'Running' and state != old_state:
+                #    self.updateAllJobsState('running', self.__hpcStatue, updatePanda=True)
+
+                old_state = state
 
                 if state and state == 'Complete':
                     break
@@ -1583,7 +1602,7 @@ class RunJobHpcEvent(RunJob):
 
     def finishOneJob(self, job):
         tolog("Finishing job %s" % job.jobId)
-        current_dir = os.getcwd()
+        current_dir = self.__pilotWorkingDir
         os.chdir(job.workdir)
         tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
 
@@ -1661,10 +1680,7 @@ class RunJobHpcEvent(RunJob):
             self.failOneJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag, final=True, updatePanda=False)
             return -1
 
-        job.jobState = "finished"
-        job.setState([job.jobState, 0, 0])
-        job.jobState = job.result
-        rt = RunJobUtilities.updatePilotServer(job, self.getPilotServer(), self.getPilotPort(), final=True)
+        self.updateJobState(job, "finished", "finished", final=False)
 
         tolog("Panda Job %s Done" % job.jobId)
         #self.sysExit(self.__job)
