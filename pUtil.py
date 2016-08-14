@@ -1936,7 +1936,7 @@ class _Curl:
         # make command
         com = '%s --silent --get' % self.path
         if "HPC_HPC" in readpar('catchall'):
-            com += ' --tls'
+            com += ' --tlsv1'
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -1988,7 +1988,7 @@ class _Curl:
         # make command
         com = '%s --silent --show-error' % self.path
         if "HPC_HPC" in readpar('catchall'):
-            com += ' --tls'
+            com += ' --tlsv1'
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -2049,7 +2049,7 @@ class _Curl:
         # make command
         com = '%s --silent' % self.path
         if "HPC_HPC" in readpar('catchall'):
-            com += ' --tls'
+            com += ' --tlsv1'
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
