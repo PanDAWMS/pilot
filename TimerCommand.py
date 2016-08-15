@@ -91,6 +91,7 @@ class TimerCommand(object):
             process.start()
         except:
             timeout = 1
+        ret = None
         try:
             ret = retQ.get(block=True, timeout=timeout)
         except Empty:
@@ -113,7 +114,10 @@ class TimerCommand(object):
                     process.join(2)
         finally:
             while process.is_alive():
+                process.terminate()
                 process.join(2)
             multiprocessing.active_children()
+            if ret is None:
+                ret = (-1, "function failed with unknow error")
                 
         return ret
