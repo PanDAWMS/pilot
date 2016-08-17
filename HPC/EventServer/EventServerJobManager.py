@@ -61,6 +61,33 @@ class EventServerJobManager():
             except:
                 self.__log.debug("Exception: Message Thread failed: %s" % traceback.format_exc())
 
+
+    class HelperThread(threading.Thread):
+        def __init__(self, logger, helperFunc, **kwds):
+            threading.Thread.__init__(self, **kwds)
+            self.__log = logger
+            self.__func = helperFunc
+            self._stop = threading.Event()
+            self.__log.debug("HelperThread initialized.")
+
+        def stop(self):
+            self._stop.set()
+
+        def stopped(self):
+            return self._stop.isSet()
+
+        def run(self):
+            try:
+                exec_time = None
+                while True:
+                    if self.stopped():
+                        break
+                    if exec_time is None or exec_time < time.time() - 60:
+                        self.__func()
+            except:
+                self.__log.debug("Exception: HelperThread failed: %s" % traceback.format_exc())
+
+
     def __init__(self, rank=None, ATHENA_PROC_NUMBER=1, workingDir=None):
         self.__rank = rank
         self.__name = "EventServerJobManager"
@@ -108,6 +135,8 @@ class EventServerJobManager():
         self.__endOSTimes = None
         self.__totalQueuedEvents = 0
         self.__totalProcessedEvents = 0
+        self.__cpuConsumptionTime = 0
+        self.__helperThread = None
 
     def handler(self, signal, frame):
         self.__log.debug("!!FAILED!!3000!! Signal %s is caught" % signal)
@@ -171,7 +200,7 @@ class EventServerJobManager():
             self.__log.debug("Rank %s: Failed to get cpu consumption time from proc: %s" % (self.__rank, traceback.format_exc()))
         return cpuConsumptionTime
 
-    def getCPUConsumptionTime(self):
+    def getCPUConsumptionTimeReal(self):
         cpuConsumptionUnit, cpuConsumptionTime, cpuConversionFactor = getCPUTimes(os.getcwd())
         self.__log.debug("Rank %s: cpuConsumptionTime: %s" % (self.__rank, cpuConsumptionTime))
         self.__log.debug("Rank %s: start os.times: %s" % (self.__rank, self.__startOSTimes))
@@ -189,6 +218,12 @@ class EventServerJobManager():
             cpuConsumptionTime = procCPUConsumptionTime
         self.__log.debug("Rank %s: cpuConsumptionTime: %s" % (self.__rank, cpuConsumptionTime))
         return cpuConsumptionTime
+
+    def getCPUConsumptionTime(self):
+        return self.__cpuConsumptionTime
+
+    def helperFunc(self):
+        self.__getCPUConsumptionTime = self.getCPUConsumptionTimeReal()
 
     def getCores(self):
         return self.__ATHENA_PROC_NUMBER
@@ -306,6 +341,9 @@ class EventServerJobManager():
             os._exit(0)
         else:
             self.__child_pid = child_pid
+            self.__log.debug("Rank %s: Initialize helper thread" % (self.__rank))
+            self.__helperThread = EventServerJobManager.HelperThread(self.__log, self.helperFunc)
+            self.__helperThread.start()
             return 0
             
     def insertEventRange(self, message):
@@ -427,6 +465,7 @@ class EventServerJobManager():
             self.__log.debug("Rank %s: Child process id is %s" % (self.__rank, self.__child_pid))
             if self.__endTime is None:
                 self.__endTime = time.time()
+            if self.__helperThread: self.__helperThread.stop()
             return True
         try:
             pid, status = os.waitpid(self.__child_pid, os.WNOHANG)
@@ -436,6 +475,7 @@ class EventServerJobManager():
                 self.__childRetStatus = 0
                 if self.__endTime is None:
                     self.__endTime = time.time()
+                if self.__helperThread: self.__helperThread.stop()
                 return True
         else:
             if pid: # finished
@@ -443,6 +483,7 @@ class EventServerJobManager():
                 self.__childRetStatus = status%255
                 if self.__endTime is None:
                     self.__endTime = time.time()
+                if self.__helperThread: self.__helperThread.stop()
                 return True
         return False
 
@@ -624,6 +665,7 @@ class EventServerJobManager():
                     self.__log.warning("Rank %s: SIGKILL error: %s" % (self.__rank, str(traceback.format_exc())))
 
     def terminateChild(self):
+        if self.__helperThread: self.__helperThread.stop()
         self.__isKilled = True
         self.__log.debug("Rank %s: ESJobManager Child is terminating" % self.__rank)
         try:
@@ -654,6 +696,7 @@ class EventServerJobManager():
         self.__messageThread.stop()
 
     def terminate(self):
+        if self.__helperThread: self.__helperThread.stop()
         self.__isKilled = True
         self.__log.debug("Rank %s: ESJobManager is terminating" % self.__rank)
         try:
