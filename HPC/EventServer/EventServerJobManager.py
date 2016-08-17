@@ -185,7 +185,7 @@ class EventServerJobManager():
                 cpuConsumptionTime = 0
         procCPUConsumptionTime = self.getCPUConsumptionTimeFromProc()
         self.__log.debug("Rank %s: cpuConsumptionTime from proc: %s" % (self.__rank, procCPUConsumptionTime))
-        if self.__isKilled or cpuConsumptionTime < procCPUConsumptionTime / 2:
+        if self.__isKilled or cpuConsumptionTime < procCPUConsumptionTime * 0.9:
             cpuConsumptionTime = procCPUConsumptionTime
         self.__log.debug("Rank %s: cpuConsumptionTime: %s" % (self.__rank, cpuConsumptionTime))
         return cpuConsumptionTime

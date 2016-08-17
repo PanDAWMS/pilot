@@ -541,15 +541,15 @@ class Yoda(threading.Thread):
         else:
             metadataFileName = os.path.join(self.globalWorkingDir, etadataFileName)
 
-        if os.path.exists(outFileName):
-            shutil.copyfile(outFileName, outFileName + ".backup")
-        if os.path.exists(metadataFileName):
-            shutil.copyfile(metadataFileName, metadataFileName + ".backup")
+        #if os.path.exists(outFileName):
+        #    shutil.copyfile(outFileName, outFileName + ".backup")
+        #if os.path.exists(metadataFileName):
+        #    shutil.copyfile(metadataFileName, metadataFileName + ".backup")
 
-        outFile = open(outFileName,'w')
+        outFile = open(outFileName + ".new", 'w')
 
         self.tmpLog.debug("dumpUpdates: outputDir %s, metadataFileName %s" % (self.outputDir, metadataFileName))
-        metafd = open(metadataFileName, "w")
+        metafd = open(metadataFileName + ".new", "w")
         metafd.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
         metafd.write("<!-- Edited By POOL -->\n")
         metafd.write('<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">\n')
@@ -558,6 +558,8 @@ class Yoda(threading.Thread):
         for eventRangeID,status,output in outputs:
             outFile.write('{0} {1} {2} {3}\n'.format(str(jobId), str(eventRangeID), str(status), str(output)))
 
+            if status != 'finished':
+                continue
             metafd.write('  <File EventRangeID="%s">\n' % (eventRangeID))
             metafd.write("    <physical>\n")
             if isinstance(output, (list, tuple)):
@@ -572,6 +574,16 @@ class Yoda(threading.Thread):
         outFile.close()
         metafd.write("</POOLFILECATALOG>\n")
         metafd.close()
+
+        # mv the new file to overwrite the current one
+        command = "mv %s.new %s" % (outFileName, outFileName)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
+        command = "mv %s.new %s" % (metadataFileName, metadataFileName)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
 
     def updateFinishedEventRangesToDB(self):
         try:
@@ -690,14 +702,7 @@ class Yoda(threading.Thread):
 
 
     def dumpJobMetrics(self):
-        #jobMetricsFileName = "jobMetrics-yoda-%s.json" % jobId
         jobMetricsFileName = "jobMetrics-yoda.json"
-        #if self.outputDir:
-        #    jobMetrics = os.path.join(self.outputDir, jobMetricsFileName)
-        #else:
-        # backup file first
-        if os.path.exists(jobMetricsFileName):
-            shutil.copyfile(jobMetricsFileName, jobMetricsFileName + ".backup")
         try:
             #outputDir = self.jobs[jobId]["GlobalWorkingDir"]
             outputDir = self.globalWorkingDir
@@ -705,19 +710,29 @@ class Yoda(threading.Thread):
             self.tmpLog.debug("Failed to get job's global working dir: %s" % (traceback.format_exc()))
             outputDir = self.globalWorkingDir
         jobMetrics = os.path.join(outputDir, jobMetricsFileName)
-        self.tmpLog.debug("JobMetrics file: %s" % jobMetrics)
-        tmpFile = open(jobMetrics, "w")
+        self.tmpLog.debug("JobMetrics file: %s" % (jobMetrics + ".new"))
+        tmpFile = open(jobMetrics+ ".new", "w")
         json.dump(self.jobMetrics, tmpFile)
         tmpFile.close()
+
+        command = "mv %s.new %s" % (jobMetrics, jobMetrics)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
 
     def dumpJobsStartTime(self):
         jobsTimestampFileName = "jobsTimestamp-yoda.json"
         outputDir = self.globalWorkingDir
         jobsTimestampFile = os.path.join(outputDir, jobsTimestampFileName)
-        self.tmpLog.debug("JobsStartTime file: %s" % jobsTimestampFile)
-        tmpFile = open(jobsTimestampFile, "w")
+        self.tmpLog.debug("JobsStartTime file: %s" % (jobsTimestampFile + ".new"))
+        tmpFile = open(jobsTimestampFile + ".new", "w")
         json.dump(self.jobsTimestamp, tmpFile)
         tmpFile.close()
+
+        command = "mv %s.new %s" % (jobsTimestampFile, jobsTimestampFile)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
 
     # main yoda
     def runYoda(self):

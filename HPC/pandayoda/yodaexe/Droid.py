@@ -54,6 +54,8 @@ class Droid(threading.Thread):
         self.__firstGetEventRanges = True
         self.__outputDir = outputDir
 
+        self.__yodaToOS = False
+
         self.reserveCores = reserveCores
         self.__hostname = socket.getfqdn()
 
@@ -107,6 +109,8 @@ class Droid(threading.Thread):
             self.__copyInputFiles = job.get('CopyInputFiles', False)
             self.__preSetup = job.get('PreSetup', None)
             self.__postRun = job.get('PostRun', None)
+
+            self.__yodaToOS = job.get('yodaToOS', False)
 
             self.__ATHENA_PROC_NUMBER = int(job.get('ATHENA_PROC_NUMBER', 1))
             self.__ATHENA_PROC_NUMBER -= self.reserveCores
@@ -278,7 +282,7 @@ class Droid(threading.Thread):
             outputs.append(output)
             if output['eventStatus'] == 'stagedOut':
                 stagedOutpus.append({'eventRangeID': output['eventRangeID'], 'eventStatus': 'finished', 'objstoreID': output['objstoreID']})
-            elif output['eventStatus'].startswith("ERR"):
+            elif output['eventStatus'].startswith("ERR") and self.__yodaToOS:
                 stagedOutpus.append({'eventRangeID': output['eventRangeID'], 'eventStatus': 'failed'})
         if len(stagedOutpus):
             self.__tmpLog.debug("Rank %s: updatePandaEventRanges(request: %s)" % (self.__rank, stagedOutpus))
