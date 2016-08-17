@@ -261,7 +261,7 @@ class Yoda(threading.Thread):
             for jobId in self.jobs:
                 job = self.jobs[jobId]
                 neededRanks = job['neededRanks']
-                readyEvents = self.readyJobsEventRanges[jobId] if jobId in self.readyJobsEventRanges else 0
+                readyEvents = len(self.readyJobsEventRanges[jobId]) if jobId in self.readyJobsEventRanges else 0
                 self.tmpLog.debug("Rank %s: Job %s has %s events, needs %s ranks" % (self.rank, jobId, readyEvents, neededRanks))
         except:
             self.tmpLog.debug("Rank %s: %s" % (self.rank, traceback.format_exc()))
