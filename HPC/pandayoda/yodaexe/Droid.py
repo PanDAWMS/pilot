@@ -449,7 +449,7 @@ class Droid(threading.Thread):
             if heartbeatTime is None:
                 self.heartbeat()
                 heartbeatTime = time.time()
-            elif time.time() - heartbeatTime > 60 * 3:
+            elif time.time() - heartbeatTime > 60:
                 self.heartbeat()
                 self.__tmpLog.info("Rank %s: os.times: %s" % (self.__rank, os.times()))
                 heartbeatTime = time.time()

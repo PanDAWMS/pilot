@@ -21,7 +21,33 @@ from signal_block.signal_block import block_sig, unblock_sig
 
 # main Yoda class
 class Yoda(threading.Thread):
-    
+    class HelperThread(threading.Thread):
+        def __init__(self, logger, helperFunc, **kwds):
+            threading.Thread.__init__(self, **kwds)
+            self.__log = logger
+            self.__func = helperFunc
+            self._stop = threading.Event()
+            self.__log.debug("HelperThread initialized.")
+
+        def stop(self):
+            self._stop.set()
+
+        def stopped(self):
+            return self._stop.isSet()
+
+        def run(self):
+            try:
+                exec_time = None
+                while True:
+                    if self.stopped():
+                        break
+                    if exec_time is None or exec_time < time.time() - 60:
+                        exec_time = time.time()
+                        self.__func()
+            except:
+                self.__log.debug("Exception: HelperThread failed: %s" % traceback.format_exc())
+
+
     # constructor
     def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None, rank=None, nonMPIMode=False, outputDir=None, dumpEventOutputs=False):
         threading.Thread.__init__(self)
@@ -230,6 +256,18 @@ class Yoda(threading.Thread):
             errMsg = 'failed to make event table with {0}:{1}'.format(errtype.__name__,errvalue)
             return False,errMsg
         
+    def printEventStatus(self):
+        try:
+            for jobId in self.jobs:
+                job = self.jobs[jobId]
+                neededRanks = job['neededRanks']
+                readyEvents = self.readyJobsEventRanges[jobId] if jobId in self.readyJobsEventRanges else 0
+                self.tmpLog.debug("Rank %s: Job %s has %s events, needs %s ranks" % (self.rank, jobId, readyEvents, neededRanks))
+        except:
+            self.tmpLog.debug("Rank %s: %s" % (self.rank, traceback.format_exc()))
+            errtype,errvalue = sys.exc_info()[:2]
+            errMsg = 'failed to make event table with {0}:{1}'.format(errtype.__name__,errvalue)
+            return False,errMsg
 
     # inject more events
     def injectEvents(self):
@@ -534,56 +572,62 @@ class Yoda(threading.Thread):
         timeNow = datetime.datetime.utcnow()
         #outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
         outFileName = str(jobId) + "_event_status.dump" + type
-        etadataFileName = 'metadata-' + outFileName.split('.dump')[0] + '.xml'
         outFileName = os.path.join(self.globalWorkingDir, outFileName)
-        if self.outputDir:
-            metadataFileName = os.path.join(self.outputDir, etadataFileName)
-        else:
-            metadataFileName = os.path.join(self.globalWorkingDir, etadataFileName)
-
-        #if os.path.exists(outFileName):
-        #    shutil.copyfile(outFileName, outFileName + ".backup")
-        #if os.path.exists(metadataFileName):
-        #    shutil.copyfile(metadataFileName, metadataFileName + ".backup")
-
         outFile = open(outFileName + ".new", 'w')
+        self.tmpLog.debug("dumpUpdates: dumpFileName %s" % (outFileName))
 
-        self.tmpLog.debug("dumpUpdates: outputDir %s, metadataFileName %s" % (self.outputDir, metadataFileName))
-        metafd = open(metadataFileName + ".new", "w")
-        metafd.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
-        metafd.write("<!-- Edited By POOL -->\n")
-        metafd.write('<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">\n')
-        metafd.write("<POOLFILECATALOG>\n")
+        metadataFileName = None
+        metafd = None
+        # if self.dumpEventOutputs:
+        if True:
+            metadataFileName = 'metadata-' + os.path.basename(outFileName).split('.dump')[0] + '.xml'
+            if self.outputDir:
+                metadataFileName = os.path.join(self.outputDir, metadataFileName)
+            else:
+                metadataFileName = os.path.join(self.globalWorkingDir, metadataFileName)
+
+
+            self.tmpLog.debug("dumpUpdates: outputDir %s, metadataFileName %s" % (self.outputDir, metadataFileName))
+            metafd = open(metadataFileName + ".new", "w")
+            metafd.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
+            metafd.write("<!-- Edited By POOL -->\n")
+            metafd.write('<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">\n')
+            metafd.write("<POOLFILECATALOG>\n")
 
         for eventRangeID,status,output in outputs:
             outFile.write('{0} {1} {2} {3}\n'.format(str(jobId), str(eventRangeID), str(status), str(output)))
 
             if status != 'finished':
                 continue
-            metafd.write('  <File EventRangeID="%s">\n' % (eventRangeID))
-            metafd.write("    <physical>\n")
-            if isinstance(output, (list, tuple)):
-                for output1 in output:
-                    metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (str(output1)))
-            else:
-                for output1 in output.split(",")[:-3]:
-                    metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (str(output1)))
-            metafd.write("    </physical>\n")
-            metafd.write("  </File>\n")
+
+            if metafd:
+                metafd.write('  <File EventRangeID="%s">\n' % (eventRangeID))
+                metafd.write("    <physical>\n")
+                if isinstance(output, (list, tuple)):
+                    for output1 in output:
+                        metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (str(output1)))
+                else:
+                    for output1 in output.split(",")[:-3]:
+                        metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (str(output1)))
+                metafd.write("    </physical>\n")
+                metafd.write("  </File>\n")
 
         outFile.close()
-        metafd.write("</POOLFILECATALOG>\n")
-        metafd.close()
+        if metafd:
+            metafd.write("</POOLFILECATALOG>\n")
+            metafd.close()
 
         # mv the new file to overwrite the current one
         command = "mv %s.new %s" % (outFileName, outFileName)
         retS, retOut = commands.getstatusoutput(command)
         if retS:
             self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
-        command = "mv %s.new %s" % (metadataFileName, metadataFileName)
-        retS, retOut = commands.getstatusoutput(command)
-        if retS:
-            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
+
+        if metadataFileName:
+            command = "mv %s.new %s" % (metadataFileName, metadataFileName)
+            retS, retOut = commands.getstatusoutput(command)
+            if retS:
+                self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
 
     def updateFinishedEventRangesToDB(self):
         try:
@@ -612,7 +656,7 @@ class Yoda(threading.Thread):
         timeNow = time.time()
         # forced or first dump or enough interval
         if force or self.updateEventRangesToDBTime == None or \
-            ((timeNow - self.updateEventRangesToDBTime) > 60 * 2):
+            ((timeNow - self.updateEventRangesToDBTime) > 60 * 5):
             self.tmpLog.debug('start to updateEventRangesToDB')
             self.updateEventRangesToDBTime = time.time()
             #if not final:
@@ -734,6 +778,13 @@ class Yoda(threading.Thread):
         if retS:
             self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
 
+    def helperFunction(self):
+        # flush the updated event ranges to db
+        self.updateEventRangesToDB(force=True)
+
+        self.dumpJobMetrics()
+        self.dumpJobsStartTime()
+
     # main yoda
     def runYoda(self):
         # get logger
@@ -760,6 +811,14 @@ class Yoda(threading.Thread):
             self.tmpLog.error(tmpOut)
             sys.exit(1)
 
+        # print event status
+        self.tmpLog.info('print event status')
+        tmpStat,tmpOut = self.printEventStatus()
+
+        self.tmpLog.info('Initialize Helper thread')
+        helperThread = Yoda.HelperThread(self.tmpLog, self.helperFunction)
+        helperThread.start()
+
         # main loop
         self.tmpLog.info('main loop')
         time_dupmJobMetrics = time.time()
@@ -784,13 +843,7 @@ class Yoda(threading.Thread):
             else:
                 self.tmpLog.error('unknown method={0} was requested from rank={1} '.format(method,
                                                                                       self.comm.getRequesterRank()))
-            # flush the updated event ranges to db
-            self.updateEventRangesToDB(force=False)
-            if time_dupmJobMetrics < time.time() - 60:
-                self.dumpJobMetrics()
-                self.dumpJobsStartTime()
-                time_dupmJobMetrics = time.time()
-
+        helperThread.stop()
         self.flushMessages()
         #self.updateFailedEventRanges()
         self.updateEventRangesToDB(force=True)
