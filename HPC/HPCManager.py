@@ -237,7 +237,9 @@ class HPCManager:
         # 1 Yoda and (self.__nodes -1) Droid
         # plus 1 cached event per node
         #return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER) + (int(self.__nodes) -1) * 1
-        return int(self.__eventsPerWorker) * (int(self.__nodes) -0) * int(self.__ATHENA_PROC_NUMBER)
+
+        # try to download 1.5 times of events than predicted.
+        return int(self.__eventsPerWorker * self.__nodes * self.__ATHENA_PROC_NUMBER * 1.5)
 
     def initJobs(self, jobs, eventRanges):
         self.__log.info("initJobs: %s" % jobs)

@@ -182,7 +182,8 @@ class Yoda(threading.Thread):
             keys.sort()
             for key in keys:
                 for jobId in neededRanks[key]:            
-                    for i in range(int(math.ceil(key))):
+                    # for i in range(int(math.ceil(key))):
+                    for i in range(int(key)):
                         self.jobRanks.append(jobId)
             return True,self.jobRanks
         except:
@@ -340,7 +341,9 @@ class Yoda(threading.Thread):
                 break
 
         if job is None:
-            self.rescheduleJobRanks()
+            # disable reschedule job ranks, it will split jobs to additional ranks
+            # instead, pilot will download more events then expected
+            # self.rescheduleJobRanks()
             while len(self.jobRanks):
                 jobId = self.jobRanks.pop(0)
                 if len(self.readyJobsEventRanges[jobId]) > 0:
