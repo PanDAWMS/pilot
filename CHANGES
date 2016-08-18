@@ -400,7 +400,10 @@ PoolFileCatalog updates:
 - Summary: it was observed that AthenaMP jobs can't process more than one input file, at least when running DAOD building.
 - Solution: pilot writes explicit absolute paths for files listen in PoolFileCatalog
 
-Updates from Wen Guan:
+Nentries update:
+- Updated extractOutputFilesFromJSON() to handle missing nentries in jobReport (FileHandling)
+
+Updates from Wen Guan (1):
 - Test cpuconsumptiontime from proc
 - Tight yoda job scheduling
 - Send user signal to Yoda before job finished
@@ -439,6 +442,10 @@ M RunJobHpcarcEvent.py (6)
 M S3ObjectstoreSiteMover.py (4)
 M UpdateHandler.py (2)
 M pUtil.py (26)
+
+Updates from Wen Guan (2):
+
+..
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
