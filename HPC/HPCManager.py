@@ -211,9 +211,14 @@ class HPCManager:
         self.__walltime_m = walltime
         h, m = divmod(walltime, 60)
         self.__walltime = "%d:%02d:%02d" % (h, m, 0)
-        self.__eventsPerWorker = (int(walltime) - int(initialtime_m))/time_per_event_m
+        self.__eventsPerWorker = (int(walltime) - int(initialtime_m)) * 1.0 /time_per_event_m
+        self.__log.info("Walltime(minutes): %s" % walltime)
+        self.__log.info("InitialTime(configured minutes): %s" % initialtime_m)
+        self.__log.info("Time per event(minutes): %s" % time_per_event_m)
         if self.__eventsPerWorker < 1:
             self.__eventsPerWorker = 1
+        self.__log.info("Events per worker: (wallTime-initialTime)/timePerEvent=%s" % self.__eventsPerWorker)
+
         self.__ATHENA_PROC_NUMBER = defaultResources['ATHENA_PROC_NUMBER']
         self.__repo = defaultResources['repo']
         self.__yodaToOS = defaultResources.get('yoda_to_os', False)
@@ -239,7 +244,12 @@ class HPCManager:
         #return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER) + (int(self.__nodes) -1) * 1
 
         # try to download 1.5 times of events than predicted.
-        return int(self.__eventsPerWorker * self.__nodes * self.__ATHENA_PROC_NUMBER * 1.5)
+        self.__log.info("Events per worker: %s" % self.__eventsPerWorker)
+        self.__log.info("Nodes: %s" % self.__nodes)
+        self.__log.info("Cores per node: %s" % self.__ATHENA_PROC_NUMBER)
+        totalNeededEvents = int(self.__eventsPerWorker * int(self.__nodes) * int(self.__ATHENA_PROC_NUMBER) * 1.5)
+        self.__log.info("Total needed Events: eventsPerWorker * nodes * coresPerNode * 1.5 = %s" % totalNeededEvents)
+        return totalNeededEvents
 
     def initJobs(self, jobs, eventRanges):
         self.__log.info("initJobs: %s" % jobs)
