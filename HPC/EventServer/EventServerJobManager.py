@@ -223,7 +223,7 @@ class EventServerJobManager():
         return self.__cpuConsumptionTime
 
     def helperFunc(self):
-        self.__getCPUConsumptionTime = self.getCPUConsumptionTimeReal()
+        self.__cpuConsumptionTime = self.getCPUConsumptionTimeReal()
 
     def getCores(self):
         return self.__ATHENA_PROC_NUMBER
