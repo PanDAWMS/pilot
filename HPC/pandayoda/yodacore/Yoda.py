@@ -42,8 +42,8 @@ class Yoda(threading.Thread):
                     if self.stopped():
                         break
                     if exec_time is None or exec_time < time.time() - 60:
-                        exec_time = time.time()
                         self.__func()
+                        exec_time = time.time()
             except:
                 self.__log.debug("Exception: HelperThread failed: %s" % traceback.format_exc())
 
