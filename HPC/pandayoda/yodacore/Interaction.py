@@ -131,6 +131,10 @@ class Receiver:
         return self.totalRanks > 0
 
 
+    def getTotalRanks(self):
+        return self.totalRanks
+
+
     def sendMessage(self, rData):
         try:
             #data = urllib.urlencode(rData)

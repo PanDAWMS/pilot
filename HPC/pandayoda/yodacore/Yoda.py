@@ -74,7 +74,17 @@ class Yoda(threading.Thread):
 
         self.cores = 10
         self.jobs = []
+
+        # jobs which needs more than one rank
         self.jobRanks = []
+        self.totalJobRanks = 0
+        # jobs which needs less than one rank
+        self.jobRanksSmallPiece = []
+        self.totalJobRanksSmallPiece = 0
+
+        # scheduler policy:
+        self.bigJobFirst = True
+
         self.readyEventRanges = []
         self.runningEventRanges = {}
         self.finishedEventRanges = []
@@ -99,6 +109,9 @@ class Yoda(threading.Thread):
         signal.signal(signal.SIGXCPU, self.stopYoda)
         signal.signal(signal.SIGUSR1, self.stopYoda)
         signal.signal(signal.SIGBUS, self.stopYoda)
+
+    def getTotalRanks(self):
+        return self.comm.getTotalRanks()
 
     def initWorkingDir(self):
         # Create separate working directory for each rank
@@ -181,10 +194,22 @@ class Yoda(threading.Thread):
             keys = neededRanks.keys()
             keys.sort()
             for key in keys:
-                for jobId in neededRanks[key]:            
-                    # for i in range(int(math.ceil(key))):
-                    for i in range(int(key)):
-                        self.jobRanks.append(jobId)
+                self.tmpLog.debug("Rank %s: Needed ranks %s" % (self.rank, key))
+
+                if key < 1:
+                    for jobId in neededRanks[key]:
+                        self.tmpLog.debug("Rank %s: Adding %s to small piece queue" % (self.rank, jobId))
+                        self.totalJobRanksSmallPiece += key
+                        self.jobRanksSmallPiece.append(jobId)
+                else:
+                    for jobId in neededRanks[key]:            
+                        # for i in range(int(math.ceil(key))):
+                        for i in range(int(key)):
+                            self.tmpLog.debug("Rank %s: Adding %s to full rank queue" % (self.rank, jobId))
+                            self.jobRanks.append(jobId)
+            self.totalJobRanks = len(self.jobRanks)
+            self.tmpLog.debug("Rank %s: Jobs in small piece queue(one job is not enough to take the full rank) %s, total needed ranks %s" % (self.rank, self.jobRanksSmallPiece, self.totalJobRanksSmallPiece))
+            self.tmpLog.debug("Rank %s: Jobs in full rank queue(one job is long enough to take the full rank) %s, total needed ranks %s" % (self.rank, self.jobRanks, self.totalJobRanks))
             return True,self.jobRanks
         except:
             self.tmpLog.debug("Rank %s: %s" % (self.rank, traceback.format_exc()))
@@ -264,6 +289,9 @@ class Yoda(threading.Thread):
                 neededRanks = job['neededRanks']
                 readyEvents = len(self.readyJobsEventRanges[jobId]) if jobId in self.readyJobsEventRanges else 0
                 self.tmpLog.debug("Rank %s: Job %s has %s events, needs %s ranks" % (self.rank, jobId, readyEvents, neededRanks))
+            self.tmpLog.debug("Rank %s: Job full rank queue: %s" % (self.rank, self.jobRanks))
+            self.tmpLog.debug("Rank %s: Job small piece queue: %s" % (self.rank, self.jobRanksSmallPiece))
+            return True, None
         except:
             self.tmpLog.debug("Rank %s: %s" % (self.rank, traceback.format_exc()))
             errtype,errvalue = sys.exc_info()[:2]
@@ -312,9 +340,11 @@ class Yoda(threading.Thread):
 
     def rescheduleJobRanks(self):
         try:
+            self.tmpLog.debug("Rank %s: rescheduleJobRanks" % (self.rank))
             numEvents = {}
             for jobId in self.readyJobsEventRanges:
                 no = len(self.readyJobsEventRanges[jobId])
+                self.tmpLog.debug("Rank %s: Job %s ready events %s"  % (self.rank, jobId, no))
                 if no not in numEvents:
                     numEvents[len] = []
                 numEvents.append(jobId)
@@ -323,32 +353,70 @@ class Yoda(threading.Thread):
             for key in keys:
                 for jobId in numEvents[key]:
                     for i in range(key/self.cores):
-                        self.jobRanks.append(jobId)
+                        self.tmpLog.debug("Rank %s: Adding job %s to small piece queue"  % (self.rank, jobId))
+                        self.jobRanksSmallPiece.append(jobId)
+
+            self.tmpLog.debug("Rank %s: Jobs in small piece queue(one job is not enough to take the full rank) %s" % (self.rank, self.jobRanksSmallPiece))
+            self.tmpLog.debug("Rank %s: Jobs in full rank queue(one job is long enough to take the full rank, should be empty if reaching here) %s" % (self.rank, self.jobRanks))
+
+            self.printEventStatus()
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errMsg = 'failed to reschedule job ranks with {0}:{1}'.format(errtype.__name__,errvalue)
             return False,errMsg
 
     # get job
-    def getJob(self,params):
+    def getJobScheduler(self,params):
         rank = params['rank']
         job = None
         jobId = None
-        while len(self.jobRanks):
-            jobId = self.jobRanks.pop(0)
-            if len(self.readyJobsEventRanges[jobId]) > 0:
-                job = self.jobs[jobId]
-                break
-
-        if job is None:
-            # disable reschedule job ranks, it will split jobs to additional ranks
-            # instead, pilot will download more events then expected
-            # self.rescheduleJobRanks()
+        if self.bigJobFirst:
+            self.tmpLog.debug("Rank %s: Full rank queue first"  % (self.rank))
             while len(self.jobRanks):
                 jobId = self.jobRanks.pop(0)
                 if len(self.readyJobsEventRanges[jobId]) > 0:
                     job = self.jobs[jobId]
                     break
+            if job is None:
+                self.tmpLog.debug("Rank %s: no available jobs, try to get job from small piece queue"  % (self.rank))
+                while len(self.jobRanksSmallPiece):
+                    jobId = self.jobRanksSmallPiece.pop(0)
+                    if len(self.readyJobsEventRanges[jobId]) > 0:
+                        job = self.jobs[jobId]
+                        break
+        else:
+            self.tmpLog.debug("Rank %s: Small rank queue first"  % (self.rank))
+            if len(self.jobRanks) == 0 or rank < int(self.totalJobRanksSmallPiece):
+                while len(self.jobRanksSmallPiece):
+                    jobId = self.jobRanksSmallPiece.pop(0)
+                    if len(self.readyJobsEventRanges[jobId]) > 0:
+                        job = self.jobs[jobId]
+                        break
+            else:
+                while len(self.jobRanks):
+                    jobId = self.jobRanks.pop(0)
+                    if len(self.readyJobsEventRanges[jobId]) > 0:
+                        job = self.jobs[jobId]
+                        break
+
+            if job is None:
+                self.tmpLog.debug("Rank %s: no available jobs, try to get job from small piece queue"  % (self.rank))
+                while len(self.jobRanksSmallPiece):
+                    jobId = self.jobRanksSmallPiece.pop(0)
+                    if len(self.readyJobsEventRanges[jobId]) > 0:
+                        job = self.jobs[jobId]
+                        break
+        return jobId, job
+
+    # get job
+    def getJob(self,params):
+        rank = params['rank']
+        jobId, job = self.getJobScheduler(params)
+        if job is None:
+            ##### not disable reschedule job ranks, it will split jobs to additional ranks
+            ##### instead, pilot will download more events then expected
+            self.rescheduleJobRanks()
+            jobId, job = self.getJobScheduler(params)
 
         res = {'StatusCode':0,
                'job': job}
