@@ -173,7 +173,9 @@ class JobMover(object):
                 ddm_path = self.ddmconf[ddm].get('endpoint', '')  ##
 
                 if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
-                    ddm_path += '/rucio/'
+                    if ddm_path[-1] != '/':
+                        ddm_path += '/'
+                    ddm_path += 'rucio/'
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
             if fdat.filesize != r['bytes']:
