@@ -232,7 +232,7 @@ class BaseSiteMover(object):
             if not replicas:
                 continue
             surl = replicas[0] # assume srm protocol is first entry
-            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path" % (surl, ddmendpoint, ddm_se, ddm_path))
+            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
 
             for r in replicas:
                 # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
