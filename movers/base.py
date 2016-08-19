@@ -580,13 +580,13 @@ class BaseSiteMover(object):
     @classmethod
     def calc_checksum(self, filename, command='md5sum', setup=None):
         """
-            calculate the md5 checksum for a file
+            calculate file checksum value
             raise an exception if input filename is not exist/readable
         """
 
         cmd = "%s %s" % (command, filename)
         if setup:
-            cmd = "%s; %s" % (setup, cmd)
+            cmd = "%s 1>/dev/null 2>/dev/null; %s" % (setup, cmd)
 
         self.log("Execute command (%s) to calc checksum of file" % cmd)
 
