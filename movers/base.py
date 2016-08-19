@@ -228,17 +228,21 @@ class BaseSiteMover(object):
         replica = None # find first matched to protocol spec replica
         surl = None
 
-        for ddmendpoint, replicas, ddm_se in fspec.replicas:
+        for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
             if not replicas:
                 continue
             surl = replicas[0] # assume srm protocol is first entry
-            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s" % (surl, ddmendpoint, ddm_se))
+            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path" % (surl, ddmendpoint, ddm_se, ddm_path))
 
             for r in replicas:
                 # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
                 if protocol.get('se') and r.startswith(ddm_se): # manually form pfn based on protocol.se
-                    replica = protocol.get('se') + r.replace(ddm_se, '')
-                    self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s: found replica=%s matched ddm.se=%s .. will use TURL=%s" % (protocol.get('se'), surl, ddm_se, replica))
+                    r_filename = r.replace(ddm_se, '', 1).replace(ddm_path, '', 1) # resolve replica filename
+                    replica = protocol.get('se') + protocol.get('path')
+                    if replica and r_filename and '/' not in (replica[-1] + r_filename[0]):
+                        replica += '/'
+                    replica += r_filename
+                    self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s, protocol.path=%s: found replica=%s matched ddm.se=%s, ddm.path=%s .. will use TURL=%s" % (protocol.get('se'), protocol.get('path'), surl, ddm_se, ddm_path, replica))
                     break
                 # use exact pfn from Rucio replicas
                 if not replica:

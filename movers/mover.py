@@ -120,7 +120,7 @@ class JobMover(object):
     def resolve_replicas(self, files):
         """
             populates fdat.inputddms and fdat.replicas of each entry from `files` list
-            fdat.replicas = [(ddmendpoint, replica, ddm_se)]
+            fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
             ddm_se -- integration logic -- is used to manualy form TURL when ignore_rucio_replicas=True
             (quick stab until all protocols are properly populated in Rucio from AGIS)
         """
@@ -170,7 +170,9 @@ class JobMover(object):
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
                 ddm_se = self.ddmconf[ddm].get('se', '')
-                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se))
+                ddm_path = self.ddmconf[ddm].get('path', '')
+
+                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
             cc_ad = 'ad:%s' % r['adler32']
