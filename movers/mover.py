@@ -169,8 +169,8 @@ class JobMover(object):
             for ddm in fdat.inputddms:
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
-                ddm_se = self.ddmconf[ddm].get('se', '')
-                ddm_path = self.ddmconf[ddm].get('path', '')
+                ddm_se = self.ddmconf[ddm].get('se', '')          ## FIX ME LATER: resolve from default protocol (srm?)
+                ddm_path = self.ddmconf[ddm].get('endpoint', '')  ## 
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
             if fdat.filesize != r['bytes']:
