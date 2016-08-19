@@ -170,7 +170,10 @@ class JobMover(object):
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
                 ddm_se = self.ddmconf[ddm].get('se', '')          ## FIX ME LATER: resolve from default protocol (srm?)
-                ddm_path = self.ddmconf[ddm].get('endpoint', '')  ## 
+                ddm_path = self.ddmconf[ddm].get('endpoint', '')  ##
+
+                if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
+                    ddm_path += '/rucio/'
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
             if fdat.filesize != r['bytes']:
