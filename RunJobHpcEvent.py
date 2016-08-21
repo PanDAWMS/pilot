@@ -1643,6 +1643,9 @@ class RunJobHpcEvent(RunJob):
                     # return -1
                     pilotErrorDiag="Not All events are handled(total:%s, left:%s)" % (job.nEvents, job.nEventsW)
 
+                # Panda only record nEvents
+                job.nEvents = job.nEventsW
+
         dsname, datasetDict = self.getJobDatasets(job)
         tolog("dsname = %s" % (dsname))
         tolog("datasetDict = %s" % (datasetDict))
