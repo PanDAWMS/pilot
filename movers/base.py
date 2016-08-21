@@ -238,7 +238,12 @@ class BaseSiteMover(object):
                 # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
                 if protocol.get('se') and r.startswith(ddm_se): # manually form pfn based on protocol.se
                     r_filename = r.replace(ddm_se, '', 1).replace(ddm_path, '', 1) # resolve replica filename
-                    replica = protocol.get('se') + protocol.get('path')
+                    # quick hack: if hosted replica ddmendpoint and input protocol ddmendpoint mismatched => consider replica ddmendpoint.path
+                    r_path = protocol.get('path')
+                    if ddmendpoint != protocol.get('ddm'):
+                        self.log("[stage-in] ignore protocol.path=%s since protocol.ddm=%s differs from found replica.ddm=%s ... will use ddm.path=%s to form TURL" % (protocol.get('path'), protocol.get('ddm'), ddmendpoint, ddm_path))
+                        r_path = ddm_path
+                    replica = protocol.get('se') + r_path
                     if replica and r_filename and '/' not in (replica[-1] + r_filename[0]):
                         replica += '/'
                     replica += r_filename
