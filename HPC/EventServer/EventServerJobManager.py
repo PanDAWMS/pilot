@@ -85,6 +85,7 @@ class EventServerJobManager():
                     if exec_time is None or exec_time < time.time() - 60:
                         self.__func()
                         exec_time = time.time()
+                    time.sleep(1)
             except:
                 self.__log.debug("Exception: HelperThread failed: %s" % traceback.format_exc())
 
