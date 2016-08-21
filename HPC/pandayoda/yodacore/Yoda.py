@@ -44,6 +44,7 @@ class Yoda(threading.Thread):
                     if exec_time is None or exec_time < time.time() - 60:
                         self.__func()
                         exec_time = time.time()
+                    time.sleep(1)
             except:
                 self.__log.debug("Exception: HelperThread failed: %s" % traceback.format_exc())
 
@@ -84,6 +85,7 @@ class Yoda(threading.Thread):
 
         # scheduler policy:
         self.bigJobFirst = True
+        self.lastRankForBigJobFirst = int(self.getTotalRanks() * 0.9)
 
         self.readyEventRanges = []
         self.runningEventRanges = {}
@@ -192,7 +194,7 @@ class Yoda(threading.Thread):
                     neededRanks[job['neededRanks']] = []
                 neededRanks[job['neededRanks']].append(jobId)
             keys = neededRanks.keys()
-            keys.sort()
+            keys.sort(reverse=True)
             for key in keys:
                 self.tmpLog.debug("Rank %s: Needed ranks %s" % (self.rank, key))
 
@@ -351,10 +353,12 @@ class Yoda(threading.Thread):
             keys = numEvents.keys()
             keys.sort(reverse=True)
             for key in keys:
+                if key < self.cores * 2:
+                    continue
                 for jobId in numEvents[key]:
-                    for i in range(key/self.cores):
-                        self.tmpLog.debug("Rank %s: Adding job %s to small piece queue"  % (self.rank, jobId))
-                        self.jobRanksSmallPiece.append(jobId)
+                    #for i in range(key/self.cores):
+                    self.tmpLog.debug("Rank %s: Adding job %s to small piece queue"  % (self.rank, jobId))
+                    self.jobRanksSmallPiece.append(jobId)
 
             self.tmpLog.debug("Rank %s: Jobs in small piece queue(one job is not enough to take the full rank) %s" % (self.rank, self.jobRanksSmallPiece))
             self.tmpLog.debug("Rank %s: Jobs in full rank queue(one job is long enough to take the full rank, should be empty if reaching here) %s" % (self.rank, self.jobRanks))
@@ -370,42 +374,34 @@ class Yoda(threading.Thread):
         rank = params['rank']
         job = None
         jobId = None
-        if self.bigJobFirst:
-            self.tmpLog.debug("Rank %s: Full rank queue first"  % (self.rank))
+        if int(rank) <= self.lastRankForBigJobFirst:
+            self.tmpLog.debug("Rank %s: Big jobs first for rank %s(<=%s the last rank for big job first)"  % (self.rank, rank, self.lastRankForBigJobFirst))
             while len(self.jobRanks):
                 jobId = self.jobRanks.pop(0)
                 if len(self.readyJobsEventRanges[jobId]) > 0:
                     job = self.jobs[jobId]
                     break
             if job is None:
-                self.tmpLog.debug("Rank %s: no available jobs, try to get job from small piece queue"  % (self.rank))
+                self.tmpLog.debug("Rank %s: no available jobs in full rank queue, try to get job from small piece queue"  % (self.rank))
                 while len(self.jobRanksSmallPiece):
                     jobId = self.jobRanksSmallPiece.pop(0)
                     if len(self.readyJobsEventRanges[jobId]) > 0:
                         job = self.jobs[jobId]
                         break
         else:
-            self.tmpLog.debug("Rank %s: Small rank queue first"  % (self.rank))
-            if len(self.jobRanks) == 0 or rank < int(self.totalJobRanksSmallPiece):
-                while len(self.jobRanksSmallPiece):
-                    jobId = self.jobRanksSmallPiece.pop(0)
-                    if len(self.readyJobsEventRanges[jobId]) > 0:
-                        job = self.jobs[jobId]
-                        break
-            else:
+            self.tmpLog.debug("Rank %s: Small jobs first for rank %s(>%s the last rank for big job first)"  % (self.rank, rank, self.lastRankForBigJobFirst))
+            while len(self.jobRanksSmallPiece):
+                jobId = self.jobRanksSmallPiece.pop()
+                if len(self.readyJobsEventRanges[jobId]) > 0:
+                    job = self.jobs[jobId]
+                    break
+            if job is None:
                 while len(self.jobRanks):
-                    jobId = self.jobRanks.pop(0)
+                    jobId = self.jobRanks.pop()
                     if len(self.readyJobsEventRanges[jobId]) > 0:
                         job = self.jobs[jobId]
                         break
 
-            if job is None:
-                self.tmpLog.debug("Rank %s: no available jobs, try to get job from small piece queue"  % (self.rank))
-                while len(self.jobRanksSmallPiece):
-                    jobId = self.jobRanksSmallPiece.pop(0)
-                    if len(self.readyJobsEventRanges[jobId]) > 0:
-                        job = self.jobs[jobId]
-                        break
         return jobId, job
 
     # get job
