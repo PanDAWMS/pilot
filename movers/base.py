@@ -228,17 +228,26 @@ class BaseSiteMover(object):
         replica = None # find first matched to protocol spec replica
         surl = None
 
-        for ddmendpoint, replicas, ddm_se in fspec.replicas:
+        for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
             if not replicas:
                 continue
             surl = replicas[0] # assume srm protocol is first entry
-            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s" % (surl, ddmendpoint, ddm_se))
+            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
 
             for r in replicas:
                 # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
                 if protocol.get('se') and r.startswith(ddm_se): # manually form pfn based on protocol.se
-                    replica = protocol.get('se') + r.replace(ddm_se, '')
-                    self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s: found replica=%s matched ddm.se=%s .. will use TURL=%s" % (protocol.get('se'), surl, ddm_se, replica))
+                    r_filename = r.replace(ddm_se, '', 1).replace(ddm_path, '', 1) # resolve replica filename
+                    # quick hack: if hosted replica ddmendpoint and input protocol ddmendpoint mismatched => consider replica ddmendpoint.path
+                    r_path = protocol.get('path')
+                    if ddmendpoint != protocol.get('ddm'):
+                        self.log("[stage-in] ignore protocol.path=%s since protocol.ddm=%s differs from found replica.ddm=%s ... will use ddm.path=%s to form TURL" % (protocol.get('path'), protocol.get('ddm'), ddmendpoint, ddm_path))
+                        r_path = ddm_path
+                    replica = protocol.get('se') + r_path
+                    if replica and r_filename and '/' not in (replica[-1] + r_filename[0]):
+                        replica += '/'
+                    replica += r_filename
+                    self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s, protocol.path=%s: found replica=%s matched ddm.se=%s, ddm.path=%s .. will use TURL=%s" % (protocol.get('se'), protocol.get('path'), surl, ddm_se, ddm_path, replica))
                     break
                 # use exact pfn from Rucio replicas
                 if not replica:
@@ -580,13 +589,13 @@ class BaseSiteMover(object):
     @classmethod
     def calc_checksum(self, filename, command='md5sum', setup=None):
         """
-            calculate the md5 checksum for a file
+            calculate file checksum value
             raise an exception if input filename is not exist/readable
         """
 
         cmd = "%s %s" % (command, filename)
         if setup:
-            cmd = "%s; %s" % (setup, cmd)
+            cmd = "%s 1>/dev/null 2>/dev/null; %s" % (setup, cmd)
 
         self.log("Execute command (%s) to calc checksum of file" % cmd)
 
