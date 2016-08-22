@@ -445,7 +445,45 @@ M pUtil.py (26)
 
 Updates from Wen Guan (2):
 
-..
+- fix lost heartbeat
+- fix error when sys.stderr closed
+- fix status for ERR_ messages
+- atomic jobmetrics and jobtimestamp
+- fix problem that current directory doesnot exist
+- clean s3objectstore sitemover
+- fix curl tls in different systems
+- fix zombie process in timercommand
+- debug and fix threadpool issue
+- fix timer command
+- use new os functions to get espath
+
+File Changes
+
+M HPC/EventServer/EventServerJobManager.py (2)
+M HPC/pandayoda/yodacore/Yoda.py (49)
+M HPC/pandayoda/yodaexe/Droid.py (6)
+M Monitor.py (28)
+M RunJobHpcEvent.py (53)
+M S3ObjectstoreSiteMover.py (12)
+M ThreadPool.py (319)
+M TimerCommand.py (15)
+M UpdateHandler.py (12)
+M pUtil.py (58)
+
+Updates from Alexey Anisenkov:
+
+Site movers logic updates and bugfixes:
+- fixed issue with proper parsing output of check sum calculation command (output suppression of setup command) [lcgcp mover issues]
+- fixed logic of replica url construction for explicitly defined protocols (SE+path) at the level of PandaQueue (PQ.aprotocols settings) [dcap issues]
+- hotfix for default ddm.endpoint path (force to check and fix '/rucio/' part)
+- fixed logic to construct input replica url (ignore input protocol.path if found replica belongs to different ddmendpoint)
+- direct access logic updates (allow direct access only for root, dcache or dcap input replicas)
+
+File Changes
+
+M Job.py (10)
+M movers/base.py (21)
+M movers/mover.py (21)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
