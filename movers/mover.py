@@ -320,10 +320,14 @@ class JobMover(object):
                     is_directaccess = False
                 elif self.job.accessmode == 'direct':
                     is_directaccess = True
+
+                if sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
+                    self.log("Direct access mode will be ignored since Rucio site mover is requested")
+                    is_directaccess = False
+
                 if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
-
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
                     continue
 
@@ -331,7 +335,7 @@ class JobMover(object):
                 try:
                     is_stagein_allowed = sitemover.is_stagein_allowed(fdata, self.job)
                     if not is_stagein_allowed:
-                        reason = 'SiteMover does not allowed stage-in operation for the job'
+                        reason = 'SiteMover does not allow stage-in operation for the job'
                 except PilotException, e:
                     is_stagein_allowed = False
                     reason = e
