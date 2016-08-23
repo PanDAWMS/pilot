@@ -1385,7 +1385,8 @@ class RunJobHpcEvent(RunJob):
                     line = line.strip()
                     if len(line):
                         eventRangeID = line.split(" ")[0]
-                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': 'finished', 'objstoreID': os_bucket_id})
+                        eventStatus = line.split(" ")[1]
+                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': eventStatus, 'objstoreID': os_bucket_id})
                 if job.yodaJobMetrics and 'totalProcessedEvents' in job.yodaJobMetrics:
                     job.yodaJobMetrics['totalProcessedEvents'] = len(eventRanges)
                     job.nEventsW = job.yodaJobMetrics['totalProcessedEvents']
