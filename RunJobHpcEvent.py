@@ -1286,7 +1286,7 @@ class RunJobHpcEvent(RunJob):
                     self.__jobs[jobId]['job'].timeStageOut = 0
                     self.__jobs[jobId]['job'].nEvents = 0
                     self.__jobs[jobId]['job'].nEventsW = 0
-                    self.__jobs[jobId]['job'].yodaJobMetrics = None
+                    self.__jobs[jobId]['job'].yodaJobMetrics = {'startTime': time.time(), 'endTime': time.time()}
                     job = self.__jobs[jobId]['job']
                     job.cpuConversionFactor = 1
                     tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
