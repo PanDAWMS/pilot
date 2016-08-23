@@ -664,11 +664,11 @@ class Yoda(threading.Thread):
         for eventRangeID,status,output in outputs:
             outFile.write('{0} {1} {2} {3}\n'.format(str(jobId), str(eventRangeID), str(status), str(output)))
 
-            if status != 'finished':
-                continue
+            if status.startswith("ERR"):
+                status = 'failed'
 
             if metafd:
-                metafd.write('  <File EventRangeID="%s">\n' % (eventRangeID))
+                metafd.write('  <File EventRangeID="%s" Status="%s">\n' % (eventRangeID, status))
                 metafd.write("    <physical>\n")
                 if isinstance(output, (list, tuple)):
                     for output1 in output:
