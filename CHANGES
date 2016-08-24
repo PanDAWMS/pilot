@@ -393,9 +393,9 @@ User job setup:
 
 65.7:
 
-PoolFileCatalog updates:
+PoolFileCatalog updates: NOTE: these changes became unnecessary when Marcin Nowak fixed the actual problem
 - Removing any paths from filenames in verifyPFCIntegrity() (Mover)
-- Setting absolute path for guidfname[guid] in mover_get_data() and _mover_get_data_new() (Mover)
+- Setting absolute path for guidfname[guid] in mover_get_data() and _mover_get_data_new() (Mover) [change retracted]
 - Discussed in ticket: https://its.cern.ch/jira/browse/ATEAM-313
 - Summary: it was observed that AthenaMP jobs can't process more than one input file, at least when running DAOD building.
 - Solution: pilot writes explicit absolute paths for files listen in PoolFileCatalog
