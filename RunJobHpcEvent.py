@@ -1367,10 +1367,13 @@ class RunJobHpcEvent(RunJob):
 
             if self.__copyOutputToGlobal:
                 outputDir = os.path.dirname(os.path.dirname(zipFileName))
-                tolog("Copying tar/zip file %s to %s" % (zipFileName, os.path.join(outputDir, os.path.basename(zipFileName))))
+                tolog("Moving tar/zip file %s to %s" % (zipFileName, os.path.join(outputDir, os.path.basename(zipFileName))))
                 os.rename(zipFileName, os.path.join(outputDir, os.path.basename(zipFileName)))
                 tolog("Copying tar/zip file %s to %s" % (zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName))))
-                os.rename(zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName)))
+                shutil.copyfile(zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName)))
+                eventstatusFile = str(job.jobId) + "_event_status.dump"
+                tolog("Copying dump file %s to %s" % (eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile))))
+                shutil.copyfile(eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile)))
                 return
 
             report = getInitialTracingReport(userid=job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=False, jobId=job.jobId, jobDefId=job.jobDefinitionID, dn=job.prodUserID)
