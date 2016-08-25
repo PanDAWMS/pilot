@@ -2637,7 +2637,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
             if copycmd == "fax":
                 FAX_dictionary['usedFAXandDirectIO'] = True
         else:
-            guidfname[guid] = local_file_name # os.path.join(path, lfn)
+            guidfname[guid] = lfn # os.path.join(path, lfn)
 
     if fail == 0:
         # Make sure the PFC has the correct number of files
@@ -3087,7 +3087,7 @@ def mover_get_data(lfns,
                 if copycmd == "fax":
                     usedFAXandDirectIO = True
             else:
-                guidfname[guid] = local_file_name # os.path.join(path, lfn)
+                guidfname[guid] = lfn # os.path.join(path, lfn)
 
     if fail == 0:
         # Make sure the PFC has the correct number of files
