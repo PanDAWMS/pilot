@@ -1309,6 +1309,9 @@ class RunJobHpcEvent(RunJob):
 
     def zipOutputs(self, job, zipEventRangeName, zipFileName):
         eventstatus = str(job.jobId) + "_event_status.dump"
+        if os.path.exists(eventstatus + ".zipped"):
+            tolog("Event status dump file %s exist. It's already zipped." % eventstatus + ".zipped")
+            return
         if not os.path.exists(eventstatus):
             tolog("Event status dump file %s doesn't exist. checking backup file" % eventstatus)
             eventstatus = eventstatus + ".backup"
@@ -1341,11 +1344,16 @@ class RunJobHpcEvent(RunJob):
             outputs = output.split(",")[:-3]
             for out in outputs:
                 #tolog("Adding file: %s" % out)
+                if not os.path.exists(out):
+                    tolog("File %s doesn't exist" % out)
+                    continue
                 tar.add(out, arcname=os.path.basename(out))
                 os.remove(out)
             zipEventRange.write("%s %s %s\n" % (eventRangeID, status, output))
         tar.close()
         zipEventRange.close()
+        tolog("Zip finished, Rename %s to %s" % (eventstatus, eventstatus + ".zipped"))
+        os.rename(eventstatus, eventstatus + ".zipped")
 
     def stageOutZipFile(self, job, espath, os_bucket_id):
         try:
@@ -1580,8 +1588,8 @@ class RunJobHpcEvent(RunJob):
 
         tolog("The job state is %s" % _job.jobState)
         if _job.jobState in ['starting', 'transfering']:
-            tolog("The job hasn't started to run, will not recover it. Just finish it.")
-            return False
+            tolog("The job hasn't started to run")
+            # return False
 
         os.chdir(self.__jobSite.workdir)
         self.__jobs[_job.jobId]['JR'] = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=_job.workdir)
@@ -1677,15 +1685,15 @@ class RunJobHpcEvent(RunJob):
         self.moveTrfMetadata(job.workdir, job.jobId)
 
         # Check the job report for any exit code that should replace the res_tuple[0]
-        res0, exitAcronym, exitMsg = self.getTrfExitInfo(0, job.workdir)
-        res = (res0, exitMsg, exitMsg)
+        # res0, exitAcronym, exitMsg = self.getTrfExitInfo(0, job.workdir)
+        # res = (res0, exitMsg, exitMsg)
 
         # Payload error handling
-        ed = ErrorDiagnosis()
-        job = ed.interpretPayload(job, res, False, 0, self.__jobs[job.jobId]['runCommandList'], self.getFailureCode())
-        if job.result[1] != 0 or job.result[2] != 0:
-            self.failOneJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag, final=True, updatePanda=False)
-            return -1
+        # ed = ErrorDiagnosis()
+        # job = ed.interpretPayload(job, res, False, 0, self.__jobs[job.jobId]['runCommandList'], self.getFailureCode())
+        # if job.result[1] != 0 or job.result[2] != 0:
+        #     self.failOneJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag, final=True, updatePanda=False)
+        #     return -1
 
         self.updateJobState(job, "finished", "finished", final=False)
 
@@ -1733,7 +1741,7 @@ class RunJobHpcEvent(RunJob):
                 try:
                     if "job.log.tgz." in file or "LOCKFILE" in file or "tarball_PandaJob" in file or "objectstore_info" in file:
                         continue
-                    if file.endswith(".dump") or file.startswith("metadata-") or "jobState-" in file\
+                    if file.endswith(".dump") or file.endswith(".dump.zipped") or file.startswith("metadata-") or "jobState-" in file\
                        or file.startswith("jobState-") or file.startswith("EventService_premerge")\
                        or file.startswith("Job_") or file.startswith("fileState-") or file.startswith("curl_updateJob_")\
                        or file.startswith("curl_updateEventRanges_")\
@@ -1751,6 +1759,16 @@ class RunJobHpcEvent(RunJob):
         except:
             tolog(sys.exc_info()[1])
             tolog(sys.exc_info()[2])
+
+        try:
+            self.checkJobMetrics()
+        except:
+            tolog("RunHPCEvent failed: %s" % traceback.format_exc())
+
+        try:
+            self.stageOutZipFiles()
+        except:
+            tolog("RunHPCEvent failed: %s" % traceback.format_exc())
 
         try:
             tolog("Copying Log files to Job working dir")
