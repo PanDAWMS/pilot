@@ -931,7 +931,7 @@ class Monitor:
         """ For multiple jobs, pilot may take long time collect logs. Send heartbeats for these jobs. """
 
         for k in self.__env['jobDic'].keys():
-            if k in self.__jobs_cleaned_up:
+            if k == "prod" or k in self.__jobs_cleaned_up:
                 continue
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
