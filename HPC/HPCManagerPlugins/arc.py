@@ -69,7 +69,7 @@ class arc(Plugin):
 
         # submit_script += "mpirun -bynode python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>yoda_stdout.txt 2>yoda_stderr.txt"
         # submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>" + globalYodaDir+ "/yoda_stdout.txt 2>" + globalYodaDir+ "/yoda_stderr.txt"
-        submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" --nonMPIMode --outputDir=" + os.path.dirname(globalYodaDir)
+        submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" --nonMPIMode --outputDir=" + os.path.dirname(globalYodaDir) + " --dumpEventOutputs"
         self.__log.debug("ARC submit script: %s" % submit_script)
         # hpcJob = subprocess.Popen(submit_script, stdout=sys.stdout, stderr=sys.stdout, shell=True)
         yoda_stdout = open(os.path.join(globalYodaDir, 'yoda_stdout.txt'), 'a')

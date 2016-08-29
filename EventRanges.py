@@ -86,6 +86,8 @@ def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', o
             # {PandaID: u'tobekilled'} for normal kill 
             # {PandaID: u'softkill'} for soft kill
             message = d.get(jobId, "")
+            if message is None:
+                message = ""
 
     return message
 

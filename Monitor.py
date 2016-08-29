@@ -931,6 +931,8 @@ class Monitor:
         """ For multiple jobs, pilot may take long time collect logs. Send heartbeats for these jobs. """
 
         for k in self.__env['jobDic'].keys():
+            if k == "prod" or k in self.__jobs_cleaned_up:
+                continue
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
                 jobResult = self.__env['jobDic'][k][1].result
@@ -974,6 +976,7 @@ class Monitor:
             # panda server with the final job state
             pUtil.postJobTask(self.__env['jobDic'][k][1], self.__env['thisSite'], self.__env['workerNode'],
                                   self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
+            self.__jobs_cleaned_up.append(k)
             if k == "prod":
                 prodJobDone = True
 
@@ -1009,7 +1012,7 @@ class Monitor:
 
             # ready with this object, delete it
             # del self.__env['jobDic'][k]
-            self.__jobs_cleaned_up.append(k)
+            # self.__jobs_cleaned_up.append(k)
         except:
             pUtil.tolog("Failed to clean up job %s: %s" % (k, traceback.format_exc()))
 

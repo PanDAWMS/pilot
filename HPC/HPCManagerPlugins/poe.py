@@ -41,7 +41,7 @@ class poe(Plugin):
         # submit_script += "mpirun --host "+nodelist+" python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir
 
         # submit_script += "python " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" 1>" + globalYodaDir+ "/yoda_stdout.txt 2>" + globalYodaDir+ "/yoda_stderr.txt"
-        submit_script += "poe parrot_run python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" --outputDir=" + os.path.dirname(globalYodaDir)
+        submit_script += "poe parrot_run python-mpi " + os.path.join(globalWorkingDir, "HPC/HPCJob.py") + " --globalWorkingDir="+globalYodaDir+" --localWorkingDir="+localWorkingDir+" --outputDir=" + os.path.dirname(globalYodaDir) + " --dumpEventOutputs"
         self.__log.debug("POE submit script: %s" % submit_script)
         # hpcJob = subprocess.Popen(submit_script, stdout=sys.stdout, stderr=sys.stdout, shell=True)
         yoda_stdout = open(os.path.join(globalYodaDir, 'yoda_stdout.txt'), 'a')
