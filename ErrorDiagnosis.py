@@ -168,9 +168,7 @@ class ErrorDiagnosis(Diagnosis):
         try:
             # nEvents_str can be a string of the form N|N|..|N with the number of jobs in the trf(s) [currently not used]
             # Add to Job class if necessary
-            nEvents, nEventsW, nEvents_str = thisExperiment.getNumberOfEvents(job=job, number_of_jobs=len(runCommandList))
-            if nEvents: job.nEvents = nEvents
-            if nEventsW: job.nEventsW = nEventsW
+            job.nEvents, job.nEventsW, nEvents_str = thisExperiment.getNumberOfEvents(job=job, number_of_jobs=len(runCommandList))
         except Exception, e:
             tolog("!!WARNING!!2999!! Failed to get number of events: %s (ignore)" % str(e))
 
