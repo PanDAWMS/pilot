@@ -99,6 +99,11 @@ class RunJobEvent(RunJob):
     # ES zip
     __esToZip = False
 
+
+    # calculate cpu time, os.times() doesn't report correct value for preempted jobs
+    self.__childProcs = []
+    self.__child_cpuTime = {}
+
     # Getter and setter methods
 
     def getExperiment(self):
@@ -2128,6 +2133,77 @@ class RunJobEvent(RunJob):
             return PilotErrors.ERR_UNKNOWN, err_msg
 
 
+    def findChildProcesses(self,pid):
+        command = "/bin/ps -e --no-headers -o pid -o ppid -o fname"
+        status,output = commands.getstatusoutput(command)
+        #print "ps output: %s" % output
+
+        pieces = []
+        result = []
+        for line in output.split("\n"):
+            pieces= line.split()
+            try:
+                value=int(pieces[1])
+            except Exception,e:
+                #print "trouble interpreting ps output %s: \n %s" % (e,pieces)
+                continue
+            if value==pid:
+                try:
+                    job=int(pieces[0])
+                except ValueError,e:
+                    #print "trouble interpreting ps output %s: \n %s" % (e,pieces[0])
+                    continue
+                result.append(job)
+        return result
+
+    def getChildren(self, pid):
+        #self.__childProcs = []
+        if pid not in self.__childProcs:
+            self.__childProcs.append(pid)
+        childProcs = self.findChildProcesses(pid)
+        for child in childProcs:
+            self.getChildren(child)
+
+    def getCPUConsumptionTimeFromProcPid(self, pid):
+        try:
+            if not os.path.exists(os.path.join('/proc/', str(pid), 'stat')):
+                return 0
+            with open(os.path.join('/proc/', str(pid), 'stat'), 'r') as pidfile:
+                proctimes = pidfile.readline()
+                # get utime from /proc/<pid>/stat, 14 item
+                utime = proctimes.split(' ')[13]
+                # get stime from proc/<pid>/stat, 15 item
+                stime = proctimes.split(' ')[14]
+                # count total process used time
+                proctotal = int(utime) + int(stime)
+            return(float(proctotal))
+        except:
+            #tolog("Failed to get cpu consumption time for pid %s: %s" % (pid, traceback.format_exc()))
+            return 0
+
+    def getCPUConsumptionTimeFromProc(self, processId):
+        cpuConsumptionTime = 0L
+        try:
+            CLOCK_TICKS = os.sysconf("SC_CLK_TCK")
+            if processId:
+                self.__childProcs = []
+                self.getChildren(processId)
+                for process in self.__childProcs:
+                    if process not in self.__child_cpuTime.keys():
+                        self.__child_cpuTime[process] = 0
+                for process in self.__child_cpuTime.keys():
+                    cpuTime = self.getCPUConsumptionTimeFromProcPid(process) / CLOCK_TICKS
+                    if cpuTime > self.__child_cpuTime[process]:
+                        # process can return a small value if it's killed
+                        self.__child_cpuTime[process] = cpuTime
+                    cpuConsumptionTime += self.__child_cpuTime[process]
+            tolog("cpuConsumptionTime for %s: %s" % (processId, cpuConsumptionTime))
+        except:
+            tolog("Failed to get cpu consumption time from proc: %s" % (traceback.format_exc()))
+        return cpuConsumptionTime
+
+
+
 # main process starts here
 if __name__ == "__main__":
 
@@ -2494,7 +2570,14 @@ if __name__ == "__main__":
         max_wait = 30
         nap = 5
         eventRangeFilesDictionary = {}
+        time_to_calculate_cuptime = time.time()
         while True:
+            # calculate cpu time, if it's killed, this value will be reported.
+            # should not use os.times(). os.times() collects cputime at the end of a process.
+            # When a process is running, os.times() returns a very small value.
+            if time_to_calculate_cuptime < time.time() - 2 * 60:
+                job.cpuConsumptionTime = self.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
             if runJob.isAthenaMPReady():
