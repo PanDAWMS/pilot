@@ -101,8 +101,8 @@ class RunJobEvent(RunJob):
 
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
-    self.__childProcs = []
-    self.__child_cpuTime = {}
+    __childProcs = []
+    __child_cpuTime = {}
 
     # Getter and setter methods
 
