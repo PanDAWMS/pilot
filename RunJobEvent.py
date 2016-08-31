@@ -2576,7 +2576,7 @@ if __name__ == "__main__":
             # should not use os.times(). os.times() collects cputime at the end of a process.
             # When a process is running, os.times() returns a very small value.
             if time_to_calculate_cuptime < time.time() - 2 * 60:
-                job.cpuConsumptionTime = self.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
 
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
