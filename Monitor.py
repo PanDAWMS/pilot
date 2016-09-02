@@ -671,7 +671,8 @@ class Monitor:
                                     "pandaJob" in _file or
                                     "runjob" in _file or
                                     "matched_replicas" in _file or
-                                    "memory_monitor" in _file or
+                                    "memory_" in _file or
+                                    "mem." in _file or
                                     "DBRelease-" in _file):
                                 _files.append(_file)
     #                        else:
