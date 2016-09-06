@@ -120,7 +120,7 @@ class JobMover(object):
     def resolve_replicas(self, files):
         """
             populates fdat.inputddms and fdat.replicas of each entry from `files` list
-            fdat.replicas = [(ddmendpoint, replica, ddm_se)]
+            fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
             ddm_se -- integration logic -- is used to manualy form TURL when ignore_rucio_replicas=True
             (quick stab until all protocols are properly populated in Rucio from AGIS)
         """
@@ -169,8 +169,15 @@ class JobMover(object):
             for ddm in fdat.inputddms:
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
-                ddm_se = self.ddmconf[ddm].get('se', '')
-                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se))
+                ddm_se = self.ddmconf[ddm].get('se', '')          ## FIX ME LATER: resolve from default protocol (srm?)
+                ddm_path = self.ddmconf[ddm].get('endpoint', '')  ##
+
+                if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
+                    if ddm_path[-1] != '/':
+                        ddm_path += '/'
+                    ddm_path += 'rucio/'
+
+                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
             cc_ad = 'ad:%s' % r['adler32']
@@ -313,10 +320,14 @@ class JobMover(object):
                     is_directaccess = False
                 elif self.job.accessmode == 'direct':
                     is_directaccess = True
+
+                if sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
+                    self.log("Direct access mode will be ignored since Rucio site mover is requested")
+                    is_directaccess = False
+
                 if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
-
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
                     continue
 
@@ -324,7 +335,7 @@ class JobMover(object):
                 try:
                     is_stagein_allowed = sitemover.is_stagein_allowed(fdata, self.job)
                     if not is_stagein_allowed:
-                        reason = 'SiteMover does not allowed stage-in operation for the job'
+                        reason = 'SiteMover does not allow stage-in operation for the job'
                 except PilotException, e:
                     is_stagein_allowed = False
                     reason = e

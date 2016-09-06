@@ -912,7 +912,8 @@ class ATLASSiteInformation(SiteInformation):
         # The method should return a dictionary containing the results of the test
 
         dictionary = {}
-        cmd = "/afs/cern.ch/user/w/walkerr/public/kflops.sh"
+        cmd = "export BMK_ROOTDIR='/cvmfs/atlas.cern.ch/repo/benchmarks/cern/current;"
+        cmd += "$BMK_ROOTDIR/cern-benchmark --benchmarks=\"fastBmk\" --queue_host=dashb-test-mb.cern.ch --queue_port=61113 --username=vmspecprod --topic=/topic/vm.spec --cloud=cloud-name --vo=ATLAS"
         timeout = 120
 
         tolog("Executing benchmark test: %s" % (cmd))

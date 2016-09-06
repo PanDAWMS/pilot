@@ -567,9 +567,10 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
                     if f_dictionary.has_key('subFiles'):
                         subFiles_list = f_dictionary['subFiles']
                         for f_names_dictionary in subFiles_list:
-                            if f_names_dictionary.has_key('name') and f_names_dictionary.has_key('nentries'):
+                            if f_names_dictionary.has_key('name'):# and f_names_dictionary.has_key('nentries'):
                                 # Only add the file is nentries > 0
-                                if type(f_names_dictionary['nentries']) == int and f_names_dictionary['nentries'] > 0:
+                                nentries = f_names_dictionary.get("nentries", "UNDEFINED")
+                                if type(nentries) == int and nentries > 0:
                                     output_files.append(f_names_dictionary['name'])
 
                                     # Also get the file guid
@@ -580,8 +581,8 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
                                         guids.append(None)
                                 else:
                                     # Only ignore the file if it is allowed to be ignored
-                                    if not type(f_names_dictionary['nentries']) == int:
-                                        tolog("!!WARNING!!4542!! nentries is not a number: %s" % str(f_names_dictionary['nentries']))
+                                    if not type(nentries) == int:
+                                        tolog("!!WARNING!!4542!! nentries is not a number: %s" % str(nentries))
 
                                     # Special handling for origName._NNN
                                     # origName._NNN are unmerged files dynamically produced by AthenaMP. Job definition doesn't
@@ -590,7 +591,7 @@ def extractOutputFilesFromJSON(workDir, allowNoOutput):
                                     from re import compile
                                     allowNoOutputEx = [compile(s+'\.?_\d+$') for s in allowNoOutput]
                                     if f_names_dictionary['name'] in allowNoOutput or any(patt.match(f_names_dictionary['name']) for patt in allowNoOutputEx):
-                                        tolog("Ignoring file %s since nentries=%s" % (f_names_dictionary['name'], str(f_names_dictionary['nentries'])))
+                                        tolog("Ignoring file %s since nentries=%s" % (f_names_dictionary['name'], str(nentries)))
                                     else:
                                         tolog("Will not ignore empty file %s since file is not in allowNoOutput list" % (f_names_dictionary['name']))
                                         output_files.append(f_names_dictionary['name'])

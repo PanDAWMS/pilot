@@ -103,10 +103,10 @@ class RunJobEvent(RunJob):
     __childProcs = []
     __child_cpuTime = {}
 
-
     # record processed events
     __nEvents = 0
     __nEventsW = 0
+
 
     # Getter and setter methods
 

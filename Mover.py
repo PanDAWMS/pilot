@@ -2149,14 +2149,26 @@ def verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, error):
     fail = 0
     pilotErrorDiag = ""
     filelist_fromxml = guidfname.values()
+
+    # Remove any paths if the guidfname contains them
+    tolog("Original filelist_fromxml = %s" % str(filelist_fromxml))
+    _filelist_fromxml = []
+    for lfn in filelist_fromxml:
+        if "/" in lfn:
+            _lfn = os.path.basename(lfn)
+        else:
+            _lfn = lfn
+        _filelist_fromxml.append(_lfn)
+    filelist_fromxml = _filelist_fromxml
+
     filelist_fromlfns = []
     for lfn in lfns:
         if lfn not in filelist_fromlfns:
             if not (isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable):
                 filelist_fromlfns += [lfn]
 
+    tolog("Updated filelist_fromxml = %s" % str(filelist_fromxml))
     tolog("filelist_fromlfns = %s" % str(filelist_fromlfns))
-    tolog("filelist_fromxml = %s" % str(filelist_fromxml))
 
     # return an error if a file is missing in the PoolFileCatalog.xml
     if len(filelist_fromxml) < len(filelist_fromlfns):
@@ -2477,7 +2489,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
         # The DBRelease file might already have been handled, go to next file
         if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", ftype="input")
-            guidfname[guid] = lfn # needed for verification below
+            guidfname[guid] = os.path.join(path, lfn) # needed for verification below
             continue
         else:
             tolog("(Not a DBRelease file)")
@@ -2625,7 +2637,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
             if copycmd == "fax":
                 FAX_dictionary['usedFAXandDirectIO'] = True
         else:
-            guidfname[guid] = lfn # local_file_name
+            guidfname[guid] = lfn # os.path.join(path, lfn)
 
     if fail == 0:
         # Make sure the PFC has the correct number of files
@@ -2922,7 +2934,7 @@ def mover_get_data(lfns,
             # The DBRelease file might already have been handled, go to next file
             if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
                 updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", ftype="input")
-                guidfname[guid] = lfn # needed for verification below
+                guidfname[guid] = os.path.join(path, lfn) # needed for verification below
                 continue
             else:
                 tolog("(Not a DBRelease file)")
@@ -3075,7 +3087,7 @@ def mover_get_data(lfns,
                 if copycmd == "fax":
                     usedFAXandDirectIO = True
             else:
-                guidfname[guid] = lfn # local_file_name
+                guidfname[guid] = lfn # os.path.join(path, lfn)
 
     if fail == 0:
         # Make sure the PFC has the correct number of files

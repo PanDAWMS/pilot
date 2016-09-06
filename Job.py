@@ -881,4 +881,12 @@ class FileSpec(object):
         if not is_rootfile:
             return False
 
-        return self.prodDBlockToken != 'local' and is_rootfile
+        is_directaccess = self.prodDBlockToken != 'local' and is_rootfile
+
+        allowed_replica_schemas = ['root://', 'dcache://', 'dcap://']
+
+        if self.turl:
+            if True not in set([self.turl.startswith(e) for e in allowed_replica_schemas]):
+                is_directaccess = False
+
+        return is_directaccess

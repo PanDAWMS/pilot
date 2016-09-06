@@ -382,6 +382,119 @@ PQ.copytools = {'xrdcp': {'setup':''}, 'lsm': {'setup':''} }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+65.6:
+
+User job setup:
+- Updated getCacheInfo() to handle AtlasDerivation nightlies for user jobs (ATLASExperiment)
+- Removed outdated code for release 13.0.25 from getCacheInfo() (ATLASExperiment)
+- Updated getJobExecutionCommand() to setup user jobs with atlasLocalSetup() (ATLASExperiment)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+65.7:
+
+PoolFileCatalog updates: NOTE: these changes became unnecessary when Marcin Nowak fixed the actual problem
+- Removing any paths from filenames in verifyPFCIntegrity() (Mover)
+- Setting absolute path for guidfname[guid] in mover_get_data() and _mover_get_data_new() (Mover) [change retracted]
+- Discussed in ticket: https://its.cern.ch/jira/browse/ATEAM-313
+- Summary: it was observed that AthenaMP jobs can't process more than one input file, at least when running DAOD building.
+- Solution: pilot writes explicit absolute paths for files listen in PoolFileCatalog
+
+Nentries update:
+- Updated extractOutputFilesFromJSON() to handle missing nentries in jobReport (FileHandling)
+
+Updates from Wen Guan (1):
+- Test cpuconsumptiontime from proc
+- Tight yoda job scheduling
+- Send user signal to Yoda before job finished
+- Yoda fixes, signal handler, arc fix
+- ARC non-mpi should not reserve cores
+- Using different name when update events
+- Fix ES on ARC, enable os report
+- Enable arc to support es_to_zip
+- Fix that parameters values in sub-class not update in parent class, fix ARC issue
+- Enable Yoda to support ARC
+- Finalize cpuconsumption time, fix es log path
+- Enable ARC to support ES
+- Local parameters
+- Disable log copying
+- Rollback some changes
+
+File changes from Wen Guan:
+M ATLASSiteInformation.py (15)
+M EventRanges.py (14)
+M EventServiceFactory.py (3)
+M HPC/EventServer/EventServerJobManager.py (90)
+M HPC/HPCJob.py (5)
+M HPC/HPCManager.py (9)
+M HPC/HPCManagerPlugins/slurm.py (1)
+M HPC/pandayoda/yodacore/Interaction.py (54)
+M HPC/pandayoda/yodacore/Yoda.py (104)
+M HPC/pandayoda/yodaexe/Droid.py (46)
+M HPC/pandayoda/yodaexe/DroidStager.py (83)
+M JobLog.py (2)
+M Mover.py (22)
+M PandaServerClient.py (56)
+M RunJob.py (20)
+M RunJobEvent.py (26)
+M RunJobHpcEvent.py (172)
+M RunJobHpcarcEvent.py (6)
+M S3ObjectstoreSiteMover.py (4)
+M UpdateHandler.py (2)
+M pUtil.py (26)
+
+Updates from Wen Guan (2):
+
+- fix lost heartbeat
+- fix error when sys.stderr closed
+- fix status for ERR_ messages
+- atomic jobmetrics and jobtimestamp
+- fix problem that current directory doesnot exist
+- clean s3objectstore sitemover
+- fix curl tls in different systems
+- fix zombie process in timercommand
+- debug and fix threadpool issue
+- fix timer command
+- use new os functions to get espath
+
+File Changes
+
+M HPC/EventServer/EventServerJobManager.py (2)
+M HPC/pandayoda/yodacore/Yoda.py (49)
+M HPC/pandayoda/yodaexe/Droid.py (6)
+M Monitor.py (28)
+M RunJobHpcEvent.py (53)
+M S3ObjectstoreSiteMover.py (12)
+M ThreadPool.py (319)
+M TimerCommand.py (15)
+M UpdateHandler.py (12)
+M pUtil.py (58)
+
+Updates from Alexey Anisenkov:
+
+Site movers logic updates and bugfixes:
+- fixed issue with proper parsing output of check sum calculation command (output suppression of setup command) [lcgcp mover issues]
+- fixed logic of replica url construction for explicitly defined protocols (SE+path) at the level of PandaQueue (PQ.aprotocols settings) [dcap issues]
+- hotfix for default ddm.endpoint path (force to check and fix '/rucio/' part)
+- fixed logic to construct input replica url (ignore input protocol.path if found replica belongs to different ddmendpoint)
+- direct access logic updates (allow direct access only for root, dcache or dcap input replicas)
+
+File Changes
+
+M Job.py (10)
+M movers/base.py (21)
+M movers/mover.py (21)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+65.8:
+
+Looping job killer update:
+- Updated __loopingJobKiller() to ignore file name patterns 'memory_' and 'mem.'. Previously, the pilot only ignore 'memory_monitor' patterns (Monitor)
+- Discussed in JIRA ticket https://its.cern.ch/jira/browse/ATLASPANDA-281
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 OS log transfers:

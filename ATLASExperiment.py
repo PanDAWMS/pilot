@@ -131,51 +131,41 @@ class ATLASExperiment(Experiment):
         # homePackage variants:
         #   user jobs
         #     1. AnalysisTransforms (using asetup)
-        #        Setup example buildJob: (the local/setup comes from copysetup; ignore the cmtsite in the path, this will go away with the new setup procedure)
-        #          old setup:
-        #            cmd = export PANDA_RESOURCE="ANALY_PIC_SL6";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2674166005]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="panda-client-0.5.56-jedi-athena";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc47-opt/19.2.0/cmtsite/asetup.sh 19.2.0,notest --cmtconfig x86_64-slc6-gcc47-opt ;export MAKEFLAGS="j1 QUICK=1 -l1";source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh;export X509_USER_PROXY=<path>;./buildJob-00-00-03 ..
-        #          new setup:
-        #            cmd =
-        #        Setup example runAthena:
-        #          old setup:
-        #            cmd = export PANDA_RESOURCE="ANALY_BNL_LONG";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2674156736]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="panda-client-0.5.56-jedi-athena";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc47-opt/19.2.0/cmtsite/asetup.sh 19.2.0,notest --cmtconfig x86_64-slc6-gcc47-opt ;export MAKEFLAGS="j1 QUICK=1 -l1";export X509_USER_PROXY=<path>;./runAthena-00-00-12 ..
-        #          new setup:
-        #            cmd =
-        #        Setup example buildGen:
-        #          old setup:
-        #            cmd = export PANDA_RESOURCE=\"ANALY_DESY-HH\";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID=\"[2674275586]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"panda-client-0.5.56-jedi-run\";export RUCIO_ACCOUNT=\"pilot\";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.3.11/cmtsite/asetup.sh 17.3.11,notest --cmtconfig i686-slc5-gcc43-opt ;export MAKEFLAGS=\"j1 QUICK=1 -l1\";export X509_USER_PROXY=<path>;./buildGen-00-00-01 ..
-        #          new setup:
-        #            cmd =
         #     2. AnalysisTransforms-<project>_<cache>, e.g. project=AthAnalysisBase,AtlasDerivation,AtlasProduction,MCProd,TrigMC; cache=20.1.6.2,..
-        #        Setup example
-        #          old setup:
-        #            cmd =
         #     3. AnalysisTransforms-<project>_rel_<N>, e.g. project=AtlasOffline; N=0,1,2,..
-        #        Setup example
-        #          old setup:
-        #            cmd =
         #     4. [homaPackage not set]
-        #        Setup example runGen:
-        #          old setup:
-        #            cmd = export PANDA_RESOURCE="ANALY_LPC";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID="[2673995173]";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID="gangarobot-rctest";export RUCIO_ACCOUNT="pilot";export ROOTCORE_NCPUS=1;export X509_USER_PROXY=<path>;./runGen-00-00-02 ..
-        #          new setup:
-        #            cmd =
-        #        Setup example buildGen:
-        #          old setup:
-        #            cmd = export PANDA_RESOURCE=\"ANALY_TRIUMF\";export ROOT_TTREECACHE_SIZE=1;export FRONTIER_ID=\"[2674133638]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"panda-client-0.5.56-jedi-run\";export RUCIO_ACCOUNT=\"pilot\";export ROOTCORE_NCPUS=1;source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh;export X509_USER_PROXY=<path>;./buildGen-00-00-01
-        #          new setup:
-        #            cmd =
         #
         #   production jobs
         #     1. <project>/<cache>, e.g. AtlasDerivation/20.1.6.2, AtlasProd1/20.1.5.10.1
-        #        Setup example
-        #          old setup:
-        #            cmd = export PANDA_RESOURCE=\"FZK-LCG2\";export FRONTIER_ID=\"[2674134772]\";export CMSSW_VERSION=$FRONTIER_ID;export RUCIO_APPID=\"merge\";export RUCIO_ACCOUNT=\"pilot\";source /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.1/cmtsite/asetup.sh 17.2.1,notest --cmtconfig i686-slc5-gcc43-opt ;unset CMTPATH;cd /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.1/TrigMC/17.2.1.4.3/TrigMCRunTime/cmt;source ./setup.sh;cd -;export AtlasVersion=17.2.1.4.3;export AtlasPatchVersion=17.2.1.4.3;Merging_trf.py
-        #          new setup:
-        #            cmd =
         #     2. <project>,rel_<N>[,devval], e.g. AtlasProduction,rel_4,devval
         #
-        # Tested
+        # Tested (USER ANALYSIS)
+        #     homePackage = AnalysisTransforms
+        #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
+        #                 source $AtlasSetup/scripts/asetup.sh 17.2.7,notest --cmtconfig x86_64-slc5-gcc43-opt --makeflags=\"$MAKEFLAGS\";
+        #                 export MAKEFLAGS=\"-j1 QUICK=1 -l1\";[proxy export];./runAthena-00-00-11 ..
+        #     homePackage = AnalysisTransforms-AtlasDerivation_20.1.5.7
+        #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\"; 
+        #                 export MAKEFLAGS=\"-j1 QUICK=1 -l1\";[proxy export];./runAthena-00-00-11 ..
+        #     homePackage=AnalysisTransforms-AtlasDerivation_rel_1
+        #        setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
+        #                  source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.X.Y-VAL,rel_1,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
+        #                  export MAKEFLAGS=\"-j1 QUICK=1 -l1\";source /cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh;[proxy export];./runAthena-00-00-11 ..
+        #     homePackage not set, release not set
+        #        setup = source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh; [proxy export];./runGen-00-00-02 ..
+        #     homePackage = AnalysisTransforms-AthAnalysisBase_2.3.11 (release = AthAnalysisBase/x86_64-slc6-gcc48-opt/2.3.11
+        #        setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
+        #                  source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.11,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags="$MAKEFLAGS"; 
+        #                  export MAKEFLAGS="-j1 QUICK=1 -l1";source /cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh;[proxy export];./runAthena-00-00-11 ..
+        # Tested (PRODUCTION)
+        #     homePackage = AtlasProduction/17.7.3.12
+        #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasProduction,17.7.3.12 --cmtconfig x86_64-slc6-gcc46-opt --makeflags=\"$MAKEFLAGS\";Sim_tf.py ..
+        #     homePackage = AtlasDerivation/20.1.5.7
+        #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7 --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py ..
+        #  TRF's:
         #   AtlasG4_tf.py:
         #     PandaID=2675460595
         #     Release=17.7.3
@@ -200,24 +190,19 @@ class ATLASExperiment(Experiment):
         # Get the cmtconfig value
         cmtconfig = getCmtconfig(job.cmtconfig)
 
-        # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...') USE OLD FUNCTION FOR USER JOBS FOR NOW
-        if not self.__atlasEnv or analysisJob:
-            return self.getJobExecutionCommandOld(job, jobSite, pilot_initdir)
+        # Define the setup for asetup, i.e. including full path to asetup and setting of ATLAS_LOCAL_ROOT_BASE
+        asetup_path = self.getModernASetup()
+        asetup_options = " "
 
-            # Set the INDS env variable (used by runAthena)
-#            self.setINDS(job.realDatasetsIn)
+        # Local software path
+        swbase = self.getSwbase(jobSite.appdir, job.release, job.homePackage, job.processingType, cmtconfig)
+        tolog("Local software path: swbase = %s" % (swbase))
 
-            # Try to download the trf
-#            status, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
-#            if status != 0:
-#                return status, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
-
-#        # Command used to download runAthena or runGen
-#        wgetCommand = 'wget'
-
-        else:
+        # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...')
+        if self.__atlasEnv:
 
             # Normal setup (production and user jobs)
+            tolog("Preparing normal production/analysis job setup command")
 
             # Extract the project (cacheDir) and cache version, if any
             m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage) # User jobs
@@ -232,27 +217,132 @@ class ATLASExperiment(Experiment):
                 # normal production jobs; e.g. homePackage = "AtlasProduction/20.1.5"
                 cacheDir, cacheVer = self.getSplitHomePackage(job.homePackage)
 
-            # Define the setup for asetup, i.e. including full path to asetup and setting of ATLAS_LOCAL_ROOT_BASE
-            asetup_path = self.getModernASetup()
+            if cacheVer == "":
+                tolog("No release/patch info in homePackage (%s), using job.release=%s" % (job.homePackage, job.release))
+                cacheVer = job.release
 
             # Add the appropriate options (release/patch/project/cache)
-            asetup_options = " "
             if cacheDir:
-                asetup_options += cacheDir
+                # Do not add AnalysisTransforms since it is not a cache directory
+                if cacheDir != "AnalysisTransforms":
+                    asetup_options += cacheDir
             if cacheVer:
                 if asetup_options == " ":
                     asetup_options += cacheVer
                 else:
                     asetup_options += "," + cacheVer
+
+                # add the fast option if possible (for the moment, check for locally defined env variable)
+                if analysisJob:
+                    if os.environ.has_key("ATLAS_FAST_ASETUP"):
+                        asetup_options += ",notest,fast"
+                    else:
+                        asetup_options += ",notest"
+
             asetup_options += " --cmtconfig " + cmtconfig
 
             # always set the --makeflags option (to prevent asetup from overwriting it)
             asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
 
             cmd = asetup_path + asetup_options
+            trf = job.trf
 
-        # Add the transform and the job parameters
-        cmd += ";%s %s" % (job.trf, job.jobPars)
+            if analysisJob:
+                # Set the INDS env variable (used by runAthena)
+                self.setINDS(job.realDatasetsIn)
+
+                # Try to download the trf
+                wgetCommand = 'wget'
+                ec, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
+                if ec != 0:
+                    return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+
+                ec, pilotErrorDiag, _cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
+                if ec != 0:
+                    return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+
+                # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
+                cmd += "; " + self.addMAKEFLAGS(job.coreCount, "") + _cmd
+                cmd = cmd.replace(';;', ';')
+            else:
+                # Add the transform and the job parameters (production jobs)
+                cmd += ";%s %s" % (trf, job.jobPars)
+
+        else: # Generic, non-ATLAS specific jobs, or at least a job with undefined swRelease
+
+            tolog("Generic job")
+
+            # Set python executable (after SITEROOT has been set)
+            if siteroot == "":
+                try:
+                    siteroot = os.environ['SITEROOT']
+                except:
+                    tolog("Warning: $SITEROOT unknown at this stage (3)")
+
+            tolog("Will use $SITEROOT: %s (3)" % (siteroot))
+            ec, pilotErrorDiag, pybin = self.setPython(siteroot, job.release, job.homePackage, cmtconfig, jobSite.sitename)
+            if ec == self.__error.ERR_MISSINGINSTALLATION:
+                return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+
+            if analysisJob:
+                # Try to download the analysis trf
+                wgetCommand = 'wget'
+                status, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
+                if status != 0:
+                    return status, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+
+                # Set up the run command
+                if job.prodSourceLabel == 'ddm' or job.prodSourceLabel == 'software':
+                    cmd = '%s %s %s' % (pybin, trfName, job.jobPars)
+                else:
+                    ec, pilotErrorDiag, cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
+                    if ec != 0:
+                        return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+
+                # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
+                cmd2 = self.addMAKEFLAGS(job.coreCount, "")
+                tolog("cmd2 = %s" % (cmd2))
+                cmd = cmd2 + cmd
+
+                # should asetup be used? If so, sqeeze it into the run command (rather than moving the entire getAnalysisRunCommand() into this class)
+                m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
+                if m_cacheDirVer != None:
+                    # homePackage="AnalysisTransforms-AthAnalysisBase_2.0.14"
+                    # -> cacheDir = AthAnalysisBase, cacheVer = 2.0.14
+                    cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
+                    tolog("cacheDir = %s" % (cacheDir))
+                    tolog("cacheVer = %s" % (cacheVer))
+                    if cacheDir != "" and cacheVer != "":
+
+                        #asetup = "export AtlasSetup=%s/%s/%s/%s/AtlasSetup; " % (swbase, cacheDir, cmtconfig, cacheVer)
+                        #asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
+
+                        asetup = self.getModernASetup()
+                        asetup += " %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
+
+                        # now squeeze it back in
+                        cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
+                        tolog("Updated run command for special homePackage: %s" % (cmd))
+                    else:
+                        tolog("asetup not needed (mo special home package: %s)" % (job.homePackage))
+                else:
+                    tolog("asetup not needed (no special homePackage)")
+
+            elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
+
+                if 'HPC_' in readpar("catchall"):
+                    cmd = {"interpreter": pybin,
+                           "payload": ("%s/%s" % (job.homePackage, job.trf)),
+                           "parameters": job.jobPars }
+                else:
+                    cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
+            else:
+                if 'HPC_' in readpar("catchall"):
+                    cmd = {"interpreter": pybin,
+                           "payload": job.trf,
+                           "parameters": job.jobPars }
+                else:
+                    cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
 
         # Add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
@@ -261,24 +351,6 @@ class ATLASExperiment(Experiment):
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         if 'HPC_HPC' in readpar("catchall"):
             cmd = 'export JOB_RELEASE=%s;export JOB_HOMEPACKAGE=%s;JOB_CACHEVERSION=%s;JOB_CMTCONFIG=%s;%s' % (job.release, job.homePackage, cacheVer, cmtconfig, cmd)
-
-        # Is JEM allowed to be used?
-        if self.isJEMAllowed():
-            metaOut = {}
-            try:
-                import sys
-                from JEMstub import updateRunCommand4JEM
-                # If JEM should be used, the command will get updated by the JEMstub automatically.
-                cmd = updateRunCommand4JEM(cmd, job, jobSite, tolog, metaOut=metaOut)
-            except:
-                # On failure, cmd stays the same
-                tolog("Failed to update run command for JEM - will run unmonitored.")
-
-            # Is JEM to be used?
-            if metaOut.has_key("JEMactive"):
-                JEM = metaOut["JEMactive"]
-
-            tolog("Use JEM: %s (dictionary = %s)" % (JEM, str(metaOut)))
 
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
@@ -1611,11 +1683,24 @@ class ATLASExperiment(Experiment):
         if re.search('_', cacheDirVer) != None:
             cacheDir = cacheDirVer.split('_')[0]
             cacheVer = re.sub("^%s_" % cacheDir, '', cacheDirVer)
+
+            # Special case for AtlasDerivation. In this case cacheVer = rel_N
+            # and we need to add cacheDir and the release itself
+            special_cacheDirs = ['AtlasDerivation'] # Add more cases if necessary
+            if cacheDir in special_cacheDirs and "rel_" in cacheVer:
+                # strip any special cacheDirs from the release string, if present
+                for special_cacheDir in special_cacheDirs:
+                    if special_cacheDir in atlasRelease:
+                        tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation            
+                        atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
+                        tolog("Release string updated: %s" % (atlasRelease))
+                        cacheVer = atlasRelease + "," + cacheVer
+                        break
+
         else:
             cacheDir = 'AtlasProduction'
-            if atlasRelease in ['13.0.25']:
-                cacheDir = 'AtlasPoint1'
             cacheVer = cacheDirVer
+
         tolog("cacheDir = %s" % (cacheDir))
         tolog("cacheVer = %s" % (cacheVer))
 
@@ -3588,7 +3673,7 @@ class ATLASExperiment(Experiment):
                         avgRSS = int(float(totalRSS)/float(N))
                         avgSwap = int(float(totalSwap)/float(N))
                     summary_dictionary["Avg"] = { "avgVMEM":avgVMEM, "avgPSS":avgPSS, "avgRSS":avgRSS, "avgSwap":avgSwap }
-                    tolog("summary_dictionary=%s"%str(summary_dictionary))
+
                 f.close()
         else:
             if path == "":
