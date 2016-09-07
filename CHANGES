@@ -493,6 +493,17 @@ Looping job killer update:
 - Updated __loopingJobKiller() to ignore file name patterns 'memory_' and 'mem.'. Previously, the pilot only ignore 'memory_monitor' patterns (Monitor)
 - Discussed in JIRA ticket https://its.cern.ch/jira/browse/ATLASPANDA-281
 
+Updates from Wen Guan:
+
+- record number events to fix nEvents for preempted jobs
+- update schedconfig
+- merge with main-dev
+
+File Changes
+
+M ATLASSiteInformation.py (2)
+M RunJobEvent.py (14)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
