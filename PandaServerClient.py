@@ -1,4 +1,5 @@
 import os
+import traceback
 from time import time, gmtime, strftime
 from datetime import date
 from commands import getstatusoutput, getoutput
@@ -366,12 +367,20 @@ class PandaServerClient:
                 node['pilotErrorDiag'] = tailPilotErrorDiag(job.pilotErrorDiag)
                 tolog("Updated pilotErrorDiag from None: %s" % (job.pilotErrorDiag))
 
-            # get the number of events
-            if job.nEvents != 0:
-                node['nEvents'] = job.nEvents
-                tolog("Total number of processed events: %d (read)" % (job.nEvents))
-            else:
-                tolog("Payload/TRF did not report the number of read events")
+        # get the number of events, should report in heartbeat in case of preempted.
+        if job.nEvents != 0:
+            node['nEvents'] = job.nEvents
+            tolog("Total number of processed events: %d (read)" % (job.nEvents))
+        else:
+            tolog("Payload/TRF did not report the number of read events")
+
+        try:
+            # report CPUTime and CPUunit at the end of the job
+            node['cpuConsumptionTime'] = job.cpuConsumptionTime
+            node['cpuConsumptionUnit'] = job.cpuConsumptionUnit + "+" + getCPUmodel()
+            node['cpuConversionFactor'] = job.cpuConversionFactor
+        except:
+            tolog("Failed to get cpu time: %s" % traceback.format_exc())
 
         if job.result[0] == 'finished' or job.result[0] == 'failed':
             # make sure there is no mismatch between the transformation error codes (when both are reported)
