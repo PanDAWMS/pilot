@@ -107,7 +107,6 @@ class RunJobEvent(RunJob):
     __nEvents = 0
     __nEventsW = 0
 
-
     # Getter and setter methods
 
     def getNEvents(self):
