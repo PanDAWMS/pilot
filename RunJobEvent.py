@@ -99,12 +99,19 @@ class RunJobEvent(RunJob):
     # ES zip
     __esToZip = False
 
-
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
     __child_cpuTime = {}
 
+    # record processed events
+    __nEvents = 0
+    __nEventsW = 0
+
+
     # Getter and setter methods
+
+    def getNEvents(self):
+        return self.__nEvents, self.__nEventsW
 
     def getExperiment(self):
         """ Getter for __experiment """
@@ -1502,6 +1509,7 @@ class RunJobEvent(RunJob):
                                     self.__stageout_queue.remove(f)
                                     tolog("Adding %s to output file list" % (f))
                                     self.__output_files.append(f)
+                                    self.__nEventsW += 1
                                     tolog("output_files = %s" % (self.__output_files))
                                     if ec == 0:
                                         status = 'finished'
@@ -1540,6 +1548,7 @@ class RunJobEvent(RunJob):
                                     self.__stageout_queue.remove(f)
                                     tolog("Adding %s to output file list" % (f))
                                     self.__output_files.append(f)
+                                    self.__nEventsW += 1
                                     tolog("output_files = %s" % (self.__output_files))
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
@@ -1600,6 +1609,8 @@ class RunJobEvent(RunJob):
 
                 elif buf.startswith('/'):
                     tolog("Received file and process info from client: %s" % (buf))
+
+                    self.__nEvents += 1
 
                     # Extract the information from the message
                     paths, event_range_id, cpu, wall = self.interpretMessage(buf)
@@ -2577,6 +2588,7 @@ if __name__ == "__main__":
             # When a process is running, os.times() returns a very small value.
             if time_to_calculate_cuptime < time.time() - 2 * 60:
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                job.nEvents, job.nEventsW = self.getNEvents()
 
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
