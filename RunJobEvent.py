@@ -1262,6 +1262,9 @@ class RunJobEvent(RunJob):
                 self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("pilot: Put error: "))
 
             tolog("Put function returned code: %d" % (ec))
+            if ec == 0:
+                self.__job.pilotErrorDiag = ""
+
             if ec != 0:
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(ec):
@@ -2586,8 +2589,10 @@ if __name__ == "__main__":
             # should not use os.times(). os.times() collects cputime at the end of a process.
             # When a process is running, os.times() returns a very small value.
             if time_to_calculate_cuptime < time.time() - 2 * 60:
+                time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
-                job.nEvents, job.nEventsW = self.getNEvents()
+                job.nEvents, job.nEventsW = runJob.getNEvents()
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
@@ -2646,6 +2651,13 @@ if __name__ == "__main__":
 
                     # Wait until AthenaMP is ready to receive another event range
                     while not runJob.isAthenaMPReady():
+                        # calculate cpu time
+                        if time_to_calculate_cuptime < time.time() - 2 * 60:
+                            time_to_calculate_cuptime = time.time()
+                            job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                            job.nEvents, job.nEventsW = runJob.getNEvents()
+                            rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+
                         # do not continue if the abort has been set
                         if runJob.shouldBeAborted():
                             tolog("Aborting AthenaMP loop")
