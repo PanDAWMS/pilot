@@ -1263,6 +1263,9 @@ class RunJobEvent(RunJob):
                 self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("pilot: Put error: "))
 
             tolog("Put function returned code: %d" % (ec))
+            if ec == 0:
+                self.__job.pilotErrorDiag = ""
+
             if ec != 0:
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(ec):
@@ -2589,7 +2592,7 @@ if __name__ == "__main__":
             if time_to_calculate_cuptime < time.time() - 2 * 60:
                 time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
-                job.nEvents, job.nEventsW = self.getNEvents()
+                job.nEvents, job.nEventsW = runJob.getNEvents()
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
             # if the AthenaMP workers are ready for event processing, download some event ranges
@@ -2653,7 +2656,7 @@ if __name__ == "__main__":
                         if time_to_calculate_cuptime < time.time() - 2 * 60:
                             time_to_calculate_cuptime = time.time()
                             job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
-                            job.nEvents, job.nEventsW = self.getNEvents()
+                            job.nEvents, job.nEventsW = runJob.getNEvents()
                             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
                         # do not continue if the abort has been set

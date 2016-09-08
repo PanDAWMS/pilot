@@ -377,8 +377,6 @@ class PandaServerClient:
         try:
             # report CPUTime and CPUunit at the end of the job
             node['cpuConsumptionTime'] = job.cpuConsumptionTime
-            node['cpuConsumptionUnit'] = job.cpuConsumptionUnit + "+" + getCPUmodel()
-            node['cpuConversionFactor'] = job.cpuConversionFactor
         except:
             tolog("Failed to get cpu time: %s" % traceback.format_exc())
 
