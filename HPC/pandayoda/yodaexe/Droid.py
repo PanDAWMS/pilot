@@ -19,9 +19,7 @@ from Queue import Queue
 from pandayoda.yodacore import Interaction,Database,Logger
 from EventServer.EventServerJobManager import EventServerJobManager
 from signal_block.signal_block import block_sig, unblock_sig
-from pandayoda.yodaexe.DroidStager import DroidStager
 
-import pUtil
 
 class Droid(threading.Thread):
     def __init__(self, globalWorkingDir, localWorkingDir, rank=None, nonMPIMode=False, reserveCores=0, outputDir=None):
@@ -29,8 +27,8 @@ class Droid(threading.Thread):
         self.__globalWorkingDir = globalWorkingDir
         self.__localWorkingDir = localWorkingDir
         self.__currentDir = None
-        self.__comm = Interaction.Requester(rank=rank, nonMPIMode=nonMPIMode)
         self.__tmpLog = Logger.Logger(filename='Droid.log')
+        self.__comm = Interaction.Requester(rank=rank, nonMPIMode=nonMPIMode, logger=self.__tmpLog)
         self.__esJobManager = None
         self.__isFinished = False
         if nonMPIMode:
@@ -56,12 +54,16 @@ class Droid(threading.Thread):
         self.__firstGetEventRanges = True
         self.__outputDir = outputDir
 
+        self.__yodaToOS = False
+
         self.reserveCores = reserveCores
         self.__hostname = socket.getfqdn()
 
         self.__outputs = Queue()
         self.__jobMetrics = {}
         self.__stagerThread = None
+
+        self.__stop = False
 
         if not nonMPIMode:
             signal.signal(signal.SIGTERM, self.stop)
@@ -108,6 +110,8 @@ class Droid(threading.Thread):
             self.__preSetup = job.get('PreSetup', None)
             self.__postRun = job.get('PostRun', None)
 
+            self.__yodaToOS = job.get('yodaToOS', False)
+
             self.__ATHENA_PROC_NUMBER = int(job.get('ATHENA_PROC_NUMBER', 1))
             self.__ATHENA_PROC_NUMBER -= self.reserveCores
             if self.__ATHENA_PROC_NUMBER < 0:
@@ -138,7 +142,7 @@ class Droid(threading.Thread):
                     
                 job["AthenaMPCmd"] = job["AthenaMPCmd"].replace('HPCWORKINGDIR', os.getcwd())
 
-            self.__esJobManager = EventServerJobManager(self.__rank, self.__ATHENA_PROC_NUMBER)
+            self.__esJobManager = EventServerJobManager(self.__rank, self.__ATHENA_PROC_NUMBER, workingDir=self.__jobWorkingDir)
             status, output = self.__esJobManager.preSetup(self.__preSetup)
             if status != 0:
                 return False, output
@@ -173,6 +177,7 @@ class Droid(threading.Thread):
     def startStagerThread(self, job):
         self.__tmpLog.debug("Rank %s: initStagerThread: workdir: %s" %(self.__rank, os.getcwd()))
         try:
+            from pandayoda.yodaexe.DroidStager import DroidStager
             self.__stagerThread = DroidStager(self.__globalWorkingDir, self.__localWorkingDir, outputs=self.__outputs, job=job, esJobManager=self.__esJobManager, outputDir=self.__outputDir, rank=self.__rank, logger=self.__tmpLog)
             self.__stagerThread.start()
             return 0, None
@@ -241,7 +246,12 @@ class Droid(threading.Thread):
     def updatePandaEventRanges(self, event_ranges):
         """ Update an event range on the Event Server """
         self.__tmpLog.debug("Updating event ranges..")
-
+        try:
+            test = sys.modules['pUtil']
+        except:
+            self.__tmpLog.debug("loading pUtil")
+        import pUtil
+        
         message = ""
         #url = "https://aipanda007.cern.ch:25443/server/panda"
         url = "https://pandaserver.cern.ch:25443/server/panda"
@@ -272,8 +282,8 @@ class Droid(threading.Thread):
             outputs.append(output)
             if output['eventStatus'] == 'stagedOut':
                 stagedOutpus.append({'eventRangeID': output['eventRangeID'], 'eventStatus': 'finished', 'objstoreID': output['objstoreID']})
-            elif output['eventStatus'].startswith("ERR"):
-                stagedOutpus.append({'eventRangeID': output['eventRangeID'], 'eventStatus': 'failed', 'objstoreID': output['objstoreID']})
+            elif output['eventStatus'].startswith("ERR") and self.__yodaToOS:
+                stagedOutpus.append({'eventRangeID': output['eventRangeID'], 'eventStatus': 'failed'})
         if len(stagedOutpus):
             self.__tmpLog.debug("Rank %s: updatePandaEventRanges(request: %s)" % (self.__rank, stagedOutpus))
             retStatus, retOutput = self.updatePandaEventRanges(stagedOutpus)
@@ -364,6 +374,18 @@ class Droid(threading.Thread):
         json.dump(self.__jobMetrics, tmpFile)
         tmpFile.close()
 
+    def pollYodaMessage(self):
+        self.__tmpLog.debug("Rank %s: pollYodaMessage" % (self.__rank))
+        if True:
+            status, output = self.__comm.waitMessage()
+            self.__tmpLog.debug("Rank %s: (status: %s, output: %s)" % (self.__rank, status, output))
+            if status:
+                statusCode = output["StatusCode"]
+                state = output["State"]
+                if statusCode == 0 and state == 'finished':
+                    return True
+        return True
+
     def waitYoda(self):
         self.__tmpLog.debug("Rank %s: WaitYoda" % (self.__rank))
         while True:
@@ -395,6 +417,7 @@ class Droid(threading.Thread):
         failedNum = 0
         #self.__tmpLog.info("Rank %s: isDead: %s" % (self.__rank, self.__esJobManager.isDead()))
         heartbeatTime = None
+        self.__tmpLog.info("Rank %s: os.times: %s" % (self.__rank, os.times()))
         while not self.__esJobManager.isDead():
             #self.__tmpLog.info("Rank %s: isDead: %s" % (self.__rank, self.__esJobManager.isDead()))
             #self.__tmpLog.info("Rank %s: isNeedMoreEvents: %s" % (self.__rank, self.__esJobManager.isNeedMoreEvents()))
@@ -428,6 +451,7 @@ class Droid(threading.Thread):
                 heartbeatTime = time.time()
             elif time.time() - heartbeatTime > 60:
                 self.heartbeat()
+                self.__tmpLog.info("Rank %s: os.times: %s" % (self.__rank, os.times()))
                 heartbeatTime = time.time()
 
         self.heartbeat()
@@ -457,7 +481,7 @@ class Droid(threading.Thread):
             self.__tmpLog.info("Rank %s: Droid failed preCheck, exit" % self.__rank)
             return 1
 
-        while True:
+        while not self.__stop:
             self.__tmpLog.info("Rank %s: Droid starts to run one job" % self.__rank)
             os.chdir(self.__globalWorkingDir)
             try:
@@ -475,8 +499,13 @@ class Droid(threading.Thread):
         return 0
             
     def stop(self, signum=None, frame=None):
-        self.__tmpLog.info('Rank %s: stop signal received' % self.__rank)
-        block_sig(signal.SIGTERM)
+        self.__tmpLog.info('Rank %s: stop signal %s received' % (self.__rank, signum))
+        self.__stop = True
+        block_sig(signum)
+        signal.siginterrupt(signum, False)
+        if self.__esJobManager:
+            self.__esJobManager.terminate()
+        self.getAccountingMetrics()
         self.dumpJobMetrics()
         self.heartbeat()
         #self.__esJobManager.terminate()
@@ -489,7 +518,8 @@ class Droid(threading.Thread):
         #self.finishJob()
 
         self.__tmpLog.info('Rank %s: stop' % self.__rank)
-        unblock_sig(signal.SIGTERM)
+        #signal.siginterrupt(signum, True)
+        unblock_sig(signum)
         sys.exit(0)
 
     def __del_not_use__(self):

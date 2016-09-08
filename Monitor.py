@@ -671,7 +671,8 @@ class Monitor:
                                     "pandaJob" in _file or
                                     "runjob" in _file or
                                     "matched_replicas" in _file or
-                                    "memory_monitor" in _file or
+                                    "memory_" in _file or
+                                    "mem." in _file or
                                     "DBRelease-" in _file):
                                 _files.append(_file)
     #                        else:
@@ -931,6 +932,8 @@ class Monitor:
         """ For multiple jobs, pilot may take long time collect logs. Send heartbeats for these jobs. """
 
         for k in self.__env['jobDic'].keys():
+            if k == "prod" or k in self.__jobs_cleaned_up:
+                continue
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
                 jobResult = self.__env['jobDic'][k][1].result
@@ -956,7 +959,9 @@ class Monitor:
             if tmp == "finished" or tmp == "failed" or tmp == "holding":
                 pUtil.tolog("Clean up the ended job: %s" % str(self.__env['jobDic'][k]))
             else:
-                return
+                pUtil.tolog("Clean up the ended job: %s" % str(self.__env['jobDic'][k]))
+                pUtil.tolog("WARNING: The job state is not in [finished, failed, holding]. It should not happend.")
+                # return
 
             # refresh the stdout tail if necessary
             # get the tail if possible
@@ -972,6 +977,7 @@ class Monitor:
             # panda server with the final job state
             pUtil.postJobTask(self.__env['jobDic'][k][1], self.__env['thisSite'], self.__env['workerNode'],
                                   self.__env['experiment'], jr = False, stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
+            self.__jobs_cleaned_up.append(k)
             if k == "prod":
                 prodJobDone = True
 
@@ -1007,16 +1013,29 @@ class Monitor:
 
             # ready with this object, delete it
             # del self.__env['jobDic'][k]
-            self.__jobs_cleaned_up.append(k)
+            # self.__jobs_cleaned_up.append(k)
         except:
             pUtil.tolog("Failed to clean up job %s: %s" % (k, traceback.format_exc()))
 
     def __cleanUpEndedJobs(self):
         """ clean up the ended jobs (if there are any) """
 
+        # pUtil.tolog("Debug: jobDic: %s" % self.__env['jobDic'].keys())
+        # pUtil.tolog("Debug: jobs cleaned up: %s" % self.__jobs_cleaned_up)
+        # pUtil.tolog("Debug: jobs in threadpool: %s" % self.__jobs_added_to_threadpool)
+
         for k in self.__jobs_cleaned_up:
             if k in self.__env['jobDic'].keys():
                 del self.__env['jobDic'][k]
+            if k in self.__jobs_added_to_threadpool:
+                self.__jobs_added_to_threadpool.remove(k)
+
+        if self.__threadpool and self.__threadpool.is_empty() and self.__jobs_added_to_threadpool:
+            pUtil.tolog("WARNING: threadpool is empty, but there are still jobs added to it: %s" % self.__jobs_added_to_threadpool)
+            pUtil.tolog("Debug: jobs cleaned up: %s" % self.__jobs_cleaned_up)
+            # pUtil.tolog("WARNING: clean __jobs_added_to_threadpool")
+            # self.__jobs_added_to_threadpool = []
+            
 
         # after multitasking was removed from the pilot, there is actually only one job
         first = True
@@ -1037,6 +1056,7 @@ class Monitor:
                 pUtil.tolog("Failed to setup threadpool: %s" % (traceback.format_exc()))
 
         for k in self.__env['jobDic'].keys():
+            pUtil.tolog("Debug: job %s state: %s" % (k, self.__env['jobDic'][k][1].result[0]))
             if k in self.__jobs_added_to_threadpool:
                 # job is already in threadpool
                 continue
@@ -1064,11 +1084,11 @@ class Monitor:
                     self.__threadpool.add_task(self.__cleanUpEndedJob, k, stdout_dictionary)
                     self.__jobs_added_to_threadpool.append(k)
             # send heartbeat
-            if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
+            if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] * 0.7 and not self.__skip:
                 self.updateTerminatedJobs()
                 break
         # send heartbeat
-        if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] and not self.__skip:
+        if (int(time.time()) - self.__env['curtime']) > self.__env['update_freq_server'] * 0.7 and not self.__skip:
            self.updateTerminatedJobs()
 
 
@@ -1098,9 +1118,9 @@ class Monitor:
         for jobId in all_jobs:
             try:
                 if not os.path.exists(all_jobs[jobId]):
-                    pUtil.tolog("Job %s file %s doesn't exist, will not monitor" % (jobId, all_jobs[jobId]))
+                    # pUtil.tolog("Job %s file %s doesn't exist, will not monitor" % (jobId, all_jobs[jobId]))
                     continue
-                pUtil.tolog("Job %s file %s exist, will check its work dir to decide whether monitor it or not" % (jobId, all_jobs[jobId]))
+                # pUtil.tolog("Job %s file %s exist, will check its work dir to decide whether monitor it or not" % (jobId, all_jobs[jobId]))
                 with open(all_jobs[jobId]) as inputFile:
                     content = json.load(inputFile)
                 job = Job.Job()
@@ -1114,7 +1134,7 @@ class Monitor:
                     job.tarFileGuid = logGUID
 
                 if not os.path.exists(job.workdir):
-                    pUtil.tolog("Job %s work dir %s doesn't exit, will not add it to monitor" % (job.jobId, job.workdir))
+                    # pUtil.tolog("Job %s work dir %s doesn't exit, will not add it to monitor" % (job.jobId, job.workdir))
                     continue
 
                 self.__env['jobDic'][job.jobId] = [self.__env['jobDic']['prod'][0], job, self.__env['jobDic']['prod'][2]]
@@ -1393,6 +1413,9 @@ class Monitor:
                     pUtil.tolog("Successfully updated panda server at %s" % pUtil.timeStamp())
                 else:
                     pUtil.tolog("!!WARNING!!1999!! updatePandaServer returned a %d" % (ret))
+
+                if self.__env['jobDic']["prod"][1].eventService and (pUtil.readpar('catchall') and "HPC" not in pUtil.readpar('catchall')):
+                    self.__env['update_freq_server'] =  10 * 60
             else: # child job
                 pUtil.tolog("Starting child process in dir: %s" % self.__env['jobDic']["prod"][1].workdir)
 

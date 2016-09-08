@@ -866,6 +866,7 @@ def getFileInfoFromXML(thisfile):
 def getFileInfoDictionaryFromXML(xml_file):
     """ Create a file info dictionary from the PoolFileCatalog """
 
+    tolog("Get file catalog from: %s" % xml_file)
     # Format: { lfn : [pfn, guid] }
     # Example:
     # lfn = "EVNT.01461041._000001.pool.root.1"
@@ -1836,7 +1837,8 @@ def shouldPFC4TURLsBeCreated(analysisJob, transferType, experiment, eventService
 
     # override if necessary for event service
     if eventService:
-        if not 'HPC_HPC' in readpar('catchall'):
+        copycmd, setup = getCopytool(mode="get")
+        if (copycmd and not 'mv' in copycmd) and not 'HPC_HPC' in readpar('catchall'):
             status = True
 
     if status:
@@ -2147,14 +2149,26 @@ def verifyPFCIntegrity(guidfname, lfns, dbh, DBReleaseIsAvailable, error):
     fail = 0
     pilotErrorDiag = ""
     filelist_fromxml = guidfname.values()
+
+    # Remove any paths if the guidfname contains them
+    tolog("Original filelist_fromxml = %s" % str(filelist_fromxml))
+    _filelist_fromxml = []
+    for lfn in filelist_fromxml:
+        if "/" in lfn:
+            _lfn = os.path.basename(lfn)
+        else:
+            _lfn = lfn
+        _filelist_fromxml.append(_lfn)
+    filelist_fromxml = _filelist_fromxml
+
     filelist_fromlfns = []
     for lfn in lfns:
         if lfn not in filelist_fromlfns:
             if not (isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable):
                 filelist_fromlfns += [lfn]
 
+    tolog("Updated filelist_fromxml = %s" % str(filelist_fromxml))
     tolog("filelist_fromlfns = %s" % str(filelist_fromlfns))
-    tolog("filelist_fromxml = %s" % str(filelist_fromxml))
 
     # return an error if a file is missing in the PoolFileCatalog.xml
     if len(filelist_fromxml) < len(filelist_fromlfns):
@@ -2475,7 +2489,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
         # The DBRelease file might already have been handled, go to next file
         if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
             updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", ftype="input")
-            guidfname[guid] = lfn # needed for verification below
+            guidfname[guid] = os.path.join(path, lfn) # needed for verification below
             continue
         else:
             tolog("(Not a DBRelease file)")
@@ -2623,7 +2637,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
             if copycmd == "fax":
                 FAX_dictionary['usedFAXandDirectIO'] = True
         else:
-            guidfname[guid] = lfn # local_file_name
+            guidfname[guid] = lfn # os.path.join(path, lfn)
 
     if fail == 0:
         # Make sure the PFC has the correct number of files
@@ -2920,7 +2934,7 @@ def mover_get_data(lfns,
             # The DBRelease file might already have been handled, go to next file
             if isDBReleaseFile(dbh, lfn) and DBReleaseIsAvailable:
                 updateFileState(lfn, workDir, jobId, mode="transfer_mode", state="no_transfer", ftype="input")
-                guidfname[guid] = lfn # needed for verification below
+                guidfname[guid] = os.path.join(path, lfn) # needed for verification below
                 continue
             else:
                 tolog("(Not a DBRelease file)")
@@ -3073,7 +3087,7 @@ def mover_get_data(lfns,
                 if copycmd == "fax":
                     usedFAXandDirectIO = True
             else:
-                guidfname[guid] = lfn # local_file_name
+                guidfname[guid] = lfn # os.path.join(path, lfn)
 
     if fail == 0:
         # Make sure the PFC has the correct number of files
@@ -3381,8 +3395,8 @@ def sitemover_put_data(sitemover, error, workDir, jobId, pfn, ddm_storage, dsnam
         traceback.print_tb(tb)
     else:
         # Finish and send the tracing report (the tracing report updated by the site mover will be read from file)
-        if os_bucket_id == -1: # skip sending tracing report for objectstore transfers
-            finishTracingReport(sitemover, r_gpfn, pilotErrorDiag)
+        # if os_bucket_id == -1: # skip sending tracing report for objectstore transfers
+        finishTracingReport(sitemover, r_gpfn, pilotErrorDiag)
 
         # add the guid and surl to the surl dictionary if possible
         if guid != "" and r_gpfn != "":
@@ -5418,6 +5432,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
 
     if os.environ.has_key('Nordugrid_pilot') or region == 'testregion':
         # Build a new PFC for NG
+        ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogND(guids, lfns, pinitdir, pfc_name=pfc_name)
         ec, pilotErrorDiag, xml_from_PFC, xml_source = getPoolFileCatalogND(guids, lfns, pinitdir)
 
     # As a last step, remove any multiple identical copies of the replicas (SURLs)
@@ -5435,7 +5450,7 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
             tolog("!!WARNING!!4444!! Caught exception: %s" % (e))
     return ec, pilotErrorDiag, xml_from_PFC, xml_source, final_replicas_dict, surl_filetype_dictionary, copytool_dictionary
 
-def getPoolFileCatalogND(guids, lfns, pinitdir):
+def getPoolFileCatalogND(guids, lfns, pinitdir, pfc_name=None):
     """ build a new PFC for ND """
 
     xml_from_PFC = ""
@@ -5452,12 +5467,17 @@ def getPoolFileCatalogND(guids, lfns, pinitdir):
                 pilotErrorDiag = "Guid (%s) was not provided by server for file %s" % (str(guid), lfns[lfn_id])
                 tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
                 return error.ERR_NOPFC, pilotErrorDiag, xml_from_PFC, xml_source
-            file_dic[guid] = os.path.join(pinitdir, lfns[lfn_id])
+            # file_dic[guid] = os.path.join(pinitdir, lfns[lfn_id])
+            file_dic[guid] = lfns[lfn_id]
             lfn_id += 1
-        tolog("File list generated with %d entries" % len(file_dic))
+        tolog("Pilot initdir: %s" % pinitdir)
+        tolog("File list generated with %d entries: %s" % (len(file_dic), file_dic))
 
         # create a pool file catalog
-        xml_from_PFC = createPoolFileCatalog(file_dic, lfns)
+        if pfc_name:
+            xml_from_PFC = createPoolFileCatalog(file_dic, lfns, forceLogical=True, pfc_name=pfc_name)
+        else:
+            xml_from_PFC = createPoolFileCatalog(file_dic, lfns, forceLogical=True)
     else:
         pilotErrorDiag = "Guids were not provided by server"
         tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))

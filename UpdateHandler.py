@@ -17,7 +17,7 @@ class UpdateHandler(BaseRequestHandler):
             pUtil.tolog("Connected from %s" % str(self.client_address))
             data = self.request.recv(4096)
             jobmsg = data.split(";")
-            pUtil.tolog("--- TCPServer: Message received from child is : %s" % str(jobmsg))
+            pUtil.tolog("--- TCPServer: Message received from child is : %s" % json.dumps(jobmsg))
             jobinfo = {}
             for i in jobmsg:
                 if not i: continue # skip empty line
@@ -27,8 +27,12 @@ class UpdateHandler(BaseRequestHandler):
                     pUtil.tolog("!!WARNING!!1999!! Exception caught: %s" % (e))
     
             # update self.__env['jobDic']
+            pUtil.tolog("Debug: jobdict keys: %s" % self.__env['jobDic'].keys())
+            pUtil.tolog("Debug: jobinfo: %s" % jobinfo)
+            found_job = False
             for k in self.__env['jobDic'].keys():
-                if self.__env['jobDic'][k][1].jobId == jobinfo["jobid"]: # job pid matches
+                if str(self.__env['jobDic'][k][1].jobId) == str(jobinfo["jobid"]): # job pid matches
+                    found_job = True
 #                if self.__env['jobDic'][k][2] == int(jobinfo["pgrp"]) and self.__env['jobDic'][k][1].jobId == int(jobinfo["jobid"]): # job pid matches
                     # protect with try statement in case the pilot server goes down (jobinfo will be corrupted)
                     try:
@@ -156,6 +160,12 @@ class UpdateHandler(BaseRequestHandler):
                         except:
                             pass
 
+            if not found_job:
+                pUtil.tolog("Debug: job not found.")
+                pUtil.tolog("Debug: jobdict keys: %s" % self.__env['jobDic'].keys())
+                pUtil.tolog("Debug: jobinfo: %s" % jobinfo)
+                for k1 in self.__env['jobDic'].keys():
+                    pUtil.tolog("Debug: jobkey %s, jobid %s" % (k1, str(self.__env['jobDic'][k1][1].jobId)))
         except Exception, e:
             pUtil.tolog("!!WARNING!!1998!! Caught exception. Pilot server down? %s" % str(e))
             

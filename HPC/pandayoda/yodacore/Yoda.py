@@ -2,7 +2,9 @@ import commands
 import datetime
 import json
 import logging
+import math
 import os
+import shutil
 import sys
 import time
 import traceback
@@ -19,20 +21,49 @@ from signal_block.signal_block import block_sig, unblock_sig
 
 # main Yoda class
 class Yoda(threading.Thread):
-    
+    class HelperThread(threading.Thread):
+        def __init__(self, logger, helperFunc, **kwds):
+            threading.Thread.__init__(self, **kwds)
+            self.__log = logger
+            self.__func = helperFunc
+            self._stop = threading.Event()
+            self.__log.debug("HelperThread initialized.")
+
+        def stop(self):
+            self._stop.set()
+
+        def stopped(self):
+            return self._stop.isSet()
+
+        def run(self):
+            try:
+                exec_time = None
+                while True:
+                    if self.stopped():
+                        break
+                    if exec_time is None or exec_time < time.time() - 60:
+                        self.__func()
+                        exec_time = time.time()
+                    time.sleep(1)
+            except:
+                self.__log.debug("Exception: HelperThread failed: %s" % traceback.format_exc())
+
+
     # constructor
     def __init__(self, globalWorkingDir, localWorkingDir, pilotJob=None, rank=None, nonMPIMode=False, outputDir=None, dumpEventOutputs=False):
         threading.Thread.__init__(self)
         self.globalWorkingDir = globalWorkingDir
         self.localWorkingDir = localWorkingDir
         self.currentDir = None
-        # communication channel
-        self.comm = Interaction.Receiver(rank=rank, nonMPIMode=nonMPIMode)
-        self.rank = self.comm.getRank()
         # database backend
         self.db = Database.Backend(self.globalWorkingDir)
         # logger
         self.tmpLog = Logger.Logger(filename='Yoda.log')
+
+        # communication channel
+        self.comm = Interaction.Receiver(rank=rank, nonMPIMode=nonMPIMode, logger=self.tmpLog)
+        self.rank = self.comm.getRank()
+
         self.tmpLog.info("Global working dir: %s" % self.globalWorkingDir)
         self.initWorkingDir()
         self.tmpLog.info("Current working dir: %s" % self.currentDir)
@@ -44,7 +75,18 @@ class Yoda(threading.Thread):
 
         self.cores = 10
         self.jobs = []
+
+        # jobs which needs more than one rank
         self.jobRanks = []
+        self.totalJobRanks = 0
+        # jobs which needs less than one rank
+        self.jobRanksSmallPiece = []
+        self.totalJobRanksSmallPiece = 0
+
+        # scheduler policy:
+        self.bigJobFirst = True
+        self.lastRankForBigJobFirst = int(self.getTotalRanks() * 0.9)
+
         self.readyEventRanges = []
         self.runningEventRanges = {}
         self.finishedEventRanges = []
@@ -60,12 +102,18 @@ class Yoda(threading.Thread):
         self.jobsTimestamp = {}
         self.jobsRuningRanks = {}
 
+        self.originSigHandler = {}
+        for sig in [signal.SIGTERM, signal.SIGQUIT, signal.SIGSEGV, signal.SIGXCPU, signal.SIGUSR1, signal.SIGBUS]:
+            self.originSigHandler[sig] = signal.getsignal(sig)
         signal.signal(signal.SIGTERM, self.stop)
         signal.signal(signal.SIGQUIT, self.stop)
         signal.signal(signal.SIGSEGV, self.stop)
-        signal.signal(signal.SIGXCPU, self.stop)
-        signal.signal(signal.SIGUSR1, self.stop)
-        signal.signal(signal.SIGBUS, self.stop)
+        signal.signal(signal.SIGXCPU, self.stopYoda)
+        signal.signal(signal.SIGUSR1, self.stopYoda)
+        signal.signal(signal.SIGBUS, self.stopYoda)
+
+    def getTotalRanks(self):
+        return self.comm.getTotalRanks()
 
     def initWorkingDir(self):
         # Create separate working directory for each rank
@@ -146,11 +194,24 @@ class Yoda(threading.Thread):
                     neededRanks[job['neededRanks']] = []
                 neededRanks[job['neededRanks']].append(jobId)
             keys = neededRanks.keys()
-            keys.sort()
+            keys.sort(reverse=True)
             for key in keys:
-                for jobId in neededRanks[key]:
-                    for i in range(key):
-                        self.jobRanks.append(jobId)
+                self.tmpLog.debug("Rank %s: Needed ranks %s" % (self.rank, key))
+
+                if key < 1:
+                    for jobId in neededRanks[key]:
+                        self.tmpLog.debug("Rank %s: Adding %s to small piece queue" % (self.rank, jobId))
+                        self.totalJobRanksSmallPiece += key
+                        self.jobRanksSmallPiece.append(jobId)
+                else:
+                    for jobId in neededRanks[key]:            
+                        # for i in range(int(math.ceil(key))):
+                        for i in range(int(key)):
+                            self.tmpLog.debug("Rank %s: Adding %s to full rank queue" % (self.rank, jobId))
+                            self.jobRanks.append(jobId)
+            self.totalJobRanks = len(self.jobRanks)
+            self.tmpLog.debug("Rank %s: Jobs in small piece queue(one job is not enough to take the full rank) %s, total needed ranks %s" % (self.rank, self.jobRanksSmallPiece, self.totalJobRanksSmallPiece))
+            self.tmpLog.debug("Rank %s: Jobs in full rank queue(one job is long enough to take the full rank) %s, total needed ranks %s" % (self.rank, self.jobRanks, self.totalJobRanks))
             return True,self.jobRanks
         except:
             self.tmpLog.debug("Rank %s: %s" % (self.rank, traceback.format_exc()))
@@ -223,6 +284,21 @@ class Yoda(threading.Thread):
             errMsg = 'failed to make event table with {0}:{1}'.format(errtype.__name__,errvalue)
             return False,errMsg
         
+    def printEventStatus(self):
+        try:
+            for jobId in self.jobs:
+                job = self.jobs[jobId]
+                neededRanks = job['neededRanks']
+                readyEvents = len(self.readyJobsEventRanges[jobId]) if jobId in self.readyJobsEventRanges else 0
+                self.tmpLog.debug("Rank %s: Job %s has %s events, needs %s ranks" % (self.rank, jobId, readyEvents, neededRanks))
+            self.tmpLog.debug("Rank %s: Job full rank queue: %s" % (self.rank, self.jobRanks))
+            self.tmpLog.debug("Rank %s: Job small piece queue: %s" % (self.rank, self.jobRanksSmallPiece))
+            return True, None
+        except:
+            self.tmpLog.debug("Rank %s: %s" % (self.rank, traceback.format_exc()))
+            errtype,errvalue = sys.exc_info()[:2]
+            errMsg = 'failed to make event table with {0}:{1}'.format(errtype.__name__,errvalue)
+            return False,errMsg
 
     # inject more events
     def injectEvents(self):
@@ -266,41 +342,77 @@ class Yoda(threading.Thread):
 
     def rescheduleJobRanks(self):
         try:
+            self.tmpLog.debug("Rank %s: rescheduleJobRanks" % (self.rank))
             numEvents = {}
             for jobId in self.readyJobsEventRanges:
                 no = len(self.readyJobsEventRanges[jobId])
+                self.tmpLog.debug("Rank %s: Job %s ready events %s"  % (self.rank, jobId, no))
                 if no not in numEvents:
                     numEvents[len] = []
                 numEvents.append(jobId)
             keys = numEvents.keys()
             keys.sort(reverse=True)
             for key in keys:
+                if key < self.cores * 2:
+                    continue
                 for jobId in numEvents[key]:
-                    for i in range(key/self.cores):
-                        self.jobRanks.append(jobId)
+                    #for i in range(key/self.cores):
+                    self.tmpLog.debug("Rank %s: Adding job %s to small piece queue"  % (self.rank, jobId))
+                    self.jobRanksSmallPiece.append(jobId)
+
+            self.tmpLog.debug("Rank %s: Jobs in small piece queue(one job is not enough to take the full rank) %s" % (self.rank, self.jobRanksSmallPiece))
+            self.tmpLog.debug("Rank %s: Jobs in full rank queue(one job is long enough to take the full rank, should be empty if reaching here) %s" % (self.rank, self.jobRanks))
+
+            self.printEventStatus()
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errMsg = 'failed to reschedule job ranks with {0}:{1}'.format(errtype.__name__,errvalue)
             return False,errMsg
 
     # get job
-    def getJob(self,params):
+    def getJobScheduler(self,params):
         rank = params['rank']
         job = None
         jobId = None
-        while len(self.jobRanks):
-            jobId = self.jobRanks.pop(0)
-            if len(self.readyJobsEventRanges[jobId]) > 0:
-                job = self.jobs[jobId]
-                break
-
-        if job is None:
-            self.rescheduleJobRanks()
+        if int(rank) <= self.lastRankForBigJobFirst:
+            self.tmpLog.debug("Rank %s: Big jobs first for rank %s(<=%s the last rank for big job first)"  % (self.rank, rank, self.lastRankForBigJobFirst))
             while len(self.jobRanks):
                 jobId = self.jobRanks.pop(0)
                 if len(self.readyJobsEventRanges[jobId]) > 0:
                     job = self.jobs[jobId]
                     break
+            if job is None:
+                self.tmpLog.debug("Rank %s: no available jobs in full rank queue, try to get job from small piece queue"  % (self.rank))
+                while len(self.jobRanksSmallPiece):
+                    jobId = self.jobRanksSmallPiece.pop(0)
+                    if len(self.readyJobsEventRanges[jobId]) > 0:
+                        job = self.jobs[jobId]
+                        break
+        else:
+            self.tmpLog.debug("Rank %s: Small jobs first for rank %s(>%s the last rank for big job first)"  % (self.rank, rank, self.lastRankForBigJobFirst))
+            while len(self.jobRanksSmallPiece):
+                jobId = self.jobRanksSmallPiece.pop()
+                if len(self.readyJobsEventRanges[jobId]) > 0:
+                    job = self.jobs[jobId]
+                    break
+            if job is None:
+                while len(self.jobRanks):
+                    jobId = self.jobRanks.pop()
+                    if len(self.readyJobsEventRanges[jobId]) > 0:
+                        job = self.jobs[jobId]
+                        break
+
+        return jobId, job
+
+    # get job
+    def getJob(self,params):
+        rank = params['rank']
+        jobId, job = self.getJobScheduler(params)
+        if job is None:
+            ##### not disable reschedule job ranks, it will split jobs to additional ranks
+            ##### instead, pilot will download more events then expected
+            self.rescheduleJobRanks()
+            jobId, job = self.getJobScheduler(params)
 
         res = {'StatusCode':0,
                'job': job}
@@ -522,37 +634,67 @@ class Yoda(threading.Thread):
             self.tmpLog.debug('updateRunningEventRangesToDB failed: %s, %s' % (str(e), traceback.format_exc()))
 
     def dumpUpdates(self, jobId, outputs, type=''):
-        if self.dumpEventOutputs == False:
-            return
+        #if self.dumpEventOutputs == False:
+        #    return
         timeNow = datetime.datetime.utcnow()
-        outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
-        etadataFileName = 'metadata-' + outFileName.split('.dump')[0] + '.xml'
+        #outFileName = str(jobId) + "_" + timeNow.strftime("%Y-%m-%d-%H-%M-%S-%f") + '.dump' + type
+        outFileName = str(jobId) + "_event_status.dump" + type
         outFileName = os.path.join(self.globalWorkingDir, outFileName)
-        if self.outputDir:
-            metadataFileName = os.path.join(self.outputDir, etadataFileName)
-        else:
-            metadataFileName = os.path.join(self.globalWorkingDir, etadataFileName)
-        outFile = open(outFileName,'w')
+        outFile = open(outFileName + ".new", 'w')
+        self.tmpLog.debug("dumpUpdates: dumpFileName %s" % (outFileName))
 
-        self.tmpLog.debug("dumpUpdates: outputDir %s, metadataFileName %s" % (self.outputDir, metadataFileName))
-        metafd = open(metadataFileName, "w")
-        metafd.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
-        metafd.write("<!-- Edited By POOL -->\n")
-        metafd.write('<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">\n')
-        metafd.write("<POOLFILECATALOG>\n")
+        metadataFileName = None
+        metafd = None
+        # if self.dumpEventOutputs:
+        if True:
+            metadataFileName = 'metadata-' + os.path.basename(outFileName).split('.dump')[0] + '.xml'
+            if self.outputDir:
+                metadataFileName = os.path.join(self.outputDir, metadataFileName)
+            else:
+                metadataFileName = os.path.join(self.globalWorkingDir, metadataFileName)
+
+
+            self.tmpLog.debug("dumpUpdates: outputDir %s, metadataFileName %s" % (self.outputDir, metadataFileName))
+            metafd = open(metadataFileName + ".new", "w")
+            metafd.write('<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n')
+            metafd.write("<!-- Edited By POOL -->\n")
+            metafd.write('<!DOCTYPE POOLFILECATALOG SYSTEM "InMemory">\n')
+            metafd.write("<POOLFILECATALOG>\n")
 
         for eventRangeID,status,output in outputs:
-            outFile.write('{0} {1} {2} {3}\n'.format(jobId, eventRangeID,status,output))
+            outFile.write('{0} {1} {2} {3}\n'.format(str(jobId), str(eventRangeID), str(status), str(output)))
 
-            metafd.write('  <File EventRangeID="%s">\n' % (eventRangeID))
-            metafd.write("    <physical>\n")
-            metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (output.split(",")[0]))
-            metafd.write("    </physical>\n")
-            metafd.write("  </File>\n")
+            if status.startswith("ERR"):
+                status = 'failed'
+
+            if metafd:
+                metafd.write('  <File EventRangeID="%s" Status="%s">\n' % (eventRangeID, status))
+                metafd.write("    <physical>\n")
+                if isinstance(output, (list, tuple)):
+                    for output1 in output:
+                        metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (str(output1)))
+                else:
+                    for output1 in output.split(",")[:-3]:
+                        metafd.write('      <pfn filetype="ROOT_All" name="%s"/>\n' % (str(output1)))
+                metafd.write("    </physical>\n")
+                metafd.write("  </File>\n")
 
         outFile.close()
-        metafd.write("</POOLFILECATALOG>\n")
-        metafd.close()
+        if metafd:
+            metafd.write("</POOLFILECATALOG>\n")
+            metafd.close()
+
+        # mv the new file to overwrite the current one
+        command = "mv %s.new %s" % (outFileName, outFileName)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
+
+        if metadataFileName:
+            command = "mv %s.new %s" % (metadataFileName, metadataFileName)
+            retS, retOut = commands.getstatusoutput(command)
+            if retS:
+                self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
 
     def updateFinishedEventRangesToDB(self):
         try:
@@ -561,18 +703,17 @@ class Yoda(threading.Thread):
             for jobId in self.stagedOutJobsEventRanges:
                 if len(self.stagedOutJobsEventRanges[jobId]):
                     self.dumpUpdates(jobId, self.stagedOutJobsEventRanges[jobId], type='.stagedOut')
-                    #self.db.updateEventRanges(self.finishedEventRanges)
-                    for i in self.stagedOutJobsEventRanges[jobId]:
-                        self.stagedOutJobsEventRanges[jobId].remove(i)
-                    self.stagedOutJobsEventRanges[jobId] = []
+                    #for i in self.stagedOutJobsEventRanges[jobId]:
+                    #    self.stagedOutJobsEventRanges[jobId].remove(i)
+                    #self.stagedOutJobsEventRanges[jobId] = []
 
             for jobId in self.finishedJobsEventRanges:
                 if len(self.finishedJobsEventRanges[jobId]):
                     self.dumpUpdates(jobId, self.finishedJobsEventRanges[jobId])
                     #self.db.updateEventRanges(self.finishedEventRanges)
-                    for i in self.finishedJobsEventRanges[jobId]:
-                        self.finishedJobsEventRanges[jobId].remove(i)
-                    self.finishedJobsEventRanges[jobId] = []
+                    #for i in self.finishedJobsEventRanges[jobId]:
+                    #    self.finishedJobsEventRanges[jobId].remove(i)
+                    #self.finishedJobsEventRanges[jobId] = []
             self.tmpLog.debug('finished to updateFinishedEventRangesToDB')
         except Exception as e:
             self.tmpLog.debug('updateFinishedEventRangesToDB failed: %s, %s' % (str(e), traceback.format_exc()))
@@ -582,7 +723,7 @@ class Yoda(threading.Thread):
         timeNow = time.time()
         # forced or first dump or enough interval
         if force or self.updateEventRangesToDBTime == None or \
-            ((timeNow - self.updateEventRangesToDBTime) > 60 * 2):
+            ((timeNow - self.updateEventRangesToDBTime) > 60 * 5):
             self.tmpLog.debug('start to updateEventRangesToDB')
             self.updateEventRangesToDBTime = time.time()
             #if not final:
@@ -597,7 +738,7 @@ class Yoda(threading.Thread):
         res = {'StatusCode':0, 'State': 'finished'}
         self.tmpLog.debug('res={0}'.format(str(res)))
         self.comm.sendMessage(res)
-        self.comm.disconnect()
+        #self.comm.disconnect()
 
     def collectMetrics(self, ranks):
         metrics = {}
@@ -672,11 +813,7 @@ class Yoda(threading.Thread):
 
 
     def dumpJobMetrics(self):
-        #jobMetricsFileName = "jobMetrics-yoda-%s.json" % jobId
         jobMetricsFileName = "jobMetrics-yoda.json"
-        #if self.outputDir:
-        #    jobMetrics = os.path.join(self.outputDir, jobMetricsFileName)
-        #else:
         try:
             #outputDir = self.jobs[jobId]["GlobalWorkingDir"]
             outputDir = self.globalWorkingDir
@@ -684,22 +821,39 @@ class Yoda(threading.Thread):
             self.tmpLog.debug("Failed to get job's global working dir: %s" % (traceback.format_exc()))
             outputDir = self.globalWorkingDir
         jobMetrics = os.path.join(outputDir, jobMetricsFileName)
-        self.tmpLog.debug("JobMetrics file: %s" % jobMetrics)
-        tmpFile = open(jobMetrics, "w")
+        self.tmpLog.debug("JobMetrics file: %s" % (jobMetrics + ".new"))
+        tmpFile = open(jobMetrics+ ".new", "w")
         json.dump(self.jobMetrics, tmpFile)
         tmpFile.close()
+
+        command = "mv %s.new %s" % (jobMetrics, jobMetrics)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
 
     def dumpJobsStartTime(self):
         jobsTimestampFileName = "jobsTimestamp-yoda.json"
         outputDir = self.globalWorkingDir
         jobsTimestampFile = os.path.join(outputDir, jobsTimestampFileName)
-        self.tmpLog.debug("JobsStartTime file: %s" % jobsTimestampFile)
-        tmpFile = open(jobsTimestampFile, "w")
+        self.tmpLog.debug("JobsStartTime file: %s" % (jobsTimestampFile + ".new"))
+        tmpFile = open(jobsTimestampFile + ".new", "w")
         json.dump(self.jobsTimestamp, tmpFile)
         tmpFile.close()
 
-    # main
-    def run(self):
+        command = "mv %s.new %s" % (jobsTimestampFile, jobsTimestampFile)
+        retS, retOut = commands.getstatusoutput(command)
+        if retS:
+            self.tmpLog.debug('Failed to execute %s: %s' % (command, retOut))
+
+    def helperFunction(self):
+        # flush the updated event ranges to db
+        self.updateEventRangesToDB(force=True)
+
+        self.dumpJobMetrics()
+        self.dumpJobsStartTime()
+
+    # main yoda
+    def runYoda(self):
         # get logger
         self.tmpLog.info('start')
         # load job
@@ -724,6 +878,14 @@ class Yoda(threading.Thread):
             self.tmpLog.error(tmpOut)
             sys.exit(1)
 
+        # print event status
+        self.tmpLog.info('print event status')
+        tmpStat,tmpOut = self.printEventStatus()
+
+        self.tmpLog.info('Initialize Helper thread')
+        helperThread = Yoda.HelperThread(self.tmpLog, self.helperFunction)
+        helperThread.start()
+
         # main loop
         self.tmpLog.info('main loop')
         time_dupmJobMetrics = time.time()
@@ -741,17 +903,14 @@ class Yoda(threading.Thread):
                                                                 method,str(params)))
             if hasattr(self,method):
                 methodObj = getattr(self,method)
-                apply(methodObj,[params])
+                try:
+                    apply(methodObj,[params])
+                except:
+                    self.tmpLog.debug("Failed to run function %s: %s" % (method, traceback.format_exc()))
             else:
                 self.tmpLog.error('unknown method={0} was requested from rank={1} '.format(method,
                                                                                       self.comm.getRequesterRank()))
-            # flush the updated event ranges to db
-            self.updateEventRangesToDB(force=False)
-            if time_dupmJobMetrics < time.time() - 60:
-                self.dumpJobMetrics()
-                self.dumpJobsStartTime()
-                time_dupmJobMetrics = time.time()
-
+        helperThread.stop()
         self.flushMessages()
         #self.updateFailedEventRanges()
         self.updateEventRangesToDB(force=True)
@@ -768,6 +927,13 @@ class Yoda(threading.Thread):
         sys.exit(0)
         return 0
 
+    # main
+    def run(self):
+        try:
+            self.runYoda()
+        except:
+            self.tmpLog.info("Excpetion to run Yoda: %s" % traceback.format_exc())
+            sys.exit(1)
 
     def flushMessages(self):
         self.tmpLog.info('flush messages')
@@ -789,9 +955,27 @@ class Yoda(threading.Thread):
                 self.tmpLog.error('unknown method={0} was requested from rank={1} '.format(method, self.comm.getRequesterRank()))
 
 
+    def stopYoda(self, signum=None, frame=None):
+        self.tmpLog.info('stopYoda signal %s received' % signum)
+        #signal.signal(signum, self.originSigHandler[signum])
+        # make message
+        res = {'StatusCode':0, 'State': 'signal', 'signum': signum}
+        self.tmpLog.debug('res={0}'.format(str(res)))
+        self.comm.sendMessage(res)
+
+        self.dumpJobMetrics()
+        for jobId in self.jobsTimestamp:
+            if self.jobsTimestamp[jobId]['endTime'] is None:
+                self.jobsTimestamp[jobId]['endTime'] = time.time()
+            if len(self.jobsRuningRanks[jobId]) > 0:
+                self.jobsTimestamp[jobId]['endTime'] = time.time()
+        self.dumpJobsStartTime()
+        self.updateEventRangesToDB(force=True, final=True)
+
     def stop(self, signum=None, frame=None):
-        self.tmpLog.info('stop signal received')
-        block_sig(signal.SIGTERM)
+        self.tmpLog.info('stop signal %s received' % signum)
+        block_sig(signum)
+        signal.siginterrupt(signum, False)
         self.dumpJobMetrics()
         for jobId in self.jobsTimestamp:
             if self.jobsTimestamp[jobId]['endTime'] is None:
@@ -808,7 +992,8 @@ class Yoda(threading.Thread):
         self.tmpLog.info("post Exec job")
         self.postExecJob()
         self.tmpLog.info('stop')
-        unblock_sig(signal.SIGTERM)
+        #signal.siginterrupt(signum, True)
+        unblock_sig(signum)
         sys.exit(0)
 
     def getOutputs(self):

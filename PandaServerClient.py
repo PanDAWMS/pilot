@@ -1,4 +1,5 @@
 import os
+import traceback
 from time import time, gmtime, strftime
 from datetime import date
 from commands import getstatusoutput, getoutput
@@ -108,25 +109,25 @@ class PandaServerClient:
         # get the experiment object
         thisExperiment = getExperiment(job.experiment)
 
-        if job.coreCount:
-            # Always use the ATHENA_PROC_NUMBER first, if set
-            if os.environ.has_key('ATHENA_PROC_NUMBER'):
-                try:
-                    envCoreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-                    if envCoreCount > job.coreCount:
-                        job.coreCount = envCoreCount
-                except Exception, e:
-                    tolog("ATHENA_PROC_NUMBER is not properly set: %s (will use existing job.coreCount value)" % (e))
-
-            coreCount = job.coreCount
+        if "HPC_HPC" in readpar('catchall'):
+            if job.coreCount is None:
+                job.coreCount = 0
         else:
-            try:
-                coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-            except:
-                tolog("env ATHENA_PROC_NUMBER is not set. corecount is not set")
-        job.coreCount = coreCount
+            if job.coreCount:
+                # Always use the ATHENA_PROC_NUMBER first, if set
+                if os.environ.has_key('ATHENA_PROC_NUMBER'):
+                    try:
+                        job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+                    except Exception, e:
+                        tolog("ATHENA_PROC_NUMBER is not properly set: %s (will use existing job.coreCount value)" % (e))
+            else:
+                try:
+                    job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+                except:
+                    tolog("env ATHENA_PROC_NUMBER is not set. corecount is not set")
+        coreCount = job.coreCount
         jobMetrics = ""
-        if coreCount and coreCount != "NULL" and coreCount != 'null':
+        if coreCount is not None and coreCount != "NULL" and coreCount != 'null':
             jobMetrics += self.jobMetric(key="coreCount", value=coreCount)
         if job.nEvents > 0:
             jobMetrics += self.jobMetric(key="nEvents", value=job.nEvents)
@@ -134,19 +135,21 @@ class PandaServerClient:
             jobMetrics += self.jobMetric(key="nEventsW", value=job.nEventsW)
 
         # hpc status
-        if job.mode:
-            jobMetrics += self.jobMetric(key="mode", value=job.mode)
-        if job.hpcStatus:
-            jobMetrics += self.jobMetric(key="HPCStatus", value=job.hpcStatus)
+        #if job.mode:
+        #    jobMetrics += self.jobMetric(key="mode", value=job.mode)
+        #if job.hpcStatus:
+        #    jobMetrics += self.jobMetric(key="HPCStatus", value=job.hpcStatus)
         if job.yodaJobMetrics:
             for key in job.yodaJobMetrics:
                 if key == 'startTime' or key == 'endTime':
-                    value = strftime("%Y-%m-%dT%H:%M:%S", gmtime(job.yodaJobMetrics[key]))
+                    value = strftime("%Y-%m-%d %H:%M:%S", gmtime(job.yodaJobMetrics[key]))
                     jobMetrics += self.jobMetric(key=key, value=value)
+                elif key.startswith("min") or key.startswith("max"):
+                    pass
                 else:
                     jobMetrics += self.jobMetric(key=key, value=job.yodaJobMetrics[key])
-        if job.HPCJobId:
-            jobMetrics += self.jobMetric(key="HPCJobId", value=job.HPCJobId)
+        #if job.HPCJobId:
+        #    jobMetrics += self.jobMetric(key="HPCJobId", value=job.HPCJobId)
 
         # eventservice zip file
         if job.outputZipName and job.outputZipBucketID:
@@ -205,7 +208,7 @@ class PandaServerClient:
             tolog("!!WARNING!!2223!! jobMetrics out of size (%d)" % (len(jobMetrics)))
 
             # try to reduce the field size and remove the last entry which might be cut
-            jobMetrics = jobMetrics[:-500]
+            jobMetrics = jobMetrics[:500]
             jobMetrics = " ".join(jobMetrics.split(" ")[:-1])
 
             tolog("jobMetrics has been reduced to: %s" % (jobMetrics))
@@ -298,10 +301,10 @@ class PandaServerClient:
 
         if job.yodaJobMetrics:
             if 'startTime' in job.yodaJobMetrics and job.yodaJobMetrics['startTime']:
-                node['startTime'] = strftime("%Y-%m-%dT%H:%M:%S", gmtime(job.yodaJobMetrics['startTime']))
+                node['startTime'] = strftime("%Y-%m-%d %H:%M:%S", gmtime(job.yodaJobMetrics['startTime']))
                 #job.yodaJobMetrics['startTime'] = node['startTime']
             if 'endTime' in job.yodaJobMetrics and job.yodaJobMetrics['endTime']:
-                node['endTime'] = strftime("%Y-%m-%dT%H:%M:%S", gmtime(job.yodaJobMetrics['endTime']))
+                node['endTime'] = strftime("%Y-%m-%d %H:%M:%S", gmtime(job.yodaJobMetrics['endTime']))
                 #job.yodaJobMetrics['endTime'] = node['endTime']
 
         # build the jobMetrics
@@ -364,12 +367,18 @@ class PandaServerClient:
                 node['pilotErrorDiag'] = tailPilotErrorDiag(job.pilotErrorDiag)
                 tolog("Updated pilotErrorDiag from None: %s" % (job.pilotErrorDiag))
 
-            # get the number of events
-            if job.nEvents != 0:
-                node['nEvents'] = job.nEvents
-                tolog("Total number of processed events: %d (read)" % (job.nEvents))
-            else:
-                tolog("Payload/TRF did not report the number of read events")
+        # get the number of events, should report in heartbeat in case of preempted.
+        if job.nEvents != 0:
+            node['nEvents'] = job.nEvents
+            tolog("Total number of processed events: %d (read)" % (job.nEvents))
+        else:
+            tolog("Payload/TRF did not report the number of read events")
+
+        try:
+            # report CPUTime and CPUunit at the end of the job
+            node['cpuConsumptionTime'] = job.cpuConsumptionTime
+        except:
+            tolog("Failed to get cpu time: %s" % traceback.format_exc())
 
         if job.result[0] == 'finished' or job.result[0] == 'failed':
             # make sure there is no mismatch between the transformation error codes (when both are reported)

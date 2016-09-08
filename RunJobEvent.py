@@ -45,7 +45,7 @@ try:
     from PilotYamplServer import PilotYamplServer as MessageServer
 except Exception, e:
     MessageServer = None
-    print "RunJobEvent caught exception:",e
+    tolog("RunJobEvent caught exception: %s" % str(e))
 
 class RunJobEvent(RunJob):
 
@@ -99,7 +99,18 @@ class RunJobEvent(RunJob):
     # ES zip
     __esToZip = False
 
+    # calculate cpu time, os.times() doesn't report correct value for preempted jobs
+    __childProcs = []
+    __child_cpuTime = {}
+
+    # record processed events
+    __nEvents = 0
+    __nEventsW = 0
+
     # Getter and setter methods
+
+    def getNEvents(self):
+        return self.__nEvents, self.__nEventsW
 
     def getExperiment(self):
         """ Getter for __experiment """
@@ -150,6 +161,7 @@ class RunJobEvent(RunJob):
         """ Setter for __pworkdir """
 
         self.__pworkdir = pworkdir
+        super(RunJobEvent, self).setParentWorkDir(pworkdir)
 
     def getLogGUID(self):
         """ Getter for __logguid """
@@ -180,6 +192,7 @@ class RunJobEvent(RunJob):
         """ Setter for __stageinretry """
 
         self.__stageinretry = stageinretry
+        super(RunJobEvent, self).setStageInRetry(stageinretry)
 
     def getStageOutRetry(self):
         """ Getter for __stageoutretry """
@@ -200,6 +213,7 @@ class RunJobEvent(RunJob):
         """ Setter for __pilot_initdir """
 
         self.__pilot_initdir = pilot_initdir
+        super(RunJobEvent, self).setPilotInitDir(pilot_initdir)
 
     def getProxyCheckFlag(self):
         """ Getter for __proxycheckFlag """
@@ -250,6 +264,7 @@ class RunJobEvent(RunJob):
         """ Setter for __inputDir """
 
         self.__inputDir = inputDir
+        super(RunJobEvent, self).setInputDir(inputDir)
 
     def getOutputDir(self):
         """ Getter for __outputDir """
@@ -746,8 +761,10 @@ class RunJobEvent(RunJob):
                 self.__logguid = options.logguid
             if options.inputDir:
                 self.__inputDir = options.inputDir
+                self.setInputDir(self.__inputDir)
             if options.pilot_initdir:
                 self.__pilot_initdir = options.pilot_initdir
+                self.setPilotInitDir(self.__pilot_initdir)
             if options.pilotlogfilename:
                 self.__pilotlogfilename = options.pilotlogfilename
             if options.pilotserver:
@@ -761,6 +778,7 @@ class RunJobEvent(RunJob):
                 self.__proxycheckFlag = True
             if options.pworkdir:
                 self.__pworkdir = options.pworkdir
+                self.setParentWorkDir(self.__pworkdir)
             if options.outputDir:
                 self.__outputDir = options.outputDir
             if options.pilotport:
@@ -776,6 +794,7 @@ class RunJobEvent(RunJob):
             if options.stageinretry:
                 try:
                     self.__stageinretry = int(options.stageinretry)
+                    self.setStageInRetry(self.__stageinretry)
                 except Exception, e:
                     tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
             if options.stageoutretry:
@@ -1017,7 +1036,7 @@ class RunJobEvent(RunJob):
         return exitCode, exitAcronym, exitMsg
 
     def initZipConf(self):
-        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.zip" % self.__job.jobId)
+        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.tar" % self.__job.jobId)
         self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
         if 'es_to_zip' in readpar('catchall'):
             self.__esToZip = True
@@ -1243,6 +1262,9 @@ class RunJobEvent(RunJob):
                 self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("pilot: Put error: "))
 
             tolog("Put function returned code: %d" % (ec))
+            if ec == 0:
+                self.__job.pilotErrorDiag = ""
+
             if ec != 0:
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(ec):
@@ -1341,7 +1363,7 @@ class RunJobEvent(RunJob):
             checksum = outputFileInfo[path][1]
             guid = outputFileInfo[path][2]
 
-            command = "zip -j " + self.__job.outputZipName + " " + path
+            command = "tar -rf " + self.__job.outputZipName + " --directory=%s %s" %(os.path.dirname(path), os.path.basename(path))
             tolog("Adding file to zip: %s" % command)
             ec, pilotErrorDiag = commands.getstatusoutput(command)
             tolog("status: %s, output: %s\n" % (ec, pilotErrorDiag))
@@ -1379,6 +1401,14 @@ class RunJobEvent(RunJob):
         tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
         ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
         if ec == 0:
+            if os.environ.has_key('Nordugrid_pilot'):
+                outputDir = os.path.dirname(os.path.dirname(self.__job.outputZipName))
+                tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName))))
+                os.rename(self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName)))
+                tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName))))
+                os.rename(self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName)))
+                return 0, None
+
             try:
                 ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
             except Exception, e:
@@ -1481,6 +1511,7 @@ class RunJobEvent(RunJob):
                                     self.__stageout_queue.remove(f)
                                     tolog("Adding %s to output file list" % (f))
                                     self.__output_files.append(f)
+                                    self.__nEventsW += 1
                                     tolog("output_files = %s" % (self.__output_files))
                                     if ec == 0:
                                         status = 'finished'
@@ -1519,6 +1550,7 @@ class RunJobEvent(RunJob):
                                     self.__stageout_queue.remove(f)
                                     tolog("Adding %s to output file list" % (f))
                                     self.__output_files.append(f)
+                                    self.__nEventsW += 1
                                     tolog("output_files = %s" % (self.__output_files))
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
@@ -1579,6 +1611,8 @@ class RunJobEvent(RunJob):
 
                 elif buf.startswith('/'):
                     tolog("Received file and process info from client: %s" % (buf))
+
+                    self.__nEvents += 1
 
                     # Extract the information from the message
                     paths, event_range_id, cpu, wall = self.interpretMessage(buf)
@@ -2100,6 +2134,8 @@ class RunJobEvent(RunJob):
         return filename
 
     def checkSetupObjectstore(self):
+        if os.environ.has_key('Nordugrid_pilot'):
+            return 0, ""
         try:
             from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
             testSiteMover = S3ObjectstoreSiteMover('')
@@ -2108,6 +2144,77 @@ class RunJobEvent(RunJob):
         except:
             err_msg = "Failed to check setup Objectstore: %s" % traceback.format_exc()
             return PilotErrors.ERR_UNKNOWN, err_msg
+
+
+    def findChildProcesses(self,pid):
+        command = "/bin/ps -e --no-headers -o pid -o ppid -o fname"
+        status,output = commands.getstatusoutput(command)
+        #print "ps output: %s" % output
+
+        pieces = []
+        result = []
+        for line in output.split("\n"):
+            pieces= line.split()
+            try:
+                value=int(pieces[1])
+            except Exception,e:
+                #print "trouble interpreting ps output %s: \n %s" % (e,pieces)
+                continue
+            if value==pid:
+                try:
+                    job=int(pieces[0])
+                except ValueError,e:
+                    #print "trouble interpreting ps output %s: \n %s" % (e,pieces[0])
+                    continue
+                result.append(job)
+        return result
+
+    def getChildren(self, pid):
+        #self.__childProcs = []
+        if pid not in self.__childProcs:
+            self.__childProcs.append(pid)
+        childProcs = self.findChildProcesses(pid)
+        for child in childProcs:
+            self.getChildren(child)
+
+    def getCPUConsumptionTimeFromProcPid(self, pid):
+        try:
+            if not os.path.exists(os.path.join('/proc/', str(pid), 'stat')):
+                return 0
+            with open(os.path.join('/proc/', str(pid), 'stat'), 'r') as pidfile:
+                proctimes = pidfile.readline()
+                # get utime from /proc/<pid>/stat, 14 item
+                utime = proctimes.split(' ')[13]
+                # get stime from proc/<pid>/stat, 15 item
+                stime = proctimes.split(' ')[14]
+                # count total process used time
+                proctotal = int(utime) + int(stime)
+            return(float(proctotal))
+        except:
+            #tolog("Failed to get cpu consumption time for pid %s: %s" % (pid, traceback.format_exc()))
+            return 0
+
+    def getCPUConsumptionTimeFromProc(self, processId):
+        cpuConsumptionTime = 0L
+        try:
+            CLOCK_TICKS = os.sysconf("SC_CLK_TCK")
+            if processId:
+                self.__childProcs = []
+                self.getChildren(processId)
+                for process in self.__childProcs:
+                    if process not in self.__child_cpuTime.keys():
+                        self.__child_cpuTime[process] = 0
+                for process in self.__child_cpuTime.keys():
+                    cpuTime = self.getCPUConsumptionTimeFromProcPid(process) / CLOCK_TICKS
+                    if cpuTime > self.__child_cpuTime[process]:
+                        # process can return a small value if it's killed
+                        self.__child_cpuTime[process] = cpuTime
+                    cpuConsumptionTime += self.__child_cpuTime[process]
+            tolog("cpuConsumptionTime for %s: %s" % (processId, cpuConsumptionTime))
+        except:
+            tolog("Failed to get cpu consumption time from proc: %s" % (traceback.format_exc()))
+        return cpuConsumptionTime
+
 
 
 # main process starts here
@@ -2238,6 +2345,7 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
 
+        runJob.initZipConf()
         status, output = runJob.checkSetupObjectstore()
         if status != 0:
             tolog("ObjectStore setup test failed. Will exit: %s" % output)
@@ -2271,7 +2379,6 @@ if __name__ == "__main__":
         tolog("Setup has finished successfully")
         runJob.setJob(job)
 
-        runJob.initZipConf()
         # Job has been updated, display it again
         job.displayJob()
 
@@ -2476,7 +2583,17 @@ if __name__ == "__main__":
         max_wait = 30
         nap = 5
         eventRangeFilesDictionary = {}
+        time_to_calculate_cuptime = time.time()
         while True:
+            # calculate cpu time, if it's killed, this value will be reported.
+            # should not use os.times(). os.times() collects cputime at the end of a process.
+            # When a process is running, os.times() returns a very small value.
+            if time_to_calculate_cuptime < time.time() - 2 * 60:
+                time_to_calculate_cuptime = time.time()
+                job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                job.nEvents, job.nEventsW = runJob.getNEvents()
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
             if runJob.isAthenaMPReady():
@@ -2534,6 +2651,13 @@ if __name__ == "__main__":
 
                     # Wait until AthenaMP is ready to receive another event range
                     while not runJob.isAthenaMPReady():
+                        # calculate cpu time
+                        if time_to_calculate_cuptime < time.time() - 2 * 60:
+                            time_to_calculate_cuptime = time.time()
+                            job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                            job.nEvents, job.nEventsW = runJob.getNEvents()
+                            rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+
                         # do not continue if the abort has been set
                         if runJob.shouldBeAborted():
                             tolog("Aborting AthenaMP loop")

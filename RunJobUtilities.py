@@ -129,7 +129,7 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
         tolog("filesNormalStageOut not set")
 
     # truncate already now if necesary so not too much junk is sent back to the local pilot TCP server
-    if job.pilotErrorDiag != None:
+    if job.pilotErrorDiag != None and job.pilotErrorDiag != "None" and len(job.pilotErrorDiag.strip()) != 0:
         # remove any unwanted characters from the string
         job.pilotErrorDiag = encode_string(job.pilotErrorDiag)
     msgdic["pilotErrorDiag"] = job.pilotErrorDiag

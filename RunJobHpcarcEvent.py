@@ -129,5 +129,11 @@ if __name__ == "__main__":
             tolog(sys.exc_info()[1])
             tolog(sys.exc_info()[2])
         finally:
+            try:
+                runJob.checkJobMetrics()
+                runJob.stageOutZipFiles()
+            except:
+                tolog("Failed to stageout zip files")
+                tolog(traceback.format_exc())
             runJob.finishJobs()
             sys.exit(0)
