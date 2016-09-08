@@ -495,14 +495,30 @@ Looping job killer update:
 
 Updates from Wen Guan:
 
-- record number events to fix nEvents for preempted jobs
-- update schedconfig
-- merge with main-dev
+Commit Summary
+
+record number events to fix nEvents for preempted jobs
+update schedconfig
+merge with main-dev
 
 File Changes
 
 M ATLASSiteInformation.py (2)
 M RunJobEvent.py (14)
+
+Updates from Wen Guan (2):
+
+Commit Summary
+
+fix panda client to report cputime in heartbeat
+fix wrong pilot error
+fix nevnts and cputime for preempted jobs
+File Changes
+
+M Monitor.py (3)
+M PandaServerClient.py (19)
+M RunJobEvent.py (14)
+M RunJobUtilities.py (2)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

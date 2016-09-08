@@ -1684,7 +1684,7 @@ class SiteInformation(object):
             tries = 2
             for trial in range(tries):
                 tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s\" >%s" % (queuename, filename)
+                cmd = 'curl --connect-timeout 20 --max-time 120 -sS "http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s" >%s' % (queuename, filename)
                 tolog("Executing command: %s" % (cmd))
                 ret, output = commands.getstatusoutput(cmd)
 
@@ -1692,6 +1692,7 @@ class SiteInformation(object):
                 value = self.getField('objectstores', queuename=queuename)
                 if value:
                     status = True
+                    tolog("Downloaded queuedata")
                     break
 
         return status
