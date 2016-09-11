@@ -134,7 +134,8 @@ class PilotErrors:
     ERR_PAYLOADEXCEEDMAXMEM = 1235
     ERR_FAILEDBYSERVER = 1236
     ERR_ESKILLEDBYSERVER = 1237
-    ERR_OVERSUBSCRIBEDEVENTS = 1238
+    ERR_NOEVENTS = 1238
+    ERR_OVERSUBSCRIBEDEVENTS = 1239
 
     # internal error codes
     ERR_DDMREG = 1
@@ -275,6 +276,7 @@ class PilotErrors:
         ERR_PAYLOADEXCEEDMAXMEM: "Payload exceeded maximum allowed memory",
         ERR_FAILEDBYSERVER: "Failed by server",
         ERR_ESKILLEDBYSERVER: "Event Service job killed by server",
+        ERR_NOEVENTS: "Event Service no available events",
         ERR_OVERSUBSCRIBEDEVENTS: " Event Service over subscribed events"
         }
 
