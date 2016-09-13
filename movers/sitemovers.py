@@ -8,3 +8,4 @@ from .lcgcp_sitemover import lcgcpSiteMover
 
 from .rucio_sitemover import rucioSiteMover
 from .lsm_sitemover import lsmSiteMover
+from .objectstore_sitemover import objectstoreSiteMover
