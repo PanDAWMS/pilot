@@ -1525,7 +1525,7 @@ class RunJobEvent(RunJob):
 
                                         # Note: the rec pilot must update the server appropriately
 
-                                    try:   
+                                    try:
                                         # Time to update the server
                                         msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
 
