@@ -509,11 +509,11 @@ class RunJobHpcEvent(RunJob):
         self.updateJobState(job, 'starting', '', final=False)
         return 0
 
-    def updateJobState(self, job, jobState, hpcState, final=False, updatePanda=True):
+    def updateJobState(self, job, jobState, hpcState, final=False, updatePanda=True, errorCode=0):
         job.HPCJobId = self.__hpcJobId
         job.setMode(self.__hpcMode)
         job.jobState = jobState
-        job.setState([job.jobState, 0, 0])
+        job.setState([job.jobState, 0, errorCode])
         job.setHpcStatus(hpcState)
         if job.pilotErrorDiag and len(job.pilotErrorDiag.strip()) == 0:
             job.pilotErrorDiag = None
@@ -1696,7 +1696,11 @@ class RunJobHpcEvent(RunJob):
         #     self.failOneJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag, final=True, updatePanda=False)
         #     return -1
 
-        self.updateJobState(job, "finished", "finished", final=False)
+        if job.nEvents == 0:
+            job.pilotErrorDiag = "Over subscribed events"
+            self.updateJobState(job, "failed", "finished", final=False, errorCode=PilotErrors.ERR_OVERSUBSCRIBEDEVENTS)
+        else:
+            self.updateJobState(job, "finished", "finished", final=False)
 
         tolog("Panda Job %s Done" % job.jobId)
         #self.sysExit(self.__job)
