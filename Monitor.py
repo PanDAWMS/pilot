@@ -1413,6 +1413,9 @@ class Monitor:
                     pUtil.tolog("Successfully updated panda server at %s" % pUtil.timeStamp())
                 else:
                     pUtil.tolog("!!WARNING!!1999!! updatePandaServer returned a %d" % (ret))
+
+                if self.__env['jobDic']["prod"][1].eventService and (pUtil.readpar('catchall') and "HPC" not in pUtil.readpar('catchall')):
+                    self.__env['update_freq_server'] =  10 * 60
             else: # child job
                 pUtil.tolog("Starting child process in dir: %s" % self.__env['jobDic']["prod"][1].workdir)
 

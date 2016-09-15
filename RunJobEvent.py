@@ -1236,7 +1236,7 @@ class RunJobEvent(RunJob):
             ec, pilotErrorDiag, rf, rs, self.__job.filesNormalStageOut, self.__job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" %\
                                          (metadata_fname), dsname, self.__jobSite.sitename, self.__jobSite.computingElement, analysisJob=self.__analysisJob, pinitdir=self.__pilot_initdir,\
                                          proxycheck=self.__proxycheckFlag, datasetDict=datasetDict, outputDir=self.__outputDir, outputFileInfo=outputFileInfo, stageoutTries=self.__stageoutretry,\
-                                                                                                                                             eventService=True, job=self.__job)
+                                         eventService=True, job=self.__job, jobWorkDir=self.__job.workdir)
             tin_1 = os.times()
             self.__job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
@@ -1255,13 +1255,17 @@ class RunJobEvent(RunJob):
             self.__job.setState(["holding", self.__job.result[1], ec])
         else:
             if self.__job.pilotErrorDiag != "":
-                if self.__job.pilotErrorDiag.startswith("Put error:"):
+                self.__job.pilotErrorDiag = self.__job.pilotErrorDiag.replace("Put error:", "Objectstore stageout error:")
+                if self.__job.pilotErrorDiag.startswith("Objectstore stageout error:"):
                     pre = ""
                 else:
-                    pre = "Put error: "
-                self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("pilot: Put error: "))
+                    pre = "Objectstore stageout error: "
+                self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("Objectstore stageout error: "))
 
             tolog("Put function returned code: %d" % (ec))
+            if ec == 0:
+                self.__job.pilotErrorDiag = ""
+
             if ec != 0:
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(ec):
@@ -2346,6 +2350,7 @@ if __name__ == "__main__":
         status, output = runJob.checkSetupObjectstore()
         if status != 0:
             tolog("ObjectStore setup test failed. Will exit: %s" % output)
+            job.result[2] = PilotErrors.ERR_ESOBJECTSTORESETUP
             runJob.failJob(0, job.result[2], job, pilotErrorDiag="ObjectStore setup test failed")
 
         # Create a message server object (global message_server)
@@ -2354,6 +2359,7 @@ if __name__ == "__main__":
         else:
             pilotErrorDiag = "The message server could not be created, cannot continue"
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
+            job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
         # Setup starts here ................................................................................
@@ -2586,8 +2592,10 @@ if __name__ == "__main__":
             # should not use os.times(). os.times() collects cputime at the end of a process.
             # When a process is running, os.times() returns a very small value.
             if time_to_calculate_cuptime < time.time() - 2 * 60:
+                time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
-                job.nEvents, job.nEventsW = self.getNEvents()
+                job.nEvents, job.nEventsW = runJob.getNEvents()
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
@@ -2646,6 +2654,13 @@ if __name__ == "__main__":
 
                     # Wait until AthenaMP is ready to receive another event range
                     while not runJob.isAthenaMPReady():
+                        # calculate cpu time
+                        if time_to_calculate_cuptime < time.time() - 2 * 60:
+                            time_to_calculate_cuptime = time.time()
+                            job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                            job.nEvents, job.nEventsW = runJob.getNEvents()
+                            rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+
                         # do not continue if the abort has been set
                         if runJob.shouldBeAborted():
                             tolog("Aborting AthenaMP loop")
@@ -2797,10 +2812,13 @@ if __name__ == "__main__":
         tolog("t1 = %s" % str(t1))
         t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
         # Try to get the cpu time from the jobReport
-        job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workdir)
-        if job.cpuConsumptionTime == 0:
+        job.cpuConsumptionUnit, cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workdir)
+        if cpuConsumptionTime == 0:
             tolog("!!WARNING!!3434!! Falling back to less accurate os.times() measurement of CPU time")
-            job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
+            job.cpuConsumptionUnit, cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
+        if cpuConsumptionTime > job.cpuConsumptionTime * 0.9:
+            # if payload is killed, cpu time returned from os.times() will not be correct.
+            job.cpuConsumptionTime = cpuConsumptionTime
         tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
         tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
         job.timeExe = int(round(t1[4] - t0[4]))
@@ -2932,14 +2950,24 @@ if __name__ == "__main__":
         if job.result[2] == error.ERR_ESKILLEDBYSERVER:
             tolog("Killed by server")
             job.jobState = "failed"
+        elif job.result[2]:
+            tolog("Detected some error: %s" % str(job.result))
+            job.jobState = "failed"
         else:
             if not runJob.getStatus() or errorCode != 0:
                 tolog("Detected at least one transfer failure, job will be set to failed")
                 job.jobState = "failed"
                 job.result[2] = errorCode
             else:
-                tolog("No transfer failures detected, job will be set to finished")
-                job.jobState = "finished"
+                eventRangeIdDic = runJob.getEventRangeIDDictionary()
+                if not eventRangeIdDic.keys():
+                    job.pilotErrorDiag = "Pilot got no events"
+                    job.result[0] = "failed"
+                    job.result[2] = error.ERR_NOEVENTS
+                    job.jobState = "failed"
+                else:
+                    tolog("No transfer failures detected, job will be set to finished")
+                    job.jobState = "finished"
         job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
