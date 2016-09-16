@@ -5,9 +5,8 @@ import os
 import sys
 import time
 import traceback
-
-logging.basicConfig(filename='HPCJob.log', level=logging.DEBUG)
-
+from mpi4py import MPI
+logger = logging.getLogger(__name__)
 
 def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEventOutputs=True):
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -18,13 +17,12 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEven
         mpisize = 1
     else:
         try:
-            from mpi4py import MPI
             comm = MPI.COMM_WORLD
             mpirank = comm.Get_rank()
             mpisize = comm.Get_size()
         except:
-            print "Failed to load mpi4py: %s" % (traceback.format_exc())
-            sys.exit(1)
+            logger.exception("Failed to load mpi4py")
+            raise
 
     # Create separate working directory for each rank
     from os.path import abspath as _abspath, join as _join
@@ -35,10 +33,10 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEven
         os.makedirs (wkdir)
     os.chdir (wkdir)
 
-    print "GlobalWorkDir: %s" % globalWorkDir
-    print "LocalWorkDir: %s" % localWorkDir
-    print "OutputDir: %s" % outputDir
-    print "RANK: %s" % mpirank
+    logger.info("GlobalWorkDir: %s" % globalWorkDir)
+    logger.info("LocalWorkDir: %s" % localWorkDir)
+    logger.info("OutputDir: %s" % outputDir)
+    logger.info("RANK: %s" % mpirank)
 
     if mpirank==0:
         try:
@@ -56,17 +54,17 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEven
 
             i = 30
             while True:
-                print "Rank %s: Yoda isAlive %s" % (mpirank, yoda.isAlive())
-                print "Rank %s: Droid isAlive %s" % (mpirank, droid.isAlive())
+                logger.info("Rank %s: Yoda isAlive %s" % (mpirank, yoda.isAlive()))
+                logger.info("Rank %s: Droid isAlive %s" % (mpirank, droid.isAlive()))
 
                 if yoda and yoda.isAlive():
                     time.sleep(60)
                 else:
                     break
-            print "Rank %s: Yoda finished" % (mpirank)
+            logger.info("Rank %s: Yoda finished" % (mpirank))
         except:
-            print "Rank %s: Yoda failed: %s" % (mpirank, traceback.format_exc())
-        sys.exit(0)
+            logger.exception("Rank %s: Yoda failed" % mpirank)
+            raise
         #os._exit(0)
     else:
         try:
@@ -78,13 +76,14 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEven
                 droid.join(timeout=1)
             # parent process
             #pid, status = os.waitpid(child_pid, 0)
-            print "Rank %s: Droid finished status: %s" % (mpirank, status)
+            logger.info("Rank %s: Droid finished status: %s" % (mpirank, status))
         except:
-            print "Rank %s: Droid failed: %s" % (mpirank, traceback.format_exc())
-        #sys.exit(0)
+            logger.exception("Rank %s: Droid failed" % mpirank)
+            raise
     return mpirank
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO,format='%(asctime)s|%(process)s|%(levelname)s|%(name)s|%(message)s',datefmt='%Y-%m-%d %H:%M:%S')
     usage = """
 usage: %(prog)s <command> [options] [args]
 
@@ -107,7 +106,7 @@ Commands:
 
     args = oparser.parse_args(sys.argv[1:])
     if args.globalWorkingDir is None:
-        print "Global working directory is needed."
+        logger.error( "Global working directory is needed.")
         oparser.print_help()
         sys.exit(-1)
     if args.localWorkingDir is None:
@@ -115,15 +114,17 @@ Commands:
 
     rank = None
     try:
-        print "Start HPCJob"
+        logger.info("Start HPCJob")
         rank = main(args.globalWorkingDir, args.localWorkingDir, args.nonMPIMode, args.outputDir, args.dumpEventOutputs)
-        print "Rank %s: HPCJob-Yoda success" % rank
+        logger.info( "Rank %s: HPCJob-Yoda success" % rank )
         if rank == 0:
+            # this causes all MPI ranks to exit, uncleanly
+            MPI.COMM_WORLD.Abort(-1)
             sys.exit(0)
     except Exception as e:
-        print "Rank %s: HPCJob-Yoda failed" % rank
-        print(e)
-        print(traceback.format_exc())
+        logger.exception("Rank " + rank + ": HPCJob-Yoda failed, exiting all ranks.")
         if rank == 0:
-            sys.exit(0)
+            # this causes all MPI ranks to exit, uncleanly
+            MPI.COMM_WORLD.Abort(-1)
+            sys.exit(-1)
     #os._exit(0)

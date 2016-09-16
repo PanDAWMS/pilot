@@ -495,7 +495,6 @@ class Droid(threading.Thread):
             os.chdir(self.__globalWorkingDir)
             self.__tmpLog.info("Rank %s: Droid finishes to run one job" % self.__rank)
         self.finishDroid()
-        sys.exit(0)
         return 0
             
     def stop(self, signum=None, frame=None):
@@ -520,7 +519,7 @@ class Droid(threading.Thread):
         self.__tmpLog.info('Rank %s: stop' % self.__rank)
         #signal.siginterrupt(signum, True)
         unblock_sig(signum)
-        sys.exit(0)
+        #sys.exit(0)
 
     def __del_not_use__(self):
         self.__tmpLog.info('Rank %s: __del__ function' % self.__rank)

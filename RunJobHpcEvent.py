@@ -1054,7 +1054,10 @@ class RunJobHpcEvent(RunJob):
         tolog("Submit HPC job")
         hpcManager.submit()
         tolog("Submitted HPC job")
-
+        # create file with batchid in name for reference
+        with open('batchid.' + str(hpcManager.getHPCJobId()) + '.txt','w') as file:
+            file.write(str(hpcManager.getHPCJobId()))
+            file.close()
         if hpcManager.isLocalProcess():
             self.__hpcStatue = 'closed'
             self.updateAllJobsState('finished', self.__hpcStatue)

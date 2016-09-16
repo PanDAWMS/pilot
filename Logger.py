@@ -13,11 +13,11 @@ class MyFormatter(logging.Formatter):
 
         logging.Formatter.__init__(self, fmt)
 
-        self.info_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s: %(message)s'
-        self.debug_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
-        self.warning_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
-        self.error_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
-        self.critical_fmt = '%(asctime)s (UTC) [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
+        self.info_fmt = '%(asctime)s (UTC) %(process)s [ %(levelname)s ] %(name)s %(filename)s: %(message)s'
+        self.debug_fmt = '%(asctime)s (UTC) %(process)s [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
+        self.warning_fmt = '%(asctime)s (UTC) %(process)s [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
+        self.error_fmt = '%(asctime)s (UTC) %(process)s [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
+        self.critical_fmt = '%(asctime)s (UTC) %(process)s [ %(levelname)s ] %(name)s %(filename)s:%(lineno)d %(funcName)s(): %(message)s'
 
     def format(self, record):
 

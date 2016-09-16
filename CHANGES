@@ -506,6 +506,28 @@ File Changes
 M ATLASSiteInformation.py (2)
 M RunJobEvent.py (14)
 
+
+Updates from Taylor Childers:
+
+-   Added code to write a file named batchid.<batchid>.txt to disk after the batch job is submitted so one does not have to scour the logs to find the id.
+-   Standardizing the many Loggers we have under HPC. They now all use UTC time in the same format and include the process id to help isolate multithreading messages. Al
+    so added the process id to the main pilot Logger.
+-   Removed the sys.exit call which do not allow MPI to finalize properly. If MPI Finize is never called jobs can run on past execution end, wasting wallclock hours
+-   Added more logging messages and changed from using the depricated commands module to the subprocess module for executing slurm commands
+-   Changed Logging to standard logging module and brought the MPI import to the top so that MPI.COMM_WORLD.Abort could be called when errors occur. Abort ensures all 
+    MPI ranks are killed. I added this because I was seeing failures where the worker nodes were not being released even though all processes had exited.
+
+Files changed:
+HPC/HPCJob.py
+HPC/HPCManagerPlugins/slurm.py
+HPC/Logger.py
+HPC/pandayoda/yodacore/Logger.py
+HPC/pandayoda/yodaexe/Droid.py
+Logger.py
+RunJobHpcEvent.py
+pUtil.py
+
+=======
 Updates from Wen Guan (2):
 
 Commit Summary

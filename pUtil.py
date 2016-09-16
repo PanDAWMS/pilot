@@ -161,9 +161,9 @@ def tolog(msg, tofile=True, label='INFO', essential=False):
             module_name = "unknown"
             #print "Exception caught by tolog(): ", e,
         module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
-        msg = "%s| %s" % (module_name_cut, msg)
+        msg = "%i|%s| %s" % (os.getpid(),module_name_cut, msg)
 
-        t = timeStampUTC()
+        t = timeStampUTC(format='%Y-%m-%d %H:%M:%S')
         if tofile:
             appendToLog("%s|%s\n" % (t, msg))
 
