@@ -3989,7 +3989,6 @@ def mover_put_data(outputpoolfcstring,
                    os_bucket_id=-1,
                    copytool=None,
                    job={},
-                   jobWorkDir=None,
                    log_transfer=False               # new sitemovers required integration parameter, if true then it's normal stageout of logfiles
                    ):
     """
