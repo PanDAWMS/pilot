@@ -3461,7 +3461,6 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                         outputDir="",           # + output dir
                         jobId=None,                       # --> job.jobId
                         jobDefId="",                      # * not set or --> job.jobDefinitionID
-                        jobWorkDir=None,                  # --> job.workdir
                         DN=None,                          # --> job.prodUserID
                         outputFileInfo=None,    # {'lfn':(fsize, checksum) of output files}
                         dispatchDBlockTokenForOut=None,   # --> job.dispatchDBlockTokenForOut
@@ -3613,7 +3612,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     si = getSiteInformation(job.experiment)
     si.setQueueName(queuename) # keep logic as is: but SiteInformation is singleton: may be used in other functions! FIX me later to proper implementation
 
-    workDir = recoveryWorkDir or os.path.dirname(jobWorkDir)
+    workDir = recoveryWorkDir or os.path.dirname(job.workdir)
 
     mover = JobMover(job, si, workDir=workDir)
     mover.stageoutretry = stageoutTries
@@ -3680,8 +3679,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     # note: the cmtconfig is needed by at least the xrdcp site mover
 
     # note: the job work dir does not exist in the case of job recovery
-    workDir = recoveryWorkDir or os.path.dirname(jobWorkDir)
-    # recoveryWorkDir and jobWorkDir do not used any more!
+    workDir = recoveryWorkDir or os.path.dirname(job.workdir)
 
     # setup the dictionary necessary for all instrumentation
     report = getInitialTracingReport(userid, sitename, pdsname, "put_sm", analysisJob, jobId, jobDefId, DN)
