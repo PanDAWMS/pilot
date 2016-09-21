@@ -454,7 +454,7 @@ class JobMover(object):
         for fspec in files:
             pfn = os.path.join(self.job.workdir, fspec.lfn)
             if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
-                error = "Erron: input pfn file is not exist: %s" % pfn
+                error = "Error: input pfn file is not exist: %s" % pfn
                 self.log(error)
                 raise PilotException(error, code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="FILE_INFO_FAIL")
             fspec.filesize = os.path.getsize(pfn)
