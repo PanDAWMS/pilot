@@ -41,8 +41,8 @@ class JobMover(object):
     _stageoutretry = 2 # default value
     _stageinretry = 2  # devault value
 
-    stagein_sleeptime = 10*60   # seconds, sleep time in case of stagein failure
-    stageout_sleeptime = 10*60  # seconds, sleep time in case of stageout failure
+    stagein_sleeptime = 5*60   # seconds, sleep time in case of stagein failure
+    stageout_sleeptime = 5*60  # seconds, sleep time in case of stageout failure
 
 
     def __init__(self, job, si, **kwargs):
@@ -429,6 +429,41 @@ class JobMover(object):
     def stageout_logfiles(self):
         return self.stageout("pl", self.job.logData)
 
+    def stageout_logfiles_os(self):
+        """
+            Special log transfers (currently to ObjectStores)
+        """
+
+        activity = "pls" ## pilot log special/second transfer
+
+        # resolve accepted OS DDMEndpoints
+
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        os_ddms = self.si.resolvePandaOSDDMs()
+        # load DDM conf
+        self.ddmconf.update(self.si.resolveDDMConf(os_ddms))
+
+        osddms = [e for e in osddms if self.ddmconf.get(e, {}).get('type') == 'OS_LOGS']
+
+        if not osddms:
+            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE)
+
+        ddmendpoint = osddms[0]
+
+        self.log("[stage-out] [%s] resolved OS ddmendpoint=% for special log transfer" % (activity, ddmendpoint))
+
+        import copy
+        data = copy.deepcopy(self.job.logData)
+        for e in data:
+            e.ddmendpoint = ddmendpoint
+
+        self.job.logSpecialData = data
+
+        ret = self.stageout(activity, self.job.logSpecialData)
+        self.job.logBucketID = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
+        self.job.logDDMEndpoint = ddmendpoint
+
+        return ret
 
     def stageout(self, activity, files):
         """

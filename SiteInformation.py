@@ -1967,6 +1967,25 @@ class SiteInformation(object):
         return ret
 
 
+    def resolvePandaOSDDMs(self, pandaqueues):
+        """
+            Resolve OS ddmendpoint associated to requested pandaqueues
+            :return: list of accepted ddmendpoints
+        """
+
+        if isinstance(pandaqueues, (str, unicode)):
+            pandaqueues = [pandaqueues]
+
+        r = self.loadSchedConfData(pandaqueues, cache_time=6000) or {} # quick stub: fix me later: schedconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+        #self.schedconf = r
+
+        ret = {}
+        for pandaqueue in set(pandaqueues):
+            ret[pandaqueue] = r.get(pandaqueue, {}).get('ddmendpoints', [])
+
+        return ret
+
+
     # Optional
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
