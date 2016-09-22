@@ -100,7 +100,7 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
 
 
 # new mover implementation
-def put_data_new(job, jobSite, stageoutTries, log_transfer, special_log_transfer=False, workDir=None):
+def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_transfer=False, workDir=None):
     """
         Do jobmover.stageout_outfiles or jobmover.stageout_logfiles respect to the log_transfer flag passed
         :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
@@ -164,7 +164,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer, special_log_transfer
     files = job.outData if not log_transfer else job.logData
     if special_log_transfer:
         files = job.logSpecialData
-    
+
     not_transferred = [e.lfn for e in files if e.status not in ['transferred']]
     if not_transferred:
         err_msg = 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers]))

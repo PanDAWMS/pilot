@@ -459,16 +459,18 @@ class JobMover(object):
 
         self.job.logSpecialData = data
 
-        ret = self.stageout(activity, self.job.logSpecialData)
+        copytools = [{'copysetup': '', 'copytool': 'objectstore'}]
+        ret = self.stageout(activity, self.job.logSpecialData, copytools)
         self.job.logBucketID = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
         self.job.logDDMEndpoint = ddmendpoint
 
         return ret
 
-    def stageout(self, activity, files):
+    def stageout(self, activity, files, copytools=None):
         """
             Copy files to dest SE:
             main control function, it should care about alternative stageout and retry-policy for diffrent ddmendpoints
+        :param copytools: default copytools to be used
         :return: list of entries (is_success, success_transfers, failed_transfers, exception) for each ddmendpoint
         :return: (transferred_files, failed_transfers)
         :raise: PilotException in case of error
@@ -479,7 +481,10 @@ class JobMover(object):
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity)[pandaqueue]
+        if copytools:
+            self.log("Mover.stageout() [new implementation] [%s]: default copytools=%s" % (activity, copytools))
+
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
 
         self.log("Mover.stageout() [new implementation] started for activity=%s, files=%s, protocols=%s, copytools=%s" % (activity, files, protocols, copytools))
 

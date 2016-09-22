@@ -141,7 +141,7 @@ class JobLog:
                 t0 = os.times()
                 ### fix job.workdir since log files are located outside job dir
                 job.workdir = site.workdir ### quick hack: FIX ME LATER
-                rc, pilotErrorDiag, rf, _dummy, filesNormalStageOut, filesAltStageOut = mover.put_data_new(job, site, stageoutTries=self.__env['stageoutretry'], special_log_transfer=True, workDir=site.workdir)
+                rc, pilotErrorDiag, rf, _dummy, filesNormalStageOut, filesAltStageOut = mover.put_data_new(job, site, stageoutTries=self.__env['stageoutretry'], log_transfer=False, special_log_transfer=True, workDir=site.workdir)
 
                 #job.filesNormalStageOut += filesNormalStageOut
                 #job.filesAltStageOut += filesAltStageOut

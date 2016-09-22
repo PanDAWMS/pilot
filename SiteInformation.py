@@ -1939,11 +1939,13 @@ class SiteInformation(object):
         return ret
 
 
-    def resolvePandaCopytools(self, pandaqueues, activity):
+    def resolvePandaCopytools(self, pandaqueues, activity, defval=[]):
         """
             Resolve supported copytools by given pandaqueues
-            Check first settings for requested activity (pr, pw), if not set then return all supported copytools
+            Check first settings for requested activity (pr, pw, pl, pls), then defal values,
+            if not set then return all supported copytools
             Return ordered list of accepted copytools
+            :param defval: default copytools values which will be used if no copytools defined for requested activity
             :return: dict('pandaqueue':[(copytool, {settings}), ('copytool_name', {'setup':''}), ])
         """
 
@@ -1957,8 +1959,10 @@ class SiteInformation(object):
         for pandaqueue in set(pandaqueues):
             copytools = r.get(pandaqueue, {}).get('copytools', {})
             cptools = []
-            for cp in r.get(pandaqueue, {}).get('acopytools', {}).get(activity, []) or copytools.iterkeys():
-                if cp not in copytools:
+            acopytools = r.get(pandaqueue, {}).get('acopytools', {}).get(activity, [])
+
+            for cp in acopytools or defval or copytools.iterkeys():
+                if acopytools and cp not in copytools: ## ignore unknown copytools
                     continue
                 cptools.append((cp, copytools[cp]))
 
