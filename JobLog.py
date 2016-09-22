@@ -164,11 +164,12 @@ class JobLog:
             tolog("Put function [stage-outlog special] returned code: %s" % rc)
 
             if rc:
-                tolog("WARNING: Failed to transfer log file to special SE (ObjectStore) .. skipped")
+                tolog("WARNING: Failed to transfer log file to special SE (ObjectStore) .. skipped, error=%s" % pilotErrorDiag)
             else:
                 # Update the OS transfer dictionary
                 for fspec in job.logSpecialData:
                     if fspec.status == 'transferred':
+                        tolog(" -- INFO: lfn=%s has been successfully transferred to OS: %s, bucket_id=%s" % (fspec.lfn, job.logBucketID, job.logDDMEndpoint))
                         addToOSTransferDictionary(fspec.lfn, self.__env['pilot_initdir'], job.logBucketID, job.logDDMEndpoint)
 
         # stage-out log file to regular SE

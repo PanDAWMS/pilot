@@ -1960,11 +1960,12 @@ class SiteInformation(object):
             copytools = r.get(pandaqueue, {}).get('copytools', {})
             cptools = []
             acopytools = r.get(pandaqueue, {}).get('acopytools', {}).get(activity, [])
-
-            for cp in acopytools or defval or copytools.iterkeys():
-                if acopytools and cp not in copytools: ## ignore unknown copytools
-                    continue
-                cptools.append((cp, copytools[cp]))
+            if acopytools:
+                cptools = [(cp, copytools[cp]) for cp in acopytools if cp in copytools]
+            elif defval:
+                cptools = defval[:]
+            else:
+                cptools = copytools.items()
 
             ret.setdefault(pandaqueue, cptools)
 

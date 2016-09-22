@@ -102,7 +102,8 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
 # new mover implementation
 def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_transfer=False, workDir=None):
     """
-        Do jobmover.stageout_outfiles or jobmover.stageout_logfiles respect to the log_transfer flag passed
+        Do jobmover.stageout_outfiles or jobmover.stageout_logfiles (if log_transfer=True)
+        or jobmover.stageout_logfiles_os (if special_log_transfer=True)
         :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
     """
 
@@ -120,6 +121,10 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
     mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
 
     eventType = "put_sm"
+    if log_transfer:
+        eventType += '_logs'
+    if special_log_transfer:
+        eventType += '_logs_os'
     if job.isAnalysisJob():
         eventType += "_a"
 

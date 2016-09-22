@@ -439,18 +439,23 @@ class JobMover(object):
         # resolve accepted OS DDMEndpoints
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
-        os_ddms = self.si.resolvePandaOSDDMs()
-        # load DDM conf
-        self.ddmconf.update(self.si.resolveDDMConf(os_ddms))
+        os_ddms = self.si.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
 
-        osddms = [e for e in osddms if self.ddmconf.get(e, {}).get('type') == 'OS_LOGS']
+        ddmconf = self.ddmconf
+        if os_ddms and (set(os_ddms) - set(self.ddmconf)): # load DDM conf
+            ddmconf = self.si.resolveDDMConf(os_ddms)
+            self.ddmconf.update(ddmconf)
+
+        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_LOGS']
+
+        self.log("[stage-outlog-special] [%s] resolved os_ddms=%s => logs=%s" % (activity, os_ddms, osddms))
 
         if not osddms:
             raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE)
 
         ddmendpoint = osddms[0]
 
-        self.log("[stage-out] [%s] resolved OS ddmendpoint=% for special log transfer" % (activity, ddmendpoint))
+        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for special log transfer" % (activity, ddmendpoint))
 
         import copy
         data = copy.deepcopy(self.job.logData)
@@ -459,7 +464,7 @@ class JobMover(object):
 
         self.job.logSpecialData = data
 
-        copytools = [{'copysetup': '', 'copytool': 'objectstore'}]
+        copytools = [('objectstore', {'setup': ''})]
         ret = self.stageout(activity, self.job.logSpecialData, copytools)
         self.job.logBucketID = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
         self.job.logDDMEndpoint = ddmendpoint
@@ -543,10 +548,13 @@ class JobMover(object):
 
         for fspec in files:
             if not fspec.surl: # initialize only if not already set
-                d = self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {})
+                dconf = self.ddmconf.get(fspec.ddmendpoint, {})
+                d = dconf.get('aprotocols', {})
                 xprot = d.get('SE', [])
                 if not xprot:
-                    xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and e[0].startswith('srm')]
+                    surl_schema = 's3' if dconf.get('type') in ['OS_LOGS', 'OS_ES'] else 'srm'
+                    xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and e[0].startswith(surl_schema)]
+
                 surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(xprot, key=lambda x: x[1])]
                 if surl_prot:
                     surl_protocols.setdefault(fspec.ddmendpoint, surl_prot[0])

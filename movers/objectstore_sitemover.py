@@ -10,8 +10,7 @@ from pUtil import tolog
 from PilotErrors import PilotException
 
 from commands import getstatusoutput
-from os.path import dirname
-
+import os
 
 class objectstoreSiteMover(rucioSiteMover):
     """ SiteMover that uses rucio sitemover for both get and put functionality """
@@ -27,3 +26,15 @@ class objectstoreSiteMover(rucioSiteMover):
         Overridden method -- unused
         """
         pass
+
+    def getSURL(self, se, se_path, scope, lfn, job=None):
+        """
+            Get final destination SURL of file to be moved
+            job instance is passing here for possible JOB specific processing ?? FIX ME LATER
+        """
+
+        ### quick fix: this actually should be reported back from Rucio upload in stageOut()
+        ### surl is currently (required?) being reported back to Panda in XML
+
+        surl = se + os.path.join(se_path, lfn)
+        return surl
