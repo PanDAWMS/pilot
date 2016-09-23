@@ -475,13 +475,9 @@ class Job:
         pUtil.tolog("Updated ddmEndPointLog=%s" % self.ddmEndPointLog)
 
         self.jobPars = data.get('jobPars', '')
-        putLogToOS = data.get('putLogToOS', 'False')
-        #putLogToOS = 'True'
-        if putLogToOS.lower() == 'true':
-            self.putLogToOS = True
-        else:
-            self.putLogToOS = False
-        pUtil.tolog("putLogToOS = %s" % str(self.putLogToOS))
+
+        self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true'
+        pUtil.tolog("putLogToOS = %s" % self.putLogToOS)
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 

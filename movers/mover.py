@@ -41,8 +41,8 @@ class JobMover(object):
     _stageoutretry = 2 # default value
     _stageinretry = 2  # devault value
 
-    stagein_sleeptime = 10*60   # seconds, sleep time in case of stagein failure
-    stageout_sleeptime = 10*60  # seconds, sleep time in case of stageout failure
+    stagein_sleeptime = 5*60   # seconds, sleep time in case of stagein failure
+    stageout_sleeptime = 5*60  # seconds, sleep time in case of stageout failure
 
 
     def __init__(self, job, si, **kwargs):
@@ -429,11 +429,53 @@ class JobMover(object):
     def stageout_logfiles(self):
         return self.stageout("pl", self.job.logData)
 
+    def stageout_logfiles_os(self):
+        """
+            Special log transfers (currently to ObjectStores)
+        """
 
-    def stageout(self, activity, files):
+        activity = "pls" ## pilot log special/second transfer
+
+        # resolve accepted OS DDMEndpoints
+
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        os_ddms = self.si.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
+
+        ddmconf = self.ddmconf
+        if os_ddms and (set(os_ddms) - set(self.ddmconf)): # load DDM conf
+            ddmconf = self.si.resolveDDMConf(os_ddms)
+            self.ddmconf.update(ddmconf)
+
+        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_LOGS']
+
+        self.log("[stage-outlog-special] [%s] resolved os_ddms=%s => logs=%s" % (activity, os_ddms, osddms))
+
+        if not osddms:
+            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE)
+
+        ddmendpoint = osddms[0]
+
+        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for special log transfer" % (activity, ddmendpoint))
+
+        import copy
+        data = copy.deepcopy(self.job.logData)
+        for e in data:
+            e.ddmendpoint = ddmendpoint
+
+        self.job.logSpecialData = data
+
+        copytools = [('objectstore', {'setup': ''})]
+        ret = self.stageout(activity, self.job.logSpecialData, copytools)
+        self.job.logBucketID = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
+        self.job.logDDMEndpoint = ddmendpoint
+
+        return ret
+
+    def stageout(self, activity, files, copytools=None):
         """
             Copy files to dest SE:
             main control function, it should care about alternative stageout and retry-policy for diffrent ddmendpoints
+        :param copytools: default copytools to be used
         :return: list of entries (is_success, success_transfers, failed_transfers, exception) for each ddmendpoint
         :return: (transferred_files, failed_transfers)
         :raise: PilotException in case of error
@@ -444,7 +486,10 @@ class JobMover(object):
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity)[pandaqueue]
+        if copytools:
+            self.log("Mover.stageout() [new implementation] [%s]: default copytools=%s" % (activity, copytools))
+
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
 
         self.log("Mover.stageout() [new implementation] started for activity=%s, files=%s, protocols=%s, copytools=%s" % (activity, files, protocols, copytools))
 
@@ -454,7 +499,7 @@ class JobMover(object):
         for fspec in files:
             pfn = os.path.join(self.job.workdir, fspec.lfn)
             if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
-                error = "Erron: input pfn file is not exist: %s" % pfn
+                error = "Error: input pfn file is not exist: %s" % pfn
                 self.log(error)
                 raise PilotException(error, code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="FILE_INFO_FAIL")
             fspec.filesize = os.path.getsize(pfn)
@@ -503,10 +548,13 @@ class JobMover(object):
 
         for fspec in files:
             if not fspec.surl: # initialize only if not already set
-                d = self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {})
+                dconf = self.ddmconf.get(fspec.ddmendpoint, {})
+                d = dconf.get('aprotocols', {})
                 xprot = d.get('SE', [])
                 if not xprot:
-                    xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and e[0].startswith('srm')]
+                    surl_schema = 's3' if dconf.get('type') in ['OS_LOGS', 'OS_ES'] else 'srm'
+                    xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and e[0].startswith(surl_schema)]
+
                 surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(xprot, key=lambda x: x[1])]
                 if surl_prot:
                     surl_protocols.setdefault(fspec.ddmendpoint, surl_prot[0])
