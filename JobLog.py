@@ -230,7 +230,7 @@ class JobLog:
             tolog("%s: Could not transfer log file to primary SE" % (self.__env['errorLabel']))
 
         else:
-            job.setState(["finished", 0, 0])
+            #job.setState(["finished", 0, 0])
             createLockFile(self.__env['jobrec'], site.workdir, lockfile="LOGFILECOPIED_%s" % job.jobId)
 
         # old logic: latereg, not used anymore?
