@@ -1,5 +1,10 @@
 import logging
+<<<<<<< HEAD
 import inspect,time
+=======
+import inspect
+import time
+>>>>>>> Yoda to use gmtime
 
 loggerMap = {}
 

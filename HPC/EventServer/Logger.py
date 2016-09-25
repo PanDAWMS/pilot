@@ -1,5 +1,6 @@
 import logging
 import inspect
+import time
 
 loggerMap = {}
 
@@ -32,6 +33,7 @@ class Logger:
             """
             self.log = logging.getLogger(filename)
             fmt = logging.Formatter('%(asctime)s %(name)s: %(levelname)s  %(message)s')
+            fmt.converter = time.gmtime
             fileHandler = logging.FileHandler(filename, mode='a')
             fileHandler.setFormatter(fmt)
             streamHandler = logging.StreamHandler()
