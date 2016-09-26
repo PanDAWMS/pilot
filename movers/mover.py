@@ -385,7 +385,7 @@ class JobMover(object):
                         result = e
                         self.log(traceback.format_exc())
                     except Exception, e:
-                        result = PilotException("stageIn failed with error=%s" % e, code=PilotErrors.ERR_STAGEINFAILED, state='STAGEIN_ATTEMPT_FAIL')
+                        result = PilotException("stageIn failed with error=%s" % e, code=PilotErrors.ERR_STAGEINFAILED, state='STAGEIN_ATTEMPT_FAILED')
                         self.log(traceback.format_exc())
 
                     self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageinretry, result))
@@ -405,7 +405,7 @@ class JobMover(object):
                     #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
                     transferred_files.append(fdat)
                 else:
-                    self.trace_report.update(clientState=result.state or 'STAGEIN_ATTEMPT_FAIL', stateReason=result.message, timeEnd=time.time())
+                    self.trace_report.update(clientState=result.state or 'STAGEIN_ATTEMPT_FAILED', stateReason=result.message, timeEnd=time.time())
                     self.sendTrace(self.trace_report)
                     failed_transfers.append(result)
 
@@ -695,13 +695,13 @@ class JobMover(object):
                                 result = e
                                 self.log(traceback.format_exc())
                             except Exception, e:
-                                result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED, state="STAGEOUT_ATTEMPT_FAIL")
+                                result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED, state="STAGEOUT_ATTEMPT_FAILED")
                                 self.log(traceback.format_exc())
 
                             self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageoutretry, result))
 
                         if isinstance(result, Exception): # failure transfer
-                            self.trace_report.update(clientState=result.state, stateReason=result.message, timeEnd=time.time())
+                            self.trace_report.update(clientState=result.state or 'STAGEOUT_ATTEMPT_FAILED', stateReason=result.message, timeEnd=time.time())
                             self.sendTrace(self.trace_report)
 
                             failed_transfers.append(result)
