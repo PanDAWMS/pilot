@@ -239,7 +239,7 @@ class JobMover(object):
 
         protocols = protocols + cprotocols
         if not protocols:
-            raise PilotException("Failed to get files: neither aprotocols nor allowed copytools defined for input. check copytools/acopytools/aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to get files: neither aprotocols nor allowed copytools defined for input. check copytools/acopytools/aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE, state='NO_PROTOCOLS_DEFINED')
 
         sitemover_objects = {}
 
@@ -265,6 +265,8 @@ class JobMover(object):
                     dat['scheme'] = sitemover.schemes
             except Exception, e:
                 self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
+                self.trace_report.update(protocol=copytool, clientState='BAD_COPYTOOL', stateReason=str(e)[:500])
+                self.sendTrace(self.trace_report)
                 continue
 
             self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
@@ -344,7 +346,8 @@ class JobMover(object):
                 if not is_stagein_allowed:
                     self.log("WARNING: sitemover=%s does not allow stage-in transfer for this job, lfn=%s with reason=%s.. skip transfer the file" % (sitemover.getID(), fdata.lfn, reason))
                     failed_transfers.append(reason)
-
+                    self.trace_report.update(protocol=copytool, clientState='STAGEIN_NOTALLOWED', stateReason='skip stagein file')
+                    self.sendTrace(self.trace_report)
                     continue
 
                 self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
@@ -382,7 +385,7 @@ class JobMover(object):
                         result = e
                         self.log(traceback.format_exc())
                     except Exception, e:
-                        result = PilotException("stageIn failed with error=%s" % e, code=PilotErrors.ERR_STAGEINFAILED)
+                        result = PilotException("stageIn failed with error=%s" % e, code=PilotErrors.ERR_STAGEINFAILED, state='STAGEIN_ATTEMPT_FAIL')
                         self.log(traceback.format_exc())
 
                     self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageinretry, result))
@@ -402,6 +405,8 @@ class JobMover(object):
                     #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
                     transferred_files.append(fdat)
                 else:
+                    self.trace_report.update(clientState=result.state or 'STAGEIN_ATTEMPT_FAIL', stateReason=result.message, timeEnd=time.time())
+                    self.sendTrace(self.trace_report)
                     failed_transfers.append(result)
 
         dumpFileStates(self.workDir, self.job.jobId, ftype="input")
@@ -451,7 +456,7 @@ class JobMover(object):
         self.log("[stage-outlog-special] [%s] resolved os_ddms=%s => logs=%s" % (activity, os_ddms, osddms))
 
         if not osddms:
-            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
 
         ddmendpoint = osddms[0]
 
@@ -464,6 +469,7 @@ class JobMover(object):
 
         self.job.logSpecialData = data
 
+        #copytools = [('objectstore', {'setup': '/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/latest/setup.sh'})]
         copytools = [('objectstore', {'setup': ''})]
         ret = self.stageout(activity, self.job.logSpecialData, copytools)
         self.job.logBucketID = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
@@ -482,7 +488,7 @@ class JobMover(object):
         """
 
         if not files:
-            raise PilotException("Failed to put files: empty file list to be transferred")
+            raise PilotException("Failed to put files: empty file list to be transferred", code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="NO_OUTFILES")
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
@@ -537,7 +543,7 @@ class JobMover(object):
 
         unknown_ddms = set(ddmfiles) - set(ddmprotocols)
         if unknown_ddms:
-            raise PilotException("Failed to put files: no protocols defined for output ddmendpoints=%s .. check aprotocols schedconfig settings for activity=%s or default ddm.aprotocols entries" % (unknown_ddms, activity), code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to put files: no protocols defined for output ddmendpoints=%s .. check aprotocols schedconfig settings for activity=%s or default ddm.aprotocols entries" % (unknown_ddms, activity), code=PilotErrors.ERR_NOSTORAGE, state="NO_PROTOCOLS_DEFINED")
 
         self.log("[stage-out] [%s] filtered protocols to be used to transfer files: protocols=%s" % (activity, ddmprotocols))
 
@@ -563,7 +569,7 @@ class JobMover(object):
 
         if no_surl_ddms: # failed to resolve SURLs
             self.log('FAILED to resolve default SURL path for ddmendpoints=%s' % list(no_surl_ddms))
-            raise PilotException("Failed to put files: no SE/SURL protocols defined for output ddmendpoints=%s .. check ddmendpoints aprotocols settings for activity=SE/a/r" % list(no_surl_ddms), code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to put files: no SE/SURL protocols defined for output ddmendpoints=%s .. check ddmendpoints aprotocols settings for activity=SE/a/r" % list(no_surl_ddms), code=PilotErrors.ERR_NOSTORAGE, state="NO_SURL_PROTOCOL")
 
         sitemover_objects = {}
 
@@ -588,7 +594,7 @@ class JobMover(object):
                 if not dat['copytools']:
                     msg = 'FAILED to resolve final copytools settings for ddmendpoint=%s, please check schedconf.copytools settings: copytools=%s, iprotocols=' % list(ddmendpoint, copytools, iprotocols)
                     self.log(msg)
-                    raise PilotException(msg, code=PilotErrors.ERR_NOSTORAGE)
+                    raise PilotException(msg, code=PilotErrors.ERR_NOSTORAGE, state="NO_COPYTOOLS")
 
                 for cpsettings in dat.get('copytools', []):
                     copytool, copysetup = cpsettings.get('copytool'), cpsettings.get('copysetup')
@@ -607,6 +613,8 @@ class JobMover(object):
                             dat['scheme'] = sitemover.schemes
                     except Exception, e:
                         self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
+                        self.trace_report.update(protocol=copytool, clientState='BAD_COPYTOOL', stateReason=str(e)[:500])
+                        self.sendTrace(self.trace_report)
                         continue
 
                     if dat.get('scheme'): # filter protocols by accepted scheme from copytool
@@ -687,12 +695,15 @@ class JobMover(object):
                                 result = e
                                 self.log(traceback.format_exc())
                             except Exception, e:
-                                result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED)
+                                result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED, state="STAGEOUT_ATTEMPT_FAIL")
                                 self.log(traceback.format_exc())
 
                             self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageoutretry, result))
 
                         if isinstance(result, Exception): # failure transfer
+                            self.trace_report.update(clientState=result.state, stateReason=result.message, timeEnd=time.time())
+                            self.sendTrace(self.trace_report)
+
                             failed_transfers.append(result)
 
         dumpFileStates(self.workDir, self.job.jobId, ftype="output")

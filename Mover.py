@@ -120,7 +120,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
 
     mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
 
-    eventType = "put_sm"
+    eventType = "sm_put"
     if log_transfer:
         eventType += '_logs'
     if special_log_transfer:
@@ -128,9 +128,9 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
     if job.isAnalysisJob():
         eventType += "_a"
 
-    mover.trace_report = TraceReport(localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
     mover.trace_report.init(job)
-
+    error = None
     try:
         do_stageout_func = mover.stageout_logfiles if log_transfer else mover.stageout_outfiles
         if special_log_transfer:
@@ -138,13 +138,18 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
 
         transferred_files, failed_transfers = do_stageout_func()
     except PilotException, e:
-        return e.code, str(e), [], "", 0, 0
+        error = e
     except Exception, e:
         tolog("ERROR: Mover put data failed [stageout]: exception caught: %s" % e)
         import traceback
         tolog(traceback.format_exc())
+        error = PilotException('STAGEOUT FAILED, exception=%s' % e, code=PilotErrors.ERR_STAGEOUTFAILED, state='STAGEOUT_FAILED')
 
-        return PilotErrors.ERR_STAGEOUTFAILED, 'STAGEOUT FAILED, exception=%s' % e, [], "", 0, 0
+    if error:
+        ## send trace
+        mover.trace_report.update(clientState=error.state or 'STAGEOUT_FAILED', stateReason=error.message, timeEnd=time.time())
+        mover.sendTrace(mover.trace_report)
+        return error.code, error.message, [], "", 0, 0
 
     tolog("Mover put data finished")
 
@@ -212,23 +217,28 @@ def get_data_new(job,
 
     mover = JobMover(job, si, workDir=workDir, stageinretry=stageinTries)
 
-    eventType = "get_sm"
+    eventType = "sm_get"
     if job.isAnalysisJob():
         eventType += "_a"
 
-    mover.trace_report = TraceReport(localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
     mover.trace_report.init(job)
-
+    error = None
     try:
         output = mover.stagein()
     except PilotException, e:
-        return e.code, str(e), None, {}
+        error = e
     except Exception, e:
         tolog("ERROR: Mover get data failed [stagein]: exception caught: %s" % e)
+        error = PilotException('STAGEIN FAILED, exception=%s' % e, code=PilotErrors.ERR_STAGEINFAILED, state='STAGEIN_FAILED')
         import traceback
         tolog(traceback.format_exc())
 
-        return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED, exception=%s' % e, None, {}
+    if error:
+        ## send trace
+        mover.trace_report.update(clientState=error.state or 'STAGEIN_FAILED', stateReason=error.message, timeEnd=time.time())
+        mover.sendTrace(mover.trace_report)
+        return error.code, error.message, None, {}
 
     tolog("Mover get data finished")
 
