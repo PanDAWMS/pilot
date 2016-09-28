@@ -2540,6 +2540,7 @@ if __name__ == "__main__":
         if not os.environ.has_key('ATHENA_PROC_NUMBER'):
             tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
             runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
+            job.coreCount = 1
 
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
