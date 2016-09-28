@@ -82,6 +82,7 @@ class Yoda(threading.Thread):
         # jobs which needs less than one rank
         self.jobRanksSmallPiece = []
         self.totalJobRanksSmallPiece = 0
+        self.rankJobsTries = {}
 
         # scheduler policy:
         self.bigJobFirst = True
@@ -378,6 +379,9 @@ class Yoda(threading.Thread):
             self.tmpLog.debug("Rank %s: Big jobs first for rank %s(<=%s the last rank for big job first)"  % (self.rank, rank, self.lastRankForBigJobFirst))
             while len(self.jobRanks):
                 jobId = self.jobRanks.pop(0)
+                if rank in self.rankJobsTries and jobId in self.rankJobsTries[rank]:
+                    self.tmpLog.debug("Rank %s: Job %s already tried on rank %s, will not scheduled to it again."  % (self.rank, jobId, rank))
+                    continue
                 if len(self.readyJobsEventRanges[jobId]) > 0:
                     job = self.jobs[jobId]
                     break
@@ -385,6 +389,9 @@ class Yoda(threading.Thread):
                 self.tmpLog.debug("Rank %s: no available jobs in full rank queue, try to get job from small piece queue"  % (self.rank))
                 while len(self.jobRanksSmallPiece):
                     jobId = self.jobRanksSmallPiece.pop(0)
+                    if rank in self.rankJobsTries and jobId in self.rankJobsTries[rank]:
+                        self.tmpLog.debug("Rank %s: Job %s already tried on rank %s, will not scheduled to it again."  % (self.rank, jobId, rank))
+                        continue
                     if len(self.readyJobsEventRanges[jobId]) > 0:
                         job = self.jobs[jobId]
                         break
@@ -392,12 +399,18 @@ class Yoda(threading.Thread):
             self.tmpLog.debug("Rank %s: Small jobs first for rank %s(>%s the last rank for big job first)"  % (self.rank, rank, self.lastRankForBigJobFirst))
             while len(self.jobRanksSmallPiece):
                 jobId = self.jobRanksSmallPiece.pop()
+                if rank in self.rankJobsTries and jobId in self.rankJobsTries[rank]:
+                    self.tmpLog.debug("Rank %s: Job %s already tried on rank %s, will not scheduled to it again."  % (self.rank, jobId, rank))
+                    continue
                 if len(self.readyJobsEventRanges[jobId]) > 0:
                     job = self.jobs[jobId]
                     break
             if job is None:
                 while len(self.jobRanks):
                     jobId = self.jobRanks.pop()
+                    if rank in self.rankJobsTries and jobId in self.rankJobsTries[rank]:
+                        self.tmpLog.debug("Rank %s: Job %s already tried on rank %s, will not scheduled to it again."  % (self.rank, jobId, rank))
+                        continue
                     if len(self.readyJobsEventRanges[jobId]) > 0:
                         job = self.jobs[jobId]
                         break
@@ -424,6 +437,9 @@ class Yoda(threading.Thread):
             self.jobsRuningRanks[jobId].append(rank)
             if jobId not in self.jobsTimestamp:
                 self.jobsTimestamp[jobId] = {'startTime': time.time(), 'endTime': None}
+            if rank not in self.rankJobsTries:
+                self.rankJobsTries[rank] = []
+            self.rankJobsTries[rank].append(jobId)
 
         self.comm.returnResponse(res)
         self.tmpLog.debug('return response')
