@@ -147,7 +147,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
 
     if error:
         ## send trace
-        mover.trace_report.update(clientState=error.state or 'STAGEOUT_FAILED', stateReason=error.message, timeEnd=time.time())
+        mover.trace_report.update(clientState=error.state or 'STAGEOUT_FAILED', stateReason=error.message, timeEnd=time())
         mover.sendTrace(mover.trace_report)
         return error.code, error.message, [], "", 0, 0
 
@@ -236,7 +236,7 @@ def get_data_new(job,
 
     if error:
         ## send trace
-        mover.trace_report.update(clientState=error.state or 'STAGEIN_FAILED', stateReason=error.message, timeEnd=time.time())
+        mover.trace_report.update(clientState=error.state or 'STAGEIN_FAILED', stateReason=error.message, timeEnd=time())
         mover.sendTrace(mover.trace_report)
         return error.code, error.message, None, {}
 
