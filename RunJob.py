@@ -1164,7 +1164,7 @@ class RunJob(object):
 
             job.setState([_state, job.result[1], rc])
 
-            tolog("!!%s!!1212!! %s" % (_msg, PilotErrors.getErrorStr(rc)))
+            tolog(" -- %s: %s" % (_msg, PilotErrors.getErrorStr(rc)))
         else:
 
             job.setState(["finished", 0, 0])

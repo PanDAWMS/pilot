@@ -427,12 +427,69 @@ class JobMover(object):
 
         return transferred_files, failed_transfers
 
+    def _prepare_detsinations(self, files, activites):
+        """
+            check fspec.ddmendpoint entry and fullfill it if need by applying Pilot side logic
+            :param files: list of FileSpec entries to be processed
+            :param activities: order list of activites to be used to resolve storages
+            :return: updated fspec entries
+        """
+
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        astorages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+
+        if isinstance(activites, (str, unicode)):
+            activites = [activites]
+
+        if not activities:
+            raise PilotException("Failed to resolve destination: passed empty activity list. Internal error.", code=PilotErrors.ERR_NOSTORAGE, state='INTERNAL_ERROR')
+
+        storages = None
+        for activity in activites:
+            storages = astorages.get(activity, {})
+            if storages:
+                break
+
+        if not storages:
+            raise PilotException("Failed to resolve destination: no associated storages defined for activity=%s (%s)" % (activity, default_activity), code=PilotErrors.ERR_NOSTORAGE, state='NO_ASTORAGES_DEFINED')
+
+        # take fist choice for now, extend the logic later if need
+        ddm = storages[0]
+
+        for e in files:
+            if not e.ddmendpoint: ## no preferences => use default destination
+                e.ddmendpoint = ddm
+            elif e.ddmendpoint not in storages: ### fspec.ddmendpoint is not in associated storages ==> assume it as final (non local) alternative destination
+                e.ddmendpoint = ddm
+                e.ddmendpoint_alt = e.ddmendpoint  ### 
+
+        return files
+
 
     def stageout_outfiles(self):
-        return self.stageout("pw", self.job.outData)
+        """
+            Do stage-out of output data files
+        """
+
+        activities = ['pw', 'w']
+
+        # apply pilot side decision about which destination should be used
+        data = self._prepare_detsinations(self.job.outData, activities)
+
+        return self.stageout(activities[0], data)
 
     def stageout_logfiles(self):
-        return self.stageout("pl", self.job.logData)
+        """
+            Do stage-out of log files
+        """
+
+        activities = ['pl', 'pw', 'w']
+
+        # apply pilot side decision about which destination should be used
+        data = self._prepare_detsinations(self.job.logData, activities)
+
+        return self.stageout(activities[0], data)
+
 
     def stageout_logfiles_os(self):
         """
