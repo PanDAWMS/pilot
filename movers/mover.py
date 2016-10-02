@@ -427,7 +427,7 @@ class JobMover(object):
 
         return transferred_files, failed_transfers
 
-    def _prepare_detsinations(self, files, activities):
+    def _prepare_destinations(self, files, activities):
         """
             check fspec.ddmendpoint entry and fullfill it if need by applying Pilot side logic
             :param files: list of FileSpec entries to be processed
@@ -445,21 +445,27 @@ class JobMover(object):
             raise PilotException("Failed to resolve destination: passed empty activity list. Internal error.", code=PilotErrors.ERR_NOSTORAGE, state='INTERNAL_ERROR')
 
         storages = None
-        for activity in activities:
-            storages = astorages.get(activity, {})
+        activity = activities[0]
+        for a in activities:
+            storages = astorages.get(a, {})
             if storages:
                 break
 
         if not storages:
-            raise PilotException("Failed to resolve destination: no associated storages defined for activity=%s (%s)" % (activity, default_activity), code=PilotErrors.ERR_NOSTORAGE, state='NO_ASTORAGES_DEFINED')
+            raise PilotException("Failed to resolve destination: no associated storages defined for activity=%s (%s)" % (activity, ','.join(activities)), code=PilotErrors.ERR_NOSTORAGE, state='NO_ASTORAGES_DEFINED')
 
         # take fist choice for now, extend the logic later if need
         ddm = storages[0]
 
+        self.log("[prepare_destinations][%s]: allowed (local) destinations: %s" % (activity, storages))
+        self.log("[prepare_destinations][%s]: resolved default destination ddm=%s" % (activity, ddm))
+
         for e in files:
             if not e.ddmendpoint: ## no preferences => use default destination
+                self.log("[prepare_destinations][%s]: fspec.ddmendpoint is not set for lfn=%s .. will use default ddm=%s as (local) destination" % (activity, e.lfn, ddm))
                 e.ddmendpoint = ddm
             elif e.ddmendpoint not in storages: ### fspec.ddmendpoint is not in associated storages ==> assume it as final (non local) alternative destination
+                self.log("[prepare_destinations] [%s]: Requested fspec.ddmendpoint=%s is not in the list of allowed (local) destinations .. will consider default ddm=%s for transfers and tag %s as alternative location" % (activity, e.ddmendpoint, ddm, e.ddmendpoint))
                 e.ddmendpoint = ddm
                 e.ddmendpoint_alt = e.ddmendpoint  ###
 
@@ -474,7 +480,7 @@ class JobMover(object):
         activities = ['pw', 'w']
 
         # apply pilot side decision about which destination should be used
-        data = self._prepare_detsinations(self.job.outData, activities)
+        data = self._prepare_destinations(self.job.outData, activities)
 
         return self.stageout(activities[0], data)
 
@@ -486,7 +492,7 @@ class JobMover(object):
         activities = ['pl', 'pw', 'w']
 
         # apply pilot side decision about which destination should be used
-        data = self._prepare_detsinations(self.job.logData, activities)
+        data = self._prepare_destinations(self.job.logData, activities)
 
         return self.stageout(activities[0], data)
 
