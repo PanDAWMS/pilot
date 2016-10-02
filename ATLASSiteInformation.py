@@ -506,6 +506,7 @@ class ATLASSiteInformation(SiteInformation):
 #            ec = self.replaceQueuedataField("corecount", "4")
             #ec = self.replaceQueuedataField("appdir", "/cvmfs/atlas.cern.ch/repo/sw|nightlies^/cvmfs/atlas-nightlies.cern.ch/repo/sw/nightlies")
 
+        #self.replaceQueuedataField("use_newmover", "True")
         if os.environ.get("COPYTOOL"):
             ec = self.replaceQueuedataField("copytool", os.environ.get("COPYTOOL"))
         if os.environ.get("COPYTOOLIN"):

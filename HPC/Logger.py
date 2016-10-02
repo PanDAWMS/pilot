@@ -1,6 +1,7 @@
 import logging
 import inspect
-import sys,time
+import sys
+import time
 
 loggerMap = {}
 
@@ -20,6 +21,7 @@ class Logger:
         else:
             # make handler
             fmt = logging.Formatter('%(asctime)s|%(process)s|%(name)s|%(levelname)s| %(message)s',"%Y-%m-%d %H:%M:%S")
+            fmt.converter = time.gmtime
             if filename:
                 sh = logging.FileHandler(filename, mode='a')
             else:
