@@ -427,25 +427,25 @@ class JobMover(object):
 
         return transferred_files, failed_transfers
 
-    def _prepare_detsinations(self, files, activites):
+    def _prepare_detsinations(self, files, activities):
         """
             check fspec.ddmendpoint entry and fullfill it if need by applying Pilot side logic
             :param files: list of FileSpec entries to be processed
-            :param activities: order list of activites to be used to resolve storages
+            :param activities: ordered list of activities to be used to resolve storages
             :return: updated fspec entries
         """
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         astorages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
 
-        if isinstance(activites, (str, unicode)):
-            activites = [activites]
+        if isinstance(activities, (str, unicode)):
+            activities = [activities]
 
         if not activities:
             raise PilotException("Failed to resolve destination: passed empty activity list. Internal error.", code=PilotErrors.ERR_NOSTORAGE, state='INTERNAL_ERROR')
 
         storages = None
-        for activity in activites:
+        for activity in activities:
             storages = astorages.get(activity, {})
             if storages:
                 break
@@ -461,7 +461,7 @@ class JobMover(object):
                 e.ddmendpoint = ddm
             elif e.ddmendpoint not in storages: ### fspec.ddmendpoint is not in associated storages ==> assume it as final (non local) alternative destination
                 e.ddmendpoint = ddm
-                e.ddmendpoint_alt = e.ddmendpoint  ### 
+                e.ddmendpoint_alt = e.ddmendpoint  ###
 
         return files
 
