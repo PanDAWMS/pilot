@@ -2309,8 +2309,7 @@ def getSurlTokenDictionary(lfns, tokens):
 
     return dictionary
 
-
-#
+### this function is deprecated: to be removed later
 def _mover_get_data_new(lfns,                       #  use job.inData instead
                         path,                       # --> job.workdir instead
                         sitename,                   # --> jobSite.sitename
