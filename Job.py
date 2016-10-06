@@ -825,6 +825,7 @@ class FileSpec(object):
                     'fileDestinationSE',
                     'dispatchDBlockTokenForOut',
                     'prodDBlockTokenForOutput', # exposed only for eventservice related job
+                    'ddmendpoint_alt' # alternative location of ddmendpoint
                     ]
 
     _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime']
