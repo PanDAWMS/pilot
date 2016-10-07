@@ -157,6 +157,8 @@ M movers/mover.py (29)
 
 66.1:
 
+Out-commented setting memory in getsetWNMem() and __getsetWNMem() (pilot)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/62
@@ -176,6 +178,10 @@ M HPC/EventServer/Logger.py (2)
 M HPC/Logger.py (4)
 M HPC/pandayoda/yodacore/Yoda.py (16)
 M RunJobEvent.py (1)
+
+Updates from Alexey Anisenkov:
+
+..
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -2445,17 +2445,17 @@ def getsetWNMem(memory):
         _maxmemory = maxmemory*1024**2
 
         # Only proceed if not a CGROUPS site
-        if not isCGROUPSSite():
-            pUtil.tolog("Not a CGROUPS site, proceeding with setting the memory limit")
-            try:
-                import resource
-                resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
-            except Exception, e:
-                pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
-            else:
-                pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
-        else:
-            pUtil.tolog("Detected a CGROUPS site, will not set the memory limit")
+#        if not isCGROUPSSite():
+#            pUtil.tolog("Not a CGROUPS site, proceeding with setting the memory limit")
+#            try:
+#                import resource
+#                resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
+#            except Exception, e:
+#                pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
+#            else:
+#                pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
+#        else:
+#            pUtil.tolog("Detected a CGROUPS site, will not set the memory limit")
 
         cmd = "ulimit -a"
         pUtil.tolog("Executing command: %s" % (cmd))
