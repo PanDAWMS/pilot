@@ -602,7 +602,7 @@ class BaseSiteMover(object):
         c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
         output = c.communicate()[0]
         if c.returncode:
-            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (flename, cmd, c.returncode, output))
+            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (filename, cmd, c.returncode, output))
             raise Exception(output)
 
         return output.split()[0] # return final checksum
