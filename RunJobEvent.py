@@ -107,10 +107,16 @@ class RunJobEvent(RunJob):
     __nEvents = 0
     __nEventsW = 0
 
+    # error fatal code
+    __esFatalCode = None
+
     # Getter and setter methods
 
     def getNEvents(self):
         return self.__nEvents, self.__nEventsW
+
+    def getESFatalCode(self):
+        return self.__esFatalCode
 
     def getExperiment(self):
         """ Getter for __experiment """
@@ -1635,7 +1641,8 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         # Time to update the server
-                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='failed')
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal')
+                        self.__esFatalCode = self.__error.ERR_ESFATAL
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
@@ -2811,6 +2818,11 @@ if __name__ == "__main__":
                     break
                 time.sleep(60)
                 i += 1
+
+        if runJob.getESFatalCode():
+            job.result[2] = runJob.getESFatalCode()
+            job.result[0] = "failed"
+            job.pilotErrorDiag = "AthenaMP has some fatal errors"
 
         if not kill:
             tolog("AthenaMP has finished")
