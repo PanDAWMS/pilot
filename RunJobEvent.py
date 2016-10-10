@@ -1512,10 +1512,10 @@ class RunJobEvent(RunJob):
                                     self.__stageout_queue.remove(f)
                                     tolog("Adding %s to output file list" % (f))
                                     self.__output_files.append(f)
-                                    self.__nEventsW += 1
                                     tolog("output_files = %s" % (self.__output_files))
                                     if ec == 0:
                                         status = 'finished'
+                                        self.__nEventsW += 1
                                     else:
                                         status = 'failed'
 
@@ -2595,6 +2595,9 @@ if __name__ == "__main__":
                 time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
                 job.nEvents, job.nEventsW = runJob.getNEvents()
+                tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+                # agreed to only report stagedout events to panda
+                job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
             # if the AthenaMP workers are ready for event processing, download some event ranges
@@ -2659,6 +2662,9 @@ if __name__ == "__main__":
                             time_to_calculate_cuptime = time.time()
                             job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
                             job.nEvents, job.nEventsW = runJob.getNEvents()
+                            tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+                            # agreed to only report stagedout events to panda
+                            job.nEvents = job.nEventsW
                             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
                         # do not continue if the abort has been set
@@ -2808,6 +2814,12 @@ if __name__ == "__main__":
 
         if not kill:
             tolog("AthenaMP has finished")
+
+        job.nEvents, job.nEventsW = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
+
         t1 = os.times()
         tolog("t1 = %s" % str(t1))
         t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
@@ -2976,6 +2988,11 @@ if __name__ == "__main__":
         runJob.sysExit(job)
 
     except Exception, errorMsg:
+
+        job.nEvents, job.nEventsW = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
 
         error = PilotErrors()
 
