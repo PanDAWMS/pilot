@@ -47,6 +47,7 @@ def usage():
         -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry>
         -B <allowSingleUser> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime>
         -H <cache> -I <schedconfigURL> -N <yodaNodes> -Q <yodaQueue>
+        -M <use_newmover>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -85,6 +86,7 @@ def usage():
                <schedconfigURL> optional URL used by the pilot to download queuedata from the schedconfig server
                <yodaNodes> The maximum nodes Yoda will start with
                <yodaQueue> The queue Yoda jobs will be sent to
+               <use_newmover> Boolean flag that switches pilot to use new sitemovers workflow by default
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__
@@ -119,7 +121,7 @@ def argParser(argv):
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
-        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:N:Q:')
+        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:N:Q:M:')
     except getopt.GetoptError:
         print "Invalid arguments and options!"
         usage()
@@ -182,6 +184,9 @@ def argParser(argv):
                 env['pilot_version_tag'] = a
             else:
                 print "Unknown pilot version tag: %s" % (a)
+
+        elif o == "-M":
+            env['use_newmover'] = a and a.lower() in ['1', 'true']
 
         elif o == "-j":
             jr = a
@@ -619,14 +624,14 @@ def runJobRecovery(thisSite, _psport, extradir):
     for _dir in dirs:
         dircounter += 1
         pUtil.tolog("Scanning for lost jobs [pass %d/%d]" % (dircounter, len(dirs)))
-    
+
         try:
             lostPandaIDs = RecoverLostHPCEventJobs(_dir, thisSite, _psport)
         except:
             pUtil.tolog("!!WARNING!!1999!! Failed during search for lost HPCEvent jobs: %s" % str(e))
         else:
             pUtil.tolog("Recovered/Updated lost HPCEvent jobs(%s)" % (lostPandaIDs))
-    
+
         try:
             found_lost_jobs = RecoverLostJobs(_dir, thisSite, _psport)
         except Exception, e:
@@ -2266,6 +2271,11 @@ def getNewJob(tofile=True):
     else:
         pUtil.tolog("Adding prodSourceLabel to job def data: %s" % (prodSourceLabel))
         data['prodSourceLabel'] = prodSourceLabel
+
+    ## enable new sitemovers if need
+    if env.get('use_newmover'):
+        pUtil.tolog("INFO: Pilot has been started in special mode with use_newmover=True => Force to enable new sitemovers architecture by default")
+        env['si'].replaceQueuedataField("use_newmover", "true")
 
     # look for special commands in the job parameters (can be set by HammerCloud jobs; --overwriteQueuedata, --disableFAX)
     # if present, queuedata needs to be updated (as well as jobParameters - special commands need to be removed from the string)
