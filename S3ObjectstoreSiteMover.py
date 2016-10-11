@@ -563,7 +563,7 @@ class S3ObjctStore(object):
             key = self.get_key(destination, create=True)
             if key is None:
                 retCode = -1
-                retStr = "Failed to create S3 key on destionation(%s)" % destination
+                retStr = "Failed to create S3 key on destination (%s)" % destination
             key.set_metadata("md5", sourceChecksum)
             size = key.set_contents_from_filename(source)
 
