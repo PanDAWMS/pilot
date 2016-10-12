@@ -157,7 +157,9 @@ M movers/mover.py (29)
 
 66.1:
 
-Out-commented setting memory in getsetWNMem() and __getsetWNMem() (pilot)
+General changes:
+
+- Out-commented setting memory in getsetWNMem() and __getsetWNMem() (pilot)
 
 Updates from Wen Guan:
 
