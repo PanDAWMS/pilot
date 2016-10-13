@@ -107,10 +107,16 @@ class RunJobEvent(RunJob):
     __nEvents = 0
     __nEventsW = 0
 
+    # error fatal code
+    __esFatalCode = None
+
     # Getter and setter methods
 
     def getNEvents(self):
         return self.__nEvents, self.__nEventsW
+
+    def getESFatalCode(self):
+        return self.__esFatalCode
 
     def getExperiment(self):
         """ Getter for __experiment """
@@ -1512,10 +1518,10 @@ class RunJobEvent(RunJob):
                                     self.__stageout_queue.remove(f)
                                     tolog("Adding %s to output file list" % (f))
                                     self.__output_files.append(f)
-                                    self.__nEventsW += 1
                                     tolog("output_files = %s" % (self.__output_files))
                                     if ec == 0:
                                         status = 'finished'
+                                        self.__nEventsW += 1
                                     else:
                                         status = 'failed'
 
@@ -1635,7 +1641,8 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         # Time to update the server
-                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='failed')
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal')
+                        self.__esFatalCode = self.__error.ERR_ESFATAL
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
@@ -2596,6 +2603,9 @@ if __name__ == "__main__":
                 time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
                 job.nEvents, job.nEventsW = runJob.getNEvents()
+                tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+                # agreed to only report stagedout events to panda
+                job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
             # if the AthenaMP workers are ready for event processing, download some event ranges
@@ -2660,6 +2670,9 @@ if __name__ == "__main__":
                             time_to_calculate_cuptime = time.time()
                             job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
                             job.nEvents, job.nEventsW = runJob.getNEvents()
+                            tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+                            # agreed to only report stagedout events to panda
+                            job.nEvents = job.nEventsW
                             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
                         # do not continue if the abort has been set
@@ -2807,8 +2820,19 @@ if __name__ == "__main__":
                 time.sleep(60)
                 i += 1
 
+        if runJob.getESFatalCode():
+            job.result[2] = runJob.getESFatalCode()
+            job.result[0] = "failed"
+            job.pilotErrorDiag = "AthenaMP has some fatal errors"
+
         if not kill:
             tolog("AthenaMP has finished")
+
+        job.nEvents, job.nEventsW = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
+
         t1 = os.times()
         tolog("t1 = %s" % str(t1))
         t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
@@ -2977,6 +3001,11 @@ if __name__ == "__main__":
         runJob.sysExit(job)
 
     except Exception, errorMsg:
+
+        job.nEvents, job.nEventsW = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
 
         error = PilotErrors()
 

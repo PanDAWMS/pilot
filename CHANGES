@@ -157,7 +157,9 @@ M movers/mover.py (29)
 
 66.1:
 
-Out-commented setting memory in getsetWNMem() and __getsetWNMem() (pilot)
+General changes:
+
+- Out-commented setting memory in getsetWNMem() and __getsetWNMem() (pilot)
 
 Updates from Wen Guan:
 
@@ -179,9 +181,65 @@ M HPC/Logger.py (4)
 M HPC/pandayoda/yodacore/Yoda.py (16)
 M RunJobEvent.py (1)
 
+  https://github.com/PanDAWMS/pilot/pull/65
+
+Commit Summary
+
+report only stagedout events to panda
+fix s3objectstore sitemover with disabling http proxy
+report es fatal error when athenamp crashed on some events
+
+File Changes
+
+M RunJobEvent.py (33)
+M S3ObjectstoreSiteMover.py (80)
+
 Updates from Alexey Anisenkov:
 
-..
+https://github.com/PanDAWMS/pilot/pull/63
+
+Commit Summary
+
+Mover bugfix: fixed typo in time() usage (wrong import statement)
+sitemover updates: use new schedconf.astorages attribute (associated list of local storages) to look up default DDMEndpoint destination (Pilot side destination choice).
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+fixed typo
+small fixes, increase verbosity
+
+File Changes
+
+M Job.py (1)
+M Mover.py (4)
+M RunJob.py (2)
+M SiteInformation.py (19)
+M movers/mover.py (67)
+
+  https://github.com/PanDAWMS/pilot/pull/64
+
+Commit Summary
+
+typo fix
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+
+File Changes
+
+M movers/base.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/66
+
+Commit Summary
+
+pilot: -M option implemented:
+File Changes
+
+M pilot.py (16)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+66.2:
+
+General changes:
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
