@@ -203,6 +203,49 @@ class JobMover(object):
             self.log("mover.is_directaccess(): Failed to resolve direct access settings: exception=%s" % e)
             return False
 
+    def handle_dbreleases(self, files):
+        """
+            Check if the DBRelease file(s) is locally available,
+            if so, create the skeleton file and exclude file from stage-in
+        """
+
+        from DBReleaseHandler import DBReleaseHandler  ## partially reuse old implementation.. FIX ME LATER
+
+        dbh = DBReleaseHandler(workdir=self.job.workdir)
+        path = self.job.workdir
+
+        # resolve dbreleases from files
+        dbreleases = {} # by versions
+        for fspec in files:
+            ver = dbh.extractVersion(fspec.lfn)  ##
+            if ver:
+                dbreleases.setdefault(ver, []).append(fspec)
+
+        # resolve dbrelease fom jobPars
+        version = dbh.extractVersion(self.job.jobPars) ## quick hack -- fix me later (format of jobPars differs from lfn)
+        if version:
+            ## check if available or requested for stage-in
+            if not dbh.isDBReleaseAvailable(version) and not version in dbreleases: # not available
+                self.log("ERROR: Requested DBRelease from jobPars with version=%s is not available on CVMFS and not requested for stage in.. raise error." % version)
+                raise PilotException("Requested DBRelease is not available: version=%s" % version, code=PilotErrors.ERR_MISSDBREL, state='ERR_MISSDBREL')
+            dbreleases.setdefault(version, [])
+
+        if not dbreleases:
+            return False
+
+        self.log("Detected DBRelease versions extracted from JobPars and input files: %s" % sorted(dbreleases))
+        for version, fspecs in dbreleases.iteritems():
+            if dbh.isDBReleaseAvailable(version):
+                self.log("Creating the skeleton DBRelease tarball for version=%s" % version)
+                if not dbh.createDBRelease(version, path):
+                    self.log("Failed to create the skeleton file for DBRelease version=%s" % version)
+                    raise PilotException("DBRelease: failed to create skeleton for version=%s" % version, code=PilotErrors.ERR_MISSDBREL, state='MISSDBREL_SKELFAIL')
+                for fspec in fspecs:
+                    fspec.status = 'ignored'  ## ignore for stage-in
+
+        return True
+
+
     def stagein(self):
         """
             :return: (transferred_files, failed_transfers)
@@ -241,11 +284,20 @@ class JobMover(object):
         if not protocols:
             raise PilotException("Failed to get files: neither aprotocols nor allowed copytools defined for input. check copytools/acopytools/aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE, state='NO_PROTOCOLS_DEFINED')
 
-        sitemover_objects = {}
+        ## check files to be ignored for stage-in (DBRelease)
 
+        self.handle_dbreleases(files)
+
+        ignored_files = [e for e in files if e.status == 'ignored']
+
+        for fdata in ignored_files: # ignored, no transfer required
+            updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+            self.log("Stage-in will be ignored for lfn=%s .. skip transfer the file" % fdata.lfn)
+
+        sitemover_objects = {}
         for dat in protocols:
 
-            remain_files = [e for e in files if e.status not in ['direct_access', 'transferred']]
+            remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'ignored']]
             if not remain_files:
                 self.log('INFO: all input files have been successfully processed')
                 break
