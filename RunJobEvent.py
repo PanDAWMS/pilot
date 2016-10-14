@@ -1642,7 +1642,6 @@ class RunJobEvent(RunJob):
 
                         # Time to update the server
                         msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal')
-                        self.__esFatalCode = self.__error.ERR_ESFATAL
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
@@ -1665,6 +1664,7 @@ class RunJobEvent(RunJob):
                                 error_code = self.__error.ERR_TEFATAL
                             else:
                                 error_code = self.__error.ERR_ESFATAL
+                            self.__esFatalCode = error_code
                             result = ["failed", 0, error_code]
                             tolog("Setting error code: %d" % (error_code))
                             self.setJobResult(result)
