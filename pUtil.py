@@ -3508,9 +3508,9 @@ def getPilotVersion(initdir):
     except Exception, e:
         print "!!WARNING!!0000!! Could not read pilot version from file: %s" % (e )
     else:
-        _version = f.read()
+        _version = f.read().strip()
         # remove trailing \n if present
-        if "\n" in version:
+        if "\n" in _version:
             _version = _version.replace("\n", "")
         # trivial check
         pattern = re.compile(r"[A-Z]+ [A-Za-z0-9.]+")

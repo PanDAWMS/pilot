@@ -288,6 +288,11 @@ class PandaServerClient:
                 tolog("Batch system type was not identified (will not be reported)")
                 node['pilotID'] = "%s|%s|%s" % (self.__pilotId, self.__pilot_version_tag, self.__pilot_version)
                 tolog("Will send pilotID: %s" % (node['pilotID']))
+
+            use_newmover = readpar('use_newmover')
+            node['pilotID'] += '|NEWMOVER-%s' % ('ON' if use_newmover else 'OFF')
+            tolog("Checking if new site movers workflow is enabled .. will send PilotID: %s" % node['pilotID'])
+
             tolog("pilotId: %s" % str(self.__pilotId))
         if log and (job.result[0] == 'failed' or job.result[0] == 'holding' or "outbound connections" in log):
             node['pilotLog'] = log

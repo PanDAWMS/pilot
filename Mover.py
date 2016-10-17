@@ -244,7 +244,7 @@ def get_data_new(job,
 
     # prepare compatible output
 
-    not_transferred = [e.lfn for e in job.inData if e.status not in ['transferred', 'direct_access']]
+    not_transferred = [e.lfn for e in job.inData if e.status not in ['transferred', 'direct_access', 'ignored']]
     if not_transferred:
         return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED: not all input files have been copied: remain=%s' % '\n'.join(not_transferred), None, {}
 

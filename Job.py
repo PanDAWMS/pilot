@@ -799,7 +799,7 @@ class Job:
                 spec.guid = self.outFilesGuids[i]
         if extra:
             pUtil.tolog('Job._sync_outdata(): found extra output files to be added for stage-out: extra=%s' % extra)
-            self.outData.append(extra)
+            self.outData.extend(extra)
 
         # init dataset value (destinationDblock) if not set
         rand_dsn = "%s-%s-%s" % (time.localtime()[0:3]) # pass it a random name

@@ -183,6 +183,9 @@ class xrdcpSiteMover(BaseSiteMover):
             extract checksum value from xrdcp --chksum command output
             :return: (checksum, checksum_type) or (None, None) in case of failure
         """
+        
+        if not output:
+            return None, None
 
         if not ("xrootd" in output or "XRootD" in output or "adler32" in output):
             self.log("WARNING: Failed to extract checksum: Unexpected %s output: %s" % (self.copy_command, output))
