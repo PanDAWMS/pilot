@@ -238,8 +238,12 @@ M pilot.py (16)
 
 66.2:
 
-General changes:
+Site mover updates from A. Anisenkov:
 
+- Fixed (typo) issue with stage-out data structure generation in case of job produces extra files.
+- Implemented proper handling of DBReleases (ignore stage-in of dbreleases if they are available on CVMFS, otherwise do normal stage-in, raise an exception if dbrelease skeleton file can not be created)
+- Added special info tag into PilotID identifier send to PanDA to track if new sitemover workflow is activated or not
+- getPilotVersion() bug fixed
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
