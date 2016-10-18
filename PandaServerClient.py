@@ -276,22 +276,23 @@ class PandaServerClient:
         if self.__jobSchedulerId:
             node['schedulerID'] = self.__jobSchedulerId
         if self.__pilotId:
+            use_newmover = str(readpar('use_newmover')).lower() in ["1", "true"]
+            use_newmover_tag = 'NEWMOVER-%s' % ('ON' if use_newmover else 'OFF')
+            tolog("Checking if new site movers workflow is enabled: use_newmover=%s" % use_newmover)
+
             # report the batch system job id, if available
             batchSystemType, _id = getBatchSystemJobID()
+
             if batchSystemType:
-                tolog("Batch system: %s" % (batchSystemType))
-                tolog("Batch system job ID: %s" % (_id))
-                node['pilotID'] = "%s|%s|%s|%s|%s" % (self.__pilotId, _id, batchSystemType, self.__pilot_version_tag, self.__pilot_version)
+                tolog("Batch system: %s" % batchSystemType)
+                tolog("Batch system job ID: %s" % _id)
+                node['pilotID'] = "%s|%s|%s|%s|%s" % (self.__pilotId, use_newmover_tag, batchSystemType, self.__pilot_version_tag, self.__pilot_version)
                 node['batchID'] = _id
                 tolog("Will send batchID: %s and pilotID: %s" % (node['batchID'], node['pilotID']))
             else:
                 tolog("Batch system type was not identified (will not be reported)")
-                node['pilotID'] = "%s|%s|%s" % (self.__pilotId, self.__pilot_version_tag, self.__pilot_version)
-                tolog("Will send pilotID: %s" % (node['pilotID']))
-
-            use_newmover = readpar('use_newmover')
-            node['pilotID'] += '|NEWMOVER-%s' % ('ON' if use_newmover else 'OFF')
-            tolog("Checking if new site movers workflow is enabled .. will send PilotID: %s" % node['pilotID'])
+                node['pilotID'] = "%s|%s|%s|%s" % (self.__pilotId, use_newmover_tag, self.__pilot_version_tag, self.__pilot_version)
+                tolog("Will send pilotID: %s" % node['pilotID'])
 
             tolog("pilotId: %s" % str(self.__pilotId))
         if log and (job.result[0] == 'failed' or job.result[0] == 'holding' or "outbound connections" in log):

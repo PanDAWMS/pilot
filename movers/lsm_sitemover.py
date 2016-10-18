@@ -145,7 +145,7 @@ class lsmSiteMover(BaseSiteMover):
             :return: (checksum, checksum_type) or (None, None) in case of failure
         """
 
-        pattern = ".*?size\s+(?P<size>[0-9]+)\s+(?P<type>md5|adler32)\s+(?P<checksum>[a-zA-Z0-9]+)\s*"
+        pattern = ".*?size[\s:]+(?P<size>[0-9]+)[\s:]+(?P<type>md5|adler32)[\s:]+(?P<checksum>[a-zA-Z0-9]+)\s*"
         checksum, checksum_type = None, None
 
         m = re.search(pattern, output)
