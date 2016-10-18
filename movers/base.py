@@ -543,7 +543,7 @@ class BaseSiteMover(object):
 
         timeout = timeout_min + int(filesize/0.4e6) # approx < 0.4 Mb/sec
 
-        return max(timeout, timeout_max)
+        return min(timeout, timeout_max)
 
 
     def calc_file_checksum(self, filename):
