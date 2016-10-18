@@ -313,8 +313,8 @@ class PandaServerClient:
         # for hpc status
         if job.hpcStatus:
             node['jobSubStatus'] = job.hpcStatus
-        else:
-            node['jobSubStatus'] = ''
+        if job.subStatus:
+            node['jobSubStatus'] = job.subStatus
 
         if job.coreCount and job.coreCount != 'null' and job.coreCount != 'NULL':
             node['coreCount'] = job.coreCount

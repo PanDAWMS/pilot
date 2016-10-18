@@ -106,6 +106,7 @@ class RunJobEvent(RunJob):
     # record processed events
     __nEvents = 0
     __nEventsW = 0
+    __nEventsFailed = 0
 
     # error fatal code
     __esFatalCode = None
@@ -113,8 +114,23 @@ class RunJobEvent(RunJob):
     # Getter and setter methods
 
     def getNEvents(self):
-        return self.__nEvents, self.__nEventsW
+        return self.__nEvents, self.__nEventsW, self.__nEventsFailed
 
+    def getSubStatus(self):
+        if not self.__eventRangeID_dictionary:
+            return 'no_events'
+        if self.__esFatalCode:
+            return 'pilot_failed'
+        if self.__nEventsFailed:
+            if self.__nEventsFailed < self.__nEventsW:
+                return 'partly_failed'
+            elif self.__nEventsW == 0:
+                return 'all_failed'
+            else:
+                return 'mostly_failed'
+        else:
+            return 'all_success'
+ 
     def getESFatalCode(self):
         return self.__esFatalCode
 
@@ -1445,6 +1461,7 @@ class RunJobEvent(RunJob):
 
                 # Time to update the server
                 eventRanges = []
+                self.__nEventsW = 0
                 dumpFile = self.__job.outputZipEventRangesName
                 file = open(dumpFile)
                 for line in file:
@@ -1452,8 +1469,10 @@ class RunJobEvent(RunJob):
                     if len(line):
                         eventRangeID = line.split(" ")[0]
                         if errorCode:
+                            self.__nEventsFailed += 1
                             eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
                         else:
+                            self.__nEventsW += 1
                             eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id})
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
@@ -1530,6 +1549,7 @@ class RunJobEvent(RunJob):
                                         self.__nEventsW += 1
                                     else:
                                         status = 'failed'
+                                        self.__nEventsFailed += 1
                                         errorCode = self.__error.ERR_STAGEOUTFAILED
 
                                         # Update the global status field in case of failure
@@ -2610,8 +2630,8 @@ if __name__ == "__main__":
             if time_to_calculate_cuptime < time.time() - 2 * 60:
                 time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
-                job.nEvents, job.nEventsW = runJob.getNEvents()
-                tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+                job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+                tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
                 # agreed to only report stagedout events to panda
                 job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
@@ -2677,8 +2697,8 @@ if __name__ == "__main__":
                         if time_to_calculate_cuptime < time.time() - 2 * 60:
                             time_to_calculate_cuptime = time.time()
                             job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
-                            job.nEvents, job.nEventsW = runJob.getNEvents()
-                            tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+                            job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+                            tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
                             # agreed to only report stagedout events to panda
                             job.nEvents = job.nEventsW
                             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
@@ -2836,8 +2856,8 @@ if __name__ == "__main__":
         if not kill:
             tolog("AthenaMP has finished")
 
-        job.nEvents, job.nEventsW = runJob.getNEvents()
-        tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 
@@ -2898,6 +2918,11 @@ if __name__ == "__main__":
             time.sleep(30)
 
         runJob.stageOutZipFiles()
+
+        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
 
         # replace the default job output file list which is anyway not correct
         # (it is only used by AthenaMP for generating output file names)
@@ -3001,6 +3026,7 @@ if __name__ == "__main__":
                 else:
                     tolog("No transfer failures detected, job will be set to finished")
                     job.jobState = "finished"
+        job.subStatus = runJob.getSubStatus
         job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
@@ -3010,8 +3036,8 @@ if __name__ == "__main__":
 
     except Exception, errorMsg:
 
-        job.nEvents, job.nEventsW = runJob.getNEvents()
-        tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 
