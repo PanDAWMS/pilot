@@ -2627,6 +2627,7 @@ if __name__ == "__main__":
             if time_to_calculate_cuptime < time.time() - 2 * 60:
                 time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                job.subStatus = runJob.getSubStatus()
                 job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
                 tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
                 # agreed to only report stagedout events to panda
@@ -2694,6 +2695,7 @@ if __name__ == "__main__":
                         if time_to_calculate_cuptime < time.time() - 2 * 60:
                             time_to_calculate_cuptime = time.time()
                             job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                            job.subStatus = runJob.getSubStatus()
                             job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
                             tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
                             # agreed to only report stagedout events to panda
@@ -2853,6 +2855,7 @@ if __name__ == "__main__":
         if not kill:
             tolog("AthenaMP has finished")
 
+        job.subStatus = runJob.getSubStatus()
         job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
         tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
         # agreed to only report stagedout events to panda
@@ -2916,6 +2919,7 @@ if __name__ == "__main__":
 
         runJob.stageOutZipFiles()
 
+        job.subStatus = runJob.getSubStatus()
         job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
         tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
         # agreed to only report stagedout events to panda
@@ -3033,6 +3037,7 @@ if __name__ == "__main__":
 
     except Exception, errorMsg:
 
+        job.subStatus = runJob.getSubStatus()
         job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
         tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
         # agreed to only report stagedout events to panda

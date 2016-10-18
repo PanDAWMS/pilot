@@ -313,6 +313,7 @@ class PandaServerClient:
         # for hpc status
         if job.hpcStatus:
             node['jobSubStatus'] = job.hpcStatus
+        tolog("jobSubStatus: %s" % job.subStatus)
         if job.subStatus:
             node['jobSubStatus'] = job.subStatus
 

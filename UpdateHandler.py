@@ -84,7 +84,8 @@ class UpdateHandler(BaseRequestHandler):
                             self.__env['jobDic'][k][1].logMsgFiles.append(jobinfo["logfile"])
 
                         if jobinfo.has_key("subStatus"):
-                            self.__env['jobDic'][k][1].subStatus = pUtil.decode_string(jobinfo["subStatus"])
+                            pUtil.tolog("subStatus: %s" % jobinfo["subStatus"])
+                            self.__env['jobDic'][k][1].subStatus = jobinfo["subStatus"]
 
                         if jobinfo.has_key("pilotErrorDiag"):
                             self.__env['jobDic'][k][1].pilotErrorDiag = pUtil.decode_string(jobinfo["pilotErrorDiag"])
