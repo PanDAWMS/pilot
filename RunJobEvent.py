@@ -3026,7 +3026,7 @@ if __name__ == "__main__":
                 else:
                     tolog("No transfer failures detected, job will be set to finished")
                     job.jobState = "finished"
-        job.subStatus = runJob.getSubStatus
+        job.subStatus = runJob.getSubStatus()
         job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
