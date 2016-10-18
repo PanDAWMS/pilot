@@ -477,7 +477,6 @@ class Job:
         self.jobPars = data.get('jobPars', '')
 
         self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true'
-        pUtil.tolog("putLogToOS = %s" % self.putLogToOS)
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
