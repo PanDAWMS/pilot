@@ -1424,10 +1424,12 @@ class RunJobEvent(RunJob):
                 tolog("Adding %s to output file list" % (f))
                 self.__output_files.append(f)
                 tolog("output_files = %s" % (self.__output_files))
+                errorCode = None
                 if ec == 0:
                     status = 'finished'
                 else:
                     status = 'failed'
+                    errorCode = self.__error.ERR_STAGEOUTFAILED
 
                     # Update the global status field in case of failure
                     self.setStatus(False)
@@ -1449,7 +1451,10 @@ class RunJobEvent(RunJob):
                     line = line.strip()
                     if len(line):
                         eventRangeID = line.split(" ")[0]
-                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': 'finished', 'objstoreID': os_bucket_id})
+                        if errorCode:
+                            eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
+                        else:
+                            eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id})
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges)
@@ -1519,11 +1524,13 @@ class RunJobEvent(RunJob):
                                     tolog("Adding %s to output file list" % (f))
                                     self.__output_files.append(f)
                                     tolog("output_files = %s" % (self.__output_files))
+                                    errorCode = None
                                     if ec == 0:
                                         status = 'finished'
                                         self.__nEventsW += 1
                                     else:
                                         status = 'failed'
+                                        errorCode = self.__error.ERR_STAGEOUTFAILED
 
                                         # Update the global status field in case of failure
                                         self.setStatus(False)
@@ -1532,7 +1539,7 @@ class RunJobEvent(RunJob):
 
                                     try:
                                         # Time to update the server
-                                        msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
+                                        msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode)
 
                                         # Did the updateEventRange back channel contain an instruction?
                                         if msg == "tobekilled":
@@ -1640,13 +1647,7 @@ class RunJobEvent(RunJob):
                     if event_range_id != "":
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
-                        # Time to update the server
-                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal')
-                        if msg != "":
-                            tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
-                        else:
-                            tolog("Updated server for failed event range")
-
+                        error_code = None
                         # Was the error fatal? If so, the pilot should abort
                         if "FATAL" in error_acronym:
                             tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
@@ -1665,12 +1666,20 @@ class RunJobEvent(RunJob):
                             else:
                                 error_code = self.__error.ERR_ESFATAL
                             self.__esFatalCode = error_code
+
+                        # Time to update the server
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal', errorCode=error_code)
+                        if msg != "":
+                            tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
+                        else:
+                            tolog("Updated server for failed event range")
+
+                        if error_code:
                             result = ["failed", 0, error_code]
                             tolog("Setting error code: %d" % (error_code))
                             self.setJobResult(result)
 
                             # ..
-
                     else:
                         tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
 

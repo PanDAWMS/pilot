@@ -47,7 +47,7 @@ def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10):
 
     return message
 
-def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', os_bucket_id=-1):
+def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', os_bucket_id=-1, errorCode=None):
     """ Update an list of event ranges on the Event Server """
 
     tolog("Updating an event range..")
@@ -64,6 +64,9 @@ def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', o
         # node['cpu'] =  eventRangeList[1]
         # node['wall'] = eventRangeList[2]
     node['eventStatus'] = status
+
+    if errorCode:
+        node['errorCode'] = errorCode
 
     # open connection
     ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGE")
