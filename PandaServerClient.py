@@ -276,9 +276,8 @@ class PandaServerClient:
         if self.__jobSchedulerId:
             node['schedulerID'] = self.__jobSchedulerId
         if self.__pilotId:
-
             use_newmover = readpar('use_newmover')
-            use_newmover_tag += 'NEWMOVER-%s' % ('ON' if use_newmover else 'OFF')
+            use_newmover_tag = 'NEWMOVER-%s' % ('ON' if use_newmover else 'OFF')
             tolog("Checking if new site movers workflow is enabled: use_newmover=%s" % use_newmover)
 
             # report the batch system job id, if available
