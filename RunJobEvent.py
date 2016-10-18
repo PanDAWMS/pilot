@@ -1276,13 +1276,10 @@ class RunJobEvent(RunJob):
             ec = self.__error.ERR_PUTFUNCNOCALL
             self.__job.setState(["holding", self.__job.result[1], ec])
         else:
+            if self.__job.pilotErrorDiag = pilotErrorDiag
             if self.__job.pilotErrorDiag != "":
-                self.__job.pilotErrorDiag = self.__job.pilotErrorDiag.replace("Put error:", "Objectstore stageout error:")
-                if self.__job.pilotErrorDiag.startswith("Objectstore stageout error:"):
-                    pre = ""
-                else:
-                    pre = "Objectstore stageout error: "
-                self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("Objectstore stageout error: "))
+                self.__job.pilotErrorDiag = self.__job.pilotErrorDiag.replace("Put error:", "Objectstore stageout to bucket(%s) error:" % os_bucket_id)
+                self.__job.pilotErrorDiag = tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("Objectstore stageout to bucket(%s) error:" % os_bucket_id))
 
             tolog("Put function returned code: %d" % (ec))
             if ec == 0:
