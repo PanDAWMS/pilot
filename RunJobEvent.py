@@ -106,6 +106,7 @@ class RunJobEvent(RunJob):
     # record processed events
     __nEvents = 0
     __nEventsW = 0
+    __nEventsFailed = 0
 
     # error fatal code
     __esFatalCode = None
@@ -113,8 +114,23 @@ class RunJobEvent(RunJob):
     # Getter and setter methods
 
     def getNEvents(self):
-        return self.__nEvents, self.__nEventsW
+        return self.__nEvents, self.__nEventsW, self.__nEventsFailed
 
+    def getSubStatus(self):
+        if not self.__eventRangeID_dictionary:
+            return 'no_events'
+        if self.__esFatalCode:
+            return 'pilot_failed'
+        if self.__nEventsFailed:
+            if self.__nEventsFailed < self.__nEventsW:
+                return 'partly_failed'
+            elif self.__nEventsW == 0:
+                return 'all_failed'
+            else:
+                return 'mostly_failed'
+        else:
+            return 'all_success'
+ 
     def getESFatalCode(self):
         return self.__esFatalCode
 
@@ -1260,13 +1276,10 @@ class RunJobEvent(RunJob):
             ec = self.__error.ERR_PUTFUNCNOCALL
             self.__job.setState(["holding", self.__job.result[1], ec])
         else:
+            self.__job.pilotErrorDiag = pilotErrorDiag
             if self.__job.pilotErrorDiag != "":
-                self.__job.pilotErrorDiag = self.__job.pilotErrorDiag.replace("Put error:", "Objectstore stageout error:")
-                if self.__job.pilotErrorDiag.startswith("Objectstore stageout error:"):
-                    pre = ""
-                else:
-                    pre = "Objectstore stageout error: "
-                self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("Objectstore stageout error: "))
+                self.__job.pilotErrorDiag = self.__job.pilotErrorDiag.replace("Put error:", "Objectstore stageout to bucket(%s) error:" % os_bucket_id)
+                self.__job.pilotErrorDiag = tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("Objectstore stageout to bucket(%s) error:" % os_bucket_id))
 
             tolog("Put function returned code: %d" % (ec))
             if ec == 0:
@@ -1424,10 +1437,12 @@ class RunJobEvent(RunJob):
                 tolog("Adding %s to output file list" % (f))
                 self.__output_files.append(f)
                 tolog("output_files = %s" % (self.__output_files))
+                errorCode = None
                 if ec == 0:
                     status = 'finished'
                 else:
                     status = 'failed'
+                    errorCode = self.__error.ERR_STAGEOUTFAILED
 
                     # Update the global status field in case of failure
                     self.setStatus(False)
@@ -1443,13 +1458,19 @@ class RunJobEvent(RunJob):
 
                 # Time to update the server
                 eventRanges = []
+                self.__nEventsW = 0
                 dumpFile = self.__job.outputZipEventRangesName
                 file = open(dumpFile)
                 for line in file:
                     line = line.strip()
                     if len(line):
                         eventRangeID = line.split(" ")[0]
-                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': 'finished', 'objstoreID': os_bucket_id})
+                        if errorCode:
+                            self.__nEventsFailed += 1
+                            eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
+                        else:
+                            self.__nEventsW += 1
+                            eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id})
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges)
@@ -1519,11 +1540,14 @@ class RunJobEvent(RunJob):
                                     tolog("Adding %s to output file list" % (f))
                                     self.__output_files.append(f)
                                     tolog("output_files = %s" % (self.__output_files))
+                                    errorCode = None
                                     if ec == 0:
                                         status = 'finished'
                                         self.__nEventsW += 1
                                     else:
                                         status = 'failed'
+                                        self.__nEventsFailed += 1
+                                        errorCode = self.__error.ERR_STAGEOUTFAILED
 
                                         # Update the global status field in case of failure
                                         self.setStatus(False)
@@ -1532,7 +1556,7 @@ class RunJobEvent(RunJob):
 
                                     try:
                                         # Time to update the server
-                                        msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
+                                        msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode)
 
                                         # Did the updateEventRange back channel contain an instruction?
                                         if msg == "tobekilled":
@@ -1640,14 +1664,7 @@ class RunJobEvent(RunJob):
                     if event_range_id != "":
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
-                        # Time to update the server
-                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal')
-                        self.__esFatalCode = self.__error.ERR_ESFATAL
-                        if msg != "":
-                            tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
-                        else:
-                            tolog("Updated server for failed event range")
-
+                        error_code = None
                         # Was the error fatal? If so, the pilot should abort
                         if "FATAL" in error_acronym:
                             tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
@@ -1665,12 +1682,21 @@ class RunJobEvent(RunJob):
                                 error_code = self.__error.ERR_TEFATAL
                             else:
                                 error_code = self.__error.ERR_ESFATAL
+                            self.__esFatalCode = error_code
+
+                        # Time to update the server
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal', errorCode=error_code)
+                        if msg != "":
+                            tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
+                        else:
+                            tolog("Updated server for failed event range")
+
+                        if error_code:
                             result = ["failed", 0, error_code]
                             tolog("Setting error code: %d" % (error_code))
                             self.setJobResult(result)
 
                             # ..
-
                     else:
                         tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
 
@@ -2602,8 +2628,9 @@ if __name__ == "__main__":
             if time_to_calculate_cuptime < time.time() - 2 * 60:
                 time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
-                job.nEvents, job.nEventsW = runJob.getNEvents()
-                tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+                job.subStatus = runJob.getSubStatus()
+                job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+                tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
                 # agreed to only report stagedout events to panda
                 job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
@@ -2669,8 +2696,9 @@ if __name__ == "__main__":
                         if time_to_calculate_cuptime < time.time() - 2 * 60:
                             time_to_calculate_cuptime = time.time()
                             job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
-                            job.nEvents, job.nEventsW = runJob.getNEvents()
-                            tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+                            job.subStatus = runJob.getSubStatus()
+                            job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+                            tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
                             # agreed to only report stagedout events to panda
                             job.nEvents = job.nEventsW
                             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
@@ -2828,8 +2856,9 @@ if __name__ == "__main__":
         if not kill:
             tolog("AthenaMP has finished")
 
-        job.nEvents, job.nEventsW = runJob.getNEvents()
-        tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+        job.subStatus = runJob.getSubStatus()
+        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 
@@ -2890,6 +2919,12 @@ if __name__ == "__main__":
             time.sleep(30)
 
         runJob.stageOutZipFiles()
+
+        job.subStatus = runJob.getSubStatus()
+        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
 
         # replace the default job output file list which is anyway not correct
         # (it is only used by AthenaMP for generating output file names)
@@ -2993,6 +3028,7 @@ if __name__ == "__main__":
                 else:
                     tolog("No transfer failures detected, job will be set to finished")
                     job.jobState = "finished"
+        job.subStatus = runJob.getSubStatus()
         job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
@@ -3002,8 +3038,9 @@ if __name__ == "__main__":
 
     except Exception, errorMsg:
 
-        job.nEvents, job.nEventsW = runJob.getNEvents()
-        tolog("nevents = %s, neventsW = %s" % (job.nEvents, job.nEventsW))
+        job.subStatus = runJob.getSubStatus()
+        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 

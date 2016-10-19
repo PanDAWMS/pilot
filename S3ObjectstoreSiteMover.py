@@ -363,6 +363,13 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         fullname = os.path.join(path, lfn)
 
         status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment, os_bucket_id=os_bucket_id)
+        report['eventType'] = 'get_es'
+
+        parsed = urlparse.urlparse(gpfn)
+        scheme = parsed.scheme
+        hostname = parsed.netloc.partition(':')[0]
+        port = int(parsed.netloc.partition(':')[2])
+        report['remoteSite'] = '%s://%s:%s' % (scheme, hostname, port)
 
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
@@ -403,11 +410,20 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
 
+        parsed = urlparse.urlparse(destination)
+        scheme = parsed.scheme
+        hostname = parsed.netloc.partition(':')[0]
+        port = int(parsed.netloc.partition(':')[2])
+        report['remoteSite'] = '%s://%s:%s' % (scheme, hostname, port)
+
         filename = os.path.basename(source)
         surl = destination
         self.log("surl=%s, timeout=%s" % (surl, timeout))
         if "log.tgz" in surl:
             surl = surl.replace(lfn, "%s:%s"%(scope,lfn))
+        else:
+            report['eventType'] = 'put_es'
+
         status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout, os_bucket_id=os_bucket_id)
         if status !=0:
             errors = PilotErrors()
