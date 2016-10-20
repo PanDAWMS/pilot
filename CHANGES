@@ -245,6 +245,67 @@ Site mover updates from A. Anisenkov:
 - Added special info tag into PilotID identifier send to PanDA to track if new sitemover workflow is activated or not
 - getPilotVersion() bug fixed
 
+https://github.com/PanDAWMS/pilot/pull/70
+
+Commit Summary
+
+lcgcpSiteMover: clean up action implemented (force to remove remote file in case of failed transfer)
+job.py update
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+sitemover: cosmetic/verbosity added
+
+File Changes
+
+M Job.py (8)
+M movers/lcgcp_sitemover.py (53)
+M movers/mover.py (6)
+
+https://github.com/PanDAWMS/pilot/pull/68
+
+Commit Summary
+
+batchID value is removed from PilotID parameter sent to PanDA
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+pilotID tag updated
+cosm fix
+File Changes
+
+M PandaServerClient.py (19)
+
+https://github.com/PanDAWMS/pilot/pull/67
+
+Commit Summary
+
+sitemovers: bugfix: fixed (typo) issue with stage-out data structure generation in case of job produces extra files.
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+
+File Changes
+
+M Job.py (2)
+
+Event service updates from W. Guan:
+
+https://github.com/PanDAWMS/pilot/pull/69
+
+Commit Summary
+
+report different fatal errors
+update eventtype in trace report for ES
+report error code to event status
+update pilot to report jobsubstatus
+update to report objectstore error in errorDiag
+fix job sub status
+
+File Changes
+
+M EventRanges.py (5)
+M Job.py (4)
+M PandaServerClient.py (5)
+M RunJobEvent.py (91)
+M RunJobUtilities.py (2)
+M S3ObjectstoreSiteMover.py (16)
+M UpdateHandler.py (4)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
