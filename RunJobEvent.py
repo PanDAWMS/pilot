@@ -1368,6 +1368,14 @@ class RunJobEvent(RunJob):
         return ec, pilotErrorDiag, os_bucket_id
 
     def stage_out_es(self, event_range_id, file_paths):
+        """
+        event_range_id: event range id as a string.
+        file_paths: List of file paths.
+
+        In ES, for one event range id, more can one output files can be produced.
+        Only all these files are staged out successfully, the ret_code can be 0 and then the event range can be marked as finished.
+        If one file in the list fails, the event range should be marked as failed.
+        """
 
         return ret_code, ret_str, os_bucket_id
 
