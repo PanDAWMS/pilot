@@ -55,21 +55,7 @@ class lcgcpSiteMover(BaseSiteMover):
         self.log("Command execution time: %s" % dt)
         self.log("is_timeout=%s, rcode=%s, output=%s" % (is_timeout, rcode, output))
 
-        if is_timeout:
-            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
-
-        if rcode:
-            self.log('WARNING: [is_stagein=%s] Stage file command (%s) failed: Status=%s Output=%s' % (is_stagein, cmd, rcode, output.replace("\n"," ")))
-            error = self.resolveStageErrorFromOutput(output, source, is_stagein=is_stagein)
-
-            rcode = error.get('rcode')
-            if not rcode:
-                rcode = PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED
-            state = error.get('state')
-            if not state:
-                state = 'COPY_FAIL' #'STAGEIN_FAILED' if is_stagein else 'STAGEOUT_FAILED'
-
-            # do clean up
+        if is_timeout or rcode: ## do clean up
             if is_stagein: # stage-in clean up: check if file was partially transferred
                 self.removeLocal(destination)
             else: # stage-out clean up: check if file was partially transferred
@@ -77,11 +63,24 @@ class lcgcpSiteMover(BaseSiteMover):
                     self.removeRemoteFile(destination)
                     self.log("lcgcp clean up: successfully removed remote file=%s from storage" % destination)
                 except PilotException, e:
-                    self.log("Warning: failed to remove file=%s from storage .. skipped: error=%s" % (destination, e))
+                    self.log("Warning: failed to remove remote file=%s from storage .. skipped: error=%s" % (destination, e))
+
+        if is_timeout:
+            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
+
+        if rcode:
+            self.log('WARNING: [is_stagein=%s] Stage file command (%s) failed: Status=%s Output=%s' % (is_stagein, cmd, rcode, output.replace("\n"," ")))
+            error = self.resolveStageErrorFromOutput(output, source, is_stagein=is_stagein)
+            rcode = error.get('rcode')
+            if not rcode:
+                rcode = PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED
+            state = error.get('state')
+            if not state:
+                state = 'COPY_FAIL' #'STAGEIN_FAILED' if is_stagein else 'STAGEOUT_FAILED'
 
             raise PilotException(error.get('error'), code=rcode, state=state)
 
-        # extract filesize and checksum values from output: not available for dccp in stage-in
+        # extract filesize and checksum values from output
         # check stage-out: not used at the moment
 
         return None, None
@@ -94,7 +93,7 @@ class lcgcpSiteMover(BaseSiteMover):
         """
 
         timeout = self.getTimeOut(0)
-        cmd = 'gfal-rm --verbose -t %d  %s' % (timeout, surl)
+        cmd = 'lcg-del --vo atlas --verbose -b -l -T srmv2 -t %s --nolfc %s' % (timeout, surl)
 
         setup = self.getSetup()
         if setup:
