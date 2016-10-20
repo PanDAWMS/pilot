@@ -294,6 +294,8 @@ class JobMover(object):
             updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
             self.log("Stage-in will be ignored for lfn=%s .. skip transfer the file" % fdata.lfn)
 
+        self.log("stage-in: resolved protocols=%s" % protocols)
+
         sitemover_objects = {}
         for dat in protocols:
 
@@ -301,6 +303,8 @@ class JobMover(object):
             if not remain_files:
                 self.log('INFO: all input files have been successfully processed')
                 break
+
+            self.log('INFO: remain files to be transferred=%s, protocols=%s' % (len(remain_files), len(protocols)))
 
             copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
@@ -417,7 +421,7 @@ class JobMover(object):
                         self.log(" -- Waiting %s seconds before next stage-in attempt for file=%s --" % (self.stagein_sleeptime, fdata.lfn))
                         time.sleep(self.stagein_sleeptime)
 
-                    self.log("Get attempt %s/%s for filename=%s" % (_attempt, self.stageinretry, fdata.lfn))
+                    self.log("Get attempt %s/%s for filename=%s .. sitemover=%s" % (_attempt, self.stageinretry, fdata.lfn, sitemover))
 
                     try:
                         result = sitemover.get_data(fdata)

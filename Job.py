@@ -831,7 +831,8 @@ class FileSpec(object):
                     'ddmendpoint_alt' # alternative location of ddmendpoint
                     ]
 
-    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime']
+    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime',
+                   'eventrange_id', 'status_code']
 
     def __init__(self, **kwargs):
 
@@ -881,7 +882,10 @@ class FileSpec(object):
         if not is_rootfile:
             return False
 
-        is_directaccess = self.prodDBlockToken != 'local' and is_rootfile
+        #if self.prodDBlockToken == 'local':
+        #    is_directaccess = False
+
+        is_directaccess = self.prodDBlockToken != 'local'
 
         allowed_replica_schemas = ['root://', 'dcache://', 'dcap://']
 
