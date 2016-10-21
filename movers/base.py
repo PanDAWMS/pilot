@@ -117,7 +117,11 @@ class BaseSiteMover(object):
             job instance is passing here for possible JOB specific processing ?? FIX ME LATER
         """
 
-        if '/rucio' in se_path:
+        # consider only deterministic sites (output destination)
+        # do proper extract is_determetistic flag from DDMEndpoint: TODO
+
+        # quick hack for now
+        if se_path and se_path.rstrip('/').endswith('/rucio'):
             return self.getSURLRucio(se, se_path, scope, lfn)
 
         raise Exception("getSURL(): NOT IMPLEMENTED error: processing of non Rucio transfers is not implemented yet, se_path=%s" % se_path)
