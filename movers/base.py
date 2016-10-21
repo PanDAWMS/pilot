@@ -384,7 +384,7 @@ class BaseSiteMover(object):
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
-    def stageInFile(source, destination, fspec=None):
+    def stageInFile(self, source, destination, fspec=None):
         """
             Stage in the file.
             Should be implemented by different site mover
@@ -422,7 +422,12 @@ class BaseSiteMover(object):
 
         # do stageOutFile
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
-        dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
+        try:
+            dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
+        except PilotException:
+            # do clean up
+            self.remote_cleanup(destination, fspec)
+            raise
 
         # verify stageout by checksum
         self.trace_report.update(validateStart=time.time())
@@ -462,6 +467,7 @@ class BaseSiteMover(object):
                 return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
         except PilotException:
+            self.remote_cleanup(destination, fspec)
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file checksum verification: %s ..  skipped" % e)
@@ -485,14 +491,16 @@ class BaseSiteMover(object):
             return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
         except PilotException:
+            self.remote_cleanup(destination, fspec)
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file size verification: %s .. skipped" % e)
 
+        self.remote_cleanup(destination, fspec)
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
-    def stageOutFile(source, destination, fspec):
+    def stageOutFile(self, source, destination, fspec):
         """
             Stage out the file.
             Should be implemented by different site mover
@@ -501,6 +509,14 @@ class BaseSiteMover(object):
         """
 
         raise Exception('NOT IMPLEMENTED')
+
+    def remote_cleanup(self, destination, fspec):
+        """
+            Apply remote clean up: e.g. remove incomplete remote file
+            Should be customized by different site mover
+        """
+
+        return True
 
 
     def resolveStageErrorFromOutput(self, output, filename=None, is_stagein=False):

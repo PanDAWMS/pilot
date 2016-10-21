@@ -58,12 +58,6 @@ class lcgcpSiteMover(BaseSiteMover):
         if is_timeout or rcode: ## do clean up
             if is_stagein: # stage-in clean up: check if file was partially transferred
                 self.removeLocal(destination)
-            else: # stage-out clean up: check if file was partially transferred
-                try:
-                    self.removeRemoteFile(destination)
-                    self.log("lcgcp clean up: successfully removed remote file=%s from storage" % destination)
-                except PilotException, e:
-                    self.log("Warning: failed to remove remote file=%s from storage .. skipped: error=%s" % (destination, e))
 
         if is_timeout:
             raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
@@ -84,6 +78,21 @@ class lcgcpSiteMover(BaseSiteMover):
         # check stage-out: not used at the moment
 
         return None, None
+
+    def remote_cleanup(self, destination, fspec):
+        """
+            Apply remote clean up
+            remove incomplete remote file
+        """
+
+        try:
+            self.removeRemoteFile(destination)
+            self.log("lcgcp clean up: successfully removed remote file=%s from storage" % destination)
+            return True
+        except PilotException, e:
+            self.log("Warning: failed to remove remote file=%s from storage .. skipped: error=%s" % (destination, e))
+
+        return False
 
 
     def removeRemoteFile(self, surl):
