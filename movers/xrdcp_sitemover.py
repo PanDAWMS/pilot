@@ -98,7 +98,7 @@ class xrdcpSiteMover(BaseSiteMover):
         self.log("is_timeout=%s, rcode = %s, output = %s" % (is_timeout, rcode, output.replace("\n", " ")))
 
         if is_timeout:
-            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, self.timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
+            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
 
         if rcode:
             self.log('WARNING: [is_stagein=%s] Stage file command (%s) failed: Status=%s Output=%s' % (is_stagein, cmd, rcode, output.replace("\n"," ")))
@@ -183,7 +183,7 @@ class xrdcpSiteMover(BaseSiteMover):
             extract checksum value from xrdcp --chksum command output
             :return: (checksum, checksum_type) or (None, None) in case of failure
         """
-        
+
         if not output:
             return None, None
 
