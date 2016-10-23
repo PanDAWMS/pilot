@@ -561,7 +561,7 @@ class BaseSiteMover(object):
         timeout_max = 6*3600 # 6 hours
         timeout_min = self.timeout
 
-        timeout = timeout_min + int(filesize/0.4e6) # approx < 0.4 Mb/sec
+        timeout = timeout_min + int(filesize/0.2e6) # approx < 0.2 Mb/sec
 
         return min(timeout, timeout_max)
 
