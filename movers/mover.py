@@ -16,6 +16,7 @@ from PilotErrors import PilotException, PilotErrors
 
 from pUtil import tolog
 
+import sys
 import os
 import time
 import traceback
@@ -62,7 +63,9 @@ class JobMover(object):
 
 
     def log(self, value): # quick stub
+        #sys.stdout.flush()
         tolog(value)
+        sys.stdout.flush() # quick hack until proper central logging will be implemented
 
     @property
     def stageoutretry(self):
