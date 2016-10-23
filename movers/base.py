@@ -625,6 +625,8 @@ class BaseSiteMover(object):
             self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (filename, cmd, c.returncode, output))
             raise Exception(output)
 
+        self.log("calc_checksum: output=%s" % output)
+
         return output.split()[0] # return final checksum
 
     @classmethod
