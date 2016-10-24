@@ -312,6 +312,8 @@ M UpdateHandler.py (4)
 
 Updates from Alexey Anisenkov:
 
+https://github.com/PanDAWMS/pilot/pull/71
+
 various small sitemover updates:
 - movers: base remote_cleanup handler added (fixed lcgcp clean up action)
 - fixed getSURL() to avoid transfers to non deterministic sites (quick hack for now based on checking '/rucio' postfix)
