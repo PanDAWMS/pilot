@@ -29,7 +29,7 @@ class BaseSiteMover(object):
     name = "" # unique ID of the Mover implementation, if not set copy_command will be used
     copy_command = None
 
-    timeout = 5*60 # 5 min
+    timeout = 3600 # 1 hour
 
     checksum_type = "adler32"     # algorithm name of checksum calculation
     checksum_command = "adler32"  # command to be executed to get checksum, e.g. md5sum (adler32 is internal default implementation)
@@ -117,7 +117,11 @@ class BaseSiteMover(object):
             job instance is passing here for possible JOB specific processing ?? FIX ME LATER
         """
 
-        if '/rucio' in se_path:
+        # consider only deterministic sites (output destination)
+        # do proper extract is_determetistic flag from DDMEndpoint: TODO
+
+        # quick hack for now
+        if se_path and se_path.rstrip('/').endswith('/rucio'):
             return self.getSURLRucio(se, se_path, scope, lfn)
 
         raise Exception("getSURL(): NOT IMPLEMENTED error: processing of non Rucio transfers is not implemented yet, se_path=%s" % se_path)
@@ -380,7 +384,7 @@ class BaseSiteMover(object):
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
-    def stageInFile(source, destination, fspec=None):
+    def stageInFile(self, source, destination, fspec=None):
         """
             Stage in the file.
             Should be implemented by different site mover
@@ -418,7 +422,12 @@ class BaseSiteMover(object):
 
         # do stageOutFile
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
-        dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
+        try:
+            dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
+        except PilotException:
+            # do clean up
+            self.remote_cleanup(destination, fspec)
+            raise
 
         # verify stageout by checksum
         self.trace_report.update(validateStart=time.time())
@@ -458,6 +467,7 @@ class BaseSiteMover(object):
                 return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
         except PilotException:
+            self.remote_cleanup(destination, fspec)
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file checksum verification: %s ..  skipped" % e)
@@ -481,14 +491,16 @@ class BaseSiteMover(object):
             return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
         except PilotException:
+            self.remote_cleanup(destination, fspec)
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file size verification: %s .. skipped" % e)
 
+        self.remote_cleanup(destination, fspec)
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
-    def stageOutFile(source, destination, fspec):
+    def stageOutFile(self, source, destination, fspec):
         """
             Stage out the file.
             Should be implemented by different site mover
@@ -497,6 +509,14 @@ class BaseSiteMover(object):
         """
 
         raise Exception('NOT IMPLEMENTED')
+
+    def remote_cleanup(self, destination, fspec):
+        """
+            Apply remote clean up: e.g. remove incomplete remote file
+            Should be customized by different site mover
+        """
+
+        return True
 
 
     def resolveStageErrorFromOutput(self, output, filename=None, is_stagein=False):
@@ -538,10 +558,10 @@ class BaseSiteMover(object):
     def getTimeOut(self, filesize):
         """ Get a proper time-out limit based on the file size """
 
-        timeout_max = 6*3600 # 6 hours
-        timeout_min = self.timeout #5*60   # 5 mins
+        timeout_max = 5 + 1*3600 # 1 hour ::: FIX ME LATER ::
+        timeout_min = self.timeout
 
-        timeout = timeout_min + int(filesize/0.4e6) # approx < 0.4 Mb/sec
+        timeout = timeout_min + int(filesize/0.25e6) # approx < 0.25 Mb/sec
 
         return min(timeout, timeout_max)
 
@@ -604,6 +624,8 @@ class BaseSiteMover(object):
         if c.returncode:
             self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (filename, cmd, c.returncode, output))
             raise Exception(output)
+
+        self.log("calc_checksum: output=%s" % output)
 
         return output.split()[0] # return final checksum
 
