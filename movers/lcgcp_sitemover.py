@@ -11,6 +11,7 @@ from PilotErrors import PilotErrors, PilotException
 from subprocess import Popen, PIPE, STDOUT
 
 from datetime import datetime
+import time
 
 import re
 import os
@@ -100,6 +101,10 @@ class lcgcpSiteMover(BaseSiteMover):
             Do remove (remote) file from storage
             :raise: PilotException in case of controlled error
         """
+
+        # take a 1 m nap before trying to reach the file (it might not be available immediately after a transfer)
+        self.log("INFO: [lcgcp removeRemoteFile] Taking a 1 m nap before the file removal attempt")
+        time.sleep(60)
 
         timeout = self.getTimeOut(0)
         cmd = 'lcg-del --vo atlas --verbose -b -l -T srmv2 -t %s --nolfc %s' % (timeout, surl)
