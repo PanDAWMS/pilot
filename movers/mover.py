@@ -42,8 +42,8 @@ class JobMover(object):
     _stageoutretry = 2 # default value
     _stageinretry = 2  # devault value
 
-    stagein_sleeptime = 5*60   # seconds, sleep time in case of stagein failure
-    stageout_sleeptime = 5*60  # seconds, sleep time in case of stageout failure
+    stagein_sleeptime = 3*60   # seconds, sleep time in case of stagein failure
+    stageout_sleeptime = 3*60  # seconds, sleep time in case of stageout failure
 
 
     def __init__(self, job, si, **kwargs):
