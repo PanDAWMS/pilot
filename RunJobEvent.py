@@ -1376,8 +1376,10 @@ class RunJobEvent(RunJob):
         Only all these files are staged out successfully, the ret_code can be 0 and then the event range can be marked as finished.
         If one file in the list fails, the event range should be marked as failed.
         """
+        tolog("To stage out event %s: %s" % (event_range_id, file_paths))
 
-        return ret_code, ret_str, os_bucket_id
+        return -1, "Not implemented", -1
+        #return ret_code, ret_str, os_bucket_id
 
 
     def zipOutput(self, event_range_id, paths):
@@ -1601,79 +1603,67 @@ class RunJobEvent(RunJob):
         while not self.__asyncOutputStager_thread.stopped():
           try:
             if len(self.__stageout_queue) > 0:
-                for paths in self.__stageout_queue:
+                for f in self.__stageout_queue:
                     # Create the output file metadata (will be sent to server)
                     tolog("Preparing to stage-out file %s" % (f))
-                    event_range_id = self.getEventRangeID(paths)
+                    event_range_id = self.getEventRangeID(f)
                     if event_range_id == "":
-                        tolog("!!WARNING!!1111!! Did not find the event range for file %s in the event range dictionary" % (paths))
+                        tolog("!!WARNING!!1111!! Did not find the event range for file %s in the event range dictionary" % (f))
                     else:
-                        if not self.__esToZip:
-                            ec = None
-                            pilotErrorDiag = None
-                            os_bucket_id = None
-                            for f in paths:
-                                tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
-                                ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
-                                if ec == 0:
+                        tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
+                        ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
+                        if ec == 0:
+                            if not self.__esToZip:
+                                try:
+                                    ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
+                                except Exception, e:
+                                    tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
+                                    tolog("Removing %s from stage-out queue to prevent endless loop" % (f))
+                                    self.__stageout_queue.remove(f)
+                                else:
+                                    tolog("Removing %s from stage-out queue" % (f))
+                                    self.__stageout_queue.remove(f)
+                                    tolog("Adding %s to output file list" % (f))
+                                    self.__output_files.append(f)
+                                    tolog("output_files = %s" % (self.__output_files))
+                                    if ec == 0:
+                                        status = 'finished'
+                                    else:
+                                        status = 'failed'
+
+                                        # Update the global status field in case of failure
+                                        self.setStatus(False)
+
+                                        # Note: the rec pilot must update the server appropriately
+
                                     try:
-                                        ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
-                                    except Exception, e:
-                                        tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
-                                        ec = self.__error.ERR_STAGEOUTFAILED
-                                        pilotErrorDiag = "Objectstore stageout error: %s" % str(e)
+                                        # Time to update the server
+                                        msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
 
-                                if not ec == 0:
-                                    break
-
-                            tolog("Removing %s from stage-out queue" % (paths))
-                            self.__stageout_queue.remove(paths)
-                            tolog("Adding %s to output file list" % (paths))
-                            self.__output_files.append(paths)
-                            tolog("output_files = %s" % (self.__output_files))
-                            errorCode = None
-                            if ec == 0:
-                                status = 'finished'
-                                self.__nEventsW += 1
+                                        # Did the updateEventRange back channel contain an instruction?
+                                        if msg == "tobekilled":
+                                            tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+                                            self.setAbort()
+                                            self.setToBeKilled()
+                                        if msg == "softkill":
+                                            tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+                                            self.sendMessage("No more events")
+                                            self.setAbort()
+                                    except:
+                                        tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                             else:
-                                status = 'failed'
-                                self.__nEventsFailed += 1
-                                errorCode = self.__error.ERR_STAGEOUTFAILED
-
-                                # Update the global status field in case of failure
-                                self.setStatus(False)
-
-                                # Note: the rec pilot must update the server appropriately
-
-                            try:
-                                 # Time to update the server
-                                 msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode)
-
-                                 # Did the updateEventRange back channel contain an instruction?
-                                 if msg == "tobekilled":
-                                     tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
-                                     self.setAbort()
-                                     self.setToBeKilled()
-                                if msg == "softkill":
-                                    tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
-                                    self.sendMessage("No more events")
-                                    self.setAbort()
-                            except:
-                                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
-                        else:
-                            try:
-                                status, output = self.zipOutput(event_range_id, paths)
-                            except:
-                                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
-                                tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
-                                self.__stageout_queue.remove(paths)
-                            else:
-                                tolog("Removing %s from stage-out queue" % (paths))
-                                self.__stageout_queue.remove(paths)
-                                tolog("Adding %s to output file list" % (paths))
-                                self.__output_files.append(paths)
-                                self.__nEventsW += 1
-                                tolog("output_files = %s" % (self.__output_files))
+                                try:
+                                    status, output = self.zipOutput(event_range_id, outputFileInfo)
+                                except:
+                                    tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+                                    tolog("Removing %s from stage-out queue to prevent endless loop" % (f))
+                                    self.__stageout_queue.remove(f)
+                                else:
+                                    tolog("Removing %s from stage-out queue" % (f))
+                                    self.__stageout_queue.remove(f)
+                                    tolog("Adding %s to output file list" % (f))
+                                    self.__output_files.append(f)
+                                    tolog("output_files = %s" % (self.__output_files))
                         else:
                             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
             time.sleep(1)
