@@ -558,7 +558,7 @@ class BaseSiteMover(object):
     def getTimeOut(self, filesize):
         """ Get a proper time-out limit based on the file size """
 
-        timeout_max = 5 + 5*3600 # 5 hours ::: FIX ME LATER ::
+        timeout_max = 5 + 3*3600 # 3 hours ::: FIX ME LATER ::
         timeout_min = self.timeout
 
         timeout = timeout_min + int(filesize/0.5e6) # approx < 0.5 Mb/sec
