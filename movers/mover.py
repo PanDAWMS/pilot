@@ -420,7 +420,7 @@ class JobMover(object):
                 # loop over multple stage-in attempts
                 for _attempt in xrange(1, self.stageinretry + 1):
 
-                    if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
+                    if _attempt > 1: # if not first stage-in attempt, take a nap before next attempt
                         self.log(" -- Waiting %s seconds before next stage-in attempt for file=%s --" % (self.stagein_sleeptime, fdata.lfn))
                         time.sleep(self.stagein_sleeptime)
 
@@ -702,7 +702,7 @@ class JobMover(object):
 
                 remain_files = [e for e in ddmfiles.get(ddmendpoint) if e.status not in ['transferred']]
                 if not remain_files:
-                    self.log('INFO: all files to be transfered to ddm=%s have been successfully processed for activity=%s ..' % (ddmendpoint, activity))
+                    self.log('INFO: all files to be transferred to ddm=%s have been successfully processed for activity=%s ..' % (ddmendpoint, activity))
                     # stop checking other protocols of ddmendpoint
                     break
 
@@ -719,6 +719,12 @@ class JobMover(object):
                     raise PilotException(msg, code=PilotErrors.ERR_NOSTORAGE, state="NO_COPYTOOLS")
 
                 for cpsettings in dat.get('copytools', []):
+
+                    remain_files = [e for e in ddmfiles.get(ddmendpoint) if e.status not in ['transferred']]
+                    if not remain_files:  ### FIX ME LATER
+                        self.log('INFO: all files to be transferred to ddm=%s have been successfully processed  ..' % ddmendpoint)
+                        break
+
                     copytool, copysetup = cpsettings.get('copytool'), cpsettings.get('copysetup')
 
                     try:

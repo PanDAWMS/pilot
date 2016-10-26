@@ -794,7 +794,7 @@ class Job:
                 #kw['destinationDBlockToken'] = self.destinationDBlockToken[i] # not used by new Movers
                 kw['destinationDblock'] = self.destinationDblock[i]
                 kw['scope'] = self.scopeOut[i]
-                kw['ddmendpoint'] = self.ddmEndPointOut[i] if i<len(self.ddmEndPointOut) else self.ddmEndPointOut[0]
+                kw['ddmendpoint'] = self.ddmEndPointOut[i] if i<len(self.ddmEndPointOut) else self.ddmEndPointOut[0] ## log file is also passed by Panda in outFiles list.. could be a bug in logic if log file requested to be transferred to different site: TO BE CLARIFIED
                 kw['guid'] = self.outFilesGuids[i] # outFilesGuids must be coherent with outFiles, otherwise logic corrupted
                 spec = FileSpec(lfn=lfn, **kw)
                 extra.append(spec)
@@ -804,6 +804,18 @@ class Job:
         if extra:
             pUtil.tolog('Job._sync_outdata(): found extra output files to be added for stage-out: extra=%s' % extra)
             self.outData.extend(extra)
+
+        ## quick hack: do replace outData: remove all old entries from job.outData not defined in new job.outFiles
+        miss = set(data) - set(self.outFiles)
+        pUtil.tolog('Job._sync_outdata(): check files to be ignored ... missing files=%s' % len(miss))
+        if miss:
+            pUtil.tolog('Job._sync_outdata(): following output files will be ignored/removed from job.outData for stage-out since new job.outFiles do not contain them: miss=%s' % miss)
+            new_outData = []
+            for spec in self.outData:
+                if spec.lfn in miss:
+                    continue
+                new_outData.append(spec)
+            self.outData = new_outData
 
         # init dataset value (destinationDblock) if not set
         rand_dsn = "%s-%s-%s" % (time.localtime()[0:3]) # pass it a random name
