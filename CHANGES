@@ -320,6 +320,13 @@ various small sitemover updates:
 - changed sitemover timeout threshold to fixed 1h value
 - various cosmetic fixes
 
+https://github.com/PanDAWMS/pilot/pull/72
+
+- fixed checksum value extraction from the calc checksum command
+- Updated logic to handle extra output (splitted) files produced by payload (defined in Job report) - ("input pfn file is not exist" issue for MCORE jobs)
+- stage-out loop optimization
+- lcgcp file clean up: add 1m sleep nap before remote file removal
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
