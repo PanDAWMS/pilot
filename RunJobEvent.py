@@ -3066,6 +3066,8 @@ if __name__ == "__main__":
         if not kill:
             tolog("AthenaMP has finished")
 
+        athenaMP_finished_at = time.time()
+
         job.subStatus = runJob.getSubStatus()
         job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
         tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
@@ -3129,6 +3131,8 @@ if __name__ == "__main__":
             time.sleep(30)
 
         runJob.stageOutZipFiles()
+
+        job.external_stageout_time = time.time() - athenaMP_finished_at
 
         job.subStatus = runJob.getSubStatus()
         job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()

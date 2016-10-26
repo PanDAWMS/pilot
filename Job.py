@@ -61,7 +61,8 @@ class Job:
         self.prodSourceLabel = ""          # job label, e.g. 'user', 'test', 'rc_test', 'ddm', 'software', 'ptest'
         self.nEvents = 0                   # number of processed events (read)
         self.nEventsW = 0                  # number of processed events (written)
-        self.nEventsFailed = 0             # number of failed to stageout events
+        self.nEventsFailed = 0             # number of failed events
+        self.nEventsFailedStagedOut = 0    # number of failed to stageout events
         self.realDatasetsIn = None         # dataset name(s) for input file(s)
         self.cmtconfig = None              # CMTCONFIG value from the task definition
         self.jobState = None               # Current job state (for definition, see JobRecovery class)
@@ -112,6 +113,7 @@ class Job:
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
         self.pandaProxySecretKey = None    # pandaproxy secret key
+        self.external_stageout_time = None # External stageout time(time after athenaMP finishes)
 
         self.subStatus = None           # subStatus of the job
         self.subError = None            # subError of the job

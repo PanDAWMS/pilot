@@ -82,6 +82,9 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     msgdic["dbTime"] = job.dbTime
     msgdic["dbData"] = job.dbData
 
+    if job.external_stageout_time:
+        msgdic['external_stageout_time'] = job.external_stageout_time
+
     if job.outputZipName and job.outputZipBucketID:
         msgdic['outputZipName'] = job.outputZipName
         msgdic['outputZipBucketID'] = job.outputZipBucketID

@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import traceback
 import pUtil
 from SocketServer import BaseRequestHandler 
 from Configuration import Configuration
@@ -83,8 +84,13 @@ class UpdateHandler(BaseRequestHandler):
                         if (tmp == "failed" or tmp == "holding" or tmp == "finished") and jobinfo.has_key("logfile"):
                             self.__env['jobDic'][k][1].logMsgFiles.append(jobinfo["logfile"])
 
+                        if jobinfo.has_key("external_stageout_time"):
+                            try:
+                                self.__env['jobDic'][k][1].external_stageout_time = int(jobinfo["external_stageout_time"])
+                            except:
+                                pUtil.tolog(traceback.format_exc())
+
                         if jobinfo.has_key("subStatus"):
-                            pUtil.tolog("subStatus: %s" % jobinfo["subStatus"])
                             self.__env['jobDic'][k][1].subStatus = jobinfo["subStatus"]
 
                         if jobinfo.has_key("pilotErrorDiag"):
