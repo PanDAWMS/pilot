@@ -107,14 +107,18 @@ class RunJobEvent(RunJob):
     __nEvents = 0
     __nEventsW = 0
     __nEventsFailed = 0
+    __nEventsFailedStagedOut = 0
 
     # error fatal code
     __esFatalCode = None
 
+    # external stagout time(time after athenaMP terminated)
+    __external_stagout_time = 0
+
     # Getter and setter methods
 
     def getNEvents(self):
-        return self.__nEvents, self.__nEventsW, self.__nEventsFailed
+        return self.__nEvents, self.__nEventsW, self.__nEventsFailed, self.__nEventsFailedStagedOut
 
     def getSubStatus(self):
         if not self.__eventRangeID_dictionary:
@@ -125,12 +129,48 @@ class RunJobEvent(RunJob):
             if self.__nEventsFailed < self.__nEventsW:
                 return 'partly_failed'
             elif self.__nEventsW == 0:
-                return 'all_failed'
+                return 'pilot_failed' # 'all_failed'
             else:
                 return 'mostly_failed'
         else:
             return 'all_success'
- 
+
+    def setFinalESStatus(self, job):
+        if not self.__eventRangeID_dictionary:
+            job.subStatus = 'no_events'
+            job.pilotErrorDiag = "Pilot got no events"
+            job.result[0] = "failed"
+            job.result[2] = self.__error.ERR_NOEVENTS
+            job.jobState = "failed"
+        elif self.__esFatalCode:
+            job.subStatus = 'pilot_failed'
+            job.pilotErrorDiag = "AthenaMP fatal error happened"
+            job.result[0] = "failed"
+            job.result[2] = self.__esFatalCode
+            job.jobState = "failed"
+        elif self.__nEventsFailed:
+            if self.__nEventsW == 0:
+                job.subStatus = 'pilot_failed' # all failed
+                job.pilotErrorDiag = "All events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.result[0] = "failed"
+                job.result[2] = self.__error.ERR_ESRECOVERABLE
+                job.jobState = "failed"
+            elif self.__nEventsFailed < self.__nEventsW:
+                job.subStatus = 'partly_failed'
+                job.pilotErrorDiag = "Part of events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.result[0] = "failed"
+                job.result[2] = self.__error.ERR_ESRECOVERABLE
+                job.jobState = "failed"
+            else:
+                job.subStatus = 'mostly_failed' 
+                job.pilotErrorDiag = "Most of events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.result[0] = "failed"
+                job.result[2] = self.__error.ERR_ESRECOVERABLE
+                job.jobState = "failed"
+        else:
+            job.subStatus = 'all_success'
+            job.jobState = "finished"
+
     def getESFatalCode(self):
         return self.__esFatalCode
 
@@ -1473,6 +1513,7 @@ class RunJobEvent(RunJob):
                     eventRangeID = line.split(" ")[0]
                     if errorCode:
                         self.__nEventsFailed += 1
+                        self.__nEventsFailedStagedOut += 1
                         eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
                     else:
                         self.__nEventsW += 1
@@ -1552,6 +1593,7 @@ class RunJobEvent(RunJob):
                         eventRangeID = line.split(" ")[0]
                         if errorCode:
                             self.__nEventsFailed += 1
+                            self.__nEventsFailedStagedOut += 1
                             eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
                         else:
                             self.__nEventsW += 1
@@ -1629,6 +1671,7 @@ class RunJobEvent(RunJob):
                                 else:
                                     status = 'failed'
                                     self.__nEventsFailed += 1
+                                    self.__nEventsFailedStagedOut += 1
                                     errorCode = self.__error.ERR_STAGEOUTFAILED
 
                                     # Update the global status field in case of failure
@@ -1715,6 +1758,7 @@ class RunJobEvent(RunJob):
                             else:
                                 status = 'failed'
                                 self.__nEventsFailed += 1
+                                self.__nEventsFailedStagedOut += 1
                                 errorCode = self.__error.ERR_STAGEOUTFAILED
 
                                 # Update the global status field in case of failure
@@ -1850,6 +1894,7 @@ class RunJobEvent(RunJob):
                             self.__esFatalCode = error_code
 
                         # Time to update the server
+                        self.__nEventsFailed += 1
                         msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal', errorCode=error_code)
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
@@ -2794,8 +2839,8 @@ if __name__ == "__main__":
                 time_to_calculate_cuptime = time.time()
                 job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
                 job.subStatus = runJob.getSubStatus()
-                job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
-                tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
+                job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+                tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
                 # agreed to only report stagedout events to panda
                 job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
@@ -2862,8 +2907,8 @@ if __name__ == "__main__":
                             time_to_calculate_cuptime = time.time()
                             job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
                             job.subStatus = runJob.getSubStatus()
-                            job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
-                            tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
+                            job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+                            tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
                             # agreed to only report stagedout events to panda
                             job.nEvents = job.nEventsW
                             rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
@@ -3022,8 +3067,8 @@ if __name__ == "__main__":
             tolog("AthenaMP has finished")
 
         job.subStatus = runJob.getSubStatus()
-        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
-        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
+        job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 
@@ -3086,8 +3131,8 @@ if __name__ == "__main__":
         runJob.stageOutZipFiles()
 
         job.subStatus = runJob.getSubStatus()
-        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
-        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
+        job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 
@@ -3194,6 +3239,7 @@ if __name__ == "__main__":
                     tolog("No transfer failures detected, job will be set to finished")
                     job.jobState = "finished"
         job.subStatus = runJob.getSubStatus()
+        runJob.setFinalESStatus(job)
         job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
@@ -3204,8 +3250,8 @@ if __name__ == "__main__":
     except Exception, errorMsg:
 
         job.subStatus = runJob.getSubStatus()
-        job.nEvents, job.nEventsW, job.nEventsFailed = runJob.getNEvents()
-        tolog("nevents = %s, neventsW = %s, neventsFailed = %s" % (job.nEvents, job.nEventsW, job.nEventsFailed))
+        job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 
