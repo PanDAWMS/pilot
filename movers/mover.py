@@ -8,7 +8,7 @@
   :author: Alexey Anisenkov
 """
 
-from . import getSiteMover
+from . import getSiteMover, BaseSiteMover
 from .trace_report import TraceReport
 
 from FileStateClient import updateFileState, dumpFileStates
@@ -300,47 +300,56 @@ class JobMover(object):
         self.log("stage-in: resolved protocols=%s" % protocols)
 
         sitemover_objects = {}
-        for dat in protocols:
 
-            remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'ignored']]
-            if not remain_files:
-                self.log('INFO: all input files have been successfully processed')
-                break
+        remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'ignored']]
 
-            self.log('INFO: remain files to be transferred=%s, protocols=%s' % (len(remain_files), len(protocols)))
+        # verify file sizes and available space for stagein
+        BaseSiteMover.check_availablespace(maxinputsize, remain_files) ## FIX ME LATER
 
-            copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
+        nfiles = len(remain_files)
+        for fnum, fdata in enumerate(remain_files, 1):
 
-            try:
-                sitemover = sitemover_objects.get(copytool)
-                if not sitemover:
-                    sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
-                    sitemover_objects.setdefault(copytool, sitemover)
+            self.log('INFO: prepare to transfer %s/%s file: lfn=%s' % (fnum, nfiles))
 
-                    sitemover.trace_report = self.trace_report
-                    sitemover.ddmconf = self.ddmconf # self.si.resolveDDMConf([]) # quick workaround  ###
-                    sitemover.setup()
-                if dat.get('resolve_scheme'):
-                    dat['scheme'] = sitemover.schemes
-            except Exception, e:
-                self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
-                self.trace_report.update(protocol=copytool, clientState='BAD_COPYTOOL', stateReason=str(e)[:500])
-                self.sendTrace(self.trace_report)
-                continue
+            bad_copytools = True
 
-            self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
-            self.log("Copy setup   [stage-in]: %s" % copysetup)
+            for protnum, dat in enumerate(protocols, 1):
 
-            self.trace_report.update(protocol=copytool)
+                if fdata.status in ['direct_access', 'transferred', 'ignored']: ## success
+                    break
 
-            # verify file sizes and available space for stagein
-            sitemover.check_availablespace(maxinputsize, remain_files)
+                copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
-            for fdata in remain_files:
+                try:
+                    sitemover = sitemover_objects.get(copytool)
+                    if not sitemover:
+                        sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
+                        sitemover_objects.setdefault(copytool, sitemover)
+
+                        sitemover.trace_report = self.trace_report
+                        sitemover.ddmconf = self.ddmconf # self.si.resolveDDMConf([]) # quick workaround  ###
+                        sitemover.setup()
+                    if dat.get('resolve_scheme'):
+                        dat['scheme'] = sitemover.schemes
+                except Exception, e:
+                    self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
+                    self.trace_report.update(protocol=copytool, clientState='BAD_COPYTOOL', stateReason=str(e)[:500])
+                    self.sendTrace(self.trace_report)
+                    continue
+
+                bad_copytools = False
+
+                self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
+                self.log("Copy setup   [stage-in]: %s" % copysetup)
+
+                self.trace_report.update(protocol=copytool)
+
+                # verify file sizes and available space for stagein
+                sitemover.check_availablespace(maxinputsize, [fdata])
 
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="input")
 
-                self.log("[stage-in] Prepare to get_data: protocol=%s, fspec=%s" % (dat, fdata))
+                self.log("[stage-in] Prepare to get_data: [%s/%s]-protocol=%s, fspec=%s" % (protnum, len(protocols), dat, fdata))
 
                 # check if protocol and fdata.ddmendpoint belong to same site
                 #
@@ -424,7 +433,7 @@ class JobMover(object):
                         self.log(" -- Waiting %s seconds before next stage-in attempt for file=%s --" % (self.stagein_sleeptime, fdata.lfn))
                         time.sleep(self.stagein_sleeptime)
 
-                    self.log("Get attempt %s/%s for filename=%s .. sitemover=%s" % (_attempt, self.stageinretry, fdata.lfn, sitemover))
+                    self.log("Get attempt %s/%s for file (%s/%s) with lfn=%s .. sitemover=%s" % (_attempt, self.stageinretry, fnum, nfiles, fdata.lfn, sitemover))
 
                     try:
                         result = sitemover.get_data(fdata)
@@ -449,7 +458,12 @@ class JobMover(object):
 
                     self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageinretry, result))
 
-                if not isinstance(result, Exception): # transferred successfully
+                    accepted_codes = [PilotErrors.ERR_GETADMISMATCH, PilotErrors.ERR_GETMD5MISMATCH, PilotErrors.ERR_GETWRONGSIZE, PilotErrors.ERR_NOSUCHFILE]
+                    if isinstance(result, PilotException) and result.code in accepted_codes:
+                        self.log("[stage-in] WARNING: BAD input file detected at storage side (code=%s).. will skip all remaining retry attempts (if any) .." % result.code)
+                        break
+
+                if not isinstance(result, PilotException): # transferred successfully
 
                     # finalize and send trace report
                     self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
@@ -464,9 +478,21 @@ class JobMover(object):
                     #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
                     transferred_files.append(fdat)
                 else:
+                    fdata.status = 'error'
+                    fdata.status_code = result.code
                     self.trace_report.update(clientState=result.state or 'STAGEIN_ATTEMPT_FAILED', stateReason=result.message, timeEnd=time.time())
                     self.sendTrace(self.trace_report)
                     failed_transfers.append(result)
+
+            if fdata.status == 'error':
+                self.log('stage-in of file (%s/%s) with lfn=%s failed: code=%s .. skip transferring of remain data..' % (fnum, nfiles, fdata.lfn, fdata.status_code))
+                dumpFileStates(self.workDir, self.job.jobId, ftype="input")
+                raise PilotException("STAGEIN FAILED: %s: lfn=%s" % (PilotErrors.getErrorStr(fdata.status_code), fdata.lfn), code=fdata.status_code, state='STAGEIN_FILE_FAILED')
+
+            if bad_copytools:
+                raise PilotException("STAGEIN FAILED: bad copytools: no one copytools supported", code=PilotErrors.ERR_NOSTORAGE, state='STAGEIN_BAD_COPYTOOLS')
+
+        self.log('INFO: all input files have been successfully processed')
 
         dumpFileStates(self.workDir, self.job.jobId, ftype="input")
 
