@@ -29,7 +29,7 @@ class BaseSiteMover(object):
     name = "" # unique ID of the Mover implementation, if not set copy_command will be used
     copy_command = None
 
-    timeout = 3600 # 1 hour
+    timeout = 3000 #
 
     checksum_type = "adler32"     # algorithm name of checksum calculation
     checksum_command = "adler32"  # command to be executed to get checksum, e.g. md5sum (adler32 is internal default implementation)
@@ -558,10 +558,10 @@ class BaseSiteMover(object):
     def getTimeOut(self, filesize):
         """ Get a proper time-out limit based on the file size """
 
-        timeout_max = 5 + 1*3600 # 1 hour ::: FIX ME LATER ::
+        timeout_max = 5 + 5*3600 # 5 hours ::: FIX ME LATER ::
         timeout_min = self.timeout
 
-        timeout = timeout_min + int(filesize/0.25e6) # approx < 0.25 Mb/sec
+        timeout = timeout_min + int(filesize/0.5e6) # approx < 0.5 Mb/sec
 
         return min(timeout, timeout_max)
 
