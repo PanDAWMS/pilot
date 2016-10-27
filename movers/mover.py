@@ -304,6 +304,8 @@ class JobMover(object):
         remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'ignored']]
 
         nfiles = len(remain_files)
+        nprotocols = len(protocols)
+
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
@@ -346,7 +348,7 @@ class JobMover(object):
 
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="input")
 
-                self.log("[stage-in] Prepare to get_data: [%s/%s]-protocol=%s, fspec=%s" % (protnum, len(protocols), dat, fdata))
+                self.log("[stage-in] Prepare to get_data: [%s/%s]-protocol=%s, fspec=%s" % (protnum, nprotocols, dat, fdata))
 
                 # check if protocol and fdata.ddmendpoint belong to same site
                 #
@@ -453,11 +455,10 @@ class JobMover(object):
                     except Exception, e:
                         result = PilotException("stageIn failed with error=%s" % e, code=PilotErrors.ERR_STAGEINFAILED, state='STAGEIN_ATTEMPT_FAILED')
                         self.log(traceback.format_exc())
-                        self.log('WARNING: Error in copying file (attempt %s/%s) (exception): skip further retry (if any)' % (_attempt, self.stageinretry))
+                        self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s) (exception): skip further retry (if any)' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageinretry))
                         break
 
-
-                    self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageinretry, result))
+                    self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s): %s' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageinretry, result))
 
                     accepted_codes = [PilotErrors.ERR_GETADMISMATCH, PilotErrors.ERR_GETMD5MISMATCH, PilotErrors.ERR_GETWRONGSIZE, PilotErrors.ERR_NOSUCHFILE]
                     if isinstance(result, PilotException) and result.code in accepted_codes:
@@ -752,6 +753,7 @@ class JobMover(object):
 
             ddmendpoint = fdata.ddmendpoint
             iprotocols = ddmprotocols.get(fdata.ddmendpoint)
+            nprotocols = len(iprotocols)
 
             bad_copytools = True
 
@@ -760,7 +762,7 @@ class JobMover(object):
                 if fdata.status in ['transferred']:
                     break
 
-                self.log('[stage-out] [%s]: checking protocol-%s/%s to transfer file %s/%s: lfn=%s, copytools=%s' % (activity, protnum, len(iprotocols), fnum, nfiles, fdata.lfn, dat.get('copytools', [])))
+                self.log('[stage-out] [%s]: checking protocol-%s/%s to transfer file %s/%s: lfn=%s, copytools=%s' % (activity, protnum, nprotocols, fnum, nfiles, fdata.lfn, dat.get('copytools', [])))
 
                 for cpsettings in dat.get('copytools', []):
 
@@ -817,7 +819,7 @@ class JobMover(object):
 
                     self.log("[stage-out] [%s] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.surl, fdata.lfn, fdata.ddmendpoint))
                     self.log("[stage-out] [%s] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.turl, fdata.lfn, fdata.ddmendpoint))
-                    self.log("[stage-out] [%s] Prepare to put_data: ddmendpoint=%s, %s/%s-protocol=%s, fspec=%s" % (activity, ddmendpoint, protnum, len(iprotocols), dat, fdata))
+                    self.log("[stage-out] [%s] Prepare to put_data: ddmendpoint=%s, %s/%s-protocol=%s, fspec=%s" % (activity, ddmendpoint, protnum, nprotocols, dat, fdata))
 
                     self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
                     self.trace_report.update(scope=fdata.scope, dataset=fdata.destinationDblock, url=fdata.turl)
@@ -866,10 +868,10 @@ class JobMover(object):
                         except Exception, e:
                             result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED, state="STAGEOUT_ATTEMPT_FAILED")
                             self.log(traceback.format_exc())
-                            self.log('WARNING: Error in copying file (attempt %s/%s) (exception): skip further retry (if any)' % (_attempt, self.stageoutretry))
+                            self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s) (exception): skip further retry (if any)' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry))
                             break
 
-                        self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageoutretry, result))
+                        self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s): %s' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry, result))
 
                     if isinstance(result, Exception): # failed transfer
                         fdata.status = 'error'
