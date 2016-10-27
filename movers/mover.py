@@ -8,7 +8,7 @@
   :author: Alexey Anisenkov
 """
 
-from . import getSiteMover, BaseSiteMover
+from . import getSiteMover
 from .trace_report import TraceReport
 
 from FileStateClient import updateFileState, dumpFileStates
