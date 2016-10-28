@@ -839,7 +839,7 @@ class FileSpec(object):
 
     def __init__(self, **kwargs):
 
-        attributes = self._infile_keys + self._outfile_keys + self._local_keys + _os_keys
+        attributes = self._infile_keys + self._outfile_keys + self._local_keys + self._os_keys
         for k in attributes:
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
 
