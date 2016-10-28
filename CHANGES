@@ -327,6 +327,18 @@ https://github.com/PanDAWMS/pilot/pull/72
 - stage-out loop optimization
 - lcgcp file clean up: add 1m sleep nap before remote file removal
 
+https://github.com/PanDAWMS/pilot/pull/73
+
+- fixed timeout value
+- stage-in workflow optimized (stop processing in case of failed transfers), proper error reporting
+- set max timeout value (depending on filesize) up to 3h
+- Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+- fixed error reporting
+
+File Changes
+M movers/base.py (6)
+M movers/mover.py (263)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
