@@ -1407,7 +1407,7 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, os_bucket_id
 
-    def stage_out_es(self, event_range_id, file_paths):
+    def stage_out_es(self, job, event_range_id, file_paths):
         """
         event_range_id: event range id as a string.
         file_paths: List of file paths.
@@ -1418,8 +1418,20 @@ class RunJobEvent(RunJob):
         """
         tolog("To stage out event %s: %s" % (event_range_id, file_paths))
 
-        return -1, "Not implemented", -1
-        #return ret_code, ret_str, os_bucket_id
+        files = []
+        for file_path in file_paths:
+            file_dict = {'lfn': os.path.basename(file_path),
+                         'dataset': job.destinationDblock[0],
+                         'scope': job.scopeOut[0],
+                         'eventRangeId': event_range_id,
+                         'objectstoreId': None,
+                         'ddmendpoint': None}
+            finfo = FileSpec(type='output', **idat)
+            files.append(finfo)
+
+        ret_code, ret_str, os_bucket_id = put_data_os(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry, files=files, workDir=None)
+
+        return ret_code, ret_str, os_bucket_id
 
 
     def zipOutput(self, event_range_id, paths):
@@ -1478,7 +1490,7 @@ class RunJobEvent(RunJob):
             return 0, None
 
         try:
-            ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(event_range_id, [self.__job.outputZipName])
+            ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, event_range_id, [self.__job.outputZipName])
         except Exception, e:
             tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
         else:
@@ -1653,7 +1665,7 @@ class RunJobEvent(RunJob):
                     else:
                         if not self.__esToZip:
                             try:
-                                ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(event_range_id, paths)
+                                ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, event_range_id, paths)
                             except Exception, e:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
                                 tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
@@ -1662,7 +1674,8 @@ class RunJobEvent(RunJob):
                                 tolog("Removing %s from stage-out queue" % (paths))
                                 self.__stageout_queue.remove(paths)
                                 tolog("Adding %s to output file list" % (paths))
-                                self.__output_files.append(paths)
+                                for fpath in paths:
+                                    self.__output_files.append(fpath)
                                 tolog("output_files = %s" % (self.__output_files))
                                 errorCode = None
                                 if ec == 0:
@@ -1703,7 +1716,8 @@ class RunJobEvent(RunJob):
                                 tolog("Removing %s from stage-out queue" % (paths))
                                 self.__stageout_queue.remove(paths)
                                 tolog("Adding %s to output file list" % (paths))
-                                self.__output_files.append(paths)
+                                for fpath in paths:
+                                    self.__output_files.append(fpath)
                                 self.__nEventsW += 1
                                 tolog("output_files = %s" % (self.__output_files))
             time.sleep(1)
@@ -1749,7 +1763,8 @@ class RunJobEvent(RunJob):
                             tolog("Removing %s from stage-out queue" % (paths))
                             self.__stageout_queue.remove(paths)
                             tolog("Adding %s to output file list" % (paths))
-                            self.__output_files.append(paths)
+                            for fpath in paths:
+                                self.__output_files.append(fpath)
                             tolog("output_files = %s" % (self.__output_files))
                             errorCode = None
                             if ec == 0:
@@ -1792,7 +1807,8 @@ class RunJobEvent(RunJob):
                                 tolog("Removing %s from stage-out queue" % (paths))
                                 self.__stageout_queue.remove(paths)
                                 tolog("Adding %s to output file list" % (paths))
-                                self.__output_files.append(paths)
+                                for fpath in paths:
+                                    self.__output_files.append(fpath)
                                 self.__nEventsW += 1
                                 tolog("output_files = %s" % (self.__output_files))
             time.sleep(1)
@@ -2784,6 +2800,8 @@ if __name__ == "__main__":
             tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
             runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
             job.coreCount = 1
+        else:
+            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
 
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
@@ -2850,7 +2868,7 @@ if __name__ == "__main__":
             if runJob.isAthenaMPReady():
 
                 # Pilot will download some event ranges from the Event Server
-                message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
+                message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount)
 
                 # Create a list of event ranges from the downloaded message
                 event_ranges = runJob.extractEventRanges(message)
