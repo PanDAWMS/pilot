@@ -1421,16 +1421,17 @@ class RunJobEvent(RunJob):
         files = []
         for file_path in file_paths:
             file_dict = {'lfn': os.path.basename(file_path),
+                         'pfn': file_path,
                          'dataset': job.destinationDblock[0],
                          'scope': job.scopeOut[0],
                          'eventRangeId': event_range_id,
                          'objectstoreId': None,
                          'ddmendpoint': None}
-            finfo = Job.FileSpec(type='output', **idat)
+            finfo = Job.FileSpec(type='output', **file_dict)
             files.append(finfo)
 
-        ret_code, ret_str, os_bucket_id = put_data_os(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry, files=files, workDir=None)
-
+        #ret_code, ret_str, os_bucket_id = mover.put_data_os(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry(), files=files, workDir=None)
+        ret_code, ret_str, os_bucket_id = mover.put_data_os(job, jobSite=self.getJobSite(), stageoutTries=1, files=files, workDir=None)
         return ret_code, ret_str, os_bucket_id
 
 
@@ -1492,7 +1493,7 @@ class RunJobEvent(RunJob):
         try:
             ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, event_range_id, [self.__job.outputZipName])
         except Exception, e:
-            tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
+            tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
         else:
             tolog("Adding %s to output file list" % (f))
             self.__output_files.append(f)
@@ -1667,7 +1668,7 @@ class RunJobEvent(RunJob):
                             try:
                                 ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, event_range_id, paths)
                             except Exception, e:
-                                tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
+                                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                                 tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
                                 self.__stageout_queue.remove(paths)
                             else:

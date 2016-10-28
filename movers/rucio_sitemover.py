@@ -85,7 +85,7 @@ class rucioSiteMover(BaseSiteMover):
 
         cmd = 'rucio upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
                                                                      fspec.scope,
-                                                                     fspec.lfn)
+                                                                     fspec.pfn if fspec.pfn else fspec.lfn)
         tolog('stageOutCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)
         tolog('stageOutOutput: %s' % o)

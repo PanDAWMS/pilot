@@ -634,15 +634,15 @@ class JobMover(object):
 
         osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
 
-        self.log("[stage-outlog-special] [%s] resolved os_ddms=%s => logs=%s" % (activity, os_ddms, osddms))
+        self.log("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
 
         if not osddms:
-            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
+            raise PilotException("Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
 
         ddmendpoint = osddms[0]
         objectstoreId = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
 
-        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for special log transfer" % (activity, ddmendpoint))
+        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for es transfer" % (activity, ddmendpoint))
 
         for e in files:
             e.ddmendpoint = ddmendpoint
@@ -650,7 +650,7 @@ class JobMover(object):
 
         #copytools = [('objectstore', {'setup': '/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/latest/setup.sh'})]
         copytools = [('objectstore', {'setup': ''})]
-        ret = self.stageout(activity, self.files, copytools)
+        ret = self.stageout(activity, files, copytools)
 
         return ret
 
@@ -680,7 +680,7 @@ class JobMover(object):
         # populate filesize if need
 
         for fspec in files:
-            pfn = os.path.join(self.job.workdir, fspec.lfn)
+            pfn = fspec.pfn if fspec.pfn else os.path.join(self.job.workdir, fspec.lfn)
             if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
                 error = "Error: input pfn file is not exist: %s" % pfn
                 self.log(error)
@@ -828,7 +828,7 @@ class JobMover(object):
 
                         self.log("[stage-out] Prepare to put_data: ddmendpoint=%s, protocol=%s, fspec=%s" % (ddmendpoint, dat, fdata))
 
-                        self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
+                        self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', '') if fdata.guid else None)
                         self.trace_report.update(scope=fdata.scope, dataset=fdata.destinationDblock, url=fdata.turl)
 
                         self.log("[stage-out] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
