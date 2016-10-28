@@ -245,21 +245,44 @@ class JobMover(object):
 
         return True
 
-
     def stagein(self):
         """
             :return: (transferred_files, failed_transfers)
         """
+        files = self.job.inData
+        normal_files = []
+        es_files = []
+        transferred_files = []
+        failed_transfers = []
+        for file in files:
+            if file.prodDBlockToken and file.prodDBlockToken.isdigit():
+                es_files.append(file)
+            else:
+                normal_files.append(file)
 
-        activity = 'pr'
+        if normal_files:
+            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
+        if failed_transfers:
+            return transferred_files, failed_transfers
+
+        if es_files:
+            copytools = [('objectstore', {'setup': ''})]
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=normal_files, activity='per', copytools=copytools)
+            transferred_files += transferred_files_es
+            failed_transfers += failed_transfers_es
+        return transferred_files, failed_transfers
+
+    def stagein_real(self, files, activity='pr', copytools=None):
+        """
+            :return: (transferred_files, failed_transfers)
+        """
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity)[pandaqueue]
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
 
         self.log("stage-in: pq.aprotocols=%s, pq.copytools=%s" % (protocols, copytools))
 
-        files = self.job.inData
         self.resolve_replicas(files) # populates also self.ddmconf = self.si.resolveDDMConf([])
 
         maxinputsize = self.getMaxInputSize()
@@ -589,6 +612,45 @@ class JobMover(object):
         ret = self.stageout(activity, self.job.logSpecialData, copytools)
         self.job.logBucketID = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
         self.job.logDDMEndpoint = ddmendpoint
+
+        return ret
+
+    def stageout_os(self, files):
+        """
+            Special log transfers (currently to ObjectStores)
+        """
+
+        activity = "pes" ## pilot log special/second transfer
+
+        # resolve accepted OS DDMEndpoints
+
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        os_ddms = self.si.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
+
+        ddmconf = self.ddmconf
+        if os_ddms and (set(os_ddms) - set(self.ddmconf)): # load DDM conf
+            ddmconf = self.si.resolveDDMConf(os_ddms)
+            self.ddmconf.update(ddmconf)
+
+        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
+
+        self.log("[stage-outlog-special] [%s] resolved os_ddms=%s => logs=%s" % (activity, os_ddms, osddms))
+
+        if not osddms:
+            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
+
+        ddmendpoint = osddms[0]
+        objectstoreId = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
+
+        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for special log transfer" % (activity, ddmendpoint))
+
+        for e in files:
+            e.ddmendpoint = ddmendpoint
+            e.objectstoreId = objectstoreId
+
+        #copytools = [('objectstore', {'setup': '/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/latest/setup.sh'})]
+        copytools = [('objectstore', {'setup': ''})]
+        ret = self.stageout(activity, self.files, copytools)
 
         return ret
 

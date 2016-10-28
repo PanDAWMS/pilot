@@ -833,11 +833,13 @@ class FileSpec(object):
                     'ddmendpoint_alt' # alternative location of ddmendpoint
                     ]
 
+    _os_keys = ['eventRangeId', 'objectstoreId']
+
     _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime']
 
     def __init__(self, **kwargs):
 
-        attributes = self._infile_keys + self._outfile_keys + self._local_keys
+        attributes = self._infile_keys + self._outfile_keys + self._local_keys + _os_keys
         for k in attributes:
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
 
