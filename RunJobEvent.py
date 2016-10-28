@@ -1426,7 +1426,7 @@ class RunJobEvent(RunJob):
                          'eventRangeId': event_range_id,
                          'objectstoreId': None,
                          'ddmendpoint': None}
-            finfo = FileSpec(type='output', **idat)
+            finfo = Job.FileSpec(type='output', **idat)
             files.append(finfo)
 
         ret_code, ret_str, os_bucket_id = put_data_os(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry, files=files, workDir=None)
