@@ -824,7 +824,7 @@ class FileSpec(object):
                     ]
 
 
-    _outfile_keys = ['lfn', 'ddmendpoint', 'type',
+    _outfile_keys = ['lfn', 'pfn', 'ddmendpoint', 'type',
                     'dataset', 'scope',
                     'destinationDblock', 'destinationDBlockToken',
                     'fileDestinationSE',
