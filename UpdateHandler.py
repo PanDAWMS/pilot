@@ -86,7 +86,7 @@ class UpdateHandler(BaseRequestHandler):
 
                         if jobinfo.has_key("external_stageout_time"):
                             try:
-                                self.__env['jobDic'][k][1].external_stageout_time = int(jobinfo["external_stageout_time"])
+                                self.__env['jobDic'][k][1].external_stageout_time = int(float(jobinfo["external_stageout_time"]))
                             except:
                                 pUtil.tolog(traceback.format_exc())
 
