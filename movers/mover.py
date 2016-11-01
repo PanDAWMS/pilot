@@ -343,9 +343,6 @@ class JobMover(object):
 
                 self.trace_report.update(protocol=copytool)
 
-                # verify file sizes and available space for stagein
-                sitemover.check_availablespace(maxinputsize, [e for e in remain_files if e.status not in ['direct_access', 'transferred']])
-
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="input")
 
                 self.log("[stage-in] Prepare to get_data: [%s/%s]-protocol=%s, fspec=%s" % (protnum, nprotocols, dat, fdata))
@@ -416,6 +413,9 @@ class JobMover(object):
                     self.trace_report.update(protocol=copytool, clientState='STAGEIN_NOTALLOWED', stateReason='skip stagein file')
                     self.sendTrace(self.trace_report)
                     continue
+
+                # verify file sizes and available space for stagein
+                sitemover.check_availablespace(maxinputsize, [e for e in remain_files if e.status not in ['direct_access', 'transferred']])
 
                 self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
                 self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
