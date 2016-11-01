@@ -343,6 +343,10 @@ M movers/mover.py (263)
 
 66.4:
 
+General updates:
+
+- Removed gfal references from LocalSiteMover
+
 Updates from Alexey Anisenkov:
 
   https://github.com/PanDAWMS/pilot/pull/74
