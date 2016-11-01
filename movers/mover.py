@@ -130,20 +130,35 @@ class JobMover(object):
         # load ALL ddmconf
         self.ddmconf.update(self.si.resolveDDMConf([]))
         ddms = {}
+        objectstoreId_ddm = {}
         for ddm, dat in self.ddmconf.iteritems():
             ddms.setdefault(dat['site'], []).append(dat)
+            if dat.get('type') in ['OS_ES', 'OS_LOGS']:
+                objectstoreId_ddm[int(dat.get('resource', {}).get('bucket_id', -1))] = ddm
+        self.log("objectstoreId_ddm: %s" % objectstoreId_ddm)
 
+        need_resolve_replicas = False
         for fdat in files:
 
-            # build and order list of local ddms
-            ddmdat = self.ddmconf.get(fdat.ddmendpoint)
-            if not ddmdat:
-                raise Exception("Failed to resolve ddmendpoint by name=%s send by Panda job, please check configuration. fdat=%s" % (fdat.ddmendpoint, fdat))
-            if not ddmdat['site']:
-                raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
-            localddms = ddms.get(ddmdat['site'])
-            # sort/filter ddms (as possible input source)
-            fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+            if fdat.objectstoreId:
+                self.log("fdat.objectstoreId: %s" % fdat.objectstoreId)
+                fdat.ddmendpoint = objectstoreId_ddm.get(fdat.objectstoreId, None)
+                fdat.inputddms = [fdat.ddmendpoint]
+            else:
+                need_resolve_replicas = True
+                # build and order list of local ddms
+                ddmdat = self.ddmconf.get(fdat.ddmendpoint)
+                if not ddmdat:
+                    raise Exception("Failed to resolve ddmendpoint by name=%s send by Panda job, please check configuration. fdat=%s" % (fdat.ddmendpoint, fdat))
+                if not ddmdat['site']:
+                    raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
+                localddms = ddms.get(ddmdat['site'])
+                # sort/filter ddms (as possible input source)
+                fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+
+        if not need_resolve_replicas:
+            self.log("No need to resolve replicas")
+            return files
 
         # load replicas from Rucio
         from rucio.client import Client
@@ -256,20 +271,25 @@ class JobMover(object):
         failed_transfers = []
         for file in files:
             if file.prodDBlockToken and file.prodDBlockToken.isdigit():
+                file.objectstoreId = int(file.prodDBlockToken)
                 es_files.append(file)
             else:
                 normal_files.append(file)
 
         if normal_files:
+            self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
             transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
         if failed_transfers:
+            self.log("Failed to transfer normal files: %s" % failed_transfers)
             return transferred_files, failed_transfers
 
         if es_files:
+            self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
             copytools = [('objectstore', {'setup': ''})]
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=normal_files, activity='per', copytools=copytools)
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='per', copytools=copytools)
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
+            self.log("Failed to transfer files: %s" % failed_transfers)
         return transferred_files, failed_transfers
 
     def stagein_real(self, files, activity='pr', copytools=None):
@@ -368,7 +388,7 @@ class JobMover(object):
                         self.log('INFO: cross-sites checks: protocol_site=%s and (fdata.ddmenpoint) replica_site=%s mismatched .. skip file processing for copytool=%s (protocol=%s)' % (protocol_site, replica_site, copytool, dat))
                         continue
 
-                r = sitemover.resolve_replica(fdata, dat)
+                r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint, None))
 
                 # quick stub: propagate changes to FileSpec
                 if r.get('surl'):
