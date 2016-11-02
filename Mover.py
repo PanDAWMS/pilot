@@ -183,6 +183,60 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
 
     return 0, "", fields, "", len(transferred_files), 0
 
+# new mover implementation
+def put_data_os(job, jobSite, stageoutTries, files, workDir=None):
+    """
+        Do jobmover.stageout_outfiles or jobmover.stageout_logfiles (if log_transfer=True)
+        or jobmover.stageout_logfiles_os (if special_log_transfer=True)
+        :backward compatible return:  (rc, pilotErrorDiag, rf, "", filesNormalStageOut, filesAltStageOut)
+    """
+
+    tolog("Mover put data started [new implementation]")
+
+    from PilotErrors import PilotException
+    from movers import JobMover
+    from movers.trace_report import TraceReport
+
+    si = getSiteInformation(job.experiment)
+    si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
+
+    workDir = workDir or os.path.dirname(job.workdir)
+
+    mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
+
+    eventType = "es_put"
+
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
+    mover.trace_report.init(job)
+    error = None
+    try:
+        transferred_files, failed_transfers = mover.stageout_os(files)
+    except PilotException, e:
+        error = e
+    except Exception, e:
+        tolog("ERROR: Mover put data failed [stageout]: exception caught: %s" % e)
+        import traceback
+        tolog(traceback.format_exc())
+        error = PilotException('STAGEOUT FAILED, exception=%s' % e, code=PilotErrors.ERR_STAGEOUTFAILED, state='STAGEOUT_FAILED')
+
+    if error:
+        ## send trace
+        mover.trace_report.update(clientState=error.state or 'STAGEOUT_FAILED', stateReason=error.message, timeEnd=time())
+        mover.sendTrace(mover.trace_report)
+        return error.code, error.message, None
+
+    tolog("Mover put data finished")
+
+    # prepare compatible output
+    # keep track of which files have been copied
+
+    if failed_transfers:
+        message = "Not all files are staged out, remain files: %s" % [e.lfn for e in failed_transfers]
+        error = PilotException('STAGEOUT FAILED, exception=%s' % message, code=PilotErrors.ERR_STAGEOUTFAILED, state='STAGEOUT_FAILED')
+        return error.code, error.message, None
+
+    return 0, "", transferred_files[0].objectstoreId
+
 
 # new mover implementation:
 # keep the list of input arguments as is for smooth migration

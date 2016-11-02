@@ -205,7 +205,7 @@ class BaseSiteMover(object):
 
         return None
 
-    def resolve_replica(self, fspec, protocol):
+    def resolve_replica(self, fspec, protocol, ddm=None):
         """
             :fspec: FileSpec object
             :protocol: dict('se':'', 'scheme':'str' or list)

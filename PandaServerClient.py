@@ -134,6 +134,8 @@ class PandaServerClient:
         if job.nEventsW > 0:
             jobMetrics += self.jobMetric(key="nEventsW", value=job.nEventsW)
 
+        if job.external_stageout_time:
+            jobMetrics += self.jobMetric(key="ExStageoutTime", value=job.external_stageout_time)
         # hpc status
         #if job.mode:
         #    jobMetrics += self.jobMetric(key="mode", value=job.mode)

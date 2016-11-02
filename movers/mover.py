@@ -133,20 +133,35 @@ class JobMover(object):
         # load ALL ddmconf
         self.ddmconf.update(self.si.resolveDDMConf([]))
         ddms = {}
+        objectstoreId_ddm = {}
         for ddm, dat in self.ddmconf.iteritems():
             ddms.setdefault(dat['site'], []).append(dat)
+            if dat.get('type') in ['OS_ES', 'OS_LOGS']:
+                objectstoreId_ddm[int(dat.get('resource', {}).get('bucket_id', -1))] = ddm
+        self.log("objectstoreId_ddm: %s" % objectstoreId_ddm)
 
+        need_resolve_replicas = False
         for fdat in files:
 
-            # build and order list of local ddms
-            ddmdat = self.ddmconf.get(fdat.ddmendpoint)
-            if not ddmdat:
-                raise Exception("Failed to resolve ddmendpoint by name=%s send by Panda job, please check configuration. fdat=%s" % (fdat.ddmendpoint, fdat))
-            if not ddmdat['site']:
-                raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
-            localddms = ddms.get(ddmdat['site'])
-            # sort/filter ddms (as possible input source)
-            fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+            if fdat.objectstoreId:
+                self.log("fdat.objectstoreId: %s" % fdat.objectstoreId)
+                fdat.ddmendpoint = objectstoreId_ddm.get(fdat.objectstoreId, None)
+                fdat.inputddms = [fdat.ddmendpoint]
+            else:
+                need_resolve_replicas = True
+                # build and order list of local ddms
+                ddmdat = self.ddmconf.get(fdat.ddmendpoint)
+                if not ddmdat:
+                    raise Exception("Failed to resolve ddmendpoint by name=%s send by Panda job, please check configuration. fdat=%s" % (fdat.ddmendpoint, fdat))
+                if not ddmdat['site']:
+                    raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
+                localddms = ddms.get(ddmdat['site'])
+                # sort/filter ddms (as possible input source)
+                fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+
+        if not need_resolve_replicas:
+            self.log("No need to resolve replicas")
+            return files
 
         # load replicas from Rucio
         from rucio.client import Client
@@ -248,21 +263,49 @@ class JobMover(object):
 
         return True
 
-
     def stagein(self):
         """
             :return: (transferred_files, failed_transfers)
         """
+        files = self.job.inData
+        normal_files = []
+        es_files = []
+        transferred_files = []
+        failed_transfers = []
+        for file in files:
+            if file.prodDBlockToken and file.prodDBlockToken.isdigit():
+                file.objectstoreId = int(file.prodDBlockToken)
+                es_files.append(file)
+            else:
+                normal_files.append(file)
 
-        activity = 'pr'
+        if normal_files:
+            self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
+            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
+        if failed_transfers:
+            self.log("Failed to transfer normal files: %s" % failed_transfers)
+            return transferred_files, failed_transfers
+
+        if es_files:
+            self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
+            copytools = [('objectstore', {'setup': ''})]
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='per', copytools=copytools)
+            transferred_files += transferred_files_es
+            failed_transfers += failed_transfers_es
+            self.log("Failed to transfer files: %s" % failed_transfers)
+        return transferred_files, failed_transfers
+
+    def stagein_real(self, files, activity='pr', copytools=None):
+        """
+            :return: (transferred_files, failed_transfers)
+        """
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity)[pandaqueue]
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
 
         self.log("stage-in: pq.aprotocols=%s, pq.copytools=%s" % (protocols, copytools))
 
-        files = self.job.inData
         self.resolve_replicas(files) # populates also self.ddmconf = self.si.resolveDDMConf([])
 
         maxinputsize = self.getMaxInputSize()
@@ -357,7 +400,7 @@ class JobMover(object):
                         self.log('INFO: cross-sites checks: protocol_site=%s and (fdata.ddmenpoint) replica_site=%s mismatched .. skip file processing for copytool=%s (protocol=%s)' % (protocol_site, replica_site, copytool, dat))
                         continue
 
-                r = sitemover.resolve_replica(fdata, dat)
+                r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint, None))
 
                 # quick stub: propagate changes to FileSpec
                 if r.get('surl'):
@@ -632,6 +675,45 @@ class JobMover(object):
 
         return ret
 
+    def stageout_os(self, files):
+        """
+            Special log transfers (currently to ObjectStores)
+        """
+
+        activity = "pes" ## pilot log special/second transfer
+
+        # resolve accepted OS DDMEndpoints
+
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        os_ddms = self.si.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
+
+        ddmconf = self.ddmconf
+        if os_ddms and (set(os_ddms) - set(self.ddmconf)): # load DDM conf
+            ddmconf = self.si.resolveDDMConf(os_ddms)
+            self.ddmconf.update(ddmconf)
+
+        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
+
+        self.log("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
+
+        if not osddms:
+            raise PilotException("Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
+
+        ddmendpoint = osddms[0]
+        objectstoreId = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
+
+        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for es transfer" % (activity, ddmendpoint))
+
+        for e in files:
+            e.ddmendpoint = ddmendpoint
+            e.objectstoreId = objectstoreId
+
+        #copytools = [('objectstore', {'setup': '/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/latest/setup.sh'})]
+        copytools = [('objectstore', {'setup': ''})]
+        ret = self.stageout(activity, files, copytools)
+
+        return ret
+
     def stageout(self, activity, files, copytools=None, skip_transfer_failure=False):
         """
             Copy files to dest SE:
@@ -659,7 +741,7 @@ class JobMover(object):
         # populate filesize if need
 
         for fspec in files:
-            pfn = os.path.join(self.job.workdir, fspec.lfn)
+            pfn = fspec.pfn if fspec.pfn else os.path.join(self.job.workdir, fspec.lfn)
             if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
                 error = "Error: input pfn file is not exist: %s" % pfn
                 self.log(error)

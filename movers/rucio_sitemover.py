@@ -28,7 +28,7 @@ class rucioSiteMover(BaseSiteMover):
         """
         pass
 
-    def resolve_replica(self, fspec, protocol):
+    def resolve_replica(self, fspec, protocol, ddm=None):
         """
         Overridden method -- unused
         """
@@ -47,10 +47,17 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
-                                                          fspec.replicas[0][0],
-                                                          fspec.scope,
-                                                          fspec.lfn)
+        if fspec.replicas:
+            cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                              fspec.replicas[0][0],
+                                                              fspec.scope,
+                                                              fspec.lfn)
+        else:
+            cmd = 'rucio download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
+                                                                       fspec.ddmendpoint,
+                                                                       fspec.turl,
+                                                                       fspec.scope,
+                                                                       fspec.lfn)
         tolog('stageIn: %s' % cmd)
         s, o = getstatusoutput(cmd)
         if s:
@@ -85,7 +92,7 @@ class rucioSiteMover(BaseSiteMover):
 
         cmd = 'rucio upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
                                                                      fspec.scope,
-                                                                     fspec.lfn)
+                                                                     fspec.pfn if fspec.pfn else fspec.lfn)
         tolog('stageOutCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)
         tolog('stageOutOutput: %s' % o)
