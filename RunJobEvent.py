@@ -1003,6 +1003,7 @@ class RunJobEvent(RunJob):
         """ set the fail code and exit """
 
         job.setState(["failed", transExitCode, pilotExitCode])
+        job.subStatus = 'pilot_failed'
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
         tolog("Will now update local pilot TCP server")
