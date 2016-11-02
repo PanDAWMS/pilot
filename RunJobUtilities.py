@@ -108,9 +108,6 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     if job.coreCount or job.coreCount == 0:
         msgdic['coreCount'] = job.coreCount
 
-    if job.subStatus:
-        msgdic['subStatus'] = job.subStatus
-
     # report FAX usage if at least one successful FAX transfer
     if job.filesWithFAX > 0:
         msgdic["filesWithFAX"] = job.filesWithFAX
@@ -156,6 +153,8 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
 
     # set final job state (will be propagated to the job state file)
     if final:
+        if job.subStatus:
+            msgdic['subStatus'] = job.subStatus
         job.finalstate = getFinalState(job.result)
         tolog("Final payload state set to: %s" % (job.finalstate))
         msgdic["finalstate"] = job.finalstate
