@@ -360,6 +360,51 @@ File Changes
 
 M movers/mover.py (6)
 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/75
+
+Update RunJobEvent.py to support new movers
+Update RunJob.py to support new movers.
+update movers to support stageout es to objectstore.
+update movers to support stagein es from objectstore.
+report external stageout time(time after athenamp terminated) in jobmetrics.
+fix to report pilot substatus and fail state.
+You can view, comment on, or merge this pull request online at:
+
+Commit Summary
+
+es to support new movers
+es to support new movers
+recover old asynchronous stageout
+update runjobEvent to support new mover
+set pilot final failed state
+report external stagout time
+fix event ranges updates
+implemented stageout os
+in new movers adding stagin os and stageout os
+fix refer of FileSpec
+fix os keys
+fix issues when staging out es
+fix external stageout time
+update movers to support objectstore stagein
+add pfn to refer the full file path
+rebase with upstream main-dev
+
+File Changes
+
+M EventRanges.py (43)
+M Job.py (13)
+M Mover.py (54)
+M PandaServerClient.py (2)
+M RunJobEvent.py (408)
+M RunJobUtilities.py (3)
+M UpdateHandler.py (8)
+M movers/base.py (2)
+M movers/mover.py (112)
+M movers/objectstore_sitemover.py (20)
+M movers/rucio_sitemover.py (19)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
