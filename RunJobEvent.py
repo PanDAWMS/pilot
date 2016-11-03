@@ -137,7 +137,7 @@ class RunJobEvent(RunJob):
 
     def setFinalESStatus(self, job):
         if not self.__eventRangeID_dictionary:
-            job.subStatus = 'no_events'
+            job.subStatus = 'pilot_failed'  # 'no_events'
             job.pilotErrorDiag = "Pilot got no events"
             job.result[0] = "failed"
             job.result[2] = self.__error.ERR_NOEVENTS
