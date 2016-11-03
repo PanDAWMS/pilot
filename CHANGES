@@ -405,6 +405,16 @@ M movers/mover.py (112)
 M movers/objectstore_sitemover.py (20)
 M movers/rucio_sitemover.py (19)
 
+  https://github.com/PanDAWMS/pilot/pull/76
+
+Commit Summary
+
+set substatus when failJob
+
+File Changes
+
+M RunJobEvent.py (1)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
