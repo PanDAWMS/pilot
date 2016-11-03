@@ -36,13 +36,6 @@ class BaseSiteMover(object):
 
     ddmconf = {}                  # DDMEndpoints configuration from AGIS
 
-    #has_mkdir = True
-    #has_df = True
-    #has_getsize = True
-    #has_md5sum = True
-    #has_chmod = True
-    #
-
     def __init__(self, setup_path='', **kwargs):
 
         self.copysetup = setup_path
@@ -621,12 +614,13 @@ class BaseSiteMover(object):
 
         c = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
         output, error = c.communicate()
-        if c.returncode:
-            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (filename, cmd, c.returncode, output))
-            raise Exception(output)
 
         if error:
             self.log("INFO: calc_checksum: error=%s" % error)
+
+        if c.returncode:
+            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (filename, cmd, c.returncode, output))
+            raise Exception(output)
 
         self.log("calc_checksum: output=%s" % output)
 

@@ -20,8 +20,9 @@ import sys
 import os
 import time
 import traceback
-from random import shuffle
+from random import shuffle, uniform
 from subprocess import Popen, PIPE, STDOUT
+
 try:
     import json # python2.6
 except ImportError:
@@ -36,14 +37,17 @@ class JobMover(object):
     job = None  # Job object
     si = None   # Site information
 
-    MAX_STAGEIN_RETRY = 3
+    MAX_STAGEIN_RETRY = 5
     MAX_STAGEOUT_RETRY = 10
 
     _stageoutretry = 2 # default value
     _stageinretry = 2  # devault value
 
-    stagein_sleeptime = 5*60   # seconds, sleep time in case of stagein failure
-    stageout_sleeptime = 5*60  # seconds, sleep time in case of stageout failure
+    _stagein_sleeptime_min = 0.5*60   # seconds, min allowed sleep time in case of stagein failure
+    _stagein_sleeptime_max = 1*60   # seconds, max allowed sleep time in case of stagein failure
+
+    _stageout_sleeptime_min = 4.5*60  # seconds, min allowed sleep time in case of stageout failure
+    _stageout_sleeptime_max = 5*60  # seconds, max allowed sleep time in case of stageout failure
 
 
     def __init__(self, job, si, **kwargs):
@@ -66,6 +70,12 @@ class JobMover(object):
         #sys.stdout.flush()
         tolog(value)
         sys.stdout.flush() # quick hack until proper central logging will be implemented
+
+    def calc_stagein_sleeptime(self):
+        return uniform(self._stagein_sleeptime_min, self._stagein_sleeptime_max)
+
+    def calc_stageout_sleeptime(self):
+        return uniform(self._stageout_sleeptime_min, self._stageout_sleeptime_max)
 
     @property
     def stageoutretry(self):
@@ -259,7 +269,7 @@ class JobMover(object):
                     self.log("Failed to create the skeleton file for DBRelease version=%s" % version)
                     raise PilotException("DBRelease: failed to create skeleton for version=%s" % version, code=PilotErrors.ERR_MISSDBREL, state='MISSDBREL_SKELFAIL')
                 for fspec in fspecs:
-                    fspec.status = 'ignored'  ## ignore for stage-in
+                    fspec.status = 'no_transfer'  ## ignore for stage-in
 
         return True
 
@@ -334,7 +344,7 @@ class JobMover(object):
 
         self.handle_dbreleases(files)
 
-        ignored_files = [e for e in files if e.status == 'ignored']
+        ignored_files = [e for e in files if e.status == 'no_transfer']
 
         for fdata in ignored_files: # ignored, no transfer required
             updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
@@ -344,7 +354,7 @@ class JobMover(object):
 
         sitemover_objects = {}
 
-        remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'ignored']]
+        remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'no_transfer']]
 
         nfiles = len(remain_files)
         nprotocols = len(protocols)
@@ -357,7 +367,7 @@ class JobMover(object):
 
             for protnum, dat in enumerate(protocols, 1):
 
-                if fdata.status in ['direct_access', 'transferred', 'ignored']: ## success
+                if fdata.status in ['direct_access', 'transferred', 'no_transfer']: ## success
                     break
 
                 copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
@@ -470,10 +480,10 @@ class JobMover(object):
 
                 # loop over multple stage-in attempts
                 for _attempt in xrange(1, self.stageinretry + 1):
-
                     if _attempt > 1: # if not first stage-in attempt, take a nap before next attempt
-                        self.log(" -- Waiting %s seconds before next stage-in attempt for file=%s --" % (self.stagein_sleeptime, fdata.lfn))
-                        time.sleep(self.stagein_sleeptime)
+                        sleep_time = self.calc_stagein_sleeptime()
+                        self.log(" -- Waiting %d seconds before next stage-in attempt for file=%s --" % (sleep_time, fdata.lfn))
+                        time.sleep(sleep_time)
 
                     self.log("Get attempt %s/%s for file (%s/%s) with lfn=%s .. sitemover=%s" % (_attempt, self.stageinretry, fnum, nfiles, fdata.lfn, sitemover))
 
@@ -911,10 +921,10 @@ class JobMover(object):
 
                     # loop over multple stage-out attempts
                     for _attempt in xrange(1, self.stageoutretry + 1):
-
                         if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                            self.log(" -- Waiting %s seconds before next stage-out attempt for file=%s --" % (self.stageout_sleeptime, fdata.lfn))
-                            time.sleep(self.stageout_sleeptime)
+                            sleep_time = self.calc_stageout_sleeptime()
+                            self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (sleep_time, fdata.lfn))
+                            time.sleep(sleep_time)
 
                         self.log("Put attempt %s/%s for file (%s/%s) with lfn=%s .. sitemover=%s" % (_attempt, self.stageoutretry, fnum, nfiles, fdata.lfn, sitemover))
 
@@ -1172,8 +1182,9 @@ class JobMover(object):
                 for _attempt in xrange(1, self.stageoutretry + 1):
 
                     if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                        self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (self.stageout_sleeptime, filename))
-                        time.sleep(self.stageout_sleeptime)
+                        sleep_time = self.calc_stageout_sleeptime()
+                        self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (sleep_time, filename))
+                        time.sleep(sleep_time)
 
                     self.log("[do_put_files] Put attempt %d/%d for filename=%s" % (_attempt, self.stageoutretry, filename))
 
