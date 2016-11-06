@@ -409,8 +409,13 @@ class JobMover(object):
                     if protocol_site != replica_site:
                         self.log('INFO: cross-sites checks: protocol_site=%s and (fdata.ddmenpoint) replica_site=%s mismatched .. skip file processing for copytool=%s (protocol=%s)' % (protocol_site, replica_site, copytool, dat))
                         continue
-
-                r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint, None))
+                try:
+                    r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint, None))
+                except PilotException, e:
+                    self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol" % (protnum, nprotocols))
+                    self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
+                    self.sendTrace(self.trace_report)
+                    continue
 
                 # quick stub: propagate changes to FileSpec
                 if r.get('surl'):
