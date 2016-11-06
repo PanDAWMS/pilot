@@ -257,6 +257,7 @@ class BaseSiteMover(object):
 
         if not replica: # replica not found
             error = 'Failed to find replica for input file, protocol=%s, fspec=%s' % (protocol, fspec)
+            self.log("resolve_replica: %s" % error)
             raise PilotException(error, code=PilotErrors.ERR_REPNOTFOUND)
 
         return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
