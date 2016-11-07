@@ -36,13 +36,6 @@ class BaseSiteMover(object):
 
     ddmconf = {}                  # DDMEndpoints configuration from AGIS
 
-    #has_mkdir = True
-    #has_df = True
-    #has_getsize = True
-    #has_md5sum = True
-    #has_chmod = True
-    #
-
     def __init__(self, setup_path='', **kwargs):
 
         self.copysetup = setup_path
@@ -264,6 +257,7 @@ class BaseSiteMover(object):
 
         if not replica: # replica not found
             error = 'Failed to find replica for input file, protocol=%s, fspec=%s' % (protocol, fspec)
+            self.log("resolve_replica: %s" % error)
             raise PilotException(error, code=PilotErrors.ERR_REPNOTFOUND)
 
         return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
@@ -621,12 +615,13 @@ class BaseSiteMover(object):
 
         c = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
         output, error = c.communicate()
-        if c.returncode:
-            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (filename, cmd, c.returncode, output))
-            raise Exception(output)
 
         if error:
             self.log("INFO: calc_checksum: error=%s" % error)
+
+        if c.returncode:
+            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (filename, cmd, c.returncode, output))
+            raise Exception(output)
 
         self.log("calc_checksum: output=%s" % output)
 
