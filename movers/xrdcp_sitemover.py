@@ -75,7 +75,11 @@ class xrdcpSiteMover(BaseSiteMover):
         if self.checksum_type not in ['adler32']: # exclude md5
             raise PilotException("Failed to stage file: internal error: unsupported checksum_type=%s .. " % self.checksum_type, code=PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED, state='BAD_CSUMTYPE')
 
-        cmd = '%s -np -f %s %s %s' % (self.copy_command, self.coption, source, destination)
+        coption = self.coption
+        if not is_stagein: ## quick hack: --cksum %s:print does not work for upload at some sites ([3013] query chksum is not supported error).. temprorary switch to legacy option
+            coption = "-adler"
+
+        cmd = '%s -np -f %s %s %s' % (self.copy_command, coption, source, destination)
         setup = self.getSetup()
         if setup:
             cmd = "%s; %s" % (setup, cmd)
