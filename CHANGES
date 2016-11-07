@@ -421,6 +421,20 @@ M RunJobEvent.py (1)
 
 General updates:
 
+Updates from Alexey Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/77
+
+Commit Summary
+
+- Implemented random sleep time (within min and max values) for stagein/stageout in case of failures
+- Set sleep retry time values: (20..50) secs for stage-in, (4.9..5) minutes for stage-out
+
+File Changes
+
+M Mover.py (2)
+M movers/base.py (14)
+M movers/mover.py (43)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
