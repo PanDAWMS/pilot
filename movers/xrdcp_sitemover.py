@@ -33,8 +33,20 @@ class xrdcpSiteMover(BaseSiteMover):
 
     def _resolve_checksum_option(self):
 
-        cmd = "%s -h" % self.copy_command
+        cmd = "%s --version" % self.copy_command
         setup = self.getSetup()
+        if setup:
+            cmd = "%s; %s" % (setup, cmd)
+
+        self.log("Execute command (%s) to check xrdcp client version.." % cmd)
+
+        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+        output = c.communicate()[0]
+
+        self.log("return code: %s" % c.returncode)
+        self.log("return output: %s" % output)
+
+        cmd = "%s -h" % self.copy_command
         if setup:
             cmd = "%s; %s" % (setup, cmd)
 
