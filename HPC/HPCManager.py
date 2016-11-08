@@ -376,14 +376,19 @@ class HPCManager:
             self.__log.info("HPC job id is None, will return failed.")
             self.__isFinished = True
             return 'Failed'
-
-        state = self.__plugin.poll(self.__jobid)
-        if self.__lastState is None or self.__lastState != state or time.time() > self.__lastTime + 60*5:
-            self.__log.info("HPC job state is: %s" %(state))
-            self.__lastState = state
-            self.__lastTime = time.time()
-        if state in ['Complete', 'Failed']:
-            self.__isFinished = True
+        couter = 120
+        while counter > 0 and:
+           counter = counter - 1
+           state = self.__plugin.poll(self.__jobid)
+           if self.__lastState is None or self.__lastState != state or time.time() > self.__lastTime + 60*5:
+               self.__log.info("HPC job state is: %s" %(state))
+               self.__lastState = state
+               self.__lastTime = time.time()
+           if state in ['Complete', 'Failed']:
+               self.__isFinished = True
+               break
+           if state != 'Unknown': break
+           else: time.sleep(60)
         return state
 
     def checkHPCJobLog(self):
