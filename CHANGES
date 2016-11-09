@@ -436,6 +436,27 @@ M Mover.py (2)
 M movers/base.py (14)
 M movers/mover.py (43)
 
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/78
+
+Commit Summary
+
+mv implementation of new site mover
+File Changes
+
+A movers/mv_mover.py (71)
+
+  https://github.com/PanDAWMS/pilot/pull/79
+
+Commit Summary
+
+Fixed pilot error when killed with signal
+
+File Changes
+
+M pUtil.py (1)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
