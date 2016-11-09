@@ -377,7 +377,7 @@ class HPCManager:
             self.__isFinished = True
             return 'Failed'
         couter = 120
-        while counter > 0 and:
+        while counter > 0:
            counter = counter - 1
            state = self.__plugin.poll(self.__jobid)
            if self.__lastState is None or self.__lastState != state or time.time() > self.__lastTime + 60*5:
