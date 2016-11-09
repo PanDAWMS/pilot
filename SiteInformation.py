@@ -1827,7 +1827,7 @@ class SiteInformation(object):
             try:
                 data = json.loads(content)
             except Exception, e:
-                tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('source'), e))
+                tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
                 data = None
 
             if data and isinstance(data, dict):
@@ -1901,12 +1901,12 @@ class SiteInformation(object):
             try:
                 data = json.loads(content)
             except Exception, e:
-                tolog("!!WARNING: loadSchedConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('source'), e))
+                tolog("!!WARNING: loadSchedConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
                 data = None
 
             if data and isinstance(data, dict):
                 if 'error' in data:
-                    tolog("!!WARNING: loadSchedConfData(): skipped source=%s since response contains error: data=%s" % (dat.get('source'), data))
+                    tolog("!!WARNING: loadSchedConfData(): skipped source=%s since response contains error: data=%s" % (dat.get('url'), data))
                 else: # valid response
                     return data
 
