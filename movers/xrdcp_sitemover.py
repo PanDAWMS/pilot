@@ -125,7 +125,11 @@ class xrdcpSiteMover(BaseSiteMover):
             #    #if not _ec :
             #    #    self.log("Failed to remove file %s" % destination)
             #    #return rcode, outputRet
+
             rcode = error.get('rcode')
+            if not is_stagein and rcode == PilotErrors.ERR_CHKSUMNOTSUP: ## stage-out, onfly checksum verification is not supported
+                return None, None
+
             if not rcode:
                 rcode = PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED
             state = error.get('state')
