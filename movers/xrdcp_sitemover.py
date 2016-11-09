@@ -127,7 +127,8 @@ class xrdcpSiteMover(BaseSiteMover):
             #    #return rcode, outputRet
 
             rcode = error.get('rcode')
-            if not is_stagein and rcode == PilotErrors.ERR_CHKSUMNOTSUP: ## stage-out, onfly checksum verification is not supported
+            if not is_stagein and rcode == PilotErrors.ERR_CHKSUMNOTSUP: ## stage-out, on fly checksum verification is not supported .. ignore
+                self.log('stage-out: ignore ERR_CHKSUMNOTSUP error .. will explicitly verify uploaded file')
                 return None, None
 
             if not rcode:
