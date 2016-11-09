@@ -376,7 +376,7 @@ class HPCManager:
             self.__log.info("HPC job id is None, will return failed.")
             self.__isFinished = True
             return 'Failed'
-        couter = 120
+        counter = 120
         while counter > 0:
            counter = counter - 1
            state = self.__plugin.poll(self.__jobid)
