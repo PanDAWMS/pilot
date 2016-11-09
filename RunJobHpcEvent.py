@@ -263,6 +263,9 @@ class RunJobHpcEvent(RunJob):
             logFileName = self.getPilotLogFilename()
 
         defRes = self.getDefaultResources()
+        defRes['queue'] = 'debug'
+        defRes['walltime_m'] = '30'
+
         if defRes['copy_input_files'] == 'true' and defRes['localWorkingDir']:
             self.__copyInputFiles = True
         else:
@@ -1055,7 +1058,7 @@ class RunJobHpcEvent(RunJob):
         hpcManager.submit()
         tolog("Submitted HPC job")
         # create file with batchid in name for reference
-        with open(self.getPilotInitDir() + 'batchid.' + str(hpcManager.getHPCJobId()) + '.txt','w') as file:
+        with open(self.getPilotInitDir() + '/batchid.' + str(hpcManager.getHPCJobId()) + '.txt','w') as file:
             file.write(str(hpcManager.getHPCJobId()))
             file.close()
         if hpcManager.isLocalProcess():
