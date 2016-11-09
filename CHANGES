@@ -436,6 +436,26 @@ M Mover.py (2)
 M movers/base.py (14)
 M movers/mover.py (43)
 
+  https://github.com/PanDAWMS/pilot/pull/80
+
+Commit Summary
+
+xrdcpSiteMover: switch to use legacy "-adler" option for upload since at some site newer --cksum does not work ([3013] query chksum is not supported error)
+xrdcpSiteMover: reverted back xrdcp to use --cksum for proper server side remote checksum validation (will not work until xroot server provides remote checksum calc feature)
+xrdcpsitemover: make a call to get xrdcp client version
+xrdcp clean up
+xrdcpSiteMover: implemented proper CRC verification in case xrootd does not not support server-side checksum calculation of fly
+cosmetic verbose print
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+
+File Changes
+
+M PilotErrors.py (6)
+M SiteInformation.py (6)
+M movers/base.py (4)
+M movers/xrdcp_sitemover.py (19)
+
 Updates from David Cameron:
 
   https://github.com/PanDAWMS/pilot/pull/78
@@ -443,6 +463,7 @@ Updates from David Cameron:
 Commit Summary
 
 mv implementation of new site mover
+
 File Changes
 
 A movers/mv_mover.py (71)
