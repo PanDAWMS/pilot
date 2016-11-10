@@ -478,6 +478,25 @@ File Changes
 
 M pUtil.py (1)
 
+  https://github.com/PanDAWMS/pilot/pull/81
+
+Commit Summary
+
+Change path for batchid file
+Removed logic that failed job after some number of failed calls to polling command. Failure should be decided by the HpcManager module or above, not by the sheduler interface module
+Replaced sys.exit calls with exception handling. We do not want to use sys.exit in Yoda because MPI will not exit properly if one rank calls sys.exit.
+Moved the logic to kill the job to HPCManager for when the scheduler commands fail. Gave the command 120 chances to succeed with 60 second wait time. So 2 hrs.
+Merge remote-tracking branch 'upstream/main-dev'
+Fixed typo
+Changed batchid path
+
+File Changes
+
+M HPC/HPCManager.py (21)
+M HPC/HPCManagerPlugins/slurm.py (8)
+M HPC/pandayoda/yodacore/Yoda.py (17)
+M RunJobHpcEvent.py (5)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
