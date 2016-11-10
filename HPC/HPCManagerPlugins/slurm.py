@@ -177,12 +177,8 @@ class slurm(Plugin):
                 return "Complete"
             else:
                 self.__failedPollTimes += 1
-                if self.__failedPollTimes > 5:
-                    self.__log.error('Failing HPC job because the polling command has failed ' + str(self.__failedPollTimes) + ' and is allowed to fail ' + str(5) + ' times.')
-                    return "Failed"
-                else:
-                    self.__log.warning('HPC job in unknown state because polling comand returned non-zero value.')
-                    return 'Unknown'
+                self.__log.error('Failing HPC job because the polling command has failed ' + str(self.__failedPollTimes) + ' times.')
+                return 'Unknown'
         return 'Unknown'
 
     def delete(self, jobid):
