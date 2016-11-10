@@ -340,12 +340,15 @@ class PandaServerClient:
                 tolog("!!WARNING!!2323!! Exception caught: %s" % (e))
             else:
                 # Overwrite any existing errors
-                if job.result[2] != 0:
-                    tolog("Encountered high priority error code %d (will overwrite error code %d)" % (pilotErrorCode, job.result[2]))
+                if pilotErrorCode == 0 and job.result[2] != 0:
+                    tolog('Encountered bad high priority error code %d (will not overwrite error code %d)' % (pilotErrorCode, job.result[2]))
                 else:
-                    tolog("Encountered high priority error code %d" % (pilotErrorCode))
-                job.result[2] = pilotErrorCode
-                job.pilotErrorDiag = pilotErrorDiag
+                    if job.result[2] != 0:
+                        tolog("Encountered high priority error code %d (will overwrite error code %d)" % (pilotErrorCode, job.result[2]))
+                    else:
+                        tolog("Encountered high priority error code %d" % (pilotErrorCode))
+                    job.result[2] = pilotErrorCode
+                    job.pilotErrorDiag = pilotErrorDiag
         else:
             tolog("Did not find any reported high priority errors")
 

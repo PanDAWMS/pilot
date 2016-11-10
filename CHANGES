@@ -421,6 +421,8 @@ M RunJobEvent.py (1)
 
 General updates:
 
+- Corrected bad overwriting of error code in getNodeStructure(). Problem reported by R. Walker and discussed in JIRA ticket https://its.cern.ch/jira/browse/ATLASPANDA-317 (PandaServerClient)
+
 Updates from Alexey Anisenkov:
 
   https://github.com/PanDAWMS/pilot/pull/77
