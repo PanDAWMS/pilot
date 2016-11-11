@@ -8,7 +8,7 @@ from .base import BaseSiteMover
 
 from PilotErrors import PilotException
 
-import os, shutil
+import os, re, shutil
 
 class mvSiteMover(BaseSiteMover):
     """ SiteMover that uses link for stage in and copy for stage out """
@@ -18,6 +18,18 @@ class mvSiteMover(BaseSiteMover):
 
     def __init__(self, *args, **kwargs):
         super(mvSiteMover, self).__init__(*args, **kwargs)
+        # Set top-level dir to be one level up, until real dir is available
+        self.init_dir = os.path.dirname(os.getcwd())
+
+    def createOutputList(self, fspec):
+
+        # Write output.list
+        with open(os.path.join(self.init_dir, 'output.list'), 'a') as f:
+            # Add ARC options
+            token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
+            dest = re.sub(r'((:\d+)/)', r'\2;autodir=no;spacetoken=%s/' % token, fspec.surl)
+            f.write('%s %s' % (fspec.lfn, dest))
+
 
     def stageIn(self, source, destination, fspec):
         """
@@ -31,11 +43,10 @@ class mvSiteMover(BaseSiteMover):
         :return:       destination file details (checksumtype, checksum, size)
         """
 
-        # Assume file is available in parent directory for now
-        # Later get the top level dir from a paramater
-        self.log('Creating link from %s to ../%s' % (fspec.lfn, fspec.lfn))
+        src = os.path.join(self.init_dir, fspec.lfn)
+        self.log('Creating link from %s to %s' % (fspec.lfn, src))
         try:
-            os.symlink('../%s' % fspec.lfn, fspec.lfn)
+            os.symlink(src, fspec.lfn)
         except OSError as e:
             raise PilotException('stageIn failed: %s' % str(e))
 
@@ -51,20 +62,26 @@ class mvSiteMover(BaseSiteMover):
         unnecessary.
         Copy the output file from the pilot working directory to the top level
         directory.
+        Create the output file list for ARC CE.
 
         :param source:      local file location
-        :param destination: remote location to copy file - not used
+        :param destination: remote location to copy file
         :param fspec:  dictionary containing destination replicas, scope, lfn
         :return:       destination file details (checksumtype, checksum, size)
         """
 
-        self.log('Copying %s to ../%s' % (fspec.lfn, fspec.lfn))
+        dest = os.path.join(self.init_dir, fspec.lfn)
+        self.log('Copying %s to %s' % (fspec.lfn, dest))
         try:
-            shutil.copy(fspec.lfn, '../%s' % fspec.lfn)
+            shutil.copy(fspec.lfn, dest)
         except IOError as e:
             raise PilotException('stageOut failed: %s' % str(e))
 
         self.log('Copy successful')
+
+        # Create output list for ARC CE
+        self.createOutputList(fspec)
+
         checksum, checksum_type = fspec.get_checksum()
         return {'checksum_type': checksum_type,
                 'checksum': checksum,
