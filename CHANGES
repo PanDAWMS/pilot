@@ -525,6 +525,22 @@ File Changes
 M RunJobHpcEvent.py (2)
 M objectstoreSiteMover.py (2)
 
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/83
+
+Commit Summary
+
+Tidier handling of init_dir, add method to write output.list
+Move instead of copy for stage out
+Rename to be consistent with other movers
+Added mv mover to mover list
+
+File Changes
+
+R movers/mv_sitemover.py (38)
+M movers/sitemovers.py (1)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
