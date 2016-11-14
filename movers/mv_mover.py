@@ -11,7 +11,7 @@ from PilotErrors import PilotException
 import os, re, shutil
 
 class mvSiteMover(BaseSiteMover):
-    """ SiteMover that uses link for stage in and copy for stage out """
+    """ SiteMover that uses link for stage in and move for stage out """
 
     name = 'mv'
     schemes = ['file'] # list of supported schemes for transfers
@@ -60,7 +60,7 @@ class mvSiteMover(BaseSiteMover):
         """
         Override stageOut rather than stageOutFile since most of stageOut is
         unnecessary.
-        Copy the output file from the pilot working directory to the top level
+        Move the output file from the pilot working directory to the top level
         directory.
         Create the output file list for ARC CE.
 
@@ -70,10 +70,11 @@ class mvSiteMover(BaseSiteMover):
         :return:       destination file details (checksumtype, checksum, size)
         """
 
+        src = os.path.realpath(fspec.lfn)
         dest = os.path.join(self.init_dir, fspec.lfn)
-        self.log('Copying %s to %s' % (fspec.lfn, dest))
+        self.log('Moving %s to %s' % (src, dest))
         try:
-            shutil.copy(fspec.lfn, dest)
+            shutil.move(src, dest)
         except IOError as e:
             raise PilotException('stageOut failed: %s' % str(e))
 
