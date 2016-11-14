@@ -1383,7 +1383,7 @@ class RunJobHpcEvent(RunJob):
                 os.rename(zipFileName, os.path.join(outputDir, os.path.basename(zipFileName)))
                 tolog("Copying tar/zip file %s to %s" % (zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName))))
                 shutil.copyfile(zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName)))
-                eventstatusFile = str(job.jobId) + "_event_status.dump"
+                eventstatusFile = str(job.jobId) + "_event_status.dump.zipped"
                 tolog("Copying dump file %s to %s" % (eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile))))
                 shutil.copyfile(eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile)))
                 return
