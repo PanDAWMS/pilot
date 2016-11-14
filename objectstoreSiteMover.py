@@ -32,6 +32,7 @@ class objectstoreSiteMover(SiteMover.SiteMover):
         self._useTimerCommand = useTimerCommand
 
     def get_data(self, gpfn, lfn, path, fsize=0, fchecksum=0, guid=0, **pdict):
+        gpfn = gpfn.replace("s3+rucio", "s3")
         if gpfn.startswith("root:"):
             sitemover = xrootdObjectstoreSiteMover(self.getSetup())
             return sitemover.get_data(gpfn, lfn, path, fsize, fchecksum, guid, **pdict)
@@ -49,6 +50,7 @@ class objectstoreSiteMover(SiteMover.SiteMover):
         else:
             surl = os.path.join(destination, lfn)
 
+        surl = surl.replace("s3+rucio", "s3")
         if surl.startswith("root:"):
             sitemover = xrootdObjectstoreSiteMover(self.getSetup())
             return sitemover. put_data(source, destination, fsize, fchecksum, **pdict)
