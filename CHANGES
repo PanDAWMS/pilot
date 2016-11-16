@@ -511,6 +511,10 @@ General updates:
 
 - Created __check_remaining_proxy() which is called every five minutes from monitor_job() and monitor_recovery_job() te ensure there is at least ten minutes left of the proxy (Monitor)
 
+Bug fix for nightlies:
+
+- Setting cacheVer to release for cases "," in job.homePackage or "rel_" in job.homePackage in getJobExecutionCommand() (ATLASExperiment)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/82

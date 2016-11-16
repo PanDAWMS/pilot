@@ -212,7 +212,7 @@ class ATLASExperiment(Experiment):
             elif "," in job.homePackage or "rel_" in job.homePackage:
                 # nightlies; e.g. homePackage = "AtlasProduction,rel_0"
                 cacheDir = job.homePackage
-                cacheVer = None
+                cacheVer = job.release #None
             else:
                 # normal production jobs; e.g. homePackage = "AtlasProduction/20.1.5"
                 cacheDir, cacheVer = self.getSplitHomePackage(job.homePackage)
