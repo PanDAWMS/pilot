@@ -1892,6 +1892,7 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         error_code = None
+                        event_status = 'failed'
                         # Was the error fatal? If so, the pilot should abort
                         if "FATAL" in error_acronym:
                             tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
@@ -1907,13 +1908,16 @@ class RunJobEvent(RunJob):
                                 error_code = self.__error.ERR_TEWRONGGUID
                             elif error_acronym == "ERR_TE_FATAL":
                                 error_code = self.__error.ERR_TEFATAL
+                                event_status = 'fatal'
                             else:
                                 error_code = self.__error.ERR_ESFATAL
                             self.__esFatalCode = error_code
+                        else:
+                            error_code = self.__error.ERR_UNKNOWN
 
                         # Time to update the server
                         self.__nEventsFailed += 1
-                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal', errorCode=error_code)
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status=event_status, errorCode=error_code)
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
