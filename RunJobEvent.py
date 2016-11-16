@@ -1908,7 +1908,7 @@ class RunJobEvent(RunJob):
                                 error_code = self.__error.ERR_TEWRONGGUID
                             elif error_acronym == "ERR_TE_FATAL":
                                 error_code = self.__error.ERR_TEFATAL
-                                event_status = 'fatal'
+                                event_status = 'failed'  # should be 'fatal', we only use 'failed' currently
                             else:
                                 error_code = self.__error.ERR_ESFATAL
                             self.__esFatalCode = error_code
