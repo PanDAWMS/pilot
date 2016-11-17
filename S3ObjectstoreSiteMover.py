@@ -521,6 +521,7 @@ class S3ObjctStore(object):
 
         key = self.get_key(file)
         md5 = key.get_metadata("md5")
+        key.close(fast=True)
 
         if http_proxy:
             os.environ['http_proxy'] = http_proxy
@@ -538,6 +539,7 @@ class S3ObjctStore(object):
 
         retCode = 0
         retStr = None
+        key = None
         try:
             key = self.get_key(source)
             if key is None:
@@ -557,6 +559,9 @@ class S3ObjctStore(object):
         except Exception as e:
             retCode = -1
             retStr = str(e)
+        finally:
+            if key:
+                key.close(fast=True)
 
         if http_proxy:
             os.environ['http_proxy'] = http_proxy
@@ -575,6 +580,7 @@ class S3ObjctStore(object):
 
         retCode = 0
         retStr = None
+        key = None
         try:
             key = self.get_key(destination, create=True)
             if key is None:
@@ -594,6 +600,9 @@ class S3ObjctStore(object):
         except Exception as e:
             retCode = -1
             retStr = str(e)
+        finally:
+            if key:
+                key.close(fast=True)
 
         if http_proxy:
             os.environ['http_proxy'] = http_proxy
