@@ -529,6 +529,36 @@ File Changes
 M RunJobHpcEvent.py (2)
 M objectstoreSiteMover.py (2)
 
+  https://github.com/PanDAWMS/pilot/pull/84
+
+1. To use 'pilot_killed' instead of 'pilot_failed' when a signal is caught
+2. Fix event status when an AthenaMP error message is received. Normal athenaMP errors should not be 'fatal'. And currently we will not report fatal until we validate AthenaMP error reports
+
+Commit Summary
+
+update substatus when pilot is killed
+fix event status
+
+File Changes
+
+M RunJobEvent.py (6)
+M pUtil.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/85
+
+1. Close s3 connection in objectstore sitemover, to avoid too many open connections
+2. Download events before starting athenaMP (fail immediately if no events available so not to waste time with starting up AthenaMP)
+
+Commit Summary
+
+close os connections
+download events before startAthenaMP
+
+File Changes
+
+M RunJobEvent.py (28)
+M S3ObjectstoreSiteMover.py (9)
+
 Updates from David Cameron:
 
   https://github.com/PanDAWMS/pilot/pull/83
