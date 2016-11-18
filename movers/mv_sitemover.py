@@ -14,12 +14,12 @@ class mvSiteMover(BaseSiteMover):
     """ SiteMover that uses link for stage in and move for stage out """
 
     name = 'mv'
-    schemes = ['file'] # list of supported schemes for transfers
+    # list of supported schemes for transfers - use them all since surl is not used
+    schemes = ['file', 'srm', 'gridftp', 'https', 'root']
 
     def __init__(self, *args, **kwargs):
         super(mvSiteMover, self).__init__(*args, **kwargs)
-        # Set top-level dir to be one level up, until real dir is available
-        self.init_dir = os.path.dirname(os.getcwd())
+        self.init_dir = os.environ['HOME']
 
     def createOutputList(self, fspec):
 
@@ -28,8 +28,8 @@ class mvSiteMover(BaseSiteMover):
             # Add ARC options
             token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
             dest = re.sub(r'((:\d+)/)', r'\2;autodir=no;spacetoken=%s/' % token, fspec.surl)
-            f.write('%s %s' % (fspec.lfn, dest))
-
+            self.log('Adding to output.list: %s %s' % (fspec.lfn, dest))
+            f.write('%s %s\n' % (fspec.lfn, dest))
 
     def stageIn(self, source, destination, fspec):
         """
@@ -49,6 +49,9 @@ class mvSiteMover(BaseSiteMover):
             os.symlink(src, fspec.lfn)
         except OSError as e:
             raise PilotException('stageIn failed: %s' % str(e))
+
+        if not os.path.exists(fspec.lfn):
+            raise PilotException('stageIn failed: symlink points to non-existent file')
 
         self.log('Symlink successful')
         checksum, checksum_type = fspec.get_checksum()
@@ -87,3 +90,4 @@ class mvSiteMover(BaseSiteMover):
         return {'checksum_type': checksum_type,
                 'checksum': checksum,
                 'filesize': fspec.filesize}
+
