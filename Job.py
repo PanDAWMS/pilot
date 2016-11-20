@@ -78,6 +78,7 @@ class Job:
         self.filesizeIn = []               # Input file sizes from the dispatcher
         self.checksumIn = []               # Input file checksums from the dispatcher
         self.debug = ""                    # debug = True will trigger the pilot to send stdout tail on job update
+        self.lastState = ""                # record the last state of the job
         self.currentState = ""             # Basically the same as result[0] but includes states like "stagein", "stageout"
         self.vmPeakMax = 0                 # Maximum value of vmPeak
         self.vmPeakMean = 0                # Average value of vmPeak
