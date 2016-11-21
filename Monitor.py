@@ -1498,7 +1498,8 @@ class Monitor:
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
                 self.__check_memory_usage()
                 self.__check_remaining_space()
-                self.__check_remaining_proxy()
+                if self.__env['proxycheckFlag']:
+                    self.__check_remaining_proxy()
                 self.create_softlink()
                 self.check_unmonitored_jobs()
                 self.__monitor_processes()
@@ -1861,7 +1862,8 @@ class Monitor:
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
                 self.__check_memory_usage()
                 self.__check_remaining_space()
-                self.__check_remaining_proxy()
+                if self.__env['proxycheckFlag']:
+                    self.__check_remaining_proxy()
                 self.create_softlink()
                 self.check_unmonitored_jobs()
                 self.__monitor_processes()
