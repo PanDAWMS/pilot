@@ -505,6 +505,78 @@ M RunJobHpcEvent.py (5)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+66.6:
+
+General updates:
+
+- Created __check_remaining_proxy() which is called every five minutes from monitor_job() and monitor_recovery_job() te ensure there is at least ten minutes left of the proxy (Monitor)
+
+Bug fix for nightlies:
+
+- Setting cacheVer to release for cases "," in job.homePackage or "rel_" in job.homePackage in getJobExecutionCommand() (ATLASExperiment)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/82
+
+Commit Summary
+
+To suppport s3+rucio
+Fixed bug
+
+File Changes
+
+M RunJobHpcEvent.py (2)
+M objectstoreSiteMover.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/84
+
+1. To use 'pilot_killed' instead of 'pilot_failed' when a signal is caught
+2. Fix event status when an AthenaMP error message is received. Normal athenaMP errors should not be 'fatal'. And currently we will not report fatal until we validate AthenaMP error reports
+
+Commit Summary
+
+update substatus when pilot is killed
+fix event status
+
+File Changes
+
+M RunJobEvent.py (6)
+M pUtil.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/85
+
+1. Close s3 connection in objectstore sitemover, to avoid too many open connections
+2. Download events before starting athenaMP (fail immediately if no events available so not to waste time with starting up AthenaMP)
+
+Commit Summary
+
+close os connections
+download events before startAthenaMP
+
+File Changes
+
+M RunJobEvent.py (28)
+M S3ObjectstoreSiteMover.py (9)
+
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/83
+
+Commit Summary
+
+Tidier handling of init_dir, add method to write output.list
+Move instead of copy for stage out
+Rename to be consistent with other movers
+Added mv mover to mover list
+
+File Changes
+
+R movers/mv_sitemover.py (38)
+M movers/sitemovers.py (1)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 TODO:
 
