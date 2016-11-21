@@ -559,6 +559,26 @@ File Changes
 M RunJobEvent.py (28)
 M S3ObjectstoreSiteMover.py (9)
 
+  https://github.com/PanDAWMS/pilot/pull/86
+
+1) In gfal sitemover, now using 'file:///path' instead of 'file:path'.
+2) Set corecount before setup, because in preemption jobs, jobs are not preempted before reporting corecount. 
+3) Send heartbeat to panda when job state is changed.
+
+Commit Summary
+
+set corecount before setup
+send heartbeat to panda when job state changes
+in gfal, to use file:///
+
+File Changes
+
+M GFAL2SiteMover.py (6)
+M Job.py (1)
+M Monitor.py (9)
+M RunJobEvent.py (14)
+M UpdateHandler.py (1)
+
 Updates from David Cameron:
 
   https://github.com/PanDAWMS/pilot/pull/83
