@@ -21,15 +21,20 @@ class mvSiteMover(BaseSiteMover):
         super(mvSiteMover, self).__init__(*args, **kwargs)
         self.init_dir = os.environ['HOME']
 
-    def createOutputList(self, fspec):
+    def createOutputList(self, fspec, dest):
 
+        # Calculate checksum of file - even though it is already known by pilot
+        # it is not passed through to new movers
+        checksum = self.calc_file_checksum(dest)[0]
+        token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
+        # Add ARC options to SURL
+        destsurl = re.sub(r'((:\d+)/)', r'\2;autodir=no;spacetoken=%s/' % token, fspec.surl)
+        destsurl += ':checksumtype=%s:checksumvalue=%s' % (self.checksum_type, checksum)
+
+        self.log('Adding to output.list: %s %s' % (fspec.lfn, destsurl))
         # Write output.list
         with open(os.path.join(self.init_dir, 'output.list'), 'a') as f:
-            # Add ARC options
-            token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
-            dest = re.sub(r'((:\d+)/)', r'\2;autodir=no;spacetoken=%s/' % token, fspec.surl)
-            self.log('Adding to output.list: %s %s' % (fspec.lfn, dest))
-            f.write('%s %s\n' % (fspec.lfn, dest))
+            f.write('%s %s\n' % (fspec.lfn, destsurl))
 
     def stageIn(self, source, destination, fspec):
         """
@@ -84,7 +89,7 @@ class mvSiteMover(BaseSiteMover):
         self.log('Copy successful')
 
         # Create output list for ARC CE
-        self.createOutputList(fspec)
+        self.createOutputList(fspec, dest)
 
         checksum, checksum_type = fspec.get_checksum()
         return {'checksum_type': checksum_type,
