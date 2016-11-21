@@ -583,7 +583,7 @@ class Monitor:
 
         return job
 
-    def __updateJobs(self):
+    def __updateJobs(self, onlyUpdateStateChangedJobs=False):
         """ Make final server update for all ended jobs"""
 
         # get the stdout tails
@@ -592,6 +592,11 @@ class Monitor:
         # loop over all parallel jobs, update server, kill job if necessary
         # (after multitasking was removed from the pilot, there is actually only one job)
         for k in self.__env['jobDic'].keys():
+            pUtil.tolog("onlyUpdateStateChangedJobs: %s, lastState: %s, currentState: %s" % (onlyUpdateStateChangedJobs, self.__env['jobDic'][k][1].lastState, self.__env['jobDic'][k][1].currentState))
+            if onlyUpdateStateChangedJobs and self.__env['jobDic'][k][1].lastState == self.__env['jobDic'][k][1].currentState:
+                continue
+            self.__env['jobDic'][k][1].lastState = self.__env['jobDic'][k][1].currentState
+
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp != "finished" and tmp != "failed" and tmp != "holding":
 
@@ -747,6 +752,8 @@ class Monitor:
 
             # update the time for checking looping jobs
             self.__env['curtime'] = int(time.time())
+
+        self.__updateJobs(onlyUpdateStateChangedJobs=True)
 
     def __set_outputs(self):
         # all output will be written to the pilot log as well as to stdout [with the pUtil.tolog() function]

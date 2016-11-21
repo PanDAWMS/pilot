@@ -2630,6 +2630,13 @@ if __name__ == "__main__":
 
         # Setup starts here ................................................................................
 
+        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
+            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
+            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
+            job.coreCount = 1
+        else:
+            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+
         # Update the job state file
         job.jobState = "setup"
         runJob.setJobState(job.jobState)
@@ -2802,13 +2809,6 @@ if __name__ == "__main__":
             job.result[0] = "failed"
             job.result[2] = error.ERR_ESRECOVERABLE
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
-
-        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
-            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
-            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
-            job.coreCount = 1
-        else:
-            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
 
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
