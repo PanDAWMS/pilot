@@ -24,7 +24,7 @@ class lcgcpSiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "lcg-get-checksum"
 
-    schemes = ['srm'] # list of supported schemes for transfers
+    schemes = ['srm', 'gsiftp'] # list of supported schemes for transfers
 
     def _stagefile(self, cmd, source, destination, filesize, is_stagein):
         """

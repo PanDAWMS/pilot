@@ -545,7 +545,7 @@ class BaseSiteMover(object):
             ret['rcode'] = PilotErrors.ERR_NOSUCHFILE
             ret['state'] = 'NO_FILE'
             ret['error'] = output
-        elif "query chksum is not supported" in output:
+        elif "query chksum is not supported" in output or "Unable to checksum" in output:
             ret['rcode'] = PilotErrors.ERR_CHKSUMNOTSUP
             ret['state'] = 'CHKSUM_NOTSUP'
             ret['error'] = output
