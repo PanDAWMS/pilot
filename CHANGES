@@ -421,6 +421,8 @@ M RunJobEvent.py (1)
 
 General updates:
 
+- Corrected bad overwriting of error code in getNodeStructure(). Problem reported by R. Walker and discussed in JIRA ticket https://its.cern.ch/jira/browse/ATLASPANDA-317 (PandaServerClient)
+
 Updates from Alexey Anisenkov:
 
   https://github.com/PanDAWMS/pilot/pull/77
@@ -436,6 +438,26 @@ M Mover.py (2)
 M movers/base.py (14)
 M movers/mover.py (43)
 
+  https://github.com/PanDAWMS/pilot/pull/80
+
+Commit Summary
+
+xrdcpSiteMover: switch to use legacy "-adler" option for upload since at some site newer --cksum does not work ([3013] query chksum is not supported error)
+xrdcpSiteMover: reverted back xrdcp to use --cksum for proper server side remote checksum validation (will not work until xroot server provides remote checksum calc feature)
+xrdcpsitemover: make a call to get xrdcp client version
+xrdcp clean up
+xrdcpSiteMover: implemented proper CRC verification in case xrootd does not not support server-side checksum calculation of fly
+cosmetic verbose print
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+
+File Changes
+
+M PilotErrors.py (6)
+M SiteInformation.py (6)
+M movers/base.py (4)
+M movers/xrdcp_sitemover.py (19)
+
 Updates from David Cameron:
 
   https://github.com/PanDAWMS/pilot/pull/78
@@ -443,9 +465,12 @@ Updates from David Cameron:
 Commit Summary
 
 mv implementation of new site mover
+
 File Changes
 
 A movers/mv_mover.py (71)
+
+Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/79
 
@@ -456,6 +481,119 @@ Fixed pilot error when killed with signal
 File Changes
 
 M pUtil.py (1)
+
+Updates from Taylor Childers:
+
+  https://github.com/PanDAWMS/pilot/pull/81
+
+Commit Summary
+
+Change path for batchid file
+Removed logic that failed job after some number of failed calls to polling command. Failure should be decided by the HpcManager module or above, not by the sheduler interface module
+Replaced sys.exit calls with exception handling. We do not want to use sys.exit in Yoda because MPI will not exit properly if one rank calls sys.exit.
+Moved the logic to kill the job to HPCManager for when the scheduler commands fail. Gave the command 120 chances to succeed with 60 second wait time. So 2 hrs.
+Merge remote-tracking branch 'upstream/main-dev'
+Fixed typo
+Changed batchid path
+
+File Changes
+
+M HPC/HPCManager.py (21)
+M HPC/HPCManagerPlugins/slurm.py (8)
+M HPC/pandayoda/yodacore/Yoda.py (17)
+M RunJobHpcEvent.py (5)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+66.6:
+
+General updates:
+
+- Created __check_remaining_proxy() which is called every five minutes from monitor_job() and monitor_recovery_job() te ensure there is at least ten minutes left of the proxy (Monitor)
+
+Bug fix for nightlies:
+
+- Setting cacheVer to release for cases "," in job.homePackage or "rel_" in job.homePackage in getJobExecutionCommand() (ATLASExperiment)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/82
+
+Commit Summary
+
+To suppport s3+rucio
+Fixed bug
+
+File Changes
+
+M RunJobHpcEvent.py (2)
+M objectstoreSiteMover.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/84
+
+1. To use 'pilot_killed' instead of 'pilot_failed' when a signal is caught
+2. Fix event status when an AthenaMP error message is received. Normal athenaMP errors should not be 'fatal'. And currently we will not report fatal until we validate AthenaMP error reports
+
+Commit Summary
+
+update substatus when pilot is killed
+fix event status
+
+File Changes
+
+M RunJobEvent.py (6)
+M pUtil.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/85
+
+1. Close s3 connection in objectstore sitemover, to avoid too many open connections
+2. Download events before starting athenaMP (fail immediately if no events available so not to waste time with starting up AthenaMP)
+
+Commit Summary
+
+close os connections
+download events before startAthenaMP
+
+File Changes
+
+M RunJobEvent.py (28)
+M S3ObjectstoreSiteMover.py (9)
+
+  https://github.com/PanDAWMS/pilot/pull/86
+
+1) In gfal sitemover, now using 'file:///path' instead of 'file:path'.
+2) Set corecount before setup, because in preemption jobs, jobs are not preempted before reporting corecount. 
+3) Send heartbeat to panda when job state is changed.
+
+Commit Summary
+
+set corecount before setup
+send heartbeat to panda when job state changes
+in gfal, to use file:///
+
+File Changes
+
+M GFAL2SiteMover.py (6)
+M Job.py (1)
+M Monitor.py (9)
+M RunJobEvent.py (14)
+M UpdateHandler.py (1)
+
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/83
+
+Commit Summary
+
+Tidier handling of init_dir, add method to write output.list
+Move instead of copy for stage out
+Rename to be consistent with other movers
+Added mv mover to mover list
+
+File Changes
+
+R movers/mv_sitemover.py (38)
+M movers/sitemovers.py (1)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

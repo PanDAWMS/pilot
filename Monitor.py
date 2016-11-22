@@ -47,6 +47,7 @@ class Monitor:
         self.__env['create_softlink'] = True
         self.__env['return_code'] = None
         self.__env['curtime_sp'] = int(time.time())
+        self.__env['curtime_pr'] = int(time.time())
         self.__env['lastTimeFilesWereModified'] = {}
         self.__wdog = WatchDog()
         self.__runJob = None # Remember the RunJob instance
@@ -258,6 +259,40 @@ class Monitor:
                         ec = pUtil.removeFiles(self.__env['jobDic'][k][1].workdir, self.__env['jobDic'][k][1].inFiles)
         else:
             pUtil.tolog("Remaining local disk space: %d B" % (spaceleft))
+
+    def __check_remaining_proxy(self):
+        """
+        Every five minutes, check the remaining proxy life time
+        """
+        if (int(time.time()) - self.__env['curtime_pr']) > 5*60:
+
+            pUtil.tolog("Verifying proxy life time (should have at least ten minutes left)")
+            thisExperiment = pUtil.getExperiment(self.__env['experiment'])
+            ec, pilotErrorDiag = thisExperiment.verifyProxy(envsetup="", limit=10./60.) # limit is in hours
+            if ec != 0:
+                pilotErrorDiag = "Proxy has less than ten minutes left - aborting job"
+                pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
+
+                for k in self.__env['jobDic'].keys():
+                    # kill the job
+                    pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
+                    killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                    self.__env['jobDic'][k][1].result[0] = "failed"
+                    self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
+                    self.__env['jobDic'][k][1].result[2] = self.__error.ERR_NOPROXY
+                    self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+                    self.__skip = True
+
+                    # store the error info
+                    updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
+                    # remove any lingering input files from the work dir
+                    if self.__env['jobDic'][k][1].inFiles:
+                        if len(self.__env['jobDic'][k][1].inFiles) > 0:
+                            ec = pUtil.removeFiles(self.__env['jobDic'][k][1].workdir, self.__env['jobDic'][k][1].inFiles)
+
+            # update the time for checking the proxy
+            self.__env['curtime_pr'] = int(time.time())
 
     def __check_memory_usage(self):
         """
@@ -548,7 +583,7 @@ class Monitor:
 
         return job
 
-    def __updateJobs(self):
+    def __updateJobs(self, onlyUpdateStateChangedJobs=False):
         """ Make final server update for all ended jobs"""
 
         # get the stdout tails
@@ -557,6 +592,11 @@ class Monitor:
         # loop over all parallel jobs, update server, kill job if necessary
         # (after multitasking was removed from the pilot, there is actually only one job)
         for k in self.__env['jobDic'].keys():
+            pUtil.tolog("onlyUpdateStateChangedJobs: %s, lastState: %s, currentState: %s" % (onlyUpdateStateChangedJobs, self.__env['jobDic'][k][1].lastState, self.__env['jobDic'][k][1].currentState))
+            if onlyUpdateStateChangedJobs and self.__env['jobDic'][k][1].lastState == self.__env['jobDic'][k][1].currentState:
+                continue
+            self.__env['jobDic'][k][1].lastState = self.__env['jobDic'][k][1].currentState
+
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp != "finished" and tmp != "failed" and tmp != "holding":
 
@@ -712,6 +752,8 @@ class Monitor:
 
             # update the time for checking looping jobs
             self.__env['curtime'] = int(time.time())
+
+        self.__updateJobs(onlyUpdateStateChangedJobs=True)
 
     def __set_outputs(self):
         # all output will be written to the pilot log as well as to stdout [with the pUtil.tolog() function]
@@ -1451,6 +1493,7 @@ class Monitor:
             # main monitoring loop
             iteration = 1
             self.__env['curtime'] = int(time.time())
+            self.__env['curtime_pr'] = self.__env['curtime']
             self.__env['curtime_sp'] = self.__env['curtime']
             self.__env['curtime_of'] = self.__env['curtime']
             self.__env['curtime_proc'] = self.__env['curtime']
@@ -1462,6 +1505,8 @@ class Monitor:
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
                 self.__check_memory_usage()
                 self.__check_remaining_space()
+                if self.__env['proxycheckFlag']:
+                    self.__check_remaining_proxy()
                 self.create_softlink()
                 self.check_unmonitored_jobs()
                 self.__monitor_processes()
@@ -1813,6 +1858,7 @@ class Monitor:
             iteration = 1
             self.__env['curtime'] = int(time.time())
             self.__env['curtime_sp'] = self.__env['curtime']
+            self.__env['curtime_pr'] = self.__env['curtime']
             self.__env['curtime_of'] = self.__env['curtime']
             self.__env['curtime_proc'] = self.__env['curtime']
             self.__env['curtime_mem'] = self.__env['curtime']
@@ -1823,6 +1869,8 @@ class Monitor:
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
                 self.__check_memory_usage()
                 self.__check_remaining_space()
+                if self.__env['proxycheckFlag']:
+                    self.__check_remaining_proxy()
                 self.create_softlink()
                 self.check_unmonitored_jobs()
                 self.__monitor_processes()

@@ -41,6 +41,7 @@ class UpdateHandler(BaseRequestHandler):
                         old_pilotecode = self.__env['jobDic'][k][1].result[2]
                         old_pilotErrorDiag = self.__env['jobDic'][k][1].pilotErrorDiag
 
+                        self.__env['jobDic'][k][1].lastState = self.__env['jobDic'][k][1].currentState
                         self.__env['jobDic'][k][1].currentState = jobinfo["status"]
                         if jobinfo["status"] == "stagein":
                             self.__env['stagein'] = True

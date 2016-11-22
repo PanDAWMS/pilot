@@ -4371,7 +4371,7 @@ def sig2exc(sig, frm):
                 ec = error.ERR_KILLSIGNAL
 
             env['jobDic'][k][1].result[0] = "failed"
-            env['jobDic'][k][1].subStatus = 'pilot_failed'
+            env['jobDic'][k][1].subStatus = 'pilot_killed'
             env['jobDic'][k][1].currentState = env['jobDic'][k][1].result[0]
             # do not overwrite any previous error
             if env['jobDic'][k][1].result[2] == 0:

@@ -263,6 +263,9 @@ class RunJobHpcEvent(RunJob):
             logFileName = self.getPilotLogFilename()
 
         defRes = self.getDefaultResources()
+        defRes['queue'] = 'debug'
+        defRes['walltime_m'] = '30'
+
         if defRes['copy_input_files'] == 'true' and defRes['localWorkingDir']:
             self.__copyInputFiles = True
         else:
@@ -1055,7 +1058,7 @@ class RunJobHpcEvent(RunJob):
         hpcManager.submit()
         tolog("Submitted HPC job")
         # create file with batchid in name for reference
-        with open('batchid.' + str(hpcManager.getHPCJobId()) + '.txt','w') as file:
+        with open(self.getPilotInitDir() + '/batchid.' + str(hpcManager.getHPCJobId()) + '.txt','w') as file:
             file.write(str(hpcManager.getHPCJobId()))
             file.close()
         if hpcManager.isLocalProcess():
@@ -1383,7 +1386,7 @@ class RunJobHpcEvent(RunJob):
                 os.rename(zipFileName, os.path.join(outputDir, os.path.basename(zipFileName)))
                 tolog("Copying tar/zip file %s to %s" % (zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName))))
                 shutil.copyfile(zipEventRangeName, os.path.join(outputDir, os.path.basename(zipEventRangeName)))
-                eventstatusFile = str(job.jobId) + "_event_status.dump"
+                eventstatusFile = str(job.jobId) + "_event_status.dump.zipped"
                 tolog("Copying dump file %s to %s" % (eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile))))
                 shutil.copyfile(eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile)))
                 return

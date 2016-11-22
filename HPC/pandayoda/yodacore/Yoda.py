@@ -878,21 +878,21 @@ class Yoda(threading.Thread):
         self.tmpLog.info("loading jobs: (status: %s, output: %s)" %(tmpStat, tmpOut))
         if not tmpStat:
             self.tmpLog.error(tmpOut)
-            sys.exit(1)
+            raise Exception(tmpOut)
 
         self.tmpLog.info("init job ranks")
         tmpStat,tmpOut = self.initJobRanks()
         self.tmpLog.info("initJobRanks: (status: %s, output: %s)" %(tmpStat, tmpOut))
         if not tmpStat:
             self.tmpLog.error(tmpOut)
-            sys.exit(1)
+            raise Exception(tmpOut)
 
         # make event table
         self.tmpLog.info('making JobsEventTable')
         tmpStat,tmpOut = self.makeJobsEventTable()
         if not tmpStat:
             self.tmpLog.error(tmpOut)
-            sys.exit(1)
+            raise Exception(tmpOut)
 
         # print event status
         self.tmpLog.info('print event status')
@@ -913,7 +913,7 @@ class Yoda(threading.Thread):
             self.tmpLog.debug("received request: (rank: %s, status: %s, method: %s, params: %s)" %(self.comm.getRequesterRank(),tmpStat,method,params))
             if not tmpStat:
                 self.tmpLog.error(method)
-                sys.exit(1)
+                raise Exception(method)
             # execute
             self.tmpLog.debug('rank={0} method={1} param={2}'.format(self.comm.getRequesterRank(),
                                                                 method,str(params)))
@@ -939,9 +939,7 @@ class Yoda(threading.Thread):
         self.postExecJob()
         self.finishDroids()
         self.tmpLog.info('done')
-        #os._exit(0)
-        sys.exit(0)
-        return 0
+        
 
     # main
     def run(self):
@@ -949,7 +947,7 @@ class Yoda(threading.Thread):
             self.runYoda()
         except:
             self.tmpLog.info("Excpetion to run Yoda: %s" % traceback.format_exc())
-            sys.exit(1)
+            raise
 
     def flushMessages(self):
         self.tmpLog.info('flush messages')
@@ -960,7 +958,7 @@ class Yoda(threading.Thread):
             self.tmpLog.debug("received request: (rank: %s, status: %s, method: %s, params: %s)" %(self.comm.getRequesterRank(),tmpStat,method,params))
             if not tmpStat:
                 self.tmpLog.error(method)
-                sys.exit(1)
+                raise Exception(method)
             # execute
             self.tmpLog.debug('rank={0} method={1} param={2}'.format(self.comm.getRequesterRank(),
                                                                 method,str(params)))
@@ -1010,7 +1008,6 @@ class Yoda(threading.Thread):
         self.tmpLog.info('stop')
         #signal.siginterrupt(signum, True)
         unblock_sig(signum)
-        sys.exit(0)
 
     def getOutputs(self):
         pass

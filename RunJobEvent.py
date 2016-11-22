@@ -999,11 +999,12 @@ class RunJobEvent(RunJob):
         # change to sys.exit?
         os._exit(self.__job.result[2]) # pilotExitCode, don't confuse this with the overall pilot exit code,
                                        # which doesn't get reported back to panda server anyway
-    def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
+    def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True, pilot_failed=True):
         """ set the fail code and exit """
 
         job.setState(["failed", transExitCode, pilotExitCode])
-        job.subStatus = 'pilot_failed'
+        if pilot_failed:
+            job.subStatus = 'pilot_failed'
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
         tolog("Will now update local pilot TCP server")
@@ -1892,6 +1893,7 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         error_code = None
+                        event_status = 'failed'
                         # Was the error fatal? If so, the pilot should abort
                         if "FATAL" in error_acronym:
                             tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
@@ -1907,13 +1909,16 @@ class RunJobEvent(RunJob):
                                 error_code = self.__error.ERR_TEWRONGGUID
                             elif error_acronym == "ERR_TE_FATAL":
                                 error_code = self.__error.ERR_TEFATAL
+                                event_status = 'failed'  # should be 'fatal', we only use 'failed' currently
                             else:
                                 error_code = self.__error.ERR_ESFATAL
                             self.__esFatalCode = error_code
+                        else:
+                            error_code = self.__error.ERR_UNKNOWN
 
                         # Time to update the server
                         self.__nEventsFailed += 1
-                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='fatal', errorCode=error_code)
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status=event_status, errorCode=error_code)
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
@@ -2625,6 +2630,13 @@ if __name__ == "__main__":
 
         # Setup starts here ................................................................................
 
+        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
+            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
+            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
+            job.coreCount = 1
+        else:
+            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
+
         # Update the job state file
         job.jobState = "setup"
         runJob.setJobState(job.jobState)
@@ -2798,13 +2810,6 @@ if __name__ == "__main__":
             job.result[2] = error.ERR_ESRECOVERABLE
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
-            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
-            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
-            job.coreCount = 1
-        else:
-            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
 
@@ -2831,6 +2836,15 @@ if __name__ == "__main__":
         #turl = file_info_dictionary[inputFile][0]
         #runCommandList[0] = runCommandList[0].replace(inputFile, turl)
         #tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+
+        # download event ranges before athenaMP
+        # Pilot will download some event ranges from the Event Server
+        message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount)
+        # Create a list of event ranges from the downloaded message
+        first_event_ranges = runJob.extractEventRanges(message)
+        if first_event_ranges is None or first_event_ranges == []:
+            tolog("No more events. will finish this job directly")
+            runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=False)
 
         # Create and start the AthenaMP process
         t0 = os.times()
@@ -2869,11 +2883,15 @@ if __name__ == "__main__":
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
             if runJob.isAthenaMPReady():
 
-                # Pilot will download some event ranges from the Event Server
-                message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount)
+                if first_event_ranges:
+                    event_ranges = first_event_ranges
+                    first_event_ranges = None
+                else:
+                    # Pilot will download some event ranges from the Event Server
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount)
 
-                # Create a list of event ranges from the downloaded message
-                event_ranges = runJob.extractEventRanges(message)
+                    # Create a list of event ranges from the downloaded message
+                    event_ranges = runJob.extractEventRanges(message)
 
                 # Are there any event ranges?
                 if event_ranges == []:
@@ -3266,6 +3284,8 @@ if __name__ == "__main__":
         runJob.setFinalESStatus(job)
         job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
+        job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
 
         tolog("Done")
