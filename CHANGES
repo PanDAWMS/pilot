@@ -505,7 +505,7 @@ M RunJobHpcEvent.py (5)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-66.6:
+67.0:
 
 General updates:
 
@@ -594,6 +594,37 @@ File Changes
 
 R movers/mv_sitemover.py (38)
 M movers/sitemovers.py (1)
+
+Updates from Mario Lassnig:
+
+  https://github.com/PanDAWMS/pilot/pull/87
+
+Commit Summary
+
+storm: file protocol sitemover using webdav etags
+
+File Changes
+
+M movers/sitemovers.py (1)
+A movers/storm_sitemover.py (125)
+
+Updates from Alexey Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/88
+
+xrdcp stage-out fix for sites do not supported CRC calc on fly (consider "Unable to checksum" error)
+lcgcp sitemover: added gsiftp into the list of supported protocol schemes
+
+Commit Summary
+
+lcgcp sitemover: added gsiftp into the list of supported protocol schemes
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+xrdcp mover: consider "Unable to checksum" error to activate workaround workflow for sites does not supported remote crc calculation on fly
+
+File Changes
+
+M movers/base.py (2)
+M movers/lcgcp_sitemover.py (2)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
