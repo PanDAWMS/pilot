@@ -4,7 +4,7 @@
 """
 
 import hashlib
-import os
+import os, re
 import time
 
 from subprocess import Popen, PIPE, STDOUT
@@ -605,13 +605,15 @@ class BaseSiteMover(object):
 
 
     @classmethod
-    def calc_checksum(self, filename, command='md5sum', setup=None):
+    def calc_checksum(self, filename, command='md5sum', setup=None, pattern=None, cmd=None):
         """
+            :cmd: quick hack: fix me later
             calculate file checksum value
             raise an exception if input filename is not exist/readable
         """
 
-        cmd = "%s %s" % (command, filename)
+        if not cmd:
+            cmd = "%s %s" % (command, filename)
         if setup:
             cmd = "%s 1>/dev/null 2>/dev/null; %s" % (setup, cmd)
 
@@ -629,7 +631,16 @@ class BaseSiteMover(object):
 
         self.log("calc_checksum: output=%s" % output)
 
-        return output.split()[0] # return final checksum
+        value = ''
+        if pattern:
+            self.log("INFO: calc_checksum: try to extract checksum value by pattern=%s" % pattern)
+            m = re.match(pattern, output)
+            if m:
+                value = m.groupdict().get('checksum') or ''
+        else:
+            value = output.split()[0]
+
+        return value # return final checksum
 
     @classmethod
     def removeLocal(self, filename):
