@@ -11,3 +11,4 @@ from .rucio_sitemover import rucioSiteMover
 from .lsm_sitemover import lsmSiteMover
 from .objectstore_sitemover import objectstoreSiteMover
 from .storm_sitemover import stormSiteMover
+from .gfalcopy_sitemover import gfalcopySiteMover
