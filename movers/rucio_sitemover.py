@@ -17,16 +17,36 @@ class rucioSiteMover(BaseSiteMover):
     """ SiteMover that uses rucio CLI for both get and put functionality """
 
     name = 'rucio'
-    schemes = ['srm'] # list of supported schemes for transfers
+    schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio']
 
     def __init__(self, *args, **kwargs):
         super(rucioSiteMover, self).__init__(*args, **kwargs)
 
+    def __which(self, pgm):
+        """
+        Do not assume existing which command
+        """
+        path = os.getenv('PATH')
+        for p in path.split(os.path.pathsep):
+            p = os.path.join(p, pgm)
+            if os.path.exists(p) and os.access(p, os.X_OK):
+                return p
+
     def setup(self):
         """
-        Overridden method -- unused
+        Basic setup
         """
-        pass
+
+        # disable rucio-clients ANSI colours - unneeded in logfiles :-)
+        os.environ['RUCIO_LOGGING_FORMAT'] = '{0}%(asctime)s %(levelname)s [%(message)s]'
+
+        # be verbose about the execution environment
+        s, o = getstatusoutput('python -v -c "import gfal2" 2>&1 | grep dynamically')
+        tolog('rucio_environment=%s' % str(os.environ))
+        tolog('which rucio: %s' % self.__which('rucio'))
+        tolog('which gfal2: %s' % o)
+        tolog('which gfal-copy: %s' % self.__which('gfal-copy'))
+
 
     def resolve_replica(self, fspec, protocol, ddm=None):
         """
