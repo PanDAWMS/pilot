@@ -331,6 +331,19 @@ class BaseSiteMover(object):
                 self.log("Local  checksum [%s]: %s  (%s)" % (dst_checksum_type, dst_checksum, destination))
                 self.log("checksum is_verified = %s" % is_verified)
 
+                if type(dst_checksum) is str and type(src_checksum) is str:
+                    if len(src_checksum) < len(dst_checksum):
+                        self.log("Local and remote checksums have different lengths (%s vs %s)" % (dst_checksum, src_checksum))
+                        if dst_checksum[0] == '0':
+                            self.log("Stripping initial 0:s from local checksum")
+                            dst_checksum = dst_checksum.lstrip('0')
+
+                            is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
+
+                            self.log("Remote checksum [%s]: %s  (%s)" % (src_checksum_type, src_checksum, source))
+                            self.log("Local  checksum [%s]: %s  (%s)" % (dst_checksum_type, dst_checksum, destination))
+                            self.log("checksum is_verified = %s" % is_verified)
+
                 if not is_verified:
                     error = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" % \
                                             (src_checksum_type, os.path.basename(destination), dst_checksum, src_checksum)
@@ -444,6 +457,19 @@ class BaseSiteMover(object):
                 self.log("Local  checksum [%s]: %s" % (src_checksum_type, src_checksum))
                 self.log("Remote checksum [%s]: %s" % (dst_checksum_type, dst_checksum))
                 self.log("checksum is_verified = %s" % is_verified)
+
+                if type(dst_checksum) is str and type(src_checksum) is str:
+                    if len(dst_checksum) < len(src_checksum):
+                        self.log("Local and remote checksums have different lengths (%s vs %s)" % (src_checksum, dst_checksum))
+                        if src_checksum[0] == '0':
+                            self.log("Stripping initial 0:s from local checksum")
+                            src_checksum = src_checksum.lstrip('0')
+
+                            is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
+
+                            self.log("Local  checksum [%s]: %s" % (src_checksum_type, src_checksum))
+                            self.log("Remote checksum [%s]: %s" % (dst_checksum_type, dst_checksum))
+                            self.log("checksum is_verified = %s" % is_verified)
 
                 if not is_verified:
                     error = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" % \
