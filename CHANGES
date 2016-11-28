@@ -143,7 +143,23 @@ M movers/sitemovers.py (1)
 
 67.1
 
+General changes
+
+..
+
 Updates from Mario Lassnig
+
+  https://github.com/PanDAWMS/pilot/pull/90
+
+- More verbosity to make debugging easier
+
+Commit Summary
+
+- ruciomover: tiny updates
+
+File Changes
+
+M movers/rucio_sitemover.py (26)
 
   https://github.com/PanDAWMS/pilot/pull/91
 
@@ -166,6 +182,19 @@ Commit Summary
 File Changes
 
   M RunJobEvent.py (10) 
+
+Updates from David Cameron
+
+  https://github.com/PanDAWMS/pilot/pull/93
+
+Commit Summary
+
+- mv supports all schemes; use HOME as top-level job dir
+- add checksum to output file list
+
+File Changes
+
+M movers/mv_sitemover.py (29)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
