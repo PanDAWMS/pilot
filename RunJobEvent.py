@@ -2631,8 +2631,7 @@ if __name__ == "__main__":
         # Setup starts here ................................................................................
 
         if not os.environ.has_key('ATHENA_PROC_NUMBER'):
-            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
-            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
+            tolog("ATHENA_PROC_NUMBER not defined, setting corecount to 1")
             job.coreCount = 1
         else:
             job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
@@ -2693,6 +2692,13 @@ if __name__ == "__main__":
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
         hasInput = job.inFiles != ['']
         runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
+
+        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
+            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
+            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
+            job.coreCount = 1
+        else:
+            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
 
         # (stage-in ends here) .............................................................................
 

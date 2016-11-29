@@ -141,6 +141,65 @@ M movers/sitemovers.py (1)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+67.1
+
+General changes
+
+- Removed any initial 0's from the locally calculated checksums (for both stage-in/out) in case there are discrepancies.
+  Externally calculated Adler32 values are not necessarily of fixed length and might not include initial 0 values.
+  Discussed in JIRA ticket https://its.cern.ch/jira/browse/ATLASPANDA-324 (movers/base)
+
+Updates from Mario Lassnig
+
+  https://github.com/PanDAWMS/pilot/pull/90
+
+- More verbosity to make debugging easier
+
+Commit Summary
+
+- ruciomover: tiny updates
+
+File Changes
+
+M movers/rucio_sitemover.py (26)
+
+  https://github.com/PanDAWMS/pilot/pull/91
+
+Commit Summary
+
+- storm: fix for timestamp corner case 
+
+File Changes
+
+  M movers/storm_sitemover.py (13) 
+
+Updates from Wen Guan
+
+  https://github.com/PanDAWMS/pilot/pull/92
+
+Commit Summary
+
+- fixed undefined runCommandList 
+
+File Changes
+
+  M RunJobEvent.py (10) 
+
+Updates from David Cameron
+
+  https://github.com/PanDAWMS/pilot/pull/93
+
+Commit Summary
+
+- mv supports all schemes; use HOME as top-level job dir
+- add checksum to output file list
+
+File Changes
+
+M movers/mv_sitemover.py (29)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 TODO:
 
