@@ -630,10 +630,12 @@ class RunJobEvent(RunJob):
 
         return self.__job.result
 
-    def setJobResult(self, result):
+    def setJobResult(self, result, pilot_failed=False):
         """ Setter for result """
 
         self.__job.result = result
+        if pilot_failed:
+            self.setFinalESStatus(self.__job)
 
     def getJobState(self):
         """ Getter for jobState """
@@ -1702,10 +1704,16 @@ class RunJobEvent(RunJob):
                                         tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
                                         self.setAbort()
                                         self.setToBeKilled()
+                                        job = self.getJob()
+                                        if job:
+                                            job.subStatus = 'pilot_killed'
                                     if msg == "softkill":
                                         tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
                                         self.sendMessage("No more events")
                                         self.setAbort()
+                                        job = self.getJob()
+                                        if job:
+                                            job.subStatus = 'pilot_killed'
                                 except:
                                     tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                         else:
@@ -1793,10 +1801,16 @@ class RunJobEvent(RunJob):
                                     tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
                                     self.setAbort()
                                     self.setToBeKilled()
+                                    job = self.getJob()
+                                    if job:
+                                        job.subStatus = 'pilot_killed'
                                 if msg == "softkill":
                                     tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
                                     self.sendMessage("No more events")
                                     self.setAbort()
+                                    job = self.getJob()
+                                    if job:
+                                        job.subStatus = 'pilot_killed'
                             except:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                         else:
@@ -1927,7 +1941,7 @@ class RunJobEvent(RunJob):
                         if error_code:
                             result = ["failed", 0, error_code]
                             tolog("Setting error code: %d" % (error_code))
-                            self.setJobResult(result)
+                            self.setJobResult(result, pilot_failed=True)
 
                             # ..
                     else:
@@ -2850,7 +2864,7 @@ if __name__ == "__main__":
         first_event_ranges = runJob.extractEventRanges(message)
         if first_event_ranges is None or first_event_ranges == []:
             tolog("No more events. will finish this job directly")
-            runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=False)
+            runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=True)
 
         # Create and start the AthenaMP process
         t0 = os.times()
@@ -3014,6 +3028,9 @@ if __name__ == "__main__":
 
                     # Was there a fatal error in the inner loop?
                     if job.result[0] == "failed":
+                        job.jobState = job.result[0]
+                        runJob.setFinalESStatus(job)
+                        runJob.setJobState(job.jobState)
                         tolog("Detected a failure - aborting event range loop")
                         break
 

@@ -656,7 +656,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
 
         if status == 0:
             if destChecksum:
-                if str(sourceChecksum) != str(destChecksum):
+                if str(sourceChecksum) != str(destChecksum) and str(sourceChecksum).lstrip('0') != str(destChecksum).lstrip('0'):
                     outputRet["errorLog"] = errorLog = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" %\
                                      (checksumType, os.path.basename(destFile), destChecksum, sourceChecksum)
                     self.log("!!WARNING!!1800!! %s" % (errorLog))
