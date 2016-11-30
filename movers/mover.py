@@ -725,9 +725,8 @@ class JobMover(object):
 
         #copytools = [('objectstore', {'setup': '/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/latest/setup.sh'})]
         copytools = [('objectstore', {'setup': ''})]
-        ret = self.stageout(activity, files, copytools)
 
-        return ret
+        return self.stageout(activity, files, copytools)
 
     def stageout(self, activity, files, copytools=None, skip_transfer_failure=False):
         """
@@ -823,7 +822,6 @@ class JobMover(object):
         if no_surl_ddms: # failed to resolve SURLs
             self.log('FAILED to resolve default SURL path for ddmendpoints=%s' % list(no_surl_ddms))
             raise PilotException("Failed to put files: no SE/SURL protocols defined for output ddmendpoints=%s .. check ddmendpoints aprotocols settings for activity=SE/a/r" % list(no_surl_ddms), code=PilotErrors.ERR_NOSTORAGE, state="NO_SURL_PROTOCOL")
-
 
         for ddmendpoint, iprotocols in ddmprotocols.iteritems():
             for dat in iprotocols:

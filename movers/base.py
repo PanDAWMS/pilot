@@ -491,6 +491,13 @@ class BaseSiteMover(object):
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file checksum verification: %s ..  skipped" % e)
 
+            # Ignore in the case of lsm mover
+            if self.name == 'lsm':
+                self.log("Ignoring lsm error")
+                return {'checksum': None, 'checksum_type':None, 'filesize':src_fsize}
+            else:
+                self.log("Used %s mover" % (self.name))
+
         # verify stageout by filesize
         try:
             dst_fsize = self.getRemoteFileSize(destination)

@@ -205,6 +205,7 @@ M movers/mv_sitemover.py (29)
 General changes:
 
 - Corrected misleading error message (StageOut->StageIn) in stageIn() (movers/base)
+- Ignoring lsm checksum error in stageOut() (movers/base)
 
 Updates from Wen Guan:
 
