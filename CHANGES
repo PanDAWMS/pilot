@@ -210,6 +210,7 @@ General changes:
 Event service changes:
 
 - Created __usePrefetcher, usePrefetcher(), setUsePrefetcher() (RunJobEvent)
+- Calling setUsePrefetcher() from __main__() (RunJobEvent)
 
 Updates from Wen Guan:
 

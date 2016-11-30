@@ -2765,6 +2765,9 @@ if __name__ == "__main__":
         # Should the token extractor be used?
         runJob.setUseTokenExtractor(runCommandList[0])
 
+        # Should the prefetcher be used?
+        runJob.setUsePrefetcher(runCommandList[0])
+
         # Stdout/err file objects
         tokenextractor_stdout = None
         tokenextractor_stderr = None
