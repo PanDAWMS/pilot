@@ -95,6 +95,7 @@ class RunJobEvent(RunJob):
     __sending_event_range = False                # True while event range is being sent to payload
     __current_event_range = ""                   # Event range being sent to payload
     __useTokenExtractor = False                  # Should the TE be used?
+    __usePrefetcher = False                      # Should the Prefetcher be user
 
     # ES zip
     __esToZip = False
@@ -717,6 +718,22 @@ class RunJobEvent(RunJob):
             tolog("Token Extractor is needed")
         else:
             tolog("Token Extractor is not needed")
+
+    def usePrefetcher(self):
+        """ Should the Prefetcher be used? """
+
+        return self.__usePrefetcher
+
+    def setUsePrefetcher(self, setup):
+        """ Set the __usePrefetcher variable to a boolean value """
+        # Decision is based on info in the setup string ???
+
+        self.__usePrefetcher = True
+
+        if self.__usePrefetcher:
+            tolog("Prefetcher is needed")
+        else:
+            tolog("Prefetcher is not needed")
 
     def init_guid_list(self):
         """ Init guid and lfn list for stagein files"""

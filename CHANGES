@@ -207,6 +207,10 @@ General changes:
 - Corrected misleading error message (StageOut->StageIn) in stageIn() (movers/base)
 - Ignoring lsm checksum error in stageOut() (movers/base)
 
+Event service changes:
+
+- Created __usePrefetcher, usePrefetcher(), setUsePrefetcher() (RunJobEvent)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/94
