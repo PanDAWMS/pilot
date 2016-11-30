@@ -634,6 +634,7 @@ class Monitor:
                     pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                     killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
                     self.__env['jobDic'][k][1].result[0] = "failed"
+                    self.__env['jobDic'][k][1].subStatus = "pilot_killed"
                     self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
                     self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PANDAKILL
                     self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
