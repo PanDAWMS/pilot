@@ -728,7 +728,7 @@ class RunJobEvent(RunJob):
         """ Set the __usePrefetcher variable to a boolean value """
         # Decision is based on info in the setup string ???
 
-        self.__usePrefetcher = True
+        self.__usePrefetcher = False #True
 
         if self.__usePrefetcher:
             tolog("Prefetcher is needed")
@@ -2773,6 +2773,13 @@ if __name__ == "__main__":
         tokenextractor_stderr = None
         athenamp_stdout = None
         athenamp_stderr = None
+
+        # Create and start the Prefetcher
+
+        # Extract the proper setup string from the run command in case the Prefetcher should be used
+        if runJob.usePrefetcher():
+            setupString = thisEventService.extractSetup(runCommandList[0], job.trf)
+            tolog("The Prefetcher will be setup using: %s" % (setupString))
 
         # Create and start the TokenExtractor
 
