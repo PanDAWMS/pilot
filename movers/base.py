@@ -446,6 +446,13 @@ class BaseSiteMover(object):
             import traceback
             self.log(traceback.format_exc())
 
+            # Ignore in the case of lsm mover
+            if self.name == 'lsm':
+                self.log("Ignoring lsm error")
+                return {'checksum': None, 'checksum_type':None, 'filesize':src_fsize}
+            else:
+                self.log("Used %s mover" % (self.name))
+
         try:
             if dst_checksum and dst_checksum_type: # verify against source
                 if not src_checksum: # fspec has no checksum data defined try to calculate from the source
@@ -490,13 +497,6 @@ class BaseSiteMover(object):
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file checksum verification: %s ..  skipped" % e)
-
-            # Ignore in the case of lsm mover
-            if self.name == 'lsm':
-                self.log("Ignoring lsm error")
-                return {'checksum': None, 'checksum_type':None, 'filesize':src_fsize}
-            else:
-                self.log("Used %s mover" % (self.name))
 
         # verify stageout by filesize
         try:
