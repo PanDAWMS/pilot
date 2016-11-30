@@ -204,6 +204,8 @@ M movers/mv_sitemover.py (29)
 
 General changes:
 
+- Corrected misleading error message (StageOut->StageIn) in stageIn() (movers/base)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/94

@@ -363,7 +363,7 @@ class BaseSiteMover(object):
         except Exception, e:
             self.log("verify StageIn: caught exception while doing file checksum verification: %s ..  skipped" % e)
 
-        # verify stageout by filesize
+        # verify stage-in by filesize
         try:
             if not src_fsize:
                 src_fsize = self.getRemoteFileSize(source)
@@ -385,7 +385,7 @@ class BaseSiteMover(object):
         except PilotException:
             raise
         except Exception, e:
-            self.log("verify StageOut: caught exception while doing file size verification: %s .. skipped" % e)
+            self.log("verify StageIn: caught exception while doing file size verification: %s .. skipped" % e)
 
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
