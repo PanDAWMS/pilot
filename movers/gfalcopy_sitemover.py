@@ -22,7 +22,7 @@ class gfalcopySiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "gfal-sum"
 
-    schemes = ['srm', 'gsiftp'] # list of supported schemes for transfers
+    schemes = ['srm', 'gsiftp', 'https'] # list of supported schemes for transfers
 
     def _stagefile(self, cmd, source, destination, filesize, is_stagein):
         """
