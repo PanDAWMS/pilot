@@ -2525,6 +2525,29 @@ class RunJobEvent(RunJob):
             tolog("Failed to get cpu consumption time from proc: %s" % (traceback.format_exc()))
         return cpuConsumptionTime
 
+    def updateRunCommand(self, runCommand):
+        """ Update the run command with additional options """
+
+        # AthenaMP needs to know where exactly is the PFC
+        runCommand += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.getPoolFileCatalogPath())
+
+        # Tell AthenaMP the name of the yampl channel
+        if "PILOT_EVENTRANGECHANNEL" in runCommand:
+            runCommand = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (self.getYamplChannelName()) + runCommand
+        elif not "--preExec" in runCommand:
+            runCommand += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (self.getYamplChannelName())
+        else:
+            if "import jobproperties as jps" in runCommand:
+                runCommand = runCommand.replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
+            else:
+                if "--preExec \'" in runCommand:
+                    runCommand = runCommand.replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
+                elif '--preExec \"' in runCommand:
+                    runCommand = runCommand.replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";' % (self.getYamplChannelName()))
+                else:
+                    tolog("!!WARNING!!43431! --preExec has an unknown format - expected \'--preExec \"\' or \"--preExec \'\", got: %s" % (runCommand))
+
+        return runCommand
 
 
 # main process starts here
@@ -2890,24 +2913,8 @@ if __name__ == "__main__":
             job.result[2] = error.ERR_ESRECOVERABLE
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-        # AthenaMP needs to know where exactly is the PFC
-        runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
-
-        # Tell AthenaMP the name of the yampl channel
-        if "PILOT_EVENTRANGECHANNEL" in runCommandList[0]:
-            runCommandList[0] = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (runJob.getYamplChannelName()) + runCommandList[0]
-        elif not "--preExec" in runCommandList[0]:
-            runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
-        else:
-            if "import jobproperties as jps" in runCommandList[0]:
-                runCommandList[0] = runCommandList[0].replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
-            else:
-                if "--preExec \'" in runCommandList[0]:
-                    runCommandList[0] = runCommandList[0].replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
-                elif '--preExec \"' in runCommandList[0]:
-                    runCommandList[0] = runCommandList[0].replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";' % (runJob.getYamplChannelName()))
-                else:
-                    tolog("!!WARNING!!43431! --preExec has an unknown format - expected \'--preExec \"\' or \"--preExec \'\", got: %s" % (runCommandList[0]))
+        # Update the run command with additional options
+        runCommandList[0] = runJob.updateRunCommand(runCommandList[0])
 
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 
