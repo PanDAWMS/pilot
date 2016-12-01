@@ -736,7 +736,8 @@ class RunJobEvent(RunJob):
             tolog("Prefetcher is not needed")
 
     def init_guid_list(self):
-        """ Init guid and lfn list for stagein files"""
+        """ Init guid and lfn list for staged in files"""
+
         for guid in self.__job.inFilesGuids:
             self.__guid_list.append(guid)
         for lfn in self.__job.inFiles:
@@ -2100,6 +2101,17 @@ class RunJobEvent(RunJob):
 
         return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
 
+    def getPrefetcherProcess(self, thisExperiment, setup, input_file, stdout=None, stderr=None):
+        """ Execute the TokenExtractor """
+
+        options = "'--inputEVNTFile' '%s' '--outputEVNT_MRGFile' 'prefix-of-the-local-file-names' '--preInclude' 'AthenaMP_EventService.py,SetUniqueYamplChannelName.py'" % (input_file)
+
+        # Define the command
+        cmd = "%s export ATHENA_PROC_NUMBER=1; EVNTMerge_tf.py %s" % (setup, options)
+
+        # Execute and return the Prefetcher subprocess object
+        return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
+
     def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None, url=""):
         """ Execute the TokenExtractor """
 
@@ -2712,7 +2724,7 @@ if __name__ == "__main__":
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 
-        # already stagein files should be in the guid list and lfn list
+        # Already staged in files should be in the guid list and lfn list
         runJob.init_guid_list()
 
         # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
@@ -2762,6 +2774,10 @@ if __name__ == "__main__":
         runJob.setMessageThread(message_thread)
         runJob.startMessageThread()
 
+        # threading ends here ..............................................................................
+
+        # service tools starts here ........................................................................
+
         # Should the token extractor be used?
         runJob.setUseTokenExtractor(runCommandList[0])
 
@@ -2771,15 +2787,10 @@ if __name__ == "__main__":
         # Stdout/err file objects
         tokenextractor_stdout = None
         tokenextractor_stderr = None
+        prefetcher_stdout = None
+        prefetcher_stderr = None
         athenamp_stdout = None
         athenamp_stderr = None
-
-        # Create and start the Prefetcher
-
-        # Extract the proper setup string from the run command in case the Prefetcher should be used
-        if runJob.usePrefetcher():
-            setupString = thisEventService.extractSetup(runCommandList[0], job.trf)
-            tolog("The Prefetcher will be setup using: %s" % (setupString))
 
         # Create and start the TokenExtractor
 
@@ -2814,7 +2825,7 @@ if __name__ == "__main__":
                 input_file = job.inFiles[0]
                 input_file_guid = job.inFilesGuids[0]
 
-            # Get the Token Extractor command
+            # Get the Token Extractor process
             tolog("Will use input file %s for the TokenExtractor" % (input_file))
             tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
                                                                     stdout=tokenextractor_stdout, stderr=tokenextractor_stderr,\
@@ -2824,6 +2835,28 @@ if __name__ == "__main__":
             tokenextractor_stdout = None
             tokenextractor_stderr = None
             tokenExtractorProcess = None
+
+        # Create and start the Prefetcher
+
+        # Extract the proper setup string from the run command in case the Prefetcher should be used
+        if runJob.usePrefetcher():
+            setupString = thisEventService.extractSetup(runCommandList[0], job.trf)
+            tolog("The Prefetcher will be setup using: %s" % (setupString))
+
+            # Create the file objects
+            prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
+
+            # Get the Prefetcher process
+            prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=os.path.join(job.workdir(), job.inFiles[0]), \
+                                                                    stdout=prefetcher_stdout, stderr=prefetcher_stderr)
+        else:
+            setupString = None
+            prefetcher_stdout = None
+            prefetcher_stderr = None
+            prefetcherProcess = None
+
+        # service tools ends here ..........................................................................
+
 
         # Create the file objects
         athenamp_stdout, athenamp_stderr = runJob.getStdoutStderrFileObjects(stdoutName="athena_stdout.txt", stderrName="athena_stderr.txt")
