@@ -226,6 +226,18 @@ File Changes
 M GFAL2SiteMover.py (2)
 M movers/base.py (17)
 
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/95
+
+Commit Summary
+
+- Add https to gfal mover
+
+File Changes
+
+M movers/gfalcopy_sitemover.py (2)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
