@@ -118,6 +118,21 @@ class ATLASExperiment(Experiment):
 
         return cmd2
 
+    def isNightliesRelease(self, homePackage):
+        """ Is the homePackage for a nightlies release? """
+
+        # The pilot will regard the release as a nightlies if the homePackage contains a time-stamp
+        # (the time stamp is aactually a sub directory;
+        # e.g. /cvmfs/atlas-nightlies.cern.ch/repo/sw/21.0.X/2016-12-01T2101/)
+
+        status = False
+
+        # If a timestamp can be extracted from the homePackage, it is a nightlies release
+        if self.extractNightliesTimestamp(homePackage) != "":
+            status = True
+
+        return status
+
     def getJobExecutionCommand(self, job, jobSite, pilot_initdir):
         """ Define and test the command(s) that will be used to execute the payload """
 
@@ -209,7 +224,7 @@ class ATLASExperiment(Experiment):
             if m_cacheDirVer != None:
                 # user jobs
                 cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, job.release)
-            elif "," in job.homePackage or "rel_" in job.homePackage:
+            elif "," in job.homePackage or self.isNightliesRelease(job.homePackage):
                 # nightlies; e.g. homePackage = "AtlasProduction,rel_0"
                 cacheDir = job.homePackage
                 cacheVer = job.release #None
@@ -1017,7 +1032,7 @@ class ATLASExperiment(Experiment):
         # install the trf in the work dir if it is not installed on the site
         # special case for nightlies (rel_N already in siteroot path, so do not add it)
 
-        if "rel_" in job.homePackage:
+        if self.isNightliesRelease(job.homePackage):
             installDir = siteroot
         else:
             installDir = os.path.join(siteroot, job.homePackage)
@@ -1041,7 +1056,7 @@ class ATLASExperiment(Experiment):
 
         # install the trf in the work dir if it is not installed on the site
         # special case for nightlies (rel_N already in siteroot path, so do not add it)
-        if "rel_" in job.homePackage:
+        if self.isNightliesRelease(job.homePackage):
             installDir = siteroot
         else:
             installDir = os.path.join(siteroot, job.homePackage)
@@ -1052,7 +1067,7 @@ class ATLASExperiment(Experiment):
         tolog("Trf installation dir: %s" % (installDir))
 
         # special case for nightlies (no RunTime dir)
-        if "rel_" in job.homePackage:
+        if self.isNightliesRelease(job.homePackage):
             sfile = os.path.join(installDir, "setup.sh")
         else:
             sfile = installDir + ('/%sRunTime/cmt/setup.sh' % job.homePackage.split('/')[0])
@@ -1259,7 +1274,7 @@ class ATLASExperiment(Experiment):
             m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', homePackage)
             if m_cacheDirVer != None:
                 cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, atlasRelease)
-            elif "," in homePackage or "rel_" in homePackage: # if nightlies are used, e.g. homePackage = "AtlasProduction,rel_0"
+            elif "," in homePackage or self.isNightliesRelease(homePackage): # if nightlies are used, e.g. homePackage = "AtlasProduction,rel_0"
                 cacheDir = homePackage
             cmd = self.getProperASetup(swbase, atlasRelease, homePackage, cmtconfig, cacheVer=cacheVer, cacheDir=cacheDir)
         else:
@@ -1294,7 +1309,7 @@ class ATLASExperiment(Experiment):
             # Special case for AtlasDerivation. In this case cacheVer = rel_N
             # and we need to add cacheDir and the release itself
             special_cacheDirs = ['AtlasDerivation','AtlasOffline','VAL'] # Add more cases if necessary
-            if cacheDir in special_cacheDirs and "rel_" in cacheVer:
+            if cacheDir in special_cacheDirs and self.isNightliesRelease(cacheVer):
                 # strip any special cacheDirs from the release string, if present
                 for special_cacheDir in special_cacheDirs:
                     if special_cacheDir in atlasRelease:
@@ -1523,7 +1538,7 @@ class ATLASExperiment(Experiment):
         # Define cmd2
         try:
             # Special case for nightlies
-            if "rel_" in homePackage or "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage: # rel_N is already in installDir, do not add like below
+            if self.isNightliesRelease(homePackage) or "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage: # rel_N is already in installDir, do not add like below
                 cmd2 = '' #unset CMTPATH;'
             else:
                 cmd2 = 'unset CMTPATH;cd %s/%sRunTime/cmt;source ./setup.sh;cd -;' % (installDir, homePackage.split('/')[0])
@@ -1978,7 +1993,6 @@ class ATLASExperiment(Experiment):
     def getVerifiedAtlasSetupPath(self, swbase, release, homePackage, cmtconfig):
         """ Get a verified asetup path"""
 
-        rel_N = None
         path = None
         skipVerification = False # verification not possible for more complicated setup (nightlies)
         if 'HPC_' in readpar("catchall"):
@@ -1987,15 +2001,14 @@ class ATLASExperiment(Experiment):
         # First try with the cmtconfig in the path. If that fails, try without it
 
         # Are we using nightlies?
-        if "rel_" in homePackage:
-            # extract the rel_N bit and use it in the path
-            rel_N = self.extractRelN(homePackage)
-            tolog("Extracted %s from homePackage=%s" % (rel_N, homePackage))
-            if rel_N:
-                # path = "%s/%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release, rel_N)
-                path = self.getModernASetup(swbase=swbase)
-                tolog("1. path = %s" % (path))
-                skipVerification = True
+        timestamp = self.extractNightliesTimestamp(homePackage)
+        if timestamp != "":
+            # extract the nightlies time stamp and use it in the path
+            tolog("Extracted timestamp=%s from homePackage=%s" % (timestamp, homePackage))
+            # path = "%s/%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release, timestamp)
+            path = self.getModernASetup(swbase=swbase)
+            tolog("1. path = %s" % (path))
+            skipVerification = True
         if not path:
             path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release)
 
@@ -2005,8 +2018,8 @@ class ATLASExperiment(Experiment):
                 tolog("Using AtlasSetup (%s exists with cmtconfig in the path)" % (path))
             else:
                 tolog("%s does not exist (trying without cmtconfig in the path)" % (path))
-                if rel_N:
-                    path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, release, rel_N)
+                if timestamp != "":
+                    path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, release, timestamp)
                 else:
                     path = "%s/%s/cmtsite/asetup.sh" % (swbase, release)
                 status = os.path.exists(path)
@@ -2132,37 +2145,34 @@ class ATLASExperiment(Experiment):
             options = options.replace("notest", "%s,notest" % (_project))
 
         # nightlies setup?
-        if "rel_" in homePackage:
-            # extract the rel_N bit and use it in the path
-            rel_N = self.extractRelN(homePackage) # e.g. rel_N = rel_0
-            if rel_N:
-                tolog("Extracted %s from homePackage=%s" % (rel_N, homePackage))
-                # asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, rel_N)
-                asetup_path = self.getModernASetup(swbase=swbase)
-                tolog("2. path=%s" % (asetup_path))
-                # use special options for nightlies (not the release info set above)
-                # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
-                # Special case for AtlasDerivation. In this case cacheVer = rel_N, so we don't want to add both cacheVer and rel_N,
-                # and we need to add cacheDir and the release itself
-                special_cacheDirs = ['AtlasDerivation'] # Add more cases if necessary
-                if cacheDir in special_cacheDirs:
-                    # strip any special cacheDirs from the release string, if present
-                    for special_cacheDir in special_cacheDirs:
-                        if special_cacheDir in atlasRelease:
-                            tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
-                            atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
-                            tolog("Release string updated: %s" % (atlasRelease))
-                    options = cacheDir + "," + atlasRelease + "," + rel_N + ",notest,here" # E.g. AtlasDerivation,19.1.X.Y-VAL,rel_3,notest,here
-                else:
-                    # correct an already set cacheVer if necessary
-                    if cacheVer == rel_N:
-                        tolog("Found a cacheVer set to %s: resetting to atlasRelease=%s" % (cacheVer, atlasRelease))
-                        cacheVer = atlasRelease
-                    options = cacheVer + "," + rel_N + ",notest,here"
-                    tolog("Options: %s" % (options))
+        timestamp = self.extractNightliesTimestamp(homePackage)
+        if timestamp != "":
+            tolog("Extracted timestamp=%s from homePackage=%s" % (timestamp, homePackage))
+            # asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, timestamp)
+            asetup_path = self.getModernASetup(swbase=swbase)
+            tolog("2. path=%s" % (asetup_path))
+            # use special options for nightlies (not the release info set above)
+            # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
+            # Special case for AtlasDerivation. In this case cacheVer = timestamp,
+            # so we don't want to add both cacheVer and timestamp,
+            # and we need to add cacheDir and the release itself
+            special_cacheDirs = ['AtlasDerivation'] # Add more cases if necessary
+            if cacheDir in special_cacheDirs:
+                # strip any special cacheDirs from the release string, if present
+                for special_cacheDir in special_cacheDirs:
+                    if special_cacheDir in atlasRelease:
+                        tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
+                        atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
+                        tolog("Release string updated: %s" % (atlasRelease))
+                # E.g. AtlasDerivation,19.1.X.Y-VAL,2016-11-29T2119,notest,here
+                options = cacheDir + "," + atlasRelease + "," + timestamp + ",notest,here"
             else:
-                tolog("!!WARNING!!1111!! Failed to extract rel_N from homePackage=%s (forced to use default cmtsite setup)" % (homePackage))
-                asetup_path = "%s/cmtsite/asetup.sh" % (path)
+                # correct an already set cacheVer if necessary
+                if cacheVer == timestamp:
+                    tolog("Found a cacheVer set to %s: resetting to atlasRelease=%s" % (cacheVer, atlasRelease))
+                    cacheVer = atlasRelease
+                options = cacheVer + "," + timestamp + ",notest,here"
+                tolog("Options: %s" % (options))
         else:
             asetup_path = "%s/cmtsite/asetup.sh" % (path)
 
@@ -2204,30 +2214,30 @@ class ATLASExperiment(Experiment):
 
         return '%s %s %s --makeflags=\"$MAKEFLAGS\" --cmtconfig %s %s%s' % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
-    def extractRelN(self, homePackage):
-        """ Extract the rel_N bit from the homePackage string """
+    def extractNightliesTimestamp(self, homePackage):
+        """ Extract the nightlies timestamp from the homePackage """
 
-        # s = "AtlasProduction,rel_0"
-        # -> rel_N = "rel_0"
+        # s = "AtlasProduction,2016-11-29T2114"
+        # -> timestamp = "2016-11-29T2114"
 
-        rel_N = None
+        timestamp = ""
 
-        if "AnalysisTransforms" in homePackage and "_rel_" in homePackage:
-            pattern = re.compile(r"AnalysisTransforms\-[A-Za-z0-9]+\_(rel\_\d+)")
+        if "AnalysisTransforms" in homePackage:
+            pattern = re.compile(r"AnalysisTransforms\-[A-Za-z0-9]+\_(\d+\-\d+\S+\d+)")
             found = re.findall(pattern, homePackage)
             if len(found) > 0:
-                rel_N = found[0]
+                timestamp = found[0]
 
         elif not "," in homePackage:
-            rel_N = homePackage
+            timestamp = homePackage
 
         elif homePackage != "":
-            pattern = re.compile(r"[A-Za-z0-9]+,(rel\_\d+)")
+            pattern = re.compile(r"[A-Za-z0-9]+\_(\d+\-\d+\S+\d+)")
             found = re.findall(pattern, homePackage)
             if len(found) > 0:
-                rel_N = found[0]
+                timestamp = found[0]
 
-        return rel_N
+        return timestamp
 
     def dump(self, path, cmd="cat"):
         """ Dump the content of path to the log """

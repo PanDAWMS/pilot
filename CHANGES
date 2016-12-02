@@ -213,6 +213,12 @@ Event service changes:
 - Created __usePrefetcher, usePrefetcher(), setUsePrefetcher() (RunJobEvent)
 - Calling setUsePrefetcher() from __main__() (RunJobEvent)
 
+Nightlies setup changes:
+
+- Created isNightliesRelease() (ATLASExperiment)
+- Using isNightliesRelease instead of looking for rel_N in the homePackage in eight places (ATLASExperiment)
+- Rewrote extractRelN() to extractNightliesTimestamp() (ATLASExperiment)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/94
