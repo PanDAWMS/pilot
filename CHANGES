@@ -219,6 +219,11 @@ Nightlies setup changes:
 - Using isNightliesRelease instead of looking for rel_N in the homePackage in eight places (ATLASExperiment)
 - Rewrote extractRelN() to extractNightliesTimestamp() (ATLASExperiment)
 
+Tracing report update:
+
+- Now setting taskID in getInitialTracingReport() (Mover)
+- Sending job.taskID to getInitialTracingReport() from 4 places (Mover)
+ 
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/94

@@ -833,7 +833,7 @@ def getReplicaDictionaryFile(workdir):
 
     return replica_dictionary
 
-def getInitialTracingReport(userid, sitename, dsname, eventType, analysisJob, jobId, jobDefId, dn):
+def getInitialTracingReport(userid, sitename, dsname, eventType, analysisJob, jobId, jobDefId, dn, taskID):
     """ setup the dictionary necessary for all instrumentation """
 
     if analysisJob:
@@ -880,6 +880,7 @@ def getInitialTracingReport(userid, sitename, dsname, eventType, analysisJob, jo
               'usrdn': dn,
               'url': None,
               'stateReason': None,
+              'taskid': taskID
               }
 
     if jobDefId == "":
@@ -2446,7 +2447,7 @@ def _mover_get_data_new(lfns,                       #  use job.inData instead
     trace_report.init(job)
 
     # Setup the dictionary necessary for all instrumentation
-    report = getInitialTracingReport(userid, sitename, dsname, "get_sm", analysisJob, jobId, jobDefId, DN)
+    report = getInitialTracingReport(userid, sitename, dsname, "get_sm", analysisJob, jobId, jobDefId, DN, job.taskID)
 
     get_RETRY = stageinTries or MAX_RETRY
     get_RETRY = min(get_RETRY, MAX_NUMBER_OF_RETRIES)
@@ -2837,7 +2838,7 @@ def mover_get_data(lfns,
         return 0, pilotErrorDiag, statusPFCTurl, FAX_dictionary
 
     # Setup the dictionary necessary for all instrumentation
-    report = getInitialTracingReport(userid, sitename, dsname, "get_sm", analysisJob, jobId, jobDefId, DN)
+    report = getInitialTracingReport(userid, sitename, dsname, "get_sm", analysisJob, jobId, jobDefId, DN, job.taskID)
 
     if stageinTries != 0:
         get_RETRY = min(stageinTries, MAX_NUMBER_OF_RETRIES)
@@ -3756,13 +3757,11 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
     workDir = recoveryWorkDir or os.path.dirname(job.workdir)
 
     # setup the dictionary necessary for all instrumentation
-    report = getInitialTracingReport(userid, sitename, pdsname, "put_sm", analysisJob, jobId, jobDefId, DN)
-
+    report = getInitialTracingReport(userid, sitename, pdsname, "put_sm", analysisJob, jobId, jobDefId, DN, job.taskID)
 
     # Remember that se can be a list where the first is used for output but any can be used for input
     listSEs = readpar('se').split(',')
     tolog("SE list: %s" % listSEs)
-
 
     # Get the site information object and set the queuename
     si = getSiteInformation(experiment)
@@ -4092,7 +4091,7 @@ def mover_put_data(outputpoolfcstring,
         workDir = os.path.dirname(job.workdir)
 
     # setup the dictionary necessary for all instrumentation
-    report = getInitialTracingReport(job.prodUserID, sitename, pdsname, "put_sm", analysisJob, job.jobId, job.jobDefinitionID, job.prodUserID)
+    report = getInitialTracingReport(job.prodUserID, sitename, pdsname, "put_sm", analysisJob, job.jobId, job.jobDefinitionID, job.prodUserID, job.taskID)
 
     # Remember that se can be a list where the first is used for output but any can be used for input
     listSEs = readpar('se').split(',')
