@@ -82,6 +82,9 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     msgdic["dbTime"] = job.dbTime
     msgdic["dbData"] = job.dbData
 
+    if job.external_stageout_time:
+        msgdic['external_stageout_time'] = job.external_stageout_time
+
     if job.outputZipName and job.outputZipBucketID:
         msgdic['outputZipName'] = job.outputZipName
         msgdic['outputZipBucketID'] = job.outputZipBucketID
@@ -104,7 +107,6 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
         msgdic['refreshNow'] = job.refreshNow
     if job.coreCount or job.coreCount == 0:
         msgdic['coreCount'] = job.coreCount
-
 
     # report FAX usage if at least one successful FAX transfer
     if job.filesWithFAX > 0:
@@ -129,7 +131,7 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
         tolog("filesNormalStageOut not set")
 
     # truncate already now if necesary so not too much junk is sent back to the local pilot TCP server
-    if job.pilotErrorDiag != None:
+    if job.pilotErrorDiag != None and job.pilotErrorDiag != "None" and len(job.pilotErrorDiag.strip()) != 0:
         # remove any unwanted characters from the string
         job.pilotErrorDiag = encode_string(job.pilotErrorDiag)
     msgdic["pilotErrorDiag"] = job.pilotErrorDiag
@@ -151,6 +153,8 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
 
     # set final job state (will be propagated to the job state file)
     if final:
+        if job.subStatus:
+            msgdic['subStatus'] = job.subStatus
         job.finalstate = getFinalState(job.result)
         tolog("Final payload state set to: %s" % (job.finalstate))
         msgdic["finalstate"] = job.finalstate

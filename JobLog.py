@@ -93,6 +93,162 @@ class JobLog:
         if safe_call(rmtree, _dir):
             tolog("Removed directory: %s" % (_dir))
 
+
+    ## new sitemovers based implementation
+    def transferLogFile_new(self, job, site,
+                            experiment, ## useless => consider job.experiment instead of
+                            dest=None,  ## old workflow?: destination dir: if set then apply mv logfile to `dst`, no other real transfers
+                            jr=False    ## job recover: currently not used?
+                            ):
+        """
+            Transfer the log file to regular storage and to special OS if need (new site movers implementation)
+            :return: (status, job) # backward compatible return
+            note: returning `job` is useless since passed by reference
+        """
+
+        if dest: # old (debug?) workflow: only copy log file to dest dir if specified
+            status = self.copyLogFile(dest, site.workdir, job.logFile, job.newDirNM)
+            state_value = "transferred" if status else "not_transferred"
+            # update the current file state
+            updateFileState(job.logFile, site.workdir, job.jobId, mode="file_state", state=state_value)
+            dumpFileStates(site.workdir, job.jobId)
+
+            return status, job
+
+        if job.inFiles: # old logic: remove any lingering input files from the work dir
+            removeFiles(job.workdir, job.inFiles)
+
+        # get the log file guid (if not set already)
+        #job.tarFileGuid = self.getLogFileGuid(job.tarFileGuid, job.logFile, job.jobId, site.workdir)
+
+        # create the xml needed for the registration if it doesn't exist already (for a secondary log transfer)
+        WDTxml = "%s.xml" % job.newDirNM
+        if not os.path.exists(WDTxml):
+            PFCxml(job.experiment, WDTxml, fntag="pfn", alog=job.logFile, alogguid=job.tarFileGuid, jr=jr)
+        else:
+            tolog("Log XML already exists: %s" % WDTxml)
+
+        experiment = job.experiment
+        _exp = getExperiment(experiment)
+        os_transfer = _exp.doSpecialLogFileTransfer(eventService=job.eventService, putLogToOS=job.putLogToOS)
+
+        if os_transfer: ## do transfer log file to ObjectStore
+
+            tolog("Special log transfer: Attempting log file transfer to ObjectStore")
+
+            job_work_dir = job.workdir
+            try:
+                t0 = os.times()
+                ### fix job.workdir since log files are located outside job dir
+                job.workdir = site.workdir ### quick hack: FIX ME LATER
+                rc, pilotErrorDiag, rf, _dummy, filesNormalStageOut, filesAltStageOut = mover.put_data_new(job, site, stageoutTries=self.__env['stageoutretry'], log_transfer=False, special_log_transfer=True, workDir=site.workdir)
+
+                #job.filesNormalStageOut += filesNormalStageOut
+                #job.filesAltStageOut += filesAltStageOut
+
+                t1 = os.times()
+                job.timeStageOutLogSpecial = int(round(t1[4] - t0[4]))
+
+            except Exception, e:
+                t1 = os.times()
+                job.timeStageOutLogSpecial = int(round(t1[4] - t0[4]))
+
+                error = "FAILED to stage out log: %s, trace=%s" % (e, traceback.format_exc())
+                tolog(error)
+
+                pilotErrorDiag = "failed to stageout log: %s" % e
+                rc = PilotErrors.ERR_PUTFUNCNOCALL
+
+            job.workdir = job_work_dir ### quick hack: restore workdif
+
+            tolog("Put function [stage-outlog special] returned code: %s" % rc)
+
+            if rc:
+                tolog("WARNING: Failed to transfer log file to special SE (ObjectStore) .. skipped, error=%s" % pilotErrorDiag)
+            else:
+                # Update the OS transfer dictionary
+                for fspec in job.logSpecialData:
+                    if fspec.status == 'transferred':
+                        tolog(" -- INFO: lfn=%s has been successfully transferred to OS: %s, bucket_id=%s" % (fspec.lfn, job.logBucketID, job.logDDMEndpoint))
+                        addToOSTransferDictionary(fspec.lfn, self.__env['pilot_initdir'], job.logBucketID, job.logDDMEndpoint)
+
+        # stage-out log file to regular SE
+        tolog("Attempting log file transfer to primary SE")
+
+        job_work_dir = job.workdir
+
+        try:
+            t0 = os.times()
+            ### fix job.workdir since log files are located outside job dir
+            job.workdir = site.workdir ### quick hack: FIX ME LATER
+            rc, pilotErrorDiag, rf, _dummy, filesNormalStageOut, filesAltStageOut = mover.put_data_new(job, site, stageoutTries=self.__env['stageoutretry'], log_transfer=True, workDir=site.workdir)
+
+            job.filesNormalStageOut += filesNormalStageOut
+            job.filesAltStageOut += filesAltStageOut
+
+            t1 = os.times()
+            job.timeStageOutLog = int(round(t1[4] - t0[4]))
+
+        except Exception, e:
+            t1 = os.times()
+            job.timeStageOutLog = int(round(t1[4] - t0[4]))
+
+            error = "FAILED to stage out log: %s, trace=%s" % (e, traceback.format_exc())
+            tolog(error)
+
+            pilotErrorDiag = "failed to stageout log: %s" % e
+            rc = PilotErrors.ERR_PUTFUNCNOCALL
+            #job.setState(["holding", job.result[1], rc])
+            #return False, job
+
+        ## quick hack: restore job workdir
+        job.workdir = job_work_dir
+
+        tolog("Put function [stage-outlog] returned code: %s" % rc)
+
+        if rc:
+            if pilotErrorDiag: # do not overwrite any existing pilotErrorDiag (from a get operation e.g.)
+                if job.pilotErrorDiag:
+                    job.pilotErrorDiag += "|"
+                else:
+                    job.pilotErrorDiag = ""
+                job.pilotErrorDiag += "Log put error: " + pilotErrorDiag
+
+            if job.pilotErrorDiag:
+                job.pilotErrorDiag = job.pilotErrorDiag[-256:]
+
+            # check if the job is recoverable?
+            _state, _msg = "failed", "FAILED"
+            if PilotErrors.isRecoverableErrorCode(rc) and '(unrecoverable)' not in pilotErrorDiag:
+                _state, _msg = "holding", "WARNING"
+
+            # set the error code for the log transfer only if there was no previous error (e.g. from the get-operation)
+            if job.result[2] == 0:
+                job.setState([_state, job.result[1], rc])
+
+            tolog("%s: %s" % (_msg, PilotErrors.getErrorStr(rc)))
+            tolog("%s: Could not transfer log file to primary SE" % (self.__env['errorLabel']))
+
+        else:
+            #job.setState(["finished", 0, 0])
+            createLockFile(self.__env['jobrec'], site.workdir, lockfile="LOGFILECOPIED_%s" % job.jobId)
+
+        # old logic: latereg, not used anymore?
+        job.log_latereg = "False" # to be deprecated?
+        job.log_field = None      # to be deprecated
+
+        # clean up
+        if os.path.isdir(job.newDirNM):
+            self.removeTree(job.newDirNM)
+        try:
+            os.remove(WDTxml)
+            tolog("%s removed" % WDTxml)
+        except Exception, e:
+            tolog("WARNING: Could not remove %s: %s" % (WDTxml, e))
+
+        return (not rc, job)
+
+    @mover.use_newmover(transferLogFile_new)
     def transferLogFile(self, job, site, experiment, dest=None, jr=False):
         """ Transfer the log file to storage """
 
@@ -1160,6 +1316,8 @@ class JobLog:
                 else:
                     try:
                         os.rename("%s.gz" % (tarballNM), job.logFile)
+                        #command = "cp %s ../" % job.logFile
+                        #os.system(command)
                     except OSError:
                         tolog("!!WARNING!!1400!! Could not rename gzipped tarball %s" % job.logFile)
                     else:

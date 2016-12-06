@@ -537,7 +537,7 @@ class LocalSiteMover(SiteMover.SiteMover):
             timerCommand = TimerCommand(_cmd_str)
             ec, o = timerCommand.run(timeout=self.timeout)
         except Exception, e:
-            tolog("!!WARNING!!2999!! gfal-copy threw an exception: %s" % (o))
+            tolog("!!WARNING!!2999!! lsm command threw an exception: %s" % (o))
             o = str(e)
         outputRet["report"]['validateStart'] = time()
         t1 = os.times()
@@ -564,7 +564,7 @@ class LocalSiteMover(SiteMover.SiteMover):
         return statusRet, outputRet
 
     def getRemoteFileChecksum(self, full_surl, checksumType):
-        """ get checksum with gfal-sum command """
+        """ get checksum """
         remote_checksum = None
         output = None
 
@@ -574,7 +574,7 @@ class LocalSiteMover(SiteMover.SiteMover):
         return remote_checksum
 
     def getRemoteFileSize(self, full_surl):
-        """ extract checksum and file size from gfal-ls output """
+        """ extract checksum and file size """
 
         errorLog = "LocalSiteMover has no function getRemoteFileSize"
         self.log('!!WARNING!!2999!! %s' % (errorLog))

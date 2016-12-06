@@ -45,7 +45,7 @@ try:
     from PilotYamplServer import PilotYamplServer as MessageServer
 except Exception, e:
     MessageServer = None
-    print "RunJobEvent caught exception:",e
+    tolog("RunJobEvent caught exception: %s" % str(e))
 
 class RunJobEvent(RunJob):
 
@@ -99,7 +99,80 @@ class RunJobEvent(RunJob):
     # ES zip
     __esToZip = False
 
+    # calculate cpu time, os.times() doesn't report correct value for preempted jobs
+    __childProcs = []
+    __child_cpuTime = {}
+
+    # record processed events
+    __nEvents = 0
+    __nEventsW = 0
+    __nEventsFailed = 0
+    __nEventsFailedStagedOut = 0
+
+    # error fatal code
+    __esFatalCode = None
+
+    # external stagout time(time after athenaMP terminated)
+    __external_stagout_time = 0
+
     # Getter and setter methods
+
+    def getNEvents(self):
+        return self.__nEvents, self.__nEventsW, self.__nEventsFailed, self.__nEventsFailedStagedOut
+
+    def getSubStatus(self):
+        if not self.__eventRangeID_dictionary:
+            return 'no_events'
+        if self.__esFatalCode:
+            return 'pilot_failed'
+        if self.__nEventsFailed:
+            if self.__nEventsFailed < self.__nEventsW:
+                return 'partly_failed'
+            elif self.__nEventsW == 0:
+                return 'pilot_failed' # 'all_failed'
+            else:
+                return 'mostly_failed'
+        else:
+            return 'all_success'
+
+    def setFinalESStatus(self, job):
+        if not self.__eventRangeID_dictionary:
+            job.subStatus = 'pilot_failed'  # 'no_events'
+            job.pilotErrorDiag = "Pilot got no events"
+            job.result[0] = "failed"
+            job.result[2] = self.__error.ERR_NOEVENTS
+            job.jobState = "failed"
+        elif self.__esFatalCode:
+            job.subStatus = 'pilot_failed'
+            job.pilotErrorDiag = "AthenaMP fatal error happened"
+            job.result[0] = "failed"
+            job.result[2] = self.__esFatalCode
+            job.jobState = "failed"
+        elif self.__nEventsFailed:
+            if self.__nEventsW == 0:
+                job.subStatus = 'pilot_failed' # all failed
+                job.pilotErrorDiag = "All events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.result[0] = "failed"
+                job.result[2] = self.__error.ERR_ESRECOVERABLE
+                job.jobState = "failed"
+            elif self.__nEventsFailed < self.__nEventsW:
+                job.subStatus = 'partly_failed'
+                job.pilotErrorDiag = "Part of events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.result[0] = "failed"
+                job.result[2] = self.__error.ERR_ESRECOVERABLE
+                job.jobState = "failed"
+            else:
+                job.subStatus = 'mostly_failed' 
+                job.pilotErrorDiag = "Most of events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.result[0] = "failed"
+                job.result[2] = self.__error.ERR_ESRECOVERABLE
+                job.jobState = "failed"
+        else:
+            job.subStatus = 'all_success'
+            job.jobState = "finished"
+
+    def getESFatalCode(self):
+        return self.__esFatalCode
 
     def getExperiment(self):
         """ Getter for __experiment """
@@ -150,6 +223,7 @@ class RunJobEvent(RunJob):
         """ Setter for __pworkdir """
 
         self.__pworkdir = pworkdir
+        super(RunJobEvent, self).setParentWorkDir(pworkdir)
 
     def getLogGUID(self):
         """ Getter for __logguid """
@@ -180,6 +254,7 @@ class RunJobEvent(RunJob):
         """ Setter for __stageinretry """
 
         self.__stageinretry = stageinretry
+        super(RunJobEvent, self).setStageInRetry(stageinretry)
 
     def getStageOutRetry(self):
         """ Getter for __stageoutretry """
@@ -200,6 +275,7 @@ class RunJobEvent(RunJob):
         """ Setter for __pilot_initdir """
 
         self.__pilot_initdir = pilot_initdir
+        super(RunJobEvent, self).setPilotInitDir(pilot_initdir)
 
     def getProxyCheckFlag(self):
         """ Getter for __proxycheckFlag """
@@ -250,6 +326,7 @@ class RunJobEvent(RunJob):
         """ Setter for __inputDir """
 
         self.__inputDir = inputDir
+        super(RunJobEvent, self).setInputDir(inputDir)
 
     def getOutputDir(self):
         """ Getter for __outputDir """
@@ -746,8 +823,10 @@ class RunJobEvent(RunJob):
                 self.__logguid = options.logguid
             if options.inputDir:
                 self.__inputDir = options.inputDir
+                self.setInputDir(self.__inputDir)
             if options.pilot_initdir:
                 self.__pilot_initdir = options.pilot_initdir
+                self.setPilotInitDir(self.__pilot_initdir)
             if options.pilotlogfilename:
                 self.__pilotlogfilename = options.pilotlogfilename
             if options.pilotserver:
@@ -761,6 +840,7 @@ class RunJobEvent(RunJob):
                 self.__proxycheckFlag = True
             if options.pworkdir:
                 self.__pworkdir = options.pworkdir
+                self.setParentWorkDir(self.__pworkdir)
             if options.outputDir:
                 self.__outputDir = options.outputDir
             if options.pilotport:
@@ -776,6 +856,7 @@ class RunJobEvent(RunJob):
             if options.stageinretry:
                 try:
                     self.__stageinretry = int(options.stageinretry)
+                    self.setStageInRetry(self.__stageinretry)
                 except Exception, e:
                     tolog("!!WARNING!!3232!! Exception caught: %s" % (e))
             if options.stageoutretry:
@@ -918,10 +999,12 @@ class RunJobEvent(RunJob):
         # change to sys.exit?
         os._exit(self.__job.result[2]) # pilotExitCode, don't confuse this with the overall pilot exit code,
                                        # which doesn't get reported back to panda server anyway
-    def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
+    def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True, pilot_failed=True):
         """ set the fail code and exit """
 
         job.setState(["failed", transExitCode, pilotExitCode])
+        if pilot_failed:
+            job.subStatus = 'pilot_failed'
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
         tolog("Will now update local pilot TCP server")
@@ -1017,7 +1100,7 @@ class RunJobEvent(RunJob):
         return exitCode, exitAcronym, exitMsg
 
     def initZipConf(self):
-        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.zip" % self.__job.jobId)
+        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s.tar" % self.__job.jobId)
         self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
         if 'es_to_zip' in readpar('catchall'):
             self.__esToZip = True
@@ -1217,7 +1300,7 @@ class RunJobEvent(RunJob):
             ec, pilotErrorDiag, rf, rs, self.__job.filesNormalStageOut, self.__job.filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" %\
                                          (metadata_fname), dsname, self.__jobSite.sitename, self.__jobSite.computingElement, analysisJob=self.__analysisJob, pinitdir=self.__pilot_initdir,\
                                          proxycheck=self.__proxycheckFlag, datasetDict=datasetDict, outputDir=self.__outputDir, outputFileInfo=outputFileInfo, stageoutTries=self.__stageoutretry,\
-                                                                                                                                             eventService=True, job=self.__job)
+                                         eventService=True, job=self.__job, recoveryWorkDir=self.__job.workdir)
             tin_1 = os.times()
             self.__job.timeStageOut = int(round(tin_1[4] - tin_0[4]))
         except Exception, e:
@@ -1235,14 +1318,15 @@ class RunJobEvent(RunJob):
             ec = self.__error.ERR_PUTFUNCNOCALL
             self.__job.setState(["holding", self.__job.result[1], ec])
         else:
+            self.__job.pilotErrorDiag = pilotErrorDiag
             if self.__job.pilotErrorDiag != "":
-                if self.__job.pilotErrorDiag.startswith("Put error:"):
-                    pre = ""
-                else:
-                    pre = "Put error: "
-                self.__job.pilotErrorDiag = pre + tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("pilot: Put error: "))
+                self.__job.pilotErrorDiag = self.__job.pilotErrorDiag.replace("Put error:", "Objectstore stageout to bucket(%s) error:" % os_bucket_id)
+                self.__job.pilotErrorDiag = tailPilotErrorDiag(self.__job.pilotErrorDiag, size=256-len("Objectstore stageout to bucket(%s) error:" % os_bucket_id))
 
             tolog("Put function returned code: %d" % (ec))
+            if ec == 0:
+                self.__job.pilotErrorDiag = ""
+
             if ec != 0:
                 # is the job recoverable?
                 if self.__error.isRecoverableErrorCode(ec):
@@ -1325,7 +1409,35 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, os_bucket_id
 
-    def zipOutput(self, event_range_id, outputFileInfo):
+    def stage_out_es(self, job, event_range_id, file_paths):
+        """
+        event_range_id: event range id as a string.
+        file_paths: List of file paths.
+
+        In ES, for one event range id, more can one output files can be produced.
+        Only all these files are staged out successfully, the ret_code can be 0 and then the event range can be marked as finished.
+        If one file in the list fails, the event range should be marked as failed.
+        """
+        tolog("To stage out event %s: %s" % (event_range_id, file_paths))
+
+        files = []
+        for file_path in file_paths:
+            file_dict = {'lfn': os.path.basename(file_path),
+                         'pfn': file_path,
+                         'dataset': job.destinationDblock[0],
+                         'scope': job.scopeOut[0],
+                         'eventRangeId': event_range_id,
+                         'objectstoreId': None,
+                         'ddmendpoint': None}
+            finfo = Job.FileSpec(type='output', **file_dict)
+            files.append(finfo)
+
+        #ret_code, ret_str, os_bucket_id = mover.put_data_os(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry(), files=files, workDir=None)
+        ret_code, ret_str, os_bucket_id = mover.put_data_os(job, jobSite=self.getJobSite(), stageoutTries=1, files=files, workDir=None)
+        return ret_code, ret_str, os_bucket_id
+
+
+    def zipOutput(self, event_range_id, paths):
         """ Transfer the output file to the zip file """
 
         # FORMAT:  outputFileInfo = {'<full path>/filename.ext': (fsize, checksum, guid), ...}
@@ -1335,13 +1447,9 @@ class RunJobEvent(RunJob):
         pilotErrorDiag = ""
 
         # Extract all information from the dictionary
-        for path in outputFileInfo.keys():
+        for path in paths:
 
-            fsize = outputFileInfo[path][0]
-            checksum = outputFileInfo[path][1]
-            guid = outputFileInfo[path][2]
-
-            command = "zip -j " + self.__job.outputZipName + " " + path
+            command = "tar -rf " + self.__job.outputZipName + " --directory=%s %s" %(os.path.dirname(path), os.path.basename(path))
             tolog("Adding file to zip: %s" % command)
             ec, pilotErrorDiag = commands.getstatusoutput(command)
             tolog("status: %s, output: %s\n" % (ec, pilotErrorDiag))
@@ -1351,11 +1459,86 @@ class RunJobEvent(RunJob):
 
         tolog("Adding event range to zip event range file: %s %s" % (event_range_id, outputFileInfo))
         handler = open(self.__job.outputZipEventRangesName, "a")
-        handler.write("%s %s\n" % (event_range_id, outputFileInfo))
+        handler.write("%s %s\n" % (event_range_id, paths))
         handler.close()
 
         return ec, pilotErrorDiag
 
+    def stageOutZipFiles_new(self):
+        if not self.__esToZip:
+            tolog("ES to zip is not configured")
+            return 0, "ES to zip is not configured.", -1
+        else:
+            tolog("ES to zip is configured, will start to stage out zipped es file to objectstore")
+
+        if not os.path.exists(self.__job.outputZipName):
+            tolog("Zip file %s doesn't exist, will not continue" % self.__job.outputZipName)
+            return -1, "Zip file doesn't exist", -1
+        if not os.path.exists(self.__job.outputZipEventRangesName):
+            tolog("Zip event range file %s doesn't exist, will not continue" % self.__job.outputZipEventRangesName)
+            return -1, "Zip event range file doesn't exist", -1
+
+        ec = 0
+        pilotErrorDiag = ""
+        os_bucket_id = -1
+        event_range_id = "premerge_zip"
+        f = self.__job.outputZipName
+
+        if os.environ.has_key('Nordugrid_pilot'):
+            outputDir = os.path.dirname(os.path.dirname(self.__job.outputZipName))
+            tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName))))
+            os.rename(self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName)))
+            tolog("Copying eventranges file %s to %s" % (self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName))))
+            os.rename(self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName)))
+            return 0, None
+
+        try:
+            ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, event_range_id, [self.__job.outputZipName])
+        except Exception, e:
+            tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+        else:
+            tolog("Adding %s to output file list" % (f))
+            self.__output_files.append(f)
+            tolog("output_files = %s" % (self.__output_files))
+            errorCode = None
+            if ec == 0:
+                status = 'finished'
+            else:
+                status = 'failed'
+                errorCode = self.__error.ERR_STAGEOUTFAILED
+
+                # Update the global status field in case of failure
+                self.setStatus(False)
+
+            # update jobMetrics
+            self.__job.outputZipName = self.__job.outputZipName
+            self.__job.outputZipBucketID = os_bucket_id
+            rt = RunJobUtilities.updatePilotServer(self.__job, self.getPilotServer(), self.getPilotPort())
+            JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=self.__job.workdir)
+            JR.updatePandaServer(self.__job, self.__jobSite, self.__node, 25443)
+
+            # Time to update the server
+            eventRanges = []
+            self.__nEventsW = 0
+            dumpFile = self.__job.outputZipEventRangesName
+            file = open(dumpFile)
+            for line in file:
+                line = line.strip()
+                if len(line):
+                    eventRangeID = line.split(" ")[0]
+                    if errorCode:
+                        self.__nEventsFailed += 1
+                        self.__nEventsFailedStagedOut += 1
+                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
+                    else:
+                        self.__nEventsW += 1
+                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id})
+            for chunkEventRanges in pUtil.chunks(eventRanges, 100):
+                tolog("Update event ranges: %s" % chunkEventRanges)
+                status, output = updateEventRanges(chunkEventRanges)
+                tolog("Update Event ranges status: %s, output: %s" % (status, output))
+
+    @mover.use_newmover(stageOutZipFiles_new)
     def stageOutZipFiles(self):
         if not self.__esToZip:
             tolog("ES to zip is not configured")
@@ -1379,6 +1562,14 @@ class RunJobEvent(RunJob):
         tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
         ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
         if ec == 0:
+            if os.environ.has_key('Nordugrid_pilot'):
+                outputDir = os.path.dirname(os.path.dirname(self.__job.outputZipName))
+                tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName))))
+                os.rename(self.__job.outputZipName, os.path.join(outputDir, os.path.basename(self.__job.outputZipName)))
+                tolog("Copying tar/zip file %s to %s" % (self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName))))
+                os.rename(self.__job.outputZipEventRangesName, os.path.join(outputDir, os.path.basename(self.__job.outputZipEventRangesName)))
+                return 0, None
+
             try:
                 ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
             except Exception, e:
@@ -1387,10 +1578,12 @@ class RunJobEvent(RunJob):
                 tolog("Adding %s to output file list" % (f))
                 self.__output_files.append(f)
                 tolog("output_files = %s" % (self.__output_files))
+                errorCode = None
                 if ec == 0:
                     status = 'finished'
                 else:
                     status = 'failed'
+                    errorCode = self.__error.ERR_STAGEOUTFAILED
 
                     # Update the global status field in case of failure
                     self.setStatus(False)
@@ -1406,13 +1599,20 @@ class RunJobEvent(RunJob):
 
                 # Time to update the server
                 eventRanges = []
+                self.__nEventsW = 0
                 dumpFile = self.__job.outputZipEventRangesName
                 file = open(dumpFile)
                 for line in file:
                     line = line.strip()
                     if len(line):
                         eventRangeID = line.split(" ")[0]
-                        eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': 'finished', 'objstoreID': os_bucket_id})
+                        if errorCode:
+                            self.__nEventsFailed += 1
+                            self.__nEventsFailedStagedOut += 1
+                            eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
+                        else:
+                            self.__nEventsW += 1
+                            eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id})
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges)
@@ -1450,6 +1650,85 @@ class RunJobEvent(RunJob):
 
         self.__asyncOutputStager_thread.join()
 
+    def asynchronousOutputStager_new(self):
+        """ Transfer output files to stage-out area asynchronously """
+
+        # Note: this is run as a thread
+
+        tolog("Asynchronous output stager thread initiated")
+        while not self.__asyncOutputStager_thread.stopped():
+          try:
+            if len(self.__stageout_queue) > 0:
+                for paths in self.__stageout_queue:
+                    # Create the output file metadata (will be sent to server)
+                    tolog("Preparing to stage-out file %s" % (paths))
+                    event_range_id = self.getEventRangeID(paths)
+                    if event_range_id == "":
+                        tolog("!!WARNING!!1111!! Did not find the event range for file %s in the event range dictionary" % (paths))
+                    else:
+                        if not self.__esToZip:
+                            try:
+                                ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, event_range_id, paths)
+                            except Exception, e:
+                                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+                                tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
+                                self.__stageout_queue.remove(paths)
+                            else:
+                                tolog("Removing %s from stage-out queue" % (paths))
+                                self.__stageout_queue.remove(paths)
+                                tolog("Adding %s to output file list" % (paths))
+                                for fpath in paths:
+                                    self.__output_files.append(fpath)
+                                tolog("output_files = %s" % (self.__output_files))
+                                errorCode = None
+                                if ec == 0:
+                                    status = 'finished'
+                                    self.__nEventsW += 1
+                                else:
+                                    status = 'failed'
+                                    self.__nEventsFailed += 1
+                                    self.__nEventsFailedStagedOut += 1
+                                    errorCode = self.__error.ERR_STAGEOUTFAILED
+
+                                    # Update the global status field in case of failure
+                                    self.setStatus(False)
+
+                                try:
+                                    # Time to update the server
+                                    msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode)
+
+                                    # Did the updateEventRange back channel contain an instruction?
+                                    if msg == "tobekilled":
+                                        tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+                                        self.setAbort()
+                                        self.setToBeKilled()
+                                    if msg == "softkill":
+                                        tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+                                        self.sendMessage("No more events")
+                                        self.setAbort()
+                                except:
+                                    tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+                        else:
+                            try:
+                                status, output = self.zipOutput(event_range_id, paths)
+                            except:
+                                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+                                tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
+                                self.__stageout_queue.remove(f)
+                            else:
+                                tolog("Removing %s from stage-out queue" % (paths))
+                                self.__stageout_queue.remove(paths)
+                                tolog("Adding %s to output file list" % (paths))
+                                for fpath in paths:
+                                    self.__output_files.append(fpath)
+                                self.__nEventsW += 1
+                                tolog("output_files = %s" % (self.__output_files))
+            time.sleep(1)
+          except:
+               tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+        tolog("Asynchronous output stager thread has been stopped")
+
+    @mover.use_newmover(asynchronousOutputStager_new)
     def asynchronousOutputStager(self):
         """ Transfer output files to stage-out area asynchronously """
 
@@ -1459,69 +1738,82 @@ class RunJobEvent(RunJob):
         while not self.__asyncOutputStager_thread.stopped():
           try:
             if len(self.__stageout_queue) > 0:
-                for f in self.__stageout_queue:
+                for paths in self.__stageout_queue:
                     # Create the output file metadata (will be sent to server)
-                    tolog("Preparing to stage-out file %s" % (f))
-                    event_range_id = self.getEventRangeID(f)
+                    tolog("Preparing to stage-out file %s" % (paths))
+                    event_range_id = self.getEventRangeID(paths)
                     if event_range_id == "":
-                        tolog("!!WARNING!!1111!! Did not find the event range for file %s in the event range dictionary" % (f))
+                        tolog("!!WARNING!!1111!! Did not find the event range for file %s in the event range dictionary" % (paths))
                     else:
-                        tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
-                        ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
-                        if ec == 0:
-                            if not self.__esToZip:
-                                try:
-                                    ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
-                                except Exception, e:
-                                    tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
-                                    tolog("Removing %s from stage-out queue to prevent endless loop" % (f))
-                                    self.__stageout_queue.remove(f)
-                                else:
-                                    tolog("Removing %s from stage-out queue" % (f))
-                                    self.__stageout_queue.remove(f)
-                                    tolog("Adding %s to output file list" % (f))
-                                    self.__output_files.append(f)
-                                    tolog("output_files = %s" % (self.__output_files))
-                                    if ec == 0:
-                                        status = 'finished'
-                                    else:
-                                        status = 'failed'
-
-                                        # Update the global status field in case of failure
-                                        self.setStatus(False)
-
-                                        # Note: the rec pilot must update the server appropriately
-
+                        if not self.__esToZip:
+                            ec = None
+                            pilotErrorDiag = None
+                            os_bucket_id = None
+                            for f in paths:
+                                tolog("Creating metadata for file %s and event range id %s" % (f, event_range_id))
+                                ec, pilotErrorDiag, outputFileInfo, metadata_fname = self.createFileMetadata4EventRange(f, event_range_id)
+                                if ec == 0:
                                     try:
-                                        # Time to update the server
-                                        msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id)
+                                        ec, pilotErrorDiag, os_bucket_id = self.transferToObjectStore(outputFileInfo, metadata_fname)
+                                    except Exception, e:
+                                        tolog("!!WARNING!!2222!! Caught exception: %s" % (e))
+                                        ec = self.__error.ERR_STAGEOUTFAILED
+                                        pilotErrorDiag = "Objectstore stageout error: %s" % str(e)
 
-                                        # Did the updateEventRange back channel contain an instruction?
-                                        if msg == "tobekilled":
-                                            tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
-                                            self.setAbort()
-                                            self.setToBeKilled()
-                                        if msg == "softkill":
-                                            tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
-                                            self.sendMessage("No more events")
-                                            self.setAbort()
-                                    except:
-                                        tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+                                if not ec == 0:
+                                    break
+
+                            tolog("Removing %s from stage-out queue" % (paths))
+                            self.__stageout_queue.remove(paths)
+                            tolog("Adding %s to output file list" % (paths))
+                            for fpath in paths:
+                                self.__output_files.append(fpath)
+                            tolog("output_files = %s" % (self.__output_files))
+                            errorCode = None
+                            if ec == 0:
+                                status = 'finished'
+                                self.__nEventsW += 1
                             else:
-                                try:
-                                    status, output = self.zipOutput(event_range_id, outputFileInfo)
-                                except:
-                                    tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
-                                    tolog("Removing %s from stage-out queue to prevent endless loop" % (f))
-                                    self.__stageout_queue.remove(f)
-                                else:
-                                    tolog("Removing %s from stage-out queue" % (f))
-                                    self.__stageout_queue.remove(f)
-                                    tolog("Adding %s to output file list" % (f))
-                                    self.__output_files.append(f)
-                                    tolog("output_files = %s" % (self.__output_files))
+                                status = 'failed'
+                                self.__nEventsFailed += 1
+                                self.__nEventsFailedStagedOut += 1
+                                errorCode = self.__error.ERR_STAGEOUTFAILED
+
+                                # Update the global status field in case of failure
+                                self.setStatus(False)
+
+                                # Note: the rec pilot must update the server appropriately
+
+                            try:
+                                # Time to update the server
+                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode)
+
+                                # Did the updateEventRange back channel contain an instruction?
+                                if msg == "tobekilled":
+                                    tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+                                    self.setAbort()
+                                    self.setToBeKilled()
+                                if msg == "softkill":
+                                    tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+                                    self.sendMessage("No more events")
+                                    self.setAbort()
+                            except:
+                                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                         else:
-                            tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
+                            try:
+                                status, output = self.zipOutput(event_range_id, paths)
+                            except:
+                                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+                                tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
+                                self.__stageout_queue.remove(paths)
+                            else:
+                                tolog("Removing %s from stage-out queue" % (paths))
+                                self.__stageout_queue.remove(paths)
+                                tolog("Adding %s to output file list" % (paths))
+                                for fpath in paths:
+                                    self.__output_files.append(fpath)
+                                self.__nEventsW += 1
+                                tolog("output_files = %s" % (self.__output_files))
             time.sleep(1)
           except:
                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
@@ -1580,16 +1872,17 @@ class RunJobEvent(RunJob):
                 elif buf.startswith('/'):
                     tolog("Received file and process info from client: %s" % (buf))
 
+                    self.__nEvents += 1
+
                     # Extract the information from the message
                     paths, event_range_id, cpu, wall = self.interpretMessage(buf)
-                    for path in paths:
-                        if path not in self.__stageout_queue and path != "":
-                            # Add the extracted info to the event range dictionary
-                            self.__eventRange_dictionary[event_range_id] = [path, cpu, wall]
+                    if paths and paths not in self.__stageout_queue:
+                        # Add the extracted info to the event range dictionary
+                        self.__eventRange_dictionary[event_range_id] = [paths, cpu, wall]
 
-                            # Add the file to the stage-out queue
-                            self.__stageout_queue.append(path)
-                            tolog("File %s has been added to the stage-out queue (length = %d)" % (path, len(self.__stageout_queue)))
+                        # Add the file to the stage-out queue
+                        self.__stageout_queue.append(paths)
+                        tolog("File %s has been added to the stage-out queue (length = %d)" % (paths, len(self.__stageout_queue)))
 
                 elif buf.startswith('ERR'):
                     tolog("Received an error message: %s" % (buf))
@@ -1599,13 +1892,8 @@ class RunJobEvent(RunJob):
                     if event_range_id != "":
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
-                        # Time to update the server
-                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status='failed')
-                        if msg != "":
-                            tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
-                        else:
-                            tolog("Updated server for failed event range")
-
+                        error_code = None
+                        event_status = 'failed'
                         # Was the error fatal? If so, the pilot should abort
                         if "FATAL" in error_acronym:
                             tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
@@ -1621,14 +1909,27 @@ class RunJobEvent(RunJob):
                                 error_code = self.__error.ERR_TEWRONGGUID
                             elif error_acronym == "ERR_TE_FATAL":
                                 error_code = self.__error.ERR_TEFATAL
+                                event_status = 'failed'  # should be 'fatal', we only use 'failed' currently
                             else:
                                 error_code = self.__error.ERR_ESFATAL
+                            self.__esFatalCode = error_code
+                        else:
+                            error_code = self.__error.ERR_UNKNOWN
+
+                        # Time to update the server
+                        self.__nEventsFailed += 1
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status=event_status, errorCode=error_code)
+                        if msg != "":
+                            tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
+                        else:
+                            tolog("Updated server for failed event range")
+
+                        if error_code:
                             result = ["failed", 0, error_code]
                             tolog("Setting error code: %d" % (error_code))
                             self.setJobResult(result)
 
                             # ..
-
                     else:
                         tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
 
@@ -2100,6 +2401,8 @@ class RunJobEvent(RunJob):
         return filename
 
     def checkSetupObjectstore(self):
+        if os.environ.has_key('Nordugrid_pilot'):
+            return 0, ""
         try:
             from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
             testSiteMover = S3ObjectstoreSiteMover('')
@@ -2108,6 +2411,77 @@ class RunJobEvent(RunJob):
         except:
             err_msg = "Failed to check setup Objectstore: %s" % traceback.format_exc()
             return PilotErrors.ERR_UNKNOWN, err_msg
+
+
+    def findChildProcesses(self,pid):
+        command = "/bin/ps -e --no-headers -o pid -o ppid -o fname"
+        status,output = commands.getstatusoutput(command)
+        #print "ps output: %s" % output
+
+        pieces = []
+        result = []
+        for line in output.split("\n"):
+            pieces= line.split()
+            try:
+                value=int(pieces[1])
+            except Exception,e:
+                #print "trouble interpreting ps output %s: \n %s" % (e,pieces)
+                continue
+            if value==pid:
+                try:
+                    job=int(pieces[0])
+                except ValueError,e:
+                    #print "trouble interpreting ps output %s: \n %s" % (e,pieces[0])
+                    continue
+                result.append(job)
+        return result
+
+    def getChildren(self, pid):
+        #self.__childProcs = []
+        if pid not in self.__childProcs:
+            self.__childProcs.append(pid)
+        childProcs = self.findChildProcesses(pid)
+        for child in childProcs:
+            self.getChildren(child)
+
+    def getCPUConsumptionTimeFromProcPid(self, pid):
+        try:
+            if not os.path.exists(os.path.join('/proc/', str(pid), 'stat')):
+                return 0
+            with open(os.path.join('/proc/', str(pid), 'stat'), 'r') as pidfile:
+                proctimes = pidfile.readline()
+                # get utime from /proc/<pid>/stat, 14 item
+                utime = proctimes.split(' ')[13]
+                # get stime from proc/<pid>/stat, 15 item
+                stime = proctimes.split(' ')[14]
+                # count total process used time
+                proctotal = int(utime) + int(stime)
+            return(float(proctotal))
+        except:
+            #tolog("Failed to get cpu consumption time for pid %s: %s" % (pid, traceback.format_exc()))
+            return 0
+
+    def getCPUConsumptionTimeFromProc(self, processId):
+        cpuConsumptionTime = 0L
+        try:
+            CLOCK_TICKS = os.sysconf("SC_CLK_TCK")
+            if processId:
+                self.__childProcs = []
+                self.getChildren(processId)
+                for process in self.__childProcs:
+                    if process not in self.__child_cpuTime.keys():
+                        self.__child_cpuTime[process] = 0
+                for process in self.__child_cpuTime.keys():
+                    cpuTime = self.getCPUConsumptionTimeFromProcPid(process) / CLOCK_TICKS
+                    if cpuTime > self.__child_cpuTime[process]:
+                        # process can return a small value if it's killed
+                        self.__child_cpuTime[process] = cpuTime
+                    cpuConsumptionTime += self.__child_cpuTime[process]
+            tolog("cpuConsumptionTime for %s: %s" % (processId, cpuConsumptionTime))
+        except:
+            tolog("Failed to get cpu consumption time from proc: %s" % (traceback.format_exc()))
+        return cpuConsumptionTime
+
 
 
 # main process starts here
@@ -2238,9 +2612,11 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
 
+        runJob.initZipConf()
         status, output = runJob.checkSetupObjectstore()
         if status != 0:
             tolog("ObjectStore setup test failed. Will exit: %s" % output)
+            job.result[2] = PilotErrors.ERR_ESOBJECTSTORESETUP
             runJob.failJob(0, job.result[2], job, pilotErrorDiag="ObjectStore setup test failed")
 
         # Create a message server object (global message_server)
@@ -2249,9 +2625,16 @@ if __name__ == "__main__":
         else:
             pilotErrorDiag = "The message server could not be created, cannot continue"
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
+            job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
         # Setup starts here ................................................................................
+
+        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
+            tolog("ATHENA_PROC_NUMBER not defined, setting corecount to 1")
+            job.coreCount = 1
+        else:
+            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
 
         # Update the job state file
         job.jobState = "setup"
@@ -2271,7 +2654,6 @@ if __name__ == "__main__":
         tolog("Setup has finished successfully")
         runJob.setJob(job)
 
-        runJob.initZipConf()
         # Job has been updated, display it again
         job.displayJob()
 
@@ -2310,6 +2692,13 @@ if __name__ == "__main__":
         # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
         hasInput = job.inFiles != ['']
         runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
+
+        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
+            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
+            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
+            job.coreCount = 1
+        else:
+            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
 
         # (stage-in ends here) .............................................................................
 
@@ -2427,10 +2816,6 @@ if __name__ == "__main__":
             job.result[2] = error.ERR_ESRECOVERABLE
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
-            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
-            runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
-
         # AthenaMP needs to know where exactly is the PFC
         runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
 
@@ -2458,6 +2843,15 @@ if __name__ == "__main__":
         #runCommandList[0] = runCommandList[0].replace(inputFile, turl)
         #tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
 
+        # download event ranges before athenaMP
+        # Pilot will download some event ranges from the Event Server
+        message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount)
+        # Create a list of event ranges from the downloaded message
+        first_event_ranges = runJob.extractEventRanges(message)
+        if first_event_ranges is None or first_event_ranges == []:
+            tolog("No more events. will finish this job directly")
+            runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=False)
+
         # Create and start the AthenaMP process
         t0 = os.times()
         tolog("t0 = %s" % str(t0))
@@ -2476,16 +2870,34 @@ if __name__ == "__main__":
         max_wait = 30
         nap = 5
         eventRangeFilesDictionary = {}
+        time_to_calculate_cuptime = time.time()
         while True:
+            # calculate cpu time, if it's killed, this value will be reported.
+            # should not use os.times(). os.times() collects cputime at the end of a process.
+            # When a process is running, os.times() returns a very small value.
+            if time_to_calculate_cuptime < time.time() - 2 * 60:
+                time_to_calculate_cuptime = time.time()
+                job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                job.subStatus = runJob.getSubStatus()
+                job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+                tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
+                # agreed to only report stagedout events to panda
+                job.nEvents = job.nEventsW
+                rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
             if runJob.isAthenaMPReady():
 
-                # Pilot will download some event ranges from the Event Server
-                message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
+                if first_event_ranges:
+                    event_ranges = first_event_ranges
+                    first_event_ranges = None
+                else:
+                    # Pilot will download some event ranges from the Event Server
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount)
 
-                # Create a list of event ranges from the downloaded message
-                event_ranges = runJob.extractEventRanges(message)
+                    # Create a list of event ranges from the downloaded message
+                    event_ranges = runJob.extractEventRanges(message)
 
                 # Are there any event ranges?
                 if event_ranges == []:
@@ -2534,6 +2946,17 @@ if __name__ == "__main__":
 
                     # Wait until AthenaMP is ready to receive another event range
                     while not runJob.isAthenaMPReady():
+                        # calculate cpu time
+                        if time_to_calculate_cuptime < time.time() - 2 * 60:
+                            time_to_calculate_cuptime = time.time()
+                            job.cpuConsumptionTime = runJob.getCPUConsumptionTimeFromProc(athenaMPProcess.pid)
+                            job.subStatus = runJob.getSubStatus()
+                            job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+                            tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
+                            # agreed to only report stagedout events to panda
+                            job.nEvents = job.nEventsW
+                            rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+
                         # do not continue if the abort has been set
                         if runJob.shouldBeAborted():
                             tolog("Aborting AthenaMP loop")
@@ -2679,16 +3102,33 @@ if __name__ == "__main__":
                 time.sleep(60)
                 i += 1
 
+        if runJob.getESFatalCode():
+            job.result[2] = runJob.getESFatalCode()
+            job.result[0] = "failed"
+            job.pilotErrorDiag = "AthenaMP has some fatal errors"
+
         if not kill:
             tolog("AthenaMP has finished")
+
+        athenaMP_finished_at = time.time()
+
+        job.subStatus = runJob.getSubStatus()
+        job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
+
         t1 = os.times()
         tolog("t1 = %s" % str(t1))
         t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
         # Try to get the cpu time from the jobReport
-        job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workdir)
-        if job.cpuConsumptionTime == 0:
+        job.cpuConsumptionUnit, cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workdir)
+        if cpuConsumptionTime == 0:
             tolog("!!WARNING!!3434!! Falling back to less accurate os.times() measurement of CPU time")
-            job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
+            job.cpuConsumptionUnit, cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
+        if cpuConsumptionTime > job.cpuConsumptionTime * 0.9:
+            # if payload is killed, cpu time returned from os.times() will not be correct.
+            job.cpuConsumptionTime = cpuConsumptionTime
         tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
         tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
         job.timeExe = int(round(t1[4] - t0[4]))
@@ -2735,6 +3175,14 @@ if __name__ == "__main__":
             time.sleep(30)
 
         runJob.stageOutZipFiles()
+
+        job.external_stageout_time = time.time() - athenaMP_finished_at
+
+        job.subStatus = runJob.getSubStatus()
+        job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
 
         # replace the default job output file list which is anyway not correct
         # (it is only used by AthenaMP for generating output file names)
@@ -2820,22 +3268,42 @@ if __name__ == "__main__":
         if job.result[2] == error.ERR_ESKILLEDBYSERVER:
             tolog("Killed by server")
             job.jobState = "failed"
+        elif job.result[2]:
+            tolog("Detected some error: %s" % str(job.result))
+            job.jobState = "failed"
         else:
             if not runJob.getStatus() or errorCode != 0:
                 tolog("Detected at least one transfer failure, job will be set to failed")
                 job.jobState = "failed"
                 job.result[2] = errorCode
             else:
-                tolog("No transfer failures detected, job will be set to finished")
-                job.jobState = "finished"
+                eventRangeIdDic = runJob.getEventRangeIDDictionary()
+                if not eventRangeIdDic.keys():
+                    job.pilotErrorDiag = "Pilot got no events"
+                    job.result[0] = "failed"
+                    job.result[2] = error.ERR_NOEVENTS
+                    job.jobState = "failed"
+                else:
+                    tolog("No transfer failures detected, job will be set to finished")
+                    job.jobState = "finished"
+        job.subStatus = runJob.getSubStatus()
+        runJob.setFinalESStatus(job)
         job.setState([job.jobState, job.result[1], job.result[2]])
         runJob.setJobState(job.jobState)
+        job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=True)
 
         tolog("Done")
         runJob.sysExit(job)
 
     except Exception, errorMsg:
+
+        job.subStatus = runJob.getSubStatus()
+        job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
+        tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
+        # agreed to only report stagedout events to panda
+        job.nEvents = job.nEventsW
 
         error = PilotErrors()
 

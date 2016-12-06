@@ -1684,7 +1684,7 @@ class SiteInformation(object):
             tries = 2
             for trial in range(tries):
                 tolog("Downloading queuedata (attempt #%d)" % (trial+1))
-                cmd = "curl --connect-timeout 20 --max-time 120 -sS \"http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s\" >%s" % (queuename, filename)
+                cmd = 'curl --connect-timeout 20 --max-time 120 -sS "http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s" >%s' % (queuename, filename)
                 tolog("Executing command: %s" % (cmd))
                 ret, output = commands.getstatusoutput(cmd)
 
@@ -1692,6 +1692,7 @@ class SiteInformation(object):
                 value = self.getField('objectstores', queuename=queuename)
                 if value:
                     status = True
+                    tolog("Downloaded queuedata")
                     break
 
         return status
@@ -1826,7 +1827,7 @@ class SiteInformation(object):
             try:
                 data = json.loads(content)
             except Exception, e:
-                tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('source'), e))
+                tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
                 data = None
 
             if data and isinstance(data, dict):
@@ -1900,12 +1901,12 @@ class SiteInformation(object):
             try:
                 data = json.loads(content)
             except Exception, e:
-                tolog("!!WARNING: loadSchedConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('source'), e))
+                tolog("!!WARNING: loadSchedConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
                 data = None
 
             if data and isinstance(data, dict):
                 if 'error' in data:
-                    tolog("!!WARNING: loadSchedConfData(): skipped source=%s since response contains error: data=%s" % (dat.get('source'), data))
+                    tolog("!!WARNING: loadSchedConfData(): skipped source=%s since response contains error: data=%s" % (dat.get('url'), data))
                 else: # valid response
                     return data
 
@@ -1938,11 +1939,13 @@ class SiteInformation(object):
         return ret
 
 
-    def resolvePandaCopytools(self, pandaqueues, activity):
+    def resolvePandaCopytools(self, pandaqueues, activity, defval=[]):
         """
             Resolve supported copytools by given pandaqueues
-            Check first settings for requested activity (pr, pw), if not set then return all supported copytools
+            Check first settings for requested activity (pr, pw, pl, pls), then defal values,
+            if not set then return all supported copytools
             Return ordered list of accepted copytools
+            :param defval: default copytools values which will be used if no copytools defined for requested activity
             :return: dict('pandaqueue':[(copytool, {settings}), ('copytool_name', {'setup':''}), ])
         """
 
@@ -1956,12 +1959,53 @@ class SiteInformation(object):
         for pandaqueue in set(pandaqueues):
             copytools = r.get(pandaqueue, {}).get('copytools', {})
             cptools = []
-            for cp in r.get(pandaqueue, {}).get('acopytools', {}).get(activity, []) or copytools.iterkeys():
-                if cp not in copytools:
-                    continue
-                cptools.append((cp, copytools[cp]))
+            acopytools = r.get(pandaqueue, {}).get('acopytools', {}).get(activity, [])
+            if acopytools:
+                cptools = [(cp, copytools[cp]) for cp in acopytools if cp in copytools]
+            elif defval:
+                cptools = defval[:]
+            else:
+                cptools = copytools.items()
 
             ret.setdefault(pandaqueue, cptools)
+
+        return ret
+
+
+    def resolvePandaOSDDMs(self, pandaqueues):
+        """
+            Resolve OS ddmendpoint associated to requested pandaqueues
+            :return: list of accepted ddmendpoints
+        """
+
+        if isinstance(pandaqueues, (str, unicode)):
+            pandaqueues = [pandaqueues]
+
+        r = self.loadSchedConfData(pandaqueues, cache_time=6000) or {} # quick stub: fix me later: schedconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+        #self.schedconf = r
+
+        ret = {}
+        for pandaqueue in set(pandaqueues):
+            ret[pandaqueue] = r.get(pandaqueue, {}).get('ddmendpoints', [])
+
+        return ret
+
+
+    def resolvePandaAssociatedStorages(self, pandaqueues):
+        """
+            Resolve DDM storages associated to requested pandaqueues
+            :return: list of accepted ddmendpoints
+        """
+
+        if isinstance(pandaqueues, (str, unicode)):
+            pandaqueues = [pandaqueues]
+
+        r = self.loadSchedConfData(pandaqueues, cache_time=6000) or {} # quick stub: fix me later: schedconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
+        #self.schedconf = r
+
+        ret = {}
+        for pandaqueue in set(pandaqueues):
+            ret[pandaqueue] = r.get(pandaqueue, {}).get('astorages', {})
 
         return ret
 

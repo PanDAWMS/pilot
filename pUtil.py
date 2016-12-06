@@ -150,31 +150,37 @@ def tologNew(msg, tofile=True, label='INFO', essential=False):
 def tolog(msg, tofile=True, label='INFO', essential=False):
     """ Write date+msg to pilot log and to stdout """
 
-    import inspect
-
-    MAXLENGTH = 12
-    # getting the name of the module that is invoking tolog() and adjust the length
     try:
-        module_name = os.path.basename(inspect.stack()[1][1])
-    except Exception, e:
-        module_name = "unknown"
-        #print "Exception caught by tolog(): ", e,
-    module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
-    msg = "%s| %s" % (module_name_cut, msg)
+        import inspect
 
-    t = timeStampUTC()
-    if tofile:
-        appendToLog("%s|%s\n" % (t, msg))
+        MAXLENGTH = 12
+        # getting the name of the module that is invoking tolog() and adjust the length
+        try:
+            module_name = os.path.basename(inspect.stack()[1][1])
+        except Exception, e:
+            module_name = "unknown"
+            #print "Exception caught by tolog(): ", e,
+        module_name_cut = module_name[0:MAXLENGTH].ljust(MAXLENGTH)
+        msg = "%i|%s| %s" % (os.getpid(),module_name_cut, msg)
 
-    # remove backquotes from the msg since they cause problems with batch submission of pilot
-    # (might be present in error messages from the OS)
-    msg = msg.replace("`","'")
-    msg = msg.replace('"','\\"')
-    print "%s| %s" % (t, msg)
+        t = timeStampUTC(format='%Y-%m-%d %H:%M:%S')
+        if tofile:
+            appendToLog("%s|%s\n" % (t, msg))
 
-    # write any FAILED messages to stderr
-    if "!!FAILED!!" in msg:
-        print >> sys.stderr, "%s| %s" % (t, msg)
+        # remove backquotes from the msg since they cause problems with batch submission of pilot
+        # (might be present in error messages from the OS)
+        msg = msg.replace("`","'")
+        msg = msg.replace('"','\\"')
+        print "%s| %s" % (t, msg)
+
+        # write any FAILED messages to stderr
+        if "!!FAILED!!" in msg:
+            try:
+                print >> sys.stderr, "%s| %s" % (t, msg)
+            except:
+                print "Failed to print to sys.stderr: %s" % (t, msg)
+    except:
+        print "!!WARNING!!4000!! %s" % traceback.format_exc()
 
 def tolog_err(msg):
     """ write error string to log """
@@ -1930,7 +1936,7 @@ class _Curl:
         # make command
         com = '%s --silent --get' % self.path
         if "HPC_HPC" in readpar('catchall'):
-            com += ' --tls'
+            com += ' --tlsv1'
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -1982,7 +1988,7 @@ class _Curl:
         # make command
         com = '%s --silent --show-error' % self.path
         if "HPC_HPC" in readpar('catchall'):
-            com += ' --tls'
+            com += ' --tlsv1'
         com += ' --connect-timeout 100 --max-time 120'
         if not self._verifyHost:
             com += ' --insecure'
@@ -2001,11 +2007,21 @@ class _Curl:
         strData = ''
         for key in data.keys():
             strData += 'data="%s"\n' % urllib.urlencode({key:data[key]})
-        jobId = ''
-        if 'jobId' in data.keys():
-            jobId = '_%s' % data['jobId']
+
+        curl_config = '%s/curl.config' % path
+        try:
+            jobId = ''
+            if 'jobId' in data.keys():
+                jobId = '_%s' % data['jobId']
+            elif 'eventRanges' in data.keys():
+                eventRanges = json.loads(data['eventRanges'])
+                jobId = '_%s' % eventRanges[0]['eventRangeID'].split('-')[1]
+            curl_config = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
+        except:
+            tolog("%s" % traceback.format_exc())
+
         # write data to temporary config file
-        tmpName = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
+        tmpName = curl_config
         try:
             tmpFile = open(tmpName,'w')
             tmpFile.write(strData)
@@ -2033,7 +2049,7 @@ class _Curl:
         # make command
         com = '%s --silent' % self.path
         if "HPC_HPC" in readpar('catchall'):
-            com += ' --tls'
+            com += ' --tlsv1'
         if not self._verifyHost:
             com += ' --insecure'
         if self.compress:
@@ -2174,6 +2190,8 @@ def toServer(baseURL, cmd, data, path, experiment):
         jobId = ''
         if 'jobId' in data.keys():
             jobId = '_%s' % data['jobId']
+        elif 'eventRanges' in data.keys():
+            jobId = '_%s' % data['eventRanges'][0]['eventRangeID'].split('-')[1]
         curl_config = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
     except:
         pass
@@ -2196,7 +2214,11 @@ def toServer(baseURL, cmd, data, path, experiment):
             if experiment != "": # experiment is only set for GETJOB, skip this otherwise
                 data = updateDispatcherData4ES(data, experiment, path)
 
-            status = int(data['StatusCode'])
+            if 'StatusCode' not in data:
+                status = EC_Failed
+                tolog("!!WARNING!!2999!! Dispatcher response: %s" % data)
+            else:
+                status = int(data['StatusCode'])
             if status != 0:
                 # pilotErrorDiag = getDispatcherErrorDiag(status)
                 tolog("Dumping curl config file: %s" % (curl_config))
@@ -3486,9 +3508,9 @@ def getPilotVersion(initdir):
     except Exception, e:
         print "!!WARNING!!0000!! Could not read pilot version from file: %s" % (e )
     else:
-        _version = f.read()
+        _version = f.read().strip()
         # remove trailing \n if present
-        if "\n" in version:
+        if "\n" in _version:
             _version = _version.replace("\n", "")
         # trivial check
         pattern = re.compile(r"[A-Z]+ [A-Za-z0-9.]+")
@@ -4349,6 +4371,7 @@ def sig2exc(sig, frm):
                 ec = error.ERR_KILLSIGNAL
 
             env['jobDic'][k][1].result[0] = "failed"
+            env['jobDic'][k][1].subStatus = 'pilot_killed'
             env['jobDic'][k][1].currentState = env['jobDic'][k][1].result[0]
             # do not overwrite any previous error
             if env['jobDic'][k][1].result[2] == 0:

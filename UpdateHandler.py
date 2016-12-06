@@ -1,9 +1,11 @@
 import os
 import json
 import time
+import traceback
 import pUtil
 from SocketServer import BaseRequestHandler 
 from Configuration import Configuration
+from FileHandling import updatePilotErrorReport
 
 class UpdateHandler(BaseRequestHandler):
     """ update self.__env['jobDic'] status with the messages sent from child via socket, do nothing else """
@@ -17,7 +19,7 @@ class UpdateHandler(BaseRequestHandler):
             pUtil.tolog("Connected from %s" % str(self.client_address))
             data = self.request.recv(4096)
             jobmsg = data.split(";")
-            pUtil.tolog("--- TCPServer: Message received from child is : %s" % str(jobmsg))
+            pUtil.tolog("--- TCPServer: Message received from child is : %s" % json.dumps(jobmsg))
             jobinfo = {}
             for i in jobmsg:
                 if not i: continue # skip empty line
@@ -27,11 +29,19 @@ class UpdateHandler(BaseRequestHandler):
                     pUtil.tolog("!!WARNING!!1999!! Exception caught: %s" % (e))
     
             # update self.__env['jobDic']
+            pUtil.tolog("Debug: jobdict keys: %s" % self.__env['jobDic'].keys())
+            pUtil.tolog("Debug: jobinfo: %s" % jobinfo)
+            found_job = False
             for k in self.__env['jobDic'].keys():
-                if self.__env['jobDic'][k][1].jobId == jobinfo["jobid"]: # job pid matches
+                if str(self.__env['jobDic'][k][1].jobId) == str(jobinfo["jobid"]): # job pid matches
+                    found_job = True
 #                if self.__env['jobDic'][k][2] == int(jobinfo["pgrp"]) and self.__env['jobDic'][k][1].jobId == int(jobinfo["jobid"]): # job pid matches
                     # protect with try statement in case the pilot server goes down (jobinfo will be corrupted)
                     try:
+                        old_pilotecode = self.__env['jobDic'][k][1].result[2]
+                        old_pilotErrorDiag = self.__env['jobDic'][k][1].pilotErrorDiag
+
+                        self.__env['jobDic'][k][1].lastState = self.__env['jobDic'][k][1].currentState
                         self.__env['jobDic'][k][1].currentState = jobinfo["status"]
                         if jobinfo["status"] == "stagein":
                             self.__env['stagein'] = True
@@ -74,6 +84,15 @@ class UpdateHandler(BaseRequestHandler):
                         tmp = self.__env['jobDic'][k][1].result[0]
                         if (tmp == "failed" or tmp == "holding" or tmp == "finished") and jobinfo.has_key("logfile"):
                             self.__env['jobDic'][k][1].logMsgFiles.append(jobinfo["logfile"])
+
+                        if jobinfo.has_key("external_stageout_time"):
+                            try:
+                                self.__env['jobDic'][k][1].external_stageout_time = int(float(jobinfo["external_stageout_time"]))
+                            except:
+                                pUtil.tolog(traceback.format_exc())
+
+                        if jobinfo.has_key("subStatus"):
+                            self.__env['jobDic'][k][1].subStatus = jobinfo["subStatus"]
 
                         if jobinfo.has_key("pilotErrorDiag"):
                             self.__env['jobDic'][k][1].pilotErrorDiag = pUtil.decode_string(jobinfo["pilotErrorDiag"])
@@ -149,6 +168,10 @@ class UpdateHandler(BaseRequestHandler):
                             self.__env['jobDic'][k][1].outputZipName = jobinfo['outputZipName']
                         if jobinfo.has_key("outputZipBucketID"):
                             self.__env['jobDic'][k][1].outputZipBucketID = jobinfo['outputZipBucketID']
+
+                        if (self.__env['jobDic'][k][1].result[2] and self.__env['jobDic'][k][1].result[2] != old_pilotecode) or\
+                           (self.__env['jobDic'][k][1].pilotErrorDiag and len(self.__env['jobDic'][k][1].pilotErrorDiag) and self.__env['jobDic'][k][1].pilotErrorDiag != old_pilotErrorDiag):
+                            updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], self.__env['jobDic'][k][1].pilotErrorDiag, "2",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
                     except Exception, e:
                         pUtil.tolog("!!WARNING!!1998!! Caught exception. Pilot server down? %s" % str(e))
                         try:
@@ -156,6 +179,12 @@ class UpdateHandler(BaseRequestHandler):
                         except:
                             pass
 
+            if not found_job:
+                pUtil.tolog("Debug: job not found.")
+                pUtil.tolog("Debug: jobdict keys: %s" % self.__env['jobDic'].keys())
+                pUtil.tolog("Debug: jobinfo: %s" % jobinfo)
+                for k1 in self.__env['jobDic'].keys():
+                    pUtil.tolog("Debug: jobkey %s, jobid %s" % (k1, str(self.__env['jobDic'][k1][1].jobId)))
         except Exception, e:
             pUtil.tolog("!!WARNING!!1998!! Caught exception. Pilot server down? %s" % str(e))
             

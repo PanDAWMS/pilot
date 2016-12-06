@@ -116,6 +116,11 @@ class RunJob(object):
 
         return self.__inputDir
 
+    def setInputDir(self, inputDir):
+        """ Setter for __inputDir """
+
+        self.__inputDir = inputDir
+
     def getLogGUID(self):
         """ Getter for __logguid """
 
@@ -130,6 +135,11 @@ class RunJob(object):
         """ Getter for __pilot_initdir """
 
         return self.__pilot_initdir
+
+    def setPilotInitDir(self, pilot_initdir):
+        """ Setter for __pilot_initdir """
+
+        self.__pilot_initdir = pilot_initdir
 
     def getPilotLogFilename(self):
         """ Getter for __pilotlogfilename """
@@ -156,6 +166,11 @@ class RunJob(object):
 
         return self.__pworkdir
 
+    def setParentWorkDir(self, pworkdir):
+        """ Setter for __pworkdir """
+
+        self.__pworkdir = pworkdir
+
     def getStageInRetry(self):
         """ Getter for __stageinretry """
 
@@ -165,6 +180,11 @@ class RunJob(object):
         """ Getter for __stageoutretry """
 
         return self.__stageoutretry
+
+    def setStageInRetry(self, stageinretry):
+        """ Setter for __stageinretry """
+
+        self.__stageinretry = stageinretry
 
     def getCache(self):
         """ Getter for __cache """
@@ -1144,7 +1164,7 @@ class RunJob(object):
 
             job.setState([_state, job.result[1], rc])
 
-            tolog("!!%s!!1212!! %s" % (_msg, PilotErrors.getErrorStr(rc)))
+            tolog(" -- %s: %s" % (_msg, PilotErrors.getErrorStr(rc)))
         else:
 
             job.setState(["finished", 0, 0])

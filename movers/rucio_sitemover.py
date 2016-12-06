@@ -17,18 +17,38 @@ class rucioSiteMover(BaseSiteMover):
     """ SiteMover that uses rucio CLI for both get and put functionality """
 
     name = 'rucio'
-    schemes = ['srm'] # list of supported schemes for transfers
+    schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio']
 
     def __init__(self, *args, **kwargs):
         super(rucioSiteMover, self).__init__(*args, **kwargs)
 
+    def __which(self, pgm):
+        """
+        Do not assume existing which command
+        """
+        path = os.getenv('PATH')
+        for p in path.split(os.path.pathsep):
+            p = os.path.join(p, pgm)
+            if os.path.exists(p) and os.access(p, os.X_OK):
+                return p
+
     def setup(self):
         """
-        Overridden method -- unused
+        Basic setup
         """
-        pass
 
-    def resolve_replica(self, fspec, protocol):
+        # disable rucio-clients ANSI colours - unneeded in logfiles :-)
+        os.environ['RUCIO_LOGGING_FORMAT'] = '{0}%(asctime)s %(levelname)s [%(message)s]'
+
+        # be verbose about the execution environment
+        s, o = getstatusoutput('python -v -c "import gfal2" 2>&1 | grep dynamically')
+        tolog('rucio_environment=%s' % str(os.environ))
+        tolog('which rucio: %s' % self.__which('rucio'))
+        tolog('which gfal2: %s' % o)
+        tolog('which gfal-copy: %s' % self.__which('gfal-copy'))
+
+
+    def resolve_replica(self, fspec, protocol, ddm=None):
         """
         Overridden method -- unused
         """
@@ -47,10 +67,17 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
-                                                          fspec.replicas[0][0],
-                                                          fspec.scope,
-                                                          fspec.lfn)
+        if fspec.replicas:
+            cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                              fspec.replicas[0][0],
+                                                              fspec.scope,
+                                                              fspec.lfn)
+        else:
+            cmd = 'rucio download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
+                                                                       fspec.ddmendpoint,
+                                                                       fspec.turl,
+                                                                       fspec.scope,
+                                                                       fspec.lfn)
         tolog('stageIn: %s' % cmd)
         s, o = getstatusoutput(cmd)
         if s:
@@ -85,7 +112,7 @@ class rucioSiteMover(BaseSiteMover):
 
         cmd = 'rucio upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
                                                                      fspec.scope,
-                                                                     fspec.lfn)
+                                                                     fspec.pfn if fspec.pfn else fspec.lfn)
         tolog('stageOutCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)
         tolog('stageOutOutput: %s' % o)

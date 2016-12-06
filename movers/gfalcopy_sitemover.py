@@ -1,6 +1,6 @@
 """
-  lcg-cp site mover implementation
-  :reimplemented: Alexey Anisenkov
+  gfal-copy site mover implementation
+  :author: Alexey Anisenkov
 """
 
 from .base import BaseSiteMover
@@ -8,28 +8,25 @@ from .base import BaseSiteMover
 from TimerCommand import TimerCommand
 from PilotErrors import PilotErrors, PilotException
 
-from subprocess import Popen, PIPE, STDOUT
-
 from datetime import datetime
 import time
 
 import re
 import os
 
-class lcgcpSiteMover(BaseSiteMover):
-    """ SiteMover that uses lcg-cp for both get and put """
+class gfalcopySiteMover(BaseSiteMover):
+    """ SiteMover that uses gfal-copy for both get and put """
 
-    name = "lcgcp"
-    copy_command = "lcg-cp"
+    name = "gfalcopy"
+    copy_command = "gfal-copy"
     checksum_type = "adler32"
-    checksum_command = "lcg-get-checksum"
+    checksum_command = "gfal-sum"
 
     schemes = ['srm', 'gsiftp'] # list of supported schemes for transfers
 
     def _stagefile(self, cmd, source, destination, filesize, is_stagein):
         """
-            Stage the file
-            mode is stagein or stageout
+            Stage the file (stagein or stageout respect to is_stagein value)
             :return: destination file details (checksum, checksum_type) in case of success, throw exception in case of failure
             :raise: PilotException in case of controlled error
         """
@@ -88,7 +85,7 @@ class lcgcpSiteMover(BaseSiteMover):
 
         try:
             self.removeRemoteFile(destination)
-            self.log("lcgcp clean up: successfully removed remote file=%s from storage" % destination)
+            self.log("gfal clean up: successfully removed remote file=%s from storage" % destination)
             return True
         except PilotException, e:
             self.log("Warning: failed to remove remote file=%s from storage .. skipped: error=%s" % (destination, e))
@@ -103,11 +100,11 @@ class lcgcpSiteMover(BaseSiteMover):
         """
 
         # take a 1 m nap before trying to reach the file (it might not be available immediately after a transfer)
-        self.log("INFO: [lcgcp removeRemoteFile] Taking a 1 m nap before the file removal attempt")
+        self.log("INFO: [gfal removeRemoteFile] Taking a 1 m nap before the file removal attempt")
         time.sleep(60)
 
         timeout = self.getTimeOut(0)
-        cmd = 'lcg-del --vo atlas --verbose -b -l -T srmv2 -t %s --nolfc %s' % (timeout, surl)
+        cmd = 'gfal-rm --verbose -t %s %s' % (timeout, surl)
 
         setup = self.getSetup()
         if setup:
@@ -144,14 +141,23 @@ class lcgcpSiteMover(BaseSiteMover):
             :return: remote file (checksum, checksum_type) in case of success, throw exception in case of failure
             :raise: PilotException in case of controlled error
         """
-        # resolve token value from fspec.ddmendpoint
 
+        # resolve token value from fspec.ddmendpoint
         token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
         if not token:
             raise PilotException("stageOutFile: Failed to resolve token value for ddmendpoint=%s: source=%s, destination=%s, fspec=%s .. unknown ddmendpoint" % (fspec.ddmendpoint, source, destination, fspec))
+
         filesize = os.path.getsize(source)
         timeout = self.getTimeOut(filesize)
-        cmd = '%s --verbose --vo atlas -b -U srmv2 --connect-timeout=300 --srm-timeout=%s --sendreceive-timeout=%s -S %s %s %s' % (self.copy_command, timeout, timeout, token, source, destination)
+
+        src_checksum, src_checksum_type = fspec.get_checksum()
+        checksum_opt = ''
+        if src_checksum:
+            checksum_opt = '-K %s:%s' % (src_checksum_type, src_checksum)
+
+        src = "file://%s" % os.path.abspath(source)
+        cmd = '%s --verbose %s -p -f -t %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" -S %s %s %s' % (self.copy_command, checksum_opt, timeout, token, src, destination)
+
         return self._stagefile(cmd, source, destination, filesize, is_stagein=False)
 
 
@@ -164,7 +170,15 @@ class lcgcpSiteMover(BaseSiteMover):
         """
 
         timeout = self.getTimeOut(fspec.filesize)
-        cmd = '%s --verbose --vo atlas -b -T srmv2 --connect-timeout=300 --srm-timeout=%s --sendreceive-timeout=%s %s %s' % (self.copy_command, timeout, timeout, source, destination)
+
+        src_checksum, src_checksum_type = fspec.get_checksum()
+        checksum_opt = ''
+        if src_checksum:
+            checksum_opt = '-K %s:%s' % (src_checksum_type, src_checksum)
+
+        dst = "file://%s" % os.path.abspath(destination)
+        cmd = '%s --verbose %s -f -t %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" %s %s' % (self.copy_command, checksum_opt, timeout, source, dst)
+
         return self._stagefile(cmd, source, destination, fspec.filesize, is_stagein=True)
 
 
@@ -179,9 +193,10 @@ class lcgcpSiteMover(BaseSiteMover):
         if self.checksum_type not in ['adler32']:
             raise Exception("getRemoteFileChecksum(): internal error: unsupported checksum_type=%s .. " % self.checksum_type)
 
-        cmd = "%s -b -T srmv2 --checksum-type %s --connect-timeout=300 --sendreceive-timeout=3600" % (self.checksum_command, self.checksum_type)
+        timeout = self.getTimeOut(0)
+        cmd = '%s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" -t %s %s %s' % (self.checksum_command, timeout, filename, self.checksum_type)
 
-        return self.calc_checksum(filename, cmd, setup=self.getSetup()), self.checksum_type
+        return self.calc_checksum(filename, cmd=cmd, setup=self.getSetup(), pattern='.*?\s+(?P<checksum>[^\s]+)'), self.checksum_type
 
 
     def getRemoteFileSize(self, filename):

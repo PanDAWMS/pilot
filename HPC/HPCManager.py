@@ -211,9 +211,14 @@ class HPCManager:
         self.__walltime_m = walltime
         h, m = divmod(walltime, 60)
         self.__walltime = "%d:%02d:%02d" % (h, m, 0)
-        self.__eventsPerWorker = (int(walltime) - int(initialtime_m))/time_per_event_m
+        self.__eventsPerWorker = (int(walltime) - int(initialtime_m)) * 1.0 /time_per_event_m
+        self.__log.info("Walltime(minutes): %s" % walltime)
+        self.__log.info("InitialTime(configured minutes): %s" % initialtime_m)
+        self.__log.info("Time per event(minutes): %s" % time_per_event_m)
         if self.__eventsPerWorker < 1:
             self.__eventsPerWorker = 1
+        self.__log.info("Events per worker: (wallTime-initialTime)/timePerEvent=%s" % self.__eventsPerWorker)
+
         self.__ATHENA_PROC_NUMBER = defaultResources['ATHENA_PROC_NUMBER']
         self.__repo = defaultResources['repo']
         self.__yodaToOS = defaultResources.get('yoda_to_os', False)
@@ -223,6 +228,8 @@ class HPCManager:
         if self.__yodaToOS or self.__yodaToZip:
             self.__dumpEventOutputs = False
         self.__copyOutputToGlobal = defaultResources.get('copyOutputToGlobal', False)
+        if defaultResources.get('yoda_to_zip', False) or defaultResources.get('es_to_zip', False):
+            self.__copyOutputToGlobal = False
         self.__setup = defaultResources.get('setup', None)
         self.__esPath = defaultResources.get('esPath', None)
         self.__os_bucket_id = defaultResources.get('os_bucket_id', None)
@@ -235,7 +242,14 @@ class HPCManager:
         # 1 Yoda and (self.__nodes -1) Droid
         # plus 1 cached event per node
         #return int(self.__eventsPerWorker) * (int(self.__nodes) -1) * int(self.__ATHENA_PROC_NUMBER) + (int(self.__nodes) -1) * 1
-        return int(self.__eventsPerWorker) * (int(self.__nodes) -0) * int(self.__ATHENA_PROC_NUMBER)
+
+        # try to download 1.5 times of events than predicted.
+        self.__log.info("Events per worker: %s" % self.__eventsPerWorker)
+        self.__log.info("Nodes: %s" % self.__nodes)
+        self.__log.info("Cores per node: %s" % self.__ATHENA_PROC_NUMBER)
+        totalNeededEvents = int(self.__eventsPerWorker * int(self.__nodes) * int(self.__ATHENA_PROC_NUMBER) * 1.5)
+        self.__log.info("Total needed Events: eventsPerWorker * nodes * coresPerNode * 1.5 = %s" % totalNeededEvents)
+        return totalNeededEvents
 
     def initJobs(self, jobs, eventRanges):
         self.__log.info("initJobs: %s" % jobs)
@@ -261,7 +275,8 @@ class HPCManager:
 
             eventsPerNode = int(self.__ATHENA_PROC_NUMBER) * (int(self.__eventsPerWorker))
             if jobId in eventRanges:
-                job['neededRanks'] = len(eventRanges[jobId]) / eventsPerNode + (len(eventRanges[jobId]) % eventsPerNode + eventsPerNode - 1)/eventsPerNode
+                #job['neededRanks'] = len(eventRanges[jobId]) / eventsPerNode + (len(eventRanges[jobId]) % eventsPerNode + eventsPerNode - 1)/eventsPerNode
+                job['neededRanks'] = round(len(eventRanges[jobId]) * 1.0 / eventsPerNode, 2)
                 if len(eventRanges[jobId]) >= eventsPerNode * 4:
                     job['neededRanks'] += 0
                 elif len(eventRanges[jobId]) > eventsPerNode:
@@ -273,8 +288,8 @@ class HPCManager:
                 self.__firstJobWorkDir = job['GlobalWorkingDir']
 
         if totalNeededRanks < self.__nodes:
-            self.__nodes = totalNeededRanks
-        # if self.__nodes < 2:
+            self.__nodes = int(totalNeededRanks)
+        #if self.__nodes < 2:
         #     self.__nodes = 2
         self.__mppwidth = int(self.__nodes) * int(self.__cpuPerNode)
 
@@ -361,14 +376,19 @@ class HPCManager:
             self.__log.info("HPC job id is None, will return failed.")
             self.__isFinished = True
             return 'Failed'
-
-        state = self.__plugin.poll(self.__jobid)
-        if self.__lastState is None or self.__lastState != state or time.time() > self.__lastTime + 60*5:
-            self.__log.info("HPC job state is: %s" %(state))
-            self.__lastState = state
-            self.__lastTime = time.time()
-        if state in ['Complete', 'Failed']:
-            self.__isFinished = True
+        counter = 120
+        while counter > 0:
+           counter = counter - 1
+           state = self.__plugin.poll(self.__jobid)
+           if self.__lastState is None or self.__lastState != state or time.time() > self.__lastTime + 60*5:
+               self.__log.info("HPC job state is: %s" %(state))
+               self.__lastState = state
+               self.__lastTime = time.time()
+           if state in ['Complete', 'Failed']:
+               self.__isFinished = True
+               break
+           if state != 'Unknown': break
+           else: time.sleep(60)
         return state
 
     def checkHPCJobLog(self):

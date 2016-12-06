@@ -59,16 +59,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
                     tolog("Failed to import boto again. exit")
                     return PilotErrors.ERR_UNKNOWN, "Failed to import boto"
 
-        hostname = None
-        try:
-            hostname = socket.getfqdn()
-        except:
-            tolog(traceback.format_exc())
-        if os.environ.get("http_proxy") and hostname and hostname.endswith("bnl.gov"):
-             del os.environ['http_proxy']
-        if os.environ.get("https_proxy") and hostname and hostname.endswith("bnl.gov"):
-             del os.environ['https_proxy']
-
         si = getSiteInformation(experiment)
         # os_bucket_id will only be set if the setup function is called, if setup via the init function - get the default bucket id
         if os_bucket_id == -1:
@@ -89,18 +79,6 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"], os_is_secure, self._useTimerCommand)
 
-#        keyPair = None
-#        if re.search("^s3://.*\.usatlas\.bnl\.gov:8443", surl) != None:
-#            keyPair = si.getSecurityKey('BNL_ObjectStoreKey', 'BNL_ObjectStoreKey.pub')
-#        if re.search("^s3://.*\.cern\.ch:443", surl) != None:
-#            keyPair = si.getSecurityKey('CERN_ObjectStoreKey', 'CERN_ObjectStoreKey.pub')
-#        if surl.startswith("s3://s3.amazonaws.com:80"):
-#            keyPair = si.getSecurityKey('Amazon_ObjectStoreKey', 'Amazon_ObjectStoreKey.pub')
-#        if keyPair == None or keyPair["publicKey"] == None or keyPair["privateKey"] == None:
-#            tolog("Failed to get the keyPair for S3 objectstore %s " % (surl))
-#            return PilotErrors.ERR_GETKEYPAIR, "Failed to get the keyPair for S3 objectstore"
-#
-#        self.s3Objectstore = S3ObjctStore(keyPair["privateKey"], keyPair["publicKey"])
         return 0, ""
 
     def loadBalanceURL(self, url):
@@ -385,6 +363,13 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         fullname = os.path.join(path, lfn)
 
         status, output = self.stageIn(gpfn, fullname, fsize, fchecksum, experiment, os_bucket_id=os_bucket_id)
+        report['eventType'] = 'get_es'
+
+        parsed = urlparse.urlparse(gpfn)
+        scheme = parsed.scheme
+        hostname = parsed.netloc.partition(':')[0]
+        port = int(parsed.netloc.partition(':')[2])
+        report['remoteSite'] = '%s://%s:%s' % (scheme, hostname, port)
 
         if status == 0:
             updateFileState(lfn, workDir, jobId, mode="file_state", state="transferred", ftype="input")
@@ -425,11 +410,20 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         # get the Rucio tracing report
         report = self.getStubTracingReport(pdict['report'], 's3objectstore', lfn, guid)
 
+        parsed = urlparse.urlparse(destination)
+        scheme = parsed.scheme
+        hostname = parsed.netloc.partition(':')[0]
+        port = int(parsed.netloc.partition(':')[2])
+        report['remoteSite'] = '%s://%s:%s' % (scheme, hostname, port)
+
         filename = os.path.basename(source)
         surl = destination
-        self.log("surl=%s"%(surl))
+        self.log("surl=%s, timeout=%s" % (surl, timeout))
         if "log.tgz" in surl:
             surl = surl.replace(lfn, "%s:%s"%(scope,lfn))
+        else:
+            report['eventType'] = 'put_es'
+
         status, output, size, checksum = self.stageOut(source, surl, token, experiment, outputDir=outputDir, timeout=timeout, os_bucket_id=os_bucket_id)
         if status !=0:
             errors = PilotErrors()
@@ -442,7 +436,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         state = "DONE"
         # self.__sendReport(state, report)
-        # self.prepareReport(state, report)
+        self.prepareReport(state, report)
         return 0, pilotErrorDiag, surl, size, checksum, self.arch_type
 
     def __sendReport(self, state, report):
@@ -518,45 +512,104 @@ class S3ObjctStore(object):
         return key
 
     def getRemoteFileInfo(self, file):
+        http_proxy = os.environ.get("http_proxy")
+        https_proxy = os.environ.get("https_proxy")
+        if http_proxy:
+            del os.environ['http_proxy']
+        if https_proxy:
+            del os.environ['https_proxy']
+
         key = self.get_key(file)
         md5 = key.get_metadata("md5")
+        key.close(fast=True)
+
+        if http_proxy:
+            os.environ['http_proxy'] = http_proxy
+        if https_proxy:
+            os.environ['https_proxy'] = https_proxy
         return key.size, md5
 
     def s3StageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
+        http_proxy = os.environ.get("http_proxy")
+        https_proxy = os.environ.get("https_proxy")
+        if http_proxy:
+            del os.environ['http_proxy']
+        if https_proxy:
+            del os.environ['https_proxy']
+
+        retCode = 0
+        retStr = None
+        key = None
         try:
             key = self.get_key(source)
             if key is None:
-                return -1, "source file(%s) cannot be found" % source
+                retCode = -1
+                retStr = "source file(%s) cannot be found" % source
 
             key.get_contents_to_filename(destination)
             # for big file with multiple parts, key.etag is not the md5
             # if key.md5 and key.md5 != key.etag.strip('"').strip("'"):
             #     return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
             if sourceSize and str(sourceSize) != str(key.size):
-                return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
+                retCode = -1
+                retStr = "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
             if sourceChecksum and sourceChecksum != key.md5:
-                return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+                retCode = -1
+                retStr = "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
         except Exception as e:
-            return -1, str(e)
-        return 0, None
+            retCode = -1
+            retStr = str(e)
+        finally:
+            if key:
+                key.close(fast=True)
+
+        if http_proxy:
+            os.environ['http_proxy'] = http_proxy
+        if https_proxy:
+            os.environ['https_proxy'] = https_proxy
+
+        return retCode, retStr
 
     def s3StageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
+        http_proxy = os.environ.get("http_proxy")
+        https_proxy = os.environ.get("https_proxy")
+        if http_proxy:
+            del os.environ['http_proxy']
+        if https_proxy:
+            del os.environ['https_proxy']
+
+        retCode = 0
+        retStr = None
+        key = None
         try:
             key = self.get_key(destination, create=True)
             if key is None:
-                return -1, "Failed to create S3 key on destionation(%s)" % destination
+                retCode = -1
+                retStr = "Failed to create S3 key on destination (%s)" % destination
             key.set_metadata("md5", sourceChecksum)
             size = key.set_contents_from_filename(source)
 
             # if key.md5 != key.etag.strip('"').strip("'"):
             #     return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
             if sourceSize and str(sourceSize) != str(key.size):
-                return -1, "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
+                retCode = -1
+                retStr = "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
             if sourceChecksum and sourceChecksum != key.md5:
-                return -1, "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+                retCode = -1
+                retStr = "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
         except Exception as e:
-            return -1, str(e)
-        return 0, None
+            retCode = -1
+            retStr = str(e)
+        finally:
+            if key:
+                key.close(fast=True)
+
+        if http_proxy:
+            os.environ['http_proxy'] = http_proxy
+        if https_proxy:
+            os.environ['https_proxy'] = https_proxy
+        
+        return retCode, retStr
 
     def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
         if self._useTimerCommand:

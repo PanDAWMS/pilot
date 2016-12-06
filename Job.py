@@ -61,6 +61,8 @@ class Job:
         self.prodSourceLabel = ""          # job label, e.g. 'user', 'test', 'rc_test', 'ddm', 'software', 'ptest'
         self.nEvents = 0                   # number of processed events (read)
         self.nEventsW = 0                  # number of processed events (written)
+        self.nEventsFailed = 0             # number of failed events
+        self.nEventsFailedStagedOut = 0    # number of failed to stageout events
         self.realDatasetsIn = None         # dataset name(s) for input file(s)
         self.cmtconfig = None              # CMTCONFIG value from the task definition
         self.jobState = None               # Current job state (for definition, see JobRecovery class)
@@ -76,6 +78,7 @@ class Job:
         self.filesizeIn = []               # Input file sizes from the dispatcher
         self.checksumIn = []               # Input file checksums from the dispatcher
         self.debug = ""                    # debug = True will trigger the pilot to send stdout tail on job update
+        self.lastState = ""                # record the last state of the job
         self.currentState = ""             # Basically the same as result[0] but includes states like "stagein", "stageout"
         self.vmPeakMax = 0                 # Maximum value of vmPeak
         self.vmPeakMean = 0                # Average value of vmPeak
@@ -111,6 +114,10 @@ class Job:
         self.eventRanges = None            # Event ranges dictionary
         self.jobsetID = None               # Event range job set ID
         self.pandaProxySecretKey = None    # pandaproxy secret key
+        self.external_stageout_time = None # External stageout time(time after athenaMP finishes)
+
+        self.subStatus = None           # subStatus of the job
+        self.subError = None            # subError of the job
 
         # zipped event outputs to a file, for event service
         self.outputZipName = None
@@ -475,13 +482,8 @@ class Job:
         pUtil.tolog("Updated ddmEndPointLog=%s" % self.ddmEndPointLog)
 
         self.jobPars = data.get('jobPars', '')
-        putLogToOS = data.get('putLogToOS', 'False')
-        #putLogToOS = 'True'
-        if putLogToOS.lower() == 'true':
-            self.putLogToOS = True
-        else:
-            self.putLogToOS = False
-        pUtil.tolog("putLogToOS = %s" % str(self.putLogToOS))
+
+        self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true'
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
@@ -795,7 +797,7 @@ class Job:
                 #kw['destinationDBlockToken'] = self.destinationDBlockToken[i] # not used by new Movers
                 kw['destinationDblock'] = self.destinationDblock[i]
                 kw['scope'] = self.scopeOut[i]
-                kw['ddmendpoint'] = self.ddmEndPointOut[i] if i<len(self.ddmEndPointOut) else self.ddmEndPointOut[0]
+                kw['ddmendpoint'] = self.ddmEndPointOut[i] if i<len(self.ddmEndPointOut) else self.ddmEndPointOut[0] ## log file is also passed by Panda in outFiles list.. could be a bug in logic if log file requested to be transferred to different site: TO BE CLARIFIED
                 kw['guid'] = self.outFilesGuids[i] # outFilesGuids must be coherent with outFiles, otherwise logic corrupted
                 spec = FileSpec(lfn=lfn, **kw)
                 extra.append(spec)
@@ -804,7 +806,19 @@ class Job:
                 spec.guid = self.outFilesGuids[i]
         if extra:
             pUtil.tolog('Job._sync_outdata(): found extra output files to be added for stage-out: extra=%s' % extra)
-            self.outData.append(extra)
+            self.outData.extend(extra)
+
+        ## quick hack: do replace outData: remove all old entries from job.outData not defined in new job.outFiles
+        miss = set(data) - set(self.outFiles)
+        pUtil.tolog('Job._sync_outdata(): check files to be ignored ... missing files=%s' % len(miss))
+        if miss:
+            pUtil.tolog('Job._sync_outdata(): following output files will be ignored/removed from job.outData for stage-out since new job.outFiles do not contain them: miss=%s' % miss)
+            new_outData = []
+            for spec in self.outData:
+                if spec.lfn in miss:
+                    continue
+                new_outData.append(spec)
+            self.outData = new_outData
 
         # init dataset value (destinationDblock) if not set
         rand_dsn = "%s-%s-%s" % (time.localtime()[0:3]) # pass it a random name
@@ -823,19 +837,22 @@ class FileSpec(object):
                     ]
 
 
-    _outfile_keys = ['lfn', 'ddmendpoint', 'type',
+    _outfile_keys = ['lfn', 'pfn', 'ddmendpoint', 'type',
                     'dataset', 'scope',
                     'destinationDblock', 'destinationDBlockToken',
                     'fileDestinationSE',
                     'dispatchDBlockTokenForOut',
                     'prodDBlockTokenForOutput', # exposed only for eventservice related job
+                    'ddmendpoint_alt' # alternative location of ddmendpoint
                     ]
 
-    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime']
+    _os_keys = ['eventRangeId', 'objectstoreId']
+
+    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code']
 
     def __init__(self, **kwargs):
 
-        attributes = self._infile_keys + self._outfile_keys + self._local_keys
+        attributes = self._infile_keys + self._outfile_keys + self._local_keys + self._os_keys
         for k in attributes:
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
 
@@ -881,4 +898,15 @@ class FileSpec(object):
         if not is_rootfile:
             return False
 
-        return self.prodDBlockToken != 'local' and is_rootfile
+        #if self.prodDBlockToken == 'local':
+        #    is_directaccess = False
+
+        is_directaccess = self.prodDBlockToken != 'local'
+
+        allowed_replica_schemas = ['root://', 'dcache://', 'dcap://']
+
+        if self.turl:
+            if True not in set([self.turl.startswith(e) for e in allowed_replica_schemas]):
+                is_directaccess = False
+
+        return is_directaccess

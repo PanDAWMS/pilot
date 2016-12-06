@@ -61,7 +61,36 @@ class EventServerJobManager():
             except:
                 self.__log.debug("Exception: Message Thread failed: %s" % traceback.format_exc())
 
-    def __init__(self, rank=None, ATHENA_PROC_NUMBER=1):
+
+    class HelperThread(threading.Thread):
+        def __init__(self, logger, helperFunc, **kwds):
+            threading.Thread.__init__(self, **kwds)
+            self.__log = logger
+            self.__func = helperFunc
+            self._stop = threading.Event()
+            self.__log.debug("HelperThread initialized.")
+
+        def stop(self):
+            self._stop.set()
+
+        def stopped(self):
+            return self._stop.isSet()
+
+        def run(self):
+            try:
+                exec_time = None
+                while True:
+                    if self.stopped():
+                        break
+                    if exec_time is None or exec_time < time.time() - 60:
+                        self.__func()
+                        exec_time = time.time()
+                    time.sleep(1)
+            except:
+                self.__log.debug("Exception: HelperThread failed: %s" % traceback.format_exc())
+
+
+    def __init__(self, rank=None, ATHENA_PROC_NUMBER=1, workingDir=None):
         self.__rank = rank
         self.__name = "EventServerJobManager"
         self.__eventRanges = []
@@ -77,8 +106,13 @@ class EventServerJobManager():
         self.__athenaMP_needEvents = 0
         self.__pollTimeout = 5
         self.__child_pid = None
-        self.__log = Logger.Logger(filename='EventServiceManager.log')
+        self.__child_cpuTime = {}
+        if workingDir:
+            self.__log = Logger.Logger(filename=os.path.join(workingDir, 'EventServiceManager.log'))
+        else:
+            self.__log = Logger.Logger(filename='EventServiceManager.log')
         self.__childProcs = []
+        self.__isKilled = False
 
         self.__waitTerminate = False
         self.__waitTerminateTime = 1800
@@ -99,9 +133,12 @@ class EventServerJobManager():
         self.__readyForEventTime = None
         self.__endTime = None
         self.__startOSTimes = os.times()
+        self.__log.debug("Rank %s: startOSTimes: %s" % (self.__rank, self.__startOSTimes))
         self.__endOSTimes = None
         self.__totalQueuedEvents = 0
         self.__totalProcessedEvents = 0
+        self.__cpuConsumptionTime = 0
+        self.__helperThread = None
 
     def handler(self, signal, frame):
         self.__log.debug("!!FAILED!!3000!! Signal %s is caught" % signal)
@@ -129,15 +166,66 @@ class EventServerJobManager():
             ret = time.time() - self.__startTime
         return ret
 
-    def getCPUConsumptionTime(self):
+    def getCPUConsumptionTimeFromProcPid(self, pid):
+        try:
+            if not os.path.exists(os.path.join('/proc/', str(pid), 'stat')):
+                return 0
+            with open(os.path.join('/proc/', str(pid), 'stat'), 'r') as pidfile:
+                proctimes = pidfile.readline()
+                # get utime from /proc/<pid>/stat, 14 item
+                utime = proctimes.split(' ')[13]
+                # get stime from proc/<pid>/stat, 15 item
+                stime = proctimes.split(' ')[14]
+                # count total process used time
+                proctotal = int(utime) + int(stime)
+            return(float(proctotal))
+        except:
+            # self.__log.debug("Rank %s: Failed to get cpu consumption time for pid %s: %s" % (self.__rank, pid, traceback.format_exc()))
+            return 0
+
+    def getCPUConsumptionTimeFromProc(self):
+        cpuConsumptionTime = 0L
+        try:
+            CLOCK_TICKS = os.sysconf("SC_CLK_TCK")
+            if self.__child_pid:
+                self.__childProcs = []
+                self.getChildren(self.__child_pid)
+                for process in self.__childProcs:
+                    if process not in self.__child_cpuTime.keys():
+                        self.__child_cpuTime[process] = 0
+                for process in self.__child_cpuTime.keys():
+                    cpuTime = self.getCPUConsumptionTimeFromProcPid(process) / CLOCK_TICKS
+                    if cpuTime > self.__child_cpuTime[process]:
+                        self.__child_cpuTime[process] = cpuTime
+                    cpuConsumptionTime += self.__child_cpuTime[process]
+        except:
+            self.__log.debug("Rank %s: Failed to get cpu consumption time from proc: %s" % (self.__rank, traceback.format_exc()))
+        return cpuConsumptionTime
+
+    def getCPUConsumptionTimeReal(self):
         cpuConsumptionUnit, cpuConsumptionTime, cpuConversionFactor = getCPUTimes(os.getcwd())
-        if cpuConsumptionTime < 1:
+        self.__log.debug("Rank %s: cpuConsumptionTime: %s" % (self.__rank, cpuConsumptionTime))
+        self.__log.debug("Rank %s: start os.times: %s" % (self.__rank, self.__startOSTimes))
+        self.__log.debug("Rank %s: os.times: %s" % (self.__rank, os.times()))
+        if cpuConsumptionTime < 10:
             endOSTimes = os.times()
             if self.__endOSTimes:
                 endOSTimes = self.__endOSTimes
-            t = map(lambda x, y:x-y, endOSTimes, self.__startOSTimes)
-            cpuConsumptionTime = reduce(lambda x, y:x+y, t[2:3])
+            cpuConsumptionTime = endOSTimes[2] + endOSTimes[3] - self.__startOSTimes[2] - self.__startOSTimes[3]
+            if cpuConsumptionTime < 0:
+                cpuConsumptionTime = 0
+        procCPUConsumptionTime = self.getCPUConsumptionTimeFromProc()
+        self.__log.debug("Rank %s: cpuConsumptionTime from proc: %s" % (self.__rank, procCPUConsumptionTime))
+        if self.__isKilled or cpuConsumptionTime < procCPUConsumptionTime * 0.9:
+            cpuConsumptionTime = procCPUConsumptionTime
+        self.__log.debug("Rank %s: cpuConsumptionTime: %s" % (self.__rank, cpuConsumptionTime))
         return cpuConsumptionTime
+
+    def getCPUConsumptionTime(self):
+        return self.__cpuConsumptionTime
+
+    def helperFunc(self):
+        self.__cpuConsumptionTime = self.getCPUConsumptionTimeReal()
 
     def getCores(self):
         return self.__ATHENA_PROC_NUMBER
@@ -255,6 +343,9 @@ class EventServerJobManager():
             os._exit(0)
         else:
             self.__child_pid = child_pid
+            self.__log.debug("Rank %s: Initialize helper thread" % (self.__rank))
+            self.__helperThread = EventServerJobManager.HelperThread(self.__log, self.helperFunc)
+            self.__helperThread.start()
             return 0
             
     def insertEventRange(self, message):
@@ -376,6 +467,7 @@ class EventServerJobManager():
             self.__log.debug("Rank %s: Child process id is %s" % (self.__rank, self.__child_pid))
             if self.__endTime is None:
                 self.__endTime = time.time()
+            if self.__helperThread: self.__helperThread.stop()
             return True
         try:
             pid, status = os.waitpid(self.__child_pid, os.WNOHANG)
@@ -385,6 +477,7 @@ class EventServerJobManager():
                 self.__childRetStatus = 0
                 if self.__endTime is None:
                     self.__endTime = time.time()
+                if self.__helperThread: self.__helperThread.stop()
                 return True
         else:
             if pid: # finished
@@ -392,6 +485,7 @@ class EventServerJobManager():
                 self.__childRetStatus = status%255
                 if self.__endTime is None:
                     self.__endTime = time.time()
+                if self.__helperThread: self.__helperThread.stop()
                 return True
         return False
 
@@ -553,7 +647,8 @@ class EventServerJobManager():
 
     def getChildren(self, pid):
         #self.__childProcs = []
-        self.__childProcs.append(pid)
+        if pid not in self.__childProcs:
+            self.__childProcs.append(pid)
         childProcs = self.findChildProcesses(pid)
         for child in childProcs:
             #print "Child Process found: %s" % child
@@ -561,7 +656,9 @@ class EventServerJobManager():
             self.getChildren(child)
 
     def killProcess(self, pid):
+        self.__isKilled = True
         if pid > -1:
+            self.__childProcs = []
             self.getChildren(pid)
             for process in self.__childProcs:
                 try:
@@ -570,6 +667,8 @@ class EventServerJobManager():
                     self.__log.warning("Rank %s: SIGKILL error: %s" % (self.__rank, str(traceback.format_exc())))
 
     def terminateChild(self):
+        if self.__helperThread: self.__helperThread.stop()
+        self.__isKilled = True
         self.__log.debug("Rank %s: ESJobManager Child is terminating" % self.__rank)
         try:
             if self.__athenaMPProcess and self.__athenaMPProcess.poll() is None:
@@ -583,8 +682,6 @@ class EventServerJobManager():
                 os.killpg(self.__TokenExtractorProcess.pid, signal.SIGTERM)
         except:
             self.__log.debug("Rank %s: Failed to kill TokenExtractor Process process: %s" % (self.__rank, str(traceback.format_exc())))
-        self.__log.debug("Rank %s: Stopping Message Thread" % self.__rank)
-        self.__messageThread.stop()
 
         # Frequently the process is not stopped. So kill them with SIGKILL
         time.sleep(1)
@@ -597,8 +694,12 @@ class EventServerJobManager():
                 self.killProcess(self.__TokenExtractorProcess.pid)
         except:
             self.__log.debug("Rank %s: Failed to kill process: %s" % (self.__rank, str(traceback.format_exc())))
+        self.__log.debug("Rank %s: Stopping Message Thread" % self.__rank)
+        self.__messageThread.stop()
 
     def terminate(self):
+        if self.__helperThread: self.__helperThread.stop()
+        self.__isKilled = True
         self.__log.debug("Rank %s: ESJobManager is terminating" % self.__rank)
         try:
             self.__messageInQueue.put("Stop_Message_Process")
@@ -609,13 +710,29 @@ class EventServerJobManager():
             self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
 
         # Frequently the process is not stopped. So kill them with SIGKILL
-        time.sleep(1)
+        time.sleep(5)
         try:
             if not self.isDead():
                 self.killProcess(self.__child_pid)
         except:
             self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
 
+    def kill(self):
+        self.__isKilled = True
+        self.__log.debug("Rank %s: ESJobManager is terminating" % self.__rank)
+        try:
+            self.__messageInQueue.put("Stop_Message_Process")
+            if not self.isDead():
+                os.killpg(self.__child_pid, signal.SIGTERM)
+        except:
+            self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
+
+        # Frequently the process is not stopped. So kill them with SIGKILL
+        try:
+            if not self.isDead():
+                self.killProcess(self.__child_pid)
+        except:
+            self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
 
     def finish(self):
         if self.__waitTerminate and (time.time() - self.__startTerminateTime) < self.__waitTerminateTime:

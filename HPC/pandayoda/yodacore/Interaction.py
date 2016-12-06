@@ -1,4 +1,5 @@
 import cgi
+import os
 import sys
 import json
 import time
@@ -14,7 +15,7 @@ sendQueue = Queue.Queue()
 class Receiver:
 
     # constructor
-    def __init__(self, rank=None, nonMPIMode=False):
+    def __init__(self, rank=None, nonMPIMode=False, logger=None):
         if nonMPIMode:
             self.comm = None
             self.stat = None
@@ -28,6 +29,8 @@ class Receiver:
             self.nRank = self.comm.Get_rank()
             self.totalRanks = self.comm.Get_size()
             self.selectSource = MPI.ANY_SOURCE
+
+        self.logger = logger
 
         # for message in rank 0
         self.hasMessage = False
@@ -128,6 +131,10 @@ class Receiver:
         return self.totalRanks > 0
 
 
+    def getTotalRanks(self):
+        return self.totalRanks
+
+
     def sendMessage(self, rData):
         try:
             #data = urllib.urlencode(rData)
@@ -156,7 +163,7 @@ class Receiver:
 class Requester:
     
     # constructor
-    def __init__(self, rank=None, nonMPIMode=False):
+    def __init__(self, rank=None, nonMPIMode=False, logger=None):
         self.nonMPIMode = nonMPIMode
         if not self.nonMPIMode:
             from mpi4py import MPI
@@ -164,6 +171,8 @@ class Requester:
             self.rank = 0
         else:
             self.comm = None
+
+        self.logger = logger
 
         # for message in rank 0
         self.hasMessage = False
@@ -186,18 +195,37 @@ class Requester:
             reqData = json.dumps(data)
             if self.getRank() == 0:
                 self.sendQueue.put(reqData)
-                ansData = self.recvQueue.get(True, timeout=1000)
             else:
                 # send a request ro rank0
                 self.comm.send(reqData,dest=0)
-                # wait for the answer from Rank 0
-                #while not self.comm.Iprobe(source=0):
-                #    time.sleep(0.001)
-                # get the answer
-                ansData = self.comm.recv(source=0)
-            # decode
-            #answer = cgi.parse_qs(ansData)
-            answer = json.loads(ansData)
+
+            while True:
+                if self.getRank() == 0:
+                    ansData = self.recvQueue.get(True, timeout=1000)
+                else:
+                    # wait for the answer from Rank 0
+                    # while not self.comm.Iprobe(source=0):
+                    #    time.sleep(0.001)
+                    # get the answer
+                    ansData = self.comm.recv(source=0)
+                # decode
+                #answer = cgi.parse_qs(ansData)
+                answer = json.loads(ansData)
+
+                # special handler for signal
+                # {'StatusCode':0, 'State': 'signal', 'signum': signum}
+                try:
+                    if 'StatusCode' in answer and answer['StatusCode'] == 0 and 'State' in answer and  answer['State'] == 'signal':
+                        if self.logger:
+                            self.logger.debug("Received signal messages: %s" % answer)
+                        os.kill(os.getpid(), answer['signum'])
+                        continue
+                    else:
+                        break
+                except:
+                    if self.logger:
+                        self.logger.debug("Failed to handle signal message: %s" % traceback.format_exc())
+                    break
             return True,answer
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -208,13 +236,13 @@ class Requester:
     def waitMessage(self):
         try:
             if self.getRank() == 0:
-                ansData = self.recvQueue.get(True, timeout=100)
+                ansData = self.recvQueue.get(True, timeout=0.0001)
             else:
                 # wait for message from Rank 0
-                #while not self.comm.Iprobe(source=0):
-                #    time.sleep(1)
+                # if self.comm.Iprobe(source=0):
+                #    time.sleep(0.0001)
                 # get the answer
-                ansData = self.comm.recv(source=0)
+                ansData = self.comm.Irecv(source=0)
             # decode
             #answer = cgi.parse_qs(ansData)
             answer = json.loads(ansData)

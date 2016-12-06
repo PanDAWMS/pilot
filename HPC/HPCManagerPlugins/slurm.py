@@ -1,6 +1,6 @@
 
-import commands
-import os
+import subprocess
+import os,time
 
 from HPC.Logger import Logger
 from HPC.HPCManagerPlugins.plugin import Plugin
@@ -15,7 +15,7 @@ class slurm(Plugin):
         #cmd = 'showbf -p %s' % partition
         cmd = 'sinfo '
         self.__log.info("Executing command: '%s'" % cmd)
-        res_tuple = commands.getstatusoutput(cmd)
+        res_tuple = runcommand(cmd)
         self.__log.info("Executing command output: %s" % str(res_tuple))
         showbf_str = ""
         if res_tuple[0] == 0:
@@ -91,6 +91,7 @@ class slurm(Plugin):
             submit_script += "#SBATCH -A " + repo + "\n"
         # submit_script += "#SBATCH -n " + str(mppwidth) + "\n"
         submit_script += "#SBATCH -N " + str(nodes) + "\n"
+        submit_script += "#SBATCH --signal=SIGUSR1@60\n"
         submit_script += "#SBATCH -t " + walltime + "\n"
         submit_script += "#SBATCH --ntasks-per-node=1\n"
         submit_script += "#SBATCH --cpus-per-task=" + str(cpuPerNode) + "\n"
@@ -126,7 +127,7 @@ class slurm(Plugin):
         self.__log.info("submit script:\n%s" % submit_script)
         cmd = "sbatch " + self.__submit_file
         self.__log.info("submitting HPC job: %s" % cmd)
-        status, output = commands.getstatusoutput(cmd)
+        status, output = runcommand(cmd)
         self.__log.info("submitting HPC job: (status: %s, output: %s)" %(status, output))
         self.__jobid = None
         if status == 0:
@@ -138,7 +139,7 @@ class slurm(Plugin):
         # poll the job in HPC. update it
         cmd = "scontrol show job " + jobid
         self.__log.info("polling HPC job: %s" % cmd)
-        status, output = commands.getstatusoutput(cmd)
+        status, output = runcommand(cmd)
         # self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
         if status == 0:
             self.__failedPollTimes = 0
@@ -153,15 +154,21 @@ class slurm(Plugin):
                 self.__log.info("HPC job complete")
                 return "Complete"
             if state == "RUNNING":
+                self.__log.info("HPC job is running")
                 return "Running"
             if state == "PENDING":
+                self.__log.info("HPC job is pending")
                 return "Queue"
             if state == "FAILED":
+                self.__log.info("HPC job is failed")
                 return "Failed"
             if state == "CANCELLED":
+                self.__log.info("HPC job is cancelled")
                 return "Failed"
             if state == "TIMEOUT":
+                self.__log.info("HPC job is timed out")
                 return "Failed"
+            self.__log.info("HPC job is in unknown state")
             return 'Unknown'
         else:
             self.__log.info("polling HPC job: (status: %s, output: %s)" %(status, output))
@@ -170,14 +177,20 @@ class slurm(Plugin):
                 return "Complete"
             else:
                 self.__failedPollTimes += 1
-                if self.__failedPollTimes > 5:
-                    return "Failed"
-                else:
-                    return 'Unknown'
+                self.__log.error('Failing HPC job because the polling command has failed ' + str(self.__failedPollTimes) + ' times.')
+                return 'Unknown'
         return 'Unknown'
 
     def delete(self, jobid):
         command = "scancel " + jobid
-        status, output = commands.getstatusoutput(command)
+        status, output = runcommand(command)
         self.__log.debug("Run Command: %s " % command)
         self.__log.debug("Status: %s, Output: %s" % (status, output))
+
+
+def runcommand(cmd):
+   p = subprocess.Popen(cmd.split(),stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+   while p.poll() is None:
+      time.sleep(1)
+   stdout,stderr = p.communicate()
+   return (p.returncode,stdout)

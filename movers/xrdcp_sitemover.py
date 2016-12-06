@@ -33,8 +33,20 @@ class xrdcpSiteMover(BaseSiteMover):
 
     def _resolve_checksum_option(self):
 
-        cmd = "%s -h" % self.copy_command
+        cmd = "%s --version" % self.copy_command
         setup = self.getSetup()
+        if setup:
+            cmd = "%s; %s" % (setup, cmd)
+
+        self.log("Execute command (%s) to check xrdcp client version.." % cmd)
+
+        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+        output = c.communicate()[0]
+
+        self.log("return code: %s" % c.returncode)
+        self.log("return output: %s" % output)
+
+        cmd = "%s -h" % self.copy_command
         if setup:
             cmd = "%s; %s" % (setup, cmd)
 
@@ -98,7 +110,7 @@ class xrdcpSiteMover(BaseSiteMover):
         self.log("is_timeout=%s, rcode = %s, output = %s" % (is_timeout, rcode, output.replace("\n", " ")))
 
         if is_timeout:
-            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, self.timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
+            raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
 
         if rcode:
             self.log('WARNING: [is_stagein=%s] Stage file command (%s) failed: Status=%s Output=%s' % (is_stagein, cmd, rcode, output.replace("\n"," ")))
@@ -113,7 +125,12 @@ class xrdcpSiteMover(BaseSiteMover):
             #    #if not _ec :
             #    #    self.log("Failed to remove file %s" % destination)
             #    #return rcode, outputRet
+
             rcode = error.get('rcode')
+            if not is_stagein and rcode == PilotErrors.ERR_CHKSUMNOTSUP: ## stage-out, on fly checksum verification is not supported .. ignore
+                self.log('stage-out: ignore ERR_CHKSUMNOTSUP error .. will explicitly verify uploaded file')
+                return None, None
+
             if not rcode:
                 rcode = PilotErrors.ERR_STAGEINFAILED if is_stagein else PilotErrors.ERR_STAGEOUTFAILED
             state = error.get('state')
@@ -183,6 +200,9 @@ class xrdcpSiteMover(BaseSiteMover):
             extract checksum value from xrdcp --chksum command output
             :return: (checksum, checksum_type) or (None, None) in case of failure
         """
+
+        if not output:
+            return None, None
 
         if not ("xrootd" in output or "XRootD" in output or "adler32" in output):
             self.log("WARNING: Failed to extract checksum: Unexpected %s output: %s" % (self.copy_command, output))

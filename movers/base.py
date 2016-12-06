@@ -4,7 +4,7 @@
 """
 
 import hashlib
-import os
+import os, re
 import time
 
 from subprocess import Popen, PIPE, STDOUT
@@ -29,19 +29,12 @@ class BaseSiteMover(object):
     name = "" # unique ID of the Mover implementation, if not set copy_command will be used
     copy_command = None
 
-    timeout = 5*60 # 5 min
+    timeout = 3000 #
 
     checksum_type = "adler32"     # algorithm name of checksum calculation
     checksum_command = "adler32"  # command to be executed to get checksum, e.g. md5sum (adler32 is internal default implementation)
 
     ddmconf = {}                  # DDMEndpoints configuration from AGIS
-
-    #has_mkdir = True
-    #has_df = True
-    #has_getsize = True
-    #has_md5sum = True
-    #has_chmod = True
-    #
 
     def __init__(self, setup_path='', **kwargs):
 
@@ -117,7 +110,11 @@ class BaseSiteMover(object):
             job instance is passing here for possible JOB specific processing ?? FIX ME LATER
         """
 
-        if '/rucio' in se_path:
+        # consider only deterministic sites (output destination)
+        # do proper extract is_determetistic flag from DDMEndpoint: TODO
+
+        # quick hack for now
+        if se_path and se_path.rstrip('/').endswith('/rucio'):
             return self.getSURLRucio(se, se_path, scope, lfn)
 
         raise Exception("getSURL(): NOT IMPLEMENTED error: processing of non Rucio transfers is not implemented yet, se_path=%s" % se_path)
@@ -201,7 +198,7 @@ class BaseSiteMover(object):
 
         return None
 
-    def resolve_replica(self, fspec, protocol):
+    def resolve_replica(self, fspec, protocol, ddm=None):
         """
             :fspec: FileSpec object
             :protocol: dict('se':'', 'scheme':'str' or list)
@@ -228,17 +225,26 @@ class BaseSiteMover(object):
         replica = None # find first matched to protocol spec replica
         surl = None
 
-        for ddmendpoint, replicas, ddm_se in fspec.replicas:
+        for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
             if not replicas:
                 continue
             surl = replicas[0] # assume srm protocol is first entry
-            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s" % (surl, ddmendpoint, ddm_se))
+            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
 
             for r in replicas:
                 # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
                 if protocol.get('se') and r.startswith(ddm_se): # manually form pfn based on protocol.se
-                    replica = protocol.get('se') + r.replace(ddm_se, '')
-                    self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s: found replica=%s matched ddm.se=%s .. will use TURL=%s" % (protocol.get('se'), surl, ddm_se, replica))
+                    r_filename = r.replace(ddm_se, '', 1).replace(ddm_path, '', 1) # resolve replica filename
+                    # quick hack: if hosted replica ddmendpoint and input protocol ddmendpoint mismatched => consider replica ddmendpoint.path
+                    r_path = protocol.get('path')
+                    if ddmendpoint != protocol.get('ddm'):
+                        self.log("[stage-in] ignore protocol.path=%s since protocol.ddm=%s differs from found replica.ddm=%s ... will use ddm.path=%s to form TURL" % (protocol.get('path'), protocol.get('ddm'), ddmendpoint, ddm_path))
+                        r_path = ddm_path
+                    replica = protocol.get('se') + r_path
+                    if replica and r_filename and '/' not in (replica[-1] + r_filename[0]):
+                        replica += '/'
+                    replica += r_filename
+                    self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s, protocol.path=%s: found replica=%s matched ddm.se=%s, ddm.path=%s .. will use TURL=%s" % (protocol.get('se'), protocol.get('path'), surl, ddm_se, ddm_path, replica))
                     break
                 # use exact pfn from Rucio replicas
                 if not replica:
@@ -251,6 +257,7 @@ class BaseSiteMover(object):
 
         if not replica: # replica not found
             error = 'Failed to find replica for input file, protocol=%s, fspec=%s' % (protocol, fspec)
+            self.log("resolve_replica: %s" % error)
             raise PilotException(error, code=PilotErrors.ERR_REPNOTFOUND)
 
         return {'surl':surl, 'ddmendpoint':ddmendpoint, 'pfn':replica}
@@ -324,6 +331,19 @@ class BaseSiteMover(object):
                 self.log("Local  checksum [%s]: %s  (%s)" % (dst_checksum_type, dst_checksum, destination))
                 self.log("checksum is_verified = %s" % is_verified)
 
+                if type(dst_checksum) is str and type(src_checksum) is str:
+                    if len(src_checksum) < len(dst_checksum):
+                        self.log("Local and remote checksums have different lengths (%s vs %s)" % (dst_checksum, src_checksum))
+                        if dst_checksum[0] == '0':
+                            self.log("Stripping initial 0:s from local checksum")
+                            dst_checksum = dst_checksum.lstrip('0')
+
+                            is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
+
+                            self.log("Remote checksum [%s]: %s  (%s)" % (src_checksum_type, src_checksum, source))
+                            self.log("Local  checksum [%s]: %s  (%s)" % (dst_checksum_type, dst_checksum, destination))
+                            self.log("checksum is_verified = %s" % is_verified)
+
                 if not is_verified:
                     error = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" % \
                                             (src_checksum_type, os.path.basename(destination), dst_checksum, src_checksum)
@@ -371,7 +391,7 @@ class BaseSiteMover(object):
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
-    def stageInFile(source, destination, fspec=None):
+    def stageInFile(self, source, destination, fspec=None):
         """
             Stage in the file.
             Should be implemented by different site mover
@@ -409,7 +429,12 @@ class BaseSiteMover(object):
 
         # do stageOutFile
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
-        dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
+        try:
+            dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
+        except PilotException:
+            # do clean up
+            self.remote_cleanup(destination, fspec)
+            raise
 
         # verify stageout by checksum
         self.trace_report.update(validateStart=time.time())
@@ -433,6 +458,19 @@ class BaseSiteMover(object):
                 self.log("Remote checksum [%s]: %s" % (dst_checksum_type, dst_checksum))
                 self.log("checksum is_verified = %s" % is_verified)
 
+                if type(dst_checksum) is str and type(src_checksum) is str:
+                    if len(dst_checksum) < len(src_checksum):
+                        self.log("Local and remote checksums have different lengths (%s vs %s)" % (src_checksum, dst_checksum))
+                        if src_checksum[0] == '0':
+                            self.log("Stripping initial 0:s from local checksum")
+                            src_checksum = src_checksum.lstrip('0')
+
+                            is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
+
+                            self.log("Local  checksum [%s]: %s" % (src_checksum_type, src_checksum))
+                            self.log("Remote checksum [%s]: %s" % (dst_checksum_type, dst_checksum))
+                            self.log("checksum is_verified = %s" % is_verified)
+
                 if not is_verified:
                     error = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" % \
                                             (src_checksum_type, os.path.basename(destination), dst_checksum, src_checksum)
@@ -449,6 +487,7 @@ class BaseSiteMover(object):
                 return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
         except PilotException:
+            self.remote_cleanup(destination, fspec)
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file checksum verification: %s ..  skipped" % e)
@@ -472,14 +511,16 @@ class BaseSiteMover(object):
             return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
         except PilotException:
+            self.remote_cleanup(destination, fspec)
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file size verification: %s .. skipped" % e)
 
+        self.remote_cleanup(destination, fspec)
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
-    def stageOutFile(source, destination, fspec):
+    def stageOutFile(self, source, destination, fspec):
         """
             Stage out the file.
             Should be implemented by different site mover
@@ -488,6 +529,14 @@ class BaseSiteMover(object):
         """
 
         raise Exception('NOT IMPLEMENTED')
+
+    def remote_cleanup(self, destination, fspec):
+        """
+            Apply remote clean up: e.g. remove incomplete remote file
+            Should be customized by different site mover
+        """
+
+        return True
 
 
     def resolveStageErrorFromOutput(self, output, filename=None, is_stagein=False):
@@ -522,6 +571,10 @@ class BaseSiteMover(object):
             ret['rcode'] = PilotErrors.ERR_NOSUCHFILE
             ret['state'] = 'NO_FILE'
             ret['error'] = output
+        elif "query chksum is not supported" in output or "Unable to checksum" in output:
+            ret['rcode'] = PilotErrors.ERR_CHKSUMNOTSUP
+            ret['state'] = 'CHKSUM_NOTSUP'
+            ret['error'] = output
 
         return ret
 
@@ -529,12 +582,12 @@ class BaseSiteMover(object):
     def getTimeOut(self, filesize):
         """ Get a proper time-out limit based on the file size """
 
-        timeout_max = 6*3600 # 6 hours
-        timeout_min = self.timeout #5*60   # 5 mins
+        timeout_max = 5 + 3*3600 # 3 hours ::: FIX ME LATER ::
+        timeout_min = self.timeout
 
-        timeout = timeout_min + int(filesize/0.4e6) # approx < 0.4 Mb/sec
+        timeout = timeout_min + int(filesize/0.5e6) # approx < 0.5 Mb/sec
 
-        return max(timeout, timeout_max)
+        return min(timeout, timeout_max)
 
 
     def calc_file_checksum(self, filename):
@@ -578,25 +631,42 @@ class BaseSiteMover(object):
 
 
     @classmethod
-    def calc_checksum(self, filename, command='md5sum', setup=None):
+    def calc_checksum(self, filename, command='md5sum', setup=None, pattern=None, cmd=None):
         """
-            calculate the md5 checksum for a file
+            :cmd: quick hack: fix me later
+            calculate file checksum value
             raise an exception if input filename is not exist/readable
         """
 
-        cmd = "%s %s" % (command, filename)
+        if not cmd:
+            cmd = "%s %s" % (command, filename)
         if setup:
-            cmd = "%s; %s" % (setup, cmd)
+            cmd = "%s 1>/dev/null 2>/dev/null; %s" % (setup, cmd)
 
         self.log("Execute command (%s) to calc checksum of file" % cmd)
 
-        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
-        output = c.communicate()[0]
+        c = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        output, error = c.communicate()
+
+        if error:
+            self.log("INFO: calc_checksum: error=%s" % error)
+
         if c.returncode:
-            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (flename, cmd, c.returncode, output))
+            self.log('FAILED to calc_checksum for file=%s, cmd=%s, rcode=%s, output=%s' % (filename, cmd, c.returncode, output))
             raise Exception(output)
 
-        return output.split()[0] # return final checksum
+        self.log("calc_checksum: output=%s" % output)
+
+        value = ''
+        if pattern:
+            self.log("INFO: calc_checksum: try to extract checksum value by pattern=%s" % pattern)
+            m = re.match(pattern, output)
+            if m:
+                value = m.groupdict().get('checksum') or ''
+        else:
+            value = output.split()[0]
+
+        return value # return final checksum
 
     @classmethod
     def removeLocal(self, filename):

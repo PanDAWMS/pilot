@@ -17,6 +17,9 @@ class EventServiceFactory(object):
         eventServiceClasses = [j for (i,j) in globals().iteritems() if isinstance(j, TypeType) and issubclass(j, EventService)]
         print eventServiceClasses
         # loop over all subclasses
+
+        if experiment == "Nordugrid-ATLAS":
+            experiment = "ATLAS"
         for eventServiceClass in eventServiceClasses:
             si = eventServiceClass()
 

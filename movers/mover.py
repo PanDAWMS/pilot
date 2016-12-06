@@ -16,11 +16,13 @@ from PilotErrors import PilotException, PilotErrors
 
 from pUtil import tolog
 
+import sys
 import os
 import time
 import traceback
-from random import shuffle
+from random import shuffle, uniform
 from subprocess import Popen, PIPE, STDOUT
+
 try:
     import json # python2.6
 except ImportError:
@@ -35,14 +37,17 @@ class JobMover(object):
     job = None  # Job object
     si = None   # Site information
 
-    MAX_STAGEIN_RETRY = 3
+    MAX_STAGEIN_RETRY = 5
     MAX_STAGEOUT_RETRY = 10
 
     _stageoutretry = 2 # default value
     _stageinretry = 2  # devault value
 
-    stagein_sleeptime = 10*60   # seconds, sleep time in case of stagein failure
-    stageout_sleeptime = 10*60  # seconds, sleep time in case of stageout failure
+    _stagein_sleeptime_min = 20       # seconds, min allowed sleep time in case of stagein failure
+    _stagein_sleeptime_max = 50       # seconds, max allowed sleep time in case of stagein failure
+
+    _stageout_sleeptime_min = 4.9*60  # seconds, min allowed sleep time in case of stageout failure
+    _stageout_sleeptime_max = 5*60    # seconds, max allowed sleep time in case of stageout failure
 
 
     def __init__(self, job, si, **kwargs):
@@ -62,7 +67,15 @@ class JobMover(object):
 
 
     def log(self, value): # quick stub
+        #sys.stdout.flush()
         tolog(value)
+        sys.stdout.flush() # quick hack until proper central logging will be implemented
+
+    def calc_stagein_sleeptime(self):
+        return uniform(self._stagein_sleeptime_min, self._stagein_sleeptime_max)
+
+    def calc_stageout_sleeptime(self):
+        return uniform(self._stageout_sleeptime_min, self._stageout_sleeptime_max)
 
     @property
     def stageoutretry(self):
@@ -120,7 +133,7 @@ class JobMover(object):
     def resolve_replicas(self, files):
         """
             populates fdat.inputddms and fdat.replicas of each entry from `files` list
-            fdat.replicas = [(ddmendpoint, replica, ddm_se)]
+            fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
             ddm_se -- integration logic -- is used to manualy form TURL when ignore_rucio_replicas=True
             (quick stab until all protocols are properly populated in Rucio from AGIS)
         """
@@ -130,20 +143,35 @@ class JobMover(object):
         # load ALL ddmconf
         self.ddmconf.update(self.si.resolveDDMConf([]))
         ddms = {}
+        objectstoreId_ddm = {}
         for ddm, dat in self.ddmconf.iteritems():
             ddms.setdefault(dat['site'], []).append(dat)
+            if dat.get('type') in ['OS_ES', 'OS_LOGS']:
+                objectstoreId_ddm[int(dat.get('resource', {}).get('bucket_id', -1))] = ddm
+        self.log("objectstoreId_ddm: %s" % objectstoreId_ddm)
 
+        need_resolve_replicas = False
         for fdat in files:
 
-            # build and order list of local ddms
-            ddmdat = self.ddmconf.get(fdat.ddmendpoint)
-            if not ddmdat:
-                raise Exception("Failed to resolve ddmendpoint by name=%s send by Panda job, please check configuration. fdat=%s" % (fdat.ddmendpoint, fdat))
-            if not ddmdat['site']:
-                raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
-            localddms = ddms.get(ddmdat['site'])
-            # sort/filter ddms (as possible input source)
-            fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+            if fdat.objectstoreId:
+                self.log("fdat.objectstoreId: %s" % fdat.objectstoreId)
+                fdat.ddmendpoint = objectstoreId_ddm.get(fdat.objectstoreId, None)
+                fdat.inputddms = [fdat.ddmendpoint]
+            else:
+                need_resolve_replicas = True
+                # build and order list of local ddms
+                ddmdat = self.ddmconf.get(fdat.ddmendpoint)
+                if not ddmdat:
+                    raise Exception("Failed to resolve ddmendpoint by name=%s send by Panda job, please check configuration. fdat=%s" % (fdat.ddmendpoint, fdat))
+                if not ddmdat['site']:
+                    raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
+                localddms = ddms.get(ddmdat['site'])
+                # sort/filter ddms (as possible input source)
+                fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+
+        if not need_resolve_replicas:
+            self.log("No need to resolve replicas")
+            return files
 
         # load replicas from Rucio
         from rucio.client import Client
@@ -169,8 +197,15 @@ class JobMover(object):
             for ddm in fdat.inputddms:
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
-                ddm_se = self.ddmconf[ddm].get('se', '')
-                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se))
+                ddm_se = self.ddmconf[ddm].get('se', '')          ## FIX ME LATER: resolve from default protocol (srm?)
+                ddm_path = self.ddmconf[ddm].get('endpoint', '')  ##
+
+                if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
+                    if ddm_path[-1] != '/':
+                        ddm_path += '/'
+                    ddm_path += 'rucio/'
+
+                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
             cc_ad = 'ad:%s' % r['adler32']
@@ -196,20 +231,91 @@ class JobMover(object):
             self.log("mover.is_directaccess(): Failed to resolve direct access settings: exception=%s" % e)
             return False
 
+    def handle_dbreleases(self, files):
+        """
+            Check if the DBRelease file(s) is locally available,
+            if so, create the skeleton file and exclude file from stage-in
+        """
+
+        from DBReleaseHandler import DBReleaseHandler  ## partially reuse old implementation.. FIX ME LATER
+
+        dbh = DBReleaseHandler(workdir=self.job.workdir)
+        path = self.job.workdir
+
+        # resolve dbreleases from files
+        dbreleases = {} # by versions
+        for fspec in files:
+            ver = dbh.extractVersion(fspec.lfn)  ##
+            if ver:
+                dbreleases.setdefault(ver, []).append(fspec)
+
+        # resolve dbrelease fom jobPars
+        version = dbh.extractVersion(self.job.jobPars) ## quick hack -- fix me later (format of jobPars differs from lfn)
+        if version:
+            ## check if available or requested for stage-in
+            if not dbh.isDBReleaseAvailable(version) and not version in dbreleases: # not available
+                self.log("ERROR: Requested DBRelease from jobPars with version=%s is not available on CVMFS and not requested for stage in.. raise error." % version)
+                raise PilotException("Requested DBRelease is not available: version=%s" % version, code=PilotErrors.ERR_MISSDBREL, state='ERR_MISSDBREL')
+            dbreleases.setdefault(version, [])
+
+        if not dbreleases:
+            return False
+
+        self.log("Detected DBRelease versions extracted from JobPars and input files: %s" % sorted(dbreleases))
+        for version, fspecs in dbreleases.iteritems():
+            if dbh.isDBReleaseAvailable(version):
+                self.log("Creating the skeleton DBRelease tarball for version=%s" % version)
+                if not dbh.createDBRelease(version, path):
+                    self.log("Failed to create the skeleton file for DBRelease version=%s" % version)
+                    raise PilotException("DBRelease: failed to create skeleton for version=%s" % version, code=PilotErrors.ERR_MISSDBREL, state='MISSDBREL_SKELFAIL')
+                for fspec in fspecs:
+                    fspec.status = 'no_transfer'  ## ignore for stage-in
+
+        return True
+
     def stagein(self):
         """
             :return: (transferred_files, failed_transfers)
         """
+        files = self.job.inData
+        normal_files = []
+        es_files = []
+        transferred_files = []
+        failed_transfers = []
+        for file in files:
+            if file.prodDBlockToken and file.prodDBlockToken.isdigit():
+                file.objectstoreId = int(file.prodDBlockToken)
+                es_files.append(file)
+            else:
+                normal_files.append(file)
 
-        activity = 'pr'
+        if normal_files:
+            self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
+            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
+        if failed_transfers:
+            self.log("Failed to transfer normal files: %s" % failed_transfers)
+            return transferred_files, failed_transfers
+
+        if es_files:
+            self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
+            copytools = [('objectstore', {'setup': ''})]
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='per', copytools=copytools)
+            transferred_files += transferred_files_es
+            failed_transfers += failed_transfers_es
+            self.log("Failed to transfer files: %s" % failed_transfers)
+        return transferred_files, failed_transfers
+
+    def stagein_real(self, files, activity='pr', copytools=None):
+        """
+            :return: (transferred_files, failed_transfers)
+        """
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity)[pandaqueue]
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
 
         self.log("stage-in: pq.aprotocols=%s, pq.copytools=%s" % (protocols, copytools))
 
-        files = self.job.inData
         self.resolve_replicas(files) # populates also self.ddmconf = self.si.resolveDDMConf([])
 
         maxinputsize = self.getMaxInputSize()
@@ -232,47 +338,67 @@ class JobMover(object):
 
         protocols = protocols + cprotocols
         if not protocols:
-            raise PilotException("Failed to get files: neither aprotocols nor allowed copytools defined for input. check copytools/acopytools/aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to get files: neither aprotocols nor allowed copytools defined for input. check copytools/acopytools/aprotocols schedconfig settings for activity=%s, pandaqueue=%s" % (activity, pandaqueue), code=PilotErrors.ERR_NOSTORAGE, state='NO_PROTOCOLS_DEFINED')
+
+        ## check files to be ignored for stage-in (DBRelease)
+
+        self.handle_dbreleases(files)
+
+        ignored_files = [e for e in files if e.status == 'no_transfer']
+
+        for fdata in ignored_files: # ignored, no transfer required
+            updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+            self.log("Stage-in will be ignored for lfn=%s .. skip transfer the file" % fdata.lfn)
+
+        self.log("stage-in: resolved protocols=%s" % protocols)
 
         sitemover_objects = {}
 
-        for dat in protocols:
+        remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'no_transfer']]
 
-            remain_files = [e for e in files if e.status not in ['direct_access', 'transferred']]
-            if not remain_files:
-                self.log('INFO: all input files have been successfully processed')
-                break
+        nfiles = len(remain_files)
+        nprotocols = len(protocols)
 
-            copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
+        for fnum, fdata in enumerate(remain_files, 1):
 
-            try:
-                sitemover = sitemover_objects.get(copytool)
-                if not sitemover:
-                    sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
-                    sitemover_objects.setdefault(copytool, sitemover)
+            self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
 
-                    sitemover.trace_report = self.trace_report
-                    sitemover.ddmconf = self.ddmconf # self.si.resolveDDMConf([]) # quick workaround  ###
-                    sitemover.setup()
-                if dat.get('resolve_scheme'):
-                    dat['scheme'] = sitemover.schemes
-            except Exception, e:
-                self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
-                continue
+            bad_copytools = True
 
-            self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
-            self.log("Copy setup   [stage-in]: %s" % copysetup)
+            for protnum, dat in enumerate(protocols, 1):
 
-            self.trace_report.update(protocol=copytool)
+                if fdata.status in ['direct_access', 'transferred', 'no_transfer']: ## success
+                    break
 
-            # verify file sizes and available space for stagein
-            sitemover.check_availablespace(maxinputsize, remain_files)
+                copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
-            for fdata in remain_files:
+                try:
+                    sitemover = sitemover_objects.get(copytool)
+                    if not sitemover:
+                        sitemover = getSiteMover(copytool)(copysetup, workDir=self.job.workdir)
+                        sitemover_objects.setdefault(copytool, sitemover)
+
+                        sitemover.trace_report = self.trace_report
+                        sitemover.ddmconf = self.ddmconf # self.si.resolveDDMConf([]) # quick workaround  ###
+                        sitemover.setup()
+                    if dat.get('resolve_scheme'):
+                        dat['scheme'] = sitemover.schemes
+                except Exception, e:
+                    self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
+                    self.trace_report.update(protocol=copytool, clientState='BAD_COPYTOOL', stateReason=str(e)[:500])
+                    self.sendTrace(self.trace_report)
+                    continue
+
+                bad_copytools = False
+
+                self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
+                self.log("Copy setup   [stage-in]: %s" % copysetup)
+
+                self.trace_report.update(protocol=copytool)
 
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="input")
 
-                self.log("[stage-in] Prepare to get_data: protocol=%s, fspec=%s" % (dat, fdata))
+                self.log("[stage-in] Prepare to get_data: [%s/%s]-protocol=%s, fspec=%s" % (protnum, nprotocols, dat, fdata))
 
                 # check if protocol and fdata.ddmendpoint belong to same site
                 #
@@ -283,8 +409,13 @@ class JobMover(object):
                     if protocol_site != replica_site:
                         self.log('INFO: cross-sites checks: protocol_site=%s and (fdata.ddmenpoint) replica_site=%s mismatched .. skip file processing for copytool=%s (protocol=%s)' % (protocol_site, replica_site, copytool, dat))
                         continue
-
-                r = sitemover.resolve_replica(fdata, dat)
+                try:
+                    r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint, None))
+                except PilotException, e:
+                    self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol" % (protnum, nprotocols))
+                    self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
+                    self.sendTrace(self.trace_report)
+                    continue
 
                 # quick stub: propagate changes to FileSpec
                 if r.get('surl'):
@@ -313,10 +444,14 @@ class JobMover(object):
                     is_directaccess = False
                 elif self.job.accessmode == 'direct':
                     is_directaccess = True
+
+                if sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
+                    self.log("Direct access mode will be ignored since Rucio site mover is requested")
+                    is_directaccess = False
+
                 if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
-
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
                     continue
 
@@ -324,7 +459,7 @@ class JobMover(object):
                 try:
                     is_stagein_allowed = sitemover.is_stagein_allowed(fdata, self.job)
                     if not is_stagein_allowed:
-                        reason = 'SiteMover does not allowed stage-in operation for the job'
+                        reason = 'SiteMover does not allow stage-in operation for the job'
                 except PilotException, e:
                     is_stagein_allowed = False
                     reason = e
@@ -333,8 +468,12 @@ class JobMover(object):
                 if not is_stagein_allowed:
                     self.log("WARNING: sitemover=%s does not allow stage-in transfer for this job, lfn=%s with reason=%s.. skip transfer the file" % (sitemover.getID(), fdata.lfn, reason))
                     failed_transfers.append(reason)
-
+                    self.trace_report.update(protocol=copytool, clientState='STAGEIN_NOTALLOWED', stateReason='skip stagein file')
+                    self.sendTrace(self.trace_report)
                     continue
+
+                # verify file sizes and available space for stagein
+                sitemover.check_availablespace(maxinputsize, [e for e in remain_files if e.status not in ['direct_access', 'transferred']])
 
                 self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
                 self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
@@ -346,16 +485,17 @@ class JobMover(object):
 
                 # loop over multple stage-in attempts
                 for _attempt in xrange(1, self.stageinretry + 1):
+                    if _attempt > 1: # if not first stage-in attempt, take a nap before next attempt
+                        sleep_time = self.calc_stagein_sleeptime()
+                        self.log(" -- Waiting %d seconds before next stage-in attempt for file=%s --" % (sleep_time, fdata.lfn))
+                        time.sleep(sleep_time)
 
-                    if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                        self.log(" -- Waiting %s seconds before next stage-in attempt for file=%s --" % (self.stagein_sleeptime, fdata.lfn))
-                        time.sleep(self.stagein_sleeptime)
-
-                    self.log("Get attempt %s/%s for filename=%s" % (_attempt, self.stageinretry, fdata.lfn))
+                    self.log("Get attempt %s/%s for file (%s/%s) with lfn=%s .. sitemover=%s" % (_attempt, self.stageinretry, fnum, nfiles, fdata.lfn, sitemover))
 
                     try:
                         result = sitemover.get_data(fdata)
                         fdata.status = 'transferred' # mark as successful
+                        fdata.status_code = 0
                         if result.get('ddmendpoint'):
                             fdata.ddmendpoint = result.get('ddmendpoint')
                         if result.get('surl'):
@@ -371,12 +511,19 @@ class JobMover(object):
                         result = e
                         self.log(traceback.format_exc())
                     except Exception, e:
-                        result = PilotException("stageIn failed with error=%s" % e, code=PilotErrors.ERR_STAGEINFAILED)
+                        result = PilotException("stageIn failed with error=%s" % e, code=PilotErrors.ERR_STAGEINFAILED, state='STAGEIN_ATTEMPT_FAILED')
                         self.log(traceback.format_exc())
+                        self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s) (exception): skip further retry (if any)' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageinretry))
+                        break
 
-                    self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageinretry, result))
+                    self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s): %s' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageinretry, result))
 
-                if not isinstance(result, Exception): # transferred successfully
+                    accepted_codes = [PilotErrors.ERR_GETADMISMATCH, PilotErrors.ERR_GETMD5MISMATCH, PilotErrors.ERR_GETWRONGSIZE, PilotErrors.ERR_NOSUCHFILE]
+                    if isinstance(result, PilotException) and result.code in accepted_codes:
+                        self.log("[stage-in] WARNING: BAD input file detected at storage side (code=%s).. will skip all remaining retry attempts (if any) .." % result.code)
+                        break
+
+                if not isinstance(result, PilotException): # transferred successfully
 
                     # finalize and send trace report
                     self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
@@ -391,7 +538,26 @@ class JobMover(object):
                     #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
                     transferred_files.append(fdat)
                 else:
+                    fdata.status = 'error'
+                    fdata.status_code = result.code
+                    fdata.status_message = result.message
+                    self.trace_report.update(clientState=result.state or 'STAGEIN_ATTEMPT_FAILED', stateReason=result.message, timeEnd=time.time())
+                    self.sendTrace(self.trace_report)
                     failed_transfers.append(result)
+
+                    badfile_codes = [PilotErrors.ERR_GETADMISMATCH, PilotErrors.ERR_GETMD5MISMATCH, PilotErrors.ERR_GETWRONGSIZE, PilotErrors.ERR_NOSUCHFILE]
+                    if fdata.status_code in badfile_codes:
+                        break
+
+            if fdata.status == 'error':
+                self.log('stage-in of file (%s/%s) with lfn=%s failed: code=%s .. skip transferring of remain data..' % (fnum, nfiles, fdata.lfn, fdata.status_code))
+                dumpFileStates(self.workDir, self.job.jobId, ftype="input")
+                raise PilotException("STAGEIN FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(fdata.status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=fdata.status_code, state='STAGEIN_FILE_FAILED')
+
+            if bad_copytools:
+                raise PilotException("STAGEIN FAILED: bad copytools: no one copytools supported", code=PilotErrors.ERR_NOSTORAGE, state='STAGEIN_BAD_COPYTOOLS')
+
+        self.log('INFO: all input files have been successfully processed')
 
         dumpFileStates(self.workDir, self.job.jobId, ftype="input")
 
@@ -411,29 +577,178 @@ class JobMover(object):
 
         return transferred_files, failed_transfers
 
+    def _prepare_destinations(self, files, activities):
+        """
+            check fspec.ddmendpoint entry and fullfill it if need by applying Pilot side logic
+            :param files: list of FileSpec entries to be processed
+            :param activities: ordered list of activities to be used to resolve storages
+            :return: updated fspec entries
+        """
+
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        astorages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+
+        if isinstance(activities, (str, unicode)):
+            activities = [activities]
+
+        if not activities:
+            raise PilotException("Failed to resolve destination: passed empty activity list. Internal error.", code=PilotErrors.ERR_NOSTORAGE, state='INTERNAL_ERROR')
+
+        storages = None
+        activity = activities[0]
+        for a in activities:
+            storages = astorages.get(a, {})
+            if storages:
+                break
+
+        if not storages:
+            raise PilotException("Failed to resolve destination: no associated storages defined for activity=%s (%s)" % (activity, ','.join(activities)), code=PilotErrors.ERR_NOSTORAGE, state='NO_ASTORAGES_DEFINED')
+
+        # take fist choice for now, extend the logic later if need
+        ddm = storages[0]
+
+        self.log("[prepare_destinations][%s]: allowed (local) destinations: %s" % (activity, storages))
+        self.log("[prepare_destinations][%s]: resolved default destination ddm=%s" % (activity, ddm))
+
+        for e in files:
+            if not e.ddmendpoint: ## no preferences => use default destination
+                self.log("[prepare_destinations][%s]: fspec.ddmendpoint is not set for lfn=%s .. will use default ddm=%s as (local) destination" % (activity, e.lfn, ddm))
+                e.ddmendpoint = ddm
+            elif e.ddmendpoint not in storages: ### fspec.ddmendpoint is not in associated storages ==> assume it as final (non local) alternative destination
+                self.log("[prepare_destinations] [%s]: Requested fspec.ddmendpoint=%s is not in the list of allowed (local) destinations .. will consider default ddm=%s for transfers and tag %s as alternative location" % (activity, e.ddmendpoint, ddm, e.ddmendpoint))
+                e.ddmendpoint = ddm
+                e.ddmendpoint_alt = e.ddmendpoint  ###
+
+        return files
+
 
     def stageout_outfiles(self):
-        return self.stageout("pw", self.job.outData)
+        """
+            Do stage-out of output data files
+        """
+
+        activities = ['pw', 'w']
+
+        # apply pilot side decision about which destination should be used
+        data = self._prepare_destinations(self.job.outData, activities)
+
+        return self.stageout(activities[0], data)
 
     def stageout_logfiles(self):
-        return self.stageout("pl", self.job.logData)
+        """
+            Do stage-out of log files
+        """
+
+        activities = ['pl', 'pw', 'w']
+
+        # apply pilot side decision about which destination should be used
+        data = self._prepare_destinations(self.job.logData, activities)
+
+        return self.stageout(activities[0], data, skip_transfer_failure=True)
 
 
-    def stageout(self, activity, files):
+    def stageout_logfiles_os(self):
+        """
+            Special log transfers (currently to ObjectStores)
+        """
+
+        activity = "pls" ## pilot log special/second transfer
+
+        # resolve accepted OS DDMEndpoints
+
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        os_ddms = self.si.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
+
+        ddmconf = self.ddmconf
+        if os_ddms and (set(os_ddms) - set(self.ddmconf)): # load DDM conf
+            ddmconf = self.si.resolveDDMConf(os_ddms)
+            self.ddmconf.update(ddmconf)
+
+        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_LOGS']
+
+        self.log("[stage-outlog-special] [%s] resolved os_ddms=%s => logs=%s" % (activity, os_ddms, osddms))
+
+        if not osddms:
+            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
+
+        ddmendpoint = osddms[0]
+
+        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for special log transfer" % (activity, ddmendpoint))
+
+        import copy
+        data = copy.deepcopy(self.job.logData)
+        for e in data:
+            e.ddmendpoint = ddmendpoint
+
+        self.job.logSpecialData = data
+
+        #copytools = [('objectstore', {'setup': '/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/latest/setup.sh'})]
+        copytools = [('objectstore', {'setup': ''})]
+        ret = self.stageout(activity, self.job.logSpecialData, copytools, skip_transfer_failure=True)
+        self.job.logBucketID = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
+        self.job.logDDMEndpoint = ddmendpoint
+
+        return ret
+
+    def stageout_os(self, files):
+        """
+            Special log transfers (currently to ObjectStores)
+        """
+
+        activity = "pes" ## pilot log special/second transfer
+
+        # resolve accepted OS DDMEndpoints
+
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        os_ddms = self.si.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
+
+        ddmconf = self.ddmconf
+        if os_ddms and (set(os_ddms) - set(self.ddmconf)): # load DDM conf
+            ddmconf = self.si.resolveDDMConf(os_ddms)
+            self.ddmconf.update(ddmconf)
+
+        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
+
+        self.log("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
+
+        if not osddms:
+            raise PilotException("Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
+
+        ddmendpoint = osddms[0]
+        objectstoreId = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
+
+        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for es transfer" % (activity, ddmendpoint))
+
+        for e in files:
+            e.ddmendpoint = ddmendpoint
+            e.objectstoreId = objectstoreId
+
+        #copytools = [('objectstore', {'setup': '/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/latest/setup.sh'})]
+        copytools = [('objectstore', {'setup': ''})]
+        ret = self.stageout(activity, files, copytools)
+
+        return ret
+
+    def stageout(self, activity, files, copytools=None, skip_transfer_failure=False):
         """
             Copy files to dest SE:
             main control function, it should care about alternative stageout and retry-policy for diffrent ddmendpoints
+        :param copytools: default copytools to be used
+        :param skip_transfer_failure: if enabled then all errors with previous file transfers will be ignored and the logic will continue processing of all remaining files
         :return: list of entries (is_success, success_transfers, failed_transfers, exception) for each ddmendpoint
         :return: (transferred_files, failed_transfers)
         :raise: PilotException in case of error
         """
 
         if not files:
-            raise PilotException("Failed to put files: empty file list to be transferred")
+            raise PilotException("Failed to put files: empty file list to be transferred", code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="NO_OUTFILES")
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity)[pandaqueue]
+        if copytools:
+            self.log("Mover.stageout() [new implementation] [%s]: default copytools=%s" % (activity, copytools))
+
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
 
         self.log("Mover.stageout() [new implementation] started for activity=%s, files=%s, protocols=%s, copytools=%s" % (activity, files, protocols, copytools))
 
@@ -441,9 +756,9 @@ class JobMover(object):
         # populate filesize if need
 
         for fspec in files:
-            pfn = os.path.join(self.job.workdir, fspec.lfn)
+            pfn = fspec.pfn if fspec.pfn else os.path.join(self.job.workdir, fspec.lfn)
             if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
-                error = "Erron: input pfn file is not exist: %s" % pfn
+                error = "Error: input pfn file is not exist: %s" % pfn
                 self.log(error)
                 raise PilotException(error, code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="FILE_INFO_FAIL")
             fspec.filesize = os.path.getsize(pfn)
@@ -481,7 +796,7 @@ class JobMover(object):
 
         unknown_ddms = set(ddmfiles) - set(ddmprotocols)
         if unknown_ddms:
-            raise PilotException("Failed to put files: no protocols defined for output ddmendpoints=%s .. check aprotocols schedconfig settings for activity=%s or default ddm.aprotocols entries" % (unknown_ddms, activity), code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to put files: no protocols defined for output ddmendpoints=%s .. check aprotocols schedconfig settings for activity=%s or default ddm.aprotocols entries" % (unknown_ddms, activity), code=PilotErrors.ERR_NOSTORAGE, state="NO_PROTOCOLS_DEFINED")
 
         self.log("[stage-out] [%s] filtered protocols to be used to transfer files: protocols=%s" % (activity, ddmprotocols))
 
@@ -492,10 +807,13 @@ class JobMover(object):
 
         for fspec in files:
             if not fspec.surl: # initialize only if not already set
-                d = self.ddmconf.get(fspec.ddmendpoint, {}).get('aprotocols', {})
+                dconf = self.ddmconf.get(fspec.ddmendpoint, {})
+                d = dconf.get('aprotocols', {})
                 xprot = d.get('SE', [])
                 if not xprot:
-                    xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and e[0].startswith('srm')]
+                    surl_schema = 's3' if dconf.get('type') in ['OS_LOGS', 'OS_ES'] else 'srm'
+                    xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and e[0].startswith(surl_schema)]
+
                 surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(xprot, key=lambda x: x[1])]
                 if surl_prot:
                     surl_protocols.setdefault(fspec.ddmendpoint, surl_prot[0])
@@ -504,21 +822,11 @@ class JobMover(object):
 
         if no_surl_ddms: # failed to resolve SURLs
             self.log('FAILED to resolve default SURL path for ddmendpoints=%s' % list(no_surl_ddms))
-            raise PilotException("Failed to put files: no SE/SURL protocols defined for output ddmendpoints=%s .. check ddmendpoints aprotocols settings for activity=SE/a/r" % list(no_surl_ddms), code=PilotErrors.ERR_NOSTORAGE)
+            raise PilotException("Failed to put files: no SE/SURL protocols defined for output ddmendpoints=%s .. check ddmendpoints aprotocols settings for activity=SE/a/r" % list(no_surl_ddms), code=PilotErrors.ERR_NOSTORAGE, state="NO_SURL_PROTOCOL")
 
-        sitemover_objects = {}
 
-        # try to iterate over protocol of given ddmendpoint until successfull transfer
         for ddmendpoint, iprotocols in ddmprotocols.iteritems():
-
             for dat in iprotocols:
-
-                remain_files = [e for e in ddmfiles.get(ddmendpoint) if e.status not in ['transferred']]
-                if not remain_files:
-                    self.log('INFO: all files to be transfered to ddm=%s have been successfully processed for activity=%s ..' % (ddmendpoint, activity))
-                    # stop checking other protocols of ddmendpoint
-                    break
-
                 if not 'copytools' in dat:
                     # use allowed copytools
                     cdat = []
@@ -529,9 +837,35 @@ class JobMover(object):
                 if not dat['copytools']:
                     msg = 'FAILED to resolve final copytools settings for ddmendpoint=%s, please check schedconf.copytools settings: copytools=%s, iprotocols=' % list(ddmendpoint, copytools, iprotocols)
                     self.log(msg)
-                    raise PilotException(msg, code=PilotErrors.ERR_NOSTORAGE)
+                    raise PilotException(msg, code=PilotErrors.ERR_NOSTORAGE, state="NO_COPYTOOLS")
+
+        sitemover_objects = {}
+
+        remain_files = [e for e in ddmfiles.get(ddmendpoint) if e.status not in ['transferred']]
+        nfiles = len(remain_files)
+
+        for fnum, fdata in enumerate(remain_files, 1):
+
+            self.log('INFO: prepare to transfer (stage-out) %s/%s file: lfn=%s, fspec.ddmendpoint=%s, activity=%s' % (fnum, nfiles, fdata.lfn, fdata.ddmendpoint, activity))
+
+            ddmendpoint = fdata.ddmendpoint
+            iprotocols = ddmprotocols.get(fdata.ddmendpoint)
+            nprotocols = len(iprotocols)
+
+            bad_copytools = True
+
+            for protnum, dat in enumerate(iprotocols, 1):
+
+                if fdata.status in ['transferred']:
+                    break
+
+                self.log('[stage-out] [%s]: checking protocol-%s/%s to transfer file %s/%s: lfn=%s, copytools=%s' % (activity, protnum, nprotocols, fnum, nfiles, fdata.lfn, dat.get('copytools', [])))
 
                 for cpsettings in dat.get('copytools', []):
+
+                    if fdata.status in ['transferred']:
+                        break
+
                     copytool, copysetup = cpsettings.get('copytool'), cpsettings.get('copysetup')
 
                     try:
@@ -541,14 +875,18 @@ class JobMover(object):
                             sitemover_objects.setdefault(copytool, sitemover)
 
                             sitemover.trace_report = self.trace_report
-                            sitemover.protocol = dat # ##
+                            sitemover.protocol = dat # ## ?
                             sitemover.ddmconf = self.ddmconf # quick workaround  ###
                             sitemover.setup()
                         if dat.get('resolve_scheme'):
                             dat['scheme'] = sitemover.schemes
                     except Exception, e:
                         self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
+                        self.trace_report.update(protocol=copytool, clientState='BAD_COPYTOOL', stateReason=str(e)[:500])
+                        self.sendTrace(self.trace_report)
                         continue
+
+                    bad_copytools = False
 
                     if dat.get('scheme'): # filter protocols by accepted scheme from copytool
                         should_skip = True
@@ -557,84 +895,100 @@ class JobMover(object):
                                 should_skip = False
                                 break
                         if should_skip:
-                            self.log("[stage-out] protocol=%s of ddmendpoint=%s is skipped since copytool=%s does not support it, accepted schemes=%s" % (dat['se'], ddmendpoint, copytool, dat['scheme']))
+                            self.log("[stage-out] [%s] protocol=%s of ddmendpoint=%s is skipped since copytool=%s does not support it, accepted schemes=%s" % (activity, dat['se'], ddmendpoint, copytool, dat['scheme']))
 
                             continue
 
-                    self.log("Copy command [stage-out]: %s, sitemover=%s" % (copytool, sitemover))
-                    self.log("Copy setup   [stage-out]: %s" % copysetup)
+                    self.log("Copy command [stage-out][%s]: %s, sitemover=%s" % (activity, copytool, sitemover))
+                    self.log("Copy setup   [stage-out][%s]: %s" % (activity, copysetup))
 
                     self.trace_report.update(protocol=copytool, localSite=ddmendpoint, remoteSite=ddmendpoint)
 
                     # validate se value?
                     se, se_path = dat.get('se', ''), dat.get('path', '')
 
-                    for fdata in remain_files:
+                    if not fdata.surl:
+                        fdata.surl = sitemover.getSURL(surl_protocols[fdata.ddmendpoint].get('se'), surl_protocols[fdata.ddmendpoint].get('path'), fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
 
-                        if not fdata.surl:
-                            fdata.surl = sitemover.getSURL(surl_protocols[fdata.ddmendpoint].get('se'), surl_protocols[fdata.ddmendpoint].get('path'), fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="output")
 
-                        updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="output")
+                    fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
 
-                        fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
+                    self.log("[stage-out] [%s] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.surl, fdata.lfn, fdata.ddmendpoint))
+                    self.log("[stage-out] [%s] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.turl, fdata.lfn, fdata.ddmendpoint))
+                    self.log("[stage-out] [%s] Prepare to put_data: ddmendpoint=%s, %s/%s-protocol=%s, fspec=%s" % (activity, ddmendpoint, protnum, nprotocols, dat, fdata))
 
-                        self.log("[stage-out] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.surl, fdata.lfn, fdata.ddmendpoint))
+                    self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
+                    self.trace_report.update(scope=fdata.scope, dataset=fdata.destinationDblock, url=fdata.turl)
 
-                        self.log("[stage-out] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (fdata.turl, fdata.lfn, fdata.ddmendpoint))
+                    self.log("[stage-out] [%s] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (activity, fdata.lfn, copytool, sitemover))
+                    #dumpFileStates(self.workDir, self.job.jobId, ftype="output")
 
-                        self.log("[stage-out] Prepare to put_data: ddmendpoint=%s, protocol=%s, fspec=%s" % (ddmendpoint, dat, fdata))
+                    # loop over multple stage-out attempts
+                    for _attempt in xrange(1, self.stageoutretry + 1):
+                        if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
+                            sleep_time = self.calc_stageout_sleeptime()
+                            self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (sleep_time, fdata.lfn))
+                            time.sleep(sleep_time)
 
-                        self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
-                        self.trace_report.update(scope=fdata.scope, dataset=fdata.destinationDblock, url=fdata.turl)
+                        self.log("Put attempt %s/%s for file (%s/%s) with lfn=%s .. sitemover=%s" % (_attempt, self.stageoutretry, fnum, nfiles, fdata.lfn, sitemover))
 
-                        self.log("[stage-out] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
-                        #dumpFileStates(self.workDir, self.job.jobId, ftype="output")
+                        try:
+                            result = sitemover.put_data(fdata)
+                            fdata.status = 'transferred' # mark as successful
+                            fdata.status_code = 0
+                            if result.get('surl'):
+                                fdata.surl = result.get('surl')
+                            #if result.get('pfn'):
+                            #    fdata.turl = result.get('pfn')
 
-                        # loop over multple stage-out attempts
-                        for _attempt in xrange(1, self.stageoutretry + 1):
+                            #self.trace_report.update(url=fdata.surl) ###
+                            self.trace_report.update(url=fdata.turl) ###
 
-                            if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                                self.log(" -- Waiting %s seconds before next stage-out attempt for file=%s --" % (self.stageout_sleeptime, fdata.lfn))
-                                time.sleep(self.stageout_sleeptime)
+                            # finalize and send trace report
+                            self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
+                            self.sendTrace(self.trace_report)
 
-                            self.log("Put attempt %s/%s for filename=%s" % (_attempt, self.stageoutretry, fdata.lfn))
+                            updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", ftype="output")
+                            dumpFileStates(self.workDir, self.job.jobId, ftype="output")
 
-                            try:
-                                result = sitemover.put_data(fdata)
-                                fdata.status = 'transferred' # mark as successful
-                                if result.get('surl'):
-                                    fdata.surl = result.get('surl')
-                                #if result.get('pfn'):
-                                #    fdata.turl = result.get('pfn')
+                            self.updateSURLDictionary(fdata.guid, fdata.surl, self.workDir, self.job.jobId) # FIXME LATER: isolate later
 
-                                #self.trace_report.update(url=fdata.surl) ###
-                                self.trace_report.update(url=fdata.turl) ###
+                            fdat = result.copy()
+                            #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
+                            transferred_files.append(fdat)
 
-                                # finalize and send trace report
-                                self.trace_report.update(clientState='DONE', stateReason='OK', timeEnd=time.time())
-                                self.sendTrace(self.trace_report)
+                            break # transferred successfully
+                        except PilotException, e:
+                            result = e
+                            self.log(traceback.format_exc())
+                        except Exception, e:
+                            result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED, state="STAGEOUT_ATTEMPT_FAILED")
+                            self.log(traceback.format_exc())
+                            self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s) (exception): skip further retry (if any)' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry))
+                            break
 
-                                updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="transferred", ftype="output")
-                                dumpFileStates(self.workDir, self.job.jobId, ftype="output")
+                        self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s): %s' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry, result))
 
-                                self.updateSURLDictionary(fdata.guid, fdata.surl, self.workDir, self.job.jobId) # FIXME LATER: isolate later
+                    if isinstance(result, Exception): # failed transfer
+                        fdata.status = 'error'
+                        fdata.status_code = result.code
+                        fdata.status_message = result.message
 
-                                fdat = result.copy()
-                                #fdat.update(lfn=lfn, pfn=pfn, guid=guid, surl=surl)
-                                transferred_files.append(fdat)
+                        self.trace_report.update(clientState=result.state or 'STAGEOUT_ATTEMPT_FAILED', stateReason=result.message, timeEnd=time.time())
+                        self.sendTrace(self.trace_report)
 
-                                break # transferred successfully
-                            except PilotException, e:
-                                result = e
-                                self.log(traceback.format_exc())
-                            except Exception, e:
-                                result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED)
-                                self.log(traceback.format_exc())
+                        failed_transfers.append(result)
 
-                            self.log('WARNING: Error in copying file (attempt %s/%s): %s' % (_attempt, self.stageoutretry, result))
 
-                        if isinstance(result, Exception): # failure transfer
-                            failed_transfers.append(result)
+            if fdata.status == 'error' and not skip_transfer_failure:
+                self.log('[stage-out] [%s] failed to transfer file (%s/%s) with lfn=%s: code=%s .. skip transferring of remain data..' % (activity, fnum, nfiles, fdata.lfn, fdata.status_code))
+                dumpFileStates(self.workDir, self.job.jobId, ftype="output")
+                raise PilotException("STAGEOUT FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(fdata.status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=fdata.status_code, state='STAGEOUT_FILE_FAILED')
+
+            if bad_copytools:
+                raise PilotException("STAGEOUT FAILED: bad copytools: no one copytools supported", code=PilotErrors.ERR_NOSTORAGE, state='STAGEOUT_BAD_COPYTOOLS')
+
 
         dumpFileStates(self.workDir, self.job.jobId, ftype="output")
 
@@ -833,8 +1187,9 @@ class JobMover(object):
                 for _attempt in xrange(1, self.stageoutretry + 1):
 
                     if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                        self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (self.stageout_sleeptime, filename))
-                        time.sleep(self.stageout_sleeptime)
+                        sleep_time = self.calc_stageout_sleeptime()
+                        self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (sleep_time, filename))
+                        time.sleep(sleep_time)
 
                     self.log("[do_put_files] Put attempt %d/%d for filename=%s" % (_attempt, self.stageoutretry, filename))
 

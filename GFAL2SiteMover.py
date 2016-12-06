@@ -266,7 +266,7 @@ class GFAL2SiteMover(SiteMover.SiteMover):
         outputRet["report"]["clientState"] = None
 
         self.log("StageIn files started.")
-        _cmd_str = '%s gfal-copy --verbose -t %s  -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" %s file:%s' % (self._setup, self.timeout, source, destination)
+        _cmd_str = '%s gfal-copy --verbose -t %s  -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" %s file://%s' % (self._setup, self.timeout, source, os.path.abspath(destination))
         self.log('Executing command: %s' % (_cmd_str))
         s = -1
         o = '(not defined)'
@@ -512,10 +512,10 @@ class GFAL2SiteMover(SiteMover.SiteMover):
                     token = "ATLASGROUPDISK"
                 tolog("Space token descriptor reset to: %s" % (token))
 
-            _cmd_str = '%s gfal-copy --verbose %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" -S %s file:%s %s' % (self._setup, timeout_option, token, source, destination)
+            _cmd_str = '%s gfal-copy --verbose %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" -S %s file://%s %s' % (self._setup, timeout_option, token, os.path.abspath(source), destination)
         else:
             # surl is the same as putfile
-            _cmd_str = '%s gfal-copy --verbose %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" file:%s %s' % (self._setup, timeout_option, source, destination)
+            _cmd_str = '%s gfal-copy --verbose %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" file://%s %s' % (self._setup, timeout_option, os.path.abspath(source), destination)
 
         ec = -1
         t0 = os.times()
