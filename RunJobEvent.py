@@ -1459,7 +1459,7 @@ class RunJobEvent(RunJob):
                 tolog("Failed to zip %s: %s, %s" % (path, ec, pilotErrorDiag))
                 return ec, pilotErrorDiag
 
-        tolog("Adding event range to zip event range file: %s %s" % (event_range_id, outputFileInfo))
+        tolog("Adding event range to zip event range file: %s %s" % (event_range_id, paths))
         handler = open(self.__job.outputZipEventRangesName, "a")
         handler.write("%s %s\n" % (event_range_id, paths))
         handler.close()
@@ -1722,7 +1722,7 @@ class RunJobEvent(RunJob):
                             except:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                                 tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
-                                self.__stageout_queue.remove(f)
+                                self.__stageout_queue.remove(paths)
                             else:
                                 tolog("Removing %s from stage-out queue" % (paths))
                                 self.__stageout_queue.remove(paths)
