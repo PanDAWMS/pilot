@@ -124,12 +124,12 @@ class RunJobEvent(RunJob):
         if not self.__eventRangeID_dictionary:
             return 'no_events'
         if self.__esFatalCode:
-            return 'pilot_failed'
+            return 'pilot_fatal'
         if self.__nEventsFailed:
             if self.__nEventsFailed < self.__nEventsW:
                 return 'partly_failed'
             elif self.__nEventsW == 0:
-                return 'pilot_failed' # 'all_failed'
+                return 'all_failed' # 'all_failed'
             else:
                 return 'mostly_failed'
         else:
@@ -3216,13 +3216,15 @@ if __name__ == "__main__":
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir, fullpath=True)
         if ec:
             # missing output file (only error code from prepareOutFiles)
-            runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
+            # runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
+            tolog("Missing output file: %s" % pilotErrorDiag)
         tolog("outsDict: %s" % str(outsDict))
 
         # Create metadata for all successfully staged-out output files (include the log file as well, even if it has not been created yet)
         ec, outputFileInfo = runJob.createFileMetadata(outsDict, dsname, datasetDict, jobSite.sitename)
         if ec:
-            runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+            tolog("Failed to create metadata for all output files: %s" % job.pilotErrorDiag)
+            # runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
         tolog("Stopping stage-out thread")
         runJob.stopAsyncOutputStagerThread()
@@ -3274,7 +3276,8 @@ if __name__ == "__main__":
         ed = ErrorDiagnosis()
         job = ed.interpretPayload(job, res, False, 0, runCommandList, runJob.getFailureCode())
         if job.result[1] != 0 or job.result[2] != 0:
-            runJob.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
+            tolog("Payload failed: job.result[1]=%s, job.result[2]=%s" % (job.result[1], job.result[2]))
+            # runJob.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 
         # wrap up ..........................................................................................
@@ -3316,9 +3319,10 @@ if __name__ == "__main__":
 
     except Exception, errorMsg:
 
-        job.subStatus = runJob.getSubStatus()
         job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
         tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
+        job.subStatus = runJob.getSubStatus()
+        runJob.setFinalESStatus(job)
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 
@@ -3352,6 +3356,6 @@ if __name__ == "__main__":
             job.result[2] = error.ERR_RUNEVENTEXC
         tolog("Failing job with error code: %d" % (job.result[2]))
         # fail the job without calling sysExit/cleanup (will be called anyway)
-        runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag, docleanup=False)
+        runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag, docleanup=False, pilot_failed=False)
 
     # end of RunJobEvent
