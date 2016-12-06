@@ -120,7 +120,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
 
     mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
 
-    eventType = "sm_put"
+    eventType = "put_sm"
     if log_transfer:
         eventType += '_logs'
     if special_log_transfer:
@@ -271,7 +271,7 @@ def get_data_new(job,
 
     mover = JobMover(job, si, workDir=workDir, stageinretry=stageinTries)
 
-    eventType = "sm_get"
+    eventType = "get_sm"
     if job.isAnalysisJob():
         eventType += "_a"
 
