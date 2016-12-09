@@ -91,6 +91,10 @@ def set_environment():
     env['stdout_tail'] = ""
     env['stdout_path'] = ""
 
+    # panda proxy variables
+    env['panda_proxy_url'] = ""
+    env['panda_proxy_port'] = ""
+
     # to test site mover
     env['copytool'] = 'gfal-copy'
     env['copytoolin'] = 'gfal-copy'
