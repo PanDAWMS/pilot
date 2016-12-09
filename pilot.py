@@ -2184,6 +2184,12 @@ def getNewJob(tofile=True):
                 # create a start time file in the pilot init dir (time stamp will be read and sent to the server with the job update
                 shouldCreateTimeStampFile = True
 
+                try:
+                    if env['experiment']:
+                        data = pUtil.updateDispatcherData4ES(data=data, experiment=env['experiment'], path="")
+                except:
+                    import traceback
+                    pUtil.tolog("!!WARNING!!1200!! Failed to updateDispatcherData4ES: %s" % traceback.format_exc())
         else:
             pilotErrorDiag = "[pilot] Job definition file (%s) does not exist! (will now exit)" % (_pandaJobDataFileName)
             errorText = "!!FAILED!!1200!! %s" % (pilotErrorDiag)
