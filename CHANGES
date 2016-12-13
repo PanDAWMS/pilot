@@ -207,6 +207,7 @@ General changes:
 - Corrected misleading error message (StageOut->StageIn) in stageIn() (movers/base)
 - Ignoring lsm checksum error in stageOut() (movers/base)
 - Created updateRunCommand() used by __main__() (RunJobEvent)
+- Removed deprecated function getFileInDataset() (SiteMover)
 
 Memory monitor updates
 
