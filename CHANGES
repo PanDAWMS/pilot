@@ -208,6 +208,10 @@ General changes:
 - Ignoring lsm checksum error in stageOut() (movers/base)
 - Created updateRunCommand() used by __main__() (RunJobEvent)
 
+Memory monitor updates
+
+- Switched to new setup using release 21, getUtilityCommand(). Requested by Johannes Elmsheuser (ATLASExperiment)
+
 Event service changes:
 
 - Created __usePrefetcher, usePrefetcher(), setUsePrefetcher() (RunJobEvent)

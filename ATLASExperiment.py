@@ -3322,11 +3322,14 @@ class ATLASExperiment(Experiment):
         workdir = argdict.get('workdir', '.')
         interval = 60
 
-        default_release = "20.7.5" #"20.1.5"
-        default_patch_release = "20.7.5.8" #"20.1.5.2" #"20.1.4.1"
-        default_cmtconfig = "x86_64-slc6-gcc49-opt"
-        default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
-        default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
+        default_release = "21.0.12" #"20.7.5" #"20.1.5"
+        # default_patch_release = "20.7.5.8" #"20.1.5.2" #"20.1.4.1"
+        # default_cmtconfig = "x86_64-slc6-gcc49-opt"
+        # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
+        default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
+        # default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
+        default_setup = "%s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" % (default_swbase, default_release)
+
         # source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc49-opt/20.7.5/cmtsite/asetup.sh 20.7.5.8,notest
 
         # Construct the name of the output file using the summary variable
@@ -3360,11 +3363,11 @@ class ATLASExperiment(Experiment):
             try:
                 ec, output = timedCommand(_cmd, timeout=60)
             except Exception, e:
-                tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
+                tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default: %s" % (e))
                 cmd = default_setup
             else:
                 if "which: no MemoryMonitor in" in output:
-                    tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                    tolog("Failed to locate MemoryMonitor: will use default (for release %s)" % (default_release))
                     cmd = default_setup
                 else:
                     # Standard setup passed the test
