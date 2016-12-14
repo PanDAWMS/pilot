@@ -259,6 +259,8 @@ Updates from Taylor Childers
 See closed pull request:
 https://github.com/PanDAWMS/pilot/pull/100
 
+- Added gsiftp to schemes list in list_replicas() call (Mover)
+- Removed setting of queue and walltime_m from setupHPCManager() (RunJobHpcEvent)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

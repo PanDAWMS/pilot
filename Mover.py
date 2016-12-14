@@ -6079,7 +6079,7 @@ def getRucioReplicaDictionary(cat, file_dictionary):
 
         # Get the replica list
         try:
-            replicas_list = c.list_replicas(scope_lfn_list, schemes=['srm'])
+            replicas_list = c.list_replicas(scope_lfn_list, schemes=['srm','gsiftp'])
         except:
             import sys
             excType, excValue = sys.exc_info()[:2]  # skip the traceback info to avoid possible circular reference
