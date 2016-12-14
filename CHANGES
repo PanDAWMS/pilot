@@ -242,6 +242,19 @@ File Changes
 M GFAL2SiteMover.py (2)
 M movers/base.py (17)
 
+  https://github.com/PanDAWMS/pilot/pull/101
+
+Old function would cause the monitor process to kill runjobevent process. as a result, the final status would not be set correctly.
+new way will stop athenamp softly. let runjobevent have time to set the final state.
+
+Commit Summary
+
+Soft stop athenamp
+
+File Changes
+
+M RunJobEvent.py (9)
+
 Updates from David Cameron:
 
   https://github.com/PanDAWMS/pilot/pull/95
