@@ -1957,11 +1957,10 @@ class RunJobEvent(RunJob):
                             tolog("Updated server for failed event range")
 
                         if error_code:
-                            result = ["failed", 0, error_code]
-                            tolog("Setting error code: %d" % (error_code))
-                            self.setJobResult(result, pilot_failed=True)
-
-                            # ..
+                            # result = ["failed", 0, error_code]
+                            tolog("Error code: %d, send 'No more events' to stop AthenaMP" % (error_code))
+                            # self.setJobResult(result, pilot_failed=True)
+                            self.sendMessage("No more events")
                     else:
                         tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
 
