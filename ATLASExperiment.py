@@ -2228,11 +2228,8 @@ class ATLASExperiment(Experiment):
             if len(found) > 0:
                 timestamp = found[0]
 
-        elif not "," in homePackage:
-            timestamp = homePackage
-
-        elif homePackage != "":
-            pattern = re.compile(r"[A-Za-z0-9]+\_(\d+\-\d+\S+\d+)")
+        else:
+            pattern = re.compile(r".(\d+\-\d+\S+\d+)")
             found = re.findall(pattern, homePackage)
             if len(found) > 0:
                 timestamp = found[0]
