@@ -918,7 +918,7 @@ class JobMover(object):
                     self.log("[stage-out] [%s] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.turl, fdata.lfn, fdata.ddmendpoint))
                     self.log("[stage-out] [%s] Prepare to put_data: ddmendpoint=%s, %s/%s-protocol=%s, fspec=%s" % (activity, ddmendpoint, protnum, nprotocols, dat, fdata))
 
-                    self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
+                    self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', '') if fdata.guid else None)
                     self.trace_report.update(scope=fdata.scope, dataset=fdata.destinationDblock, url=fdata.turl)
 
                     self.log("[stage-out] [%s] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (activity, fdata.lfn, copytool, sitemover))
