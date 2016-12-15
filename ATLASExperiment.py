@@ -3319,6 +3319,78 @@ class ATLASExperiment(Experiment):
         workdir = argdict.get('workdir', '.')
         interval = 60
 
+        default_release = "20.7.5" #"20.1.5"
+        default_patch_release = "20.7.5.8" #"20.1.5.2" #"20.1.4.1"
+        default_cmtconfig = "x86_64-slc6-gcc49-opt"
+        default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
+        default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
+        # source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc49-opt/20.7.5/cmtsite/asetup.sh 20.7.5.8,notest
+
+        # Construct the name of the output file using the summary variable
+        if summary.endswith('.json'):
+            output = summary.replace('.json', '.txt')
+        else:
+            output = summary + '.txt'
+
+        # Get the standard setup
+        cacheVer = homePackage.split('/')[-1]
+
+        # Could anything be extracted?
+        #if homePackage == cacheVer: # (no)
+        if isAGreaterOrEqualToB(default_release, release) or default_release == release: # or NG
+            # This means there is no patched release available, ie. we need to use the fallback
+            useDefault = True
+            tolog("%s >= %s" % (default_release, release))
+        else:
+            useDefault = False
+            tolog("%s <= %s" % (default_release, release))
+        useDefault = True
+
+        if useDefault:
+            tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
+            cmd = default_setup
+        else:
+            # get the standard setup
+            standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
+            _cmd = standard_setup + "; which MemoryMonitor"
+            # Can the MemoryMonitor be found?
+            try:
+                ec, output = timedCommand(_cmd, timeout=60)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
+                cmd = default_setup
+            else:
+                if "which: no MemoryMonitor in" in output:
+                    tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
+                    cmd = default_setup
+                else:
+                    # Standard setup passed the test
+                    cmd = standard_setup
+
+        # Now add the MemoryMonitor command
+        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, self.getUtilityOutputFilename(), summary, interval)
+        cmd = "cd " + workdir + ";" + cmd
+
+        return cmd
+
+    # Optional
+    def getUtilityCommandNew(self, **argdict):
+        """ Prepare a utility command string """
+
+        # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
+        # that will be executed by the pilot in parallel with the payload.
+        # The pilot will look for an output JSON file (summary.json) and will extract pre-determined fields
+        # from it and report them with the job updates. Currently the pilot expects to find fields related
+        # to memory information.
+
+        pid = argdict.get('pid', 0)
+        release = argdict.get('release', '')
+        homePackage = argdict.get('homePackage', '')
+        cmtconfig = argdict.get('cmtconfig', '')
+        summary = self.getUtilityJSONFilename()
+        workdir = argdict.get('workdir', '.')
+        interval = 60
+
         default_release = "21.0.12" #"20.7.5" #"20.1.5"
         # default_patch_release = "20.7.5.8" #"20.1.5.2" #"20.1.4.1"
         # default_cmtconfig = "x86_64-slc6-gcc49-opt"

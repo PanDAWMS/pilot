@@ -209,9 +209,11 @@ General changes:
 - Created updateRunCommand() used by __main__() (RunJobEvent)
 - Removed deprecated function getFileInDataset() (SiteMover)
 
+[ Does not work, reverted to old function
 Memory monitor updates
 
 - Switched to new setup using release 21, getUtilityCommand(). Requested by Johannes Elmsheuser (ATLASExperiment)
+]
 
 Event service changes:
 
