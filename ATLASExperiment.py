@@ -3325,7 +3325,7 @@ class ATLASExperiment(Experiment):
         # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
         default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
         # default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
-        default_setup = "%s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" % (default_swbase, default_release)
+        default_setup = "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" % (default_swbase, default_release)
 
         # source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc49-opt/20.7.5/cmtsite/asetup.sh 20.7.5.8,notest
 
