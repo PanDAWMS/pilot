@@ -993,47 +993,6 @@ class SiteMover(object):
 
         return status
 
-    def getFileInDataset(self, dataset, guid):
-        """ Get the file info and if necessary populate the Rucio dataset dictionary """
-
-        fileInDataset = None
-
-        if dataset == "":
-            tolog("!!WARNING!!1110!! Dataset not set")
-            return None
-
-        # is the dataset info already available?
-        if self.filesInDataset.has_key(dataset):
-            tolog("(already downloaded Rucio file info)")
-            # get the file info
-            try:
-                fileInDataset = self.filesInDataset[dataset][guid]
-            except Exception, e:
-                tolog("!!WARNING!!1111!! GUID = %s not found in Rucio dataset (%s): %s" % (guid, dataset, e))
-        else:
-            tolog("(will download Rucio file info)")
-            try:
-                from dq2.clientapi.DQ2 import DQ2
-                dq2 = DQ2()
-                dataset_info = dq2.listFilesInDataset(dataset)[0]
-            except: # listFilesInDataset is not a subclass of Exception, so only use an except without Exception here
-                import sys
-                excType, excValue = sys.exc_info()[:2] # skip the traceback info to avoid possible circular reference
-                tolog("!!WARNING!!1112!! Failed to get dataset = %s from Rucio" % (dataset))
-                tolog("excType=%s" % (excType))
-                tolog("excValue=%s" % (excValue))
-            else:
-                # add the new dataset to the dictionary
-                self.filesInDataset[dataset] = dataset_info
-
-                # finally get the file info
-                try:
-                    fileInDataset = self.filesInDataset[dataset][guid]
-                except Exception, e:
-                    tolog("!!WARNING!!1113!! GUID = %s not found in Rucio dataset (%s): %s" % (guid, dataset, e))
-
-        return fileInDataset
-
     def getFileInfoFromRucio(self, scope, dataset, guid):
         """ Get the file size and checksum from Rucio """
 

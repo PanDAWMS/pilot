@@ -189,6 +189,85 @@ Hotfix release with urgent bug fix
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+67.3
+
+General changes:
+
+- Corrected misleading error message (StageOut->StageIn) in stageIn() (movers/base)
+- Ignoring lsm checksum error in stageOut() (movers/base)
+- Created updateRunCommand() used by __main__() (RunJobEvent)
+- Removed deprecated function getFileInDataset() (SiteMover)
+
+[ Does not work, reverted to old function
+Memory monitor updates
+
+- Switched to new setup using release 21, getUtilityCommand(). Requested by Johannes Elmsheuser (ATLASExperiment)
+]
+
+Event service changes:
+
+- Created __usePrefetcher, usePrefetcher(), setUsePrefetcher() (RunJobEvent)
+- Calling setUsePrefetcher() from __main__() (RunJobEvent)
+
+Nightlies setup changes:
+
+- Created isNightliesRelease() (ATLASExperiment)
+- Using isNightliesRelease instead of looking for rel_N in the homePackage in eight places (ATLASExperiment)
+- Rewrote extractRelN() to extractNightliesTimestamp() (ATLASExperiment)
+
+Tracing report update:
+
+- Now setting taskID in getInitialTracingReport() (Mover)
+- Sending job.taskID to getInitialTracingReport() from 4 places (Mover)
+ 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/94
+
+Commit Summary
+
+- Fix gfal checksum difference while gfal removes leading 0 in checksum
+
+File Changes
+
+M GFAL2SiteMover.py (2)
+M movers/base.py (17)
+
+  https://github.com/PanDAWMS/pilot/pull/101
+
+Old function would cause the monitor process to kill runjobevent process. as a result, the final status would not be set correctly.
+new way will stop athenamp softly. let runjobevent have time to set the final state.
+
+Commit Summary
+
+Soft stop athenamp
+
+File Changes
+
+M RunJobEvent.py (9)
+
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/95
+
+Commit Summary
+
+- Add https to gfal mover
+
+File Changes
+
+M movers/gfalcopy_sitemover.py (2)
+
+Updates from Taylor Childers
+
+See closed pull request:
+https://github.com/PanDAWMS/pilot/pull/100
+
+- Added gsiftp to schemes list in list_replicas() call (Mover)
+- Removed setting of queue and walltime_m from setupHPCManager() (RunJobHpcEvent)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 OS log transfers:

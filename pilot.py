@@ -46,8 +46,8 @@ def usage():
         -h <queuename> -x <stageinretry> -y <loggingMode> -z <updateserver> -k <memory> -t <proxycheckflag>
         -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry>
         -B <allowSingleUser> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime>
-        -H <cache> -I <schedconfigURL> -N <yodaNodes> -Q <yodaQueue>
-        -M <use_newmover>
+        -H <cache> -I <schedconfigURL> -N <yodaNodes> -Q <yodaQueue> -M <use_newmover> -O <panda_proxy_url>
+        -P <panda_proxy_port>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -121,7 +121,7 @@ def argParser(argv):
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
-        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:N:Q:M:')
+        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:M:N:O:P:Q:')
     except getopt.GetoptError:
         print "Invalid arguments and options!"
         usage()
@@ -184,9 +184,6 @@ def argParser(argv):
                 env['pilot_version_tag'] = a
             else:
                 print "Unknown pilot version tag: %s" % (a)
-
-        elif o == "-M":
-            env['use_newmover'] = a and a.lower() in ['1', 'true']
 
         elif o == "-j":
             jr = a
@@ -330,11 +327,20 @@ def argParser(argv):
         elif o == "-I":
             env['schedconfigURL'] = a
 
+        elif o == "-M":
+            env['use_newmover'] = a and a.lower() in ['1', 'true']
+
         elif o == "-N":
             try:
                 env['yodaNodes'] = int(a)
             except ValueError:
                 print "YodaNodes must be an integer:", a
+
+        elif o == "-O":
+            env['panda_proxy_url'] = a
+
+        elif o == "-P":
+            env['panda_proxy_port'] = a
 
         elif o == "-Q":
             env['yodaQueue'] = a
@@ -2184,6 +2190,12 @@ def getNewJob(tofile=True):
                 # create a start time file in the pilot init dir (time stamp will be read and sent to the server with the job update
                 shouldCreateTimeStampFile = True
 
+                try:
+                    if env['experiment']:
+                        data = pUtil.updateDispatcherData4ES(data=data, experiment=env['experiment'], path="")
+                except:
+                    import traceback
+                    pUtil.tolog("!!WARNING!!1200!! Failed to updateDispatcherData4ES: %s" % traceback.format_exc())
         else:
             pilotErrorDiag = "[pilot] Job definition file (%s) does not exist! (will now exit)" % (_pandaJobDataFileName)
             errorText = "!!FAILED!!1200!! %s" % (pilotErrorDiag)

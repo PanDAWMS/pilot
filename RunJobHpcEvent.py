@@ -263,8 +263,6 @@ class RunJobHpcEvent(RunJob):
             logFileName = self.getPilotLogFilename()
 
         defRes = self.getDefaultResources()
-        defRes['queue'] = 'debug'
-        defRes['walltime_m'] = '30'
 
         if defRes['copy_input_files'] == 'true' and defRes['localWorkingDir']:
             self.__copyInputFiles = True

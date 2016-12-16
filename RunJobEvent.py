@@ -95,6 +95,7 @@ class RunJobEvent(RunJob):
     __sending_event_range = False                # True while event range is being sent to payload
     __current_event_range = ""                   # Event range being sent to payload
     __useTokenExtractor = False                  # Should the TE be used?
+    __usePrefetcher = False                      # Should the Prefetcher be user
 
     # ES zip
     __esToZip = False
@@ -124,12 +125,12 @@ class RunJobEvent(RunJob):
         if not self.__eventRangeID_dictionary:
             return 'no_events'
         if self.__esFatalCode:
-            return 'pilot_failed'
+            return 'pilot_fatal'
         if self.__nEventsFailed:
             if self.__nEventsFailed < self.__nEventsW:
                 return 'partly_failed'
             elif self.__nEventsW == 0:
-                return 'pilot_failed' # 'all_failed'
+                return 'all_failed' # 'all_failed'
             else:
                 return 'mostly_failed'
         else:
@@ -630,10 +631,12 @@ class RunJobEvent(RunJob):
 
         return self.__job.result
 
-    def setJobResult(self, result):
+    def setJobResult(self, result, pilot_failed=False):
         """ Setter for result """
 
         self.__job.result = result
+        if pilot_failed:
+            self.setFinalESStatus(self.__job)
 
     def getJobState(self):
         """ Getter for jobState """
@@ -716,8 +719,25 @@ class RunJobEvent(RunJob):
         else:
             tolog("Token Extractor is not needed")
 
+    def usePrefetcher(self):
+        """ Should the Prefetcher be used? """
+
+        return self.__usePrefetcher
+
+    def setUsePrefetcher(self, setup):
+        """ Set the __usePrefetcher variable to a boolean value """
+        # Decision is based on info in the setup string ???
+
+        self.__usePrefetcher = False #True
+
+        if self.__usePrefetcher:
+            tolog("Prefetcher is needed")
+        else:
+            tolog("Prefetcher is not needed")
+
     def init_guid_list(self):
-        """ Init guid and lfn list for stagein files"""
+        """ Init guid and lfn list for staged in files"""
+
         for guid in self.__job.inFilesGuids:
             self.__guid_list.append(guid)
         for lfn in self.__job.inFiles:
@@ -1457,7 +1477,7 @@ class RunJobEvent(RunJob):
                 tolog("Failed to zip %s: %s, %s" % (path, ec, pilotErrorDiag))
                 return ec, pilotErrorDiag
 
-        tolog("Adding event range to zip event range file: %s %s" % (event_range_id, outputFileInfo))
+        tolog("Adding event range to zip event range file: %s %s" % (event_range_id, paths))
         handler = open(self.__job.outputZipEventRangesName, "a")
         handler.write("%s %s\n" % (event_range_id, paths))
         handler.close()
@@ -1702,10 +1722,16 @@ class RunJobEvent(RunJob):
                                         tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
                                         self.setAbort()
                                         self.setToBeKilled()
+                                        job = self.getJob()
+                                        if job:
+                                            job.subStatus = 'pilot_killed'
                                     if msg == "softkill":
                                         tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
                                         self.sendMessage("No more events")
                                         self.setAbort()
+                                        job = self.getJob()
+                                        if job:
+                                            job.subStatus = 'pilot_killed'
                                 except:
                                     tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                         else:
@@ -1714,7 +1740,7 @@ class RunJobEvent(RunJob):
                             except:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                                 tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
-                                self.__stageout_queue.remove(f)
+                                self.__stageout_queue.remove(paths)
                             else:
                                 tolog("Removing %s from stage-out queue" % (paths))
                                 self.__stageout_queue.remove(paths)
@@ -1793,10 +1819,16 @@ class RunJobEvent(RunJob):
                                     tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
                                     self.setAbort()
                                     self.setToBeKilled()
+                                    job = self.getJob()
+                                    if job:
+                                        job.subStatus = 'pilot_killed'
                                 if msg == "softkill":
                                     tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
                                     self.sendMessage("No more events")
                                     self.setAbort()
+                                    job = self.getJob()
+                                    if job:
+                                        job.subStatus = 'pilot_killed'
                             except:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                         else:
@@ -1925,11 +1957,10 @@ class RunJobEvent(RunJob):
                             tolog("Updated server for failed event range")
 
                         if error_code:
-                            result = ["failed", 0, error_code]
-                            tolog("Setting error code: %d" % (error_code))
-                            self.setJobResult(result)
-
-                            # ..
+                            # result = ["failed", 0, error_code]
+                            tolog("Error code: %d, send 'No more events' to stop AthenaMP" % (error_code))
+                            # self.setJobResult(result, pilot_failed=True)
+                            self.sendMessage("No more events")
                     else:
                         tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
 
@@ -2068,6 +2099,17 @@ class RunJobEvent(RunJob):
         """ Prepare the guid and filename string for the token extractor file with the proper format """
 
         return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
+
+    def getPrefetcherProcess(self, thisExperiment, setup, input_file, stdout=None, stderr=None):
+        """ Execute the TokenExtractor """
+
+        options = "'--inputEVNTFile' '%s' '--outputEVNT_MRGFile' 'prefix-of-the-local-file-names' '--preInclude' 'AthenaMP_EventService.py,SetUniqueYamplChannelName.py'" % (input_file)
+
+        # Define the command
+        cmd = "%s export ATHENA_PROC_NUMBER=1; EVNTMerge_tf.py %s" % (setup, options)
+
+        # Execute and return the Prefetcher subprocess object
+        return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
 
     def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None, url=""):
         """ Execute the TokenExtractor """
@@ -2482,6 +2524,29 @@ class RunJobEvent(RunJob):
             tolog("Failed to get cpu consumption time from proc: %s" % (traceback.format_exc()))
         return cpuConsumptionTime
 
+    def updateRunCommand(self, runCommand):
+        """ Update the run command with additional options """
+
+        # AthenaMP needs to know where exactly is the PFC
+        runCommand += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.getPoolFileCatalogPath())
+
+        # Tell AthenaMP the name of the yampl channel
+        if "PILOT_EVENTRANGECHANNEL" in runCommand:
+            runCommand = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (self.getYamplChannelName()) + runCommand
+        elif not "--preExec" in runCommand:
+            runCommand += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (self.getYamplChannelName())
+        else:
+            if "import jobproperties as jps" in runCommand:
+                runCommand = runCommand.replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
+            else:
+                if "--preExec \'" in runCommand:
+                    runCommand = runCommand.replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
+                elif '--preExec \"' in runCommand:
+                    runCommand = runCommand.replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";' % (self.getYamplChannelName()))
+                else:
+                    tolog("!!WARNING!!43431! --preExec has an unknown format - expected \'--preExec \"\' or \"--preExec \'\", got: %s" % (runCommand))
+
+        return runCommand
 
 
 # main process starts here
@@ -2681,7 +2746,7 @@ if __name__ == "__main__":
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 
-        # already stagein files should be in the guid list and lfn list
+        # Already staged in files should be in the guid list and lfn list
         runJob.init_guid_list()
 
         # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
@@ -2731,12 +2796,21 @@ if __name__ == "__main__":
         runJob.setMessageThread(message_thread)
         runJob.startMessageThread()
 
+        # threading ends here ..............................................................................
+
+        # service tools starts here ........................................................................
+
         # Should the token extractor be used?
         runJob.setUseTokenExtractor(runCommandList[0])
+
+        # Should the prefetcher be used?
+        runJob.setUsePrefetcher(runCommandList[0])
 
         # Stdout/err file objects
         tokenextractor_stdout = None
         tokenextractor_stderr = None
+        prefetcher_stdout = None
+        prefetcher_stderr = None
         athenamp_stdout = None
         athenamp_stderr = None
 
@@ -2773,7 +2847,7 @@ if __name__ == "__main__":
                 input_file = job.inFiles[0]
                 input_file_guid = job.inFilesGuids[0]
 
-            # Get the Token Extractor command
+            # Get the Token Extractor process
             tolog("Will use input file %s for the TokenExtractor" % (input_file))
             tokenExtractorProcess = runJob.getTokenExtractorProcess(thisExperiment, setupString, input_file, input_file_guid,\
                                                                     stdout=tokenextractor_stdout, stderr=tokenextractor_stderr,\
@@ -2783,6 +2857,28 @@ if __name__ == "__main__":
             tokenextractor_stdout = None
             tokenextractor_stderr = None
             tokenExtractorProcess = None
+
+        # Create and start the Prefetcher
+
+        # Extract the proper setup string from the run command in case the Prefetcher should be used
+        if runJob.usePrefetcher():
+            setupString = thisEventService.extractSetup(runCommandList[0], job.trf)
+            tolog("The Prefetcher will be setup using: %s" % (setupString))
+
+            # Create the file objects
+            prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
+
+            # Get the Prefetcher process
+            prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=os.path.join(job.workdir(), job.inFiles[0]), \
+                                                                    stdout=prefetcher_stdout, stderr=prefetcher_stderr)
+        else:
+            setupString = None
+            prefetcher_stdout = None
+            prefetcher_stderr = None
+            prefetcherProcess = None
+
+        # service tools ends here ..........................................................................
+
 
         # Create the file objects
         athenamp_stdout, athenamp_stderr = runJob.getStdoutStderrFileObjects(stdoutName="athena_stdout.txt", stderrName="athena_stderr.txt")
@@ -2816,24 +2912,8 @@ if __name__ == "__main__":
             job.result[2] = error.ERR_ESRECOVERABLE
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-        # AthenaMP needs to know where exactly is the PFC
-        runCommandList[0] += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (runJob.getPoolFileCatalogPath())
-
-        # Tell AthenaMP the name of the yampl channel
-        if "PILOT_EVENTRANGECHANNEL" in runCommandList[0]:
-            runCommandList[0] = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (runJob.getYamplChannelName()) + runCommandList[0]
-        elif not "--preExec" in runCommandList[0]:
-            runCommandList[0] += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (runJob.getYamplChannelName())
-        else:
-            if "import jobproperties as jps" in runCommandList[0]:
-                runCommandList[0] = runCommandList[0].replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
-            else:
-                if "--preExec \'" in runCommandList[0]:
-                    runCommandList[0] = runCommandList[0].replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (runJob.getYamplChannelName()))
-                elif '--preExec \"' in runCommandList[0]:
-                    runCommandList[0] = runCommandList[0].replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";' % (runJob.getYamplChannelName()))
-                else:
-                    tolog("!!WARNING!!43431! --preExec has an unknown format - expected \'--preExec \"\' or \"--preExec \'\", got: %s" % (runCommandList[0]))
+        # Update the run command with additional options
+        runCommandList[0] = runJob.updateRunCommand(runCommandList[0])
 
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 
@@ -2850,7 +2930,7 @@ if __name__ == "__main__":
         first_event_ranges = runJob.extractEventRanges(message)
         if first_event_ranges is None or first_event_ranges == []:
             tolog("No more events. will finish this job directly")
-            runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=False)
+            runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=True)
 
         # Create and start the AthenaMP process
         t0 = os.times()
@@ -3014,6 +3094,9 @@ if __name__ == "__main__":
 
                     # Was there a fatal error in the inner loop?
                     if job.result[0] == "failed":
+                        job.jobState = job.result[0]
+                        runJob.setFinalESStatus(job)
+                        runJob.setJobState(job.jobState)
                         tolog("Detected a failure - aborting event range loop")
                         break
 
@@ -3199,13 +3282,15 @@ if __name__ == "__main__":
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir, fullpath=True)
         if ec:
             # missing output file (only error code from prepareOutFiles)
-            runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
+            # runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
+            tolog("Missing output file: %s" % pilotErrorDiag)
         tolog("outsDict: %s" % str(outsDict))
 
         # Create metadata for all successfully staged-out output files (include the log file as well, even if it has not been created yet)
         ec, outputFileInfo = runJob.createFileMetadata(outsDict, dsname, datasetDict, jobSite.sitename)
         if ec:
-            runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+            tolog("Failed to create metadata for all output files: %s" % job.pilotErrorDiag)
+            # runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
         tolog("Stopping stage-out thread")
         runJob.stopAsyncOutputStagerThread()
@@ -3257,7 +3342,8 @@ if __name__ == "__main__":
         ed = ErrorDiagnosis()
         job = ed.interpretPayload(job, res, False, 0, runCommandList, runJob.getFailureCode())
         if job.result[1] != 0 or job.result[2] != 0:
-            runJob.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
+            tolog("Payload failed: job.result[1]=%s, job.result[2]=%s" % (job.result[1], job.result[2]))
+            # runJob.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 
         # wrap up ..........................................................................................
@@ -3299,9 +3385,10 @@ if __name__ == "__main__":
 
     except Exception, errorMsg:
 
-        job.subStatus = runJob.getSubStatus()
         job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut = runJob.getNEvents()
         tolog("nevents = %s, neventsW = %s, neventsFailed = %s, nEventsFailedStagedOut=%s" % (job.nEvents, job.nEventsW, job.nEventsFailed, job.nEventsFailedStagedOut))
+        job.subStatus = runJob.getSubStatus()
+        runJob.setFinalESStatus(job)
         # agreed to only report stagedout events to panda
         job.nEvents = job.nEventsW
 
@@ -3335,6 +3422,6 @@ if __name__ == "__main__":
             job.result[2] = error.ERR_RUNEVENTEXC
         tolog("Failing job with error code: %d" % (job.result[2]))
         # fail the job without calling sysExit/cleanup (will be called anyway)
-        runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag, docleanup=False)
+        runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag, docleanup=False, pilot_failed=False)
 
     # end of RunJobEvent
