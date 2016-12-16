@@ -3302,7 +3302,7 @@ class ATLASExperiment(Experiment):
         return summary_dictionary
 
     # Optional
-    def getUtilityCommand(self, **argdict):
+    def getUtilityCommandOld(self, **argdict):
         """ Prepare a utility command string """
 
         # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
@@ -3374,7 +3374,7 @@ class ATLASExperiment(Experiment):
         return cmd
 
     # Optional
-    def getUtilityCommandNew(self, **argdict):
+    def getUtilityCommand(self, **argdict):
         """ Prepare a utility command string """
 
         # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
@@ -3397,7 +3397,7 @@ class ATLASExperiment(Experiment):
         # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
         default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
         # default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
-        default_setup = "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" % (default_swbase, default_release)
+        default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" % (default_swbase, default_swbase, default_release)
 
         # source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc49-opt/20.7.5/cmtsite/asetup.sh 20.7.5.8,notest
 
