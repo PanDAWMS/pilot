@@ -3302,7 +3302,7 @@ class ATLASExperiment(Experiment):
         return summary_dictionary
 
     # Optional
-    def getUtilityCommandOld(self, **argdict):
+    def getUtilityCommand(self, **argdict):
         """ Prepare a utility command string """
 
         # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
@@ -3374,7 +3374,7 @@ class ATLASExperiment(Experiment):
         return cmd
 
     # Optional
-    def getUtilityCommand(self, **argdict):
+    def getUtilityCommandNewBAD(self, **argdict):
         """ Prepare a utility command string """
 
         # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
