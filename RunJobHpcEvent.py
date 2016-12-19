@@ -719,7 +719,7 @@ class RunJobHpcEvent(RunJob):
 
     def getJobEventRanges(self, job, numRanges=2):
         """ Download event ranges from the Event Server """
-        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=2)
+
         tolog("Server: Downloading new event ranges..")
 
         message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=numRanges)
