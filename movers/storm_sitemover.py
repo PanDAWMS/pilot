@@ -24,7 +24,7 @@ class stormSiteMover(BaseSiteMover):
 
     name = 'storm'
     schemes = ['file']
-    version = '20161122.003'
+    version = '20161125.005'
 
     def __init__(self, *args, **kwargs):
         super(stormSiteMover, self).__init__(*args, **kwargs)
@@ -78,12 +78,17 @@ class stormSiteMover(BaseSiteMover):
             raise PilotException('Could not retrieve STORM WebDAV ETag: %s' % e)
         p_output = minidom.parseString(output)
 
-        # we need to strip off the quotation marks and the _-<timestamp> from the etag
-        target = p_output.getElementsByTagName('d:getetag')[0].childNodes[0].nodeValue.replace('"', '').rsplit('_-')[0]
-        self.log('Symlink target: %s' % target)
+        # we need to strip off the quotation marks and the <timestamp> from the etag
+        # but since we can have multiple underscores, we have to rely on the uniqueness
+        # of the full LFN to make the split
+        target = p_output.getElementsByTagName('d:getetag')[0].childNodes[0].nodeValue.replace('"', '')
+        self.log('Symlink before: %s' % target)
+        target = target.split(fspec.lfn)[0]+fspec.lfn
+        self.log('Symlink after : %s' % target)
 
         # make the symlink
         try:
+            self.log('Making symlink from %s to %s' % (target, destination))
             os.symlink(target, destination)
         except Exception, e:
             self.log('FATAL: could not create symlink: %s' % e)
