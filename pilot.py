@@ -2325,6 +2325,14 @@ def getNewJob(tofile=True):
     newJob.datadir = env['thisSite'].workdir + "/PandaJob_%s_data" % (newJob.jobId)
     newJob.experiment = env['experiment']
 
+    # make sure that there is not already a job with this jobid in a running state (due to batch system bug on ND)
+    # get job status from server
+    jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(newJob.jobId, env['pshttpurl'], env['psport'], env['pilot_initdir'])
+    if jobStatus == "running":
+        pilotErrorDiag = "!!WARNING!!1200!! Job %s is already running elsewhere - aborting" % (newJob.jobId)
+        pUtil.tolog("!!WARNING!!1200!! %s" % (pilotErrorDiag), tofile=tofile)
+        return None, pilotErrorDiag
+
     if data.has_key('logGUID'):
         logGUID = data['logGUID']
         if logGUID != "NULL" and logGUID != "":
