@@ -394,7 +394,7 @@ class JobMover(object):
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
                 self.log("Copy setup   [stage-in]: %s" % copysetup)
 
-                self.trace_report.update(protocol=copytool)
+                self.trace_report.update(protocol=copytool, filesize=fdata.filesize)
 
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="input")
 
@@ -918,6 +918,7 @@ class JobMover(object):
 
                     self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', '') if fdata.guid else None)
                     self.trace_report.update(scope=fdata.scope, dataset=fdata.destinationDblock, url=fdata.turl)
+                    self.trace_report.update(filesize=fdata.filesize)
 
                     self.log("[stage-out] [%s] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (activity, fdata.lfn, copytool, sitemover))
                     #dumpFileStates(self.workDir, self.job.jobId, ftype="output")

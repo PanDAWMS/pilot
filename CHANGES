@@ -293,6 +293,10 @@ General changes:
 
 - Added call to pUtil.getJobStatus() in getNewJob(). After job has been downloaded, check with the PanDA server that the job is not already in a running state. This can happen due to a bug on the batch system side on Nordugrud resources. Requested by Andrej Filipcic, David Cameron
 
+Mover fixes:
+
+- Now sending filesize with trace report, from stageout(), stagein_real() (mover)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
