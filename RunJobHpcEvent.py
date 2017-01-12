@@ -37,7 +37,6 @@ from PandaServerClient import PandaServerClient
 import EventRanges
 
 from GetJob import GetJob
-from EventStager import EventStager
 from HPC.HPCManager import HPCManager
 
 class RunJobHpcEvent(RunJob):
@@ -82,7 +81,6 @@ class RunJobHpcEvent(RunJob):
         self.__avail_tag_files = {}
 
         # event Stager
-        self.__eventStager = None
         self.__yoda_to_os = False
         self.__yoda_to_zip = False
         self.__es_to_zip = False
@@ -1147,80 +1145,6 @@ class RunJobHpcEvent(RunJob):
         self.__hpcStatus, self.__hpcLog = hpcManager.checkHPCJobLog()
         tolog("HPC job log status: %s, job log error: %s" % (self.__hpcStatus, self.__hpcLog))
         
-
-    def startEventStager(self):
-        try:
-            tolog("Starting Event Stager")
-            # get the copy tool
-            setup = self.__siteInfo.getCopySetup(stageIn=False)
-
-            #espath = getFilePathForObjectStore(filetype="eventservice")
-            siteInfo = getSiteInformation(self.getExperiment())
-            ddmendpoint = siteInfo.getObjectstoreDDMEndpoint(os_bucket_name='eventservice')
-            os_bucket_id = siteInfo.getObjectstoreBucketID(ddmendpoint)
-            tolog("Will use the default bucket ID: %s" % (os_bucket_id))
-            espath = siteInfo.getObjectstorePath(os_bucket_id=os_bucket_id, label='w')
-            tolog("EventServer objectstore path: " + espath)
-
-            token = None
-            
-            self.__eventStager = EventStager(workDir=self.__pilotWorkingDir, setup=setup, esPath=espath, token=token, experiment=self.getExperiment(), userid=self.__userid, sitename=self.__jobSite.sitename, threads=self.__stageout_threads, outputDir=self.getOutputDir(), yodaToOS=self.__yoda_to_os)
-            self.__eventStager.start()
-        except:
-            tolog("Failed to start Event Stager: %s" % traceback.format_exc())
-
-    def getEventStagerLog(self):
-        try:
-            return self.__eventStager.getLog()
-        except:
-            tolog("Failed to get Event Stager Log: %s" % traceback.format_exc())
-            return None
-
-    def updateEventRangesFromStager(self):
-        tolog("updateEventRangesFromStager")
-        all_files = os.listdir(self.__pilotWorkingDir)
-        for file in all_files:
-            if file.endswith(".staged.reported"):
-                filename = os.path.join(self.__pilotWorkingDir, file)
-                handle = open(filename)
-                for output_info in handle:
-                    if len(output_info)<2:
-                        continue
-                    jobId, eventRangeID, status, output = output_info.split(" ")
-                    if jobId not in self.__eventRanges:
-                        self.__eventRanges[jobId] = {}
-                    self.__eventRanges[jobId][eventRangeID] = 'Done'
-                handle.close()
-            if file.endswith(".staged"):
-                filename = os.path.join(self.__pilotWorkingDir, file)
-                handle = open(filename)
-                for output_info in handle:
-                    jobId, eventRangeID, status, output = output_info.split(" ")
-                    self.__eventRanges[jobId][eventRangeID] = 'stagedOut'
-                handle.close()
-                self.updateHPCEventRanges()
-                os.rename(file, file + ".reported")
-
-    def monitorEventStager(self):
-        try:
-            self.__eventStager.monitor()
-            self.updateEventRangesFromStager()
-        except:
-            tolog("Failed to monitor Event Stager: %s" % traceback.format_exc())
-
-    def finishEventStager(self):
-        try:
-            self.__eventStager.finish()
-        except:
-            tolog("failed to finish event ranges %s" % traceback.format_exc())
-
-    def isEventStagerFinished(self):
-        try:
-            return self.__eventStager.isFinished()
-        except:
-            tolog("Failed in check Event Stager status: %s" % traceback.format_exc())
-            return False
-
     def getJobMetrics(self):
         try:
             jobMetrics = None
@@ -1472,7 +1396,7 @@ class RunJobHpcEvent(RunJob):
         tolog("runHPCEventWithEventStager")
         hpcManager = self.__hpcManager
         if useEventStager:
-            self.startEventStager()
+            tolog("EventStager is deprecated. Doesn't support eventstager anymore.")
 
         try:
             old_state = None
@@ -1500,8 +1424,6 @@ class RunJobHpcEvent(RunJob):
                 if state and state == 'Complete':
                     break
 
-                if useEventStager:
-                    self.monitorEventStager()
                 time.sleep(30)
 
             tolog("HPCManager Job Finished")
@@ -1512,21 +1434,6 @@ class RunJobHpcEvent(RunJob):
             tolog("RunHPCEvent failed: %s" % traceback.format_exc())
 
         self.stageOutZipFiles()
-
-        if useEventStager:
-            try:
-                self.finishEventStager()
-                while not self.isEventStagerFinished():
-                    self.monitorEventStager()
-                    time.sleep(30)
-
-                eventStager_log = self.getEventStagerLog()
-                for jobId in self.__jobs:
-                    job_workdir = self.__jobs[jobId]['job'].workdir
-                    tolog("Copy event stager log %s to job %s work dir %s" % (eventStager_log, jobId, job_workdir))
-                    shutil.copy(eventStager_log, job_workdir)
-            except:
-                tolog("Waiting EventStager: %s" % traceback.format_exc())
 
         try:
             hpcManager.postRun()
