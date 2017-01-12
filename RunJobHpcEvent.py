@@ -81,7 +81,6 @@ class RunJobHpcEvent(RunJob):
         self.__avail_tag_files = {}
 
         # event Stager
-        self.__eventStager = None
         self.__yoda_to_os = False
         self.__yoda_to_zip = False
         self.__es_to_zip = False
