@@ -305,6 +305,7 @@ Hardcoded pandaserver urls:
 - Using __pandaserver with downloadEventRanges() in getJobEventRanges() (RunJobHpcEvent)
 - Using __pandaserver with updateEventRanges() in stageOutZipFiles_new(), stageOutZipFiles() (RunJobEvent)
 - Using __pandaserver with updateEventRanges() in updateEventRanges(),  (RunJobHpcEvent)
+- Removed import of httpConnect in RunJobEvent, RunJobHpcEvent
 - NOTE: ASK WEN TO UPDATE EVENTSTAGER MODULES
 
 Memory Monitoring:

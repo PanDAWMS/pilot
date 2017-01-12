@@ -30,7 +30,7 @@ from JobState import JobState
 from JobRecovery import JobRecovery
 from PilotErrors import PilotErrors
 from ErrorDiagnosis import ErrorDiagnosis
-from pUtil import tolog, getExperiment, isAnalysisJob, httpConnect, createPoolFileCatalog, getSiteInformation, getDatasetDict
+from pUtil import tolog, getExperiment, isAnalysisJob, createPoolFileCatalog, getSiteInformation, getDatasetDict
 from objectstoreSiteMover import objectstoreSiteMover
 from Mover import getFilePathForObjectStore, getInitialTracingReport
 from PandaServerClient import PandaServerClient
