@@ -306,7 +306,6 @@ Hardcoded pandaserver urls:
 - Using __pandaserver with updateEventRanges() in stageOutZipFiles_new(), stageOutZipFiles() (RunJobEvent)
 - Using __pandaserver with updateEventRanges() in updateEventRanges(),  (RunJobHpcEvent)
 - Removed import of httpConnect in RunJobEvent, RunJobHpcEvent
-- NOTE: ASK WEN TO UPDATE EVENTSTAGER MODULES
 
 Memory Monitoring:
 
@@ -316,6 +315,23 @@ Memory Monitoring:
 Mover fixes:
 
 - Now sending filesize with trace report, from stageout(), stagein_real() (mover)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/104
+
+- Removed deprecated modules  EventStager.py and MVEventStager.py
+- Updated RunJobHpcEvent.py to remove EventStager usage
+
+Commit Summary
+
+deprecate eventstager
+remove eventStager
+File Changes
+
+D EventStager.py (559)
+D MVEventStager.py (298)
+M RunJobHpcEvent.py (95)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
