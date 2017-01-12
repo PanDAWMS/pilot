@@ -63,6 +63,7 @@ class RunJob(object):
 #    __testLevel = 0                      # test suite control variable (0: no test, 1: put error, 2: ...)  NOT USED
 #    __workdir = "/tmp" # NOT USED
     __cache = ""                         # Cache URL, e.g. used by LSST
+    __pandaserver = ""                   # Full PanDA server url incl. port and sub dirs
 
     __recovery = False
     __jobStateFile = None
@@ -223,6 +224,16 @@ class RunJob(object):
             tolog(traceback.format_exc())
             return None
 
+    def getPanDAServer(self):
+        """ Getter for __pandaserver """
+
+        return self.__pandaserver
+
+    def setPanDAServer(self, pandaserver):
+        """ Setter for __pandaserver """
+
+        self.__pandaserver = pandaserver
+
     # Required methods
 
     def __init__(self):
@@ -290,6 +301,8 @@ class RunJob(object):
                           help="The queue yoda will be send to", metavar="YODAQUEUE")
         parser.add_option("-H", "--cache", dest="cache",
                           help="Cache URL", metavar="CACHE")
+        parser.add_option("-W", "--pandaserver", dest="pandaserver",
+                          help="The full URL of the PanDA server (incl. port)", metavar="PANDASERVER")
 
         # options = {'experiment': 'ATLAS'}
         try:
@@ -314,6 +327,8 @@ class RunJob(object):
                 self.__pilotlogfilename = options.pilotlogfilename
             if options.pilotserver:
                 self.__pilotserver = options.pilotserver
+            if options.pandaserver:
+                self.__pandaserver = options.pandaserver
             if options.proxycheckFlag:
                 if options.proxycheckFlag.lower() == "false":
                     self.__proxycheckFlag = False
@@ -798,7 +813,7 @@ class RunJob(object):
         if job.cloneJob == "runonce":
             try:
                 # If the event is still available, the go ahead and run the payload
-                message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
+                message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, url=self.__pandaserver)
 
                 # Create a list of event ranges from the downloaded message
                 event_ranges = self.extractEventRanges(message)
@@ -1724,7 +1739,7 @@ if __name__ == "__main__":
             # If clone job, make sure that stage-out should be performed
             if job.cloneJob == "storeonce":
                 try:
-                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID)
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, url=runJob.getPanDAServer())
 
                     # Create a list of event ranges from the downloaded message
                     event_ranges = runJob.extractEventRanges(message)

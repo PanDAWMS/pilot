@@ -4,8 +4,10 @@ import json
 import os
 from pUtil import httpConnect, tolog
 
-def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10):
+def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10, url="https://pandaserver.cern.ch:25443/server/panda"):
     """ Download event ranges from the Event Server """
+
+    # url should be '%s:%s/server/panda' % (env['pshttpurl'], str(env['psport']))
 
     if os.environ.has_key('EventRanges') and os.path.exists(os.environ['EventRanges']):
         try:
@@ -27,8 +29,7 @@ def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10):
     if numRanges < 8:
         numRanges = 8
     message = ""
-#    url = "https://aipanda007.cern.ch:25443/server/panda"
-    url = "https://pandaserver.cern.ch:25443/server/panda"
+
     node = {}
     node['pandaID'] = jobId
     node['jobsetID'] = jobsetID
@@ -69,13 +70,12 @@ def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', o
 
     return message
 
-def updateEventRanges(event_ranges):
+def updateEventRanges(event_ranges, url="https://pandaserver.cern.ch:25443/server/panda"):
     """ Update an event range on the Event Server """
     tolog("Updating event ranges..")
 
     message = ""
-    #url = "https://aipanda007.cern.ch:25443/server/panda"
-    url = "https://pandaserver.cern.ch:25443/server/panda"
+
     # eventRanges = [{'eventRangeID': '4001396-1800223966-4426028-1-2', 'eventStatus':'running'}, {'eventRangeID': '4001396-1800223966-4426028-2-2','eventStatus':'running'}]
 
     node={}

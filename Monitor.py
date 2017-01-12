@@ -1836,10 +1836,13 @@ class Monitor:
             else: # child job
                 pUtil.tolog("Starting child process in dir: %s" % self.__env['jobDic']["prod"][1].workdir)
 
+                # the subprocess need to know the url to the panda server in some cases (e.g. event range downloads) 
+                url = 'url%s:%s/server/panda' % (self.__env['pshttpurl'], str(self.__env['psport']))
+
                 # start the RunJob* subprocess
                 # pUtil.chdir(self.__env['jobDic']["prod"][1].workdir)
                 sys.path.insert(1,".")
-                jobargs = [self.__env['pyexe']] + jobCommand + ['-R', 'True', '-S', jobStateFile]
+                jobargs = [self.__env['pyexe']] + jobCommand + ['-R', 'True', '-S', jobStateFile, '-W', url]
                 # replace monthread.port
                 i = -1
                 for jobarg in jobargs:

@@ -293,9 +293,21 @@ General changes:
 
 - Added call to pUtil.getJobStatus() in getNewJob(). After job has been downloaded, check with the PanDA server that the job is not already in a running state. This can happen due to a bug on the batch system side on Nordugrud resources. Requested by Andrej Filipcic, David Cameron
 
+Hardcoded pandaserver urls:
+
+- Removed hardcoded pandaserver url from .. (note: cannot currently remove hardcoded url for S3 secret key downloads since keys are only known to pandaserver and not any dev server)
+- Added new argument url to downloadEventRanges(), updateEventRanges() (EventRanges)
+- Setting PanDA server url in RunJob* argument list in getSubprocessArguments() (Experiment)
+- Added -W server url argument in argumentParser() (RunJob)
+- Added __pandaserver variable (RunJob)
+- Using __pandaserver with downloadEventRanges() in executePayload(), __main__() (RunJob)
+- Using __pandaserver with downloadEventRanges() in __main__() (RunJobEvent)
+- Using __pandaserver with downloadEventRanges() in getJobEventRanges() (RunJobHpcEvent)
+
 Memory Monitoring:
 
 - Now using release 21.0.12 to setup the memory monitoring (ATLASExperiment)
+- (Needs fix for handling new monitor output)
 
 Mover fixes:
 

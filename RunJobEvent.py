@@ -96,6 +96,7 @@ class RunJobEvent(RunJob):
     __current_event_range = ""                   # Event range being sent to payload
     __useTokenExtractor = False                  # Should the TE be used?
     __usePrefetcher = False                      # Should the Prefetcher be user
+    __pandaserver = ""                   # Full PanDA server url incl. port and sub dirs
 
     # ES zip
     __esToZip = False
@@ -735,6 +736,16 @@ class RunJobEvent(RunJob):
         else:
             tolog("Prefetcher is not needed")
 
+    def getPanDAServer(self):
+        """ Getter for __pandaserver """
+
+        return self.__pandaserver
+
+    def setPanDAServer(self, pandaserver):
+        """ Setter for __pandaserver """
+
+        self.__pandaserver = pandaserver
+
     def init_guid_list(self):
         """ Init guid and lfn list for staged in files"""
 
@@ -825,6 +836,8 @@ class RunJobEvent(RunJob):
                           help="Current experiment (default: ATLAS)", metavar="EXPERIMENT")
         parser.add_option("-H", "--cache", dest="cache",
                           help="Cache URL", metavar="CACHE")
+        parser.add_option("-W", "--pandaserver", dest="pandaserver",
+                          help="The full URL of the PanDA server (incl. port)", metavar="PANDASERVER")
 
         # options = {'experiment': 'ATLAS'}
         try:
@@ -888,6 +901,8 @@ class RunJobEvent(RunJob):
                 workdir = options.workdir
             if options.cache:
                 self.__cache = options.cache
+            if options.pandaserver:
+                self.__pandaserver = options.pandaserver
 
         # use sitename as queuename if queuename == ""
         if queuename == "":
@@ -2925,7 +2940,7 @@ if __name__ == "__main__":
 
         # download event ranges before athenaMP
         # Pilot will download some event ranges from the Event Server
-        message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount)
+        message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount, url=runJob.getPanDAServer())
         # Create a list of event ranges from the downloaded message
         first_event_ranges = runJob.extractEventRanges(message)
         if first_event_ranges is None or first_event_ranges == []:
@@ -2974,7 +2989,7 @@ if __name__ == "__main__":
                     first_event_ranges = None
                 else:
                     # Pilot will download some event ranges from the Event Server
-                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount)
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount, url=runJob.getPanDAServer())
 
                     # Create a list of event ranges from the downloaded message
                     event_ranges = runJob.extractEventRanges(message)

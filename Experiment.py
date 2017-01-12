@@ -591,6 +591,8 @@ class Experiment(object):
         jobargs = None
         tolog("Will set up subprocess arguments for type: %s" % (subprocessName))
 
+        url = '%s:%s/server/panda' % (env['pshttpurl'], str(env['psport']))
+
         if subprocessName == "RunJobEvent":
             jobargs = [env['pyexe'], "RunJobEvent.py",
                        "-a", env['thisSite'].appdir,
@@ -608,7 +610,8 @@ class Experiment(object):
                        "-x", str(env['stageinretry']),
                        "-E", str(env['stageoutretry']),
                        "-F", env['experiment'],
-                       "-H", env['cache']]
+                       "-H", env['cache'],
+                       "-W", url]
         else:
             jobargs = [env['pyexe'], "%s.py" % (subprocessName),
                        "-a", env['thisSite'].appdir,
@@ -626,7 +629,8 @@ class Experiment(object):
                        "-x", str(env['stageinretry']),
                        "-E", str(env['stageoutretry']),
                        "-F", env['experiment'],
-                       "-H", env['cache']]
+                       "-H", env['cache'],
+                       "-W", url]
             if 'yodaNodes' in env and subprocessName == "RunJobHpcEvent":
                 jobargs.append("-N")
                 jobargs.append(str(env['yodaNodes']))

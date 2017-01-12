@@ -722,7 +722,7 @@ class RunJobHpcEvent(RunJob):
 
         tolog("Server: Downloading new event ranges..")
 
-        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=numRanges)
+        message = EventRanges.downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=numRanges, url=self.getPanDAServer())
         try:
             if "Failed" in message or "No more events" in message:
                 tolog(message)
