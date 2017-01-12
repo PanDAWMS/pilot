@@ -713,7 +713,7 @@ class RunJobHpcEvent(RunJob):
 
     def updateEventRanges(self, event_ranges):
         """ Update an event range on the Event Server """
-        return EventRanges.updateEventRanges(event_ranges)
+        return EventRanges.updateEventRanges(event_ranges, url=self.getPanDAServer())
 
         return status, message
 

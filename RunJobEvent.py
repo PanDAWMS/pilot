@@ -1570,7 +1570,7 @@ class RunJobEvent(RunJob):
                         eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id})
             for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                 tolog("Update event ranges: %s" % chunkEventRanges)
-                status, output = updateEventRanges(chunkEventRanges)
+                status, output = updateEventRanges(chunkEventRanges, url=self.getPanDAServer())
                 tolog("Update Event ranges status: %s, output: %s" % (status, output))
 
     @mover.use_newmover(stageOutZipFiles_new)
@@ -1650,7 +1650,7 @@ class RunJobEvent(RunJob):
                             eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id})
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
-                    status, output = updateEventRanges(chunkEventRanges)
+                    status, output = updateEventRanges(chunkEventRanges, url=self.getPanDAServer())
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
         else:
             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
