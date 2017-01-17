@@ -846,9 +846,8 @@ class ATLASSiteInformation(SiteInformation):
         else:
             cloudOption = ""
 
-        # CVMFS_BASE_PATH/cern-benchmark --benchmarks="whetstone" --cloud=somewhere --vo=ATLAS --freetext="CERN Benchmark suite executed by the PanDA Pilot" --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --amq_key=path_to_your_key --amq_cert=path_to_your_certificate --topic=/topic/vm.specwhetstone
         dictionary = {}
-        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';" % (self.getFileSystemRootPath())
+        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
         cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=$X509_USER_PROXY --amq_cert=$X509_USER_PROXY" % (cloudOption)
         cmd += ""
         timeout = 180 #120
@@ -858,16 +857,16 @@ class ATLASSiteInformation(SiteInformation):
         if exitcode != 0:
             tolog("!!WARNING!!3434!! Encountered a problem with benchmark test: %s" % (output))
         else:
-            tolog("Benchmark finished")
+            tolog("Benchmark finished: %d,%s" % (exitcode,output))
 
-            filename = "kflops.json"
-            if not os.path.exists(filename):
-                tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
-            else:
-                tolog("Parsing benchmark output file: %s" % (filename))
-                dictionary = getJSONDictionary(filename)
-                if dictionary == {}:
-                    tolog("!!WARNING!!3436!! Empty benchmark dictionary - nothing to report")
+#            filename = "kflops.json"
+#            if not os.path.exists(filename):
+#                tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
+#            else:
+#                tolog("Parsing benchmark output file: %s" % (filename))
+#                dictionary = getJSONDictionary(filename)
+#                if dictionary == {}:
+#                    tolog("!!WARNING!!3436!! Empty benchmark dictionary - nothing to report")
 
         return dictionary
 
