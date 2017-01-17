@@ -848,8 +848,8 @@ class ATLASSiteInformation(SiteInformation):
 
         # CVMFS_BASE_PATH/cern-benchmark --benchmarks="whetstone" --cloud=somewhere --vo=ATLAS --freetext="CERN Benchmark suite executed by the PanDA Pilot" --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --amq_key=path_to_your_key --amq_cert=path_to_your_certificate --topic=/topic/vm.specwhetstone
         dictionary = {}
-        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current;" % (self.getFileSystemRootPath())
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks=\"whetstone\" --freetext=\"CERN Benchmark suite executed by the PanDA Pilot\" --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=$X509_USER_PROXY --amq_cert=$X509_USER_PROXY" % (cloudOption)
+        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';" % (self.getFileSystemRootPath())
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=$X509_USER_PROXY --amq_cert=$X509_USER_PROXY" % (cloudOption)
         cmd += ""
         timeout = 180 #120
 
