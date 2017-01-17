@@ -99,7 +99,7 @@ def killProcesses(pid, pgrp):
         # kill the process gracefully
         pUtil.tolog("Killing group process %d" % (pgrp))
         try:
-            os.killpg(-pgrp, signal.SIGTERM)
+            os.killpg(pgrp, signal.SIGTERM)
         except Exception,e:
             pUtil.tolog("WARNING: Exception thrown when killing the child group process under SIGTERM, wait for kill -9 later: %s" % (e))
             _sleep = False
@@ -112,7 +112,7 @@ def killProcesses(pid, pgrp):
             time.sleep(_t)
 
         try:
-            os.killpg(-pgrp, signal.SIGKILL)
+            os.killpg(pgrp, signal.SIGKILL)
         except Exception,e:
             pUtil.tolog("WARNING: Exception thrown when killing the child group process under SIGTERM, wait for kill -9 later: %s" % (e))
         else:
