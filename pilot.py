@@ -2589,7 +2589,7 @@ def runMain(runpars):
 
         # run benchmark test if required by experiment site information object
         # (will be set to None if benchmark test is not run)
-        benchmark_dictionary = env['workerNode'].getBenchmarkDictionary(env['si'])
+        benchmark_dictionary = env['workerNode'].getBenchmarkDictionary(env['si'], pUtil.readpar('cloud'))
         # report benchmark name + value with jobMetrics
         pUtil.tolog("benchmark dictionary=%s"%str(benchmark_dictionary))
 

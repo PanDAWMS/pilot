@@ -289,10 +289,20 @@ General changes:
 
 67.5
 
+BENCHMARK ON
+
+
+
+
 General changes:
 
 - Added call to pUtil.getJobStatus() in getNewJob(). After job has been downloaded, check with the PanDA server that the job is not already in a running state. This can happen due to a bug on the batch system side on Nordugrud resources. Requested by Andrej Filipcic, David Cameron
 - Removed negation of id number sent to os.killpg() in killProcesses(). Requested by Rod Walker (processes)
+
+Benchmarks:
+
+- Added pdict argument to executeBenchmark() (SiteInformation, ATLASSiteInformation)
+- Added cloud argument to getBenchmarkDictionary(), sent from runMain() (node, pilot)
 
 Hardcoded pandaserver urls:
 

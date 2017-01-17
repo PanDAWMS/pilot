@@ -250,12 +250,12 @@ class Node:
 
         return jobMetrics
 
-    def getBenchmarkDictionary(self, si):
+    def getBenchmarkDictionary(self, si, cloud):
         """ Execute the benchmack test if required by the site information object """
 
         benchmark_dictionary = None
         if si.shouldExecuteBenchmark():
-            benchmark_dictionary = si.executeBenchmark()
+            benchmark_dictionary = si.executeBenchmark(cloud=cloud)
         else:
             tolog("Not required to run the benchmark test")
 

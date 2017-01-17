@@ -831,19 +831,27 @@ class ATLASSiteInformation(SiteInformation):
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
-        return False
+        return True
 
     # Optional
-    def executeBenchmark(self):
+    def executeBenchmark(self, **pdict):
         """ Interface method for benchmark test """
 
         # Use this method to interface with benchmark code
         # The method should return a dictionary containing the results of the test
 
+        cloud = pdict.get('cloud', '')
+        if cloud != "":
+            cloudOption = "--cloud=%s" % (cloud)
+        else:
+            cloudOption = ""
+
+        # CVMFS_BASE_PATH/cern-benchmark --benchmarks="whetstone" --cloud=somewhere --vo=ATLAS --freetext="CERN Benchmark suite executed by the PanDA Pilot" --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --amq_key=path_to_your_key --amq_cert=path_to_your_certificate --topic=/topic/vm.specwhetstone
         dictionary = {}
-        cmd = "export BMK_ROOTDIR='/cvmfs/atlas.cern.ch/repo/benchmarks/cern/current;"
-        cmd += "$BMK_ROOTDIR/cern-benchmark --benchmarks=\"fastBmk\" --queue_host=dashb-test-mb.cern.ch --queue_port=61113 --username=vmspecprod --topic=/topic/vm.spec --cloud=cloud-name --vo=ATLAS"
-        timeout = 120
+        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current;" % (self.getFileSystemRootPath())
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks=\"whetstone\" --freetext=\"CERN Benchmark suite executed by the PanDA Pilot\" --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=$X509_USER_PROXY --amq_cert=$X509_USER_PROXY" % (cloudOption)
+        cmd += ""
+        timeout = 180 #120
 
         tolog("Executing benchmark test: %s" % (cmd))
         exitcode, output = timedCommand(cmd, timeout=timeout)

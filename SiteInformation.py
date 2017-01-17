@@ -2017,7 +2017,7 @@ class SiteInformation(object):
         return False
 
     # Optional
-    def executeBenchmark(self):
+    def executeBenchmark(self, **pdict):
         """ Interface method for benchmark test """
 
         # Use this method to interface with benchmark code
