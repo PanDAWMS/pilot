@@ -5857,7 +5857,8 @@ def updateReport(report, gpfn, dsname, fsize, sitemover):
     except Exception, e:
         tolog("Warning: Failed to get RSE: %s (tracing report will have the wrong site name)" % str(e))
     else:
-        report['localSite'], report['remoteSite'] = (_RSE, _RSE)
+        if _RSE:
+            report['localSite'], report['remoteSite'] = (_RSE, _RSE)
         tolog("RSE: %s" % (_RSE))
 
     # update the tracing report with the correct dataset for this file
