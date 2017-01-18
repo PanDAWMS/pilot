@@ -2588,10 +2588,8 @@ def runMain(runpars):
             return pUtil.shellExitCode(error.ERR_GENERALERROR)
 
         # run benchmark test if required by experiment site information object
-        # (will be set to None if benchmark test is not run)
-        benchmark_dictionary = env['workerNode'].getBenchmarkDictionary(env['si'], pUtil.readpar('cloud'))
-        # report benchmark name + value with jobMetrics
-        pUtil.tolog("benchmark dictionary=%s"%str(benchmark_dictionary))
+        # report benchmark results with jobMetrics
+        env['workerNode'].executeBenchmarks(env['si'], pUtil.readpar('cloud'))
 
         # create the initial pilot workdir
         ec = createSiteWorkDir(env['thisSite'].workdir, error)

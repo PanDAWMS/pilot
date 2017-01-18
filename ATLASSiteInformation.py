@@ -28,6 +28,7 @@ class ATLASSiteInformation(SiteInformation):
     __instance = None
     __error = PilotErrors()                  # PilotErrors object
     __securityKeys = {}
+    __benchmarks = None
 
     # Required methods
 
@@ -834,6 +835,12 @@ class ATLASSiteInformation(SiteInformation):
         return True
 
     # Optional
+    def getBenchmarkDictionary(self):
+        """ Return the benchmarks dictionary """
+
+        return self.__benchmarks
+
+    # Optional
     def executeBenchmark(self, **pdict):
         """ Interface method for benchmark test """
 
@@ -846,7 +853,6 @@ class ATLASSiteInformation(SiteInformation):
         else:
             cloudOption = ""
 
-        dictionary = {}
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
         cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=$X509_USER_PROXY --amq_cert=$X509_USER_PROXY" % (cloudOption)
         cmd += ""
@@ -859,16 +865,18 @@ class ATLASSiteInformation(SiteInformation):
         else:
             tolog("Benchmark finished: %d,%s" % (exitcode,output))
 
-#            filename = "kflops.json"
-#            if not os.path.exists(filename):
-#                tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
-#            else:
-#                tolog("Parsing benchmark output file: %s" % (filename))
-#                dictionary = getJSONDictionary(filename)
-#                if dictionary == {}:
-#                    tolog("!!WARNING!!3436!! Empty benchmark dictionary - nothing to report")
+            filename = "/tmp/cern_benchmark_{user}/bmk_tmp/result_profile.json"
+            if not os.path.exists(filename):
+                tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
+            else:
+                tolog("Parsing benchmark output file: %s" % (filename))
+                self.__benchmarks = getJSONDictionary(filename)
+                if self.__benchmarks == {}:
+                    tolog("!!WARNING!!3436!! Empty benchmark dictionary - nothing to report")
+                else:
+                    tolog("Benchmark dictionary=%s"%str(self.__benchmarks))
 
-        return dictionary
+        return self.__benchmarks
 
 if __name__ == "__main__":
 

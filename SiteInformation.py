@@ -36,7 +36,7 @@ class SiteInformation(object):
     __error = PilotErrors()                # PilotErrors object
     __securityKeys = {}                    # S3 secret keys (for object store)
     __queuename = ""                       # Name of the queue
-
+    __benchmarks = None                    # The benchmarks dictionary
     ddmconf = {}                           # DDMEndpoints data dict with protocols definition
 
     def __init__(self):
@@ -2015,6 +2015,12 @@ class SiteInformation(object):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
         return False
+
+    # Optional
+    def getBenchmarkDictionary(self):
+        """ Return the benchmarks dictionary """
+
+        return self.__benchmarks
 
     # Optional
     def executeBenchmark(self, **pdict):

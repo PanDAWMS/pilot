@@ -14,6 +14,7 @@ class Node:
         self.mem = 0
         self.disk = 0
         self.numberOfCores = self.setNumberOfCores()
+        self.benchmarks = None
 
         # set the batch job and machine features
         self.collectMachineFeatures()
@@ -250,13 +251,15 @@ class Node:
 
         return jobMetrics
 
-    def getBenchmarkDictionary(self, si, cloud):
-        """ Execute the benchmack test if required by the site information object """
+    def executeBenchmarks(self, si, cloud):
+        """ Execute the benchmack suite if required by the site information object """
 
-        benchmark_dictionary = None
         if si.shouldExecuteBenchmark():
-            benchmark_dictionary = si.executeBenchmark(cloud=cloud)
+            self.benchmarks = si.executeBenchmark(cloud=cloud)
         else:
-            tolog("Not required to run the benchmark test")
+            tolog("Not required to run the benchmark suite")
 
-        return benchmark_dictionary
+    def getBenchmarkDictionary(self):
+        """ Return the benchmark dictionary """
+
+        return self.benchmarks

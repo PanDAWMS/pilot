@@ -303,6 +303,8 @@ Benchmarks:
 
 - Added pdict argument to executeBenchmark() (SiteInformation, ATLASSiteInformation)
 - Added cloud argument to getBenchmarkDictionary(), sent from runMain() (node, pilot)
+- Created executeBenchmarks(), new getBenchmarkDictionary(). Added benchmarks private data member (Node)
+- Created getBenchmarkDictionary(), updated executeBenchmarks(), added self.__benchmarks (SiteInformation, ATLASSiteInformation)
 
 Hardcoded pandaserver urls:
 

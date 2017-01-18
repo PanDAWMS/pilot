@@ -189,6 +189,9 @@ class PandaServerClient:
         # machine and job features, max disk space used by the payload
         jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir, job.jobId)
 
+        si = getSiteInformation(job.experiment)
+        tolog("Benchmark dictionary=%s" % str(si.getBenchmarkDictionary()))
+
         _jobMetrics = ""
 
         # report any OS transfers
