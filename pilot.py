@@ -2567,13 +2567,6 @@ def runMain(runpars):
 
         # collect WN info .........................................................................................
 
-        pUtil.tolog("proxy info:")
-        p=os.path.expandvars('$X509_USER_PROXY')
-        f=open(p,'r')
-        a=f.read()
-        pUtil.tolog("%s"%a)
-        f.close()
-
         # do not include the basename in the path since it has not been created yet
         # i.e. remove Panda_Pilot* from the workdir path
         # pUtil.tolog("Collecting WN info from: %s" % (os.path.dirname(thisSite.workdir)))
