@@ -3234,14 +3234,26 @@ class ATLASExperiment(Experiment):
         maxRSS = -1
         maxPSS = -1
         maxSwap = -1
+        totRCHAR = -1
+        totWCHAR = -1
+        totRBYTES = -1
+        totWBYTES = -1
         avgVMEM = 0
         avgRSS = 0
         avgPSS = 0
         avgSwap = 0
+        rateRCHAR = 0
+        rateWCHAR = 0
+        rateRBYTES = 0
+        rateWBYTES = 0
         totalVMEM = 0
         totalRSS = 0
         totalPSS = 0
         totalSwap = 0
+        totalRCHAR = 0
+        totalWCHAR = 0
+        totalRBYTES = 0
+        totalWBYTES = 0
         N = 0
         summary_dictionary = {}
 
@@ -3267,28 +3279,79 @@ class ATLASExperiment(Experiment):
                         line = convert_unicode_string(line)
                         if line != "":
                             try:
-                                Time, VMEM, PSS, RSS, Swap = line.split("\t")
+                                # Remove empty entries from list (caused by multiple \t)
+                                l = filter(None, line.split('\t'))
+                                Time = l[0]
+                                VMEM = l[1]
+                                PSS = l[2]
+                                RSS = l[3]
+                                Swap = l[4]
+                                if len(l) > 5:
+                                    rchar = l[5]
+                                    wchar = l[6]
+                                    rbytes = l[7]
+                                    wbytes = l[8]
+                                else:
+                                    rchar = None
+                                    wchar = None
+                                    rbytes = None
+                                    wbytes = None
                             except Exception, e:
-                                tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap)" % (line))
+                                tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap [, RCHAR, WCHAR, RBYTES, WBYTES])" % (line))
                             else:
                                 # Convert to int
                                 ec1, maxVMEM, totalVMEM = self.getMaxUtilityValue(VMEM, maxVMEM, totalVMEM)
                                 ec2, maxPSS, totalPSS = self.getMaxUtilityValue(PSS, maxPSS, totalPSS)
                                 ec3, maxRSS, totalRSS = self.getMaxUtilityValue(RSS, maxRSS, totalRSS)
                                 ec4, maxSwap, totalSwap = self.getMaxUtilityValue(Swap, maxSwap, totalSwap)
-                                if ec1 or ec2 or ec3 or ec4:
+                                if rchar:
+                                    ec5, totRCHAR, totalRCHAR = self.getMaxUtilityValue(rchar, totRCHAR, totalRCHAR)
+                                else:
+                                    ec5 = True
+                                if wchar:
+                                    ec6, totWCHAR, totalWCHAR = self.getMaxUtilityValue(wchar, totWCHAR, totalWCHAR)
+                                else:
+                                    ec6 = True
+                                if rbytes:
+                                    ec7, totRBYTES, totalRBYTES = self.getMaxUtilityValue(rbytes, totRBYTES, totalRBYTES)
+                                else:
+                                    ec7 = True
+                                if wbytes:
+                                    ec8, totWBYTES, totalWBYTES = self.getMaxUtilityValue(wbytes, totWBYTES, totalWBYTES)
+                                else:
+                                    ec8 = True
+
+                                if ec1 or ec2 or ec3 or ec4 or ec5 or ec6 or ec7 or ec8:
                                     tolog("Will skip this row of numbers due to value exception: %s" % (line))
                                 else:
                                     N += 1
                     # Calculate averages and store all values
                     summary_dictionary = { "Max": {}, "Avg": {} }
                     summary_dictionary["Max"] = { "maxVMEM":maxVMEM, "maxPSS":maxPSS, "maxRSS":maxRSS, "maxSwap":maxSwap }
+                    if rchar:
+                        summary_dictionary["Max"]["totRCHAR"] = totRCHAR
+                    if wchar:
+                        summary_dictionary["Max"]["totWCHAR"] = totWCHAR
+                    if rbytes:
+                        summary_dictionary["Max"]["totRBYTES"] = totRBYTES
+                    if wbytes:
+                        summary_dictionary["Max"]["totWBYTES"] = totWBYTES
                     if N > 0:
                         avgVMEM = int(float(totalVMEM)/float(N))
                         avgPSS = int(float(totalPSS)/float(N))
                         avgRSS = int(float(totalRSS)/float(N))
                         avgSwap = int(float(totalSwap)/float(N))
                     summary_dictionary["Avg"] = { "avgVMEM":avgVMEM, "avgPSS":avgPSS, "avgRSS":avgRSS, "avgSwap":avgSwap }
+
+                    if N > 0:
+                        if rchar:
+                            summary_dictionary["Avg"]["rateRCHAR"] = int(float(totalRCHAR)/float(N))
+                        if wchar:
+                            summary_dictionary["Avg"]["rateWCHAR"] = int(float(totalWCHAR)/float(N))
+                        if rbytes:
+                            summary_dictionary["Avg"]["rateRBYTES"] = int(float(totalRBYTES)/float(N))
+                        if wbytes:
+                            summary_dictionary["Avg"]["rateWBYTES"] = int(float(totalWBYTES)/float(N))
 
                 f.close()
         else:

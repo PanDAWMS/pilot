@@ -323,7 +323,7 @@ Hardcoded pandaserver urls:
 Memory Monitoring:
 
 - Now using release 21.0.12 to setup the memory monitoring (ATLASExperiment)
-- (Needs fix for handling new monitor output)
+- Added calculation and handling of variables related to new outputs RCHAR, WCHAR, RBYTES, WBYTES in getMemoryValues() (ATLASExperiment)
 
 Mover fixes:
 
