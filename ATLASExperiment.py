@@ -3174,6 +3174,8 @@ class ATLASExperiment(Experiment):
         # Get the values from the memory monitor file
         summary_dictionary = self.getMemoryValues(workdir, pilot_initdir)
 
+        tolog("summary_dictionary=%s"%str(summary_dictionary))
+
         # Fill the node dictionary
         if summary_dictionary and summary_dictionary != {}:
             try:
@@ -3234,7 +3236,7 @@ class ATLASExperiment(Experiment):
         maxRSS = -1
         maxPSS = -1
         maxSwap = -1
-        totRCHAR = -1
+        totRCHAR = -1 # tot=max
         totWCHAR = -1
         totRBYTES = -1
         totWBYTES = -1
@@ -3286,7 +3288,7 @@ class ATLASExperiment(Experiment):
                                 PSS = l[2]
                                 RSS = l[3]
                                 Swap = l[4]
-                                if len(l) > 5:
+                                if len(l) == 9:
                                     rchar = l[5]
                                     wchar = l[6]
                                     rbytes = l[7]
