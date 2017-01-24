@@ -359,9 +359,21 @@ class JobMover(object):
         nfiles = len(remain_files)
         nprotocols = len(protocols)
 
+        # direct access
+        allow_directaccess = self.is_directaccess()
+        if self.job.accessmode == 'copy':
+            allow_directaccess = False
+        elif self.job.accessmode == 'direct':
+            allow_directaccess = True
+
+        self.log("direct access settings: job.accessmode=%s, mover.is_directaccess()=%s => allow_direct_access=%s" % (self.job.accessmode, self.is_directaccess(), allow_directaccess))
+
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
+
+            is_directaccess = allow_directaccess and fdata.is_directaccess()
+            self.log("check direct access: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s" % (allow_directaccess, fdata.is_directaccess(), is_directaccess))
 
             bad_copytools = True
 
@@ -383,6 +395,10 @@ class JobMover(object):
                         sitemover.setup()
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
+                        if is_directaccess: #fdata.turl is not defined at this point
+                            dat['scheme'] = ['root'] + dat['scheme']
+                            self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
+
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
                     self.trace_report.update(protocol=copytool, clientState='BAD_COPYTOOL', stateReason=str(e)[:500])
@@ -409,6 +425,7 @@ class JobMover(object):
                     if protocol_site != replica_site:
                         self.log('INFO: cross-sites checks: protocol_site=%s and (fdata.ddmenpoint) replica_site=%s mismatched .. skip file processing for copytool=%s (protocol=%s)' % (protocol_site, replica_site, copytool, dat))
                         continue
+
                 try:
                     r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint, None))
                 except PilotException, e:
@@ -436,24 +453,17 @@ class JobMover(object):
                         self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
                         continue
 
-                # check direct access
-                self.log("fdata.is_directaccess()=%s, job.accessmode=%s, mover.is_directaccess()=%s" % (fdata.is_directaccess(), self.job.accessmode, self.is_directaccess()))
-
-                is_directaccess = self.is_directaccess()
-                if self.job.accessmode == 'copy':
-                    is_directaccess = False
-                elif self.job.accessmode == 'direct':
-                    is_directaccess = True
-
-                if sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
+                # finally check direct access
+                ignore_directaccess = False
+                if is_directaccess and sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
                     self.log("Direct access mode will be ignored since Rucio site mover is requested")
-                    is_directaccess = False
+                    ignore_directaccess = True
 
-                if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
-                    fdata.status = 'direct_access'
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
-                    self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
-                    continue
+                if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
+                        fdata.status = 'direct_access'
+                        updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
+                        self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
+                        continue
 
                 # apply site-mover custom job-specific checks for stage-in
                 try:
