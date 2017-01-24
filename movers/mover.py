@@ -396,7 +396,8 @@ class JobMover(object):
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
                         if is_directaccess: #fdata.turl is not defined at this point
-                            dat['scheme'] = ['root'] + dat['scheme']
+                            if dat['scheme'] and dat['scheme'][0] != 'root':
+                                dat['scheme'] = ['root'] + dat['scheme']
                             self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
