@@ -225,35 +225,46 @@ class BaseSiteMover(object):
         replica = None # find first matched to protocol spec replica
         surl = None
 
-        for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
-            if not replicas:
-                continue
-            surl = replicas[0] # assume srm protocol is first entry
-            self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
+        if protocol.get('se'): # custom settings: match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
+            for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
+                if not replicas: # ignore ddms with no replicas
+                    continue
+                surl = replicas[0] # assume srm protocol is first entry
+                self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
 
-            for r in replicas:
-                # match Rucio replica by default protocol se (quick stub until Rucio protocols are proper populated)
-                if protocol.get('se') and r.startswith(ddm_se): # manually form pfn based on protocol.se
-                    r_filename = r.replace(ddm_se, '', 1).replace(ddm_path, '', 1) # resolve replica filename
-                    # quick hack: if hosted replica ddmendpoint and input protocol ddmendpoint mismatched => consider replica ddmendpoint.path
-                    r_path = protocol.get('path')
-                    if ddmendpoint != protocol.get('ddm'):
-                        self.log("[stage-in] ignore protocol.path=%s since protocol.ddm=%s differs from found replica.ddm=%s ... will use ddm.path=%s to form TURL" % (protocol.get('path'), protocol.get('ddm'), ddmendpoint, ddm_path))
-                        r_path = ddm_path
-                    replica = protocol.get('se') + r_path
-                    if replica and r_filename and '/' not in (replica[-1] + r_filename[0]):
-                        replica += '/'
-                    replica += r_filename
-                    self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s, protocol.path=%s: found replica=%s matched ddm.se=%s, ddm.path=%s .. will use TURL=%s" % (protocol.get('se'), protocol.get('path'), surl, ddm_se, ddm_path, replica))
+                for r in replicas:
+                    if r.startswith(ddm_se): # manually form pfn based on protocol.se
+                        r_filename = r.replace(ddm_se, '', 1).replace(ddm_path, '', 1) # resolve replica filename
+                        # quick hack: if hosted replica ddmendpoint and input protocol ddmendpoint mismatched => consider replica ddmendpoint.path
+                        r_path = protocol.get('path')
+                        if ddmendpoint != protocol.get('ddm'):
+                            self.log("[stage-in] ignore protocol.path=%s since protocol.ddm=%s differs from found replica.ddm=%s ... will use ddm.path=%s to form TURL" % (protocol.get('path'), protocol.get('ddm'), ddmendpoint, ddm_path))
+                            r_path = ddm_path
+                        replica = protocol.get('se') + r_path
+                        if replica and r_filename and '/' not in (replica[-1] + r_filename[0]):
+                            replica += '/'
+                        replica += r_filename
+                        self.log("[stage-in] ignore_rucio_replicas since protocol.se is explicitly passed, protocol.se=%s, protocol.path=%s: found replica=%s matched ddm.se=%s, ddm.path=%s .. will use TURL=%s" % (protocol.get('se'), protocol.get('path'), surl, ddm_se, ddm_path, replica))
+                        break
+
+                if replica:
                     break
-                # use exact pfn from Rucio replicas
-                if not replica:
-                    for sval in scheme:
+        
+        if not replica: # resolve replica from Rucio: use exact pfn from Rucio replicas
+            for sval in scheme:
+                for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
+                    if not replicas: # ignore ddms with no replicas
+                        continue
+                    surl = replicas[0] # assume srm protocol is first entry
+                    self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
+                    for r in replicas:
                         if r.startswith("%s://" % sval):
                             replica = r
                             break
-            if replica:
-                break
+                    if replica:
+                        break
+                if replica:
+                    break
 
         if not replica: # replica not found
             error = 'Failed to find replica for input file, protocol=%s, fspec=%s' % (protocol, fspec)
