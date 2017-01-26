@@ -36,6 +36,8 @@ class BaseSiteMover(object):
 
     ddmconf = {}                  # DDMEndpoints configuration from AGIS
 
+    require_replicas = True       ## quick hack to avoid query Rucio to resolve input replicas
+
     def __init__(self, setup_path='', **kwargs):
 
         self.copysetup = setup_path
@@ -249,7 +251,7 @@ class BaseSiteMover(object):
 
                 if replica:
                     break
-        
+
         if not replica: # resolve replica from Rucio: use exact pfn from Rucio replicas
             for sval in scheme:
                 for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:

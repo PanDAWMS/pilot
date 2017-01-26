@@ -19,6 +19,8 @@ class rucioSiteMover(BaseSiteMover):
     name = 'rucio'
     schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio']
 
+    require_replicas = False       ## quick hack to avoid query Rucio to resolve input replicas
+
     def __init__(self, *args, **kwargs):
         super(rucioSiteMover, self).__init__(*args, **kwargs)
 

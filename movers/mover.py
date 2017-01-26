@@ -130,35 +130,27 @@ class JobMover(object):
 
         return ddms
 
+
     def resolve_replicas(self, files):
         """
-            populates fdat.inputddms and fdat.replicas of each entry from `files` list
+            populates fdat.replicas of each entry from `files` list
             fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
-            ddm_se -- integration logic -- is used to manualy form TURL when ignore_rucio_replicas=True
-            (quick stab until all protocols are properly populated in Rucio from AGIS)
+            ddm_se -- integration logic -- is used to manually form TURL
+            (quick stub until all protocols are properly populated in Rucio from AGIS)
+            :return: `files`
         """
 
         # build list of local ddmendpoints grouped by site
-
-        # load ALL ddmconf
-        self.ddmconf.update(self.si.resolveDDMConf([]))
         ddms = {}
-        objectstoreId_ddm = {}
         for ddm, dat in self.ddmconf.iteritems():
             ddms.setdefault(dat['site'], []).append(dat)
-            if dat.get('type') in ['OS_ES', 'OS_LOGS']:
-                objectstoreId_ddm[int(dat.get('resource', {}).get('bucket_id', -1))] = ddm
-        self.log("objectstoreId_ddm: %s" % objectstoreId_ddm)
 
-        need_resolve_replicas = False
         for fdat in files:
-
-            if fdat.objectstoreId:
-                self.log("fdat.objectstoreId: %s" % fdat.objectstoreId)
-                fdat.ddmendpoint = objectstoreId_ddm.get(fdat.objectstoreId, None)
-                fdat.inputddms = [fdat.ddmendpoint]
+            if fdat.objectstoreId:# skip OS ddms
+                #self.log("fdat.objectstoreId: %s" % fdat.objectstoreId)
+                #fdat.inputddms = [fdat.ddmendpoint]         ### is it used for OS?
+                pass
             else:
-                need_resolve_replicas = True
                 # build and order list of local ddms
                 ddmdat = self.ddmconf.get(fdat.ddmendpoint)
                 if not ddmdat:
@@ -166,18 +158,20 @@ class JobMover(object):
                 if not ddmdat['site']:
                     raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
                 localddms = ddms.get(ddmdat['site'])
-                # sort/filter ddms (as possible input source)
+                # sort and filter ddms (as possible input source)
                 fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
-        if not need_resolve_replicas:
-            self.log("No need to resolve replicas")
+        # consider only normal ddmendpoints
+        xfiles = [e for e in files if not e.objectstoreId]
+
+        if not xfiles:
             return files
 
         # load replicas from Rucio
         from rucio.client import Client
         c = Client()
 
-        dids = [dict(scope=e.scope, name=e.lfn) for e in files]
+        dids = [dict(scope=e.scope, name=e.lfn) for e in xfiles]
         schemes = ['srm', 'root', 'https', 'gsiftp']
 
         # Get the replica list
@@ -186,7 +180,7 @@ class JobMover(object):
         except Exception, e:
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
-        files_lfn = dict(((e.scope, e.lfn), e) for e in files)
+        files_lfn = dict(((e.scope, e.lfn), e) for e in xfiles)
 
         for r in replicas:
             k = r['scope'], r['name']
@@ -277,21 +271,34 @@ class JobMover(object):
         """
             :return: (transferred_files, failed_transfers)
         """
+
         files = self.job.inData
-        normal_files = []
-        es_files = []
-        transferred_files = []
-        failed_transfers = []
-        for file in files:
-            if file.prodDBlockToken and file.prodDBlockToken.isdigit():
-                file.objectstoreId = int(file.prodDBlockToken)
-                es_files.append(file)
+
+        normal_files, es_files = [], []
+        transferred_files, failed_transfers = [], []
+
+        self.ddmconf.update(self.si.resolveDDMConf([])) # load ALL ddmconf
+
+        # resolve OS ddmendpoint
+        os_ddms = {}
+        for ddm, dat in self.ddmconf.iteritems():
+            if dat.get('type') in ['OS_ES', 'OS_LOGS']:
+                os_ddms.setdefault(int(dat.get('resource', {}).get('bucket_id', -1)), ddm)
+
+        self.log("os_ddms: %s" % os_ddms)
+
+        for fspec in files:
+            if fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit():
+                fspec.objectstoreId = int(fspec.prodDBlockToken)
+                fspec.ddmendpoint = os_ddms.get(fspec.objectstoreId)
+                es_files.append(fspec)
             else:
-                normal_files.append(file)
+                normal_files.append(fspec)
 
         if normal_files:
             self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
             transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
+
         if failed_transfers:
             self.log("Failed to transfer normal files: %s" % failed_transfers)
             return transferred_files, failed_transfers
@@ -303,6 +310,7 @@ class JobMover(object):
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
+
         return transferred_files, failed_transfers
 
     def stagein_real(self, files, activity='pr', copytools=None):
@@ -316,7 +324,8 @@ class JobMover(object):
 
         self.log("stage-in: pq.aprotocols=%s, pq.copytools=%s" % (protocols, copytools))
 
-        self.resolve_replicas(files) # populates also self.ddmconf = self.si.resolveDDMConf([])
+        if not self.ddmconf:
+            self.ddmconf.update(self.si.resolveDDMConf([])) # load ALL ddmconf
 
         maxinputsize = self.getMaxInputSize()
         totalsize = reduce(lambda x, y: x + y.filesize, files, 0)
@@ -352,14 +361,13 @@ class JobMover(object):
 
         self.log("stage-in: resolved protocols=%s" % protocols)
 
-        sitemover_objects = {}
 
         remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'no_transfer']]
 
         nfiles = len(remain_files)
         nprotocols = len(protocols)
 
-        # direct access
+        # direct access settings
         allow_directaccess = self.is_directaccess()
         if self.job.accessmode == 'copy':
             allow_directaccess = False
@@ -368,11 +376,14 @@ class JobMover(object):
 
         self.log("direct access settings: job.accessmode=%s, mover.is_directaccess()=%s => allow_direct_access=%s" % (self.job.accessmode, self.is_directaccess(), allow_directaccess))
 
+        sitemover_objects = {}
+        is_replicas_resolved = False
+
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
 
-            is_directaccess = allow_directaccess and fdata.is_directaccess()
+            is_directaccess = allow_directaccess and fdata.is_directaccess() #fdata.turl is not defined at this point
             self.log("check direct access: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s" % (allow_directaccess, fdata.is_directaccess(), is_directaccess))
 
             bad_copytools = True
@@ -395,7 +406,7 @@ class JobMover(object):
                         sitemover.setup()
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
-                        if is_directaccess: #fdata.turl is not defined at this point
+                        if is_directaccess:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
                                 dat['scheme'] = ['root'] + dat['scheme']
                             self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
@@ -407,6 +418,10 @@ class JobMover(object):
                     continue
 
                 bad_copytools = False
+
+                if sitemover.require_replicas and not is_replicas_resolved:
+                    self.resolve_replicas(files) ## do populate fspec.replicas for each entry in files
+                    is_replicas_resolved = True
 
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
                 self.log("Copy setup   [stage-in]: %s" % copysetup)
@@ -428,7 +443,7 @@ class JobMover(object):
                         continue
 
                 try:
-                    r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint, None))
+                    r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint))
                 except PilotException, e:
                     self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol" % (protnum, nprotocols))
                     self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
