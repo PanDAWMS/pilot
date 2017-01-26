@@ -1,4 +1,4 @@
-Complete change log for PanDA Pilot version PICARD
+omplete change log for PanDA Pilot version PICARD
 --------------------------------------------------
 
 
@@ -120,25 +120,6 @@ xrdcp mover: consider "Unable to checksum" error to activate workaround workflow
 
 File Changes
 
-M movers/base.py (2)
-M movers/lcgcp_sitemover.py (2)
-
-  https://github.com/PanDAWMS/pilot/pull/89
-
-gfalcopySiteMover sitemover implemented
-You can view, comment on, or merge this pull request online at:
-
-Commit Summary
-
-gfalcopySiteMover sitemover implemented
-Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
-
-File Changes
-
-M movers/base.py (19)
-A movers/gfalcopy_sitemover.py (210)
-M movers/sitemovers.py (1)
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 67.1
@@ -197,6 +178,14 @@ Commit Summary
 File Changes
 
 M movers/mv_sitemover.py (29)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+67.2
+
+Hotfix release with urgent bug fix
+
+- Wrong event type sent with traces. Fixed by Mario Lassnig (Mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -347,7 +336,6 @@ D MVEventStager.py (298)
 M RunJobHpcEvent.py (95)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 TODO:
 
