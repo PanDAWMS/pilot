@@ -754,8 +754,12 @@ class Job:
         pUtil.tolog("%s file(s): %s" % (key, files))
         cmd = 'ls -la %s' % ' '.join(files)
         msg = "do EXEC cmd=%s" % cmd
-        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
-        output = c.communicate()[0]
+        try:
+            c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+            output = c.communicate()[0]
+        except Exception, e:
+            output = 'Failed to exec: %s' % str(e)
+
         pUtil.tolog(msg + '\n' + output)
 
     def print_files(self, files): # quick stub to be checked later
