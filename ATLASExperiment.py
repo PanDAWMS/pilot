@@ -161,7 +161,7 @@ class ATLASExperiment(Experiment):
         #                 export MAKEFLAGS=\"-j1 QUICK=1 -l1\";[proxy export];./runAthena-00-00-11 ..
         #     homePackage = AnalysisTransforms-AtlasDerivation_20.1.5.7
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\"; 
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
         #                 export MAKEFLAGS=\"-j1 QUICK=1 -l1\";[proxy export];./runAthena-00-00-11 ..
         #     homePackage=AnalysisTransforms-AtlasDerivation_rel_1
         #        setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
@@ -171,7 +171,7 @@ class ATLASExperiment(Experiment):
         #        setup = source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh; [proxy export];./runGen-00-00-02 ..
         #     homePackage = AnalysisTransforms-AthAnalysisBase_2.3.11 (release = AthAnalysisBase/x86_64-slc6-gcc48-opt/2.3.11
         #        setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                  source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.11,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags="$MAKEFLAGS"; 
+        #                  source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.11,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags="$MAKEFLAGS";
         #                  export MAKEFLAGS="-j1 QUICK=1 -l1";source /cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh;[proxy export];./runAthena-00-00-11 ..
         # Tested (PRODUCTION)
         #     homePackage = AtlasProduction/17.7.3.12
@@ -3258,6 +3258,11 @@ class ATLASExperiment(Experiment):
         totalWBYTES = 0
         N = 0
         summary_dictionary = {}
+
+        rchar = None
+        wchar = None
+        rbytes = None
+        wbytes = None
 
         # Get the path to the proper memory info file (priority ordered)
         path = self.getUtilityInfoPath(workdir, pilot_initdir, allowTxtFile=True)
