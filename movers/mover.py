@@ -143,6 +143,8 @@ class JobMover(object):
         # build list of local ddmendpoints grouped by site
         ddms = {}
         for ddm, dat in self.ddmconf.iteritems():
+            if dat.get('state') != 'ACTIVE': # skip DISABLED ddms
+                continue
             ddms.setdefault(dat['site'], []).append(dat)
 
         for fdat in files:
@@ -384,7 +386,7 @@ class JobMover(object):
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
 
             is_directaccess = allow_directaccess and fdata.is_directaccess(ensure_replica=False) #fdata.turl is not defined at this point
-            self.log("check direct access: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s" % (allow_directaccess, fdata.is_directaccess(), is_directaccess))
+            self.log("check direct access: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s" % (allow_directaccess, fdata.is_directaccess(ensure_replica=False), is_directaccess))
 
             bad_copytools = True
 
