@@ -445,10 +445,11 @@ class JobMover(object):
                 try:
                     r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint))
                 except PilotException, e:
-                    self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol" % (protnum, nprotocols))
-                    self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
-                    self.sendTrace(self.trace_report)
-                    continue
+                    if sitemover.require_replicas:
+                        self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol, error=%s" % (protnum, nprotocols, e))
+                        self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
+                        self.sendTrace(self.trace_report)
+                        continue
 
                 # quick stub: propagate changes to FileSpec
                 if r.get('surl'):
@@ -476,10 +477,10 @@ class JobMover(object):
                     ignore_directaccess = True
 
                 if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
-                        fdata.status = 'direct_access'
-                        updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
-                        self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
-                        continue
+                    fdata.status = 'direct_access'
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
+                    self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
+                    continue
 
                 # apply site-mover custom job-specific checks for stage-in
                 try:
