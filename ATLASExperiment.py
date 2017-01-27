@@ -3260,7 +3260,6 @@ class ATLASExperiment(Experiment):
         N = 0
         summary_dictionary = {}
 
-
         rchar = None
         wchar = None
         rbytes = None
