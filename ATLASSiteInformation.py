@@ -847,6 +847,19 @@ class ATLASSiteInformation(SiteInformation):
         # Use this method to interface with benchmark code
         # The method should return a dictionary containing the results of the test
 
+        timeout = 180 #120
+
+        # Hack - the benchmark suite needs the public key, which is not available on the grid, so we need to extract it manually
+        key = os.path.join(os.getcwd(), "public.key")
+        cmd = "openssl rsa -in $X509_USER_PROXY -out %s" % (key)
+
+        tolog("Executing pubilc key extraction: %s" % (cmd))
+        exitcode, output = timedCommand(cmd, timeout=timeout)
+        if exitcode != 0:
+            tolog("!!WARNING!!3434!! Encountered a problem with extracting the public key from the proxy: %s" % (output))
+        else:
+            tolog("Extracted the public key"
+
         cloud = pdict.get('cloud', '')
         if cloud != "":
             cloudOption = "--cloud=%s" % (cloud)
@@ -854,9 +867,8 @@ class ATLASSiteInformation(SiteInformation):
             cloudOption = ""
 
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=$X509_USER_PROXY --amq_cert=$X509_USER_PROXY" % (cloudOption)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=$X509_USER_PROXY" % (cloudOption, key)
         cmd += ""
-        timeout = 180 #120
 
         tolog("Executing benchmark test: %s" % (cmd))
         exitcode, output = timedCommand(cmd, timeout=timeout)
