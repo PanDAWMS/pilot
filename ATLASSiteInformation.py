@@ -858,7 +858,7 @@ class ATLASSiteInformation(SiteInformation):
         if exitcode != 0:
             tolog("!!WARNING!!3434!! Encountered a problem with extracting the public key from the proxy: %s" % (output))
         else:
-            tolog("Extracted the public key"
+            tolog("Extracted the public key")
 
         cloud = pdict.get('cloud', '')
         if cloud != "":
