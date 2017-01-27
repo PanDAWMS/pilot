@@ -383,7 +383,7 @@ class JobMover(object):
 
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
 
-            is_directaccess = allow_directaccess and fdata.is_directaccess() #fdata.turl is not defined at this point
+            is_directaccess = allow_directaccess and fdata.is_directaccess(ensure_replica=False) #fdata.turl is not defined at this point
             self.log("check direct access: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s" % (allow_directaccess, fdata.is_directaccess(), is_directaccess))
 
             bad_copytools = True
@@ -450,6 +450,7 @@ class JobMover(object):
                         self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
                         self.sendTrace(self.trace_report)
                         continue
+                    r = {}
 
                 # quick stub: propagate changes to FileSpec
                 if r.get('surl'):
@@ -472,7 +473,7 @@ class JobMover(object):
 
                 # finally check direct access
                 ignore_directaccess = False
-                if is_directaccess and sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
+                if sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
                     self.log("Direct access mode will be ignored since Rucio site mover is requested")
                     ignore_directaccess = True
 

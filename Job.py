@@ -893,7 +893,7 @@ class FileSpec(object):
         else:
             self.checksum = checksum
 
-    def is_directaccess(self):
+    def is_directaccess(self, ensure_replica=True):
 
         is_rootfile = '.root' in self.lfn
 
@@ -911,10 +911,14 @@ class FileSpec(object):
 
         is_directaccess = self.prodDBlockToken != 'local'
 
-        allowed_replica_schemas = ['root://', 'dcache://', 'dcap://']
+        if ensure_replica:
 
-        if self.turl:
-            if True not in set([self.turl.startswith(e) for e in allowed_replica_schemas]):
+            allowed_replica_schemas = ['root://', 'dcache://', 'dcap://', 'file://']
+
+            if self.turl:
+                if True not in set([self.turl.startswith(e) for e in allowed_replica_schemas]):
+                    is_directaccess = False
+            else:
                 is_directaccess = False
 
         return is_directaccess
