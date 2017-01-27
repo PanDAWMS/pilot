@@ -1,7 +1,7 @@
 """
   Rucio SiteMover
 
-  :author: Mario Lassnig <mario.lassnig@cern.ch>, 2015
+  :author: Mario Lassnig <mario.lassnig@cern.ch>, 2015-2017
 """
 
 from .base import BaseSiteMover
@@ -11,6 +11,8 @@ from PilotErrors import PilotException
 
 from commands import getstatusoutput
 from os.path import dirname
+
+import os
 
 
 class rucioSiteMover(BaseSiteMover):
