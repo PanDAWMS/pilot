@@ -3242,6 +3242,7 @@ class ATLASExperiment(Experiment):
         totWBYTES = -1
         avgVMEM = 0
         avgRSS = 0
+
         avgPSS = 0
         avgSwap = 0
         rateRCHAR = 0
