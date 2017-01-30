@@ -5,7 +5,6 @@
 #   Implemented as a singleton class
 #   http://stackoverflow.com/questions/42558/python-and-the-singleton-pattern
 
-
 # Import relevant python/pilot modules
 from Experiment import Experiment               # Main experiment class
 from pUtil import tolog                         # Logging method that sends text to the pilot log
