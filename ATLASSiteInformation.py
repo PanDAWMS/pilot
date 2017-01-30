@@ -849,16 +849,24 @@ class ATLASSiteInformation(SiteInformation):
 
         timeout = 180 #120
 
-        # Hack - the benchmark suite needs the public key, which is not available on the grid, so we need to extract it manually
-        key = os.path.join(os.getcwd(), "public.key")
+        # Hack - the benchmark suite needs the public key and the certificate, which are not available on the grid, so we need to extract it manually from the proxy
+        key = os.path.join(os.getcwd(), "key.pub")
         cmd = "openssl rsa -in $X509_USER_PROXY -out %s" % (key)
-
         tolog("Executing pubilc key extraction: %s" % (cmd))
         exitcode, output = timedCommand(cmd, timeout=timeout)
         if exitcode != 0:
             tolog("!!WARNING!!3434!! Encountered a problem with extracting the public key from the proxy: %s" % (output))
         else:
-            tolog("Extracted the public key")
+            tolog("Extracted the public key from the proxy")
+
+        cert = os.path.join(os.getcwd(), "cert.pub")
+        cmd = "openssl rsa -in $X509_USER_PROXY -out %s -pubout" % (cert)
+        tolog("Executing certificate extraction: %s" % (cmd))
+        exitcode, output = timedCommand(cmd, timeout=timeout)
+        if exitcode != 0:
+            tolog("!!WARNING!!3434!! Encountered a problem with extracting the certificate from the proxy: %s" % (output))
+        else:
+            tolog("Extracted the certificate from the proxy")
 
         cloud = pdict.get('cloud', '')
         if cloud != "":
@@ -867,7 +875,7 @@ class ATLASSiteInformation(SiteInformation):
             cloudOption = ""
 
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=$X509_USER_PROXY" % (cloudOption, key)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=%s" % (cloudOption, key, cert)
         cmd += ""
 
         tolog("Executing benchmark test: %s" % (cmd))
