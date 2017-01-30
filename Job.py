@@ -754,8 +754,12 @@ class Job:
         pUtil.tolog("%s file(s): %s" % (key, files))
         cmd = 'ls -la %s' % ' '.join(files)
         msg = "do EXEC cmd=%s" % cmd
-        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
-        output = c.communicate()[0]
+        try:
+            c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+            output = c.communicate()[0]
+        except Exception, e:
+            output = 'Failed to exec: %s' % str(e)
+
         pUtil.tolog(msg + '\n' + output)
 
     def print_files(self, files): # quick stub to be checked later
@@ -764,8 +768,12 @@ class Job:
         pUtil.tolog("job file(s) state: %s" % ifiles)
         cmd = 'ls -la %s' % ' '.join(ifiles)
         msg = "do EXEC cmd=%s" % cmd
-        c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
-        output = c.communicate()[0]
+        try:
+            c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+            output = c.communicate()[0]
+        except Exception, e:
+            output = 'Failed to exec: %s' % str(e)
+
         pUtil.tolog(msg + '\n' + output)
 
     def print_infiles(self):
@@ -885,7 +893,7 @@ class FileSpec(object):
         else:
             self.checksum = checksum
 
-    def is_directaccess(self):
+    def is_directaccess(self, ensure_replica=True):
 
         is_rootfile = '.root' in self.lfn
 
@@ -903,10 +911,14 @@ class FileSpec(object):
 
         is_directaccess = self.prodDBlockToken != 'local'
 
-        allowed_replica_schemas = ['root://', 'dcache://', 'dcap://']
+        if ensure_replica:
 
-        if self.turl:
-            if True not in set([self.turl.startswith(e) for e in allowed_replica_schemas]):
+            allowed_replica_schemas = ['root://', 'dcache://', 'dcap://', 'file://']
+
+            if self.turl:
+                if True not in set([self.turl.startswith(e) for e in allowed_replica_schemas]):
+                    is_directaccess = False
+            else:
                 is_directaccess = False
 
         return is_directaccess

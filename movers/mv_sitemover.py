@@ -17,6 +17,8 @@ class mvSiteMover(BaseSiteMover):
     # list of supported schemes for transfers - use them all since surl is not used
     schemes = ['file', 'srm', 'gridftp', 'https', 'root']
 
+    require_replicas = False       ## quick hack to avoid query Rucio to resolve input replicas
+
     def __init__(self, *args, **kwargs):
         super(mvSiteMover, self).__init__(*args, **kwargs)
         self.init_dir = os.environ['HOME']
@@ -95,4 +97,3 @@ class mvSiteMover(BaseSiteMover):
         return {'checksum_type': checksum_type,
                 'checksum': checksum,
                 'filesize': fspec.filesize}
-

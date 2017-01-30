@@ -26,6 +26,8 @@ class stormSiteMover(BaseSiteMover):
     schemes = ['file']
     version = '20161125.005'
 
+    require_replicas = False       ## quick hack to avoid query Rucio to resolve input replicas
+
     def __init__(self, *args, **kwargs):
         super(stormSiteMover, self).__init__(*args, **kwargs)
         self.log('storm sitemover version: %s' % self.version)
