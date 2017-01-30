@@ -446,7 +446,7 @@ class JobMover(object):
 
                 try:
                     r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint))
-                except PilotException, e:
+                except Exception, e:
                     if sitemover.require_replicas:
                         self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol, error=%s" % (protnum, nprotocols, e))
                         self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
