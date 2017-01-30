@@ -3326,10 +3326,10 @@ class ATLASExperiment(Experiment):
                                     rbytes = int(l[7])
                                     wbytes = int(l[8])
                                 else:
-                                    rchar = -1
-                                    wchar = -1
-                                    rbytes = -1
-                                    wbytes = -1
+                                    rchar = None
+                                    wchar = None
+                                    rbytes = None
+                                    wbytes = None
                             except Exception, e:
                                 tolog("!!WARNING!!4542!! Unexpected format of utility output: %s (expected format: Time, VMEM, PSS, RSS, Swap [, RCHAR, WCHAR, RBYTES, WBYTES])" % (line))
                             else:
@@ -3345,13 +3345,13 @@ class ATLASExperiment(Experiment):
                     # Calculate averages and store all values
                     summary_dictionary = { "Max": {}, "Avg": {}, "Other": {} }
                     summary_dictionary["Max"] = { "maxVMEM":maxVMEM, "maxPSS":maxPSS, "maxRSS":maxRSS, "maxSwap":maxSwap }
-                    if rchar != -1:
+                    if rchar:
                         summary_dictionary["Other"]["rchar"] = rchar
-                    if wchar != -1:
+                    if wchar:
                         summary_dictionary["Other"]["wchar"] = wchar
-                    if rbytes != -1:
+                    if rbytes:
                         summary_dictionary["Other"]["rbytes"] = rbytes
-                    if wbytes != -1:
+                    if wbytes:
                         summary_dictionary["Other"]["wbytes"] = wbytes
                     if N > 0:
                         avgVMEM = int(float(totalVMEM)/float(N))
