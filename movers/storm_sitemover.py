@@ -9,8 +9,6 @@ from .base import BaseSiteMover
 from TimerCommand import TimerCommand
 from PilotErrors import PilotException
 
-from rucio.client import ReplicaClient
-
 from datetime import datetime
 from xml.dom import minidom
 
@@ -59,6 +57,9 @@ class stormSiteMover(BaseSiteMover):
         self.log('fspec.ddmendpoint: %s' % str(fspec.ddmendpoint))
 
         # figure out the HTTP SURL from Rucio
+
+        from rucio.client import ReplicaClient
+
         rc = ReplicaClient()
         http_surl_reps = [r for r in rc.list_replicas(dids=[{'scope': fspec.scope,
                                                              'name': fspec.lfn}],
