@@ -6,7 +6,6 @@ import re
 import pUtil
 from subprocess import Popen, PIPE
 
-
 def findProcessesInGroup(cpids, pid):
     """ recursively search for the children processes belonging to pid and return their pids
     here pid is the parent pid for all the children to be found
@@ -78,8 +77,9 @@ def dumpStackTrace(pid):
     if not isZombie(pid):
         pUtil.tolog("Running stack trace command on pid=%d:" % (pid))
         cmd = "pstack %d" % (pid)
-        out = commands.getoutput(cmd)
-        if out == "":
+        timeout = 60
+        exitcode, output = timedCommand(cmd, timeout=timeout)
+        if output == "":
             pUtil.tolog("(pstack returned empty string)")
         else:
             pUtil.tolog(out)
