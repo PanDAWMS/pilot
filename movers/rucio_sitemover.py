@@ -21,8 +21,6 @@ class rucioSiteMover(BaseSiteMover):
     name = 'rucio'
     schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio']
 
-    require_replicas = False       ## quick hack to avoid query Rucio to resolve input replicas
-
     def __init__(self, *args, **kwargs):
         super(rucioSiteMover, self).__init__(*args, **kwargs)
 
@@ -57,7 +55,7 @@ class rucioSiteMover(BaseSiteMover):
         Overridden method -- unused
         """
 
-        return {'ddmendpoint': fspec.replicas[0][0],
+        return {'ddmendpoint': fspec.replicas[0][0] if fspec.replicas else None,
                 'surl': None,
                 'pfn': fspec.lfn}
 
@@ -100,7 +98,7 @@ class rucioSiteMover(BaseSiteMover):
             raise PilotException('stageIn failed -- could not move downloaded file to destination: %s' % o.replace('\n', ''))
 
 
-        return {'ddmendpoint': fspec.replicas[0][0],
+        return {'ddmendpoint': fspec.replicas[0][0] if fspec.replicas else fspec.ddmendpoint,
                 'surl': None,
                 'pfn': fspec.lfn}
 

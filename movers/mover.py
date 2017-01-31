@@ -475,10 +475,6 @@ class JobMover(object):
 
                 # finally check direct access
                 ignore_directaccess = False
-                if sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
-                    self.log("Direct access mode will be ignored since Rucio site mover is requested")
-                    ignore_directaccess = True
-
                 if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
