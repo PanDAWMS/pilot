@@ -446,7 +446,7 @@ class JobMover(object):
 
                 try:
                     r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint))
-                except PilotException, e:
+                except Exception, e:
                     if sitemover.require_replicas:
                         self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol, error=%s" % (protnum, nprotocols, e))
                         self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
@@ -475,10 +475,6 @@ class JobMover(object):
 
                 # finally check direct access
                 ignore_directaccess = False
-                if sitemover.name == 'rucio': ### quick stub: FIX ME later: introduce special DirectAccessMover instance
-                    self.log("Direct access mode will be ignored since Rucio site mover is requested")
-                    ignore_directaccess = True
-
                 if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
