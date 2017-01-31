@@ -18,6 +18,8 @@ class objectstoreSiteMover(rucioSiteMover):
     name = 'objectstore'
     schemes = ['s3', 's3+rucio'] # list of supported schemes for transfers
 
+    require_replicas = False       ## quick hack to avoid query Rucio to resolve input replicas
+
     def __init__(self, *args, **kwargs):
         super(objectstoreSiteMover, self).__init__(*args, **kwargs)
 
@@ -43,7 +45,7 @@ class objectstoreSiteMover(rucioSiteMover):
         """
         Overridden method -- unused
         """
-        if ddm: 
+        if ddm:
             if ddm.get('type') not in ['OS_LOGS', 'OS_ES']:
                 return {}
             if ddm.get('aprotocols'):

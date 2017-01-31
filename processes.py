@@ -205,6 +205,8 @@ def killOrphans():
                 pUtil.tolog("Ignoring possible orphan process running cvmfs2: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
             elif 'pilots_starter.py' in args:
                 pUtil.tolog("Ignoring Pilot Launcher: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
+            elif 'boinc_client' in args:
+                pUtil.tolog("Ignoring BOINC client: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
             elif ppid == '1':
                 count += 1
                 pUtil.tolog("Found orphan process: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
