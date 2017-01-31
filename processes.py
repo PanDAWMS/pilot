@@ -78,7 +78,7 @@ def dumpStackTrace(pid):
         pUtil.tolog("Running stack trace command on pid=%d:" % (pid))
         cmd = "pstack %d" % (pid)
         timeout = 60
-        exitcode, output = timedCommand(cmd, timeout=timeout)
+        exitcode, output = pUtil.timedCommand(cmd, timeout=timeout)
         if output == "":
             pUtil.tolog("(pstack returned empty string)")
         else:
