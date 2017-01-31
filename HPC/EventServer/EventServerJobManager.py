@@ -93,6 +93,7 @@ class EventServerJobManager():
     def __init__(self, rank=None, ATHENA_PROC_NUMBER=1, workingDir=None):
         self.__rank = rank
         self.__name = "EventServerJobManager"
+        self.__eventRangeChannelName = "EventRangeChannel"
         self.__eventRanges = []
         self.__eventRangesStatus = {}
         self.__outputMessage = []
@@ -151,6 +152,11 @@ class EventServerJobManager():
         #signal.signal(signal.SIGSEGV, self.handler)
         #signal.signal(signal.SIGINT, self.handler)
         pass
+
+    def initEventRangeChannel(self):
+        self.__eventRangeChannelName = "EventService_EventRangeChannel_%s" % os.getpid()
+    def getEventRangeChannelName(self):
+        return self.__eventRangeChannelName
 
     def getSetupTime(self):
         if self.__readyForEventTime:
@@ -299,6 +305,7 @@ class EventServerJobManager():
     def initAthenaMPProcess(self, cmd):
         self.__log.debug("Rank %s: initAthenaMPProcess: %s, workdir: %s" % (self.__rank, cmd, os.getcwd()))
         try:
+            cmd = cmd.replace('PILOT_EVENTRANGECHANNEL_CHANGE_ME', self.getEventRangeChannelName())
             self.__athenaMPProcess = subprocess.Popen(cmd, stdout=sys.stdout, stderr=sys.stdout, shell=True)
             # self.__athenaMPProcess = subprocess.Popen(cmd, shell=True)
             if self.__athenaMPProcess.poll() is not None:
@@ -313,7 +320,8 @@ class EventServerJobManager():
         child_pid = os.fork()
         if child_pid == 0:
             # child process
-            self.initMessageThread(socketname, context)
+            self.initEventRangeChannel()
+            self.initMessageThread(socketname=self.getEventRangeChannelName(), context=context)
             self.initTokenExtractorProcess(tokenExtractorCmd)
             self.initAthenaMPProcess(athenaMPCmd)
             self.__log.debug("Rank %s: Child main loop start" % (self.__rank))
