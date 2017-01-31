@@ -70,7 +70,7 @@ def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', o
 
     return message
 
-def updateEventRanges(event_ranges, url="https://pandaserver.cern.ch:25443/server/panda"):
+def updateEventRanges(event_ranges, url="https://pandaserver.cern.ch:25443/server/panda", version=0):
     """ Update an event range on the Event Server """
     tolog("Updating event ranges..")
 
@@ -80,6 +80,8 @@ def updateEventRanges(event_ranges, url="https://pandaserver.cern.ch:25443/serve
 
     node={}
     node['eventRanges']=json.dumps(event_ranges)
+    if version:
+        node['version'] = 1
 
     # open connection
     ret = httpConnect(node, url, path=os.getcwd(), mode="UPDATEEVENTRANGES")
