@@ -101,7 +101,7 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        guid = ' --guid %s' % fspec.guid if fspec.lfn and fspec.lfn.endswith('.root') else ''
+        guid = ' --guid %s' % fspec.guid if fspec.lfn and '.root' in fspec.lfn else ''
         cmd = 'rucio upload%s --no-register --rse %s --scope %s %s' % (guid, fspec.ddmendpoint,
                                                                      fspec.scope,
                                                                      fspec.pfn if fspec.pfn else fspec.lfn)
