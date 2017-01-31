@@ -832,7 +832,7 @@ class ATLASSiteInformation(SiteInformation):
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
-        return True
+        return False
 
     # Optional
     def getBenchmarkDictionary(self):
