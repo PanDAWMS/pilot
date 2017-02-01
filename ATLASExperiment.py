@@ -3171,7 +3171,8 @@ class ATLASExperiment(Experiment):
 
         node = {}
 
-        # Get the values from the memory monitor file
+        # Get the values from the memory monitor file (json if it exists, otherwise the preliminary txt file)
+        # Note that only the final json file will contain the totRBYTES, etc
         summary_dictionary = self.getMemoryValues(workdir, pilot_initdir)
 
         tolog("summary_dictionary=%s"%str(summary_dictionary))
@@ -3187,30 +3188,30 @@ class ATLASExperiment(Experiment):
                 node['avgVMEM'] = summary_dictionary['Avg']['avgVMEM']
                 node['avgSWAP'] = summary_dictionary['Avg']['avgSwap']
                 node['avgPSS'] = summary_dictionary['Avg']['avgPSS']
-                try:
-                    rchar = summary_dictionary['Other']['rchar']
-                except:
-                    rchar = -1
-                else:
-                    node['rchar'] = rchar
-                try:
-                    wchar = summary_dictionary['Other']['wchar']
-                except:
-                    wchar = -1
-                else:
-                    node['wchar'] = wchar
-                try:
-                    rbytes = summary_dictionary['Other']['rbytes']
-                except:
-                    rbytes = -1
-                else:
-                    node['rbytes'] = rbytes
-                try:
-                    wbytes = summary_dictionary['Other']['wbytes']
-                except:
-                    wbytes = -1
-                else:
-                    node['wbytes'] = wbytes
+                #try:
+                #    rchar = summary_dictionary['Other']['rchar']
+                #except:
+                #    rchar = -1
+                #else:
+                #    node['rchar'] = rchar
+                #try:
+                #    wchar = summary_dictionary['Other']['wchar']
+                #except:
+                #    wchar = -1
+                #else:
+                #    node['wchar'] = wchar
+                #try:
+                #    rbytes = summary_dictionary['Other']['rbytes']
+                #except:
+                #    rbytes = -1
+                #else:
+                #    node['rbytes'] = rbytes
+                #try:
+                #    wbytes = summary_dictionary['Other']['wbytes']
+                #except:
+                #    wbytes = -1
+                #else:
+                #    node['wbytes'] = wbytes
             except Exception, e:
                 tolog("!!WARNING!!54541! Exception caught while parsing memory monitor file: %s" % (e))
                 tolog("!!WARNING!!5455!! Will add -1 values for the memory info")
@@ -3222,12 +3223,25 @@ class ATLASExperiment(Experiment):
                 node['avgVMEM'] = -1
                 node['avgSWAP'] = -1
                 node['avgPSS'] = -1
-                node['rchar'] = -1
-                node['wchar'] = -1
-                node['rbytes'] = -1
-                node['wbytes'] = -1
+                #node['rchar'] = -1
+                #node['wchar'] = -1
+                #node['rbytes'] = -1
+                #node['wbytes'] = -1
             else:
-                tolog("Extracted info from memory monitor")
+                tolog("Extracted standard info from memory monitor json")
+            try:
+                node['totRCHAR'] = summary_dictionary['Max']['totRCHAR']
+                node['totWCHAR'] = summary_dictionary['Max']['totWCHAR']
+                node['totRBYTES'] = summary_dictionary['Max']['totRBYTES']
+                node['totWBYTES'] = summary_dictionary['Max']['totWBYTES']
+                node['rateRCHAR'] = summary_dictionary['Avg']['rateRCHAR']
+                node['rateWCHAR'] = summary_dictionary['Avg']['rateWCHAR']
+                node['rateRBYTES'] = summary_dictionary['Avg']['rateRBYTES']
+                node['rateWBYTES'] = summary_dictionary['Avg']['rateWBYTES']
+            except Exception, e:
+                tolog("totRCHAR,totWCHAR,totRBYTES,totWBYTES,rateRCHAR,rateWCHAR,rateRBYTES,rateWBYTES were not found in memory monitor json (or json doesn't exist yet) - ignoring")
+            else:
+                tolog("totRCHAR,totWCHAR,totRBYTES,totWBYTES,rateRCHAR,rateWCHAR,rateRBYTES,rateWBYTES were extracted from memory monitor json")
         else:
             tolog("Memory summary dictionary not yet available")
 
