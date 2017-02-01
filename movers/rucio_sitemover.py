@@ -21,8 +21,6 @@ class rucioSiteMover(BaseSiteMover):
     name = 'rucio'
     schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio']
 
-    def __init__(self, *args, **kwargs):
-        super(rucioSiteMover, self).__init__(*args, **kwargs)
 
     def __which(self, pgm):
         """
@@ -49,15 +47,6 @@ class rucioSiteMover(BaseSiteMover):
         tolog('which gfal2: %s' % o)
         tolog('which gfal-copy: %s' % self.__which('gfal-copy'))
 
-
-    def resolve_replica(self, fspec, protocol, ddm=None):
-        """
-        Overridden method -- unused
-        """
-
-        return {'ddmendpoint': fspec.replicas[0][0] if fspec.replicas else None,
-                'surl': None,
-                'pfn': fspec.lfn}
 
     def stageIn(self, turl, dst, fspec):
         """
@@ -112,7 +101,8 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        cmd = 'rucio upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
+        guid = ' --guid %s' % fspec.guid if fspec.lfn and '.root' in fspec.lfn else ''
+        cmd = 'rucio upload%s --no-register --rse %s --scope %s %s' % (guid, fspec.ddmendpoint,
                                                                      fspec.scope,
                                                                      fspec.pfn if fspec.pfn else fspec.lfn)
         tolog('stageOutCmd: %s' % cmd)
