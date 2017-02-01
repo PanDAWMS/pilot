@@ -1696,7 +1696,7 @@ class RunJobEvent(RunJob):
         # Note: this is run as a thread
 
         sleep_time = self.__asyncOutputStager_thread_sleep_time
-        run_time = time.time() - sleep_time
+        run_time = time.time()
         tolog("Asynchronous output stager thread initiated")
         while not self.__asyncOutputStager_thread.stopped():
           try:
@@ -1763,7 +1763,10 @@ class RunJobEvent(RunJob):
                     output_name = None
                     output_eventRange_id = None
                     output_eventRanges = {}
-                    for paths in self.__stageout_queue:
+                    while len(self.__stageout_queue) > 0:
+                        paths = self.__stageout_queue.pop()
+                        tolog("Pop %s from stage-out queue" % (paths))
+
                         # Create the output file metadata (will be sent to server)
                         tolog("Preparing to stage-out file %s" % (paths))
                         event_range_id = self.getEventRangeID(paths)
@@ -1777,12 +1780,8 @@ class RunJobEvent(RunJob):
                                 status, output = self.zipOutput(event_range_id, paths, output_name)
                             except:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
-                                tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
-                                self.__stageout_queue.remove(paths)
                             else:
                                 output_eventRanges[event_range_id] = paths
-                                tolog("Removing %s from stage-out queue" % (paths))
-                                self.__stageout_queue.remove(paths)
                                 tolog("Adding %s to output file list" % (paths))
                                 for fpath in paths:
                                     self.__output_files.append(fpath)
@@ -1806,6 +1805,7 @@ class RunJobEvent(RunJob):
           try:
             sleep_time = self.__asyncOutputStager_thread_sleep_time
             if len(self.__stageout_queue) > 0 and time.time() > run_time + sleep_time:
+                tolog("Asynchronous output stager thread working")
                 run_time = time.time()
                 if not self.__esToZip:
                     for paths in self.__stageout_queue:
@@ -1878,7 +1878,10 @@ class RunJobEvent(RunJob):
                     output_name = None
                     output_eventRange_id = None
                     output_eventRanges = {}
-                    for paths in self.__stageout_queue:
+                    while len(self.__stageout_queue) > 0:
+                        paths = self.__stageout_queue.pop()
+                        tolog("Pop %s from stage-out queue" % (paths))
+
                         # Create the output file metadata (will be sent to server)
                         tolog("Preparing to stage-out file %s" % (paths))
                         event_range_id = self.getEventRangeID(paths)
@@ -1892,12 +1895,8 @@ class RunJobEvent(RunJob):
                                 status, output = self.zipOutput(event_range_id, paths, output_name)
                             except:
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
-                                tolog("Removing %s from stage-out queue to prevent endless loop" % (paths))
-                                self.__stageout_queue.remove(paths)
                             else:
                                 output_eventRanges[event_range_id] = paths
-                                tolog("Removing %s from stage-out queue" % (paths))
-                                self.__stageout_queue.remove(paths)
                                 tolog("Adding %s to output file list" % (paths))
                                 for fpath in paths:
                                     self.__output_files.append(fpath)
