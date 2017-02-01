@@ -1139,10 +1139,20 @@ class RunJobEvent(RunJob):
         return exitCode, exitAcronym, exitMsg
 
     def initZipConf(self):
-        self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s" % self.__job.jobId)
-        self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
-        if 'es_to_zip' in readpar('catchall'):
-            self.__esToZip = True
+        try:
+            self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s" % self.__job.jobId)
+            self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
+            catchalls = readpar('catchall')
+            if 'es_to_zip' in catchalls:
+                self.__esToZip = True
+            catchalls = readpar('catchall')
+            if 'zip_time_gap' in catchalls:
+                for catchall in catalls.split(","):
+                    if 'zip_time_gap' in catchall:
+                        name, value = catchall.split('=')
+                        self.__asyncOutputStager_thread_sleep_time = int(value)
+        except:
+            tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
 
     def convertToLFNs(self):
         """ Convert the output file names to LFNs """
