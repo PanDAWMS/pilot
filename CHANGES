@@ -293,7 +293,7 @@ Benchmarks:
 
 Hardcoded pandaserver urls:
 
-- Removed hardcoded pandaserver url from .. (note: cannot currently remove hardcoded url for S3 secret key downloads since keys are only known to pandaserver and not any dev server)
+- Removed hardcoded pandaserver url from various places (note: cannot currently remove hardcoded url for S3 secret key downloads since keys are only known to pandaserver and not any dev server)
 - Added new argument url to downloadEventRanges(), updateEventRanges() (EventRanges)
 - Setting PanDA server url in RunJob* argument list in getSubprocessArguments() (Experiment)
 - Added -W server url argument in argumentParser() (RunJob)
@@ -318,7 +318,7 @@ Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/104
 
-- Removed deprecated modules  EventStager.py and MVEventStager.py
+- Removed deprecated modules EventStager.py and MVEventStager.py
 - Updated RunJobHpcEvent.py to remove EventStager usage
 
 Commit Summary
@@ -330,6 +330,111 @@ File Changes
 D EventStager.py (559)
 D MVEventStager.py (298)
 M RunJobHpcEvent.py (95)
+
+  https://github.com/PanDAWMS/pilot/pull/105
+
+Commit Summary
+
+Fixed trace report which overwrote localsite
+
+File Changes
+
+M Mover.py (3)
+
+Updates from Mario Lassnig:
+
+  https://github.com/PanDAWMS/pilot/pull/106
+
+Commit Summary
+
+ruciomover: tiny updates
+storm: fix for timestamp corner case
+Merge pull request #91 from mlassnig/storm-update
+Merge pull request #90 from mlassnig/rucio-mover-updates
+Merge commit 'e68a141debeafff49cf89d28047d0faf599e5c87' into main-dev
+
+File Changes
+
+M movers/rucio_sitemover.py (26)
+
+  https://github.com/PanDAWMS/pilot/pull/107
+
+Commit Summary
+
+Explicit import of OS
+
+File Changes
+
+M movers/rucio_sitemover.py (4)
+
+Updates from Alexey Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/108
+
+Commit Summary
+
+movers: update direct access workflow (force to check root protocol in case of PQ supports direct access and jobspec allows it as well)
+cosmetic fix
+movers: rewrite resolve_replica to iterate over accepted schemes first
+movers bugfix: prevent stage-in error (Argument list too long) while printing details about input files(1k+).
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+sitemovers: stage-in workflow upgrade: resolve input replicas by demand only for required movers (mv, storm, rucio are excluded)
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+bugfix: ATLASExperiment.getMemoryValues() fix local var declaration ('rchar' referenced before assignment issue)
+* movers bugfix: prevent stage-in error (Argument list too long) while printing details about input files(1k+).
+sitemovers fix
+directaccess fixes
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+ATLASExperiment.py: revert back line endings style to win
+ATLASExperiment.py: fix line endings style
+sitemovers: exclude DISABLED ddms from inputddms
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+ATLASExperiment.py fix endline style
+Update ATLASExperiment.py
+
+File Changes
+
+M ATLASExperiment.py (7089)
+M Job.py (30)
+M movers/base.py (63)
+M movers/mover.py (128)
+M movers/mv_sitemover.py (3)
+M movers/rucio_sitemover.py (2)
+M movers/storm_sitemover.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/109
+
+Commit Summary
+
+sitemovers: protect sitemover.resolve_replica()
+
+File Changes
+
+M movers/mover.py (2)
+
+Updates from David Cameron
+
+  https://github.com/PanDAWMS/pilot/pull/110
+
+Commit Summary
+
+do not kill boinc_client process on exit
+
+File Changes
+
+M processes.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/111
+
+Commit Summary
+
+rucioSiteMover updates: use default resolve_replica() implementation; fix upload cmd to consider --guid value for .root files
+
+File Changes
+
+M movers/rucio_sitemover.py (14)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
