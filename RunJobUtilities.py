@@ -343,7 +343,7 @@ def prepareInFiles(inFiles, filesizeIn, checksumIn):
     if inFiles: # non empty list
         for inf in inFiles:
             file_nr += 1
-            if inf and inf != 'NULL': # non-empty string and not NULL
+            if inf and inf != 'NULL' and inf not in ins: # non-empty string and not NULL
                 ins.append(inf)
                 fIn.append(filesizeIn[file_nr])
                 cIn.append(checksumIn[file_nr])

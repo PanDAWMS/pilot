@@ -549,12 +549,16 @@ class Job:
         kmap = dict([k[0], k[1]] for k in in_keys if not isinstance(k, str))
         ksources = dict([k, data.get(k, '').split(',') if data.get(k) else []] for k in kmap)
 
+        nodupFiles = []
         for ind, lfn in enumerate(ksources.get('inFiles', [])):
-            if lfn in ['', 'NULL']:
+            if lfn in ['', 'NULL'] or lfn in nodupFiles:
                 continue
+            nodupFiles.append(lfn)
             idat = {} # form data
             for k, attrname in kmap.iteritems():
                 idat[attrname] = ksources[k][ind] if len(ksources[k]) > ind else None
+            if 'lfn' in idat and idat['lfn'].startswith("zip://"):
+                idat['lfn'] = idat['lfn'].replace("zip://", "")
             finfo = FileSpec(type='input', **idat)
             self.inData.append(finfo)
 

@@ -939,7 +939,11 @@ class Monitor:
             except Exception, e:
                 pUtil.tolog("Warning: %s (using default value 6 as multiplier for throttling)" % str(e))
                 _M = 6
+            if os.environ.has_key('Nordugrid_pilot'):
+                 pUtil.tolog("Nordugrid, using multiplier 0 for throttling")
+                 _M = 0
             _t = (self.__env['nSent'] + 1)*_M
+            
             # protect for potential unreasonably high sleeping times
             max_sleep = 60
             if _t > max_sleep:

@@ -2015,7 +2015,10 @@ class _Curl:
                 jobId = '_%s' % data['jobId']
             elif 'eventRanges' in data.keys():
                 eventRanges = json.loads(data['eventRanges'])
-                jobId = '_%s' % eventRanges[0]['eventRangeID'].split('-')[1]
+                if 'eventRanges' in eventRanges[0]:
+                    jobId = '_%s' % eventRanges[0]['eventRanges'][0]['eventRangeID'].split('-')[1]
+                else:
+                    jobId = '_%s' % eventRanges[0]['eventRangeID'].split('-')[1]
             curl_config = '%s/curl_%s%s.config' % (path, os.path.basename(url), jobId)
         except:
             tolog("%s" % traceback.format_exc())
