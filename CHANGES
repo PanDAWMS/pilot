@@ -438,6 +438,50 @@ M movers/rucio_sitemover.py (14)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+67.6
+
+General changes:
+
+Removal of remaining dq2 API usage:
+- Deprecated and removed large parts of getTURLs() related to lcg-getturls, which also called getRSEType() and getRSE(), which in turn used the dq2 API (Mover)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/112
+
+tar event outputs periodically
+2)disable long monitor sleep on ND cloud because of failed 'send' (failed heartbeat)
+fix to use different yampl channel name in yoda
+payload may includes the same input files for more than one time, fix to stagein it only one time.
+5)change updateEventRanges to support new version which supports to tar events periodically
+You can view, comment on, or merge this pull request online at:
+
+Commit Summary
+
+fix files starting with zip and duplicated files
+disable long monitor sleeping on ND cloud
+using different yampl channel name for different athenamp
+not show duplicated files when preparing inputs
+fix to get correct jobid when naming curl config
+fix Yoda to use different yampl channel name
+make updateEventRanges to support different versions
+RunJobEvent to support periodically tar and upload
+fix python problem to pop events from list
+to configure time gap between tar/zip functions
+
+File Changes
+
+M EventRanges.py (4)
+M HPC/EventServer/EventServerJobManager.py (10)
+M Job.py (6)
+M Monitor.py (4)
+M RunJobEvent.py (315)
+M RunJobHpcEvent.py (15)
+M RunJobUtilities.py (2)
+M pUtil.py (5)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 OS log transfers:
