@@ -261,19 +261,6 @@ class SiteMover(object):
         self.prepareReport('DONE', report)
         return 0, pilotErrorDiag
 
-    def getRSEType(rse):
-        """ Return the corresponding setype for the site """
-
-        setype = None
-        try:
-            from dq2.info import TiersOfATLAS
-            setype = TiersOfATLAS.getSEType(rse)
-        except:
-            tolog("WARNING: getSEType failed")
-
-        return setype
-    getRSEType = staticmethod(getRSEType)
-
     def getRSE(surl=None):
         """ Return the Rucio site name (RSE ... Rucio Storage Element) using the SURL """
 

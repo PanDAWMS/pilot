@@ -1208,23 +1208,6 @@ def createPFC4TRF(pfc_name, guidfname):
         tolog("Created PFC for trf/runAthena: %s" % (pfc_name))
         dumpFile(pfc_name, topilotlog=True)
 
-def isDPMSite(pfn, sitemover):
-    """ return True if the site is a DPM site """
-    # pfn is the filename of the first file in the file list (enough to test with)
-
-    status = False
-    # first get the RSE, then ask for its setype
-    try:
-        _RSE = sitemover.getRSE(surl=pfn)
-    except:
-        # Note: do not print the exception since it sometimes can not be converted to a string (as seen at Taiwan)
-        tolog("WARNING: Failed to get the RSE (assuming no DPM site)")
-    else:
-        setype = sitemover.getRSEType(_RSE)
-        if setype == "dpm":
-            status = True
-    return status
-
 def getTURLFileInfoDic(output, shortGuidList, useShortTURLs, sitename):
     """ interpret the lcg-getturls stdout and return the TURL file dictionary """
 
