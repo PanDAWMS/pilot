@@ -903,26 +903,6 @@ def getInitialTracingReport(userid, sitename, dsname, eventType, analysisJob, jo
     tolog("Tracing report initialised with: %s" % str(report))
     return report
 
-def getRucioPath(file_nr, tokens, scope_dict, lfn, path, analysisJob):
-    """ Return a Rucio style path """
-
-    try:
-        spacetoken = tokens[file_nr]
-    except:
-        spacetoken = ""
-    try:
-        scope = scope_dict[lfn]
-    except Exception, e:
-        tolog("!!WARNING!!1232!! Failed to extract scope from scope dictionary for file %s: %s" % (lfn, str(scope_dict)))
-        tolog("Defaulting to old path style (based on dsname)")
-        se_path = os.path.join(path, lfn)
-    else:
-        from SiteMover import SiteMover
-        sitemover = SiteMover()
-        se_path = sitemover.getFullPath(scope, spacetoken, lfn, analysisJob, "")
-
-    return se_path
-
 def getFileListFromXML(xml_file):
     """ Get the file list from the PFC """
 
@@ -1019,13 +999,6 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         file_nr = -1
         for lfn in lfns:
             file_nr += 1
-
-            # Use scope based path if possible
-#            #if scope_dict and readpar('useruciopaths').lower() == "true":
-#            if scope_dict and ("/rucio" in readpar('seprodpath') or "/rucio" in readpar('sepath')):
-#                se_path = sitemover.getRucioPath(file_nr, tokens, scope_dict, lfn, path, analysisJob)
-#            else:
-#                se_path = os.path.join(path, lfn)
             se_path = os.path.join(path, lfn)
 
             # Get the file info
@@ -4872,7 +4845,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
         _j = 0
         for replica in replicas:
             _j += 1
-            tolog("%d. %s (size: %s checksum: %s type=%s)" % (_j, replica.sfn, replica.filesize, replica.csumvalue, replica.filetype))
+            tolog("%d. %s (size: %s checksum: %s type=%s rse=%s)" % (_j, replica.sfn, replica.filesize, replica.csumvalue, replica.filetype, replica.rse))
 
         # Find the replica at the correct host, unless in FAX mode
         matched_replicas = []
@@ -5056,71 +5029,6 @@ def verifyReplicasDictionary(replicas_dict, guids):
 
     return status, pilotErrorDiag
 
-def getRucioFileList(scope_dict, guid_token_dict, lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover):
-    """ Building the file list using scope information """
-
-    ec = 0
-    pilotErrorDiag = ""
-    xml_source = "Rucio"
-    file_dict = {}
-    replicas_dict = {}
-
-    error = PilotErrors()
-
-    # Formats (input):
-    # scope_dict = { "lfn1": "scope1", .. }
-    # guid_token_dict = { "guid1": "spacetoken1", .. }
-    # lfn_dict = { "guid1": "lfn1", .. }
-    # Formats (output):
-    # file_dict = { "guid1": "pfn1", .. }
-    # replicas_dict = { "guid1": ["pfn-rep1"], .. }
-    # Note: since a predeterministic path is used, and no LFC file lookup, there is only one replica per guid in the replicas dictionary,
-    # i.e. the replicas dictionary (replicas_dict) can be constructed from the file dictionary (file_dict)
-
-    # Get the guids list and loop over it
-    guid_list = guid_token_dict.keys()
-    for guid in guid_list:
-        try:
-            # Get the LFN
-            lfn = lfn_dict[guid]
-
-            # Get the scope
-            scope = scope_dict[lfn]
-
-            # Get the space token descriptor (if any)
-            spacetoken = guid_token_dict[guid]
-
-            # Construct the PFN
-            pfn = sitemover.getFullPath(scope, spacetoken, lfn, analysisJob, "")
-        except Exception, e:
-            ec = error.ERR_NOPFC
-            pilotErrorDiag = "Exception caught while trying to build Rucio based file dictionaries: %s" % (e)
-            tolog("!!WARNING!!2332!! %s" % (pilotErrorDiag))
-        else:
-            # Build the file and replica dictionaries
-            file_dict[guid] = pfn
-
-            # verify that the filesize and checksums are valid
-            ec = verifyFileInfo(filesize_dict, guid)
-            if ec == 0:
-                ec = verifyFileInfo(checksum_dict, guid)
-
-            # proceed with creating the replica dictionary
-            if ec == 0:
-                rep = replica()
-                rep.sfn = pfn
-                rep.filesize = filesize_dict[guid]
-                rep.csumvalue = checksum_dict[guid]
-                rep.fs = None # only known by the LFC
-                rep.setname = None # only known by the LFC
-                replicas_dict[guid] = [rep]
-            else:
-                replicas_dict[guid] = [None]
-                pilotErrorDiag = "Failed while trying to create replicas dictionary: missing file size/checksum for guid=%s (check job definition)" % (guid)
-                tolog("!!WARNING!!4323!! %s" % (pilotErrorDiag))
-
-    return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict
-
 def verifyFileInfo(file_dict, guid):
     """ Verify that the file info dictionary (filesize_dict or checksum_dict) has valid file info """
 
@@ -5236,7 +5144,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
 
     # Update booleans if Rucio is used and scope dictionary is set
     copytool, dummy = getCopytool(mode="get")
-    use_rucio = False
 
     # No need for file catalog lookups if FAX is set as primary stage-in site mover
     if copytool == "fax" and useDirectAccessWAN():
@@ -5358,20 +5265,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         tolog("surl_filetype_dictionary=%s"%str(surl_filetype_dictionary))
         tolog("copytool_dictionary=%s"%str(copytool_dictionary))
         tolog("replicas_dict=%s"%str(replicas_dict))
-
-    elif use_rucio:
-        tolog("Replica dictionaries will be prepared for Rucio")
-
-        # Get the replica dictionary etc using predeterministic paths method
-        ec, pilotErrorDiag, file_dict, xml_source, replicas_dict = getRucioFileList(scope_dict, guid_token_dict,\
-                                                                                    lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover)
-        if ec != 0:
-            return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary, copytool_dictionary
-        tolog("file_dict = %s" % str(file_dict))
-
-        # NOTE: have to set surl_filetype_dictionary, copytool_dictionary
-        # ..
-
     else:
         tolog("No replica lookup in any file catalog")
 

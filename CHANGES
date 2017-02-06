@@ -446,6 +446,10 @@ Removal of remaining dq2 API usage:
 - Deprecated and removed large parts of getTURLs() related to lcg-getturls, which also called getRSEType() and getRSE(), which in turn used the dq2 API (Mover)
 - Removed isDPMSite(), not used any longer (Mover)
 - Removed getRSEType(), not used any longer (Mover)
+- Removed getRucioPath(), not used any longer (Mover, SiteMover)
+- Removed getRucioFileList(), not used any longer (Mover)
+- Cleaned up getPoolFileCatalog() a bit (Mover)
+
 NOTE: getRSE() need to be rewritten, or logic changed to set the RSE, since it is used by all old site mover
 
 Updates from Wen Guan:

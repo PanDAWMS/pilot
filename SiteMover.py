@@ -708,24 +708,6 @@ class SiteMover(object):
 
     getUserLFCDir = staticmethod(getUserLFCDir)
 
-    def getRucioPath(self, file_nr, tokens, scope_dict, lfn, path, analysisJob):
-        """ Return a Rucio style path """
-
-        try:
-            spacetoken = tokens[file_nr]
-        except:
-            spacetoken = ""
-        try:
-            scope = scope_dict[lfn]
-        except Exception, e:
-            tolog("!!WARNING!!1232!! Failed to extract scope from scope dictionary for file %s: %s" % (lfn, str(scope_dict)))
-            tolog("Defaulting to old path style (based on dsname)")
-            se_path = os.path.join(path, lfn)
-        else:
-            se_path = self.getFullPath(scope, spacetoken, lfn, analysisJob, "")
-
-        return se_path
-
     def getFinalLCGPaths(self, analyJob, destination, dsname, filename, lfcpath, token, prodSourceLabel, scope="", alt=False):
         """
         set up paths differently for analysis and production jobs
