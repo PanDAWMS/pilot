@@ -423,6 +423,8 @@ class ATLASSiteInformation(SiteInformation):
         if 'pandadev' in pshttpurl or force_devpilot or thisSite.sitename == "CERNVM":
             ec = self.replaceQueuedataField("status", "online")
 
+            ec = self.replaceQueuedataField("use_newmover", "False")
+
         if 'aipanda007' in pshttpurl or force_devpilot:
             ec = self.replaceQueuedataField("timefloor", "0")
 
@@ -832,6 +834,8 @@ class ATLASSiteInformation(SiteInformation):
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
+        # 1% of the times only?
+
         return False
 
     # Optional
@@ -847,26 +851,7 @@ class ATLASSiteInformation(SiteInformation):
         # Use this method to interface with benchmark code
         # The method should return a dictionary containing the results of the test
 
-        timeout = 180 #120
-
-        # Hack - the benchmark suite needs the public key and the certificate, which are not available on the grid, so we need to extract it manually from the proxy
-        key = os.path.join(os.getcwd(), "key.pub")
-        cmd = "openssl rsa -in $X509_USER_PROXY -out %s" % (key)
-        tolog("Executing pubilc key extraction: %s" % (cmd))
-        exitcode, output = timedCommand(cmd, timeout=timeout)
-        if exitcode != 0:
-            tolog("!!WARNING!!3434!! Encountered a problem with extracting the public key from the proxy: %s" % (output))
-        else:
-            tolog("Extracted the public key from the proxy")
-
-        cert = os.path.join(os.getcwd(), "cert.pub")
-        cmd = "openssl rsa -in $X509_USER_PROXY -out %s -pubout" % (cert)
-        tolog("Executing certificate extraction: %s" % (cmd))
-        exitcode, output = timedCommand(cmd, timeout=timeout)
-        if exitcode != 0:
-            tolog("!!WARNING!!3434!! Encountered a problem with extracting the certificate from the proxy: %s" % (output))
-        else:
-            tolog("Extracted the certificate from the proxy")
+        timeout = 180
 
         cloud = pdict.get('cloud', '')
         if cloud != "":
@@ -875,7 +860,8 @@ class ATLASSiteInformation(SiteInformation):
             cloudOption = ""
 
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=%s" % (cloudOption, key, cert)
+#        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=%s" % (cloudOption, key, cert)        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=%s" % (cloudOption, key, cert)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --topic=/topic/vm.spec %s --vo=ATLAS -o" % (cloudOption)
         cmd += ""
 
         tolog("Executing benchmark test: %s" % (cmd))

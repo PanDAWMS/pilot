@@ -440,6 +440,11 @@ M movers/rucio_sitemover.py (14)
 
 67.6
 
+
+
+NEWMOVER OFF
+
+
 General changes:
 
 Removal of remaining dq2 API usage:
@@ -451,6 +456,11 @@ Removal of remaining dq2 API usage:
 - Cleaned up getPoolFileCatalog() a bit (Mover)
 
 NOTE: getRSE() need to be rewritten, or logic changed to set the RSE, since it is used by all old site mover
+
+Event Service:
+- PREFETCHER IS ENABLED
+- Added __yamplChannelNamePrefetcher, renamed __yamplChannelName to __yamplChannelNamePayload (RunJobEvent)
+- Setting __yamplChannelNamePrefetcher in __init__() (RunJobEvent)
 
 Updates from Wen Guan:
 

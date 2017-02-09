@@ -78,7 +78,8 @@ class RunJobEvent(RunJob):
     __eventRangeID_dictionary = {}               # eventRangeID_dictionary[event_range_id] = True (corr. output file has been transferred)
     __stageout_queue = []                        # Queue for files to be staged-out; files are added as they arrive and removed after they have been staged-out
     __pfc_path = ""                              # The path to the pool file catalog
-    __message_server = None                      #
+    __message_server_payload = None              # Message server for the payload
+    __message_server_prefetcher = None           # Message server for Prefetcher
     __message_thread = None                      #
     __status = True                              # Global job status; will be set to False if an event range or stage-out fails
     __athenamp_is_ready = False                  # True when an AthenaMP worker is ready to process an event range
@@ -90,7 +91,8 @@ class RunJobEvent(RunJob):
     __job = None                                 # Job object
     __cache = ""                                 # Cache URL, e.g. used by LSST
     __metadata_filename = ""                     # Full path to the metadata file
-    __yamplChannelName = None                    # Yampl channel name
+    __yamplChannelNamePayload = None             # Yampl channel name used by the payload (AthenaMP)
+    __yamplChannelNamePrefetcher = None          # Yampl channel name used by the Prefetcher
     __useEventIndex = True                       # Should Event Index be used? If not, a TAG file will be created
     __tokenextractor_input_list_filenane = ""    #
     __sending_event_range = False                # True while event range is being sent to payload
@@ -421,15 +423,25 @@ class RunJobEvent(RunJob):
 
         self.__pfc_path = pfc_path
 
-    def getMessageServer(self):
-        """ Getter for __message_server """
+    def getMessageServerPayload(self):
+        """ Getter for __message_server_payload """
 
-        return self.__message_server
+        return self.__message_server_payload
 
-    def setMessageServer(self, message_server):
-        """ Setter for __message_server """
+    def setMessageServerPayload(self, message_server):
+        """ Setter for __message_server_payload """
 
-        self.__message_server = message_server
+        self.__message_server_payload = message_server
+
+    def getMessageServerPrefetcher(self):
+        """ Getter for __message_server_prefetcher """
+
+        return self.__message_server_prefetcher
+
+    def setMessageServerPrefetcher(self, message_server):
+        """ Setter for __message_server_prefetcher """
+
+        self.__message_server_prefetcher = message_server
 
     def getMessageThread(self):
         """ Getter for __message_thread """
@@ -504,15 +516,25 @@ class RunJobEvent(RunJob):
     def setJobNode(self, node):
         self.__node = node
 
-    def getYamplChannelName(self):
-        """ Getter for __yamplChannelName """
+    def getYamplChannelNamePayload(self):
+        """ Getter for __yamplChannelNamePayload """
 
-        return self.__yamplChannelName
+        return self.__yamplChannelNamePayload
 
-    def setYamplChannelName(self, yamplChannelName):
-        """ Setter for __yamplChannelName """
+    def setYamplChannelNamePayload(self, yamplChannelNamePayload):
+        """ Setter for __yamplChannelNamePayload """
 
-        self.__yamplChannelName = yamplChannelName
+        self.__yamplChannelNamePayload = yamplChannelNamePayload
+
+    def getYamplChannelNamePrefetcher(self):
+        """ Getter for __yamplChannelNamePrefetcher """
+
+        return self.__yamplChannelNamePrefetcher
+
+    def setYamplChannelNamePrefetcher(self, yamplChannelNamePrefetcher):
+        """ Setter for __yamplChannelNamePrefetcher """
+
+        self.__yamplChannelNamePrefetcher = yamplChannelNamePrefetcher
 
     def getStatus(self):
         """ Getter for __status """
@@ -726,16 +748,15 @@ class RunJobEvent(RunJob):
 
         return self.__usePrefetcher
 
-    def setUsePrefetcher(self, setup):
+    def setUsePrefetcher(self, setup, use=True):
         """ Set the __usePrefetcher variable to a boolean value """
         # Decision is based on info in the setup string ???
-
-        self.__usePrefetcher = False #True
-
-        if self.__usePrefetcher:
-            tolog("Prefetcher is needed")
+        # Note that 'use' can be be used to override any setup string activation
+        use = self.__usePrefetcher
+        if use:
+            tolog("Prefetcher will be used")
         else:
-            tolog("Prefetcher is not needed")
+            tolog("Prefetcher will not be used")
 
     def getPanDAServer(self):
         """ Getter for __pandaserver """
@@ -764,7 +785,9 @@ class RunJobEvent(RunJob):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
-        self.__yamplChannelName = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
+        uuidgen = commands.getoutput('uuidgen')
+        self.__yamplChannelNamePayload = "EventService_EventRanges-%s" % (uuidgen)
+        self.__yamplChannelNamePrefetcher = "Prefetcher_EventRanges-%s" % (uuidgen)
 
     # is this necessary? doesn't exist in RunJob
     def __new__(cls, *args, **kwargs):
@@ -1930,10 +1953,10 @@ class RunJobEvent(RunJob):
             try:
                 # Receive a message
                 tolog("Waiting for a new message")
-                size, buf = self.__message_server.receive()
+                size, buf = self.__message_server_payload.receive()
                 while size == -1 and not self.__message_thread.stopped():
                     time.sleep(1)
-                    size, buf = self.__message_server.receive()
+                    size, buf = self.__message_server_payload.receive()
                 tolog("Received new message: %s" % (buf))
 
                 max_wait = 600
@@ -2211,22 +2234,34 @@ class RunJobEvent(RunJob):
         # Execute and return the TokenExtractor subprocess object
         return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
 
-    def createMessageServer(self):
+    def createMessageServer(self, prefetcher=False):
         """ Create the message server socket object """
+        # Create a message server for the payload by default, otherwise for Prefetcher if prefetcher is set
 
         status = False
 
         # Create the server socket
         if MessageServer:
-            self.__message_server = MessageServer(socketname=self.__yamplChannelName, context='local')
+            if prefetcher:
+                self.__message_server_prefetcher = MessageServer(socketname=self.__yamplChannelNamePrefetcher, context='local')
 
-            # is the server alive?
-            if not self.__message_server.alive():
-                # destroy the object
-                tolog("!!WARNING!!3333!! Message server is not alive")
-                self.__message_server = None
+                # is the server alive?
+                if not self.__message_server_prefetcher.alive():
+                    # destroy the object
+                    tolog("!!WARNING!!3333!! Message server for Prefetcher is not alive")
+                    self.__message_server_prefetcher = None
+                else:
+                    status = True
             else:
-                status = True
+                self.__message_server_payload = MessageServer(socketname=self.__yamplChannelNamePayload, context='local')
+
+                # is the server alive?
+                if not self.__message_server_payload.alive():
+                    # destroy the object
+                    tolog("!!WARNING!!3333!! Message server for the payload is not alive")
+                    self.__message_server_payload = None
+                else:
+                    status = True
         else:
             tolog("!!WARNING!!3333!! MessageServer object is not available")
 
@@ -2257,8 +2292,9 @@ class RunJobEvent(RunJob):
 
         return tag_file, guid
 
-    def sendMessage(self, message):
+    def sendMessage(self, message, prefetcher=False):
         """ Send a message """
+        # Message will be sent to the payload by default, or to the Prefetcher in case prefetcher is set
 
         # Filter away unwanted fields
         if "scope" in message:
@@ -2276,7 +2312,7 @@ class RunJobEvent(RunJob):
                 # Convert back to a string
                 message = str([_msg])
 
-        self.__message_server.send(message)
+        self.__message_server_payload.send(message)
         tolog("Sent %s" % (message))
 
     def getPoolFileCatalog(self, dsname, tokens, workdir, dbh, DBReleaseIsAvailable,\
@@ -2600,17 +2636,17 @@ class RunJobEvent(RunJob):
 
         # Tell AthenaMP the name of the yampl channel
         if "PILOT_EVENTRANGECHANNEL" in runCommand:
-            runCommand = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (self.getYamplChannelName()) + runCommand
+            runCommand = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (self.getYamplChannelNamePayload()) + runCommand
         elif not "--preExec" in runCommand:
-            runCommand += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (self.getYamplChannelName())
+            runCommand += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (self.getYamplChannelNamePayload())
         else:
             if "import jobproperties as jps" in runCommand:
-                runCommand = runCommand.replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
+                runCommand = runCommand.replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelNamePayload()))
             else:
                 if "--preExec \'" in runCommand:
-                    runCommand = runCommand.replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
+                    runCommand = runCommand.replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelNamePayload()))
                 elif '--preExec \"' in runCommand:
-                    runCommand = runCommand.replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";' % (self.getYamplChannelName()))
+                    runCommand = runCommand.replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";' % (self.getYamplChannelNamePayload()))
                 else:
                     tolog("!!WARNING!!43431! --preExec has an unknown format - expected \'--preExec \"\' or \"--preExec \'\", got: %s" % (runCommand))
 
@@ -2756,12 +2792,16 @@ if __name__ == "__main__":
 
         # Create a message server object (global message_server)
         if runJob.createMessageServer():
-            tolog("The message server is alive")
+            tolog("The message server for the payload is alive")
         else:
-            pilotErrorDiag = "The message server could not be created, cannot continue"
+            pilotErrorDiag = "The message server for the payload could not be created, cannot continue"
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
             job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+        if runJob.createMessageServer(prefetcher=True):
+            tolog("The message server for Prefetcher is alive")
+        else:
+            tolog("!!WARNING!!1111!! The message server for Prefetcher could not be created, cannot use Prefetcher")
 
         # Setup starts here ................................................................................
 
@@ -2874,7 +2914,11 @@ if __name__ == "__main__":
         runJob.setUseTokenExtractor(runCommandList[0])
 
         # Should the prefetcher be used?
-        runJob.setUsePrefetcher(runCommandList[0])
+#WARNING FOR TESTING use IS ENABLED
+        if runJob.getMessageServerPrefetcher():
+            runJob.setUsePrefetcher(runCommandList[0], use=True)
+        else:
+            runJob.setUsePrefetcher(runCommandList[0], use=False)
 
         # Stdout/err file objects
         tokenextractor_stdout = None
@@ -2941,8 +2985,10 @@ if __name__ == "__main__":
             # Get the Prefetcher process
             prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=os.path.join(job.workdir(), job.inFiles[0]), \
                                                                     stdout=prefetcher_stdout, stderr=prefetcher_stderr)
+            if not prefetcherProcess:
+                tolog("!!WARNING!!1234!! Prefetcher could not be started - will run without it")
+                runJob.setUsePrefetcher("", use=False)
         else:
-            setupString = None
             prefetcher_stdout = None
             prefetcher_stderr = None
             prefetcherProcess = None
@@ -3001,6 +3047,11 @@ if __name__ == "__main__":
         if first_event_ranges is None or first_event_ranges == []:
             tolog("No more events. will finish this job directly")
             runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=True)
+
+        # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
+        if runJob.usePrefetcher():
+            tolog("Sending event range(s) to Prefetcher")
+            # ..
 
         # Create and start the AthenaMP process
         t0 = os.times()
