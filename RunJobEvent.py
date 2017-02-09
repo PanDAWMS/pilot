@@ -2312,8 +2312,13 @@ class RunJobEvent(RunJob):
                 # Convert back to a string
                 message = str([_msg])
 
-        self.__message_server_payload.send(message)
-        tolog("Sent %s" % (message))
+        if prefetcher:
+            self.__message_server_prefetcher.send(message)
+            label = "Prefetcher"
+        else:
+            self.__message_server_payload.send(message)
+            label = "the payload"
+        tolog("Sent %s to %s" % (message, label))
 
     def getPoolFileCatalog(self, dsname, tokens, workdir, dbh, DBReleaseIsAvailable,\
                                scope_dict, filesizeIn, checksumIn, thisExperiment=None, inFilesGuids=None, lfnList=None, ddmEndPointIn=None):
@@ -3017,12 +3022,18 @@ if __name__ == "__main__":
             runJob.joinMessageThread()
             if tokenExtractorProcess:
                 tokenExtractorProcess.kill()
+            if prefetcherProcess:
+                prefetcherProcess.kill()
 
             # Close stdout/err streams
             if tokenextractor_stdout:
                 tokenextractor_stdout.close()
             if tokenextractor_stderr:
                 tokenextractor_stderr.close()
+            if prefetcher_stdout:
+                prefetcher_stderr.close()
+            if prefetcher_stdout:
+                prefetcher_stderr.close()
 
             job.result[0] = "failed"
             job.result[2] = error.ERR_ESRECOVERABLE
@@ -3048,11 +3059,6 @@ if __name__ == "__main__":
             tolog("No more events. will finish this job directly")
             runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=True)
 
-        # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
-        if runJob.usePrefetcher():
-            tolog("Sending event range(s) to Prefetcher")
-            # ..
-
         # Create and start the AthenaMP process
         t0 = os.times()
         tolog("t0 = %s" % str(t0))
@@ -3064,7 +3070,6 @@ if __name__ == "__main__":
 
         # Main loop ........................................................................................
 
-        # nonsense counter used to get different "event server" message using the downloadEventRanges() function
         tolog("Entering monitoring loop")
 
         k = 0
@@ -3134,6 +3139,14 @@ if __name__ == "__main__":
                     if runJob.shouldBeAborted():
                         tolog("Aborting event range loop")
                         break
+
+                    # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
+                    if runJob.usePrefetcher():
+                        tolog("Sending event range to Prefetcher")
+                        runJob.sendMessage(str([event_range]), prefetcher=True)
+
+                        # need to get the updated event range back from Prefetcher
+                        # ..
 
                     # Send the event range to AthenaMP
                     tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
@@ -3413,6 +3426,10 @@ if __name__ == "__main__":
             tolog("Failed to create metadata for all output files: %s" % job.pilotErrorDiag)
             # runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
+        if prefetcherProcess:
+            tolog("Killing Prefetcher process")
+            prefetcherProcess.kill()
+
         tolog("Stopping stage-out thread")
         runJob.stopAsyncOutputStagerThread()
         runJob.joinAsyncOutputStagerThread()
@@ -3433,8 +3450,10 @@ if __name__ == "__main__":
             tokenextractor_stdout.close()
         if tokenextractor_stderr:
             tokenextractor_stderr.close()
-
-        # Close stdout/err streams
+        if prefetcher_stdout:
+            prefetcher_stdout.close()
+        if prefetcher_stderr:
+            prefetcher_stderr.close()
         if athenamp_stdout:
             athenamp_stdout.close()
         if athenamp_stderr:
@@ -3443,9 +3462,6 @@ if __name__ == "__main__":
         tolog("Stopping message thread")
         runJob.stopMessageThread()
         runJob.joinMessageThread()
-#        message_thread.stop()
-#        message_thread.join()
-#        runJob.setMessageThread(message_thread)
 
         # Rename the metadata produced by the payload
         # if not pUtil.isBuildJob(outs):
