@@ -4588,7 +4588,7 @@ def isAGreaterOrEqualToB(A, B):
     # > b="2.2.2"
     # > e.isAGreaterOrEqualToB(a,b)
     # False
-
+    # NOTE: Only works with format A.B.C (not with A.B.C.D) 
     return splittedname(A) >= splittedname(B)
 
 def recursive_overwrite(src, dest, ignore=None):

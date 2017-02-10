@@ -792,9 +792,8 @@ class RunJobEvent(RunJob):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
-        uuidgen = commands.getoutput('uuidgen')
-        self.__yamplChannelNamePayload = "EventService_EventRanges-%s" % (uuidgen)
-        self.__yamplChannelNamePrefetcher = "Prefetcher_EventRanges-%s" % (uuidgen)
+        self.__yamplChannelNamePayload = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
+        self.__yamplChannelNamePrefetcher = "EventService_Prefetcher"
 
     # is this necessary? doesn't exist in RunJob
     def __new__(cls, *args, **kwargs):
@@ -2199,9 +2198,14 @@ class RunJobEvent(RunJob):
         return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
 
     def getPrefetcherProcess(self, thisExperiment, setup, input_file, stdout=None, stderr=None):
-        """ Execute the TokenExtractor """
+        """ Execute the Prefetcher """
+        # The input file corresponds to a remote input file (full path)
 
-        options = "'--inputEVNTFile' '%s' '--outputEVNT_MRGFile' 'prefix-of-the-local-file-names' '--preInclude' 'AthenaMP_EventService.py,SetUniqueYamplChannelName.py'" % (input_file)
+        # Prefix of the local file names
+        prefix = "localRange.pool.root"
+        options = "'--inputEVNTFile' %s '--outputEVNT_MRGFile' %s '--eventService=True' '--preExec' 'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"'" % (input_file, prefix, self.__yamplChannelNamePrefetcher)
+
+#        options = "'--inputEVNTFile' '%s' '--outputEVNT_MRGFile' 'prefix-of-the-local-file-names' '--preInclude' 'AthenaMP_EventService.py,SetUniqueYamplChannelName.py'" % (input_file)
 
         # Define the command
         cmd = "%s export ATHENA_PROC_NUMBER=1; EVNTMerge_tf.py %s" % (setup, options)
