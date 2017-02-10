@@ -748,16 +748,23 @@ class RunJobEvent(RunJob):
 
         return self.__usePrefetcher
 
-    def setUsePrefetcher(self, setup, use=True):
+    def setUsePrefetcher(self, release, use=True):
         """ Set the __usePrefetcher variable to a boolean value """
-        # Decision is based on info in the setup string ???
+        # Decision is based on if the release is new enough to support Prefetcher
         # Note that 'use' can be be used to override any setup string activation
-        use = self.__usePrefetcher
+
         if use:
-            tolog("Prefetcher will be used")
+            # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
+            if release != "":
+                if pUtil.isAGreaterOrEqualToB(release, "20.3.7"):
+                    tolog("Prefetcher will be used for release %s" % (release))
+                    self.__usePrefetcher = True
+            else:
+                tolog("Prefetcher will not be used (cannot verify release)")
+                self.__usePrefetcher = False
         else:
             tolog("Prefetcher will not be used")
-
+            self.__usePrefetcher = False
     def getPanDAServer(self):
         """ Getter for __pandaserver """
 
@@ -2921,9 +2928,9 @@ if __name__ == "__main__":
         # Should the prefetcher be used?
 #WARNING FOR TESTING use IS ENABLED
         if runJob.getMessageServerPrefetcher():
-            runJob.setUsePrefetcher(runCommandList[0], use=True)
+            runJob.setUsePrefetcher(job.release, use=True)
         else:
-            runJob.setUsePrefetcher(runCommandList[0], use=False)
+            runJob.setUsePrefetcher(job.release, use=False)
 
         # Stdout/err file objects
         tokenextractor_stdout = None
