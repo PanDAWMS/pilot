@@ -3008,7 +3008,7 @@ if __name__ == "__main__":
             # Get the full path to the input file from the fileState file
             input_files = getFilesOfState(job.workDir, job.jobId, ftype="input", state="direct_access_prefetcher")
             if input_files == []:
-                pilotErrorDiag = "Did not find any turls in fileState file")
+                pilotErrorDiag = "Did not find any turls in fileState file"
                 tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
 
                 # Set error code
