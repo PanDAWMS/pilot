@@ -2815,6 +2815,8 @@ if __name__ == "__main__":
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
             job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
+        runJob.setUsePrefetcher(job.releas)
         if runJob.usePrefetcher():
             job.prefetcher = True
             if runJob.createMessageServer(prefetcher=True):
@@ -2935,13 +2937,6 @@ if __name__ == "__main__":
 
         # Should the token extractor be used?
         runJob.setUseTokenExtractor(runCommandList[0])
-
-        # Should the prefetcher be used?
-#WARNING FOR TESTING use IS ENABLED
-        if runJob.getMessageServerPrefetcher():
-            runJob.setUsePrefetcher(job.release, use=True)
-        else:
-            runJob.setUsePrefetcher(job.release, use=False)
 
         # Stdout/err file objects
         tokenextractor_stdout = None
