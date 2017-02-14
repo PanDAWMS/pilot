@@ -440,11 +440,6 @@ M movers/rucio_sitemover.py (14)
 
 67.6
 
-
-
-NEWMOVER OFF
-
-
 General changes:
 
 Removal of remaining dq2 API usage:
@@ -461,6 +456,8 @@ Event Service:
 - PREFETCHER IS ENABLED
 - Added __yamplChannelNamePrefetcher, renamed __yamplChannelName to __yamplChannelNamePayload (RunJobEvent)
 - Setting __yamplChannelNamePrefetcher in __init__() (RunJobEvent)
+- Added prefetcher field to Job class (Job)
+- Adding turl to fileState file in stagein_real() (mover)
 
 Updates from Wen Guan:
 

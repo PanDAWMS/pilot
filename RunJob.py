@@ -653,7 +653,7 @@ class RunJob(object):
 
 
     @mover.use_newmover(stageIn_new)
-    def stageIn(self, job, jobSite, analysisJob, pfc_name="PoolFileCatalog.xml"):
+    def stageIn(self, job, jobSite, analysisJob, pfc_name="PoolFileCatalog.xml", prefetcher=False):
         """ Perform the stage-in """
 
         ec = 0
@@ -662,7 +662,7 @@ class RunJob(object):
 
         # Prepare the input files (remove non-valid names) if there are any
         ins, job.filesizeIn, job.checksumIn = RunJobUtilities.prepareInFiles(job.inFiles, job.filesizeIn, job.checksumIn)
-        if ins:
+        if ins and not prefetcher:
             tolog("Preparing for get command")
 
             # Get the file access info (only useCT is needed here)
@@ -685,7 +685,8 @@ class RunJob(object):
             job.bytesWithoutFAX = FAX_dictionary.get('bytesWithoutFAX', 0)
             job.bytesWithFAX = FAX_dictionary.get('bytesWithFAX', 0)
             usedFAXandDirectIO = FAX_dictionary.get('usedFAXandDirectIO', False)
-
+        elif prefetcher:
+            tolog("No need to stage in files since prefetcher will be used")
         return job, ins, statusPFCTurl, usedFAXandDirectIO
 
     def getTrfExitInfo(self, exitCode, workdir):

@@ -473,12 +473,19 @@ class JobMover(object):
                         self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
                         continue
 
-                # finally check direct access
+                # check direct access
                 ignore_directaccess = False
                 if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
-                    self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
+                    self.log("Direct access mode will be used for lfn=%s .. skip transfer for this file" % fdata.lfn)
+                    continue
+
+                # check prefetcher (no transfer is required, but the turl must be saved for prefetcher to use)
+                if self.job.prefetcher:
+                    fdata.status = 'prefetcher'
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access_prefetcher", ftype="input")
+                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
                     continue
 
                 # apply site-mover custom job-specific checks for stage-in

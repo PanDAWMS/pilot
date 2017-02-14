@@ -115,9 +115,9 @@ class Job:
         self.jobsetID = None               # Event range job set ID
         self.pandaProxySecretKey = None    # pandaproxy secret key
         self.external_stageout_time = None # External stageout time(time after athenaMP finishes)
-
-        self.subStatus = None           # subStatus of the job
-        self.subError = None            # subError of the job
+        self.prefetcher = False            # ESS v1
+        self.subStatus = None              # subStatus of the job
+        self.subError = None               # subError of the job
 
         # zipped event outputs to a file, for event service
         self.outputZipName = None

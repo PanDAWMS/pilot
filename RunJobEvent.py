@@ -31,7 +31,7 @@ import pUtil
 import RunJobUtilities
 import Mover as mover
 from JobRecovery import JobRecovery
-from FileStateClient import dumpFileStates
+from FileStateClient import dumpFileStates, getFilesOfState
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
@@ -792,8 +792,9 @@ class RunJobEvent(RunJob):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
-        self.__yamplChannelNamePayload = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
-        self.__yamplChannelNamePrefetcher = "EventService_Prefetcher"
+        uuidgen = commands.getoutput('uuidgen')
+        self.__yamplChannelNamePayload = "EventService_EventRanges-%s" % (uuidgen)
+        self.__yamplChannelNamePrefetcher = "EventService_Prefetcher-%s" % (uuidgen)
 
     # is this necessary? doesn't exist in RunJob
     def __new__(cls, *args, **kwargs):
@@ -2814,8 +2815,12 @@ if __name__ == "__main__":
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
             job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
-        if runJob.createMessageServer(prefetcher=True):
-            tolog("The message server for Prefetcher is alive")
+        if runJob.usePrefetcher():
+            job.prefetcher = True
+            if runJob.createMessageServer(prefetcher=True):
+                tolog("The message server for Prefetcher is alive")
+            else:
+                tolog("!!WARNING!!1111!! The message server for Prefetcher could not be created, cannot use Prefetcher")
         else:
             tolog("!!WARNING!!1111!! The message server for Prefetcher could not be created, cannot use Prefetcher")
 
@@ -2866,6 +2871,8 @@ if __name__ == "__main__":
             si.updateDirectAccess(job.transferType)
 
         # Stage-in all input files (if necessary)
+        # Note: for Prefetcher, no file transfer is necessary but only the movers.stagein_real() function knows the
+        # full path to the input. This function places the path in the fileState file from where it can be read
         job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob, pfc_name="PFC.xml")
         if job.result[2] != 0:
             tolog("Failing job with ec: %d" % (ec))
@@ -2998,8 +3005,36 @@ if __name__ == "__main__":
             # Create the file objects
             prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
 
+            # Get the full path to the input file from the fileState file
+            input_files = getFilesOfState(job.workDir, job.jobId, ftype="input", state="direct_access_prefetcher")
+            if input_files == []:
+                pilotErrorDiag = "Did not find any turls in fileState file")
+                tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+
+                # Set error code
+                job.result[0] = "failed"
+                job.result[2] = error.ERR_ESRECOVERABLE
+                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+            else:
+                tolog("Found turls=%s" % (input_files))
+            input_file = ""
+            for infile in input_files:
+                if job.inFiles[0] in infile:
+                    input_file = infile
+                    break
+            if input_file == "":
+                pilotErrorDiag = "Did not find turl for lfn=%s in fileState file" % (job.inFiles[0])
+                tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+
+                # Set error code
+                job.result[0] = "failed"
+                job.result[2] = error.ERR_ESRECOVERABLE
+                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+            else:
+                tolog("Found turl=%s in fileState file" % (input_file))
+
             # Get the Prefetcher process
-            prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=os.path.join(job.workdir(), job.inFiles[0]), \
+            prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=input_file, \
                                                                     stdout=prefetcher_stdout, stderr=prefetcher_stderr)
             if not prefetcherProcess:
                 tolog("!!WARNING!!1234!! Prefetcher could not be started - will run without it")
