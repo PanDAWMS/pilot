@@ -423,8 +423,6 @@ class ATLASSiteInformation(SiteInformation):
         if 'pandadev' in pshttpurl or force_devpilot or thisSite.sitename == "CERNVM":
             ec = self.replaceQueuedataField("status", "online")
 
-        ec = self.replaceQueuedataField("use_newmover", "False")
-
         if 'aipanda007' in pshttpurl or force_devpilot:
             ec = self.replaceQueuedataField("timefloor", "0")
 
