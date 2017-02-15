@@ -2816,7 +2816,7 @@ if __name__ == "__main__":
             job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-        runJob.setUsePrefetcher(job.releas)
+        runJob.setUsePrefetcher(job.release)
         if runJob.usePrefetcher():
             job.prefetcher = True
             if runJob.createMessageServer(prefetcher=True):
