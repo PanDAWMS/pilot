@@ -3001,7 +3001,7 @@ if __name__ == "__main__":
             prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
 
             # Get the full path to the input file from the fileState file
-            input_files = getFilesOfState(job.workDir, job.jobId, ftype="input", state="direct_access_prefetcher")
+            input_files = getFilesOfState(job.workdir, job.jobId, ftype="input", state="direct_access_prefetcher")
             if input_files == []:
                 pilotErrorDiag = "Did not find any turls in fileState file"
                 tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
