@@ -23,8 +23,8 @@ class FileState:
     "file_state" can assume the following values for "input" files:
       "not_transferred" : file has not been transferred (can remain in this state for FileStager and directIO modes)
       "transferred"     : file has already been transferred (no further action)
-      "direct_access"   : file will not be transferred
-      "prefetcher"      : file will not be transferred
+      "direct_access"   : file will not be transferred since it will be accessed remotely
+      "prefetch"        : file will not be transferred since it will accessed by the Prefetcher
 
     "reg_state" can assume the following values (relevant for output files):
       "not_registered"  : file was not registered in the LFC

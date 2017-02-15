@@ -476,14 +476,17 @@ class JobMover(object):
                 # check direct access
                 ignore_directaccess = False
                 if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
-                    fdata.status = 'direct_access'
+                    fdata.status = 'remote_io'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer for this file" % fdata.lfn)
                     continue
 
                 # check prefetcher (no transfer is required, but the turl must be saved for prefetcher to use)
+                # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
+                # to be called twice (or update the updateFileState function to allow list arguments)
                 if self.job.prefetcher:
-                    fdata.status = 'direct_access_prefetcher'
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+                    fdata.status = 'remote_io'
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
                     continue
