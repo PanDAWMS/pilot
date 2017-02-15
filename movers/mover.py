@@ -408,7 +408,7 @@ class JobMover(object):
                         sitemover.setup()
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
-                        if is_directaccess:
+                        if is_directaccess or self.job.prefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
                                 dat['scheme'] = ['root'] + dat['scheme']
                             self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
@@ -477,14 +477,14 @@ class JobMover(object):
                 ignore_directaccess = False
                 if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
                     fdata.status = 'direct_access'
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer for this file" % fdata.lfn)
                     continue
 
                 # check prefetcher (no transfer is required, but the turl must be saved for prefetcher to use)
                 if self.job.prefetcher:
-                    fdata.status = 'prefetcher'
-                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access_prefetcher", ftype="input")
+                    fdata.status = 'direct_access_prefetcher'
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
                     continue
 
@@ -606,7 +606,8 @@ class JobMover(object):
 
         self.log("stagein finished")
 
-        self.job.print_infiles()
+        if not self.job.prefetcher:
+            self.job.print_infiles()
 
         return transferred_files, failed_transfers
 

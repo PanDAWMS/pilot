@@ -453,11 +453,11 @@ Removal of remaining dq2 API usage:
 NOTE: getRSE() need to be rewritten, or logic changed to set the RSE, since it is used by all old site mover
 
 Event Service:
-- PREFETCHER IS ENABLED
+- PREFETCHER IS ENABLED for late releases
 - Added __yamplChannelNamePrefetcher, renamed __yamplChannelName to __yamplChannelNamePayload (RunJobEvent)
 - Setting __yamplChannelNamePrefetcher in __init__() (RunJobEvent)
 - Added prefetcher field to Job class (Job)
-- Adding turl to fileState file in stagein_real() (mover)
+- Updated schemes for prefetcher and adding turl to fileState file in stagein_real() (mover)
 
 Updates from Wen Guan:
 

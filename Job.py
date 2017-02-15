@@ -757,7 +757,7 @@ class Job:
         files = [os.path.join(self.workdir or '', e.lfn) for e in getattr(self, key, [])]
         pUtil.tolog("%s file(s): %s" % (key, files))
         cmd = 'ls -la %s' % ' '.join(files)
-        msg = "do EXEC cmd=%s" % cmd
+        msg = "Executing command: %s" % cmd
         try:
             c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
             output = c.communicate()[0]
