@@ -3002,7 +3002,7 @@ if __name__ == "__main__":
 
             # Get the full path to the input file from the fileState file
             input_files = getFilesOfState(runJob.getParentWorkDir(), job.jobId, ftype="input", state="prefetch")
-            if input_files == []:
+            if input_files == "":
                 pilotErrorDiag = "Did not find any turls in fileState file"
                 tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
 
@@ -3013,7 +3013,8 @@ if __name__ == "__main__":
             else:
                 tolog("Found turls=%s" % (input_files))
             input_file = ""
-            for infile in input_files:
+            infiles = input_files.split(",")
+            for infile in infiles:
                 if job.inFiles[0] in infile:
                     input_file = infile
                     break
