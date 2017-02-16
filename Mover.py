@@ -335,7 +335,6 @@ def get_data_new(job,
             pfn = fspec.turl
         files[fspec.guid] = pfn or ''
         lfns.append(fspec.lfn)
-        pfns.append(pfn)
 
     createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
 
