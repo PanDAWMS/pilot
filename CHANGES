@@ -441,7 +441,7 @@ M movers/rucio_sitemover.py (14)
 67.6
 
 TIMEFLOOR 0
-
+MAKE SURE DIRECT ACCESS WORKS AFTER LOGICAL BUG FIX IN movers/mover.py
 
 
 

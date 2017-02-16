@@ -2198,22 +2198,6 @@ class RunJobEvent(RunJob):
 
         return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
 
-    def getPrefetcherProcess(self, thisExperiment, setup, input_file, stdout=None, stderr=None):
-        """ Execute the Prefetcher """
-        # The input file corresponds to a remote input file (full path)
-
-        # Prefix of the local file names
-        prefix = "localRange.pool.root"
-        options = "'--inputEVNTFile' %s '--outputEVNT_MRGFile' %s '--eventService=True' '--preExec' 'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"'" % (input_file, prefix, self.__yamplChannelNamePrefetcher)
-
-#        options = "'--inputEVNTFile' '%s' '--outputEVNT_MRGFile' 'prefix-of-the-local-file-names' '--preInclude' 'AthenaMP_EventService.py,SetUniqueYamplChannelName.py'" % (input_file)
-
-        # Define the command
-        cmd = "%s export ATHENA_PROC_NUMBER=1; EVNTMerge_tf.py %s" % (setup, options)
-
-        # Execute and return the Prefetcher subprocess object
-        return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
-
     def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None, url=""):
         """ Execute the TokenExtractor """
 
@@ -2244,6 +2228,20 @@ class RunJobEvent(RunJob):
         cmd = "%s TokenExtractor %s" % (setup, options)
 
         # Execute and return the TokenExtractor subprocess object
+        return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
+
+    def getPrefetcherProcess(self, thisExperiment, setup, input_file, stdout=None, stderr=None):
+        """ Execute the Prefetcher """
+        # The input file corresponds to a remote input file (full path)
+
+        # Prefix of the local file names
+        prefix = "localRange.pool.root"
+        options = "'--inputEVNTFile' %s '--outputEVNT_MRGFile' %s '--eventService=True' '--preExec' 'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"'" % (input_file, prefix, self.__yamplChannelNamePrefetcher)
+
+        # Define the command
+        cmd = "%s export ATHENA_PROC_NUMBER=1; EVNTMerge_tf.py %s" % (setup, options)
+
+        # Execute and return the Prefetcher subprocess object
         return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
 
     def createMessageServer(self, prefetcher=False):
@@ -2927,7 +2925,6 @@ if __name__ == "__main__":
 
         # Create and start the message listener thread
         message_thread = StoppableThread(name='listener', target=runJob.listener)
-#        message_thread.start()
         runJob.setMessageThread(message_thread)
         runJob.startMessageThread()
 
@@ -3010,8 +3007,7 @@ if __name__ == "__main__":
                 job.result[0] = "failed"
                 job.result[2] = error.ERR_ESRECOVERABLE
                 runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
-            else:
-                tolog("Found turls=%s" % (input_files))
+
             input_file = ""
             infiles = input_files.split(",")
             for infile in infiles:
@@ -3026,8 +3022,6 @@ if __name__ == "__main__":
                 job.result[0] = "failed"
                 job.result[2] = error.ERR_ESRECOVERABLE
                 runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
-            else:
-                tolog("Found turl=%s in fileState file" % (input_file))
 
             # Get the Prefetcher process
             prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=input_file, \
@@ -3035,6 +3029,8 @@ if __name__ == "__main__":
             if not prefetcherProcess:
                 tolog("!!WARNING!!1234!! Prefetcher could not be started - will run without it")
                 runJob.setUsePrefetcher("", use=False)
+            else:
+                tolog("Prefetcher is running")
         else:
             prefetcher_stdout = None
             prefetcher_stderr = None
@@ -3052,34 +3048,36 @@ if __name__ == "__main__":
 
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
-        ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
+        # If Prefetcher is used, a turl based PFC will already have been created (in Mover.py)
+        if not runJob.usePrefetcher():
+            ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
                                                                                     job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir(), job.ddmEndPointIn)
-        if ec != 0:
-            tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
+            if ec != 0:
+                tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
-            # Stop threads
-            runJob.stopAsyncOutputStagerThread()
-            runJob.joinAsyncOutputStagerThread()
-            runJob.stopMessageThread()
-            runJob.joinMessageThread()
-            if tokenExtractorProcess:
-                tokenExtractorProcess.kill()
-            if prefetcherProcess:
-                prefetcherProcess.kill()
+                # Stop threads
+                runJob.stopAsyncOutputStagerThread()
+                runJob.joinAsyncOutputStagerThread()
+                runJob.stopMessageThread()
+                runJob.joinMessageThread()
+                if tokenExtractorProcess:
+                    tokenExtractorProcess.kill()
+                if prefetcherProcess:
+                    prefetcherProcess.kill()
 
-            # Close stdout/err streams
-            if tokenextractor_stdout:
-                tokenextractor_stdout.close()
-            if tokenextractor_stderr:
-                tokenextractor_stderr.close()
-            if prefetcher_stdout:
-                prefetcher_stderr.close()
-            if prefetcher_stdout:
-                prefetcher_stderr.close()
+                # Close stdout/err streams
+                if tokenextractor_stdout:
+                    tokenextractor_stdout.close()
+                if tokenextractor_stderr:
+                    tokenextractor_stderr.close()
+                if prefetcher_stdout:
+                    prefetcher_stderr.close()
+                if prefetcher_stdout:
+                    prefetcher_stderr.close()
 
-            job.result[0] = "failed"
-            job.result[2] = error.ERR_ESRECOVERABLE
-            runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+                job.result[0] = "failed"
+                job.result[2] = error.ERR_ESRECOVERABLE
+                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
         # Update the run command with additional options
         runCommandList[0] = runJob.updateRunCommand(runCommandList[0])
@@ -3166,7 +3164,7 @@ if __name__ == "__main__":
                 runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
 
                 # Create a new PFC for the current event ranges
-                ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalogFromMessage(message, thisExperiment)
+                ec, pilotErrorDiag, dummy = runJob.createPoolFileCatalogFromMessage(message, thisExperiment)
                 if ec != 0:
                     tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
                     runJob.sendMessage("No more events")

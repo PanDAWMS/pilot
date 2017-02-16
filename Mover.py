@@ -320,22 +320,24 @@ def get_data_new(job,
     ### reuse usedFAXandDirectIO variable as special meaning attribute to form command option list later
     ### FIX ME LATER
     FAX_dictionary['usedFAXandDirectIO'] = 'newmover'
-    used_direct_access = [e for e in job.inData if e.status == 'direct_access']
+    used_direct_access = [e for e in job.inData if e.status == 'remote_io']
+#    used_direct_access = [e for e in job.inData if e.status == 'direct_access']
     if used_direct_access:
         FAX_dictionary['usedFAXandDirectIO'] = 'newmover-directaccess'
 
     # create PoolFileCatalog.xml
+    # (turl based for Prefetcher)
     files, lfns = {}, []
     for fspec in job.inData:
         pfn = fspec.lfn
-        if fspec.status == 'direct_access':
+#        if fspec.status == 'direct_access':
+        if fspec.status == 'remote_io':
             pfn = fspec.turl
         files[fspec.guid] = pfn or ''
         lfns.append(fspec.lfn)
+        pfns.append(pfn)
 
-    tolog(".. creating PFC with name=%s" % pfc_name)
     createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
-    #createPFC4TRF(pfc_name, guidfname)
 
     return 0, "", None, FAX_dictionary
 
