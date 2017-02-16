@@ -484,11 +484,13 @@ class JobMover(object):
                 # check prefetcher (no transfer is required, but the turl must be saved for prefetcher to use)
                 # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
                 # to be called twice (or update the updateFileState function to allow list arguments)
+                # also update the file_state for the existing entry (could also be removed?)
                 if self.job.prefetcher:
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
                     continue
 
                 # apply site-mover custom job-specific checks for stage-in

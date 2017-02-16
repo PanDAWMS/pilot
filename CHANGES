@@ -440,6 +440,12 @@ M movers/rucio_sitemover.py (14)
 
 67.6
 
+TIMEFLOOR 0
+
+
+
+
+
 General changes:
 
 Removal of remaining dq2 API usage:
@@ -454,6 +460,7 @@ NOTE: getRSE() need to be rewritten, or logic changed to set the RSE, since it i
 
 Copytools:
 - Corrected logical bug when updating file state (direct_access -> remote_io) in stagein_real() (mover)
+- Corrected loging bug when checking file states after transfer (direct_access -> remote_io) in get_data_new() (Mover)
 
 Event Service:
 - PREFETCHER IS ENABLED for late releases

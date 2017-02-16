@@ -2877,7 +2877,7 @@ if __name__ == "__main__":
         # full path to the input. This function places the path in the fileState file from where it can be read
         job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob, pfc_name="PFC.xml")
         if job.result[2] != 0:
-            tolog("Failing job with ec: %d" % (ec))
+            tolog("Failing job with ec: %d" % (job.result[2]))
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 

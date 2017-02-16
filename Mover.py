@@ -282,6 +282,7 @@ def get_data_new(job,
         output = mover.stagein()
     except PilotException, e:
         error = e
+        tolog("!!WARNING!!4545!! Caught exception: %s" % (e))
     except Exception, e:
         tolog("ERROR: Mover get data failed [stagein]: exception caught: %s" % e)
         error = PilotException('STAGEIN FAILED, exception=%s' % e, code=PilotErrors.ERR_STAGEINFAILED, state='STAGEIN_FAILED')
@@ -298,7 +299,7 @@ def get_data_new(job,
 
     # prepare compatible output
 
-    not_transferred = [e.lfn for e in job.inData if e.status not in ['transferred', 'direct_access', 'no_transfer', 'direct_access_prefetcher']]
+    not_transferred = [e.lfn for e in job.inData if e.status not in ['transferred', 'remote_io', 'no_transfer']]
     if not_transferred:
         return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED: not all input files have been copied: remain=%s' % '\n'.join(not_transferred), None, {}
 
