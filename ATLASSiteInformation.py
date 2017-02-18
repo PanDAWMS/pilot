@@ -756,7 +756,10 @@ class ATLASSiteInformation(SiteInformation):
         # cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
         # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
         # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
-        cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath())
+        if hasattr(self, 'xrootd_test') and self.xrootd_test:
+            cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup-dev.sh' % (self.getFileSystemRootPath())
+        else:
+            cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath())
 
         return cmd
 

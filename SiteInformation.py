@@ -499,6 +499,18 @@ class SiteInformation(object):
 
         return jobParameters, queuedataUpdateDictionary
 
+    def get_key_value_for_queuedata(self, parameter):
+        m = parameter.split('=', 1)
+        key = m[0]
+        value = True
+        if len(m) > 1:
+            try:
+                value = json.loads(m[1])
+            except ValueError:
+                value = m[1]
+
+        return key, value
+
     def updateQueuedataFromJobParameters(self, jobParameters):
         """ Extract queuedata overwrite command from job parameters and update queuedata """
 
@@ -506,8 +518,9 @@ class SiteInformation(object):
 
         transferType = ""
 
-        # extract and remove queuedata overwrite command from job parameters
-        if "--overwriteQueuedata" in jobParameters:
+        # extract and remove queuedata overwrite command from job parameters (the old way)
+        if "--overwriteQueuedata={" in jobParameters:
+            tolog("Old --overwriteQueuedata parameter type, please check your HammerCloud configs!", label='WARNING')
             tolog("Encountered an --overwriteQueuedata command in the job parameters")
 
             # (jobParameters might be updated [queuedata overwrite command should be removed if present], so they needs to be returned)
@@ -524,22 +537,90 @@ class SiteInformation(object):
                         ec = self.replaceQueuedataField(field, queuedataUpdateDictionary[field])
                         tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
 
-        # disable FAX if set in schedconfig
-        if "--disableFAX" in jobParameters:
-            tolog("Encountered a --disableFAX command in the job parameters")
+        import shlex, pipes
+        """
+        Splits command parameters and extracts queuedata modifications if present.
 
-            # remove string from jobParameters
-            jobParameters = jobParameters.replace(" --disableFAX", "")
+        Queuedata modification principles:
+            Extraction is done from one of the parameter strings:
+              1) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]] -- ...
+              2) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]] -...
+              3) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]]
 
-            # update queuedata if necessary
-            if self.readpar("allowfax").lower() == "true":
-                field = "allowfax"
-                ec = self.replaceQueuedataField(field, "False")
-                tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
+            Extraction starts from --overwriteQueuedata, then goes number of key=value pairs.
+            Each value in pairs is either valid JSON or simple string.
 
-            else:
-                tolog("No need to update queuedata for --disableFAX (allowfax is not set to True)")
+            Example:
+                'parameter list --overwriteQueuedata k1 k2=val k3=\'{"a":"b"}\' k4=false k5=23 -- will lead to'
+                modification in queuedata:
+                {
+                    k1: True
+                    k2: "val"
+                    k3: {a: "b"}
+                    k4: False
+                    k5: (int)23
+                }
+                and parameter list:
+                'parameter list will lead to'
 
+            The end of the list is marked with:
+              1) "--" (two dashes exactly), which is also stripped from parameter list;
+              2) some parameter starting with "-" and is not just two dashes;
+              3) EOL.
+
+            If the next parameter (case 2) is --overwriteQueuedata, it is parsed all the same.
+        """
+        try:
+            job_args = shlex.split(jobParameters)
+        except ValueError as e:
+            tolog("Unparsable job arguments. Shlex exception: " + e.message, label='WARNING')
+            return jobParameters, transferType
+
+        overwriting = False
+        new_args = []
+
+        if not hasattr(self, 'xrootd_test'):
+            self.xrootd_test = False
+
+        for arg in job_args:
+            if overwriting:
+                if arg.startswith('-'):
+                    overwriting = False
+                    if arg == '--':
+                        continue  # variant to end the parameter list
+                else:
+                    key, value = self.get_key_value_for_queuedata(arg)
+                    if key == 'transfertype':
+                        transferType = value
+                    else:
+                        tolog("Overwriting queuedata parameter \"%s\" to %s" % (key, json.dumps(value)))
+                        ec = self.replaceQueuedataField(key, value)
+                        tolog("Updated %s in queuedata: %s (read back from file)" % (key, self.readpar(key)))
+
+            if not overwriting:
+                if arg == '--overwriteQueuedata':
+                    tolog("overwriteQueuedata found")
+                    overwriting = True
+                elif arg == '--disableFAX':
+                    tolog("Encountered a --disableFAX command in the job parameters")
+
+                    # update queuedata if necessary
+                    if self.readpar("allowfax").lower() == "true":
+                        field = "allowfax"
+                        ec = self.replaceQueuedataField(field, "False")
+                        tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
+
+                    else:
+                        tolog("No need to update queuedata for --disableFAX (allowfax is not set to True)")
+                elif arg == '--useTestASetup':
+                    os.environ['ALRB_asetupVersion'] = 'testing'
+                elif arg == '--useTestXRootD':
+                    self.xrootd_test = True
+                else:
+                    new_args.append(arg)
+
+        jobParameters = " ".join(pipes.quote(x) for x in new_args)
+        tolog("Prepared parameters: %s" % jobParameters)
         return jobParameters, transferType
 
     def setUnsetVars(self, thisSite):
