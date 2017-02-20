@@ -511,12 +511,21 @@ class SiteInformation(object):
 
         return key, value
 
+    def fixQueuedataFromParams(self, key, value):
+        if key.lower() == 'transfertype':
+            self.transferTypeFix = value
+        else:
+            tolog("Overwriting queuedata parameter \"%s\" to %s" % (key, json.dumps(value)))
+            self.replaceQueuedataField(key, value)
+            tolog("Updated %s in queuedata: %s (read back from file)" % (key, self.readpar(value)))
+
+
     def updateQueuedataFromJobParameters(self, jobParameters):
         """ Extract queuedata overwrite command from job parameters and update queuedata """
 
         tolog("called updateQueuedataFromJobParameters with: %s" % (jobParameters))
 
-        transferType = ""
+        self.transferTypeFix = ""
 
         # extract and remove queuedata overwrite command from job parameters (the old way)
         if "--overwriteQueuedata={" in jobParameters:
@@ -530,12 +539,7 @@ class SiteInformation(object):
             if queuedataUpdateDictionary != {}:
                 tolog("Queuedata will be updated from job parameters")
                 for field in queuedataUpdateDictionary.keys():
-                    if field.lower() == "transfertype":
-                        # transferType is not a schedconfig field and must be handled separately
-                        transferType = queuedataUpdateDictionary[field]
-                    else:
-                        ec = self.replaceQueuedataField(field, queuedataUpdateDictionary[field])
-                        tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
+                    self.fixQueuedataFromParams(field, queuedataUpdateDictionary[field])
 
         import shlex, pipes
         """
@@ -546,6 +550,7 @@ class SiteInformation(object):
               1) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]] -- ...
               2) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]] -...
               3) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]]
+              3) ... --overwriteQueuedata '{"key1":"any valid JSON","key2":"..."}' ...
 
             Extraction starts from --overwriteQueuedata, then goes number of key=value pairs.
             Each value in pairs is either valid JSON or simple string.
@@ -567,6 +572,7 @@ class SiteInformation(object):
               1) "--" (two dashes exactly), which is also stripped from parameter list;
               2) some parameter starting with "-" and is not just two dashes;
               3) EOL.
+              4) If the arguments are presented as a solid valid JSON.
 
             If the next parameter (case 2) is --overwriteQueuedata, it is parsed all the same.
         """
@@ -574,7 +580,7 @@ class SiteInformation(object):
             job_args = shlex.split(jobParameters)
         except ValueError as e:
             tolog("Unparsable job arguments. Shlex exception: " + e.message, label='WARNING')
-            return jobParameters, transferType
+            return jobParameters, self.transferTypeFix
 
         overwriting = False
         new_args = []
@@ -588,14 +594,15 @@ class SiteInformation(object):
                     overwriting = False
                     if arg == '--':
                         continue  # variant to end the parameter list
+                elif arg.startswith('{'):  # the argument is a piece of JSON
+                    array = json.loads(arg)
+                    for k in array.keys():
+                        self.fixQueuedataFromParams(k, array[k])
+                    overwriting = False
+                    continue
                 else:
                     key, value = self.get_key_value_for_queuedata(arg)
-                    if key == 'transfertype':
-                        transferType = value
-                    else:
-                        tolog("Overwriting queuedata parameter \"%s\" to %s" % (key, json.dumps(value)))
-                        ec = self.replaceQueuedataField(key, value)
-                        tolog("Updated %s in queuedata: %s (read back from file)" % (key, self.readpar(key)))
+                    self.fixQueuedataFromParams(key, value)
 
             if not overwriting:
                 if arg == '--overwriteQueuedata':
@@ -621,7 +628,7 @@ class SiteInformation(object):
 
         jobParameters = " ".join(pipes.quote(x) for x in new_args)
         tolog("Prepared parameters: %s" % jobParameters)
-        return jobParameters, transferType
+        return jobParameters, self.transferTypeFix
 
     def setUnsetVars(self, thisSite):
         """ Set pilot variables in case they have not been set by the pilot launcher """
