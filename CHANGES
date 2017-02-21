@@ -444,7 +444,7 @@ Hot fix release: changed memory monitor setup from release 21.0.12 to 21.0.17 (A
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-67.7
+68.0
 
 TIMEFLOOR 0
 MAKE SURE DIRECT ACCESS WORKS AFTER LOGICAL BUG FIX IN movers/mover.py
@@ -509,8 +509,49 @@ M RunJobEvent.py (315)
 M RunJobHpcEvent.py (15)
 M RunJobUtilities.py (2)
 M pUtil.py (5)
-=======
-Hot fix release: changed memory monitor setup from release 21.0.12 to 21.0.17 (ATLASExperiment)
+
+Updates from Daniel Drizhuk:
+
+  https://github.com/PanDAWMS/pilot/pull/113
+
+Introduced the new way of presenting HammerCloud parameter --overwriteQueuedata, added two more parameters: --useTestASetup and --useTestXRootD.
+
+The proposed way for the new --overwriteQueuedata is to use common shell syntax.
+In the new syntax --overwriteQueuedata is a multiargument parameter, that receives after it a set of parameters represented in key=value form. The set is ended when next parameter starts with - or with parameter --, that will be stripped.
+The value in the parameter may be either a string or a valid JSON.
+The escape sequences are posix shell compatible, so JSON should be probably wrapped into single quotes.
+The argument string is parsed by shlex.
+
+Examples of --overwriteQueuedata (assuming TRF is echo, lines do not include TRF):
+
+Stripped end-of-parameters
+The line this is --overwriteQueuedata key1 key2=null key3='{"a":1,"b":2}' -- test
+will result in queuedata modification key1=True, key2=None, key3={a:1,b:2}
+and command echo this is test
+
+End-of-parameters is a dash-prefix of the next parameter
+The line this is --overwriteQueuedata key1 key2=null key3='{"a":1,"b":2}' -test
+will result in queuedata modification key1=True, key2=None, key3={a:1,b:2}
+and command echo this is -test
+
+Second occurrence and EOL as an end-of-parameters
+this is --overwriteQueuedata key1 key2=null key3='{"a":1,"b":2}' -test --overwriteQueuedata key4
+will result in queuedata modification key1=True, key2=None, key3={a:1,b:2}, key4=True
+and command echo this is -test
+
+Commit Summary
+
+Merge pull request #2 from PanDAWMS/main-dev
+Merge pull request #3 from PanDAWMS/main-dev
+Testing parameters for HammerCloud
+Merge remote-tracking branch 'origin/main-dev' into main-dev
+
+File Changes
+
+M ATLASExperiment.py (3)
+M ATLASSiteInformation.py (5)
+M SiteInformation.py (113)
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
