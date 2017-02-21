@@ -838,8 +838,12 @@ class ATLASSiteInformation(SiteInformation):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
         # 1% of the times only?
-
-        return False
+        from random import randint
+        if random.randint(0,99) == 0:
+            return True
+        else:
+            return True
+#            return False
 
     # Optional
     def getBenchmarkDictionary(self):

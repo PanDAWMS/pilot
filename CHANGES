@@ -448,7 +448,7 @@ Hot fix release: changed memory monitor setup from release 21.0.12 to 21.0.17 (A
 
 TIMEFLOOR 0
 MAKE SURE DIRECT ACCESS WORKS AFTER LOGICAL BUG FIX IN movers/mover.py
-
+BENCHMARKING ALWAYS ON
 
 
 
@@ -463,6 +463,9 @@ Removal of remaining dq2 API usage:
 - Cleaned up getPoolFileCatalog() a bit (Mover)
 
 NOTE: getRSE() need to be rewritten, or logic changed to set the RSE, since it is used by all old site mover
+
+Benchmarking:
+- Only executing benchmark tool once out of a hundred starts in shouldExecuteBenchmark() (ATLASSiteInformation)
 
 Copytools:
 - Corrected logical bug when updating file state (direct_access -> remote_io) in stagein_real() (mover)
