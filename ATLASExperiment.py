@@ -367,6 +367,9 @@ class ATLASExperiment(Experiment):
         if 'HPC_HPC' in readpar("catchall"):
             cmd = 'export JOB_RELEASE=%s;export JOB_HOMEPACKAGE=%s;JOB_CACHEVERSION=%s;JOB_CMTCONFIG=%s;%s' % (job.release, job.homePackage, cacheVer, cmtconfig, cmd)
 
+        if os.environ.has_key('ALRB_asetupVersion'):
+            cmd = 'export ALRB_asetupVersion=%s;%s' % (os.environ['ALRB_asetupVersion'], cmd)
+
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
         return 0, pilotErrorDiag, cmd, special_setup_cmd, JEM, cmtconfig
