@@ -86,6 +86,7 @@ class RunJobEvent(RunJob):
     __asyncOutputStager_thread_sleep_time = 600
     __analysisJob = False                        # True for analysis job
     __jobSite = None                             # Site object
+    __siteInfo = None                            # site information
     __node = None
     __job = None                                 # Job object
     __cache = ""                                 # Cache URL, e.g. used by LSST
@@ -101,6 +102,8 @@ class RunJobEvent(RunJob):
 
     # ES zip
     __esToZip = False
+    __stageOutDDMEndpoint = None
+    __stageOutObjectstoreId = None
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
@@ -1469,6 +1472,57 @@ class RunJobEvent(RunJob):
         """
         tolog("To stage out event %s: %s" % (event_range_id, file_paths))
 
+        activity = "pes" ## pilot log special/second transfer
+
+        if not self.__siteInfo:
+            self.__siteInfo = getSiteInformation(self.__experiment)
+            jobSite = self.getJobSite()
+            queuename = jobSite.computingElement
+            self.__siteInfo.setQueueName(queuename)
+
+        if not self.__stageOutDDMEndpoint:
+            # resolve accepted OS DDMEndpoints
+
+            pandaqueue = self.__siteInfo.getQueueName() # FIX ME LATER
+            os_ddms = self.__siteInfo.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
+            ddmconf = self.__siteInfo.resolveDDMConf(os_ddms)
+
+            osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
+
+            tolog("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
+
+            if not osddms:
+                return PilotErrors.ERR_NOSTORAGE, "Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), None
+
+            self.__stageOutDDMEndpoint = osddms[0]
+            self.__stageOutObjectstoreId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+
+            protocols = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('rprotocols', {})
+            access_key = None
+            secret_key = None
+            is_secure = None
+            for protocol in protocols:
+                if 'w' in protocols[protocol].get('activities', []):
+                    settings = protocols[protocol].get('settings', {})
+                    access_key = settings.get('access_key', None)
+                    secret_key = settings.get('secret_key', None)
+                    is_secure = settings.get('is_secure', None)
+                    if access_key is None or len(access_key) == 0\
+                        or secret_key is None or len(secret_key) == 0\
+                        or is_secure is None:
+                        continue
+                    else:
+                        keyPair = self.__siteInfo.getSecurityKey(secret_key, access_key)
+                        if "privateKey" not in keyPair or keyPair["privateKey"] is None:
+                            tolog("Failed to get the keyPair for S3 objectstore from panda")
+                        else:
+                            os.environ['S3_ACCESS_KEY'] = keyPair["publicKey"]
+                            os.environ['S3_SECRET_KEY'] = keyPair["privateKey"]
+                            os.environ['S3_IS_SECURE'] = str(is_secure)
+                            break
+            tolog("[stage-out] [%s] resolved OS ddmendpoint=%s for es transfer with access key %s" % (activity, self.__stageOutDDMEndpoint, os.environ.get('S3_ACCESS_KEY', None)))
+
+
         files = []
         for file_path in file_paths:
             file_dict = {'lfn': os.path.basename(file_path),
@@ -1476,13 +1530,13 @@ class RunJobEvent(RunJob):
                          'dataset': job.destinationDblock[0],
                          'scope': job.scopeOut[0],
                          'eventRangeId': event_range_id,
-                         'objectstoreId': None,
-                         'ddmendpoint': None}
+                         'objectstoreId': self.__stageOutObjectstoreId,
+                         'ddmendpoint': self.__stageOutDDMEndpoint}
             finfo = Job.FileSpec(type='output', **file_dict)
             files.append(finfo)
 
-        #ret_code, ret_str, os_bucket_id = mover.put_data_os(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry(), files=files, workDir=None)
-        ret_code, ret_str, os_bucket_id = mover.put_data_os(job, jobSite=self.getJobSite(), stageoutTries=1, files=files, workDir=None)
+        #ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry(), files=files, workDir=None)
+        ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=1, files=files, workDir=None)
         return ret_code, ret_str, os_bucket_id
 
 
@@ -1784,7 +1838,7 @@ class RunJobEvent(RunJob):
                             tolog("!!WARNING!!1111!! Did not find the event range for file %s in the event range dictionary" % (paths))
                         else:
                             if not output_name:
-                                output_name = "%_%s.tar" % (self.__job.outputZipName,event_range_id)
+                                output_name = "%s_%s.tar" % (self.__job.outputZipName,event_range_id)
                                 output_eventRange_id = event_range_id
                             try:
                                 status, output = self.zipOutput(event_range_id, paths, output_name)
