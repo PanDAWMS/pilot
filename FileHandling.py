@@ -474,34 +474,6 @@ def getJobReport(workDir):
 
     return dictionary
 
-def getJobReportOld(workDir):
-    """ Get the jobReport.json dictionary """
-
-    fileName = os.path.join(workDir, "jobReport.json")
-    if os.path.exists(fileName):
-        # the jobReport file exists, read it back
-        try:
-            f = open(fileName, "r")
-        except Exception, e:
-            tolog("!!WARNING!!1001!! Could not open file: %s, %s" % (fileName, e))
-            jobReport_dictionary = {}
-        else:
-            from json import load
-            try:
-                # load the dictionary
-                jobReport_dictionary = load(f)
-            except Exception, e:
-                tolog("!!WARNING!!1001!! Could not read back jobReport dictionary: %s" % (e))
-                jobReport_dictionary = {}
-
-            # done with the file
-            f.close()
-    else:
-        tolog("!!WARNING!!1111!! File %s does not exist" % (fileName))
-        jobReport_dictionary = {}
-
-    return jobReport_dictionary
-
 def removeNoOutputFiles(workdir, outFiles, allowNoOutput, outFilesGuids):
     """ Remove files from output file list if they are listed in allowNoOutput and do not exist """
 
