@@ -466,6 +466,7 @@ NOTE: getRSE() need to be rewritten, or logic changed to set the RSE, since it i
 
 Benchmarking:
 - Only executing benchmark tool once out of a hundred starts in shouldExecuteBenchmark() (ATLASSiteInformation)
+- Created getJobReportFileName(), addToJobReport() (FileHandling)
 
 Copytools:
 - Corrected logical bug when updating file state (direct_access -> remote_io) in stagein_real() (mover)

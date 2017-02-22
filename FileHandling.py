@@ -457,13 +457,18 @@ def discoverAdditionalOutputFiles(output_file_list, workdir, datasets_list, scop
 
     return new_output_file_list, new_datasets_list, new_scope_list
 
+def getJobReportFileName(workDir):
+    """ Return the name of the jobReport, full path """
+
+    return os.path.join(workDir, "jobReport.json")
+
 # WARNING: EXPERIMENT SPECIFIC AND ALSO DEFINED IN ERRORDIAGNOSIS
 def getJobReport(workDir):
     """ Get the jobReport.json dictionary """
     # Note: always return at least an empty dictionary
 
     dictionary = {}
-    filename = os.path.join(workDir, "jobReport.json")
+    filename = getJobReportFileName(workDir)
     if os.path.exists(filename):
         # the jobReport file exists, read it back (with unicode to utf-8 conversion)
         dictionary = getJSONDictionary(filename)
@@ -519,6 +524,26 @@ def extractOutputFiles(analysisJob, workdir, allowNoOutput, outFiles, outFilesGu
         extracted_output_files = []
         extracted_guids = []
     return extracted_output_files, extracted_guids
+
+def addToJobReport(workDir, key, value):
+    """ Add the key with value to the jobReport """
+
+    # Note: the function reads the jobReport, adds the new key (or overwrites it) then saves the updated jobReport again (overwrite)
+
+    try:
+        jobReport_dictionary = getJobReport(workDir)
+        if jobReport_dictionary != {}:
+            # Add the new key and value
+            jobReport_dictionary[key] = value
+
+            # Overwrite the jobReport with the updated dictionary
+            filename = getJobReportFileName(workDir)
+            if not writeJSON(filename, jobReport_dictionary):
+                tolog("!!WARNING!!2323!! Failed to write updated jobReport")
+        else:
+            tolog("!!WARNING!!2322!! Empty jobReport, will not add new key: %s" % (key))
+    except Exception, e:
+        tolog("!!WARNING!!2321!! Exception caught: %s" % (e))
 
 def extractOutputFilesFromJSON(workDir, allowNoOutput):
     """ In case the trf has produced additional output files (spill-over), extract all output files from the jobReport """
