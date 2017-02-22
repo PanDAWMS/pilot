@@ -2099,6 +2099,12 @@ class SiteInformation(object):
 
 
     # Optional
+    def getBenchmarkFileName(self):
+        """ Return the filename of the benchmark dictionary """
+
+        return "benchmark.json"
+
+    # Optional
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 

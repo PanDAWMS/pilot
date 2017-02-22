@@ -852,6 +852,12 @@ class ATLASSiteInformation(SiteInformation):
         return self.__benchmarks
 
     # Optional
+    def getBenchmarkFileName(self):
+        """ Return the filename of the benchmark dictionary """
+
+        return "/tmp/cern_benchmark_{user}/bmk_tmp/result_profile.json"
+
+    # Optional
     def executeBenchmark(self, **pdict):
         """ Interface method for benchmark test """
 
@@ -878,7 +884,8 @@ class ATLASSiteInformation(SiteInformation):
         else:
             tolog("Benchmark finished: %d,%s" % (exitcode,output))
 
-            filename = "/tmp/cern_benchmark_{user}/bmk_tmp/result_profile.json"
+            filename = self.getBenchmarkFileName()
+
             if not os.path.exists(filename):
                 tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
             else:

@@ -876,6 +876,19 @@ class JobLog:
                 else:
                     tolog("Transferred additional CERNVM files")
 
+    def getBenchmarkDictionary(self, workdir, experiment):
+
+        benchmark_dictionary = {}
+
+        # get the site information object
+        si = getSiteInformation(experiment)
+
+        # get the benchmark dictionary if it exists
+        if os.path.exists(si.getBenchmarkFileName()):
+            benchmark_dictionary = getJSONDictionary(si.getBenchmarkFileName())
+
+        return benchmark_dictionary
+
     def postJobTask(self, job, site, experiment, workerNode, jr=False, ra=0, stdout_tail=None, stdout_path=None):
         """
         Update Panda server with output info (xml) and make/save the tarball of the job workdir,
@@ -889,6 +902,11 @@ class JobLog:
 
         # get the metadata and the relevant workdir
         strXML, workdir = self.getXMLAndWorkdir(jr, site.workdir, job.workdir, job.newDirNM, job.jobId)
+
+        # was the benchmark suite executed? if so, get the output dictionary and add it to the jobReport
+        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment)
+        if benchmark_dictionary != {}:
+            addToJobReport(workdir, "benchmark", benchmark_dictionary)
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
         # removes any work directory after the LSF job finishes which of course makes job recovery impossible)
