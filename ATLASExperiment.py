@@ -628,8 +628,12 @@ class ATLASExperiment(Experiment):
         for root, dirnames, filenames in os.walk(workdir):
             for filename in fnmatch.filter(filenames, '*.a'):
                 matches.append(os.path.join(root, filename))
+        for root, dirnames, filenames in os.walk(os.path.dirname(workdir)):
+            for filename in fnmatch.filter(filenames, 'EventService_premerge_*.tar'):
+                matches.append(os.path.join(root, filename))
         if matches != []:
             tolog("!!WARNING!!4990!! Encountered %d archive files - will be purged" % len(matches))
+            tolog("To be removed: %s" % (matches))
             rc = remove(matches)
             if not rc:
                 tolog("WARNING: Failed to remove redundant files")
