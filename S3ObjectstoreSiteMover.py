@@ -177,18 +177,22 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
     def stageInFile(self, source, destination, sourceSize, sourceChecksum):
         """StageIn the file. should be implementated by different site mover."""
+        retSize = None
+        retChecksum = None
         try:
-            status, output = self.s3Objectstore.stageInFile(source, destination, sourceSize, sourceChecksum)
+            status, output, retSize, retChecksum = self.s3Objectstore.stageInFile(source, destination, sourceSize, sourceChecksum)
         except:
             tolog("Failed to stage in file: %s" % (sys.exc_info()[1]))
-            return PilotErrors.ERR_STAGEINFAILED, "S3Objectstore failed to stage in file"
-        return status, output
+            return PilotErrors.ERR_STAGEINFAILED, "S3Objectstore failed to stage in file", None, None
+        return status, output, retSize, retChecksum
 
     def stageOutFile(self, source, destination, sourceSize, sourceChecksum, token, outputDir=None, timeout=3600):
         """ Stage-out the file. should be implementated by different site mover """
 
         status = -1
         output = 'not defined'
+        retSize = None
+        retChecksum = None
         if outputDir and outputDir.endswith("PilotMVOutputDir"):
             timeStart = time()
             outputFile = os.path.join(outputDir, os.path.basename(source))
@@ -218,11 +222,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
                         break
         else:
             try:
-                status, output = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token, timeout=timeout)
+                status, output,retSize, retChecksum = self.s3Objectstore.stageOutFile(source, destination, sourceSize, sourceChecksum, token, timeout=timeout)
             except:
                 tolog("Failed to stage out file: %s" % (traceback.format_exc()))
-                return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file"
-        return status, output
+                return PilotErrors.ERR_STAGEOUTFAILED, "S3Objectstore failed to stage out file", None, None
+        return status, output, retSize, retChecksum
 
     def verifyStage(self, localSize, localChecksum, remoteSize, remoteChecksum):
         """Verify file stag successfull"""
@@ -262,7 +266,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
         """Stage in the source file"""
         self.log("Starting to stagein file %s(size:%s, chksum:%s) to %s" % (source, sourceSize, sourceChecksum, destination))
 
-        if sourceSize == 0 or sourceSize == "":
+        if sourceSize:
+            if sourceSize == 0 or sourceSize == "" or str(sourceSize) == '0':
+                sourceSize = None
+        else:
             sourceSize = None
         if sourceChecksum == "" or sourceChecksum == "NULL":
             sourceChecksum = None
@@ -278,11 +285,11 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         remoteSize = sourceSize
         remoteChecksum = sourceChecksum
-        if remoteChecksum == None or remoteChecksum == "":
-            remoteSize, remoteChecksum = self.getRemoteFileInfo(source)
-        self.log("remoteSize: %s, remoteChecksum: %s" % (remoteSize, remoteChecksum))
-        if remoteChecksum == None:
-            self.log("Failed to get remote file information")
+        # if remoteChecksum == None or remoteChecksum == "":
+        #     remoteSize, remoteChecksum = self.getRemoteFileInfo(source)
+        # self.log("remoteSize: %s, remoteChecksum: %s" % (remoteSize, remoteChecksum))
+        # if remoteChecksum == None:
+        #     self.log("Failed to get remote file information")
 
         checksumType = 'md5sum'
         if remoteChecksum:
@@ -290,10 +297,10 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
 
         if checksumType == 'adler32':
             # S3 boto doesn't support adler32, remoteChecksum set to None
-            status, output = self.stageInFile(source, destination, remoteSize, None)
+            status, output, remoteSize, remoteChecksum = self.stageInFile(source, destination, remoteSize, None)
         else:
-            status, output = self.stageInFile(source, destination, remoteSize, remoteChecksum)
-        self.log("stageInFile status: %s, output: %s" % (status, output))
+            status, output, remoteSize, remoteChecksum = self.stageInFile(source, destination, remoteSize, remoteChecksum)
+        self.log("stageInFile status: %s, output: %s, remoteSize: %s, remoteChecksum: %s" % (status, output, remoteSize, remoteChecksum))
         if status:
              self.log("Failed to stagein this file: %s" % output)
              return  PilotErrors.ERR_STAGEINFAILED, output
@@ -327,14 +334,14 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             self.log("Change url %s to load balance url %s" % (destination, ldDest))
             destination = ldDest
 
-        status, output = self.stageOutFile(source, destination, localSize, localChecksum, token, outputDir=outputDir, timeout=timeout)
-        self.log("stageOutFile status: %s, output: %s" % (status, output))
+        status, output, remoteSize, remoteChecksum = self.stageOutFile(source, destination, localSize, localChecksum, token, outputDir=outputDir, timeout=timeout)
+        self.log("stageOutFile status: %s, output: %s, remoteSize: %s, remoteChecksum: %s" % (status, output, remoteSize, remoteChecksum))
         if status:
              self.log("Failed to stageout this file: %s" % output)
              return  PilotErrors.ERR_STAGEOUTFAILED, output, localSize, localChecksum
 
-        remoteSize, remoteChecksum = self.getRemoteFileInfo(destination)
-        self.log("getRemoteFileInfo remoteSize: %s, remoteChecksum: %s" % (remoteSize, remoteChecksum))
+        # remoteSize, remoteChecksum = self.getRemoteFileInfo(destination)
+        # self.log("getRemoteFileInfo remoteSize: %s, remoteChecksum: %s" % (remoteSize, remoteChecksum))
         status, output = self.verifyStage(localSize, localChecksum, remoteSize, remoteChecksum)
         self.log("verifyStage status: %s, output: %s" % (status, output))
 
@@ -505,13 +512,17 @@ class S3ObjctStore(object):
 
         if create:
             key = Key(bucket, key_name)
-            key.set_metadata('mode',33188)
+            # key.set_metadata('mode',33188)
         else:
             key = bucket.get_key(key_name)
 
         return key
 
     def getRemoteFileInfo(self, file):
+        # disable checksum and size checking, just return None
+        # because it sends too many HEAD operations to objectstore which is not needed
+        return None, None
+
         http_proxy = os.environ.get("http_proxy")
         https_proxy = os.environ.get("https_proxy")
         if http_proxy:
@@ -540,6 +551,8 @@ class S3ObjctStore(object):
         retCode = 0
         retStr = None
         key = None
+        retSize = None
+        retChecksum = None
         try:
             key = self.get_key(source)
             if key is None:
@@ -547,15 +560,17 @@ class S3ObjctStore(object):
                 retStr = "source file(%s) cannot be found" % source
 
             key.get_contents_to_filename(destination)
+            retSize = key.size
+
             # for big file with multiple parts, key.etag is not the md5
             # if key.md5 and key.md5 != key.etag.strip('"').strip("'"):
             #     return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
-            if sourceSize and str(sourceSize) != str(key.size):
+            if sourceSize and str(sourceSize) != '0' and str(sourceSize) != str(key.size):
                 retCode = -1
                 retStr = "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
-            if sourceChecksum and sourceChecksum != key.md5:
-                retCode = -1
-                retStr = "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+            # if sourceChecksum and sourceChecksum != key.md5:
+            #     retCode = -1
+            #     retStr = "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
         except Exception as e:
             retCode = -1
             retStr = str(e)
@@ -568,7 +583,8 @@ class S3ObjctStore(object):
         if https_proxy:
             os.environ['https_proxy'] = https_proxy
 
-        return retCode, retStr
+        # returnCode, returnErrStr, size, checksum
+        return retCode, retStr, retSize, retChecksum
 
     def s3StageOutFile(self, source, destination, sourceSize=None, sourceChecksum=None, token=None):
         http_proxy = os.environ.get("http_proxy")
@@ -581,22 +597,25 @@ class S3ObjctStore(object):
         retCode = 0
         retStr = None
         key = None
+        retSize = None
+        retChecksum = None
         try:
             key = self.get_key(destination, create=True)
             if key is None:
                 retCode = -1
                 retStr = "Failed to create S3 key on destination (%s)" % destination
-            key.set_metadata("md5", sourceChecksum)
+            # key.set_metadata("md5", sourceChecksum)
             size = key.set_contents_from_filename(source)
 
+            retSize = key.size
             # if key.md5 != key.etag.strip('"').strip("'"):
             #     return -1, "client side checksum(key.md5=%s) doesn't match server side checksum(key.etag=%s)" % (key.md5, key.etag.strip('"').strip("'"))
             if sourceSize and str(sourceSize) != str(key.size):
                 retCode = -1
                 retStr = "source size(%s) doesn't match key size(%s)" % (sourceSize, key.size)
-            if sourceChecksum and sourceChecksum != key.md5:
-                retCode = -1
-                retStr = "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
+            #if sourceChecksum and sourceChecksum != key.md5:
+            #    retCode = -1
+            #    retStr = "source checksum(%s) doesn't match key checksum(%s)" % (sourceChecksum, key.md5)
         except Exception as e:
             retCode = -1
             retStr = str(e)
@@ -608,8 +627,9 @@ class S3ObjctStore(object):
             os.environ['http_proxy'] = http_proxy
         if https_proxy:
             os.environ['https_proxy'] = https_proxy
-        
-        return retCode, retStr
+
+        # returnCode, returnErrStr, size, checksum
+        return retCode, retStr, retSize, retChecksum
 
     def stageInFile(self, source, destination, sourceSize=None, sourceChecksum=None):
         if self._useTimerCommand:
