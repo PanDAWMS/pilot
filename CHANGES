@@ -517,6 +517,31 @@ M RunJobHpcEvent.py (15)
 M RunJobUtilities.py (2)
 M pUtil.py (5)
 
+  https://github.com/PanDAWMS/pilot/pull/114
+
+1) normalized objectstore as a normal rse
+2) optimized s3objectstore sitemover to have less HEAD operations: Dan reported that we had 4~5 times of 'HEAD' operations than 'GET' and 'PUT' operations. It caused load problems on objectstore.
+3) updated rucio sitemover to support os upload
+4) set objectstore keypair in environment, rucio site mover will use it.
+
+Commit Summary
+
+fix to remove tar/zip es files in the log
+optimize s3objectstore sitemover to have less HEAD operation
+update rucio sitemover to support os upload
+normalize Objectstore as a normal RSE
+set objectstore keypair in environment which rucio mover will use
+normalize os as a normal rse
+
+File Changes
+
+M ATLASExperiment.py (4)
+M Mover.py (13)
+M RunJobEvent.py (64)
+M S3ObjectstoreSiteMover.py (82)
+M movers/mover.py (87)
+M movers/rucio_sitemover.py (14)
+
 Updates from Daniel Drizhuk:
 
   https://github.com/PanDAWMS/pilot/pull/113
