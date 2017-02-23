@@ -855,7 +855,24 @@ class ATLASSiteInformation(SiteInformation):
     def getBenchmarkFileName(self):
         """ Return the filename of the benchmark dictionary """
 
-        return "/tmp/cern_benchmark_{user}/bmk_tmp/result_profile.json"
+        import getpass
+        username = getpass.getuser()
+        return "/tmp/cern_benchmark_%s/bmk_tmp/result_profile.json" % (username)
+
+    # Optional
+    def getBenchmarkCommand(self, **pdict):
+        """ Return the benchmark command to be executed """
+
+        cloud = pdict.get('cloud', '')
+        if cloud != "":
+            cloudOption = "--cloud=%s" % (cloud)
+        else:
+            cloudOption = ""
+
+        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --topic=/topic/vm.spec %s --vo=ATLAS -o" % (cloudOption)
+
+        return cmd
 
     # Optional
     def executeBenchmark(self, **pdict):
@@ -865,17 +882,7 @@ class ATLASSiteInformation(SiteInformation):
         # The method should return a dictionary containing the results of the test
 
         timeout = 180
-
-        cloud = pdict.get('cloud', '')
-        if cloud != "":
-            cloudOption = "--cloud=%s" % (cloud)
-        else:
-            cloudOption = ""
-
-        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
-#        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=%s" % (cloudOption, key, cert)        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=%s" % (cloudOption, key, cert)
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --topic=/topic/vm.spec %s --vo=ATLAS -o" % (cloudOption)
-        cmd += ""
+        cmd = self.getBenchmarkCommand(pdict)
 
         tolog("Executing benchmark test: %s" % (cmd))
         exitcode, output = timedCommand(cmd, timeout=timeout)

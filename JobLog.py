@@ -14,7 +14,7 @@ from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, g
     getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, \
     getGUID, timedCommand, updateXMLWithEndpoints
 from FileHandling import addToOSTransferDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, \
-    getWorkDirSizeFilename, getDirSize, storeWorkDirSize
+    getWorkDirSizeFilename, getDirSize, storeWorkDirSize, addToJobReport
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
@@ -877,6 +877,7 @@ class JobLog:
                     tolog("Transferred additional CERNVM files")
 
     def getBenchmarkDictionary(self, workdir, experiment):
+        """ Return the benchmark json dictionary """
 
         benchmark_dictionary = {}
 
@@ -884,8 +885,9 @@ class JobLog:
         si = getSiteInformation(experiment)
 
         # get the benchmark dictionary if it exists
-        if os.path.exists(si.getBenchmarkFileName()):
-            benchmark_dictionary = getJSONDictionary(si.getBenchmarkFileName())
+        filename = si.getBenchmarkFileName()
+        if os.path.exists(filename)
+            benchmark_dictionary = getJSONDictionary(filename)
 
         return benchmark_dictionary
 

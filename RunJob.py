@@ -774,7 +774,7 @@ class RunJob(object):
         return _obj
 
     def getUtilitySubprocess(self, thisExperiment, cmd, pid, job):
-        """ Return the utility subprocess if required """
+        """ Return/execute the utility subprocess if required """
 
         utility_subprocess = None
         if thisExperiment.shouldExecuteUtility():
@@ -796,6 +796,30 @@ class RunJob(object):
             tolog("Not required to run utility")
 
         return utility_subprocess
+
+    def getBenchmarkSubprocess(self, node):
+        """ Return/execute the benchmark subprocess if required """
+        # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json 
+
+        benchmark_subproces = None
+
+        # run benchmark test if required by experiment site information object
+
+        si = getSiteInformation(self.getExperiment())
+        if si.shouldExecuteBenchmark():
+            thisExperiment = getExperiment(self.getExperiment())
+            cmd = si.getBenchmarkCommand(cloud=readpar('cloud'))
+            benchmark_subproces = self.getSubprocess(thisExperiment, cmd)
+
+            if benchmark_subprocess:
+                try:
+                    tolog("Process id of benchmark suite: %d" % (benchmark_subprocess.pid))
+                except Exception, e:
+                    tolog("!!WARNING!!3436!! Exception caught: %s" % (e))
+        else:
+            tolog("Not required to run the benchmark suite")
+
+        return benchmark_subproces
 
     def executePayload(self, thisExperiment, runCommandList, job):
         """ execute the payload """
@@ -1597,6 +1621,11 @@ if __name__ == "__main__":
 
         # (setup ends here) ................................................................................
 
+        # benchmark ........................................................................................
+
+        # Launch the benchmark, let it execute during stage-in
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node)
+
         tolog("Setting stage-in state until all input files have been copied")
         job.setState(["stagein", 0, 0])
         # send the special setup string back to the pilot (needed for the log transfer on xrdcp systems)
@@ -1638,6 +1667,22 @@ if __name__ == "__main__":
         runJob.unzipStagedFiles(job)
 
         # (stage-in ends here) .............................................................................
+
+        # Loop until the benchmark subprocess has finished
+        max_count = 4
+        count = 0
+        while benchmark_subprocess.poll() is None:
+            if count >= max_count:
+                benchmrk_subprocess.send_signal(signal.SIGUSR1)
+                tolog("Terminated the benchmark since it ran for longer than two minutes")
+            else:
+                count += 1
+
+                # Take a short nap
+                tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count/max_count))
+                time.sleep(30)
+
+        # (benchmark ends here) ............................................................................
 
         # change to running state since all input files have been staged
         tolog("Changing to running state since all input files have been staged")

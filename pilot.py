@@ -2587,10 +2587,6 @@ def runMain(runpars):
             pUtil.tolog("!!FAILED!!1234!! Did not get an experiment object from the factory")
             return pUtil.shellExitCode(error.ERR_GENERALERROR)
 
-        # run benchmark test if required by experiment site information object
-        # report benchmark results with jobMetrics
-        env['workerNode'].executeBenchmarks(env['si'], pUtil.readpar('cloud'))
-
         # create the initial pilot workdir
         ec = createSiteWorkDir(env['thisSite'].workdir, error)
         if ec != 0:

@@ -469,6 +469,7 @@ Benchmarking:
 - Created getJobReportFileName(), addToJobReport() (FileHandling)
 - Created getBenchmarkFileName() (SiteInformation, ATLASSiteInformation)
 - Created getBenchmarkDictionary() (JobLog)
+- Created getBenchmarkSubprocess() (RunJob)
 
 Copytools:
 - Corrected logical bug when updating file state (direct_access -> remote_io) in stagein_real() (mover)
