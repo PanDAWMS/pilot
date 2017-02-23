@@ -184,7 +184,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
     return 0, "", fields, "", len(transferred_files), 0
 
 # new mover implementation
-def put_data_os(job, jobSite, stageoutTries, files, workDir=None):
+def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
     """
         Do jobmover.stageout_outfiles or jobmover.stageout_logfiles (if log_transfer=True)
         or jobmover.stageout_logfiles_os (if special_log_transfer=True)
@@ -209,8 +209,15 @@ def put_data_os(job, jobSite, stageoutTries, files, workDir=None):
     mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
     mover.trace_report.init(job)
     error = None
+    objectstoreId = None
     try:
-        transferred_files, failed_transfers = mover.stageout_os(files)
+        file = files[0]
+        if file.objectstoreId and file.objectstoreId != -1:
+            objectstoreId = file.objectstoreId
+            copytools = [('objectstore', {'setup': ''})]
+        else:
+            copytools = None
+        transferred_files, failed_transfers = mover.stageout(activity="pes", files=files, copytools=copytools)
     except PilotException, e:
         error = e
     except Exception, e:
@@ -235,7 +242,7 @@ def put_data_os(job, jobSite, stageoutTries, files, workDir=None):
         error = PilotException('STAGEOUT FAILED, exception=%s' % message, code=PilotErrors.ERR_STAGEOUTFAILED, state='STAGEOUT_FAILED')
         return error.code, error.message, None
 
-    return 0, "", transferred_files[0].objectstoreId
+    return 0, "", objectstoreId
 
 
 # new mover implementation:
