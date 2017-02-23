@@ -801,7 +801,7 @@ class RunJob(object):
         """ Return/execute the benchmark subprocess if required """
         # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json 
 
-        benchmark_subproces = None
+        benchmark_subprocess = None
 
         # run benchmark test if required by experiment site information object
 
@@ -809,7 +809,7 @@ class RunJob(object):
         if si.shouldExecuteBenchmark():
             thisExperiment = getExperiment(self.getExperiment())
             cmd = si.getBenchmarkCommand(cloud=readpar('cloud'))
-            benchmark_subproces = self.getSubprocess(thisExperiment, cmd)
+            benchmark_subprocess = self.getSubprocess(thisExperiment, cmd)
 
             if benchmark_subprocess:
                 try:
@@ -819,7 +819,7 @@ class RunJob(object):
         else:
             tolog("Not required to run the benchmark suite")
 
-        return benchmark_subproces
+        return benchmark_subprocess
 
     def executePayload(self, thisExperiment, runCommandList, job):
         """ execute the payload """
@@ -1673,7 +1673,7 @@ if __name__ == "__main__":
         count = 0
         while benchmark_subprocess.poll() is None:
             if count >= max_count:
-                benchmrk_subprocess.send_signal(signal.SIGUSR1)
+                benchmark_subprocess.send_signal(signal.SIGUSR1)
                 tolog("Terminated the benchmark since it ran for longer than two minutes")
             else:
                 count += 1
