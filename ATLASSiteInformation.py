@@ -849,7 +849,10 @@ class ATLASSiteInformation(SiteInformation):
     def getBenchmarkDictionary(self):
         """ Return the benchmarks dictionary """
 
-        return self.__benchmarks
+        if self.__benchmarks:
+            return self.__benchmarks
+        else:
+            return getJSONDictionary(self.getBenchmarkFileName())
 
     # Optional
     def getBenchmarkFileName(self):
