@@ -839,7 +839,7 @@ class ATLASSiteInformation(SiteInformation):
 
         # 1% of the times only?
         from random import randint
-        if random.randint(0,99) == 0:
+        if randint(0,99) == 0:
             return True
         else:
             return True
