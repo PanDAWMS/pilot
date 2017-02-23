@@ -61,6 +61,7 @@ class JobMover(object):
         self.stageinretry = kwargs.get('stageinretry', self._stageinretry)
         self.protocols = {}
         self.ddmconf = {}
+        self.objectstorekeys = {}
         self.trace_report = {}
 
         self.useTracingService = kwargs.get('useTracingService', self.si.getExperimentObject().useTracingService())
@@ -269,6 +270,27 @@ class JobMover(object):
 
         return True
 
+    def get_objectstore_keys(self, ddmendpoint):
+        if ddmendpoint in self.objectstorekeys:
+            return
+
+        endpoint_id = self.si.getObjectstoreEndpointID(ddmendpoint=ddmendpoint, label='r', protocol='s3')
+        os_access_key, os_secret_key, os_is_secure = self.si.getObjectstoreKeyInfo(endpoint_id, ddmendpoint=ddmendpoint)
+
+        if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":
+            keyPair = self.si.getSecurityKey(os_secret_key, os_access_key)
+            if "privateKey" not in keyPair or keyPair["privateKey"] is None:
+                self.log("Failed to get the keyPair for S3 objectstore from panda")
+                self.objectstorekeys[ddmendpoint] = {'status': False}
+            else:
+                self.objectstorekeys[ddmendpoint] = {'S3_ACCESS_KEY': keyPair["publicKey"],
+                                                     'S3_SECRET_KEY': keyPair["privateKey"],
+                                                     'S3_IS_SECURE': os_is_secure,
+                                                     'status': True}
+        else:
+            self.log("Failed to get the keyPair name for S3 objectstore from ddm config")
+            self.objectstorekeys[ddmendpoint] = {'status': False}
+
     def stagein(self):
         """
             :return: (transferred_files, failed_transfers)
@@ -290,9 +312,10 @@ class JobMover(object):
         self.log("os_ddms: %s" % os_ddms)
 
         for fspec in files:
-            if fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit():
+            if fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit() and int(fspec.prodDBlockToken) > 0:
                 fspec.objectstoreId = int(fspec.prodDBlockToken)
                 fspec.ddmendpoint = os_ddms.get(fspec.objectstoreId)
+                self.get_objectstore_keys(fspec.ddmendpoint)
                 es_files.append(fspec)
             else:
                 normal_files.append(fspec)
@@ -519,6 +542,17 @@ class JobMover(object):
 
                 self.log("[stage-in] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
 
+                # set environment for objectstore
+                if fdata.ddmendpoint in self.objectstorekeys and self.objectstorekeys[fdata.ddmendpoint]['status']:
+                    os.environ['S3_ACCESS_KEY'] = self.objectstorekeys[fdata.ddmendpoint]['S3_ACCESS_KEY']
+                    os.environ['S3_SECRET_KEY'] = self.objectstorekeys[fdata.ddmendpoint]['S3_SECRET_KEY']
+                    os.environ['S3_IS_SECURE'] = str(self.objectstorekeys[fdata.ddmendpoint]['S3_IS_SECURE'])
+                else:
+                    if 'S3_ACCESS_KEY' in os.environ: del os.environ['S3_ACCESS_KEY']
+                    if 'S3_SECRET_KEY' in os.environ: del os.environ['S3_SECRET_KEY']
+                    if 'S3_IS_SECURE' in os.environ: del os.environ['S3_IS_SECURE']
+                self.log("Environment S3_ACCESS_KEY=%s" % os.environ.get('S3_ACCESS_KEY', None))
+
                 #dumpFileStates(self.workDir, self.job.jobId, ftype="input")
 
                 # loop over multple stage-in attempts
@@ -712,6 +746,19 @@ class JobMover(object):
 
         ddmendpoint = osddms[0]
 
+        self.get_objectstore_keys(ddmendpoint)
+
+        # set environment for objectstore
+        if ddmendpoint in self.objectstorekeys and self.objectstorekeys[ddmendpoint]['status']:
+            os.environ['S3_ACCESS_KEY'] = self.objectstorekeys[ddmendpoint]['S3_ACCESS_KEY']
+            os.environ['S3_SECRET_KEY'] = self.objectstorekeys[ddmendpoint]['S3_SECRET_KEY']
+            os.environ['S3_IS_SECURE'] = str(self.objectstorekeys[ddmendpoint]['S3_IS_SECURE'])
+        else:
+            if 'S3_ACCESS_KEY' in os.environ: del os.environ['S3_ACCESS_KEY']
+            if 'S3_SECRET_KEY' in os.environ: del os.environ['S3_SECRET_KEY']
+            if 'S3_IS_SECURE' in os.environ: del os.environ['S3_IS_SECURE']
+        self.log("Environment S3_ACCESS_KEY=%s" % os.environ.get('S3_ACCESS_KEY', None))
+
         self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for special log transfer" % (activity, ddmendpoint))
 
         import copy
@@ -728,44 +775,6 @@ class JobMover(object):
         self.job.logDDMEndpoint = ddmendpoint
 
         return ret
-
-    def stageout_os(self, files):
-        """
-            Special log transfers (currently to ObjectStores)
-        """
-
-        activity = "pes" ## pilot log special/second transfer
-
-        # resolve accepted OS DDMEndpoints
-
-        pandaqueue = self.si.getQueueName() # FIX ME LATER
-        os_ddms = self.si.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
-
-        ddmconf = self.ddmconf
-        if os_ddms and (set(os_ddms) - set(self.ddmconf)): # load DDM conf
-            ddmconf = self.si.resolveDDMConf(os_ddms)
-            self.ddmconf.update(ddmconf)
-
-        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
-
-        self.log("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
-
-        if not osddms:
-            raise PilotException("Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
-
-        ddmendpoint = osddms[0]
-        objectstoreId = self.ddmconf.get(ddmendpoint, {}).get('resource', {}).get('bucket_id', -1)
-
-        self.log("[stage-out] [%s] resolved OS ddmendpoint=%s for es transfer" % (activity, ddmendpoint))
-
-        for e in files:
-            e.ddmendpoint = ddmendpoint
-            e.objectstoreId = objectstoreId
-
-        #copytools = [('objectstore', {'setup': '/cvmfs/atlas.cern.ch/repo/sw/ddm/rucio-clients/latest/setup.sh'})]
-        copytools = [('objectstore', {'setup': ''})]
-
-        return self.stageout(activity, files, copytools)
 
     def stageout(self, activity, files, copytools=None, skip_transfer_failure=False):
         """
