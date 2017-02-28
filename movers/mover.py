@@ -330,6 +330,7 @@ class JobMover(object):
 
         if es_files:
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
+            self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
             transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='per', copytools=copytools)
             transferred_files += transferred_files_es
@@ -565,6 +566,8 @@ class JobMover(object):
 
                         #self.trace_report.update(url=fdata.surl) ###
                         self.trace_report.update(url=fdata.turl) ###
+                        # for files without replication registered in rucio, the filesize need to be got from local file
+                        self.trace_report.update(filesize=fdata.filesize) 
 
                         break # transferred successfully
                     except PilotException, e:

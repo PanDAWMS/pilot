@@ -204,7 +204,7 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
 
     mover = JobMover(job, si, workDir=workDir, stageoutretry=stageoutTries)
 
-    eventType = "es_put"
+    eventType = "put_es"
 
     mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
     mover.trace_report.init(job)
