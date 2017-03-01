@@ -542,6 +542,24 @@ M S3ObjectstoreSiteMover.py (82)
 M movers/mover.py (87)
 M movers/rucio_sitemover.py (14)
 
+  https://github.com/PanDAWMS/pilot/pull/116
+
+fix tracer report:
+when es merge job stagein premerge files, the filesize is not filled.
+when es merge job stagein premerge files, the eventtype is 'get_sm', it should be 'get_es'
+
+Commit Summary
+
+fix filesize in S3ObectStoreSiteMover
+fix trace report
+
+File Changes
+
+M Mover.py (2)
+M S3ObjectstoreSiteMover.py (17)
+M movers/mover.py (3)
+M movers/rucio_sitemover.py (2)
+
 Updates from Daniel Drizhuk:
 
   https://github.com/PanDAWMS/pilot/pull/113
