@@ -1,7 +1,7 @@
 """
   storm SiteMover
 
-  :author: Mario Lassnig <mario.lassnig@cern.ch>, 2016
+  :author: Mario Lassnig <mario.lassnig@cern.ch>, 2016-2017
 """
 
 from .base import BaseSiteMover
@@ -21,23 +21,14 @@ class stormSiteMover(BaseSiteMover):
     """
 
     name = 'storm'
-    schemes = ['file']
-    version = '20161125.005'
+    schemes = ['file', 'srm', 'root', 'https', 'gsiftp']
+    version = '20170227.001'
 
-    require_replicas = False       ## quick hack to avoid query Rucio to resolve input replicas
+    require_replicas = True
 
     def __init__(self, *args, **kwargs):
         super(stormSiteMover, self).__init__(*args, **kwargs)
         self.log('storm sitemover version: %s' % self.version)
-
-    def resolve_replica(self, fspec, protocol, ddm=None):
-        """
-        Overridden method -- unused
-        """
-
-        return {'ddmendpoint': fspec.replicas[0][0] if fspec.replicas else None,
-                'surl': None,
-                'pfn': fspec.lfn}
 
     def stageIn(self, source, destination, fspec):
         """
