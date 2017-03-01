@@ -602,6 +602,17 @@ M ATLASExperiment.py (3)
 M ATLASSiteInformation.py (5)
 M SiteInformation.py (113)
 
+Updates from Mario Lassnig:
+
+  https://github.com/PanDAWMS/pilot/pull/115
+
+Commit Summary
+
+fix ddmendpoint handling for storm sitemover
+
+File Changes
+
+M movers/storm_sitemover.py (17)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
