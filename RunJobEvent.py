@@ -3046,6 +3046,8 @@ if __name__ == "__main__":
         # Extract the proper setup string from the run command in case the Prefetcher should be used
         if runJob.usePrefetcher():
             setupString = thisEventService.extractSetup(runCommandList[0], job.trf)
+            if "export ATLAS_LOCAL_ROOT_BASE" not in setupString:
+                setupString = "export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase;" % thisExperiment.getCVMFSPath() + setupString
             tolog("The Prefetcher will be setup using: %s" % (setupString))
 
             # Create the file objects
