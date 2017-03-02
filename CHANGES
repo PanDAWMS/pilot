@@ -470,6 +470,7 @@ Benchmarking:
 - Created getBenchmarkFileName() (SiteInformation, ATLASSiteInformation)
 - Created getBenchmarkDictionary() (JobLog)
 - Created getBenchmarkSubprocess() (RunJob)
+- Added benchmark process, running during stage-in (RunJob, RunJobEvent)
 
 Copytools:
 - Corrected logical bug when updating file state (direct_access -> remote_io) in stagein_real() (mover)
