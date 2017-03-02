@@ -83,6 +83,7 @@ class RunJobEvent(RunJob):
     __message_thread = None                      #
     __status = True                              # Global job status; will be set to False if an event range or stage-out fails
     __athenamp_is_ready = False                  # True when an AthenaMP worker is ready to process an event range
+    __prefetcher_is_ready = False                # True when Prefetcher has finished updating an event range
     __asyncOutputStager_thread = None            #
     __asyncOutputStager_thread_sleep_time = 600
     __analysisJob = False                        # True for analysis job
@@ -465,6 +466,16 @@ class RunJobEvent(RunJob):
         """ Setter for __athenamp_is_ready """
 
         self.__athenamp_is_ready = athenamp_is_ready
+
+    def isPrefetcherReady(self):
+        """ Getter for __prefetcher_is_ready """
+
+        return self.__prefetcher_is_ready
+
+    def setPrefetcherIsReady(self, prefetcher_is_ready):
+        """ Setter for __prefetcher_is_ready """
+
+        self.__prefetcher_is_ready = prefetcher_is_ready
 
     def getAsyncOutputStagerThread(self):
         """ Getter for __asyncOutputStager_thread """
@@ -2068,6 +2079,13 @@ class RunJobEvent(RunJob):
                         self.__stageout_queue.append(paths)
                         tolog("File %s has been added to the stage-out queue (length = %d)" % (paths, len(self.__stageout_queue)))
 
+                elif buf.startswith('['):
+                    tolog("Received an updated event range message from Prefetcher: %s" % (buf))
+                    self.__current_event_range = buf
+
+                    # Set the boolean to True since Prefetcher is now ready (finished with the current event range)
+                    runJob.setPrefetcherIsReady(True)
+
                 elif buf.startswith('ERR'):
                     tolog("Received an error message: %s" % (buf))
 
@@ -3257,13 +3275,32 @@ if __name__ == "__main__":
                         tolog("Aborting event range loop")
                         break
 
+                    # Set the boolean to false until Prefetcher has finished updating the event range (if used)
+                    runJob.setPrefetcherIsReady(False)
+
                     # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
                     if runJob.usePrefetcher():
                         tolog("Sending event range to Prefetcher")
+                        runJob.setSendingEventRange(True)
                         runJob.sendMessage(str([event_range]), prefetcher=True)
+                        runJob.setSendingEventRange(False)
 
                         # need to get the updated event range back from Prefetcher
-                        # ..
+                        tolog("Waiting for Prefetcher reply")
+                        count = 0
+                        maxCount = 60
+                        while not runJob.isPrefetcherReady():
+                            time.sleep(1)
+                            if count > maxCount:
+                                tolog("!!WARNING!!4545!! Prefetcher has not replied for %d seconds - aborting" % (maxCount))
+                                # fail job
+                                # ..
+                                break
+                            count += 1
+                        # Prefetcher should now have sent back the updated event range
+                        tolog("Original event_range=%s"%str(event_range))
+                        event_range = runJob.getCurrentEventRange()
+                        tolog("Updated event_range=%s"%str(event_range))
 
                     # Send the event range to AthenaMP
                     tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))

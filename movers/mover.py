@@ -509,13 +509,13 @@ class JobMover(object):
                 # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
                 # to be called twice (or update the updateFileState function to allow list arguments)
                 # also update the file_state for the existing entry (could also be removed?)
-                if self.job.prefetcher:
-                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
-                    fdata.status = 'remote_io'
-                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
-                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
-                    continue
+#                if self.job.prefetcher:
+#                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+#                    fdata.status = 'remote_io'
+#                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+#                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
+#                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
+#                    continue
 
                 # apply site-mover custom job-specific checks for stage-in
                 try:
@@ -623,6 +623,21 @@ class JobMover(object):
                     badfile_codes = [PilotErrors.ERR_GETADMISMATCH, PilotErrors.ERR_GETMD5MISMATCH, PilotErrors.ERR_GETWRONGSIZE, PilotErrors.ERR_NOSUCHFILE]
                     if fdata.status_code in badfile_codes:
                         break
+
+                # TEMPORARY: SHOULD BE REMOVED IF DIRECT I/O ACTUALLY WORKS WITH ATHENAMP, WHICH IT SEEMS IT DOESN'T
+                # AS OF NOW, THE INITIAL INPUT FILE IS STILL TRANSFERRED, OTHERWISE ATHENAMP FAILS IMMEDIATELY SINCE
+                # IT DOESN'T FIND THE INPUT FILE
+                # check prefetcher (no transfer is required, but the turl must be saved for prefetcher to use)
+                # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
+                # to be called twice (or update the updateFileState function to allow list arguments)
+                # also update the file_state for the existing entry (could also be removed?)
+                if self.job.prefetcher:
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+                    fdata.status = 'remote_io'
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
+                    continue
 
             if fdata.status == 'error':
                 self.log('stage-in of file (%s/%s) with lfn=%s failed: code=%s .. skip transferring of remain data..' % (fnum, nfiles, fdata.lfn, fdata.status_code))

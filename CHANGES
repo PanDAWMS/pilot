@@ -482,6 +482,7 @@ Event Service:
 - Setting __yamplChannelNamePrefetcher in __init__() (RunJobEvent)
 - Added prefetcher field to Job class (Job)
 - Updated schemes for prefetcher and adding turl to fileState file in stagein_real() (mover)
+- Created isPrefetcherReady(), setPrefetcherIsReady() (RunJobEvent)
 
 Updates from Wen Guan:
 
