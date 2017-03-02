@@ -2909,6 +2909,9 @@ if __name__ == "__main__":
 
         # Stage-in .........................................................................................
 
+        # Launch the benchmark, let it execute during stage-in
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node)
+
         # Update the job state
         tolog("Setting stage-in state until all input files have been copied")
         job.jobState = "stagein"
@@ -2954,6 +2957,20 @@ if __name__ == "__main__":
 
         # (stage-in ends here) .............................................................................
 
+        # Loop until the benchmark subprocess has finished
+        max_count = 4
+        count = 0
+        while benchmark_subprocess.poll() is None:
+            if count >= max_count:
+                benchmark_subprocess.send_signal(signal.SIGUSR1)
+                tolog("Terminated the benchmark since it ran for longer than two minutes")
+            else:
+                count += 1
+
+                # Take a short nap
+                tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count/max_count))
+                time.sleep(15)
+
         # Prepare XML for input files to be read by the Event Server
 
         # runEvent determines the physical file replica(s) to be used as the source for input event data
@@ -2973,7 +2990,6 @@ if __name__ == "__main__":
 
         # Create and start the stage-out thread which will run in an infinite loop until it is stopped
         asyncOutputStager_thread = StoppableThread(name='asynchronousOutputStager', target=runJob.asynchronousOutputStager)
-#        asyncOutputStager_thread.start()
         runJob.setAsyncOutputStagerThread(asyncOutputStager_thread)
         runJob.startAsyncOutputStagerThread()
 
@@ -3049,6 +3065,11 @@ if __name__ == "__main__":
             if "export ATLAS_LOCAL_ROOT_BASE" not in setupString:
                 setupString = "export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase;" % thisExperiment.getCVMFSPath() + setupString
             tolog("The Prefetcher will be setup using: %s" % (setupString))
+
+            job.transferType = 'direct'
+            RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+            si = getSiteInformation(runJob.getExperiment())
+            si.updateDirectAccess(job.transferType)
 
             # Create the file objects
             prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")

@@ -379,8 +379,6 @@ class Job:
 
         self.maxCpuCount = int(data.get('maxCpuCount', 0))
         self.transferType = data.get('transferType', '')
-#PN        self.transferType = 'direct'
-#        self.transferType = 'fax'
 
         if data.has_key('maxDiskCount'):
             _tmp = int(data['maxDiskCount'])
