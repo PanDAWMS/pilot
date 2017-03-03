@@ -435,7 +435,7 @@ class JobMover(object):
                         if is_directaccess or self.job.prefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
                                 dat['scheme'] = ['root'] + dat['scheme']
-                            self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
+                            #self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
@@ -509,8 +509,8 @@ class JobMover(object):
                 # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
                 # to be called twice (or update the updateFileState function to allow list arguments)
                 # also update the file_state for the existing entry (could also be removed?)
-#                if self.job.prefetcher:
-#                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+                if self.job.prefetcher:
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
 #                    fdata.status = 'remote_io'
 #                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
 #                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
@@ -631,13 +631,13 @@ class JobMover(object):
                 # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
                 # to be called twice (or update the updateFileState function to allow list arguments)
                 # also update the file_state for the existing entry (could also be removed?)
-                if self.job.prefetcher:
-                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
-                    fdata.status = 'remote_io'
-                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
-                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
-                    continue
+                #if self.job.prefetcher:
+                #    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+                #    fdata.status = 'remote_io'
+                #    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+                #    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
+                #    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
+                #    continue
 
             if fdata.status == 'error':
                 self.log('stage-in of file (%s/%s) with lfn=%s failed: code=%s .. skip transferring of remain data..' % (fnum, nfiles, fdata.lfn, fdata.status_code))

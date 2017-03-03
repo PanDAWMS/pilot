@@ -858,9 +858,13 @@ class ATLASSiteInformation(SiteInformation):
     def getBenchmarkFileName(self):
         """ Return the filename of the benchmark dictionary """
 
+        tmpdir = readpar('wntmpdir')
+        if tmpdir == "":
+            tmpdir = "/tmp"
         import getpass
         username = getpass.getuser()
-        return "/tmp/cern_benchmark_%s/bmk_tmp/result_profile.json" % (username)
+
+        return "%s/cern_benchmark_%s/bmk_tmp/result_profile.json" % (tmpdir, username)
 
     # Optional
     def getBenchmarkCommand(self, **pdict):

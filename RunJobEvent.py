@@ -2452,15 +2452,15 @@ class RunJobEvent(RunJob):
             eventService = True
 
             # Create a TURL based PFC
-            tokens_dictionary = {} # not needed here, so set it to an empty dictionary
-            ec, pilotErrorDiag, createdPFCTURL, usect, dummy = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
-                                                                            sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict, self.__experiment)
-            if ec != 0:
-                tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
+            #tokens_dictionary = {} # not needed here, so set it to an empty dictionary
+            #ec, pilotErrorDiag, createdPFCTURL, usect, dummy = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
+            #                                                                sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict, self.__experiment)
+            #if ec != 0:
+            #    tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
             # Finally return the TURL based PFC
-            if ec == 0:
-                file_info_dictionary = mover.getFileInfoDictionaryFromXML(self.getPoolFileCatalogPath())
+            #if ec == 0:
+            #    file_info_dictionary = mover.getFileInfoDictionaryFromXML(self.getPoolFileCatalogPath())
 
         return ec, pilotErrorDiag, file_info_dictionary
 
@@ -3084,10 +3084,10 @@ if __name__ == "__main__":
                 setupString = "export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase;" % thisExperiment.getCVMFSPath() + setupString
             tolog("The Prefetcher will be setup using: %s" % (setupString))
 
-            job.transferType = 'direct'
-            RunJobUtilities.updateCopysetups('', transferType=job.transferType)
-            si = getSiteInformation(runJob.getExperiment())
-            si.updateDirectAccess(job.transferType)
+            #job.transferType = 'direct'
+            #RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+            #si = getSiteInformation(runJob.getExperiment())
+            #si.updateDirectAccess(job.transferType)
 
             # Create the file objects
             prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
