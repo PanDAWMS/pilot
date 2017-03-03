@@ -877,8 +877,14 @@ class ATLASSiteInformation(SiteInformation):
         else:
             cloudOption = ""
 
+        cores = pdict.get('cores', '')
+        if cores != "":
+            coresOption = "--mp_num=%s" % (cores)
+        else:
+            coresOption = ""
+
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --topic=/topic/vm.spec %s --vo=ATLAS -o" % (cloudOption)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --topic=/topic/vm.spec %s --vo=ATLAS -o %s" % (cloudOption, coresOption)
 
         return cmd
 

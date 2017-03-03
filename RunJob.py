@@ -797,7 +797,7 @@ class RunJob(object):
 
         return utility_subprocess
 
-    def getBenchmarkSubprocess(self, node):
+    def getBenchmarkSubprocess(self, node, coreCount):
         """ Return/execute the benchmark subprocess if required """
         # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json 
 
@@ -808,7 +808,7 @@ class RunJob(object):
         si = getSiteInformation(self.getExperiment())
         if si.shouldExecuteBenchmark():
             thisExperiment = getExperiment(self.getExperiment())
-            cmd = si.getBenchmarkCommand(cloud=readpar('cloud'))
+            cmd = si.getBenchmarkCommand(cloud=readpar('cloud'), cores=coreCount)
             benchmark_subprocess = self.getSubprocess(thisExperiment, cmd)
 
             if benchmark_subprocess:
@@ -1624,7 +1624,7 @@ if __name__ == "__main__":
         # benchmark ........................................................................................
 
         # Launch the benchmark, let it execute during stage-in
-        benchmark_subprocess = runJob.getBenchmarkSubprocess(node)
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount)
 
         tolog("Setting stage-in state until all input files have been copied")
         job.setState(["stagein", 0, 0])
