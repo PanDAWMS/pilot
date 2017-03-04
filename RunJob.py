@@ -1679,7 +1679,7 @@ if __name__ == "__main__":
                 count += 1
 
                 # Take a short nap
-                tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count/max_count))
+                tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count, max_count))
                 time.sleep(15)
 
         # (benchmark ends here) ............................................................................
