@@ -562,6 +562,16 @@ M S3ObjectstoreSiteMover.py (17)
 M movers/mover.py (3)
 M movers/rucio_sitemover.py (2)
 
+  https://github.com/PanDAWMS/pilot/pull/117
+
+Commit Summary
+
+to protect corruption in downloading/updating eventranges
+
+File Changes
+
+M EventRanges.py (135)
+
 Updates from Daniel Drizhuk:
 
   https://github.com/PanDAWMS/pilot/pull/113
