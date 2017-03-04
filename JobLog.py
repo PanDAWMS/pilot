@@ -14,7 +14,7 @@ from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, g
     getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, \
     getGUID, timedCommand, updateXMLWithEndpoints
 from FileHandling import addToOSTransferDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, \
-    getWorkDirSizeFilename, getDirSize, storeWorkDirSize, addToJobReport
+    getWorkDirSizeFilename, getDirSize, storeWorkDirSize, addToJobReport, getJSONDictionary
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
