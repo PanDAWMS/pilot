@@ -884,7 +884,7 @@ class ATLASSiteInformation(SiteInformation):
             coresOption = ""
 
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --topic=/topic/vm.spec %s --vo=ATLAS -o %s" % (cloudOption, coresOption)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='Whetstone' --topic=/topic/vm.spec %s --vo=ATLAS -o %s" % (cloudOption, coresOption)
 
         return cmd
 
