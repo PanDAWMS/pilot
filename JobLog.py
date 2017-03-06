@@ -885,7 +885,7 @@ class JobLog:
         si = getSiteInformation(experiment)
 
         # get the benchmark dictionary if it exists
-        filename = si.getBenchmarkFileName()
+        filename = si.getBenchmarkFileName(workdir)
         if os.path.exists(filename):
             benchmark_dictionary = getJSONDictionary(filename)
 

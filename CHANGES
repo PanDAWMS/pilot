@@ -471,6 +471,7 @@ Benchmarking:
 - Created getBenchmarkDictionary() (JobLog)
 - Created getBenchmarkSubprocess() (RunJob)
 - Added benchmark process, running during stage-in (RunJob, RunJobEvent)
+- Deprecated and removed unnecessary executeBenchmark() (SiteInformationm ATLASSiteInformation, Node)
 
 Memory monitoring:
 - Updated the memory monitor version to 21.0.18 in getUtilityCommand() (ATLASExperiment)

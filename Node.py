@@ -251,14 +251,6 @@ class Node:
 
         return jobMetrics
 
-    def executeBenchmarks(self, si, cloud):
-        """ Execute the benchmack suite if required by the site information object """
-
-        if si.shouldExecuteBenchmark():
-            self.benchmarks = si.executeBenchmark(cloud=cloud)
-        else:
-            tolog("Not required to run the benchmark suite")
-
     def getBenchmarkDictionary(self):
         """ Return the benchmark dictionary """
 
