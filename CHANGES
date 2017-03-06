@@ -619,6 +619,16 @@ M ATLASExperiment.py (3)
 M ATLASSiteInformation.py (5)
 M SiteInformation.py (113)
 
+  https://github.com/PanDAWMS/pilot/pull/119
+
+Commit Summary
+
+Fixed issue with queuedata parameters logging when fixing.
+
+File Changes
+
+M SiteInformation.py (2)
+
 Updates from Mario Lassnig:
 
   https://github.com/PanDAWMS/pilot/pull/115
@@ -630,6 +640,28 @@ fix ddmendpoint handling for storm sitemover
 File Changes
 
 M movers/storm_sitemover.py (17)
+
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/118
+
+Commit Summary
+
+do not kill anything on BOINC
+
+File Changes
+
+M processes.py (6)
+
+  https://github.com/PanDAWMS/pilot/pull/120
+
+Commit Summary
+
+do not call dispatcher for ND pilots
+
+File Changes
+
+M pilot.py (14)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
