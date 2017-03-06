@@ -188,6 +188,10 @@ def checkProcesses(pid):
 def killOrphans():
     """ Find and kill all orphan processes belonging to current pilot user """
     
+    if 'BOINC' in pUtil.env['sitename']:
+        pUtil.tolog("BOINC job, not looking for orphan processes")
+        return
+
     pUtil.tolog("Searching for orphan processes")
     cmd = "ps -o pid,ppid,args -u %s" % (commands.getoutput("whoami"))
 
@@ -205,8 +209,6 @@ def killOrphans():
                 pUtil.tolog("Ignoring possible orphan process running cvmfs2: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
             elif 'pilots_starter.py' in args:
                 pUtil.tolog("Ignoring Pilot Launcher: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
-            elif 'boinc_client' in args:
-                pUtil.tolog("Ignoring BOINC client: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
             elif ppid == '1':
                 count += 1
                 pUtil.tolog("Found orphan process: pid=%s, ppid=%s, args='%s'" % (pid, ppid, args))
