@@ -517,7 +517,7 @@ class SiteInformation(object):
         else:
             tolog("Overwriting queuedata parameter \"%s\" to %s" % (key, json.dumps(value)))
             self.replaceQueuedataField(key, value)
-            tolog("Updated %s in queuedata: %s (read back from file)" % (key, self.readpar(value)))
+            tolog("Updated %s in queuedata: %s (read back from file)" % (key, self.readpar(key)))
 
 
     def updateQueuedataFromJobParameters(self, jobParameters):
