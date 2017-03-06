@@ -453,6 +453,7 @@ BENCHMARKING ALWAYS ON
 
 
 General changes:
+- Updated dump to pretty print written json dictionary, in writeJSON() (FileHandling)
 
 Removal of remaining dq2 API usage:
 - Deprecated and removed large parts of getTURLs() related to lcg-getturls, which also called getRSEType() and getRSE(), which in turn used the dq2 API (Mover)

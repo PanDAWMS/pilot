@@ -58,7 +58,7 @@ def writeJSON(file_name, dictionary):
     else:
         # Write the dictionary
         try:
-            dump(dictionary, fp)
+            dump(dictionary, fp, sort_keys=True, indent=4, separators=(',', ': '))
         except Exception, e:
             tolog("!!WARNING!!2324!! Failed to write dictionary to file %s: %s" % (file_name, e))
         else:
