@@ -472,6 +472,9 @@ Benchmarking:
 - Created getBenchmarkSubprocess() (RunJob)
 - Added benchmark process, running during stage-in (RunJob, RunJobEvent)
 
+Memory monitoring:
+- Updated the memory monitor version to 21.0.18 in getUtilityCommand() (ATLASExperiment)
+
 Copytools:
 - Corrected logical bug when updating file state (direct_access -> remote_io) in stagein_real() (mover)
 - Corrected loging bug when checking file states after transfer (direct_access -> remote_io) in get_data_new() (Mover)
