@@ -2928,7 +2928,7 @@ if __name__ == "__main__":
         # Stage-in .........................................................................................
 
         # Launch the benchmark, let it execute during stage-in
-        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount)
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir)
 
         # Update the job state
         tolog("Setting stage-in state until all input files have been copied")
