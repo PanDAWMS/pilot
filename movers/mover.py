@@ -435,7 +435,7 @@ class JobMover(object):
                         if is_directaccess or self.job.prefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
                                 dat['scheme'] = ['root'] + dat['scheme']
-                            self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
+                            #self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
@@ -518,13 +518,13 @@ class JobMover(object):
                 # also update the file_state for the existing entry (could also be removed?)
                 if self.job.prefetcher:
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
-                    fdata.status = 'remote_io'
-                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
-                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
-                    self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='prefetch')
-                    self.sendTrace(self.trace_report)
-                    continue
+#                    fdata.status = 'remote_io'
+#                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+#                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
+#                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
+#                    self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='prefetch')
+#                    self.sendTrace(self.trace_report)
+#                    continue
 
                 # apply site-mover custom job-specific checks for stage-in
                 try:
@@ -630,6 +630,21 @@ class JobMover(object):
                     badfile_codes = [PilotErrors.ERR_GETADMISMATCH, PilotErrors.ERR_GETMD5MISMATCH, PilotErrors.ERR_GETWRONGSIZE, PilotErrors.ERR_NOSUCHFILE]
                     if fdata.status_code in badfile_codes:
                         break
+
+                # TEMPORARY: SHOULD BE REMOVED IF DIRECT I/O ACTUALLY WORKS WITH ATHENAMP, WHICH IT SEEMS IT DOESN'T
+                # AS OF NOW, THE INITIAL INPUT FILE IS STILL TRANSFERRED, OTHERWISE ATHENAMP FAILS IMMEDIATELY SINCE
+                # IT DOESN'T FIND THE INPUT FILE
+                # check prefetcher (no transfer is required, but the turl must be saved for prefetcher to use)
+                # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
+                # to be called twice (or update the updateFileState function to allow list arguments)
+                # also update the file_state for the existing entry (could also be removed?)
+                #if self.job.prefetcher:
+                #    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+                #    fdata.status = 'remote_io'
+                #    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+                #    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
+                #    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
+                #    continue
 
             if fdata.status == 'error':
                 self.log('stage-in of file (%s/%s) with lfn=%s failed: code=%s .. skip transferring of remain data..' % (fnum, nfiles, fdata.lfn, fdata.status_code))

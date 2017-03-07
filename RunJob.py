@@ -797,7 +797,7 @@ class RunJob(object):
 
         return utility_subprocess
 
-    def getBenchmarkSubprocess(self, node):
+    def getBenchmarkSubprocess(self, node, coreCount, workdir):
         """ Return/execute the benchmark subprocess if required """
         # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json
 
@@ -808,7 +808,7 @@ class RunJob(object):
         si = getSiteInformation(self.getExperiment())
         if si.shouldExecuteBenchmark():
             thisExperiment = getExperiment(self.getExperiment())
-            cmd = si.getBenchmarkCommand(cloud=readpar('cloud'))
+            cmd = si.getBenchmarkCommand(cloud=readpar('cloud'), cores=coreCount, workdir=workdir)
             benchmark_subprocess = self.getSubprocess(thisExperiment, cmd)
 
             if benchmark_subprocess:
@@ -1621,17 +1621,17 @@ if __name__ == "__main__":
 
         # (setup ends here) ................................................................................
 
-        # benchmark ........................................................................................
-
-        # Launch the benchmark, let it execute during stage-in
-        benchmark_subprocess = runJob.getBenchmarkSubprocess(node)
-
         tolog("Setting stage-in state until all input files have been copied")
         job.setState(["stagein", 0, 0])
         # send the special setup string back to the pilot (needed for the log transfer on xrdcp systems)
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
         # stage-in .........................................................................................
+
+        # benchmark ........................................................................................
+
+        # Launch the benchmark, let it execute during setup + stage-in
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir)
 
         # update the job state file
         job.jobState = "stagein"
@@ -1680,7 +1680,7 @@ if __name__ == "__main__":
 
                 # Take a short nap
                 tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count, max_count))
-                time.sleep(30)
+                time.sleep(15)
 
         # (benchmark ends here) ............................................................................
 

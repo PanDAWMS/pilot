@@ -426,7 +426,7 @@ class ATLASSiteInformation(SiteInformation):
         if 'aipanda007' in pshttpurl or force_devpilot:
             ec = self.replaceQueuedataField("timefloor", "0")
 
-        ec = self.replaceQueuedataField("timefloor", "0")
+        #ec = self.replaceQueuedataField("timefloor", "0")
 
 #        ec = self.replaceQueuedataField("retry", "false")
 
@@ -842,29 +842,32 @@ class ATLASSiteInformation(SiteInformation):
         if randint(0,99) == 0:
             return True
         else:
-            return True
-#            return False
+            return False
 
     # Optional
-    def getBenchmarkDictionary(self):
+    def getBenchmarkDictionary(self, workdir):
         """ Return the benchmarks dictionary """
 
         if self.__benchmarks:
             return self.__benchmarks
         else:
-            return getJSONDictionary(self.getBenchmarkFileName())
+            return getJSONDictionary(self.getBenchmarkFileName(workdir))
 
     # Optional
-    def getBenchmarkFileName(self):
+    def getBenchmarkFileName(self, workdir):
         """ Return the filename of the benchmark dictionary """
 
-        import getpass
-        username = getpass.getuser()
-        return "/tmp/cern_benchmark_%s/bmk_tmp/result_profile.json" % (username)
+        return "%s/benchmark/bmk_tmp/result_profile.json" % (workdir)
 
     # Optional
     def getBenchmarkCommand(self, **pdict):
         """ Return the benchmark command to be executed """
+
+        workdir = pdict.get('workdir', '')
+        if workdir != "":
+            workdirExport = "export BMK_LOGDIR=%s/benchmark;" % (workdir)
+        else:
+            workdirExport = ""
 
         cloud = pdict.get('cloud', '')
         if cloud != "":
@@ -872,41 +875,16 @@ class ATLASSiteInformation(SiteInformation):
         else:
             cloudOption = ""
 
-        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --topic=/topic/vm.spec %s --vo=ATLAS -o" % (cloudOption)
+        cores = pdict.get('cores', '')
+        if cores != "":
+            coresOption = "--mp_num=%s" % (cores)
+        else:
+            coresOption = ""
+
+        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';%sexport BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath(), workdirExport)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone;fastBmk' --freetext='Whetstone+fastBmk' --topic=/topic/vm.spec %s --vo=ATLAS -o %s" % (cloudOption, coresOption)
 
         return cmd
-
-    # Optional
-    def executeBenchmark(self, **pdict):
-        """ Interface method for benchmark test """
-
-        # Use this method to interface with benchmark code
-        # The method should return a dictionary containing the results of the test
-
-        timeout = 180
-        cmd = self.getBenchmarkCommand(pdict)
-
-        tolog("Executing benchmark test: %s" % (cmd))
-        exitcode, output = timedCommand(cmd, timeout=timeout)
-        if exitcode != 0:
-            tolog("!!WARNING!!3434!! Encountered a problem with benchmark test: %s" % (output))
-        else:
-            tolog("Benchmark finished: %d,%s" % (exitcode,output))
-
-            filename = self.getBenchmarkFileName()
-
-            if not os.path.exists(filename):
-                tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
-            else:
-                tolog("Parsing benchmark output file: %s" % (filename))
-                self.__benchmarks = getJSONDictionary(filename)
-                if self.__benchmarks == {}:
-                    tolog("!!WARNING!!3436!! Empty benchmark dictionary - nothing to report")
-                else:
-                    tolog("Benchmark dictionary=%s"%str(self.__benchmarks))
-
-        return self.__benchmarks
 
 if __name__ == "__main__":
 

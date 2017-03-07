@@ -446,13 +446,8 @@ Hot fix release: changed memory monitor setup from release 21.0.12 to 21.0.17 (A
 
 68.0
 
-TIMEFLOOR 0
-MAKE SURE DIRECT ACCESS WORKS AFTER LOGICAL BUG FIX IN movers/mover.py
-BENCHMARKING ALWAYS ON
-
-
-
 General changes:
+- Updated dump to pretty print written json dictionary, in writeJSON() (FileHandling)
 
 Removal of remaining dq2 API usage:
 - Deprecated and removed large parts of getTURLs() related to lcg-getturls, which also called getRSEType() and getRSE(), which in turn used the dq2 API (Mover)
@@ -470,6 +465,11 @@ Benchmarking:
 - Created getBenchmarkFileName() (SiteInformation, ATLASSiteInformation)
 - Created getBenchmarkDictionary() (JobLog)
 - Created getBenchmarkSubprocess() (RunJob)
+- Added benchmark process, running during stage-in (RunJob, RunJobEvent)
+- Deprecated and removed unnecessary executeBenchmark() (SiteInformationm ATLASSiteInformation, Node)
+
+Memory monitoring:
+- Updated the memory monitor version to 21.0.18 in getUtilityCommand() (ATLASExperiment)
 
 Copytools:
 - Corrected logical bug when updating file state (direct_access -> remote_io) in stagein_real() (mover)
@@ -481,6 +481,7 @@ Event Service:
 - Setting __yamplChannelNamePrefetcher in __init__() (RunJobEvent)
 - Added prefetcher field to Job class (Job)
 - Updated schemes for prefetcher and adding turl to fileState file in stagein_real() (mover)
+- Created isPrefetcherReady(), setPrefetcherIsReady() (RunJobEvent)
 
 Updates from Wen Guan:
 
@@ -552,13 +553,23 @@ Commit Summary
 
 fix filesize in S3ObectStoreSiteMover
 fix trace report
-
+f
 File Changes
 
 M Mover.py (2)
 M S3ObjectstoreSiteMover.py (17)
 M movers/mover.py (3)
 M movers/rucio_sitemover.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/117
+
+Commit Summary
+
+to protect corruption in downloading/updating eventranges
+
+File Changes
+
+M EventRanges.py (135)
 
 Updates from Daniel Drizhuk:
 
@@ -602,6 +613,16 @@ M ATLASExperiment.py (3)
 M ATLASSiteInformation.py (5)
 M SiteInformation.py (113)
 
+  https://github.com/PanDAWMS/pilot/pull/119
+
+Commit Summary
+
+Fixed issue with queuedata parameters logging when fixing.
+
+File Changes
+
+M SiteInformation.py (2)
+
 Updates from Mario Lassnig:
 
   https://github.com/PanDAWMS/pilot/pull/115
@@ -613,6 +634,28 @@ fix ddmendpoint handling for storm sitemover
 File Changes
 
 M movers/storm_sitemover.py (17)
+
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/118
+
+Commit Summary
+
+do not kill anything on BOINC
+
+File Changes
+
+M processes.py (6)
+
+  https://github.com/PanDAWMS/pilot/pull/120
+
+Commit Summary
+
+do not call dispatcher for ND pilots
+
+File Changes
+
+M pilot.py (14)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

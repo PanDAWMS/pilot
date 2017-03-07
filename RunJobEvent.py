@@ -83,6 +83,7 @@ class RunJobEvent(RunJob):
     __message_thread = None                      #
     __status = True                              # Global job status; will be set to False if an event range or stage-out fails
     __athenamp_is_ready = False                  # True when an AthenaMP worker is ready to process an event range
+    __prefetcher_is_ready = False                # True when Prefetcher has finished updating an event range
     __asyncOutputStager_thread = None            #
     __asyncOutputStager_thread_sleep_time = 600
     __analysisJob = False                        # True for analysis job
@@ -466,6 +467,16 @@ class RunJobEvent(RunJob):
 
         self.__athenamp_is_ready = athenamp_is_ready
 
+    def isPrefetcherReady(self):
+        """ Getter for __prefetcher_is_ready """
+
+        return self.__prefetcher_is_ready
+
+    def setPrefetcherIsReady(self, prefetcher_is_ready):
+        """ Setter for __prefetcher_is_ready """
+
+        self.__prefetcher_is_ready = prefetcher_is_ready
+
     def getAsyncOutputStagerThread(self):
         """ Getter for __asyncOutputStager_thread """
 
@@ -756,18 +767,22 @@ class RunJobEvent(RunJob):
         # Decision is based on if the release is new enough to support Prefetcher
         # Note that 'use' can be be used to override any setup string activation
 
-        if use:
-            # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
-            if release != "":
-                if pUtil.isAGreaterOrEqualToB(release, "20.3.7"):
-                    tolog("Prefetcher will be used for release %s" % (release))
-                    self.__usePrefetcher = True
-            else:
-                tolog("Prefetcher will not be used (cannot verify release)")
-                self.__usePrefetcher = False
-        else:
-            tolog("Prefetcher will not be used")
-            self.__usePrefetcher = False
+        #if use:
+        #    # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
+        #    if release != "":
+        #        if pUtil.isAGreaterOrEqualToB(release, "20.3.7"):
+        #            tolog("Prefetcher will be used for release %s" % (release))
+        #            self.__usePrefetcher = True
+        #    else:
+        #        tolog("Prefetcher will not be used (cannot verify release)")
+        #        self.__usePrefetcher = False
+        #else:
+        #    tolog("Prefetcher will not be used")
+        #    self.__usePrefetcher = False
+
+        tolog("Prefetcher will not be used")
+        self.__usePrefetcher = False
+
     def getPanDAServer(self):
         """ Getter for __pandaserver """
 
@@ -2068,6 +2083,13 @@ class RunJobEvent(RunJob):
                         self.__stageout_queue.append(paths)
                         tolog("File %s has been added to the stage-out queue (length = %d)" % (paths, len(self.__stageout_queue)))
 
+                elif buf.startswith('['):
+                    tolog("Received an updated event range message from Prefetcher: %s" % (buf))
+                    self.__current_event_range = buf
+
+                    # Set the boolean to True since Prefetcher is now ready (finished with the current event range)
+                    runJob.setPrefetcherIsReady(True)
+
                 elif buf.startswith('ERR'):
                     tolog("Received an error message: %s" % (buf))
 
@@ -2434,15 +2456,15 @@ class RunJobEvent(RunJob):
             eventService = True
 
             # Create a TURL based PFC
-            tokens_dictionary = {} # not needed here, so set it to an empty dictionary
-            ec, pilotErrorDiag, createdPFCTURL, usect, dummy = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
-                                                                            sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict, self.__experiment)
-            if ec != 0:
-                tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
+            #tokens_dictionary = {} # not needed here, so set it to an empty dictionary
+            #ec, pilotErrorDiag, createdPFCTURL, usect, dummy = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
+            #                                                                sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict, self.__experiment)
+            #if ec != 0:
+            #    tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
             # Finally return the TURL based PFC
-            if ec == 0:
-                file_info_dictionary = mover.getFileInfoDictionaryFromXML(self.getPoolFileCatalogPath())
+            #if ec == 0:
+            #    file_info_dictionary = mover.getFileInfoDictionaryFromXML(self.getPoolFileCatalogPath())
 
         return ec, pilotErrorDiag, file_info_dictionary
 
@@ -2909,6 +2931,9 @@ if __name__ == "__main__":
 
         # Stage-in .........................................................................................
 
+        # Launch the benchmark, let it execute during stage-in
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir)
+
         # Update the job state
         tolog("Setting stage-in state until all input files have been copied")
         job.jobState = "stagein"
@@ -2954,6 +2979,20 @@ if __name__ == "__main__":
 
         # (stage-in ends here) .............................................................................
 
+        # Loop until the benchmark subprocess has finished
+        max_count = 4
+        count = 0
+        while benchmark_subprocess.poll() is None:
+            if count >= max_count:
+                benchmark_subprocess.send_signal(signal.SIGUSR1)
+                tolog("Terminated the benchmark since it ran for longer than two minutes")
+            else:
+                count += 1
+
+                # Take a short nap
+                tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count, max_count))
+                time.sleep(15)
+
         # Prepare XML for input files to be read by the Event Server
 
         # runEvent determines the physical file replica(s) to be used as the source for input event data
@@ -2973,7 +3012,6 @@ if __name__ == "__main__":
 
         # Create and start the stage-out thread which will run in an infinite loop until it is stopped
         asyncOutputStager_thread = StoppableThread(name='asynchronousOutputStager', target=runJob.asynchronousOutputStager)
-#        asyncOutputStager_thread.start()
         runJob.setAsyncOutputStagerThread(asyncOutputStager_thread)
         runJob.startAsyncOutputStagerThread()
 
@@ -3049,6 +3087,11 @@ if __name__ == "__main__":
             if "export ATLAS_LOCAL_ROOT_BASE" not in setupString:
                 setupString = "export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase;" % thisExperiment.getCVMFSPath() + setupString
             tolog("The Prefetcher will be setup using: %s" % (setupString))
+
+            #job.transferType = 'direct'
+            #RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+            #si = getSiteInformation(runJob.getExperiment())
+            #si.updateDirectAccess(job.transferType)
 
             # Create the file objects
             prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
@@ -3236,13 +3279,32 @@ if __name__ == "__main__":
                         tolog("Aborting event range loop")
                         break
 
+                    # Set the boolean to false until Prefetcher has finished updating the event range (if used)
+                    runJob.setPrefetcherIsReady(False)
+
                     # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
                     if runJob.usePrefetcher():
                         tolog("Sending event range to Prefetcher")
+                        runJob.setSendingEventRange(True)
                         runJob.sendMessage(str([event_range]), prefetcher=True)
+                        runJob.setSendingEventRange(False)
 
                         # need to get the updated event range back from Prefetcher
-                        # ..
+                        tolog("Waiting for Prefetcher reply")
+                        count = 0
+                        maxCount = 60
+                        while not runJob.isPrefetcherReady():
+                            time.sleep(1)
+                            if count > maxCount:
+                                tolog("!!WARNING!!4545!! Prefetcher has not replied for %d seconds - aborting" % (maxCount))
+                                # fail job
+                                # ..
+                                break
+                            count += 1
+                        # Prefetcher should now have sent back the updated event range
+                        tolog("Original event_range=%s"%str(event_range))
+                        event_range = runJob.getCurrentEventRange()
+                        tolog("Updated event_range=%s"%str(event_range))
 
                     # Send the event range to AthenaMP
                     tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))

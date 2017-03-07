@@ -2099,10 +2099,10 @@ class SiteInformation(object):
 
 
     # Optional
-    def getBenchmarkFileName(self):
+    def getBenchmarkFileName(self, workdir):
         """ Return the filename of the benchmark dictionary """
-
-        return "benchmark.json"
+        
+        return os.path,join(workdir, "benchmark.json")
 
     # Optional
     def shouldExecuteBenchmark(self):
@@ -2111,20 +2111,10 @@ class SiteInformation(object):
         return False
 
     # Optional
-    def getBenchmarkDictionary(self):
+    def getBenchmarkDictionary(self, workdir):
         """ Return the benchmarks dictionary """
 
         return self.__benchmarks
-
-    # Optional
-    def executeBenchmark(self, **pdict):
-        """ Interface method for benchmark test """
-
-        # Use this method to interface with benchmark code
-        # The method should return a dictionary containing the results of the test
-        # See example implementation in ATLASExperiment
-
-        return None
 
     def copyFullQueuedata(self, destination=None):
         """ Copy the full queuedata file from a location specified in SiteInformation """
