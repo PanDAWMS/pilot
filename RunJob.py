@@ -799,7 +799,7 @@ class RunJob(object):
 
     def getBenchmarkSubprocess(self, node, coreCount, workdir):
         """ Return/execute the benchmark subprocess if required """
-        # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json 
+        # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json
 
         benchmark_subprocess = None
 

@@ -61,8 +61,15 @@ class TraceReport(dict):
         self.update(data)
 
         self['timeStart'] = time.time()
-        self['hostname'] = socket.gethostbyaddr(socket.gethostname())[0]
-        self['ip'] = socket.gethostbyname(socket.gethostname())
+
+        try:
+            self['hostname'] = socket.gethostbyaddr(socket.gethostname())[0]
+        except:
+            pass
+        try:
+            self['ip'] = socket.gethostbyname(socket.gethostname())
+        except:
+            pass
 
         if job.jobDefinitionID:
             self['uuid'] = hashlib.md5('ppilot_%s' % job.jobDefinitionID).hexdigest() # hash_pilotid
