@@ -767,18 +767,22 @@ class RunJobEvent(RunJob):
         # Decision is based on if the release is new enough to support Prefetcher
         # Note that 'use' can be be used to override any setup string activation
 
-        if use:
-            # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
-            if release != "":
-                if pUtil.isAGreaterOrEqualToB(release, "20.3.7"):
-                    tolog("Prefetcher will be used for release %s" % (release))
-                    self.__usePrefetcher = True
-            else:
-                tolog("Prefetcher will not be used (cannot verify release)")
-                self.__usePrefetcher = False
-        else:
-            tolog("Prefetcher will not be used")
-            self.__usePrefetcher = False
+        #if use:
+        #    # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
+        #    if release != "":
+        #        if pUtil.isAGreaterOrEqualToB(release, "20.3.7"):
+        #            tolog("Prefetcher will be used for release %s" % (release))
+        #            self.__usePrefetcher = True
+        #    else:
+        #        tolog("Prefetcher will not be used (cannot verify release)")
+        #        self.__usePrefetcher = False
+        #else:
+        #    tolog("Prefetcher will not be used")
+        #    self.__usePrefetcher = False
+
+        tolog("Prefetcher will not be used")
+        self.__usePrefetcher = False
+
     def getPanDAServer(self):
         """ Getter for __pandaserver """
 

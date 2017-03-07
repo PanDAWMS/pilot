@@ -426,7 +426,7 @@ class ATLASSiteInformation(SiteInformation):
         if 'aipanda007' in pshttpurl or force_devpilot:
             ec = self.replaceQueuedataField("timefloor", "0")
 
-        ec = self.replaceQueuedataField("timefloor", "0")
+        #ec = self.replaceQueuedataField("timefloor", "0")
 
 #        ec = self.replaceQueuedataField("retry", "false")
 
@@ -842,8 +842,7 @@ class ATLASSiteInformation(SiteInformation):
         if randint(0,99) == 0:
             return True
         else:
-            return True
-#            return False
+            return False
 
     # Optional
     def getBenchmarkDictionary(self, workdir):

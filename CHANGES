@@ -446,12 +446,6 @@ Hot fix release: changed memory monitor setup from release 21.0.12 to 21.0.17 (A
 
 68.0
 
-TIMEFLOOR 0
-MAKE SURE DIRECT ACCESS WORKS AFTER LOGICAL BUG FIX IN movers/mover.py
-BENCHMARKING ALWAYS ON
-
-
-
 General changes:
 - Updated dump to pretty print written json dictionary, in writeJSON() (FileHandling)
 

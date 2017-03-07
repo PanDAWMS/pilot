@@ -1605,11 +1605,6 @@ if __name__ == "__main__":
         job.jobState = "setup"
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
-        # benchmark ........................................................................................
-
-        # Launch the benchmark, let it execute during setup + stage-in
-        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir)
-
         # send [especially] the process group back to the pilot
         job.setState([job.jobState, 0, 0])
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
@@ -1632,6 +1627,11 @@ if __name__ == "__main__":
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
         # stage-in .........................................................................................
+
+        # benchmark ........................................................................................
+
+        # Launch the benchmark, let it execute during setup + stage-in
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir)
 
         # update the job state file
         job.jobState = "stagein"
