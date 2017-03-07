@@ -881,8 +881,20 @@ class ATLASSiteInformation(SiteInformation):
         else:
             coresOption = ""
 
+        pnode = commands.getoutput("hostname")
+        if pnode != "":
+            pnodeOption = "--pnode=%s" % (pnode)
+        else:
+            pnodeOption = ""
+
+        ip = commands.getoutput("hostname -i")
+        if ip != "":
+            ipOption = "--public_ip=%s" % (ip)
+        else:
+            ipOption = ""
+
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';%sexport BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath(), workdirExport)
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone;fastBmk' --freetext='Whetstone+fastBmk' --topic=/topic/vm.spec %s --vo=ATLAS -o %s" % (cloudOption, coresOption)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone;fastBmk' --freetext='Whetstone+fastBmk' --topic=/topic/vm.spec %s --vo=ATLAS -o %s %s %s" % (cloudOption, coresOption, pnodeOption, ipOption)
 
         return cmd
 
