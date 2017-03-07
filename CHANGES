@@ -657,6 +657,24 @@ File Changes
 
 M pilot.py (14)
 
+Updates from Alexey Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/121
+
+[Two conflicts resolved by Paul - RunJob type was already fixed but not committed; mover had code for prefetcher that should be outcommented in this version]
+
+Commit Summary
+
+fixed typo in RunJob
+added traces for direct access jobs (plus prefetcher mode)
+bugfix: protected ip/host resolve functions in trace report initialization
+
+File Changes
+
+M RunJob.py (4)
+M movers/mover.py (25)
+M movers/trace_report.py (11)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
