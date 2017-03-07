@@ -799,7 +799,7 @@ class RunJob(object):
 
     def getBenchmarkSubprocess(self, node):
         """ Return/execute the benchmark subprocess if required """
-        # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json 
+        # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json
 
         benchmark_subprocess = None
 
@@ -1679,7 +1679,7 @@ if __name__ == "__main__":
                 count += 1
 
                 # Take a short nap
-                tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count/max_count))
+                tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count, max_count))
                 time.sleep(30)
 
         # (benchmark ends here) ............................................................................
