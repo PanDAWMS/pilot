@@ -883,7 +883,7 @@ class ATLASSiteInformation(SiteInformation):
             coresOption = ""
 
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';%sexport BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath(), workdirExport)
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='Whetstone' --topic=/topic/vm.spec %s --vo=ATLAS -o %s" % (cloudOption, coresOption)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone;fastBmk' --freetext='Whetstone+fastBmk' --topic=/topic/vm.spec %s --vo=ATLAS -o %s" % (cloudOption, coresOption)
 
         return cmd
 
