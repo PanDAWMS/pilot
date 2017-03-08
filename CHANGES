@@ -459,6 +459,9 @@ Removal of remaining dq2 API usage:
 
 NOTE: getRSE() need to be rewritten, or logic changed to set the RSE, since it is used by all old site mover
 
+Nightlies:
+- Added .X to getCacheInfo() to fix a case where nightlies were not setup correctly. Requested by Johannes Elmsheuser (ATLASExperiment)
+
 Benchmarking:
 - Only executing benchmark tool once out of a hundred starts in shouldExecuteBenchmark() (ATLASSiteInformation)
 - Created getJobReportFileName(), addToJobReport() (FileHandling)

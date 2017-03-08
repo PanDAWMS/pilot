@@ -1315,14 +1315,15 @@ class ATLASExperiment(Experiment):
 
             # Special case for AtlasDerivation. In this case cacheVer = rel_N
             # and we need to add cacheDir and the release itself
-            special_cacheDirs = ['AtlasDerivation','AtlasOffline','VAL'] # Add more cases if necessary
+            special_cacheDirs = ['AtlasDerivation','AtlasOffline','VAL', '.X'] # Add more cases if necessary
             if cacheDir in special_cacheDirs and self.isNightliesRelease(cacheVer):
                 # strip any special cacheDirs from the release string, if present
                 for special_cacheDir in special_cacheDirs:
                     if special_cacheDir in atlasRelease:
                         # do not remove any VAL strings
                         if not "VAL" in special_cacheDir:
-                            tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
+                            tolog("Found special cacheDir=%s in release string: %s" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
+                            # Note: A standard nightlies release with .X will not be replaced:
                             atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
                         tolog("Release string updated: %s" % (atlasRelease))
                         cacheVer = atlasRelease + "," + cacheVer
