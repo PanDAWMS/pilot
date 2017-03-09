@@ -686,6 +686,9 @@ General changes:
 - Removed OtherSiteMover from distribution. Not needed.
 - Removed getUtilityCommandOld() (ATLASExperiment)
 
+Nightlies:
+- Added -GIT to getCacheInfo() to fix a case where nightlies were not setup correctly. Requested by Johannes Elmsheuser (ATLASExperiment)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
