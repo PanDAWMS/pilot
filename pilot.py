@@ -2325,13 +2325,15 @@ def getNewJob(tofile=True):
     newJob.datadir = env['thisSite'].workdir + "/PandaJob_%s_data" % (newJob.jobId)
     newJob.experiment = env['experiment']
 
-    # make sure that there is not already a job with this jobid in a running state (due to batch system bug on ND)
+    # make sure that there is not already a job with this jobid in a running state
+    # (due to batch system bug with aCT true pilots)
     # get job status from server
-    jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(newJob.jobId, env['pshttpurl'], env['psport'], env['pilot_initdir'])
-    if jobStatus == "running":
-        pilotErrorDiag = "!!WARNING!!1200!! Job %s is already running elsewhere - aborting" % (newJob.jobId)
-        pUtil.tolog("!!WARNING!!1200!! %s" % (pilotErrorDiag), tofile=tofile)
-        return None, pilotErrorDiag
+    if newJob.experiment != 'Nordugrid-ATLAS':
+        jobStatus, jobAttemptNr, jobStatusCode = pUtil.getJobStatus(newJob.jobId, env['pshttpurl'], env['psport'], env['pilot_initdir'])
+        if jobStatus == "running":
+            pilotErrorDiag = "!!WARNING!!1200!! Job %s is already running elsewhere - aborting" % (newJob.jobId)
+            pUtil.tolog("!!WARNING!!1200!! %s" % (pilotErrorDiag), tofile=tofile)
+            return None, pilotErrorDiag
 
     if data.has_key('logGUID'):
         logGUID = data['logGUID']
@@ -2586,10 +2588,6 @@ def runMain(runpars):
         else:
             pUtil.tolog("!!FAILED!!1234!! Did not get an experiment object from the factory")
             return pUtil.shellExitCode(error.ERR_GENERALERROR)
-
-        # run benchmark test if required by experiment site information object
-        # report benchmark results with jobMetrics
-        env['workerNode'].executeBenchmarks(env['si'], pUtil.readpar('cloud'))
 
         # create the initial pilot workdir
         ec = createSiteWorkDir(env['thisSite'].workdir, error)

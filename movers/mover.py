@@ -388,7 +388,7 @@ class JobMover(object):
         self.log("stage-in: resolved protocols=%s" % protocols)
 
 
-        remain_files = [e for e in files if e.status not in ['direct_access', 'transferred', 'no_transfer']]
+        remain_files = [e for e in files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
 
         nfiles = len(remain_files)
         nprotocols = len(protocols)
@@ -416,7 +416,7 @@ class JobMover(object):
 
             for protnum, dat in enumerate(protocols, 1):
 
-                if fdata.status in ['direct_access', 'transferred', 'no_transfer']: ## success
+                if fdata.status in ['remote_io', 'transferred', 'no_transfer']: ## success
                     break
 
                 copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
@@ -432,10 +432,10 @@ class JobMover(object):
                         sitemover.setup()
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
-                        if is_directaccess:
+                        if is_directaccess or self.job.prefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
                                 dat['scheme'] = ['root'] + dat['scheme']
-                            self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
+                            #self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
@@ -473,7 +473,7 @@ class JobMover(object):
                 except Exception, e:
                     if sitemover.require_replicas:
                         self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol, error=%s" % (protnum, nprotocols, e))
-                        self.trace_report.update(protocol=copytool, clientState='NO_REPLICA', stateReason=str(e))
+                        self.trace_report.update(clientState='NO_REPLICA', stateReason=str(e))
                         self.sendTrace(self.trace_report)
                         continue
                     r = {}
@@ -497,13 +497,34 @@ class JobMover(object):
                         self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
                         continue
 
-                # finally check direct access
+                # fill trace details
+                self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
+                self.trace_report.update(filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
+                self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlock)
+
+                # check direct access
                 ignore_directaccess = False
                 if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
-                    fdata.status = 'direct_access'
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="direct_access", ftype="input")
-                    self.log("Direct access mode will be used for lfn=%s .. skip transfer the file" % fdata.lfn)
+                    fdata.status = 'remote_io'
+                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+                    self.log("Direct access mode will be used for lfn=%s .. skip transfer for this file" % fdata.lfn)
+                    self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='direct_access')
+                    self.sendTrace(self.trace_report)
                     continue
+
+                # check prefetcher (no transfer is required, but the turl must be saved for prefetcher to use)
+                # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
+                # to be called twice (or update the updateFileState function to allow list arguments)
+                # also update the file_state for the existing entry (could also be removed?)
+                if self.job.prefetcher:
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+#                    fdata.status = 'remote_io'
+#                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+#                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
+#                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
+#                    self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='prefetch')
+#                    self.sendTrace(self.trace_report)
+#                    continue
 
                 # apply site-mover custom job-specific checks for stage-in
                 try:
@@ -518,16 +539,14 @@ class JobMover(object):
                 if not is_stagein_allowed:
                     self.log("WARNING: sitemover=%s does not allow stage-in transfer for this job, lfn=%s with reason=%s.. skip transfer the file" % (sitemover.getID(), fdata.lfn, reason))
                     failed_transfers.append(reason)
-                    self.trace_report.update(protocol=copytool, clientState='STAGEIN_NOTALLOWED', stateReason='skip stagein file')
+                    self.trace_report.update(clientState='STAGEIN_NOTALLOWED', stateReason='skip stagein file')
                     self.sendTrace(self.trace_report)
                     continue
 
                 # verify file sizes and available space for stagein
-                sitemover.check_availablespace(maxinputsize, [e for e in remain_files if e.status not in ['direct_access', 'transferred']])
+                sitemover.check_availablespace(maxinputsize, [e for e in remain_files if e.status not in ['remote_io', 'transferred']])
 
-                self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
-                self.trace_report.update(catStart=time.time(), filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
-                self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlock)
+                self.trace_report.update(catStart=time.time())  ## is this metric still needed? LFC catalog
 
                 self.log("[stage-in] Preparing copy for lfn=%s using copytool=%s: mover=%s" % (fdata.lfn, copytool, sitemover))
 
@@ -567,7 +586,7 @@ class JobMover(object):
                         #self.trace_report.update(url=fdata.surl) ###
                         self.trace_report.update(url=fdata.turl) ###
                         # for files without replication registered in rucio, the filesize need to be got from local file
-                        self.trace_report.update(filesize=fdata.filesize) 
+                        self.trace_report.update(filesize=fdata.filesize)
 
                         break # transferred successfully
                     except PilotException, e:
@@ -612,6 +631,21 @@ class JobMover(object):
                     if fdata.status_code in badfile_codes:
                         break
 
+                # TEMPORARY: SHOULD BE REMOVED IF DIRECT I/O ACTUALLY WORKS WITH ATHENAMP, WHICH IT SEEMS IT DOESN'T
+                # AS OF NOW, THE INITIAL INPUT FILE IS STILL TRANSFERRED, OTHERWISE ATHENAMP FAILS IMMEDIATELY SINCE
+                # IT DOESN'T FIND THE INPUT FILE
+                # check prefetcher (no transfer is required, but the turl must be saved for prefetcher to use)
+                # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
+                # to be called twice (or update the updateFileState function to allow list arguments)
+                # also update the file_state for the existing entry (could also be removed?)
+                #if self.job.prefetcher:
+                #    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+                #    fdata.status = 'remote_io'
+                #    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
+                #    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
+                #    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
+                #    continue
+
             if fdata.status == 'error':
                 self.log('stage-in of file (%s/%s) with lfn=%s failed: code=%s .. skip transferring of remain data..' % (fnum, nfiles, fdata.lfn, fdata.status_code))
                 dumpFileStates(self.workDir, self.job.jobId, ftype="input")
@@ -636,7 +670,8 @@ class JobMover(object):
 
         self.log("stagein finished")
 
-        self.job.print_infiles()
+        if not self.job.prefetcher:
+            self.job.print_infiles()
 
         return transferred_files, failed_transfers
 

@@ -289,6 +289,7 @@ def get_data_new(job,
         output = mover.stagein()
     except PilotException, e:
         error = e
+        tolog("!!WARNING!!4545!! Caught exception: %s" % (e))
     except Exception, e:
         tolog("ERROR: Mover get data failed [stagein]: exception caught: %s" % e)
         error = PilotException('STAGEIN FAILED, exception=%s' % e, code=PilotErrors.ERR_STAGEINFAILED, state='STAGEIN_FAILED')
@@ -305,7 +306,7 @@ def get_data_new(job,
 
     # prepare compatible output
 
-    not_transferred = [e.lfn for e in job.inData if e.status not in ['transferred', 'direct_access', 'no_transfer']]
+    not_transferred = [e.lfn for e in job.inData if e.status not in ['transferred', 'remote_io', 'no_transfer']]
     if not_transferred:
         return PilotErrors.ERR_STAGEINFAILED, 'STAGEIN FAILED: not all input files have been copied: remain=%s' % '\n'.join(not_transferred), None, {}
 
@@ -326,22 +327,23 @@ def get_data_new(job,
     ### reuse usedFAXandDirectIO variable as special meaning attribute to form command option list later
     ### FIX ME LATER
     FAX_dictionary['usedFAXandDirectIO'] = 'newmover'
-    used_direct_access = [e for e in job.inData if e.status == 'direct_access']
+    used_direct_access = [e for e in job.inData if e.status == 'remote_io']
+#    used_direct_access = [e for e in job.inData if e.status == 'direct_access']
     if used_direct_access:
         FAX_dictionary['usedFAXandDirectIO'] = 'newmover-directaccess'
 
     # create PoolFileCatalog.xml
+    # (turl based for Prefetcher)
     files, lfns = {}, []
     for fspec in job.inData:
         pfn = fspec.lfn
-        if fspec.status == 'direct_access':
+#        if fspec.status == 'direct_access':
+        if fspec.status == 'remote_io':
             pfn = fspec.turl
         files[fspec.guid] = pfn or ''
         lfns.append(fspec.lfn)
 
-    tolog(".. creating PFC with name=%s" % pfc_name)
     createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
-    #createPFC4TRF(pfc_name, guidfname)
 
     return 0, "", None, FAX_dictionary
 
@@ -910,26 +912,6 @@ def getInitialTracingReport(userid, sitename, dsname, eventType, analysisJob, jo
     tolog("Tracing report initialised with: %s" % str(report))
     return report
 
-def getRucioPath(file_nr, tokens, scope_dict, lfn, path, analysisJob):
-    """ Return a Rucio style path """
-
-    try:
-        spacetoken = tokens[file_nr]
-    except:
-        spacetoken = ""
-    try:
-        scope = scope_dict[lfn]
-    except Exception, e:
-        tolog("!!WARNING!!1232!! Failed to extract scope from scope dictionary for file %s: %s" % (lfn, str(scope_dict)))
-        tolog("Defaulting to old path style (based on dsname)")
-        se_path = os.path.join(path, lfn)
-    else:
-        from SiteMover import SiteMover
-        sitemover = SiteMover()
-        se_path = sitemover.getFullPath(scope, spacetoken, lfn, analysisJob, "")
-
-    return se_path
-
 def getFileListFromXML(xml_file):
     """ Get the file list from the PFC """
 
@@ -1026,13 +1008,6 @@ def getFileInfo(region, ub, queuename, guids, dsname, dsdict, lfns, pinitdir, an
         file_nr = -1
         for lfn in lfns:
             file_nr += 1
-
-            # Use scope based path if possible
-#            #if scope_dict and readpar('useruciopaths').lower() == "true":
-#            if scope_dict and ("/rucio" in readpar('seprodpath') or "/rucio" in readpar('sepath')):
-#                se_path = sitemover.getRucioPath(file_nr, tokens, scope_dict, lfn, path, analysisJob)
-#            else:
-#                se_path = os.path.join(path, lfn)
             se_path = os.path.join(path, lfn)
 
             # Get the file info
@@ -1215,23 +1190,6 @@ def createPFC4TRF(pfc_name, guidfname):
         tolog("Created PFC for trf/runAthena: %s" % (pfc_name))
         dumpFile(pfc_name, topilotlog=True)
 
-def isDPMSite(pfn, sitemover):
-    """ return True if the site is a DPM site """
-    # pfn is the filename of the first file in the file list (enough to test with)
-
-    status = False
-    # first get the RSE, then ask for its setype
-    try:
-        _RSE = sitemover.getRSE(surl=pfn)
-    except:
-        # Note: do not print the exception since it sometimes can not be converted to a string (as seen at Taiwan)
-        tolog("WARNING: Failed to get the RSE (assuming no DPM site)")
-    else:
-        setype = sitemover.getRSEType(_RSE)
-        if setype == "dpm":
-            status = True
-    return status
-
 def getTURLFileInfoDic(output, shortGuidList, useShortTURLs, sitename):
     """ interpret the lcg-getturls stdout and return the TURL file dictionary """
 
@@ -1385,108 +1343,10 @@ def getTURLs(thinFileInfoDic, dsdict, sitemover, sitename, tokens_dictionary, co
         else:
             tolog("No need to convert SURLs with lcg-getturls, got a populated TURL dictionary already (%d item(s))" % len(convertedTurlDic))
         return ec, pilotErrorDiag, convertedTurlDic, LFN_to_TURL_dictionary
-
-    # proceed with lcg-getturls
-    fileList = _fileList
-    guidList = _guidList
-    tolog("Excluded file dictionary (will not be converted to TURLs): %s" % str(excludedFilesDic))
-
-    # is this a dpm site? If so, lcg-getturls must be used for each file or in block calls
-    if fileList != []:
-        if not isDPMSite(fileList[0], sitemover):
-            # for a non DPM site, we only need to use lcg-getturls once, so grab the first element and use it only
-# how to add any remaining files to the PFC? check notes from meeting with Johannes
-#            fileList = [fileList[0]]
-#            guidList = [guidList[0]]
-            tolog("Not a DPM site")
-            useShortTURLs = False
-        else:
-            tolog("DPM site")
-            useShortTURLs = True
-
-        # loop until the file list is exhausted
-        batch = 100
-        while fileList != []:
-            # reset the short file and guid lists
-            shortFileList = []
-            shortGuidList = []
-
-            # grab 'batch' number of entries from the list
-            if len(fileList) > batch:
-                for i in range(batch):
-                    shortFileList.append(fileList[0])
-                    shortGuidList.append(guidList[0])
-                    fileList.remove(fileList[0])
-                    guidList.remove(guidList[0])
-            else:
-                shortFileList = fileList
-                shortGuidList = guidList
-                fileList = []
-                guidList = []
-
-            # now use the short file list in the batch call
-
-            # create a comma separated string
-            fileString = '\"' + shortFileList[0] + '\"'
-            for i in range(1, len(shortFileList)):
-                fileString += ' \"' + shortFileList[i] + '\"'
-
-            # create the command
-            if setup == "":
-                setup_string = ""
-            else:
-                setup_string = 'source %s;' % (setup) # already verified
-            cmd = '%s lcg-getturls -b -T srmv2 -p dcap,gsidcap,file,root,rfio %s' % (setup_string, fileString)
-
-            s = 0
-            output = ""
-            maxAttempts = 3
-            for attempt in range(maxAttempts):
-                timeout = int(60 * 2**attempt) # 120 s, 240 s, 480 s
-                tolog("Executing command (%d/%d): %s (with a time-out of %d s)" % (attempt+1, maxAttempts, cmd, timeout))
-                try:
-                    s, telapsed, cout, cerr = timed_command(cmd, timeout)
-                except Exception, e:
-                    tolog("!!WARNING!!2999!! timed_command() threw an exception: %s" % str(e))
-                    s = 1
-                    output = str(e)
-                    telapsed = timeout
-                else:
-                    output = cout + cerr
-                    tolog("Elapsed time: %d (output=%s)" % (telapsed, output))
-
-                # command finished correctly
-                if s == 0:
-                    break
-                elif "BDII checks are disabled" in output:
-                    # try to remove the -b -T options from the command
-                    tolog("Removing -b and -T options from the command")
-                    cmd = cmd.replace("-b -T srmv2", "")
-
-            # error code handling
-            if s != 0:
-                tolog("!!WARNING!!2990!! Command failed: %s" % (output))
-                if is_timeout(s):
-                    pilotErrorDiag = "lcg-getturls get was timed out after %d seconds" % (telapsed)
-                    ec = error.ERR_LCGGETTURLSTIMEOUT
-                else:
-                    pilotErrorDiag = "lcg-getturls failed: %s" % (output)
-                    ec = error.ERR_LCGGETTURLS
-
-                # undo copysetup modification
-                updateCopysetups('', transferType="undodirect")
-
-                # abort everything, break main loop
-                break
-            else:
-                # interpret the output
-                ec, pilotErrorDiag, _turlFileInfoDic = getTURLFileInfoDic(output, shortGuidList, useShortTURLs, sitename)
-
-                # add the returned dictionary to the already existing one
-                turlFileInfoDic = dict(turlFileInfoDic.items() + _turlFileInfoDic.items())
-
-    # add the excluded files (if any) to the TURL dictionary
-    # turlFileInfoDic = dict(turlFileInfoDic.items() + excludedFilesDic.items())
+    else:
+        ec = error.ERR_LCGGETTURLS
+        pilotErrorDiag = "lcg-getturls functionality has been deprecated and removed from pilot as of version 67.6"
+        tolog("!!WARNING!!1212!! %s" % (pilotErrorDiag))
 
     return ec, pilotErrorDiag, turlFileInfoDic, LFN_to_TURL_dictionary
 
@@ -4994,7 +4854,7 @@ def getCatalogFileList(thisExperiment, guid_token_dict, lfchost, analysisJob, wo
         _j = 0
         for replica in replicas:
             _j += 1
-            tolog("%d. %s (size: %s checksum: %s type=%s)" % (_j, replica.sfn, replica.filesize, replica.csumvalue, replica.filetype))
+            tolog("%d. %s (size: %s checksum: %s type=%s rse=%s)" % (_j, replica.sfn, replica.filesize, replica.csumvalue, replica.filetype, replica.rse))
 
         # Find the replica at the correct host, unless in FAX mode
         matched_replicas = []
@@ -5178,71 +5038,6 @@ def verifyReplicasDictionary(replicas_dict, guids):
 
     return status, pilotErrorDiag
 
-def getRucioFileList(scope_dict, guid_token_dict, lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover):
-    """ Building the file list using scope information """
-
-    ec = 0
-    pilotErrorDiag = ""
-    xml_source = "Rucio"
-    file_dict = {}
-    replicas_dict = {}
-
-    error = PilotErrors()
-
-    # Formats (input):
-    # scope_dict = { "lfn1": "scope1", .. }
-    # guid_token_dict = { "guid1": "spacetoken1", .. }
-    # lfn_dict = { "guid1": "lfn1", .. }
-    # Formats (output):
-    # file_dict = { "guid1": "pfn1", .. }
-    # replicas_dict = { "guid1": ["pfn-rep1"], .. }
-    # Note: since a predeterministic path is used, and no LFC file lookup, there is only one replica per guid in the replicas dictionary,
-    # i.e. the replicas dictionary (replicas_dict) can be constructed from the file dictionary (file_dict)
-
-    # Get the guids list and loop over it
-    guid_list = guid_token_dict.keys()
-    for guid in guid_list:
-        try:
-            # Get the LFN
-            lfn = lfn_dict[guid]
-
-            # Get the scope
-            scope = scope_dict[lfn]
-
-            # Get the space token descriptor (if any)
-            spacetoken = guid_token_dict[guid]
-
-            # Construct the PFN
-            pfn = sitemover.getFullPath(scope, spacetoken, lfn, analysisJob, "")
-        except Exception, e:
-            ec = error.ERR_NOPFC
-            pilotErrorDiag = "Exception caught while trying to build Rucio based file dictionaries: %s" % (e)
-            tolog("!!WARNING!!2332!! %s" % (pilotErrorDiag))
-        else:
-            # Build the file and replica dictionaries
-            file_dict[guid] = pfn
-
-            # verify that the filesize and checksums are valid
-            ec = verifyFileInfo(filesize_dict, guid)
-            if ec == 0:
-                ec = verifyFileInfo(checksum_dict, guid)
-
-            # proceed with creating the replica dictionary
-            if ec == 0:
-                rep = replica()
-                rep.sfn = pfn
-                rep.filesize = filesize_dict[guid]
-                rep.csumvalue = checksum_dict[guid]
-                rep.fs = None # only known by the LFC
-                rep.setname = None # only known by the LFC
-                replicas_dict[guid] = [rep]
-            else:
-                replicas_dict[guid] = [None]
-                pilotErrorDiag = "Failed while trying to create replicas dictionary: missing file size/checksum for guid=%s (check job definition)" % (guid)
-                tolog("!!WARNING!!4323!! %s" % (pilotErrorDiag))
-
-    return ec, pilotErrorDiag, file_dict, xml_source, replicas_dict
-
 def verifyFileInfo(file_dict, guid):
     """ Verify that the file info dictionary (filesize_dict or checksum_dict) has valid file info """
 
@@ -5358,7 +5153,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
 
     # Update booleans if Rucio is used and scope dictionary is set
     copytool, dummy = getCopytool(mode="get")
-    use_rucio = False
 
     # No need for file catalog lookups if FAX is set as primary stage-in site mover
     if copytool == "fax" and useDirectAccessWAN():
@@ -5480,20 +5274,6 @@ def getPoolFileCatalog(ub, guids, lfns, pinitdir, analysisJob, tokens, workdir, 
         tolog("surl_filetype_dictionary=%s"%str(surl_filetype_dictionary))
         tolog("copytool_dictionary=%s"%str(copytool_dictionary))
         tolog("replicas_dict=%s"%str(replicas_dict))
-
-    elif use_rucio:
-        tolog("Replica dictionaries will be prepared for Rucio")
-
-        # Get the replica dictionary etc using predeterministic paths method
-        ec, pilotErrorDiag, file_dict, xml_source, replicas_dict = getRucioFileList(scope_dict, guid_token_dict,\
-                                                                                    lfn_dict, filesize_dict, checksum_dict, analysisJob, sitemover)
-        if ec != 0:
-            return ec, pilotErrorDiag, xml_from_PFC, xml_source, replicas_dict, surl_filetype_dictionary, copytool_dictionary
-        tolog("file_dict = %s" % str(file_dict))
-
-        # NOTE: have to set surl_filetype_dictionary, copytool_dictionary
-        # ..
-
     else:
         tolog("No replica lookup in any file catalog")
 

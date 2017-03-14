@@ -499,15 +499,37 @@ class SiteInformation(object):
 
         return jobParameters, queuedataUpdateDictionary
 
+    def get_key_value_for_queuedata(self, parameter):
+        m = parameter.split('=', 1)
+        key = m[0]
+        value = True
+        if len(m) > 1:
+            try:
+                value = json.loads(m[1])
+            except ValueError:
+                value = m[1]
+
+        return key, value
+
+    def fixQueuedataFromParams(self, key, value):
+        if key.lower() == 'transfertype':
+            self.transferTypeFix = value
+        else:
+            tolog("Overwriting queuedata parameter \"%s\" to %s" % (key, json.dumps(value)))
+            self.replaceQueuedataField(key, value)
+            tolog("Updated %s in queuedata: %s (read back from file)" % (key, self.readpar(key)))
+
+
     def updateQueuedataFromJobParameters(self, jobParameters):
         """ Extract queuedata overwrite command from job parameters and update queuedata """
 
         tolog("called updateQueuedataFromJobParameters with: %s" % (jobParameters))
 
-        transferType = ""
+        self.transferTypeFix = ""
 
-        # extract and remove queuedata overwrite command from job parameters
-        if "--overwriteQueuedata" in jobParameters:
+        # extract and remove queuedata overwrite command from job parameters (the old way)
+        if "--overwriteQueuedata={" in jobParameters:
+            tolog("Old --overwriteQueuedata parameter type, please check your HammerCloud configs!", label='WARNING')
             tolog("Encountered an --overwriteQueuedata command in the job parameters")
 
             # (jobParameters might be updated [queuedata overwrite command should be removed if present], so they needs to be returned)
@@ -517,30 +539,96 @@ class SiteInformation(object):
             if queuedataUpdateDictionary != {}:
                 tolog("Queuedata will be updated from job parameters")
                 for field in queuedataUpdateDictionary.keys():
-                    if field.lower() == "transfertype":
-                        # transferType is not a schedconfig field and must be handled separately
-                        transferType = queuedataUpdateDictionary[field]
-                    else:
-                        ec = self.replaceQueuedataField(field, queuedataUpdateDictionary[field])
+                    self.fixQueuedataFromParams(field, queuedataUpdateDictionary[field])
+
+        import shlex, pipes
+        """
+        Splits command parameters and extracts queuedata modifications if present.
+
+        Queuedata modification principles:
+            Extraction is done from one of the parameter strings:
+              1) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]] -- ...
+              2) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]] -...
+              3) ... --overwriteQueuedata key1=val1[ key2=val2[ ...]]
+              3) ... --overwriteQueuedata '{"key1":"any valid JSON","key2":"..."}' ...
+
+            Extraction starts from --overwriteQueuedata, then goes number of key=value pairs.
+            Each value in pairs is either valid JSON or simple string.
+
+            Example:
+                'parameter list --overwriteQueuedata k1 k2=val k3=\'{"a":"b"}\' k4=false k5=23 -- will lead to'
+                modification in queuedata:
+                {
+                    k1: True
+                    k2: "val"
+                    k3: {a: "b"}
+                    k4: False
+                    k5: (int)23
+                }
+                and parameter list:
+                'parameter list will lead to'
+
+            The end of the list is marked with:
+              1) "--" (two dashes exactly), which is also stripped from parameter list;
+              2) some parameter starting with "-" and is not just two dashes;
+              3) EOL.
+              4) If the arguments are presented as a solid valid JSON.
+
+            If the next parameter (case 2) is --overwriteQueuedata, it is parsed all the same.
+        """
+        try:
+            job_args = shlex.split(jobParameters)
+        except ValueError as e:
+            tolog("Unparsable job arguments. Shlex exception: " + e.message, label='WARNING')
+            return jobParameters, self.transferTypeFix
+
+        overwriting = False
+        new_args = []
+
+        if not hasattr(self, 'xrootd_test'):
+            self.xrootd_test = False
+
+        for arg in job_args:
+            if overwriting:
+                if arg.startswith('-'):
+                    overwriting = False
+                    if arg == '--':
+                        continue  # variant to end the parameter list
+                elif arg.startswith('{'):  # the argument is a piece of JSON
+                    array = json.loads(arg)
+                    for k in array.keys():
+                        self.fixQueuedataFromParams(k, array[k])
+                    overwriting = False
+                    continue
+                else:
+                    key, value = self.get_key_value_for_queuedata(arg)
+                    self.fixQueuedataFromParams(key, value)
+
+            if not overwriting:
+                if arg == '--overwriteQueuedata':
+                    tolog("overwriteQueuedata found")
+                    overwriting = True
+                elif arg == '--disableFAX':
+                    tolog("Encountered a --disableFAX command in the job parameters")
+
+                    # update queuedata if necessary
+                    if self.readpar("allowfax").lower() == "true":
+                        field = "allowfax"
+                        ec = self.replaceQueuedataField(field, "False")
                         tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
 
-        # disable FAX if set in schedconfig
-        if "--disableFAX" in jobParameters:
-            tolog("Encountered a --disableFAX command in the job parameters")
+                    else:
+                        tolog("No need to update queuedata for --disableFAX (allowfax is not set to True)")
+                elif arg == '--useTestASetup':
+                    os.environ['ALRB_asetupVersion'] = 'testing'
+                elif arg == '--useTestXRootD':
+                    self.xrootd_test = True
+                else:
+                    new_args.append(arg)
 
-            # remove string from jobParameters
-            jobParameters = jobParameters.replace(" --disableFAX", "")
-
-            # update queuedata if necessary
-            if self.readpar("allowfax").lower() == "true":
-                field = "allowfax"
-                ec = self.replaceQueuedataField(field, "False")
-                tolog("Updated %s in queuedata: %s (read back from file)" % (field, self.readpar(field)))
-
-            else:
-                tolog("No need to update queuedata for --disableFAX (allowfax is not set to True)")
-
-        return jobParameters, transferType
+        jobParameters = " ".join(pipes.quote(x) for x in new_args)
+        tolog("Prepared parameters: %s" % jobParameters)
+        return jobParameters, self.transferTypeFix
 
     def setUnsetVars(self, thisSite):
         """ Set pilot variables in case they have not been set by the pilot launcher """
@@ -2011,26 +2099,22 @@ class SiteInformation(object):
 
 
     # Optional
+    def getBenchmarkFileName(self, workdir):
+        """ Return the filename of the benchmark dictionary """
+        
+        return os.path,join(workdir, "benchmark.json")
+
+    # Optional
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
         return False
 
     # Optional
-    def getBenchmarkDictionary(self):
+    def getBenchmarkDictionary(self, workdir):
         """ Return the benchmarks dictionary """
 
         return self.__benchmarks
-
-    # Optional
-    def executeBenchmark(self, **pdict):
-        """ Interface method for benchmark test """
-
-        # Use this method to interface with benchmark code
-        # The method should return a dictionary containing the results of the test
-        # See example implementation in ATLASExperiment
-
-        return None
 
     def copyFullQueuedata(self, destination=None):
         """ Copy the full queuedata file from a location specified in SiteInformation """

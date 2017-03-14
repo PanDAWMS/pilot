@@ -190,7 +190,7 @@ class PandaServerClient:
         jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir, job.jobId)
 
         si = getSiteInformation(job.experiment)
-        tolog("Benchmark dictionary=%s" % str(si.getBenchmarkDictionary()))
+        tolog("Benchmark dictionary=%s" % str(si.getBenchmarkDictionary(job.workdir)))
 
         _jobMetrics = ""
 

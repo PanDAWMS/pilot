@@ -426,6 +426,8 @@ class ATLASSiteInformation(SiteInformation):
         if 'aipanda007' in pshttpurl or force_devpilot:
             ec = self.replaceQueuedataField("timefloor", "0")
 
+        #ec = self.replaceQueuedataField("timefloor", "0")
+
 #        ec = self.replaceQueuedataField("retry", "false")
 
 #        ec = self.replaceQueuedataField("catchall", "log_to_objectstore force_alt_stageout")
@@ -756,7 +758,10 @@ class ATLASSiteInformation(SiteInformation):
         # cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
         # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
         # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
-        cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath())
+        if hasattr(self, 'xrootd_test') and self.xrootd_test:
+            cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup-dev.sh' % (self.getFileSystemRootPath())
+        else:
+            cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath())
 
         return cmd
 
@@ -832,41 +837,37 @@ class ATLASSiteInformation(SiteInformation):
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
-        return False
+        # 1% of the times only?
+        from random import randint
+        if randint(0,99) == 0:
+            return True
+        else:
+            return False
 
     # Optional
-    def getBenchmarkDictionary(self):
+    def getBenchmarkDictionary(self, workdir):
         """ Return the benchmarks dictionary """
 
-        return self.__benchmarks
+        if self.__benchmarks:
+            return self.__benchmarks
+        else:
+            return getJSONDictionary(self.getBenchmarkFileName(workdir))
 
     # Optional
-    def executeBenchmark(self, **pdict):
-        """ Interface method for benchmark test """
+    def getBenchmarkFileName(self, workdir):
+        """ Return the filename of the benchmark dictionary """
 
-        # Use this method to interface with benchmark code
-        # The method should return a dictionary containing the results of the test
+        return "%s/benchmark/bmk_tmp/result_profile.json" % (workdir)
 
-        timeout = 180 #120
+    # Optional
+    def getBenchmarkCommand(self, **pdict):
+        """ Return the benchmark command to be executed """
 
-        # Hack - the benchmark suite needs the public key and the certificate, which are not available on the grid, so we need to extract it manually from the proxy
-        key = os.path.join(os.getcwd(), "key.pub")
-        cmd = "openssl rsa -in $X509_USER_PROXY -out %s" % (key)
-        tolog("Executing pubilc key extraction: %s" % (cmd))
-        exitcode, output = timedCommand(cmd, timeout=timeout)
-        if exitcode != 0:
-            tolog("!!WARNING!!3434!! Encountered a problem with extracting the public key from the proxy: %s" % (output))
+        workdir = pdict.get('workdir', '')
+        if workdir != "":
+            workdirExport = "export BMK_LOGDIR=%s/benchmark;" % (workdir)
         else:
-            tolog("Extracted the public key from the proxy")
-
-        cert = os.path.join(os.getcwd(), "cert.pub")
-        cmd = "openssl rsa -in $X509_USER_PROXY -out %s -pubout" % (cert)
-        tolog("Executing certificate extraction: %s" % (cmd))
-        exitcode, output = timedCommand(cmd, timeout=timeout)
-        if exitcode != 0:
-            tolog("!!WARNING!!3434!! Encountered a problem with extracting the certificate from the proxy: %s" % (output))
-        else:
-            tolog("Extracted the certificate from the proxy")
+            workdirExport = ""
 
         cloud = pdict.get('cloud', '')
         if cloud != "":
@@ -874,29 +875,28 @@ class ATLASSiteInformation(SiteInformation):
         else:
             cloudOption = ""
 
-        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';export BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath())
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone' --freetext='CERN Benchmark suite executed by the PanDA Pilot' --queue_host=dashb-test-mb.cern.ch --queue_port=61123 --topic=/topic/vm.spec %s --vo=ATLAS --amq_key=%s --amq_cert=%s" % (cloudOption, key, cert)
-        cmd += ""
-
-        tolog("Executing benchmark test: %s" % (cmd))
-        exitcode, output = timedCommand(cmd, timeout=timeout)
-        if exitcode != 0:
-            tolog("!!WARNING!!3434!! Encountered a problem with benchmark test: %s" % (output))
+        cores = pdict.get('cores', '')
+        if cores != "":
+            coresOption = "--mp_num=%s" % (cores)
         else:
-            tolog("Benchmark finished: %d,%s" % (exitcode,output))
+            coresOption = ""
 
-            filename = "/tmp/cern_benchmark_{user}/bmk_tmp/result_profile.json"
-            if not os.path.exists(filename):
-                tolog("!!WARNING!!3435!! Benchmark did not produce expected output file: %s" % (filename))
-            else:
-                tolog("Parsing benchmark output file: %s" % (filename))
-                self.__benchmarks = getJSONDictionary(filename)
-                if self.__benchmarks == {}:
-                    tolog("!!WARNING!!3436!! Empty benchmark dictionary - nothing to report")
-                else:
-                    tolog("Benchmark dictionary=%s"%str(self.__benchmarks))
+        pnode = commands.getoutput("hostname")
+        if pnode != "":
+            pnodeOption = "--pnode=%s" % (pnode)
+        else:
+            pnodeOption = ""
 
-        return self.__benchmarks
+        ip = commands.getoutput("hostname -i")
+        if ip != "":
+            ipOption = "--public_ip=%s" % (ip)
+        else:
+            ipOption = ""
+
+        cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';%sexport BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath(), workdirExport)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone;fastBmk' --freetext='Whetstone+fastBmk' --topic=/topic/vm.spec %s --vo=ATLAS -o %s %s %s" % (cloudOption, coresOption, pnodeOption, ipOption)
+
+        return cmd
 
 if __name__ == "__main__":
 

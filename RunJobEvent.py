@@ -31,7 +31,7 @@ import pUtil
 import RunJobUtilities
 import Mover as mover
 from JobRecovery import JobRecovery
-from FileStateClient import dumpFileStates
+from FileStateClient import dumpFileStates, getFilesOfState
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
@@ -78,10 +78,12 @@ class RunJobEvent(RunJob):
     __eventRangeID_dictionary = {}               # eventRangeID_dictionary[event_range_id] = True (corr. output file has been transferred)
     __stageout_queue = []                        # Queue for files to be staged-out; files are added as they arrive and removed after they have been staged-out
     __pfc_path = ""                              # The path to the pool file catalog
-    __message_server = None                      #
+    __message_server_payload = None              # Message server for the payload
+    __message_server_prefetcher = None           # Message server for Prefetcher
     __message_thread = None                      #
     __status = True                              # Global job status; will be set to False if an event range or stage-out fails
     __athenamp_is_ready = False                  # True when an AthenaMP worker is ready to process an event range
+    __prefetcher_is_ready = False                # True when Prefetcher has finished updating an event range
     __asyncOutputStager_thread = None            #
     __asyncOutputStager_thread_sleep_time = 600
     __analysisJob = False                        # True for analysis job
@@ -91,7 +93,8 @@ class RunJobEvent(RunJob):
     __job = None                                 # Job object
     __cache = ""                                 # Cache URL, e.g. used by LSST
     __metadata_filename = ""                     # Full path to the metadata file
-    __yamplChannelName = None                    # Yampl channel name
+    __yamplChannelNamePayload = None             # Yampl channel name used by the payload (AthenaMP)
+    __yamplChannelNamePrefetcher = None          # Yampl channel name used by the Prefetcher
     __useEventIndex = True                       # Should Event Index be used? If not, a TAG file will be created
     __tokenextractor_input_list_filenane = ""    #
     __sending_event_range = False                # True while event range is being sent to payload
@@ -424,15 +427,25 @@ class RunJobEvent(RunJob):
 
         self.__pfc_path = pfc_path
 
-    def getMessageServer(self):
-        """ Getter for __message_server """
+    def getMessageServerPayload(self):
+        """ Getter for __message_server_payload """
 
-        return self.__message_server
+        return self.__message_server_payload
 
-    def setMessageServer(self, message_server):
-        """ Setter for __message_server """
+    def setMessageServerPayload(self, message_server):
+        """ Setter for __message_server_payload """
 
-        self.__message_server = message_server
+        self.__message_server_payload = message_server
+
+    def getMessageServerPrefetcher(self):
+        """ Getter for __message_server_prefetcher """
+
+        return self.__message_server_prefetcher
+
+    def setMessageServerPrefetcher(self, message_server):
+        """ Setter for __message_server_prefetcher """
+
+        self.__message_server_prefetcher = message_server
 
     def getMessageThread(self):
         """ Getter for __message_thread """
@@ -453,6 +466,16 @@ class RunJobEvent(RunJob):
         """ Setter for __athenamp_is_ready """
 
         self.__athenamp_is_ready = athenamp_is_ready
+
+    def isPrefetcherReady(self):
+        """ Getter for __prefetcher_is_ready """
+
+        return self.__prefetcher_is_ready
+
+    def setPrefetcherIsReady(self, prefetcher_is_ready):
+        """ Setter for __prefetcher_is_ready """
+
+        self.__prefetcher_is_ready = prefetcher_is_ready
 
     def getAsyncOutputStagerThread(self):
         """ Getter for __asyncOutputStager_thread """
@@ -507,15 +530,25 @@ class RunJobEvent(RunJob):
     def setJobNode(self, node):
         self.__node = node
 
-    def getYamplChannelName(self):
-        """ Getter for __yamplChannelName """
+    def getYamplChannelNamePayload(self):
+        """ Getter for __yamplChannelNamePayload """
 
-        return self.__yamplChannelName
+        return self.__yamplChannelNamePayload
 
-    def setYamplChannelName(self, yamplChannelName):
-        """ Setter for __yamplChannelName """
+    def setYamplChannelNamePayload(self, yamplChannelNamePayload):
+        """ Setter for __yamplChannelNamePayload """
 
-        self.__yamplChannelName = yamplChannelName
+        self.__yamplChannelNamePayload = yamplChannelNamePayload
+
+    def getYamplChannelNamePrefetcher(self):
+        """ Getter for __yamplChannelNamePrefetcher """
+
+        return self.__yamplChannelNamePrefetcher
+
+    def setYamplChannelNamePrefetcher(self, yamplChannelNamePrefetcher):
+        """ Setter for __yamplChannelNamePrefetcher """
+
+        self.__yamplChannelNamePrefetcher = yamplChannelNamePrefetcher
 
     def getStatus(self):
         """ Getter for __status """
@@ -729,16 +762,26 @@ class RunJobEvent(RunJob):
 
         return self.__usePrefetcher
 
-    def setUsePrefetcher(self, setup):
+    def setUsePrefetcher(self, release, use=True):
         """ Set the __usePrefetcher variable to a boolean value """
-        # Decision is based on info in the setup string ???
+        # Decision is based on if the release is new enough to support Prefetcher
+        # Note that 'use' can be be used to override any setup string activation
 
-        self.__usePrefetcher = False #True
+        #if use:
+        #    # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
+        #    if release != "":
+        #        if pUtil.isAGreaterOrEqualToB(release, "20.3.7"):
+        #            tolog("Prefetcher will be used for release %s" % (release))
+        #            self.__usePrefetcher = True
+        #    else:
+        #        tolog("Prefetcher will not be used (cannot verify release)")
+        #        self.__usePrefetcher = False
+        #else:
+        #    tolog("Prefetcher will not be used")
+        #    self.__usePrefetcher = False
 
-        if self.__usePrefetcher:
-            tolog("Prefetcher is needed")
-        else:
-            tolog("Prefetcher is not needed")
+        tolog("Prefetcher will not be used")
+        self.__usePrefetcher = False
 
     def getPanDAServer(self):
         """ Getter for __pandaserver """
@@ -767,7 +810,9 @@ class RunJobEvent(RunJob):
         """ Default initialization """
 
         # e.g. self.__errorLabel = errorLabel
-        self.__yamplChannelName = "EventService_EventRanges-%s" % (commands.getoutput('uuidgen'))
+        uuidgen = commands.getoutput('uuidgen')
+        self.__yamplChannelNamePayload = "EventService_EventRanges-%s" % (uuidgen)
+        self.__yamplChannelNamePrefetcher = "EventService_Prefetcher-%s" % (uuidgen)
 
     # is this necessary? doesn't exist in RunJob
     def __new__(cls, *args, **kwargs):
@@ -1984,10 +2029,10 @@ class RunJobEvent(RunJob):
             try:
                 # Receive a message
                 tolog("Waiting for a new message")
-                size, buf = self.__message_server.receive()
+                size, buf = self.__message_server_payload.receive()
                 while size == -1 and not self.__message_thread.stopped():
                     time.sleep(1)
-                    size, buf = self.__message_server.receive()
+                    size, buf = self.__message_server_payload.receive()
                 tolog("Received new message: %s" % (buf))
 
                 max_wait = 600
@@ -2037,6 +2082,13 @@ class RunJobEvent(RunJob):
                         # Add the file to the stage-out queue
                         self.__stageout_queue.append(paths)
                         tolog("File %s has been added to the stage-out queue (length = %d)" % (paths, len(self.__stageout_queue)))
+
+                elif buf.startswith('['):
+                    tolog("Received an updated event range message from Prefetcher: %s" % (buf))
+                    self.__current_event_range = buf
+
+                    # Set the boolean to True since Prefetcher is now ready (finished with the current event range)
+                    runJob.setPrefetcherIsReady(True)
 
                 elif buf.startswith('ERR'):
                     tolog("Received an error message: %s" % (buf))
@@ -2222,17 +2274,6 @@ class RunJobEvent(RunJob):
 
         return "%s,PFN:%s\n" % (input_file_guid.upper(), input_filename)
 
-    def getPrefetcherProcess(self, thisExperiment, setup, input_file, stdout=None, stderr=None):
-        """ Execute the TokenExtractor """
-
-        options = "'--inputEVNTFile' '%s' '--outputEVNT_MRGFile' 'prefix-of-the-local-file-names' '--preInclude' 'AthenaMP_EventService.py,SetUniqueYamplChannelName.py'" % (input_file)
-
-        # Define the command
-        cmd = "%s export ATHENA_PROC_NUMBER=1; EVNTMerge_tf.py %s" % (setup, options)
-
-        # Execute and return the Prefetcher subprocess object
-        return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
-
     def getTokenExtractorProcess(self, thisExperiment, setup, input_file, input_file_guid, stdout=None, stderr=None, url=""):
         """ Execute the TokenExtractor """
 
@@ -2265,22 +2306,48 @@ class RunJobEvent(RunJob):
         # Execute and return the TokenExtractor subprocess object
         return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
 
-    def createMessageServer(self):
+    def getPrefetcherProcess(self, thisExperiment, setup, input_file, stdout=None, stderr=None):
+        """ Execute the Prefetcher """
+        # The input file corresponds to a remote input file (full path)
+
+        # Prefix of the local file names
+        prefix = "localRange.pool.root"
+        options = "'--inputEVNTFile' %s '--outputEVNT_MRGFile' %s '--eventService=True' '--preExec' 'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"'" % (input_file, prefix, self.__yamplChannelNamePrefetcher)
+
+        # Define the command
+        cmd = "%s export ATHENA_PROC_NUMBER=1; EVNTMerge_tf.py %s" % (setup, options)
+
+        # Execute and return the Prefetcher subprocess object
+        return self.getSubprocess(thisExperiment, cmd, stdout=stdout, stderr=stderr)
+
+    def createMessageServer(self, prefetcher=False):
         """ Create the message server socket object """
+        # Create a message server for the payload by default, otherwise for Prefetcher if prefetcher is set
 
         status = False
 
         # Create the server socket
         if MessageServer:
-            self.__message_server = MessageServer(socketname=self.__yamplChannelName, context='local')
+            if prefetcher:
+                self.__message_server_prefetcher = MessageServer(socketname=self.__yamplChannelNamePrefetcher, context='local')
 
-            # is the server alive?
-            if not self.__message_server.alive():
-                # destroy the object
-                tolog("!!WARNING!!3333!! Message server is not alive")
-                self.__message_server = None
+                # is the server alive?
+                if not self.__message_server_prefetcher.alive():
+                    # destroy the object
+                    tolog("!!WARNING!!3333!! Message server for Prefetcher is not alive")
+                    self.__message_server_prefetcher = None
+                else:
+                    status = True
             else:
-                status = True
+                self.__message_server_payload = MessageServer(socketname=self.__yamplChannelNamePayload, context='local')
+
+                # is the server alive?
+                if not self.__message_server_payload.alive():
+                    # destroy the object
+                    tolog("!!WARNING!!3333!! Message server for the payload is not alive")
+                    self.__message_server_payload = None
+                else:
+                    status = True
         else:
             tolog("!!WARNING!!3333!! MessageServer object is not available")
 
@@ -2311,8 +2378,9 @@ class RunJobEvent(RunJob):
 
         return tag_file, guid
 
-    def sendMessage(self, message):
+    def sendMessage(self, message, prefetcher=False):
         """ Send a message """
+        # Message will be sent to the payload by default, or to the Prefetcher in case prefetcher is set
 
         # Filter away unwanted fields
         if "scope" in message:
@@ -2330,8 +2398,13 @@ class RunJobEvent(RunJob):
                 # Convert back to a string
                 message = str([_msg])
 
-        self.__message_server.send(message)
-        tolog("Sent %s" % (message))
+        if prefetcher:
+            self.__message_server_prefetcher.send(message)
+            label = "Prefetcher"
+        else:
+            self.__message_server_payload.send(message)
+            label = "the payload"
+        tolog("Sent %s to %s" % (message, label))
 
     def getPoolFileCatalog(self, dsname, tokens, workdir, dbh, DBReleaseIsAvailable,\
                                scope_dict, filesizeIn, checksumIn, thisExperiment=None, inFilesGuids=None, lfnList=None, ddmEndPointIn=None):
@@ -2383,15 +2456,15 @@ class RunJobEvent(RunJob):
             eventService = True
 
             # Create a TURL based PFC
-            tokens_dictionary = {} # not needed here, so set it to an empty dictionary
-            ec, pilotErrorDiag, createdPFCTURL, usect, dummy = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
-                                                                            sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict, self.__experiment)
-            if ec != 0:
-                tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
+            #tokens_dictionary = {} # not needed here, so set it to an empty dictionary
+            #ec, pilotErrorDiag, createdPFCTURL, usect, dummy = mover.PFC4TURLs(self.__analysisJob, transferType, fileInfoDic, self.getPoolFileCatalogPath(),\
+            #                                                                sitemover, sitename, usect, dsdict, eventService, tokens_dictionary, sitename, "", lfnList, scope_dict, self.__experiment)
+            #if ec != 0:
+            #    tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
             # Finally return the TURL based PFC
-            if ec == 0:
-                file_info_dictionary = mover.getFileInfoDictionaryFromXML(self.getPoolFileCatalogPath())
+            #if ec == 0:
+            #    file_info_dictionary = mover.getFileInfoDictionaryFromXML(self.getPoolFileCatalogPath())
 
         return ec, pilotErrorDiag, file_info_dictionary
 
@@ -2654,12 +2727,12 @@ class RunJobEvent(RunJob):
 
         # Tell AthenaMP the name of the yampl channel
         if "PILOT_EVENTRANGECHANNEL" in runCommand:
-            runCommand = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (self.getYamplChannelName()) + runCommand
+            runCommand = "export PILOT_EVENTRANGECHANNEL=\"%s\"; " % (self.getYamplChannelNamePayload()) + runCommand
         elif not "--preExec" in runCommand:
-            runCommand += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (self.getYamplChannelName())
+            runCommand += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\'" % (self.getYamplChannelNamePayload())
         else:
             if "import jobproperties as jps" in runCommand:
-                runCommand = runCommand.replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
+                runCommand = runCommand.replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelNamePayload()))
             else:
                 if "--preExec " in runCommand:
                     runCommand = runCommand.replace("--preExec ", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\' " % (self.getYamplChannelName()))
@@ -2808,12 +2881,22 @@ if __name__ == "__main__":
 
         # Create a message server object (global message_server)
         if runJob.createMessageServer():
-            tolog("The message server is alive")
+            tolog("The message server for the payload is alive")
         else:
-            pilotErrorDiag = "The message server could not be created, cannot continue"
+            pilotErrorDiag = "The message server for the payload could not be created, cannot continue"
             tolog("!!WARNING!!1111!! %s" % (pilotErrorDiag))
             job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
+        runJob.setUsePrefetcher(job.release)
+        if runJob.usePrefetcher():
+            job.prefetcher = True
+            if runJob.createMessageServer(prefetcher=True):
+                tolog("The message server for Prefetcher is alive")
+            else:
+                tolog("!!WARNING!!1111!! The message server for Prefetcher could not be created, cannot use Prefetcher")
+        else:
+            tolog("!!WARNING!!1111!! The message server for Prefetcher could not be created, cannot use Prefetcher")
 
         # Setup starts here ................................................................................
 
@@ -2846,6 +2929,9 @@ if __name__ == "__main__":
 
         # Stage-in .........................................................................................
 
+        # Launch the benchmark, let it execute during stage-in
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir)
+
         # Update the job state
         tolog("Setting stage-in state until all input files have been copied")
         job.jobState = "stagein"
@@ -2862,9 +2948,11 @@ if __name__ == "__main__":
             si.updateDirectAccess(job.transferType)
 
         # Stage-in all input files (if necessary)
+        # Note: for Prefetcher, no file transfer is necessary but only the movers.stagein_real() function knows the
+        # full path to the input. This function places the path in the fileState file from where it can be read
         job, ins, statusPFCTurl, usedFAXandDirectIO = runJob.stageIn(job, jobSite, analysisJob, pfc_name="PFC.xml")
         if job.result[2] != 0:
-            tolog("Failing job with ec: %d" % (ec))
+            tolog("Failing job with ec: %d" % (job.result[2]))
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 
@@ -2889,6 +2977,21 @@ if __name__ == "__main__":
 
         # (stage-in ends here) .............................................................................
 
+        # Loop until the benchmark subprocess has finished
+        if benchmark_subprocess:
+            max_count = 4
+            count = 0
+            while benchmark_subprocess.poll() is None:
+                if count >= max_count:
+                    benchmark_subprocess.send_signal(signal.SIGUSR1)
+                    tolog("Terminated the benchmark since it ran for longer than two minutes")
+                else:
+                    count += 1
+
+                    # Take a short nap
+                    tolog("Benchmark suite has not finished yet, taking a nap (iteration #%d/%d)" % (count, max_count))
+                    time.sleep(15)
+
         # Prepare XML for input files to be read by the Event Server
 
         # runEvent determines the physical file replica(s) to be used as the source for input event data
@@ -2908,13 +3011,11 @@ if __name__ == "__main__":
 
         # Create and start the stage-out thread which will run in an infinite loop until it is stopped
         asyncOutputStager_thread = StoppableThread(name='asynchronousOutputStager', target=runJob.asynchronousOutputStager)
-#        asyncOutputStager_thread.start()
         runJob.setAsyncOutputStagerThread(asyncOutputStager_thread)
         runJob.startAsyncOutputStagerThread()
 
         # Create and start the message listener thread
         message_thread = StoppableThread(name='listener', target=runJob.listener)
-#        message_thread.start()
         runJob.setMessageThread(message_thread)
         runJob.startMessageThread()
 
@@ -2924,9 +3025,6 @@ if __name__ == "__main__":
 
         # Should the token extractor be used?
         runJob.setUseTokenExtractor(runCommandList[0])
-
-        # Should the prefetcher be used?
-        runJob.setUsePrefetcher(runCommandList[0])
 
         # Stdout/err file objects
         tokenextractor_stdout = None
@@ -2985,16 +3083,53 @@ if __name__ == "__main__":
         # Extract the proper setup string from the run command in case the Prefetcher should be used
         if runJob.usePrefetcher():
             setupString = thisEventService.extractSetup(runCommandList[0], job.trf)
+            if "export ATLAS_LOCAL_ROOT_BASE" not in setupString:
+                setupString = "export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase;" % thisExperiment.getCVMFSPath() + setupString
             tolog("The Prefetcher will be setup using: %s" % (setupString))
+
+            #job.transferType = 'direct'
+            #RunJobUtilities.updateCopysetups('', transferType=job.transferType)
+            #si = getSiteInformation(runJob.getExperiment())
+            #si.updateDirectAccess(job.transferType)
 
             # Create the file objects
             prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
 
+            # Get the full path to the input file from the fileState file
+            input_files = getFilesOfState(runJob.getParentWorkDir(), job.jobId, ftype="input", state="prefetch")
+            if input_files == "":
+                pilotErrorDiag = "Did not find any turls in fileState file"
+                tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+
+                # Set error code
+                job.result[0] = "failed"
+                job.result[2] = error.ERR_ESRECOVERABLE
+                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
+            input_file = ""
+            infiles = input_files.split(",")
+            for infile in infiles:
+                if job.inFiles[0] in infile:
+                    input_file = infile
+                    break
+            if input_file == "":
+                pilotErrorDiag = "Did not find turl for lfn=%s in fileState file" % (job.inFiles[0])
+                tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+
+                # Set error code
+                job.result[0] = "failed"
+                job.result[2] = error.ERR_ESRECOVERABLE
+                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
             # Get the Prefetcher process
-            prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=os.path.join(job.workdir(), job.inFiles[0]), \
+            prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=input_file, \
                                                                     stdout=prefetcher_stdout, stderr=prefetcher_stderr)
+            if not prefetcherProcess:
+                tolog("!!WARNING!!1234!! Prefetcher could not be started - will run without it")
+                runJob.setUsePrefetcher("", use=False)
+            else:
+                tolog("Prefetcher is running")
         else:
-            setupString = None
             prefetcher_stdout = None
             prefetcher_stderr = None
             prefetcherProcess = None
@@ -3011,28 +3146,36 @@ if __name__ == "__main__":
 
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
-        ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
+        # If Prefetcher is used, a turl based PFC will already have been created (in Mover.py)
+        if not runJob.usePrefetcher():
+            ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
                                                                                     job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir(), job.ddmEndPointIn)
-        if ec != 0:
-            tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
+            if ec != 0:
+                tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
-            # Stop threads
-            runJob.stopAsyncOutputStagerThread()
-            runJob.joinAsyncOutputStagerThread()
-            runJob.stopMessageThread()
-            runJob.joinMessageThread()
-            if tokenExtractorProcess:
-                tokenExtractorProcess.kill()
+                # Stop threads
+                runJob.stopAsyncOutputStagerThread()
+                runJob.joinAsyncOutputStagerThread()
+                runJob.stopMessageThread()
+                runJob.joinMessageThread()
+                if tokenExtractorProcess:
+                    tokenExtractorProcess.kill()
+                if prefetcherProcess:
+                    prefetcherProcess.kill()
 
-            # Close stdout/err streams
-            if tokenextractor_stdout:
-                tokenextractor_stdout.close()
-            if tokenextractor_stderr:
-                tokenextractor_stderr.close()
+                # Close stdout/err streams
+                if tokenextractor_stdout:
+                    tokenextractor_stdout.close()
+                if tokenextractor_stderr:
+                    tokenextractor_stderr.close()
+                if prefetcher_stdout:
+                    prefetcher_stderr.close()
+                if prefetcher_stdout:
+                    prefetcher_stderr.close()
 
-            job.result[0] = "failed"
-            job.result[2] = error.ERR_ESRECOVERABLE
-            runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+                job.result[0] = "failed"
+                job.result[2] = error.ERR_ESRECOVERABLE
+                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
         # Update the run command with additional options
         runCommandList[0] = runJob.updateRunCommand(runCommandList[0])
@@ -3065,7 +3208,6 @@ if __name__ == "__main__":
 
         # Main loop ........................................................................................
 
-        # nonsense counter used to get different "event server" message using the downloadEventRanges() function
         tolog("Entering monitoring loop")
 
         k = 0
@@ -3120,7 +3262,7 @@ if __name__ == "__main__":
                 runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
 
                 # Create a new PFC for the current event ranges
-                ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalogFromMessage(message, thisExperiment)
+                ec, pilotErrorDiag, dummy = runJob.createPoolFileCatalogFromMessage(message, thisExperiment)
                 if ec != 0:
                     tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
                     runJob.sendMessage("No more events")
@@ -3135,6 +3277,33 @@ if __name__ == "__main__":
                     if runJob.shouldBeAborted():
                         tolog("Aborting event range loop")
                         break
+
+                    # Set the boolean to false until Prefetcher has finished updating the event range (if used)
+                    runJob.setPrefetcherIsReady(False)
+
+                    # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
+                    if runJob.usePrefetcher():
+                        tolog("Sending event range to Prefetcher")
+                        runJob.setSendingEventRange(True)
+                        runJob.sendMessage(str([event_range]), prefetcher=True)
+                        runJob.setSendingEventRange(False)
+
+                        # need to get the updated event range back from Prefetcher
+                        tolog("Waiting for Prefetcher reply")
+                        count = 0
+                        maxCount = 60
+                        while not runJob.isPrefetcherReady():
+                            time.sleep(1)
+                            if count > maxCount:
+                                tolog("!!WARNING!!4545!! Prefetcher has not replied for %d seconds - aborting" % (maxCount))
+                                # fail job
+                                # ..
+                                break
+                            count += 1
+                        # Prefetcher should now have sent back the updated event range
+                        tolog("Original event_range=%s"%str(event_range))
+                        event_range = runJob.getCurrentEventRange()
+                        tolog("Updated event_range=%s"%str(event_range))
 
                     # Send the event range to AthenaMP
                     tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
@@ -3414,6 +3583,10 @@ if __name__ == "__main__":
             tolog("Failed to create metadata for all output files: %s" % job.pilotErrorDiag)
             # runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
+        if prefetcherProcess:
+            tolog("Killing Prefetcher process")
+            prefetcherProcess.kill()
+
         tolog("Stopping stage-out thread")
         runJob.stopAsyncOutputStagerThread()
         runJob.joinAsyncOutputStagerThread()
@@ -3434,8 +3607,10 @@ if __name__ == "__main__":
             tokenextractor_stdout.close()
         if tokenextractor_stderr:
             tokenextractor_stderr.close()
-
-        # Close stdout/err streams
+        if prefetcher_stdout:
+            prefetcher_stdout.close()
+        if prefetcher_stderr:
+            prefetcher_stderr.close()
         if athenamp_stdout:
             athenamp_stdout.close()
         if athenamp_stderr:
@@ -3444,9 +3619,6 @@ if __name__ == "__main__":
         tolog("Stopping message thread")
         runJob.stopMessageThread()
         runJob.joinMessageThread()
-#        message_thread.stop()
-#        message_thread.join()
-#        runJob.setMessageThread(message_thread)
 
         # Rename the metadata produced by the payload
         # if not pUtil.isBuildJob(outs):

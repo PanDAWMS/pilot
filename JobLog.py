@@ -14,7 +14,7 @@ from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, g
     getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, \
     getGUID, timedCommand, updateXMLWithEndpoints
 from FileHandling import addToOSTransferDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, \
-    getWorkDirSizeFilename, getDirSize, storeWorkDirSize
+    getWorkDirSizeFilename, getDirSize, storeWorkDirSize, addToJobReport, getJSONDictionary
 from JobState import JobState
 from FileState import FileState
 from FileStateClient import updateFileState, dumpFileStates
@@ -876,6 +876,21 @@ class JobLog:
                 else:
                     tolog("Transferred additional CERNVM files")
 
+    def getBenchmarkDictionary(self, workdir, experiment):
+        """ Return the benchmark json dictionary """
+
+        benchmark_dictionary = {}
+
+        # get the site information object
+        si = getSiteInformation(experiment)
+
+        # get the benchmark dictionary if it exists
+        filename = si.getBenchmarkFileName(workdir)
+        if os.path.exists(filename):
+            benchmark_dictionary = getJSONDictionary(filename)
+
+        return benchmark_dictionary
+
     def postJobTask(self, job, site, experiment, workerNode, jr=False, ra=0, stdout_tail=None, stdout_path=None):
         """
         Update Panda server with output info (xml) and make/save the tarball of the job workdir,
@@ -889,6 +904,11 @@ class JobLog:
 
         # get the metadata and the relevant workdir
         strXML, workdir = self.getXMLAndWorkdir(jr, site.workdir, job.workdir, job.newDirNM, job.jobId)
+
+        # was the benchmark suite executed? if so, get the output dictionary and add it to the jobReport
+        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment)
+        if benchmark_dictionary != {}:
+            addToJobReport(workdir, "benchmark", benchmark_dictionary)
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
         # removes any work directory after the LSF job finishes which of course makes job recovery impossible)

@@ -115,9 +115,9 @@ class Job:
         self.jobsetID = None               # Event range job set ID
         self.pandaProxySecretKey = None    # pandaproxy secret key
         self.external_stageout_time = None # External stageout time(time after athenaMP finishes)
-
-        self.subStatus = None           # subStatus of the job
-        self.subError = None            # subError of the job
+        self.prefetcher = False            # ESS v1
+        self.subStatus = None              # subStatus of the job
+        self.subError = None               # subError of the job
 
         # zipped event outputs to a file, for event service
         self.outputZipName = None
@@ -379,8 +379,6 @@ class Job:
 
         self.maxCpuCount = int(data.get('maxCpuCount', 0))
         self.transferType = data.get('transferType', '')
-#PN        self.transferType = 'direct'
-#        self.transferType = 'fax'
 
         if data.has_key('maxDiskCount'):
             _tmp = int(data['maxDiskCount'])
@@ -757,7 +755,7 @@ class Job:
         files = [os.path.join(self.workdir or '', e.lfn) for e in getattr(self, key, [])]
         pUtil.tolog("%s file(s): %s" % (key, files))
         cmd = 'ls -la %s' % ' '.join(files)
-        msg = "do EXEC cmd=%s" % cmd
+        msg = "Executing command: %s" % cmd
         try:
             c = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
             output = c.communicate()[0]

@@ -4583,11 +4583,10 @@ def splittedname(s):
     return tuple(tryint(x) for x in split('([0-9]+)', s))
 
 def isAGreaterOrEqualToB(A, B):
-    """ Is numbered string A > B? """
+    """ Is numbered string A >= B? """
     # > a="1.2.3"
     # > b="2.2.2"
-    # > e.isAGreaterThanB(a,b)
-    # False
+    # > e.isAGreaterOrEqualToB(a,b)
 
     return splittedname(A) >= splittedname(B)
 

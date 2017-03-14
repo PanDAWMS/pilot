@@ -785,12 +785,6 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
     ### since new movers already form proper pfn values
     ### proper workflow is required: to be reimplemented later
     if usedFAXandDirectIO == 'newmover' or usedFAXandDirectIO == 'newmover-directaccess':
-        tolog("updateRunCommandList(): use new movers logic")
-        tolog("updateRunCommandList(): remove to be deprecated options (--lfcHost, --oldPrefix, --newPrefix) from command list")
-        tolog("updateRunCommandList(): force to set --usePFCTurl")
-        tolog("updateRunCommandList(): check directaccess mode if need (--directIn)")
-        tolog("current runCommandList=%s" % _runCommandList)
-
         _runCommandList2 = []
 
         for cmd in _runCommandList:
