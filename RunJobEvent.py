@@ -2661,10 +2661,8 @@ class RunJobEvent(RunJob):
             if "import jobproperties as jps" in runCommand:
                 runCommand = runCommand.replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
             else:
-                if "--preExec \'" in runCommand:
-                    runCommand = runCommand.replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";" % (self.getYamplChannelName()))
-                elif '--preExec \"' in runCommand:
-                    runCommand = runCommand.replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\";' % (self.getYamplChannelName()))
+                if "--preExec " in runCommand:
+                    runCommand = runCommand.replace("--preExec ", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"%s\"\' " % (self.getYamplChannelName()))
                 else:
                     tolog("!!WARNING!!43431! --preExec has an unknown format - expected \'--preExec \"\' or \"--preExec \'\", got: %s" % (runCommand))
 
