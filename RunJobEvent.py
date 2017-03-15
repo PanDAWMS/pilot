@@ -780,8 +780,12 @@ class RunJobEvent(RunJob):
         #    tolog("Prefetcher will not be used")
         #    self.__usePrefetcher = False
 
-        tolog("Prefetcher will not be used")
-        self.__usePrefetcher = False
+        if release == "20.3.7":
+            tolog("Prefetcher will be used for release %s" % (release))
+            self.__usePrefetcher = True
+        else:
+            tolog("Prefetcher will not be used")
+            self.__usePrefetcher = False
 
     def getPanDAServer(self):
         """ Getter for __pandaserver """
