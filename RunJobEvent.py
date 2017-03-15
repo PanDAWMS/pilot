@@ -780,11 +780,11 @@ class RunJobEvent(RunJob):
         #    tolog("Prefetcher will not be used")
         #    self.__usePrefetcher = False
 
-        if release == "20.3.7":
+        if release == "20.3.7" or release == "Atlas-20.3.7":
             tolog("Prefetcher will be used for release %s" % (release))
             self.__usePrefetcher = True
         else:
-            tolog("Prefetcher will not be used")
+            tolog("Prefetcher will not be used for release %s" % (release))
             self.__usePrefetcher = False
 
     def getPanDAServer(self):
@@ -2493,9 +2493,6 @@ class RunJobEvent(RunJob):
         dbh = None
         DBReleaseIsAvailable = False
 
-        self.setPoolFileCatalogPath(os.path.join(workdir, "PFC.xml"))
-        tolog("Using PFC path: %s" % (self.getPoolFileCatalogPath()))
-
         # Get the TURL based PFC
         ec, pilotErrorDiag, file_info_dictionary = self.getPoolFileCatalog(dsname, tokens, workdir, dbh, DBReleaseIsAvailable, scope_dict,\
                                                            filesizeIn, checksumIn, thisExperiment=thisExperiment, inFilesGuids=inFilesGuids, lfnList=inFiles, ddmEndPointIn=ddmEndPointIn)
@@ -3151,6 +3148,10 @@ if __name__ == "__main__":
         # AthenaMP needs the PFC when it is launched (initial PFC using info from job definition)
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
         # If Prefetcher is used, a turl based PFC will already have been created (in Mover.py)
+
+        runJob.setPoolFileCatalogPath(os.path.join(runJob.getParentWorkDir(), "PFC.xml"))
+        tolog("Using PFC path: %s" % (runJob.getPoolFileCatalogPath()))
+
         if not runJob.usePrefetcher():
             ec, pilotErrorDiag, file_info_dictionary = runJob.createPoolFileCatalog(job.inFiles, job.scopeIn, job.inFilesGuids, job.prodDBlockToken,\
                                                                                     job.filesizeIn, job.checksumIn, thisExperiment, runJob.getParentWorkDir(), job.ddmEndPointIn)
