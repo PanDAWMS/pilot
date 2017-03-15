@@ -520,11 +520,11 @@ class JobMover(object):
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
-                    self.log("Prefetcher will be used for turl=%s .. skip transfer for this file" % fdata.turl)
-                    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
+                    self.log("Prefetcher will be used for turl=%s" % fdata.turl)
+                    #updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
                     self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='prefetch')
                     self.sendTrace(self.trace_report)
-                    continue
+                    #continue
 
                 # apply site-mover custom job-specific checks for stage-in
                 try:
