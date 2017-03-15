@@ -689,6 +689,21 @@ General changes:
 Nightlies:
 - Added -GIT to getCacheInfo() to fix a case where nightlies were not setup correctly. Requested by Johannes Elmsheuser (ATLASExperiment)
 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/122
+
+In athena 21.0.15, if we combine jps part with EVENtoHITS part in one block, athena will not be able to start. So we need to use a separate block like below to preExec jps part.
+--preExec 'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel="EventService_EventRanges-9419a6ca-4de9-4fcf-9b7d-5e1045e998b2"' 'EVNTtoHITS:simFlags.SimBarcodeOffset.set_Value_and_Lock(200000)' 'EVNTtoHITS:simFlags.TRTRangeCut=30.0;simFlags.TightMuonStepping=True'
+
+Commit Summary
+
+fix problem when pilot adding es special part to athena joboptions
+
+File Changes
+
+M RunJobEvent.py (6)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
