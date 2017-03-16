@@ -3296,15 +3296,39 @@ if __name__ == "__main__":
                         # need to get the updated event range back from Prefetcher
                         tolog("Waiting for Prefetcher reply")
                         count = 0
-                        maxCount = 60
+                        maxCount = 3*60
                         while not runJob.isPrefetcherReady():
                             time.sleep(1)
                             if count > maxCount:
-                                tolog("!!WARNING!!4545!! Prefetcher has not replied for %d seconds - aborting" % (maxCount))
-                                # fail job
-                                # ..
-                                break
+                                pilotErrorDiag = "Prefetcher has not replied for %d seconds - aborting" % (maxCount)
+                                tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+
+                                # Stop threads
+                                runJob.stopAsyncOutputStagerThread()
+                                runJob.joinAsyncOutputStagerThread()
+                                runJob.stopMessageThread()
+                                runJob.joinMessageThread()
+                                if tokenExtractorProcess:
+                                    tokenExtractorProcess.kill()
+                                if prefetcherProcess:
+                                    prefetcherProcess.kill()
+
+                                # Close stdout/err streams
+                                if tokenextractor_stdout:
+                                    tokenextractor_stdout.close()
+                                if tokenextractor_stderr:
+                                    tokenextractor_stderr.close()
+                                if prefetcher_stdout:
+                                    prefetcher_stderr.close()
+                                if prefetcher_stdout:
+                                    prefetcher_stderr.close()
+
+                                job.result[0] = "failed"
+                                job.result[2] = error.ERR_ESRECOVERABLE
+                                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
                             count += 1
+
                         # Prefetcher should now have sent back the updated event range
                         tolog("Original event_range=%s"%str(event_range))
                         event_range = runJob.getCurrentEventRange()

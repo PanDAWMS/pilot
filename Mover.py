@@ -328,7 +328,6 @@ def get_data_new(job,
     ### FIX ME LATER
     FAX_dictionary['usedFAXandDirectIO'] = 'newmover'
     used_direct_access = [e for e in job.inData if e.status == 'remote_io']
-#    used_direct_access = [e for e in job.inData if e.status == 'direct_access']
     if used_direct_access:
         FAX_dictionary['usedFAXandDirectIO'] = 'newmover-directaccess'
 
@@ -337,12 +336,11 @@ def get_data_new(job,
     files, lfns = {}, []
     for fspec in job.inData:
         pfn = fspec.lfn
-#        if fspec.status == 'direct_access':
         if fspec.status == 'remote_io':
             pfn = fspec.turl
         files[fspec.guid] = pfn or ''
         lfns.append(fspec.lfn)
-
+    
     createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
 
     return 0, "", None, FAX_dictionary
