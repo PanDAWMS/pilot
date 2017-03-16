@@ -336,7 +336,7 @@ class S3ObjectstoreSiteMover(SiteMover.SiteMover):
             return status, output, None, None
 
         if report:
-            report['filesize'] = remoteSize
+            report['filesize'] = localSize
 
         ldDest = self.loadBalanceURL(destination)
         if ldDest:
