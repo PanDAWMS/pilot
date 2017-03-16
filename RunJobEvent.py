@@ -2484,9 +2484,6 @@ class RunJobEvent(RunJob):
             scope_dict[lfn] = scopeIn[n]
             n += 1
 
-        # set the guids for the input files
-#        self.
-
         tolog("Using scope dictionary for initial PFC: %s" % str(scope_dict))
 
         dsname = 'dummy_dsname' # not used by getPoolFileCatalog()

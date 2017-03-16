@@ -246,6 +246,7 @@ USING PREFETCHER
 General changes:
 - Removed OtherSiteMover from distribution. Not needed.
 - Removed getUtilityCommandOld() (ATLASExperiment)
+- Cleaned up deprecated new site mover function and related code (Mover)
 
 Nightlies:
 - Added -GIT to getCacheInfo() to fix a case where nightlies were not setup correctly. Requested by Johannes Elmsheuser (ATLASExperiment)

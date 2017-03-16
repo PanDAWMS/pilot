@@ -1149,8 +1149,6 @@ def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml",
     Adapted from R. Walker's code
     """
 
-    tolog("file_dictionary=%s"%str(file_dictionary))
-    tolog("lfns=%s"%str(lfns))
     outxml = ''
     if len(file_dictionary) == 0:
         tolog('No input files so no PFC created')
