@@ -1058,7 +1058,7 @@ class RunJob(object):
                     # missing PoolFileCatalog (only error code from getOutFilesGuids)
                     return ec, job, None
             else:
-                tolog("Build job - do not use PoolFileCatalog to get guid (generated)")
+                tolog("Will not use PoolFileCatalog to get guid")
         else:
             tolog("This job has no output files")
 

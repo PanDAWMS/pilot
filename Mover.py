@@ -331,7 +331,7 @@ def get_data_new(job,
     if used_direct_access:
         FAX_dictionary['usedFAXandDirectIO'] = 'newmover-directaccess'
 
-    # create PoolFileCatalog.xml
+    # create PoolFileCatalog.xml / PFC.xml
     # (turl based for Prefetcher)
     files, lfns = {}, []
     for fspec in job.inData:
