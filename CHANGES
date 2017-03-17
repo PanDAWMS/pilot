@@ -276,6 +276,20 @@ File Changes
 
 M S3ObjectstoreSiteMover.py (2)
 
+  https://github.com/PanDAWMS/pilot/pull/124
+
+Commit Summary
+
+fix merge problem
+patch to check _000 and auto fix it
+fix type error from merge
+
+File Changes
+
+M RunJobEvent.py (2)
+M SiteInformation.py (2)
+M pUtil.py (13)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
