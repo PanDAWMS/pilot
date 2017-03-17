@@ -2102,7 +2102,7 @@ class SiteInformation(object):
     def getBenchmarkFileName(self, workdir):
         """ Return the filename of the benchmark dictionary """
         
-        return os.path,join(workdir, "benchmark.json")
+        return os.path.join(workdir, "benchmark.json")
 
     # Optional
     def shouldExecuteBenchmark(self):
