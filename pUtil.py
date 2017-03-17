@@ -2308,6 +2308,11 @@ def createESFileDictionary(writeToFile):
             # add cwd before the lfns
             #finfo[1] = "`pwd`/" + finfo[1]
             #finfo[1] = finfo[1].replace(',',',`pwd`/')
+
+            # fix the issue that some athena 20 releases have _000 at the end of the filename
+            if finfo[0].endswith("_000"):
+                tolog("replace %s with %s" % (finfo[0], finfo[0][:-4]))
+                finfo[0] = finfo[0][:-4]
             esFileDictionary[finfo[0]] = finfo[1]
             orderedFnameList.append(finfo[0])
         else:
@@ -2415,6 +2420,14 @@ def updateDispatcherData4ES(data, experiment, path):
                 tolog("Replacing @%s with %s" % (name, esFileDictionary[name]))
                 data['jobPars'] = data['jobPars'].replace("@%s" % (name), esFileDictionary[name])
             """
+
+            # fix the issue that some athena 20 releases have _000 at the end of the filename
+            for name in orderedFnameList:
+                name_000 = "@%s_000 " % (name)
+                new_name = "@%s " % (name)
+                if name_000 in data['jobPars']:
+                    tolog("%s in jobPars, replace it with %s" % (name_000, new_name))
+                    data['jobPars'] = data['jobPars'].replace(name_000, new_name)
 
             # Remove the autoconf
             if "--autoConfiguration=everything " in data['jobPars']:
