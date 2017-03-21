@@ -4584,8 +4584,11 @@ def tryint(x):
     except ValueError:
         return x
 
-def splittedname(s):
-    """ Used by numbered string comparison """
+def split_version(s):
+    """ Splits version string into parts and converts parts into integers wherever possible.
+    split_version("1.2.3") = (1,2,3)
+    split_version("1.2.Nightly") = (1,2,"Nightly")
+    """
 
     # Can also be used for sorting:
     # > names = ['YT4.11', '4.3', 'YT4.2', '4.10', 'PT2.19', 'PT2.9']
@@ -4593,15 +4596,20 @@ def splittedname(s):
     # ['4.3', '4.10', 'PT2.9', 'PT2.19', 'YT4.2', 'YT4.11']
 
     from re import split
-    return tuple(tryint(x) for x in split('([0-9]+)', s))
+    return tuple(tryint(x) for x in split('([^.]+)', s))
 
 def isAGreaterOrEqualToB(A, B):
-    """ Is numbered string A >= B? """
+    """ Is numbered string A >= B?
+    "1.2.3" > "1.2"  -- more digits
+    "1.2.3" > "1.2.2"  -- rank based comparison
+    "1.3.2" > "1.2.3"  -- rank based comparison
+    "1.2.N" > "1.2.2"  -- nightlies checker, they are always grater
+    """
     # > a="1.2.3"
     # > b="2.2.2"
     # > e.isAGreaterOrEqualToB(a,b)
 
-    return splittedname(A) >= splittedname(B)
+    return split_version(A) >= split_version(B)
 
 def recursive_overwrite(src, dest, ignore=None):
     if os.path.isdir(src):
