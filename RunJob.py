@@ -1670,13 +1670,13 @@ if __name__ == "__main__":
 
         # Loop until the benchmark subprocess has finished
         if benchmark_subprocess:
-            max_count = 8
+            max_count = 4
             _sleep = 15
             count = 0
             while benchmark_subprocess.poll() is None:
                 if count >= max_count:
                     benchmark_subprocess.send_signal(signal.SIGUSR1)
-                    tolog("Terminated the benchmark since it ran for longer than %d minutes" % (max_count*_sleep))
+                    tolog("Terminated the benchmark since it ran for longer than %d s" % (max_count*_sleep))
                 else:
                     count += 1
 
