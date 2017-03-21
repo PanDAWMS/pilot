@@ -876,7 +876,7 @@ class JobLog:
                 else:
                     tolog("Transferred additional CERNVM files")
 
-    def getBenchmarkDictionary(self, workdir, experiment):
+    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename):
         """ Return the benchmark json dictionary """
 
         benchmark_dictionary = {}
@@ -888,6 +888,13 @@ class JobLog:
         filename = si.getBenchmarkFileName(workdir)
         if os.path.exists(filename):
             benchmark_dictionary = getJSONDictionary(filename)
+
+            # remove unwanted information that is either useless or duplicated
+            _dummy = benchmark_dictionary.pop('cpuname', None) # duplicated in machine section
+
+            # add additional information
+            benchmark_dictionary['ATLASSite'] = sitename
+            benchmark_dictionary['PanDAQueue'] = queuename
 
         return benchmark_dictionary
 
@@ -905,10 +912,10 @@ class JobLog:
         # get the metadata and the relevant workdir
         strXML, workdir = self.getXMLAndWorkdir(jr, site.workdir, job.workdir, job.newDirNM, job.jobId)
 
-        # was the benchmark suite executed? if so, get the output dictionary and add it to the jobReport
-        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment)
+        # was the benchmark suite executed? if so, get the output dictionary and add it to the machine section of the jobReport
+        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement)
         if benchmark_dictionary != {}:
-            addToJobReport(workdir, "benchmark", benchmark_dictionary)
+            addToJobReport(workdir, "benchmark", benchmark_dictionary, section="machine")
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
         # removes any work directory after the LSF job finishes which of course makes job recovery impossible)

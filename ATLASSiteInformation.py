@@ -755,9 +755,7 @@ class ATLASSiteInformation(SiteInformation):
     def getLocalROOTSetup(self):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
 
-        # cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
-        # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
-        # cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalROOTSetup.sh --rootVersion ${rootVersionVal} --skipConfirm; '
+        # Use the dev version of the XRootD setup if --useTestXRootD is set in job parameters
         if hasattr(self, 'xrootd_test') and self.xrootd_test:
             cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup-dev.sh' % (self.getFileSystemRootPath())
         else:
@@ -771,7 +769,6 @@ class ATLASSiteInformation(SiteInformation):
         cmd = 'export ATLAS_LOCAL_ROOT_BASE=%s/atlas.cern.ch/repo/ATLASLocalRootBase; ' % (self.getFileSystemRootPath())
         cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet; '
         cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/packageSetups/atlasLocalEmiSetup.sh --force --quiet'
-        #cmd += 'source ${ATLAS_LOCAL_ROOT_BASE}/x86_64/emi/current/setup.sh'
 
         return cmd
 
@@ -837,6 +834,8 @@ class ATLASSiteInformation(SiteInformation):
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
+        return True
+
         # 1% of the times only?
         from random import randint
         if randint(0,99) == 0:
@@ -894,7 +893,7 @@ class ATLASSiteInformation(SiteInformation):
             ipOption = ""
 
         cmd = "export CVMFS_BASE_PATH='%s/atlas.cern.ch/repo/benchmarks/cern/current';%sexport BMK_ROOTDIR=$CVMFS_BASE_PATH;" % (self.getFileSystemRootPath(), workdirExport)
-        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone;fastBmk' --freetext='Whetstone+fastBmk' --topic=/topic/vm.spec %s --vo=ATLAS -o %s %s %s" % (cloudOption, coresOption, pnodeOption, ipOption)
+        cmd += "$CVMFS_BASE_PATH/cern-benchmark --benchmarks='whetstone;fastBmk' --topic=/topic/vm.spec %s --vo=ATLAS -o %s %s %s" % (cloudOption, coresOption, pnodeOption, ipOption)
 
         return cmd
 

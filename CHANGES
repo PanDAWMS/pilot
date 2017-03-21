@@ -241,12 +241,25 @@ M movers/trace_report.py (11)
 
 
 USING PREFETCHER
+BENCHMARKS ON
 
 
 General changes:
 - Removed OtherSiteMover from distribution. Not needed.
 - Removed getUtilityCommandOld() (ATLASExperiment)
 - Cleaned up deprecated new site mover function and related code (Mover)
+
+ESS:
+- Lots of internal changes related to ESS (RunJobEvent)
+
+Benchmarks:
+- Removed --freetext option from benchmark command in getBenchmarkCommand() (ATLASSiteInformation)
+- Removed key 'cpuname' from the benchmark dictionary in getBenchmarkDictionary() (JobLog)
+- Sending sitename and computingElement to getBenchmarkDictionary() from postJobTask() (JobLog)
+- Added sitename and queuename arguments to getBenchmarkDictionary() (JobLog)
+- Adding sitename and queuename to benchmark dictionary (JobLog)
+- Added argument section to addToJobReport() (FileHandling)
+- Now adding key+value to section in addToJobReport() (FileHandling)
 
 Nightlies:
 - Added -GIT to getCacheInfo() to fix a case where nightlies were not setup correctly. Requested by Johannes Elmsheuser (ATLASExperiment)
@@ -296,17 +309,6 @@ TODO:
 
 OS log transfers:
 [TODO: set bucket to -1 for failed log transfers in jobMetrics]
-
-Direct access updates:
-- [TODO: switch to fax endpoints if direct i/o is requested but not enough info available in copyprefix.]
-[TODO: See HC test "732: RootAnalysis 2.3.14 QuickAna-00-00-60 Analy - rc test", ANALY_IFAE]
-
-Remove singletons:
-- Change __experiment to experiment in Experiment classes
-- Use super() in __init__() (ATLASExperiment)
-- Same changes to SiteInformation classes
-
-REMOVE OTHERSITEMOVER FROM DIST
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
 todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation

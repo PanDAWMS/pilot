@@ -513,12 +513,6 @@ class ATLASExperiment(Experiment):
         if run_command.count("directIn") > 1:
             run_command = run_command.replace("--directIn", "", 1)
 
-        # make sure that the site supports direct access / file stager
-#        if ("--directIn" in run_command or "--useFileStager" in run_command) and readpar('allowdirectaccess').lower() != "true":
-#            ec = self.__error.ERR_DAFSNOTALLOWED
-#            pilotErrorDiag = "Site does not allow requested direct access / file stager (payload will fail)"
-#            tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
-
         return ec, pilotErrorDiag, run_command
 
     def getFileLookups(self):
