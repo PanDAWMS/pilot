@@ -260,6 +260,7 @@ Benchmarks:
 - Adding sitename and queuename to benchmark dictionary (JobLog)
 - Added argument section to addToJobReport() (FileHandling)
 - Now adding key+value to section in addToJobReport() (FileHandling)
+- Increased time-out to 4 minutes for benchmark to finish (RunJob)
 
 Nightlies:
 - Added -GIT to getCacheInfo() to fix a case where nightlies were not setup correctly. Requested by Johannes Elmsheuser (ATLASExperiment)
