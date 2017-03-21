@@ -260,6 +260,12 @@ Benchmarks:
 - Adding sitename and queuename to benchmark dictionary (JobLog)
 - Added argument section to addToJobReport() (FileHandling)
 - Now adding key+value to section in addToJobReport() (FileHandling)
+- Added sitename argument to getBenchmarkSubprocess() (RunJob)
+- Sending sitename to getBenchmarkSubprocess() (RunJob, RunJobEvent)
+- Avoiding running benchmark suite on ANALY sites, since the user jobs will not produce the jobReport, in getBenchmarkSubprocess() (RunJob)
+- Sending subsection to addToJobReport() (JobLog)
+- Added argument subsection to addToJobReport() (FileHandling)
+- Added possibility to set jobReport subsection in addToJobReport() (FileHandling)
 
 Nightlies:
 - Added -GIT to getCacheInfo() to fix a case where nightlies were not setup correctly. Requested by Johannes Elmsheuser (ATLASExperiment)

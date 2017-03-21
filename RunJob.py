@@ -797,7 +797,7 @@ class RunJob(object):
 
         return utility_subprocess
 
-    def getBenchmarkSubprocess(self, node, coreCount, workdir):
+    def getBenchmarkSubprocess(self, node, coreCount, workdir, sitename):
         """ Return/execute the benchmark subprocess if required """
         # Output json: /tmp/cern-benchmark_$USER/bmk_tmp/result_profile.json
 
@@ -806,7 +806,7 @@ class RunJob(object):
         # run benchmark test if required by experiment site information object
 
         si = getSiteInformation(self.getExperiment())
-        if si.shouldExecuteBenchmark():
+        if si.shouldExecuteBenchmark() and not sitename.startswith("ANALY"):
             thisExperiment = getExperiment(self.getExperiment())
             cmd = si.getBenchmarkCommand(cloud=readpar('cloud'), cores=coreCount, workdir=workdir)
             benchmark_subprocess = self.getSubprocess(thisExperiment, cmd)
@@ -1631,7 +1631,7 @@ if __name__ == "__main__":
         # benchmark ........................................................................................
 
         # Launch the benchmark, let it execute during setup + stage-in
-        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir)
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir, jobSite.sitename))
 
         # update the job state file
         job.jobState = "stagein"

@@ -915,7 +915,7 @@ class JobLog:
         # was the benchmark suite executed? if so, get the output dictionary and add it to the machine section of the jobReport
         benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement)
         if benchmark_dictionary != {}:
-            addToJobReport(workdir, "benchmark", benchmark_dictionary, section="machine")
+            addToJobReport(workdir, "benchmark", benchmark_dictionary, section="resource", subsection="machine")
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
         # removes any work directory after the LSF job finishes which of course makes job recovery impossible)

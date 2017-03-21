@@ -525,7 +525,7 @@ def extractOutputFiles(analysisJob, workdir, allowNoOutput, outFiles, outFilesGu
         extracted_guids = []
     return extracted_output_files, extracted_guids
 
-def addToJobReport(workDir, key, value, section=None):
+def addToJobReport(workDir, key, value, section=None, subsection=None):
     """ Add the key with value to the jobReport """
     # Add the key and value to the corresponding section in set
 
@@ -537,7 +537,13 @@ def addToJobReport(workDir, key, value, section=None):
             # Add the new key and value
             if section:
                 if jobReport_dictionary.has_key(section):
-                    jobReport_dictionary[section][key] = value
+                    if subsection:
+                        if jobReport_dictionary[section].has_key(subsection):
+                            jobReport_dictionary[section][subsection][key] = value
+                        else:
+                            tolog("!!WARNING!!2325!! jobReport does not have subsection=%s in the expected location; will not add key=%s" % (subsection, key))
+                    else:
+                        jobReport_dictionary[section][key] = value
                 else:
                     tolog("!!WARNING!!2324!! jobReport does not have section=%s in the expected location; will not add key=%s" % (section, key))
             else:
