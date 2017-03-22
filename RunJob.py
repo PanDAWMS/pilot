@@ -1631,7 +1631,7 @@ if __name__ == "__main__":
         # benchmark ........................................................................................
 
         # Launch the benchmark, let it execute during setup + stage-in
-        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir, jobSite.sitename))
+        benchmark_subprocess = runJob.getBenchmarkSubprocess(node, job.coreCount, job.workdir, jobSite.sitename)
 
         # update the job state file
         job.jobState = "stagein"
