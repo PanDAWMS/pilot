@@ -890,11 +890,16 @@ class JobLog:
             benchmark_dictionary = getJSONDictionary(filename)
 
             # remove unwanted information that is either useless or duplicated
-            _dummy = benchmark_dictionary.pop('cpuname', None) # duplicated in machine section
+            if benchmark_dictionary.has_key('metadata'):
+                _dummy = benchmark_dictionary['metadata'].pop('cpuname', None) # duplicated in machine section
+                _dummy = benchmark_dictionary['metadata'].pop('osdist', None) # duplicated in machine section
+                _dummy = benchmark_dictionary['metadata'].pop('pnode', None) # duplicated in machine section
+                _dummy = benchmark_dictionary['metadata'].pop('freetext', None) # unwanted (not set by pilot, still present in dictionary, empty)
+                _dummy = benchmark_dictionary['metadata'].pop('UID', None) # duplicated in benchmark section (_id key)
 
-            # add additional information
-            benchmark_dictionary['ATLASSite'] = sitename
-            benchmark_dictionary['PanDAQueue'] = queuename
+                # add additional information to the metadata key
+                benchmark_dictionary['metadata']['ATLASSite'] = sitename
+                benchmark_dictionary['metadata']['PanDAQueue'] = queuename
 
         return benchmark_dictionary
 
