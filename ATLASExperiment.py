@@ -3411,7 +3411,9 @@ class ATLASExperiment(Experiment):
         # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
         default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
         # default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
-        default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" % (default_swbase, default_swbase, default_release)
+        default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
+                        "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" %\
+                        (default_swbase, default_swbase, default_release)
 
         # source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc49-opt/20.7.5/cmtsite/asetup.sh 20.7.5.8,notest
 
@@ -3426,14 +3428,14 @@ class ATLASExperiment(Experiment):
 
         # Could anything be extracted?
         #if homePackage == cacheVer: # (no)
-        if isAGreaterOrEqualToB(default_release, release) or default_release == release: # or NG
+        if isAGreaterOrEqualToB(default_release, release) or default_release == release:  # or NG
             # This means there is no patched release available, ie. we need to use the fallback
             useDefault = True
             tolog("%s >= %s" % (default_release, release))
         else:
             useDefault = False
             tolog("%s <= %s" % (default_release, release))
-        useDefault = True
+        # useDefault = True
 
         if useDefault:
             tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
