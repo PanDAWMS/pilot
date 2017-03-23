@@ -2206,33 +2206,12 @@ class RunJobEvent(RunJob):
                     size, buf = self.__message_server_prefetcher.receive()
                 tolog("Received new message from Prefetcher: %s" % (buf))
 
-#                max_wait = 600
-#                i = 0
-#                if self.__sending_event_range:
-#                    tolog("Will wait for current event range to finish being sent (pilot not yet ready to process new request)")
-#                while self.__sending_event_range:
-#                    # Wait until previous send event range has completed (to avoid racing condition), but wait maximum 60 seconds then fail job
-#                    time.sleep(0.1)
-#                    if i > max_wait:
-#                        # Abort with error
-#                        buf = "ERR_FATAL_STUCK_SENDING %s: Stuck sending event range to payload; new message: %s" % (self.__current_event_range, buf)
-#                        break
-#                    i += 1
-#                if i > 0:
-#                    tolog("Delayed %d s for send message to complete" % (i*10))
-
                 # Interpret the message and take the appropriate action
                 if "Ready for events" in buf:
                     buf = ""
                     tolog("Prefetcher is ready for an event range")
-                    # Set the boolean to True since Prefetcher is now ready to receive an event range
+                    # Set the boolean to True since Prefetcher is now ready to receive a new event range
                     self.__prefetcher_is_ready = True
-                    self.__prefetcher_has_finished = False
-
-                elif buf.startswith('['):
-                    tolog("Received an updated event range message from Prefetcher: %s" % (buf))
-                    # Note: the event range will then be passed on to AthenaMP
-                    self.__current_event_range = buf
                     self.__prefetcher_has_finished = True
 
                 elif buf.startswith('ERR'):
@@ -3440,14 +3419,14 @@ if __name__ == "__main__":
 
                     # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
                     if runJob.usePrefetcher():
-                        # Set the boolean to false until Prefetcher has finished updating the event range (if used)
-                        runJob.setPrefetcherHasFinished(False)
 
                         # Loop until Prefetcher is ready to process an event range
                         l = 0
                         while True:
                             if runJob.isPrefetcherReady():
 
+                                # Set the boolean to false until Prefetcher has finished updating the event range (if used)
+                                runJob.setPrefetcherHasFinished(False)
                                 tolog("Sending event range to Prefetcher")
                                 runJob.sendMessage(str([event_range]), prefetcher=True)
 
@@ -3469,10 +3448,7 @@ if __name__ == "__main__":
 
                                     count += 1
 
-                                # Prefetcher should now have sent back the updated event range
-                                tolog("Original event_range=%s"%str(event_range))
-                                event_range = runJob.getCurrentEventRange()
-                                tolog("Updated event_range=%s"%str(event_range))
+                                # Prefetcher should now have written the event info to a local file, pilot can continue to send the event range to AthenaMP
                                 break
                             else:
                                 time.sleep(1)
