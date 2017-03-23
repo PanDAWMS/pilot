@@ -3180,7 +3180,7 @@ if __name__ == "__main__":
 
         # Create and start the message listener threads
         message_thread_payload = StoppableThread(name='payloadListener', target=runJob.payloadListener)
-        runJob.setMessageThread(message_thread_payload)
+        runJob.setMessageThreadPayload(message_thread_payload)
         runJob.startMessageThreadPayload()
         if runJob.usePrefetcher():
             message_thread_prefetcher = StoppableThread(name='prefetcherListener', target=runJob.prefetcherListener)
