@@ -80,12 +80,14 @@ class RunJobEvent(RunJob):
     __pfc_path = ""                              # The path to the pool file catalog
     __message_server_payload = None              # Message server for the payload
     __message_server_prefetcher = None           # Message server for Prefetcher
-    __message_thread = None                      #
+    __message_thread_payload = None              # Thread for listening to messages from the payload
+    __message_thread_prefetcher = None           # Thread for listening to messages from the Prefetcher
     __status = True                              # Global job status; will be set to False if an event range or stage-out fails
     __athenamp_is_ready = False                  # True when an AthenaMP worker is ready to process an event range
-    __prefetcher_is_ready = False                # True when Prefetcher has finished updating an event range
+    __prefetcher_is_ready = False                # True when Prefetcher is ready to receive an event range
+    __prefetcher_has_finished = False            # True when Prefetcher has updated an event range which then should be sent to AthenaMP
     __asyncOutputStager_thread = None            #
-    __asyncOutputStager_thread_sleep_time = 600
+    __asyncOutputStager_thread_sleep_time = 600  #
     __analysisJob = False                        # True for analysis job
     __jobSite = None                             # Site object
     __siteInfo = None                            # site information
@@ -447,15 +449,25 @@ class RunJobEvent(RunJob):
 
         self.__message_server_prefetcher = message_server
 
-    def getMessageThread(self):
-        """ Getter for __message_thread """
+    def getMessageThreadPayload(self):
+        """ Getter for __message_thread_payload """
 
-        return self.__message_thread
+        return self.__message_thread_payload
 
-    def setMessageThread(self, message_thread):
-        """ Setter for __message_thread """
+    def setMessageThreadPayload(self, message_thread_payload):
+        """ Setter for __message_thread_payload """
 
-        self.__message_thread = message_thread
+        self.__message_thread_payload = message_thread_payload
+
+    def getMessageThreadPrefetcher(self):
+        """ Getter for __message_thread_prefetcher """
+
+        return self.__message_thread_prefetcher
+
+    def setMessageThreadPrefetcher(self, message_thread_prefetcher):
+        """ Setter for __message_thread_prefetcher """
+
+        self.__message_thread_prefetcher = message_thread_prefetcher
 
     def isAthenaMPReady(self):
         """ Getter for __athenamp_is_ready """
@@ -476,6 +488,16 @@ class RunJobEvent(RunJob):
         """ Setter for __prefetcher_is_ready """
 
         self.__prefetcher_is_ready = prefetcher_is_ready
+
+    def prefetcherHasFinished(self):
+        """ Getter for __prefetcher_has_finished """
+
+        return self.__prefetcher_has_finished
+
+    def setPrefetcherHasFinished(self, prefetcher_has_finished):
+        """ Setter for __prefetcher_has_finished """
+
+        self.__prefetcher_has_finished = prefetcher_has_finished
 
     def getAsyncOutputStagerThread(self):
         """ Getter for __asyncOutputStager_thread """
@@ -780,14 +802,14 @@ class RunJobEvent(RunJob):
         #    tolog("Prefetcher will not be used")
         #    self.__usePrefetcher = False
 
-        #if release == "20.3.7" or release == "Atlas-20.3.7":
-        #    tolog("Prefetcher will be used for release %s" % (release))
-        #    self.__usePrefetcher = True
-        #else:
-        #    tolog("Prefetcher will not be used for release %s" % (release))
-        #    self.__usePrefetcher = False
-        tolog("Prefetcher will not be used for release %s" % (release))
-        self.__usePrefetcher = False
+        if release == "20.3.7" or release == "Atlas-20.3.7":
+            tolog("Prefetcher will be used for release %s" % (release))
+            self.__usePrefetcher = True
+        else:
+            tolog("Prefetcher will not be used for release %s" % (release))
+            self.__usePrefetcher = False
+        #tolog("Prefetcher will not be used for release %s" % (release))
+        #self.__usePrefetcher = False
 
     def getPanDAServer(self):
         """ Getter for __pandaserver """
@@ -1775,20 +1797,35 @@ class RunJobEvent(RunJob):
         else:
             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
 
-    def startMessageThread(self):
-        """ Start the message thread """
+    def startMessageThreadPayload(self):
+        """ Start the message thread for the payload """
 
-        self.__message_thread.start()
+        self.__message_thread_payload.start()
 
-    def stopMessageThread(self):
-        """ Stop the message thread """
+    def stopMessageThreadPayload(self):
+        """ Stop the message thread for the payload """
 
-        self.__message_thread.stop()
+        self.__message_thread_payload.stop()
 
-    def joinMessageThread(self):
-        """ Join the message thread """
+    def startMessageThreadPrefetcher(self):
+        """ Start the message thread for the prefetcher """
 
-        self.__message_thread.join()
+        self.__message_thread_prefetcher.start()
+
+    def stopMessageThreadPrefetcher(self):
+        """ Stop the message thread for the prefetcher """
+
+        self.__message_thread_prefetcher.stop()
+
+    def joinMessageThreadPayload(self):
+        """ Join the message thread for the payload """
+
+        self.__message_thread_payload.join()
+
+    def joinMessageThreadPrefetcher(self):
+        """ Join the message thread for the prefetcher """
+
+        self.__message_thread_prefetcher.join()
 
     def startAsyncOutputStagerThread(self):
         """ Start the asynchronous output stager thread """
@@ -2024,22 +2061,22 @@ class RunJobEvent(RunJob):
                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
         tolog("Asynchronous output stager thread has been stopped")
 
-    def listener(self):
-        """ Listen for messages """
+    def payloadListener(self):
+        """ Listen for messages from the payload """
 
         # Note: this is run as a thread
 
         # Listen for messages as long as the thread is not stopped
-        while not self.__message_thread.stopped():
+        while not self.__message_thread_payload.stopped():
 
             try:
                 # Receive a message
                 tolog("Waiting for a new message")
                 size, buf = self.__message_server_payload.receive()
-                while size == -1 and not self.__message_thread.stopped():
+                while size == -1 and not self.__message_thread_payload.stopped():
                     time.sleep(1)
                     size, buf = self.__message_server_payload.receive()
-                tolog("Received new message: %s" % (buf))
+                tolog("Received new message from Payload: %s" % (buf))
 
                 max_wait = 600
                 i = 0
@@ -2150,7 +2187,109 @@ class RunJobEvent(RunJob):
                 tolog("Caught exception:%s" % e)
             time.sleep(1)
 
-        tolog("listener has finished")
+        tolog("Payload listener has finished")
+
+    def prefetcherListener(self):
+        """ Listen for messages from the prefetcher """
+
+        # Note: this is run as a thread
+
+        # Listen for messages as long as the thread is not stopped
+        while not self.__message_thread_prefetcher.stopped():
+
+            try:
+                # Receive a message
+                tolog("Waiting for a new message")
+                size, buf = self.__message_server_prefetcher.receive()
+                while size == -1 and not self.__message_thread_prefetcher.stopped():
+                    time.sleep(1)
+                    size, buf = self.__message_server_prefetcher.receive()
+                tolog("Received new message from Prefetcher: %s" % (buf))
+
+#                max_wait = 600
+#                i = 0
+#                if self.__sending_event_range:
+#                    tolog("Will wait for current event range to finish being sent (pilot not yet ready to process new request)")
+#                while self.__sending_event_range:
+#                    # Wait until previous send event range has completed (to avoid racing condition), but wait maximum 60 seconds then fail job
+#                    time.sleep(0.1)
+#                    if i > max_wait:
+#                        # Abort with error
+#                        buf = "ERR_FATAL_STUCK_SENDING %s: Stuck sending event range to payload; new message: %s" % (self.__current_event_range, buf)
+#                        break
+#                    i += 1
+#                if i > 0:
+#                    tolog("Delayed %d s for send message to complete" % (i*10))
+
+                # Interpret the message and take the appropriate action
+                if "Ready for events" in buf:
+                    buf = ""
+                    tolog("Prefetcher is ready for an event range")
+                    # Set the boolean to True since Prefetcher is now ready to receive an event range
+                    self.__prefetcher_is_ready = True
+                    self.__prefetcher_has_finished = False
+
+                elif buf.startswith('['):
+                    tolog("Received an updated event range message from Prefetcher: %s" % (buf))
+                    # Note: the event range will then be passed on to AthenaMP
+                    self.__current_event_range = buf
+                    self.__prefetcher_has_finished = True
+
+                elif buf.startswith('ERR'):
+                    tolog("Received an error message: %s" % (buf))
+
+                    # Extract the error acronym and the error diagnostics
+                    error_acronym, event_range_id, error_diagnostics = self.extractErrorMessage(buf)
+                    if event_range_id != "":
+                        tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
+
+                        error_code = None
+                        event_status = 'failed'
+                        # Was the error fatal? If so, the pilot should abort
+                        if "FATAL" in error_acronym:
+                            tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
+
+                            # Fail the job
+                            if error_acronym == "ERR_TE_FATAL" and "URL Error" in error_diagnostics:
+                                error_code = self.__error.ERR_TEBADURL
+                            elif error_acronym == "ERR_TE_FATAL" and "resolve host name" in error_diagnostics:
+                                error_code = self.__error.ERR_TEHOSTNAME
+                            elif error_acronym == "ERR_TE_FATAL" and "Invalid GUID length" in error_diagnostics:
+                                error_code = self.__error.ERR_TEINVALIDGUID
+                            elif error_acronym == "ERR_TE_FATAL" and "No tokens for GUID" in error_diagnostics:
+                                error_code = self.__error.ERR_TEWRONGGUID
+                            elif error_acronym == "ERR_TE_FATAL":
+                                error_code = self.__error.ERR_TEFATAL
+                                event_status = 'failed'  # should be 'fatal', we only use 'failed' currently
+                            else:
+                                error_code = self.__error.ERR_ESFATAL
+                            self.__esFatalCode = error_code
+                        else:
+                            error_code = self.__error.ERR_UNKNOWN
+
+                        # Time to update the server
+                        self.__nEventsFailed += 1
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status=event_status, errorCode=error_code)
+                        if msg != "":
+                            tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
+                        else:
+                            tolog("Updated server for failed event range")
+
+                        if error_code:
+                            # result = ["failed", 0, error_code]
+                            tolog("Error code: %d, send 'No more events' to stop AthenaMP" % (error_code))
+                            # self.setJobResult(result, pilot_failed=True)
+                            self.sendMessage("No more events")
+                    else:
+                        tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
+
+                else:
+                    tolog("Pilot received message:%s" % buf)
+            except Exception, e:
+                tolog("Caught exception:%s" % e)
+            time.sleep(1)
+
+        tolog("Prefetcher listener has finished")
 
     def extractErrorMessage(self, msg):
         """ Extract the error message from the AthenaMP message """
@@ -2741,6 +2880,30 @@ class RunJobEvent(RunJob):
 
         return runCommand
 
+    def stopThreads(self, tokenExtractorProcess, prefetcherProcess, tokenextractor_stdout, tokenextractor_stderr, prefetcher_stdout, prefetcher_stderr):
+        """ Stop all threads and close output streams """
+
+        self.stopAsyncOutputStagerThread()
+        self.joinAsyncOutputStagerThread()
+        self.stopMessageThreadPayload()
+        self.joinMessageThreadPayload()
+        if self.usePrefetcher():
+            self.stopMessageThreadPrefetcher()
+            self.joinMessageThreadPrefetcher()
+        if tokenExtractorProcess:
+            tokenExtractorProcess.kill()
+        if prefetcherProcess:
+            prefetcherProcess.kill()
+
+        # Close stdout/err streams
+        if tokenextractor_stdout:
+            tokenextractor_stdout.close()
+        if tokenextractor_stderr:
+            tokenextractor_stderr.close()
+        if prefetcher_stdout:
+            prefetcher_stderr.close()
+        if prefetcher_stdout:
+            prefetcher_stderr.close()
 
 # main process starts here
 if __name__ == "__main__":
@@ -3015,10 +3178,16 @@ if __name__ == "__main__":
         runJob.setAsyncOutputStagerThread(asyncOutputStager_thread)
         runJob.startAsyncOutputStagerThread()
 
-        # Create and start the message listener thread
-        message_thread = StoppableThread(name='listener', target=runJob.listener)
-        runJob.setMessageThread(message_thread)
-        runJob.startMessageThread()
+        # Create and start the message listener threads
+        message_thread_payload = StoppableThread(name='payloadListener', target=runJob.payloadListener)
+        runJob.setMessageThread(message_thread_payload)
+        runJob.startMessageThreadPayload()
+        if runJob.usePrefetcher():
+            message_thread_prefetcher = StoppableThread(name='prefetcherListener', target=runJob.prefetcherListener)
+            runJob.setMessageThreadPrefetcher(message_thread_prefetcher)
+            runJob.startMessageThreadPrefetcher()
+        else:
+            message_thread_prefetcher = None
 
         # threading ends here ..............................................................................
 
@@ -3057,8 +3226,11 @@ if __name__ == "__main__":
                     # Stop threads
                     runJob.stopAsyncOutputStagerThread()
                     runJob.joinAsyncOutputStagerThread()
-                    runJob.stopMessageThread()
-                    runJob.joinMessageThread()
+                    runJob.stopMessageThreadPayload()
+                    runJob.joinMessageThreadPayload()
+                    if runJob.usePrefetcher():
+                        runJob.stopMessageThreadPrefetcher()
+                        runJob.joinMessageThreadPrefetcher()
 
                     # Set error code
                     job.result[0] = "failed"
@@ -3159,24 +3331,7 @@ if __name__ == "__main__":
                 tolog("!!WARNING!!4440!! Failed to create initial PFC - cannot continue, will stop all threads")
 
                 # Stop threads
-                runJob.stopAsyncOutputStagerThread()
-                runJob.joinAsyncOutputStagerThread()
-                runJob.stopMessageThread()
-                runJob.joinMessageThread()
-                if tokenExtractorProcess:
-                    tokenExtractorProcess.kill()
-                if prefetcherProcess:
-                    prefetcherProcess.kill()
-
-                # Close stdout/err streams
-                if tokenextractor_stdout:
-                    tokenextractor_stdout.close()
-                if tokenextractor_stderr:
-                    tokenextractor_stderr.close()
-                if prefetcher_stdout:
-                    prefetcher_stderr.close()
-                if prefetcher_stdout:
-                    prefetcher_stderr.close()
+                runJob.stopThreads(tokenExtractorProcess, prefetcherProcess, tokenextractor_stdout, tokenextractor_stderr, prefetcher_stdout, prefetcher_stderr)
 
                 job.result[0] = "failed"
                 job.result[2] = error.ERR_ESRECOVERABLE
@@ -3283,56 +3438,60 @@ if __name__ == "__main__":
                         tolog("Aborting event range loop")
                         break
 
-                    # Set the boolean to false until Prefetcher has finished updating the event range (if used)
-                    runJob.setPrefetcherIsReady(False)
-
                     # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
                     if runJob.usePrefetcher():
-                        tolog("Sending event range to Prefetcher")
-                        runJob.setSendingEventRange(True)
-                        runJob.sendMessage(str([event_range]), prefetcher=True)
-                        runJob.setSendingEventRange(False)
+                        # Set the boolean to false until Prefetcher has finished updating the event range (if used)
+                        runJob.setPrefetcherHasFinished(False)
 
-                        # need to get the updated event range back from Prefetcher
-                        tolog("Waiting for Prefetcher reply")
-                        count = 0
-                        maxCount = 3*60
-                        while not runJob.isPrefetcherReady():
-                            time.sleep(1)
-                            if count > maxCount:
-                                pilotErrorDiag = "Prefetcher has not replied for %d seconds - aborting" % (maxCount)
-                                tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+                        # Loop until Prefetcher is ready to process an event range
+                        l = 0
+                        while True:
+                            if runJob.isPrefetcherReady():
 
-                                # Stop threads
-                                runJob.stopAsyncOutputStagerThread()
-                                runJob.joinAsyncOutputStagerThread()
-                                runJob.stopMessageThread()
-                                runJob.joinMessageThread()
-                                if tokenExtractorProcess:
-                                    tokenExtractorProcess.kill()
-                                if prefetcherProcess:
-                                    prefetcherProcess.kill()
+                                tolog("Sending event range to Prefetcher")
+                                runJob.sendMessage(str([event_range]), prefetcher=True)
 
-                                # Close stdout/err streams
-                                if tokenextractor_stdout:
-                                    tokenextractor_stdout.close()
-                                if tokenextractor_stderr:
-                                    tokenextractor_stderr.close()
-                                if prefetcher_stdout:
-                                    prefetcher_stderr.close()
-                                if prefetcher_stdout:
-                                    prefetcher_stderr.close()
+                                # need to get the updated event range back from Prefetcher
+                                tolog("Waiting for Prefetcher reply")
+                                count = 0
+                                maxCount = 60
+                                while not runJob.prefetcherHasFinished():
+                                    time.sleep(1)
+                                    if count > maxCount:
+                                        pilotErrorDiag = "Prefetcher has not replied for %d seconds - aborting" % (maxCount)
+                                        tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
 
-                                job.result[0] = "failed"
-                                job.result[2] = error.ERR_ESRECOVERABLE
-                                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+                                        # Stop threads
+                                        runJob.stopThreads(tokenExtractorProcess, prefetcherProcess, tokenextractor_stdout, tokenextractor_stderr, prefetcher_stdout, prefetcher_stderr)
+                                        job.result[0] = "failed"
+                                        job.result[2] = error.ERR_ESRECOVERABLE
+                                        runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-                            count += 1
+                                    count += 1
 
-                        # Prefetcher should now have sent back the updated event range
-                        tolog("Original event_range=%s"%str(event_range))
-                        event_range = runJob.getCurrentEventRange()
-                        tolog("Updated event_range=%s"%str(event_range))
+                                # Prefetcher should now have sent back the updated event range
+                                tolog("Original event_range=%s"%str(event_range))
+                                event_range = runJob.getCurrentEventRange()
+                                tolog("Updated event_range=%s"%str(event_range))
+                                break
+                            else:
+                                time.sleep(1)
+
+                                if l%10 == 0:
+                                    tolog("Prefetcher waiting loop iteration #%d" % (l))
+                                l += 1
+
+                                # Is Prefetcher still running?
+                                if prefetcherProcess.poll() is not None:
+                                    job.pilotErrorDiag = "Prefetcher finished prematurely"
+                                    job.result[0] = "failed"
+                                    job.result[2] = error.ERR_ESPREFETCHERDIED
+                                    tolog("!!WARNING!!2228!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
+                                    break
+
+                            if job.result[0] == "failed":
+                                tolog("Picked up an error: aborting")
+                                break
 
                     # Send the event range to AthenaMP
                     tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
@@ -3640,9 +3799,12 @@ if __name__ == "__main__":
         if athenamp_stderr:
             athenamp_stderr.close()
 
-        tolog("Stopping message thread")
-        runJob.stopMessageThread()
-        runJob.joinMessageThread()
+        tolog("Stopping message threads")
+        runJob.stopMessageThreadPayload()
+        runJob.joinMessageThreadPayload()
+        if runJob.usePrefetcher():
+            runJob.stopMessageThreadPrefetcher()
+            runJob.joinMessageThreadPrefetcher()
 
         # Rename the metadata produced by the payload
         # if not pUtil.isBuildJob(outs):

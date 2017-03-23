@@ -480,6 +480,9 @@ class Job:
         pUtil.tolog("Updated ddmEndPointLog=%s" % self.ddmEndPointLog)
 
         self.jobPars = data.get('jobPars', '')
+#        self.jobPars +=' --useTestASetup'
+#        self.jobPars +=' --useTestXRootD'
+#PN
 
         self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true'
 

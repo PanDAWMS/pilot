@@ -325,13 +325,7 @@ class ATLASExperiment(Experiment):
                     # homePackage="AnalysisTransforms-AthAnalysisBase_2.0.14"
                     # -> cacheDir = AthAnalysisBase, cacheVer = 2.0.14
                     cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
-                    tolog("cacheDir = %s" % (cacheDir))
-                    tolog("cacheVer = %s" % (cacheVer))
                     if cacheDir != "" and cacheVer != "":
-
-                        #asetup = "export AtlasSetup=%s/%s/%s/%s/AtlasSetup; " % (swbase, cacheDir, cmtconfig, cacheVer)
-                        #asetup += "source $AtlasSetup/scripts/asetup.sh %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
-
                         asetup = self.getModernASetup()
                         asetup += " %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
 
@@ -369,6 +363,9 @@ class ATLASExperiment(Experiment):
 
         if os.environ.has_key('ALRB_asetupVersion'):
             cmd = 'export ALRB_asetupVersion=%s;%s' % (os.environ['ALRB_asetupVersion'], cmd)
+            tolog("ALRB_asetupVersion is set to %s" % (os.environ['ALRB_asetupVersion']))
+        else:
+            tolog("ALRB_asetupVersion is not set")
 
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
@@ -2978,13 +2975,6 @@ class ATLASExperiment(Experiment):
         path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
         if os.path.exists(path):
             # Handle nightlies correctly, since these releases will have different initial paths
-            path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-            #if swbase:
-            #    path = getInitialDirs(swbase, 3) # path = "/cvmfs/atlas-nightlies.cern.ch/repo"
-            #    # correct for a possible change of the root directory (/cvmfs)
-            #    path = path.replace("/cvmfs", self.getCVMFSPath())
-            #else:
-            #    path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
             cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
             cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
             cmd += "source $AtlasSetup/scripts/asetup.sh"
