@@ -310,6 +310,19 @@ M pUtil.py (13)
 
 General changes:
 
+Updates from D. Drizhuk:
+
+  https://github.com/PanDAWMS/pilot/pull/125
+
+Commit Summary
+
+    Memory monitor version checker 
+
+File Changes
+
+    M ATLASExperiment.py (8)
+    M pUtil.py (18) 
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

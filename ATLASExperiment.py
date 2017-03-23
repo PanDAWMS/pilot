@@ -3434,8 +3434,7 @@ class ATLASExperiment(Experiment):
             tolog("%s >= %s" % (default_release, release))
         else:
             useDefault = False
-            tolog("%s <= %s" % (default_release, release))
-        # useDefault = True
+            tolog("%s < %s" % (default_release, release))
 
         if useDefault:
             tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
