@@ -2155,7 +2155,7 @@ class ATLASExperiment(Experiment):
             # Special case for AtlasDerivation. In this case cacheVer = timestamp,
             # so we don't want to add both cacheVer and timestamp,
             # and we need to add cacheDir and the release itself
-            special_cacheDirs = ['AtlasDerivation'] # Add more cases if necessary
+            special_cacheDirs = ['AtlasDerivation', 'Athena'] # Add more cases if necessary
             if cacheDir in special_cacheDirs:
                 # strip any special cacheDirs from the release string, if present
                 for special_cacheDir in special_cacheDirs:
