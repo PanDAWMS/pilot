@@ -2223,15 +2223,15 @@ class RunJobEvent(RunJob):
                     tolog("Prefetcher is ready for an event range")
                     # Set the boolean to True since Prefetcher is now ready to receive a new event range
                     self.__prefetcher_is_ready = True
-                    self.__prefetcher_has_finished = True
 
                 elif buf.startswith('/'):
                     tolog("Received an updated LFN path from Prefetcher: %s" % (buf))
                     # /home/tmp/Panda_Pilot_87984_1490352234/PandaJob_3301909532_1490352238/athenaMP-workers-EVNTMerge-None/worker_0/localRange.pool.root_000.10982162-3301909532-8861875445-1-5,ID:10982162-3301909532-8861875445-1-5,CPU:0,WALL:0
                     self.__updated_lfn = buf.split(',')[0]
 
-                    # Set the boolean to True since Prefetcher is now ready (finished with the current event range)
+                    # Set the booleans to True since Prefetcher has finished and is now ready to start again
                     runJob.setPrefetcherIsReady(True)
+                    self.__prefetcher_has_finished = True
 
                 elif buf.startswith('ERR'):
                     tolog("Received an error message: %s" % (buf))
