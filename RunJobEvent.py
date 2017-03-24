@@ -3446,7 +3446,7 @@ if __name__ == "__main__":
 
                                 # Set the boolean to false until Prefetcher has finished updating the event range (if used)
                                 runJob.setPrefetcherHasFinished(False)
-                                runJob.setupUpdatedLFN("") # forget about any previously updated LFN
+                                runJob.setUpdatedLFN("") # forget about any previously updated LFN
                                 tolog("Sending event range to Prefetcher")
                                 runJob.sendMessage(str([event_range]), prefetcher=True)
                                 time.sleep(1)
