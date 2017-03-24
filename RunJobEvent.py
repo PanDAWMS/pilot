@@ -101,6 +101,7 @@ class RunJobEvent(RunJob):
     __tokenextractor_input_list_filenane = ""    #
     __sending_event_range = False                # True while event range is being sent to payload
     __current_event_range = ""                   # Event range being sent to payload
+    __updated_lfn = ""                           # Updated LFN sent from the Prefetcher
     __useTokenExtractor = False                  # Should the TE be used?
     __usePrefetcher = False                      # Should the Prefetcher be user
     __pandaserver = ""                   # Full PanDA server url incl. port and sub dirs
@@ -388,6 +389,16 @@ class RunJobEvent(RunJob):
         """ Setter for __lfn_list """
 
         self.__lfn_list = lfn_list
+
+    def getUpdatedLFN(self):
+        """ Getter for __updated_lfn """
+
+        return self.__updated_lfn
+
+    def setUpdatedLFN(self, updated_lfn):
+        """ Setter for __updated_lfn """
+
+        self.__updated_lfn = updated_lfn
 
     def getEventRangeDictionary(self):
         """ Getter for __eventRange_dictionary """
@@ -2214,9 +2225,10 @@ class RunJobEvent(RunJob):
                     self.__prefetcher_is_ready = True
                     self.__prefetcher_has_finished = True
 
-                elif buf.startswith('['):
-                    tolog("Received an updated event range message from Prefetcher: %s" % (buf))
-                    self.__current_event_range = buf
+                elif buf.startswith('/'):
+                    tolog("Received an updated LFN path from Prefetcher: %s" % (buf))
+                    # /home/tmp/Panda_Pilot_87984_1490352234/PandaJob_3301909532_1490352238/athenaMP-workers-EVNTMerge-None/worker_0/localRange.pool.root_000.10982162-3301909532-8861875445-1-5,ID:10982162-3301909532-8861875445-1-5,CPU:0,WALL:0
+                    self.__updated_lfn = buf.split(',')[0]
 
                     # Set the boolean to True since Prefetcher is now ready (finished with the current event range)
                     runJob.setPrefetcherIsReady(True)
@@ -3434,6 +3446,7 @@ if __name__ == "__main__":
 
                                 # Set the boolean to false until Prefetcher has finished updating the event range (if used)
                                 runJob.setPrefetcherHasFinished(False)
+                                runJob.setupUpdatedLFN("") # forget about any previously updated LFN
                                 tolog("Sending event range to Prefetcher")
                                 runJob.sendMessage(str([event_range]), prefetcher=True)
                                 time.sleep(1)
@@ -3457,11 +3470,14 @@ if __name__ == "__main__":
 
                                     count += 1
 
-                                # Prefetcher should now have sent back the updated event range
                                 tolog("Original event_range=%s"%str(event_range))
-                                event_range = runJob.getCurrentEventRange()
+
+                                # Prefetcher should now have sent back the updated LFN
+                                # Update the event_range
+                                event_range[0]['LFN'] = runJob.getUpdatedLFN()
+
                                 tolog("Updated event_range=%s"%str(event_range))
-                                # Prefetcher should now have written the event info to a local file, pilot can continue to send the event range to AthenaMP
+                                # Prefetcher should now have written the event info to a local file, pilot can continue to send the updated event range to AthenaMP
                                 break
                             else:
                                 time.sleep(1)
