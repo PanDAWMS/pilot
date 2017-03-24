@@ -310,6 +310,12 @@ M pUtil.py (13)
 
 General changes:
 
+Event Service:
+- Improved support for Event Streaming Service (RunJobEvent)
+
+Benchmarking:
+- Now sending benchmark dictionary to intermediary ES service in postJobTask() (JobLog)
+
 Updates from D. Drizhuk:
 
   https://github.com/PanDAWMS/pilot/pull/125
