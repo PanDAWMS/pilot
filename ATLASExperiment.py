@@ -1306,7 +1306,7 @@ class ATLASExperiment(Experiment):
 
             # Special case for AtlasDerivation. In this case cacheVer = rel_N
             # and we need to add cacheDir and the release itself
-            special_cacheDirs = ['AtlasDerivation','AtlasOffline','VAL', '.X', '-GIT'] # Add more cases if necessary
+            special_cacheDirs = ['AtlasDerivation','AtlasOffline','VAL', '.X', '-GIT', 'master', 'multithreading'] # Add more cases if necessary
             if cacheDir in special_cacheDirs and self.isNightliesRelease(cacheVer):
                 # strip any special cacheDirs from the release string, if present
                 for special_cacheDir in special_cacheDirs:

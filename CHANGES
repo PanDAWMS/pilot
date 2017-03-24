@@ -310,6 +310,9 @@ M pUtil.py (13)
 
 General changes:
 
+Payload setup:
+- Added 'master' and 'multithreading' to special cache dir list in getCacheInfo() (ATLASExperiment)
+
 Event Service:
 - Improved support for Event Streaming Service (RunJobEvent)
 

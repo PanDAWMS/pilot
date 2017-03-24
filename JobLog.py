@@ -926,9 +926,10 @@ class JobLog:
             benchmark_dictionary['type'] = 'BenchmarkData'
             url = "http://uct2-collectd.mwt2.org:8080"
             cmd = "curl --connect-timeout 20 --max-time 120 -H "Content-Type: application/json" -X POST -d %s %s" % (benchmark_dictionary, url)
-            # tolog("Executing command: %s" % (cmd))
+            tolog("Executing command: %s" % (cmd))
             try:
-                ret, output = commands.getstatusoutput(cmd)
+                pass
+                #ret, output = commands.getstatusoutput(cmd)
             except Exception, e:
                 tolog("!!WARNING!!1999!! Failed with curl command: %s" % str(e))
 
