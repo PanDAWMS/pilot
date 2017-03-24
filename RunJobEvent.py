@@ -2214,6 +2214,13 @@ class RunJobEvent(RunJob):
                     self.__prefetcher_is_ready = True
                     self.__prefetcher_has_finished = True
 
+                elif buf.startswith('['):
+                    tolog("Received an updated event range message from Prefetcher: %s" % (buf))
+                    self.__current_event_range = buf
+
+                    # Set the boolean to True since Prefetcher is now ready (finished with the current event range)
+                    runJob.setPrefetcherIsReady(True)
+
                 elif buf.startswith('ERR'):
                     tolog("Received an error message: %s" % (buf))
 
@@ -3448,6 +3455,10 @@ if __name__ == "__main__":
 
                                     count += 1
 
+                                # Prefetcher should now have sent back the updated event range
+                                tolog("Original event_range=%s"%str(event_range))
+                                event_range = runJob.getCurrentEventRange()
+                                tolog("Updated event_range=%s"%str(event_range))
                                 # Prefetcher should now have written the event info to a local file, pilot can continue to send the event range to AthenaMP
                                 break
                             else:
