@@ -3436,6 +3436,8 @@ if __name__ == "__main__":
                                 runJob.setPrefetcherHasFinished(False)
                                 tolog("Sending event range to Prefetcher")
                                 runJob.sendMessage(str([event_range]), prefetcher=True)
+                                time.sleep(1)
+                                self.sendMessage("No more events", prefetcher=True)
 
                                 # need to get the updated event range back from Prefetcher
                                 tolog("Waiting for Prefetcher reply")
