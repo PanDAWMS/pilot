@@ -3474,7 +3474,7 @@ if __name__ == "__main__":
 
                                 # Prefetcher should now have sent back the updated LFN
                                 # Update the event_range
-                                event_range[0]['LFN'] = runJob.getUpdatedLFN()
+                                event_range['LFN'] = runJob.getUpdatedLFN()
 
                                 tolog("Updated event_range=%s"%str(event_range))
                                 # Prefetcher should now have written the event info to a local file, pilot can continue to send the updated event range to AthenaMP
