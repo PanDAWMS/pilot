@@ -388,6 +388,10 @@ class Experiment(object):
             oldPrefix = ""
             newPrefix = ""
 
+        if readpar("TestXRootD", False):
+            import re
+            re.sub(r'\/xrootdsetup\.sh', '/xrootdsetup-dev.sh', copysetup)
+
         return dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl, lfcHost
 
     def getSetupFromCopysetup(self, copysetup):

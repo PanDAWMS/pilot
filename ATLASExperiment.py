@@ -361,9 +361,10 @@ class ATLASExperiment(Experiment):
         if 'HPC_HPC' in readpar("catchall"):
             cmd = 'export JOB_RELEASE=%s;export JOB_HOMEPACKAGE=%s;JOB_CACHEVERSION=%s;JOB_CMTCONFIG=%s;%s' % (job.release, job.homePackage, cacheVer, cmtconfig, cmd)
 
-        if os.environ.has_key('ALRB_asetupVersion'):
-            cmd = 'export ALRB_asetupVersion=%s;%s' % (os.environ['ALRB_asetupVersion'], cmd)
-            tolog("ALRB_asetupVersion is set to %s" % (os.environ['ALRB_asetupVersion']))
+        ver = readpar("ALRB_asetupVersion", os.environ.get('ALRB_asetupVersion', None))
+        if ver is not None:
+            cmd = 'export ALRB_asetupVersion=%s;%s' % (ver, cmd)
+            tolog("ALRB_asetupVersion is set to %s" % ver)
         else:
             tolog("ALRB_asetupVersion is not set")
 

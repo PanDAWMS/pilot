@@ -229,6 +229,42 @@ class SiteInformation(object):
 
         return status
 
+    def setNewQueuedataField(self, field, value):
+        """ Set queuedata field in JSON file """
+
+        queuedata_filename = self.getQueuedataFileName()
+        status = False
+        if "json" not in queuedata_filename.lower():
+            tolog("!!WARNING!!4003!! Failed to introduce new param, queuedata is not in JSON")
+            return False
+        from json import load, dump
+        try:
+            fp = open(queuedata_filename, "r")
+        except Exception, e:
+            tolog("!!WARNING!!4003!! Failed to open file: %s, %s" % (queuedata_filename, e))
+        else:
+            try:
+                dic = load(fp)
+            except Exception, e:
+                tolog("!!WARNING!!4004!! Failed to load dictionary: %s" % (e))
+            else:
+                fp.close()
+                dic[field] = value
+                try:
+                    fp = open(queuedata_filename, "w")
+                except Exception, e:
+                    tolog("!!WARNING!!4005!! Failed to open file: %s, %s" % (queuedata_filename, e))
+                else:
+                    try:
+                        dump(dic, fp)
+                    except Exception, e:
+                        tolog("!!WARNING!!4005!! Failed to dump dictionary: %s" % (e))
+                    else:
+                        fp.close()
+                        status = True
+
+        return status
+
     def evaluateQueuedata(self):
         """ Evaluate environmental variables if used and replace the value in the queuedata """
 
@@ -516,7 +552,7 @@ class SiteInformation(object):
             self.transferTypeFix = value
         else:
             tolog("Overwriting queuedata parameter \"%s\" to %s" % (key, json.dumps(value)))
-            self.replaceQueuedataField(key, value)
+            self.setNewQueuedataField(key, value)
             tolog("Updated %s in queuedata: %s (read back from file)" % (key, self.readpar(key)))
 
 
@@ -620,8 +656,10 @@ class SiteInformation(object):
                     else:
                         tolog("No need to update queuedata for --disableFAX (allowfax is not set to True)")
                 elif arg == '--useTestASetup':
+                    self.fixQueuedataFromParams("ALRB_asetupVersion", 'testing')
                     os.environ['ALRB_asetupVersion'] = 'testing'
                 elif arg == '--useTestXRootD':
+                    self.fixQueuedataFromParams("TestXRootD", True)
                     self.xrootd_test = True
                 else:
                     new_args.append(arg)
@@ -2207,7 +2245,11 @@ if __name__ == "__main__":
     from SiteInformation import SiteInformation
     import os
     os.environ['PilotHomeDir'] = os.getcwd()
-    #s1 = SiteInformation()
+    s1 = SiteInformation()
+    p = "--maxEvents=2 --inputHITSFile HITS.06828093._000096.pool.root.1 --outputRDOFile RDO_20c37551-abfd-4ce1-b0ae-09a0a5b72484.root --useTestASetup --useTestXRootD"
+    p, t = s1.updateQueuedataFromJobParameters(p)
+    print p, t
+    print "s1.xrootd_test", s1.xrootd_test
     #print "copytool=",s1.readpar('copytool')
     #path = 'srm://srm-eosatlas.cern.ch/eos/atlas/atlasdatadisk/rucio/mc12_8TeV/8d/f4/NTUP_SMWZ.00836697._000601.root.1'
     #print path
