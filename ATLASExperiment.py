@@ -1071,33 +1071,6 @@ class ATLASExperiment(Experiment):
 
         return variables
 
-    def useAtlasSetup(self, swbase, release, homePackage, cmtconfig):
-        """ Determine whether AtlasSetup is to be used """
-
-        # Previously this method returned False for older releases than 16.1.0. Since pilot release 64.0, this method returns True [i.e. use asetup for all ATLAS releases]
-        return True
-
-    def getSplitHomePackage(self, homePackage):
-        """ Split the homePackage if it has a project/release format """
-        # E.g. homePackage = AthSimulationBase/1.0.3 -> AthSimulationBase, 1.0.3
-        # homePackage = AnalysisTransforms-AtlasP1HLT_20.2.3.6 -> 'AtlasP1HLT', '20.2.3.6'
-
-        if "/" in homePackage:
-            s = homePackage.split('/')
-            project = s[0]
-            release = s[1]
-        else:
-            if "AnalysisTransforms" in homePackage and ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
-                homePackage = homePackage.replace("AnalysisTransforms-", "")
-                s = homePackage.split('_')
-                project = s[0]
-                release = s[1]
-            else:
-                project = homePackage
-                release = ""
-
-        return project, release
-
     def getASetup(self, setup, atlasRelease, homePackage, cmtconfig):
         """ Return the full asetup command """
 
