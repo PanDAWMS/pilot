@@ -1071,18 +1071,6 @@ class ATLASExperiment(Experiment):
 
         return variables
 
-    def getASetup(self, setup, atlasRelease, homePackage, cmtconfig):
-        """ Return the full asetup command """
-
-        # Function not applicable for generic jobs
-        if atlasRelease == "" and homePackage == "":
-            return ""
-
-        if setup != '' and not setup.endswith(';'):
-            setup += ';'
-
-        return setup + 'asetup.sh ' + self.getASetupOptions(atlasRelease, homePackage) + ' --platform=' + cmtconfig + ';'
-
     def getASetupOptions(self, atlasRelease, homePackage):
         """ Determine the proper asetup options """
 
