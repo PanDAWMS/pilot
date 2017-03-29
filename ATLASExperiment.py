@@ -157,29 +157,29 @@ class ATLASExperiment(Experiment):
         # Tested (USER ANALYSIS)
         #     homePackage = AnalysisTransforms
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh 17.2.7,notest --cmtconfig x86_64-slc5-gcc43-opt --makeflags=\"$MAKEFLAGS\";
+        #                 source $AtlasSetup/scripts/asetup.sh 17.2.7,notest --platform x86_64-slc5-gcc43-opt --makeflags=\"$MAKEFLAGS\";
         #                 export MAKEFLAGS=\"-j1 QUICK=1 -l1\";[proxy export];./runAthena-00-00-11 ..
         #     homePackage = AnalysisTransforms-AtlasDerivation_20.1.5.7
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7,notest --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
         #                 export MAKEFLAGS=\"-j1 QUICK=1 -l1\";[proxy export];./runAthena-00-00-11 ..
         #     homePackage=AnalysisTransforms-AtlasDerivation_rel_1
         #        setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                  source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.X.Y-VAL,rel_1,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
+        #                  source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.X.Y-VAL,rel_1,notest --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
         #                  export MAKEFLAGS=\"-j1 QUICK=1 -l1\";source /cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh;[proxy export];./runAthena-00-00-11 ..
         #     homePackage not set, release not set
         #        setup = source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh; [proxy export];./runGen-00-00-02 ..
         #     homePackage = AnalysisTransforms-AthAnalysisBase_2.3.11 (release = AthAnalysisBase/x86_64-slc6-gcc48-opt/2.3.11
         #        setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                  source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.11,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags="$MAKEFLAGS";
+        #                  source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.11,notest --platform x86_64-slc6-gcc48-opt --makeflags="$MAKEFLAGS";
         #                  export MAKEFLAGS="-j1 QUICK=1 -l1";source /cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh;[proxy export];./runAthena-00-00-11 ..
         # Tested (PRODUCTION)
         #     homePackage = AtlasProduction/17.7.3.12
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh AtlasProduction,17.7.3.12 --cmtconfig x86_64-slc6-gcc46-opt --makeflags=\"$MAKEFLAGS\";Sim_tf.py ..
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasProduction,17.7.3.12 --platform x86_64-slc6-gcc46-opt --makeflags=\"$MAKEFLAGS\";Sim_tf.py ..
         #     homePackage = AtlasDerivation/20.1.5.7
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7 --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py ..
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7 --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py ..
         #  TRF's:
         #   AtlasG4_tf.py:
         #     PandaID=2675460595
@@ -219,42 +219,43 @@ class ATLASExperiment(Experiment):
             # Normal setup (production and user jobs)
             tolog("Preparing normal production/analysis job setup command")
 
-            # Extract the project (cacheDir) and cache version, if any
-            m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage) # User jobs
-            if m_cacheDirVer != None:
-                # user jobs
-                cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, job.release)
-            elif "," in job.homePackage or self.isNightliesRelease(job.homePackage):
-                # nightlies; e.g. homePackage = "AtlasProduction,rel_0"
-                cacheDir = job.homePackage
-                cacheVer = job.release #None
-            else:
-                # normal production jobs; e.g. homePackage = "AtlasProduction/20.1.5"
-                cacheDir, cacheVer = self.getSplitHomePackage(job.homePackage)
+#            # Extract the project (cacheDir) and cache version, if any
+#            m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage) # User jobs
+#            if m_cacheDirVer != None:
+#                # user jobs
+#                cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, job.release)
+#            elif "," in job.homePackage or self.isNightliesRelease(job.homePackage):
+#                # nightlies; e.g. homePackage = "AtlasProduction,rel_0"
+#                cacheDir = job.homePackage
+#                cacheVer = job.release #None
+#            else:
+#                # normal production jobs; e.g. homePackage = "AtlasProduction/20.1.5"
+#                cacheDir, cacheVer = self.getSplitHomePackage(job.homePackage)
+#
+#            if cacheVer == "":
+#                tolog("No release/patch info in homePackage (%s), using job.release=%s" % (job.homePackage, job.release))
+#                cacheVer = job.release
+#
+#            # Add the appropriate options (release/patch/project/cache)
+#            if cacheDir:
+#                # Do not add AnalysisTransforms since it is not a cache directory
+#                if cacheDir != "AnalysisTransforms":
+#                    asetup_options += cacheDir
+#            if cacheVer:
+#                if asetup_options == " ":
+#                    asetup_options += cacheVer
+#                else:
+#                    asetup_options += "," + cacheVer
+#
+#                # add the fast option if possible (for the moment, check for locally defined env variable)
+#                if analysisJob:
+#                    if os.environ.has_key("ATLAS_FAST_ASETUP"):
+#                        asetup_options += ",notest,fast"
+#                    else:
+#                        asetup_options += ",notest"
 
-            if cacheVer == "":
-                tolog("No release/patch info in homePackage (%s), using job.release=%s" % (job.homePackage, job.release))
-                cacheVer = job.release
-
-            # Add the appropriate options (release/patch/project/cache)
-            if cacheDir:
-                # Do not add AnalysisTransforms since it is not a cache directory
-                if cacheDir != "AnalysisTransforms":
-                    asetup_options += cacheDir
-            if cacheVer:
-                if asetup_options == " ":
-                    asetup_options += cacheVer
-                else:
-                    asetup_options += "," + cacheVer
-
-                # add the fast option if possible (for the moment, check for locally defined env variable)
-                if analysisJob:
-                    if os.environ.has_key("ATLAS_FAST_ASETUP"):
-                        asetup_options += ",notest,fast"
-                    else:
-                        asetup_options += ",notest"
-
-            asetup_options += " --cmtconfig " + cmtconfig
+            options = self.getASetupOptions(job.release, job.homePackage)
+            asetup_options = " " + options + " --platform " + cmtconfig
 
             # always set the --makeflags option (to prevent asetup from overwriting it)
             asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
@@ -327,7 +328,7 @@ class ATLASExperiment(Experiment):
                     cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
                     if cacheDir != "" and cacheVer != "":
                         asetup = self.getModernASetup()
-                        asetup += " %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
+                        asetup += " %s,%s --platform=%s;" % (cacheDir, cacheVer, cmtconfig)
 
                         # now squeeze it back in
                         cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
@@ -2086,6 +2087,20 @@ class ATLASExperiment(Experiment):
 
         return siteroot
 
+    def getASetupOptions(self, atlasRelease, homePackage):
+        """ Determine the proper asetup options """
+
+        _homepackage = re.sub('^AnalysisTransforms-*', '', homePackage)
+        asetup_opt = []
+        if _homepackage == '' or re.search('^\d+\.\d+\.\d+$', atlasRelease) is None:
+            asetup_opt.append(atlasRelease)
+        if _homepackage != '':
+            asetup_opt += _homepackage.split('_')
+        asetup_opt.append('notest')
+        asetup_opt.append('here')
+
+        return ','.join(asetup_opt)
+
     def getProperASetup(self, swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=False, source=True, cacheVer=None, cacheDir=None):
         """ return a proper asetup.sh command """
 
@@ -2149,29 +2164,32 @@ class ATLASExperiment(Experiment):
             tolog("Extracted timestamp=%s from homePackage=%s" % (timestamp, homePackage))
             # asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, timestamp)
             asetup_path = self.getModernASetup(swbase=swbase)
-            tolog("2. path=%s" % (asetup_path))
+
+            options = self.getASetupOptions(atlasRelease, homePackage)
+
             # use special options for nightlies (not the release info set above)
             # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
             # Special case for AtlasDerivation. In this case cacheVer = timestamp,
             # so we don't want to add both cacheVer and timestamp,
             # and we need to add cacheDir and the release itself
-            special_cacheDirs = ['AtlasDerivation', 'Athena'] # Add more cases if necessary
-            if cacheDir in special_cacheDirs:
-                # strip any special cacheDirs from the release string, if present
-                for special_cacheDir in special_cacheDirs:
-                    if special_cacheDir in atlasRelease:
-                        tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
-                        atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
-                        tolog("Release string updated: %s" % (atlasRelease))
-                # E.g. AtlasDerivation,19.1.X.Y-VAL,2016-11-29T2119,notest,here
-                options = cacheDir + "," + atlasRelease + "," + timestamp + ",notest,here"
-            else:
-                # correct an already set cacheVer if necessary
-                if cacheVer == timestamp:
-                    tolog("Found a cacheVer set to %s: resetting to atlasRelease=%s" % (cacheVer, atlasRelease))
-                    cacheVer = atlasRelease
-                options = cacheVer + "," + timestamp + ",notest,here"
-                tolog("Options: %s" % (options))
+#            special_cacheDirs = ['AtlasDerivation', 'Athena'] # Add more cases if necessary
+#            if cacheDir in special_cacheDirs:
+#                # strip any special cacheDirs from the release string, if present
+#                for special_cacheDir in special_cacheDirs:
+#                    if special_cacheDir in atlasRelease:
+#                        tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
+#                        atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
+#                        tolog("Release string updated: %s" % (atlasRelease))
+#                # E.g. AtlasDerivation,19.1.X.Y-VAL,2016-11-29T2119,notest,here
+#                options = cacheDir + "," + atlasRelease + "," + timestamp + ",notest,here"
+#            else:
+#                # correct an already set cacheVer if necessary
+#                if cacheVer == timestamp:
+#                    tolog("Found a cacheVer set to %s: resetting to atlasRelease=%s" % (cacheVer, atlasRelease))
+#                    cacheVer = atlasRelease
+#
+#                options = cacheVer + "," + timestamp + ",notest,here"
+            tolog("Options: %s" % (options))
         else:
             asetup_path = "%s/cmtsite/asetup.sh" % (path)
 
@@ -2211,7 +2229,7 @@ class ATLASExperiment(Experiment):
                 asetup_path = ""
                 cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
 
-        return '%s %s %s --makeflags=\"$MAKEFLAGS\" --cmtconfig %s %s%s' % (cmd, asetup_path, options, cmtconfig, _input, tail)
+        return '%s %s %s --makeflags=\"$MAKEFLAGS\" --platform %s %s%s' % (cmd, asetup_path, options, cmtconfig, _input, tail)
 
     def extractNightliesTimestamp(self, homePackage):
         """ Extract the nightlies timestamp from the homePackage """

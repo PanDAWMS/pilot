@@ -313,6 +313,7 @@ General changes:
 Payload setup:
 - Added 'master' and 'multithreading' to special cache dir list in getCacheInfo() (ATLASExperiment)
 - Added 'Athena' to special cache dir list in getProperASetup() (ATLASExperiment)
+- Changed all occurrances of --cmtconfig to --platform, requested by Graeme Stewart (ATLASExperiment)
 
 Event Service:
 - Improved support for Event Streaming Service (RunJobEvent)
