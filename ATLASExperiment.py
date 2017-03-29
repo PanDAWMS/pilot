@@ -1073,182 +1073,15 @@ class ATLASExperiment(Experiment):
         sfile = sfile.replace('//','/')
         if not os.path.isfile(sfile):
 
-#            pilotErrorDiag = "Patch not available (will not attempt dynamic patch installation)"
-#            tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
-#            ec = self.__error.ERR_DYNTRFINST
-
-# uncomment this section (and remove the comments in the above three lines) for dynamic path installation
-
-            tolog("!!WARNING!!3000!! Trf setup file does not exist at: %s" % (sfile))
-            tolog("Will try to install trf in work dir...")
-
-            # Install trf in the run dir
-            try:
-                ec, pilotErrorDiag = self.installPyJobTransforms(job.release, job.homePackage, swbase, cmtconfig)
-            except Exception, e:
-                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(e)
-                tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
-                ec = self.__error.ERR_DYNTRFINST
-            else:
-                if ec == 0:
-                    tolog("Successfully installed trf")
-                    installDir = workdir + "/" + job.homePackage
-
-                    # replace siteroot="$SITEROOT" with siteroot=rundir
-                    os.environ['SITEROOT'] = workdir
-                    siteroot = workdir
-
-# comment until here
+            pilotErrorDiag = "Patch not available (will not attempt dynamic patch installation)"
+            tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
+            ec = self.__error.ERR_DYNTRFINST
 
         else:
             tolog("Found trf setup file: %s" % (sfile))
             tolog("Using install dir = %s" % (installDir))
 
         return ec, pilotErrorDiag, siteroot, installDir
-
-    def installPyJobTransforms(self, release, package, swbase, cmtconfig):
-        """ Install new python based TRFS """
-
-        status = False
-        pilotErrorDiag = ""
-
-        import string
-
-        if package.find('_') > 0: # jobdef style (e.g. "AtlasProduction_12_0_7_2")
-            ps = package.split('_')
-            if len(ps) == 5:
-                status = True
-                # dotver = string.join(ps[1:], '.')
-                # pth = 'AtlasProduction/%s' % dotver
-            else:
-                status = False
-        else: # Panda style (e.g. "AtlasProduction/12.0.3.2")
-            # Create pacman package = AtlasProduction_12_0_7_1
-            ps = package.split('/')
-            if len(ps) == 2:
-                ps2 = ps[1].split('.')
-                if len(ps2) == 4 or len(ps2) == 5:
-                    dashver = string.join(ps2, '_')
-                    pacpack = '%s_%s' % (ps[0], dashver)
-                    tolog("Pacman package name: %s" % (pacpack))
-                    status = True
-                else:
-                    status = False
-            else:
-                status = False
-
-        if not status:
-            pilotErrorDiag = "installPyJobTransforms: Prod cache has incorrect format: %s" % (package)
-            tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-            return self.__error.ERR_DYNTRFINST, pilotErrorDiag
-
-        # Check if it exists already in rundir
-        tolog("Checking for path: %s" % (package))
-
-        # Current directory should be the job workdir at this point
-        if os.path.exists(package):
-            tolog("Found production cache, %s, in run directory" % (package))
-            return 0, pilotErrorDiag
-
-        # Install pacman
-        status, pilotErrorDiag = self.installPacman()
-        if status:
-            tolog("Pacman installed correctly")
-        else:
-            return self.__error.ERR_DYNTRFINST, pilotErrorDiag
-
-        # Prepare release setup command
-        if self.useAtlasSetup(swbase, release, package, cmtconfig):
-            setup_pbuild = self.getProperASetup(swbase, release, package, cmtconfig, source=False)
-        else:
-            setup_pbuild = '%s/%s/cmtsite/setup.sh -tag=%s,AtlasOffline,%s' % (swbase, release, release, cmtconfig)
-        got_JT = False
-        caches = [
-            'http://classis01.roma1.infn.it/pacman/Production/cache',
-            'http://atlas-computing.web.cern.ch/atlas-computing/links/kitsDirectory/Analysis/cache'
-            ]
-
-        # shuffle list so same cache is not hit by all jobs
-        from random import shuffle
-        shuffle(caches)
-        for cache in caches:
-            # Need to setup some CMTROOT first
-            # Pretend platfrom for non-slc3, e.g. centOS on westgrid
-            # Parasitacally, while release is setup, get DBRELEASE version too
-            cmd = 'source %s' % (setup_pbuild)
-            cmd+= ';CMT_=`echo $CMTCONFIG | sed s/-/_/g`'
-            cmd+= ';cd pacman-*;source ./setup.sh;cd ..;echo "y"|'
-            cmd+= 'pacman -pretend-platform SLC -get %s:%s_$CMT_ -trust-all-caches'%\
-                  (cache, pacpack)
-            tolog('Pacman installing JT %s from %s' % (pacpack, cache))
-
-            exitcode, output = timedCommand(cmd, timeout=60*60)
-            if exitcode != 0:
-                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(output)
-                tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            else:
-                tolog('Installed JobTransforms %s from %s' % (pacpack, cache))
-                got_JT = True
-                break
-
-        if got_JT:
-            ec = 0
-        else:
-            ec = self.__error.ERR_DYNTRFINST
-
-        return ec, pilotErrorDiag
-
-    def installPacman(self):
-        """ Pacman installation """
-
-        pilotErrorDiag = ""
-
-        # Pacman version
-        pacman = 'pacman-3.18.3.tar.gz'
-
-        urlbases = [
-            'http://physics.bu.edu/~youssef/pacman/sample_cache/tarballs',
-            'http://atlas.web.cern.ch/Atlas/GROUPS/SOFTWARE/OO/Production'
-            ]
-
-        # shuffle list so same server is not hit by all jobs
-        from random import shuffle
-        shuffle(urlbases)
-        got_tgz = False
-        for urlbase in urlbases:
-            url = urlbase + '/' + pacman
-            tolog('Downloading: %s' % (url))
-            try:
-                # returns httpMessage
-                from urllib import urlretrieve
-                (filename, msg) = urlretrieve(url, pacman)
-                if 'content-type' in msg.keys():
-                    if msg['content-type'] == 'application/x-gzip':
-                        got_tgz = True
-                        tolog('Got %s' % (url))
-                        break
-                    else:
-                        tolog('!!WARNING!!4000!! Failed to get %s' % (url))
-            except Exception ,e:
-                tolog('!!WARNING!!4000!! URL: %s throws: %s' % (url, e))
-
-        if got_tgz:
-            tolog('Success')
-            cmd = 'tar -zxf %s' % (pacman)
-            tolog("Executing command: %s" % (cmd))
-            (exitcode, output) = commands.getstatusoutput(cmd)
-            if exitcode != 0:
-                # Got a tgz but can't unpack it. Could try another source but will fail instead.
-                pilotErrorDiag = "%s failed: %d : %s" % (cmd, exitcode, output)
-                tolog('!!FAILED!!4000!! %s' % (pilotErrorDiag))
-                return False, pilotErrorDiag
-            else:
-                tolog('Pacman tarball install succeeded')
-                return True, pilotErrorDiag
-        else:
-            pilotErrorDiag = "Failed to get %s from any source url" % (pacman)
-            tolog('!!FAILED!!4000!! %s' % (pilotErrorDiag))
-            return False, pilotErrorDiag
 
     def getCmtsiteCmd(self, swbase, atlasRelease, homePackage, cmtconfig, siteroot=None, analysisJob=False, cacheDir=None, cacheVer=None):
         """ Get the cmtsite setup command """
@@ -2119,7 +1952,6 @@ class ATLASExperiment(Experiment):
         timestamp = self.extractNightliesTimestamp(homePackage)
         if timestamp != "":
             tolog("Extracted timestamp=%s from homePackage=%s" % (timestamp, homePackage))
-            # asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, timestamp)
             asetup_path = self.getModernASetup(swbase=swbase)
 
             options = self.getASetupOptions(atlasRelease, homePackage)
@@ -2154,7 +1986,7 @@ class ATLASExperiment(Experiment):
         if asetup_path.startswith('export'):
             cmd = ""
         elif source:
-            # add the source command (default), not wanted for installPyJobTransforms()
+            # add the source command (default)
             cmd = "source"
         else:
             cmd = ""
