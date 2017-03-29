@@ -12,14 +12,12 @@ from pUtil import readpar                       # Used to read values from the s
 from pUtil import isAnalysisJob                 # Is the current job a user analysis job or a production job?
 from pUtil import grep                          # Grep function - reimplement using cli command
 from pUtil import getCmtconfig                  # Get the cmtconfig from the job def or queuedata
-from pUtil import getCmtconfigAlternatives      # Get a list of locally available cmtconfigs
 from pUtil import verifyReleaseString           # To verify the release string (move to Experiment later)
 from pUtil import getProperTimeout              #
 from pUtil import timedCommand                  # Protect cmd with timed_command
 from pUtil import getSiteInformation            # Get the SiteInformation object corresponding to the given experiment
 from pUtil import isBuildJob                    # Is the current job a build job?
 from pUtil import remove                        # Used to remove redundant file before log file creation
-from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
 from pUtil import isAGreaterOrEqualToB          #
 from pUtil import convert_unicode_string        # Needed to avoid unicode strings in the memory output text file
@@ -993,31 +991,6 @@ class ATLASExperiment(Experiment):
 
         return out_of_memory
 
-    def verifyReleaseInTagsFile(self, vo_atlas_sw_dir, atlasRelease):
-        """ verify that the release is in the tags file """
-
-        status = False
-
-        # make sure the release is actually set
-        if verifyReleaseString(atlasRelease) == "NULL":
-            return status
-
-        tags = dumpOutput(vo_atlas_sw_dir + '/tags')
-        if tags != "":
-            # is the release among the tags?
-            if tags.find(atlasRelease) >= 0:
-                tolog("Release %s was found in tags file" % (atlasRelease))
-                status = True
-            else:
-                tolog("!!WARNING!!3000!! Release %s was not found in tags file" % (atlasRelease))
-                # error = PilotErrors()
-                # failJob(0, self.__error.ERR_MISSINGINSTALLATION, job, pilotserver, pilotport, ins=ins)
-        else:
-            tolog("!!WARNING!!3000!! Next pilot release might fail at this stage since there was no tags file")
-
-        return status
-
-
     def getInstallDir(self, job, workdir, siteroot, swbase, cmtconfig):
         """ Get the path to the release """
 
@@ -1206,14 +1179,6 @@ class ATLASExperiment(Experiment):
         pybin = ""
 
         if os.environ.has_key('VO_ATLAS_SW_DIR') and verifyReleaseString(atlasRelease) != "NULL":
-            #ec, pilotErrorDiag, _pybin = self.findPythonInRelease(site_root, atlasRelease, homePackage, cmtconfig, sitename)
-            #if ec == self.__error.ERR_MISSINGINSTALLATION:
-            #    return ec, pilotErrorDiag, pybin
-
-            #if _pybin != "":
-            #    pybin = _pybin
-
-            #pybin = "`which python`"
             pybin = "python"
 
         if pybin == "":
@@ -1228,105 +1193,6 @@ class ATLASExperiment(Experiment):
 
         tolog("Using %s" % (pybin))
         return ec, pilotErrorDiag, pybin
-
-    def findPythonInRelease(self, siteroot, atlasRelease, homePackage, cmtconfig, sitename):
-        """ Set the python executable in the release dir (LCG sites only) """
-
-        ec = 0
-        pilotErrorDiag = ""
-        py = ""
-
-        tolog("Trying to find a python executable for release: %s" % (atlasRelease))
-        scappdir = readpar('appdir')
-
-        # only use underscored cmtconfig paths on older cvmfs systems and only for now (remove at a later time)
-        _cmtconfig = cmtconfig.replace("-", "_")
-
-        if scappdir != "":
-            _swbase = self.getLCGSwbase(scappdir)
-            tolog("Using swbase: %s" % (_swbase))
-
-            # get the site information object
-            si = getSiteInformation(self.__experiment)
-
-            if self.useAtlasSetup(_swbase, atlasRelease, homePackage, cmtconfig):
-                cmd = self.getProperASetup(_swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=True)
-                tolog("Using new AtlasSetup: %s" % (cmd))
-            elif os.path.exists("%s/%s/%s/cmtsite/setup.sh" % (_swbase, _cmtconfig, atlasRelease)) and (si.isTier3() or "CERNVM" in sitename):
-                # use cmtconfig sub dir on CERNVM or tier3 (actually for older cvmfs systems)
-                cmd  = "source %s/%s/%s/cmtsite/setup.sh -tag=%s,32,runtime;" % (_swbase, _cmtconfig, atlasRelease, atlasRelease)
-            else:
-                ec, pilotErrorDiag, status = self.isForceConfigCompatible(_swbase, atlasRelease, homePackage, cmtconfig, siteroot=siteroot)
-                if ec == self.__error.ERR_MISSINGINSTALLATION:
-                    return ec, pilotErrorDiag, py
-                else:
-                    if status:
-                        if "slc5" in cmtconfig and os.path.exists("%s/%s/gcc43_inst" % (_swbase, atlasRelease)):
-                            cmd = "source %s/%s/gcc43_inst/setup.sh;export CMTCONFIG=%s;" % (_swbase, atlasRelease, cmtconfig)
-                        elif "slc5" in cmtconfig and "slc5" in _swbase and os.path.exists("%s/%s" % (_swbase, atlasRelease)):
-                            cmd = "source %s/%s/setup.sh;export CMTCONFIG=%s;" % (_swbase, atlasRelease, cmtconfig)
-                        else:
-                            cmd = "export CMTCONFIG=%s;" % (cmtconfig)
-                        cmd += "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,forceConfig,runtime;" % (_swbase, atlasRelease, atlasRelease)
-                    else:
-                        cmd  = "source %s/%s/cmtsite/setup.sh -tag=%s,32,runtime;" % (_swbase, atlasRelease, atlasRelease)
-        else:
-            vo_atlas_sw_dir = os.path.expandvars('$VO_ATLAS_SW_DIR')
-            if "gcc43" in cmtconfig and vo_atlas_sw_dir != '' and os.path.exists('%s/software/slc5' % (vo_atlas_sw_dir)):
-                cmd  = "source $VO_ATLAS_SW_DIR/software/slc5/%s/setup.sh;" % (atlasRelease)
-                tolog("Found explicit slc5 dir in path: %s" % (cmd))
-            else:
-                # no known appdir, default to VO_ATLAS_SW_DIR
-                _appdir = vo_atlas_sw_dir
-                _swbase = self.getLCGSwbase(_appdir)
-                tolog("Using swbase: %s" % (_swbase))
-                if self.useAtlasSetup(_swbase, atlasRelease, homePackage, cmtconfig):
-                    cmd = self.getProperASetup(_swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=True)
-                    tolog("Using new AtlasSetup: %s" % (cmd))
-                else:
-                    _path = os.path.join(_appdir, "software/%s/cmtsite/setup.sh" % (atlasRelease))
-                    if os.path.exists(_path):
-                        cmd = "source " + _path + ";"
-                    else:
-                        cmd = ""
-                        tolog("!!WARNING!!1888!! No known path for setup script (using default python version)")
-
-        cmd += "which python"
-        exitcode, output = timedCommand(cmd, timeout=getProperTimeout(cmd))
-
-        if exitcode == 0:
-            if output.startswith('/'):
-                tolog("Found: %s" % (output))
-                py = output
-            else:
-                if '\n' in output:
-                    output = output.split('\n')[-1]
-
-                if output.startswith('/'):
-                    tolog("Found: %s" % (output))
-                    py = output
-                else:
-                    tolog("!!WARNING!!4000!! No python executable found in release dir: %s" % (output))
-                    tolog("!!WARNING!!4000!! Will use default python")
-                    py = "python"
-        else:
-            tolog("!!WARNING!!4000!! Find command failed: %d, %s" % (exitcode, output))
-            tolog("!!WARNING!!4000!! Will use default python")
-            py = "python"
-
-        return ec, pilotErrorDiag, py
-
-    def getLCGSwbase(self, scappdir):
-        """ Return the LCG swbase """
-
-        if os.path.exists(os.path.join(scappdir, 'software/releases')):
-            _swbase = os.path.join(scappdir, 'software/releases')
-        elif os.path.exists(os.path.join(scappdir, 'software')):
-            _swbase = os.path.join(scappdir, 'software')
-        else:
-            _swbase = scappdir
-
-        return _swbase
 
     def addEnvVars2Cmd(self, cmd, jobId, taskId, processingType, sitename, analysisJob):
         """ Add env variables """
@@ -1386,195 +1252,6 @@ class ATLASExperiment(Experiment):
         variables.append('export RUCIO_ACCOUNT=\"pilot\";')
 
         return variables
-
-    def isForceConfigCompatible(self, _dir, release, homePackage, cmtconfig, siteroot=None):
-        """ Test if the installed AtlasSettings and AtlasLogin versions are compatible with forceConfig """
-        # The forceConfig cmt tag was introduced in AtlasSettings-03-02-07 and AtlasLogin-00-03-07
-
-        status = True
-        ec = 0
-        pilotErrorDiag = ""
-
-        # only perform the forceConfig test for set release strings
-        if verifyReleaseString(release) == "NULL":
-            return ec, pilotErrorDiag, False
-
-        names = {"AtlasSettings":"AtlasSettings-03-02-07", "AtlasLogin":"AtlasLogin-00-03-07" }
-        for name in names.keys():
-            try:
-                ec, pilotErrorDiag, v, siteroot = self.getHighestVersionDir(release, homePackage, name, _dir, cmtconfig, siteroot=siteroot)
-            except Exception, e:
-                tolog("!!WARNING!!2999!! Exception caught: %s" % str(e))
-                v = None
-            if v:
-                if v >= names[name]:
-                    tolog("%s version verified: %s" % (name, v))
-                else:
-                    tolog("%s version too old: %s (older than %s, not forceConfig compatible)" % (name, v, names[name]))
-                    status = False
-            else:
-                tolog("%s version not verified (not forceConfig compatible)" % (name))
-                status = False
-
-        return ec, pilotErrorDiag, status
-
-    def getHighestVersionDir(self, release, homePackage, name, swbase, cmtconfig, siteroot=None):
-        """ Grab the directory (AtlasLogin, AtlasSettings) with the highest version number """
-        # e.g. v = AtlasLogin-00-03-26
-
-        highestVersion = None
-        ec = 0
-        pilotErrorDiag = ""
-
-        # get the siteroot
-        if not siteroot:
-            ec, pilotErrorDiag, status, siteroot, cmtconfig = self.getProperSiterootAndCmtconfig(swbase, release, homePackage, cmtconfig)
-        else:
-            status = True
-
-        if ec != 0:
-            return ec, pilotErrorDiag, None, siteroot
-
-        if status and siteroot != "" and os.path.exists(os.path.join(siteroot, name)):
-            _dir = os.path.join(siteroot, name)
-        else:
-            if swbase[-len('builds'):] == 'builds':
-                _dir = os.path.join(swbase, name)
-            else:
-                _dir = os.path.join(swbase, release, name)
-
-        if not os.path.exists(_dir):
-            tolog("Directory does not exist: %s" % (_dir))
-            return ec, pilotErrorDiag, None, siteroot
-
-        tolog("Probing directory: %s" % (_dir))
-        if os.path.exists(_dir):
-            dirs = os.listdir(_dir)
-            _dirs = []
-            if dirs != []:
-                tolog("Found directories: %s" % str(dirs))
-                for d in dirs:
-                    if d.startswith(name):
-                        _dirs.append(d)
-                if _dirs != []:
-                    # sort the directories
-                    _dirs.sort()
-                    # grab the directory with the highest version
-                    highestVersion = _dirs[-1]
-                    tolog("Directory with highest version: %s" % (highestVersion))
-                else:
-                    tolog("WARNING: Found no %s dirs in %s" % (name, _dir))
-            else:
-                tolog("WARNING: Directory is empty: %s" % (_dir))
-        else:
-            tolog("Directory does not exist: %s" % (_dir))
-
-        return ec, pilotErrorDiag, highestVersion, siteroot
-
-    def getProperSiterootAndCmtconfig(self, swbase, release, homePackage, _cmtconfig, cmtconfig_alternatives=None):
-        """ return a proper $SITEROOT and cmtconfig """
-
-        status = False
-        siteroot = ""
-        ec = 0 # only non-zero for fatal errors (missing installation)
-        pilotErrorDiag = ""
-
-        # make sure the cmtconfig_alternatives is not empty/not set
-        if not cmtconfig_alternatives:
-            cmtconfig_alternatives = [_cmtconfig]
-
-        if swbase[-len('builds'):] == 'builds':
-            status = True
-            return ec, pilotErrorDiag, status, swbase, _cmtconfig
-
-        # loop over all available cmtconfig's until a working one is found (the default cmtconfig value is the first to be tried)
-        for cmtconfig in cmtconfig_alternatives:
-            ec = 0
-            pilotErrorDiag = ""
-            tolog("Testing cmtconfig=%s" % (cmtconfig))
-
-            if self.useAtlasSetup(swbase, release, homePackage, cmtconfig):
-                cmd = self.getProperASetup(swbase, release, homePackage, cmtconfig, tailSemiColon=True)
-            elif "slc5" in cmtconfig and "gcc43" in cmtconfig:
-                cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,%s,runtime" % (swbase, release, release, cmtconfig)
-            else:
-                cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,runtime" % (swbase, release, release)
-
-            # verify that the setup path actually exists before attempting the source command
-            ec, pilotErrorDiag = self.verifySetupCommand(cmd)
-            if ec != 0:
-                pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (pilotErrorDiag)
-                tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                ec = self.__error.ERR_MISSINGINSTALLATION
-                continue
-
-            # do not test the source command, it is enough to verify its existence
-            (exitcode, output) = timedCommand(cmd, timeout=getProperTimeout(cmd))
-
-            if exitcode == 0:
-                # a proper cmtconfig has been found, now set the SITEROOT
-                # e.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
-
-                # note: this format (using cmtconfig is only valid on CVMFS, not on AFS)
-                # VO_ATLAS_RELEASE_DIR is only set on AFS (CERN)
-                if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage) and os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
-                    tolog("Encountered HLT homepackage: %s (must use special siteroot)" % (homePackage))
-                    siteroot = os.path.join(swbase, release)
-                elif homePackage.startswith('AthSimulation'):
-                    tolog("Encountered an Ath* release: %s" % (homePackage))
-                    siteroot = self.getSiterootWithHomepackage(swbase, homePackage, cmtconfig, release)
-                else:
-                    # default SITEROOT on CVMFS
-                    if "/cvmfs" in swbase:
-                        siteroot = os.path.join(os.path.join(swbase, cmtconfig), release)
-                    else:
-                        siteroot = os.path.join(swbase, release)
-
-                siteroot = siteroot.replace('//','/')
-
-                # make sure that the path actually exists
-                if os.path.exists(siteroot):
-                    tolog("SITEROOT path has been defined and exists: %s" % (siteroot))
-                    status = True
-                    break
-                else:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: cmtconfig %s has been confirmed but SITEROOT does not exist: %s" % (cmtconfig, siteroot)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_MISSINGINSTALLATION
-                    break
-
-            elif exitcode != 0 or "Error:" in output or "(ERROR):" in output:
-                # if time out error, don't bother with trying another cmtconfig
-
-                tolog("ATLAS setup for SITEROOT failed: ec=%s, output=%s" % (str(exitcode), output))
-
-                if "No such file or directory" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_MISSINGINSTALLATION
-                    continue
-                elif "Error:" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Caught CMT error: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_SETUPFAILURE
-                    continue
-                elif "AtlasSetup(ERROR):" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Caught AtlasSetup error: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_SETUPFAILURE
-                    continue
-                elif "timed out" in output:
-                    # CVMFS problem, no point in continuing
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: CVMFS setup command timed out: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_COMMANDTIMEOUT
-                    break
-
-        # reset errors if siteroot was found
-        if status:
-            ec = 0
-            pilotErrorDiag = ""
-        return ec, pilotErrorDiag, status, siteroot, cmtconfig
 
     def useAtlasSetup(self, swbase, release, homePackage, cmtconfig):
         """ Determine whether AtlasSetup is to be used """
@@ -2549,57 +2226,6 @@ class ATLASExperiment(Experiment):
                 cmd = "source %s/scripts/asetup.sh" % appdir
                 return cmd
         return ''
-
-    def verifySetupCommand(self, _setup_str):
-        """ Make sure the setup command exists """
-
-        ec = 0
-        pilotErrorDiag = ""
-
-        # remove any '-signs
-        _setup_str = _setup_str.replace("'", "")
-        tolog("Will verify: %s" % (_setup_str))
-
-        if _setup_str != "" and "source " in _setup_str:
-            # if a modern setup is used (i.e. a naked asetup instead of asetup.sh), then we need to verify that the entire setup string works
-            # and not just check the existance of the path (i.e. the modern setup is more complicated to test)
-            if self.getModernASetup() in _setup_str:
-                tolog("Modern asetup detected, need to verify entire setup (not just existance of path)")
-                tolog("Executing command: %s" % (_setup_str))
-                exitcode, output = timedCommand(_setup_str)
-                if exitcode != 0:
-                    pilotErrorDiag = output
-                    tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
-                    if "No such file or directory" in output:
-                        ec = self.__error.ERR_NOSUCHFILE
-                    elif "timed out" in output:
-                        ec = self.__error.ERR_COMMANDTIMEOUT
-                    else:
-                        ec = self.__error.ERR_SETUPFAILURE
-                else:
-                    tolog("Setup has been verified")
-            else:
-                # first extract the file paths from the source command(s)
-                setup_paths = extractFilePaths(_setup_str)
-
-                # only run test if string begins with an "/"
-                if setup_paths:
-                    # verify that the file paths actually exists
-                    for setup_path in setup_paths:
-                        if os.path.exists(setup_path):
-                            tolog("File %s has been verified" % (setup_path))
-                        else:
-                            pilotErrorDiag = "No such file or directory: %s" % (setup_path)
-                            tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
-                            ec = self.__error.ERR_NOSUCHFILE
-                            break
-                else:
-                    # nothing left to test
-                    pass
-        else:
-            tolog("Nothing to verify in setup: %s (either empty string or no source command)" % (_setup_str))
-
-        return ec, pilotErrorDiag
 
     # Optional
     def useTracingService(self):

@@ -315,7 +315,8 @@ Payload setup:
 - Added 'Athena' to special cache dir list in getProperASetup() (ATLASExperiment)
 - Changed all occurrances of --cmtconfig to --platform, requested by Graeme Stewart (ATLASExperiment)
 - Removed deprecated methods getVerifiedAtlasSetupPath(), installPacman(), installPyJobTransforms(), getCmtsiteCmd(), getTag(), isCMTCONFIGOutcommented(),
-  checkCMTCONFIG(), verifyCMTCONFIG(), verifyCmtsiteCmd() (ATLASExperiment)
+  checkCMTCONFIG(), verifyCMTCONFIG(), verifyCmtsiteCmd(), verifyReleaseInTagsFile(), verifySetupCommand(), getProperSiterootAndCmtconfig(),
+  getHighestVersionDir(), isForceConfigCompatible(), getLCGSwbase(), findPythonInRelease() (ATLASExperiment)
 
 Event Service:
 - Improved support for Event Streaming Service (RunJobEvent)
