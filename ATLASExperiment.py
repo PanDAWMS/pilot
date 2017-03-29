@@ -1990,49 +1990,6 @@ class ATLASExperiment(Experiment):
             pilotErrorDiag = ""
         return ec, pilotErrorDiag, status, siteroot, cmtconfig
 
-    def getVerifiedAtlasSetupPath(self, swbase, release, homePackage, cmtconfig):
-        """ Get a verified asetup path"""
-
-        path = None
-        skipVerification = False # verification not possible for more complicated setup (nightlies)
-        if 'HPC_' in readpar("catchall"):
-            skipVerification = True # verification not possible for more complicated setup (nightlies)
-
-        # First try with the cmtconfig in the path. If that fails, try without it
-
-        # Are we using nightlies?
-        timestamp = self.extractNightliesTimestamp(homePackage)
-        if timestamp != "":
-            # extract the nightlies time stamp and use it in the path
-            tolog("Extracted timestamp=%s from homePackage=%s" % (timestamp, homePackage))
-            # path = "%s/%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release, timestamp)
-            path = self.getModernASetup(swbase=swbase)
-            tolog("1. path = %s" % (path))
-            skipVerification = True
-        if not path:
-            path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release)
-
-        if not skipVerification:
-            status = os.path.exists(path)
-            if status:
-                tolog("Using AtlasSetup (%s exists with cmtconfig in the path)" % (path))
-            else:
-                tolog("%s does not exist (trying without cmtconfig in the path)" % (path))
-                if timestamp != "":
-                    path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, release, timestamp)
-                else:
-                    path = "%s/%s/cmtsite/asetup.sh" % (swbase, release)
-                status = os.path.exists(path)
-                if status:
-                    tolog("Using AtlasSetup (%s exists)" % (path))
-                else:
-                    tolog("Cannot use AtlasSetup since %s does not exist either" % (path))
-        else:
-            tolog("Skipping verification of asetup path for nightlies")
-            status = True
-
-        return status, path
-
     def useAtlasSetup(self, swbase, release, homePackage, cmtconfig):
         """ Determine whether AtlasSetup is to be used """
 
