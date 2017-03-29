@@ -317,7 +317,7 @@ Payload setup:
 - Removed deprecated methods getVerifiedAtlasSetupPath(), installPacman(), installPyJobTransforms(), getCmtsiteCmd(), getTag(), isCMTCONFIGOutcommented(),
   checkCMTCONFIG(), verifyCMTCONFIG(), verifyCmtsiteCmd(), verifyReleaseInTagsFile(), verifySetupCommand(), getProperSiterootAndCmtconfig(),
   getHighestVersionDir(), isForceConfigCompatible(), getLCGSwbase(), findPythonInRelease(), getSiterootWithHomepackage(), getProperASetup(),
-  getInstallDir(), getInstallDir2() (ATLASExperiment)
+  getInstallDir(), getInstallDir2(), getProdCmd2(), getSpecialSetupCommand(), getAnalyCmd2(), updateAnalyCmd2() (ATLASExperiment)
 - Added getASetup() and getASetupOptions() (ATLASExperiment)
 
 Memory monitoring:
