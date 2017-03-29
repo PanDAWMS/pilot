@@ -217,41 +217,6 @@ class ATLASExperiment(Experiment):
             # Normal setup (production and user jobs)
             tolog("Preparing normal production/analysis job setup command")
 
-#            # Extract the project (cacheDir) and cache version, if any
-#            m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage) # User jobs
-#            if m_cacheDirVer != None:
-#                # user jobs
-#                cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, job.release)
-#            elif "," in job.homePackage or self.isNightliesRelease(job.homePackage):
-#                # nightlies; e.g. homePackage = "AtlasProduction,rel_0"
-#                cacheDir = job.homePackage
-#                cacheVer = job.release #None
-#            else:
-#                # normal production jobs; e.g. homePackage = "AtlasProduction/20.1.5"
-#                cacheDir, cacheVer = self.getSplitHomePackage(job.homePackage)
-#
-#            if cacheVer == "":
-#                tolog("No release/patch info in homePackage (%s), using job.release=%s" % (job.homePackage, job.release))
-#                cacheVer = job.release
-#
-#            # Add the appropriate options (release/patch/project/cache)
-#            if cacheDir:
-#                # Do not add AnalysisTransforms since it is not a cache directory
-#                if cacheDir != "AnalysisTransforms":
-#                    asetup_options += cacheDir
-#            if cacheVer:
-#                if asetup_options == " ":
-#                    asetup_options += cacheVer
-#                else:
-#                    asetup_options += "," + cacheVer
-#
-#                # add the fast option if possible (for the moment, check for locally defined env variable)
-#                if analysisJob:
-#                    if os.environ.has_key("ATLAS_FAST_ASETUP"):
-#                        asetup_options += ",notest,fast"
-#                    else:
-#                        asetup_options += ",notest"
-
             options = self.getASetupOptions(job.release, job.homePackage)
             asetup_options = " " + options + " --platform " + cmtconfig
 
@@ -1280,175 +1245,49 @@ class ATLASExperiment(Experiment):
 
         return project, release
 
-    def getSiterootWithHomepackage(self, swbase, homePackage, cmtconfig, release):
-        """ Use the homePackage to set the siteroot """
+    def getASetup(self, setup, atlasRelease, homePackage, cmtconfig):
+        """ Return the full asetup command """
 
-        _project, _release = self.getSplitHomePackage(homePackage)
-        if _release != "": # i.e. "/" is present in homePackage:
-            path = os.path.join(swbase, _project) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
-            path = os.path.join(path, cmtconfig)
-            siteroot = os.path.join(path, _release) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase/1.0.3
-        else:
-            if release == "":
-                tolog("!!WARNING!!4545!! Found no slash in homePackage and release is not set - have to guess siteroot")
-                if os.path.exists(os.path.join(swbase, _project)):
-                    siteroot = os.path.join(swbase, _project)
-                    if os.path.exists(os.path.join(siteroot, cmtconfig)):
-                        siteroot = os.path.join(siteroot, cmtconfig)
-                    else:
-                        siteroot = os.path.join(swbase, _project)
-                else:
-                    siteroot = os.path.join(swbase, cmtconfig)
-            else:
-                tolog("!!WARNING!!4545!! Found no slash in homePackage - have to guess siteroot")
-                # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
-                siteroot = os.path.join(swbase, cmtconfig)
-                siteroot = os.path.join(siteroot, release)
+        # Function not applicable for generic jobs
+        if atlasRelease == "" and homePackage == "":
+            return ""
 
-        return siteroot
+        if setup != '' and not setup.endswith(';'):
+            setup += ';'
+
+        return setup + 'asetup.sh ' + self.getASetupOptions(atlasRelease, homePackage) + ' --platform=' + cmtconfig + ';'
 
     def getASetupOptions(self, atlasRelease, homePackage):
         """ Determine the proper asetup options """
 
-        _homepackage = re.sub('^AnalysisTransforms-*', '', homePackage)
         asetup_opt = []
-        if _homepackage == '' or re.search('^\d+\.\d+\.\d+$', atlasRelease) is None:
-            asetup_opt.append(atlasRelease)
-        if _homepackage != '':
-            asetup_opt += _homepackage.split('_')
+        release = re.sub('^Atlas-', '', atlasRelease)
+
+        # is it a user analysis homePackage?
+        if 'AnalysisTransforms' in homePackage:
+
+            _homepackage = re.sub('^AnalysisTransforms-*', '', homePackage)
+            if _homepackage == '' or re.search('^\d+\.\d+\.\d+$', release) is None:
+                if release != "":
+                    asetup_opt.append(release)
+            if _homepackage != '':
+                asetup_opt += _homepackage.split('_')
+
+        else:
+
+            asetup_opt += homePackage.split('/')
+            if release not in homePackage:
+                asetup_opt.append(release)
+
+        # Add the notest,here for all setups (not necessary for late releases but harmless to add)
         asetup_opt.append('notest')
         asetup_opt.append('here')
 
-        return ','.join(asetup_opt)
-
-    def getProperASetup(self, swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=False, source=True, cacheVer=None, cacheDir=None):
-        """ return a proper asetup.sh command """
-
-        # handle sites using builds area in a special way
-        if swbase[-len('builds'):] == 'builds' or verifyReleaseString(atlasRelease) == "NULL":
-            path = swbase
-        else:
-            # Check for special release (such as AthSimulationBase/1.0.3)
-            done = False
-            if homePackage.startswith('AthSimulation'):
-                path = self.getSiterootWithHomepackage(swbase, homePackage, cmtconfig, "") # do not send the release in this case
-                if os.path.exists(path):
-                    tolog("Verified siteroot path: %s" % (path))
-                    done = True
-                else:
-                    tolog("!!WARNING!!4545!! Siteroot path does not exist: %s" % (path))
-
-            # Normal setup
-            if not done:
-                if os.path.exists(os.path.join(swbase, cmtconfig)):
-                    if os.path.exists(os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)):
-                        path = os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)
-                    else:
-                        path = os.path.join(swbase, atlasRelease)
-                else:
-                    path = os.path.join(swbase, atlasRelease)
-
-        # need to tell asetup where the compiler is in the US (location of special config file)
-        _path = "%s/AtlasSite/AtlasSiteSetup" % (path)
-        if readpar('cloud') == "US" and os.path.exists(_path):
-            _input = "--input %s" % (_path)
-        else:
-            _input = ""
-
-        # add a tailing semicolon if needed
-        if tailSemiColon:
-            tail = ";"
-        else:
-            tail = ""
-
-        # define the setup options
-        if not cacheVer:
-            cacheVer = atlasRelease
-
-        # add the fast option if possible (for the moment, check for locally defined env variable)
+        # Add the fast option if possible (for the moment, check for locally defined env variable)
         if os.environ.has_key("ATLAS_FAST_ASETUP"):
-            options = cacheVer + ",notest,fast"
-        else:
-            options = cacheVer + ",notest"
-        if cacheDir and cacheDir != "":
-            options += ",%s" % (cacheDir)
+            asetup_opt.append('fast')
 
-        # special case for Ath* releases
-        if homePackage.startswith('AthSimulation'):
-            _project, _release = self.getSplitHomePackage(homePackage)
-            options = options.replace("notest", "%s,notest" % (_project))
-
-        # nightlies setup?
-        timestamp = self.extractNightliesTimestamp(homePackage)
-        if timestamp != "":
-            tolog("Extracted timestamp=%s from homePackage=%s" % (timestamp, homePackage))
-            asetup_path = self.getModernASetup(swbase=swbase)
-
-            options = self.getASetupOptions(atlasRelease, homePackage)
-
-            # use special options for nightlies (not the release info set above)
-            # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
-            # Special case for AtlasDerivation. In this case cacheVer = timestamp,
-            # so we don't want to add both cacheVer and timestamp,
-            # and we need to add cacheDir and the release itself
-#            special_cacheDirs = ['AtlasDerivation', 'Athena'] # Add more cases if necessary
-#            if cacheDir in special_cacheDirs:
-#                # strip any special cacheDirs from the release string, if present
-#                for special_cacheDir in special_cacheDirs:
-#                    if special_cacheDir in atlasRelease:
-#                        tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
-#                        atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
-#                        tolog("Release string updated: %s" % (atlasRelease))
-#                # E.g. AtlasDerivation,19.1.X.Y-VAL,2016-11-29T2119,notest,here
-#                options = cacheDir + "," + atlasRelease + "," + timestamp + ",notest,here"
-#            else:
-#                # correct an already set cacheVer if necessary
-#                if cacheVer == timestamp:
-#                    tolog("Found a cacheVer set to %s: resetting to atlasRelease=%s" % (cacheVer, atlasRelease))
-#                    cacheVer = atlasRelease
-#
-#                options = cacheVer + "," + timestamp + ",notest,here"
-            tolog("Options: %s" % (options))
-        else:
-            asetup_path = "%s/cmtsite/asetup.sh" % (path)
-
-        # make sure that cmd doesn't start with 'source' if the asetup_path start with 'export', if so reset it (cmd and asetup_path will be added below)
-        if asetup_path.startswith('export'):
-            cmd = ""
-        elif source:
-            # add the source command (default)
-            cmd = "source"
-        else:
-            cmd = ""
-
-        # HLT on AFS
-        if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
-            try:
-                project, patch = self.getSplitHomePackage(homePackage) # ('AtlasP1HLT', '18.1.0.1')
-            except Exception, e:
-                tolog("!!WARNING!!1234!! Could not extract project and patch from %s" % (homePackage))
-            else:
-                tolog("Extracted %s, %s from homePackage=%s" % (patch, project, homePackage))
-                if os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
-                    cmd = "export AtlasSetup=%s/../dist/AtlasSetup; " % readpar('appdir')
-                    options = "%s,%s,notest,afs" % (patch, project)
-                else:
-                    cmd = "export AtlasSetup=%s/AtlasSetup; " % (path)
-                    options = "%s,%s,notest" % (patch, project)
-                    #cmd = "source"
-                    #asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
-                asetup_path = "source $AtlasSetup/scripts/asetup.sh"
-
-        # for HPC
-        if 'HPC_HPC' in readpar("catchall"):
-            quick_setup = "%s/setup-quick.sh" % (path)
-            tolog("quick setup path: %s" % quick_setup)
-            if os.path.exists(quick_setup):
-                cmd = "source %s" % (quick_setup)
-                asetup_path = ""
-                cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
-
-        return '%s %s %s --makeflags=\"$MAKEFLAGS\" --platform %s %s%s' % (cmd, asetup_path, options, cmtconfig, _input, tail)
+        return ','.join(asetup_opt)
 
     def extractNightliesTimestamp(self, homePackage):
         """ Extract the nightlies timestamp from the homePackage """
@@ -2586,12 +2425,9 @@ class ATLASExperiment(Experiment):
         # default_cmtconfig = "x86_64-slc6-gcc49-opt"
         # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
         default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        # default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
         default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
                         "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" %\
                         (default_swbase, default_swbase, default_release)
-
-        # source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc49-opt/20.7.5/cmtsite/asetup.sh 20.7.5.8,notest
 
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):
@@ -2617,7 +2453,7 @@ class ATLASExperiment(Experiment):
             cmd = default_setup
         else:
             # get the standard setup
-            standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
+            standard_setup = self.getModernASetup()
             _cmd = standard_setup + "; which MemoryMonitor"
             # Can the MemoryMonitor be found?
             try:

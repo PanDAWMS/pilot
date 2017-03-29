@@ -316,7 +316,11 @@ Payload setup:
 - Changed all occurrances of --cmtconfig to --platform, requested by Graeme Stewart (ATLASExperiment)
 - Removed deprecated methods getVerifiedAtlasSetupPath(), installPacman(), installPyJobTransforms(), getCmtsiteCmd(), getTag(), isCMTCONFIGOutcommented(),
   checkCMTCONFIG(), verifyCMTCONFIG(), verifyCmtsiteCmd(), verifyReleaseInTagsFile(), verifySetupCommand(), getProperSiterootAndCmtconfig(),
-  getHighestVersionDir(), isForceConfigCompatible(), getLCGSwbase(), findPythonInRelease() (ATLASExperiment)
+  getHighestVersionDir(), isForceConfigCompatible(), getLCGSwbase(), findPythonInRelease(), getSiterootWithHomepackage(), getProperASetup() (ATLASExperiment)
+- Added getASetup() and getASetupOptions() (ATLASExperiment)
+
+Memory monitoring:
+- getUtilityCommand() now using getModernASetup() instead of deprecated getProperASetup() (ATLASExperiment)
 
 Event Service:
 - Improved support for Event Streaming Service (RunJobEvent)
