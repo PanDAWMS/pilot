@@ -342,6 +342,19 @@ File Changes
     M ATLASExperiment.py (8)
     M pUtil.py (18) 
 
+Updates from W. Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/126
+
+Commit Summary
+
+The problem in RunJobEvent.py is already fixed. Last time I forgot to fix the same problem in RunJobHpcEvent.py
+
+fix jps problem in RunJobHpcEvent
+
+File Changes
+
+M RunJobHpcEvent.py (8)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
