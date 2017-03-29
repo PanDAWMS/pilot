@@ -849,15 +849,13 @@ class RunJobHpcEvent(RunJob):
         # Tell AthenaMP the name of the yampl channel
         runCommandList_0 = 'export PILOT_EVENTRANGECHANNEL=PILOT_EVENTRANGECHANNEL_CHANGE_ME; %s' % runCommandList_0
         if not "--preExec" in runCommandList_0:
-            runCommandList_0 += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"PILOT_EVENTRANGECHANNEL_CHANGE_ME\"\'"
+            runCommandList_0 += " --preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"PILOT_EVENTRANGECHANNEL_CHANGE_ME\"\' "
         else:
             if "import jobproperties as jps" in runCommandList_0:
                 runCommandList_0 = runCommandList_0.replace("import jobproperties as jps;", "import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"PILOT_EVENTRANGECHANNEL_CHANGE_ME\";")
             else:
-                if "--preExec \'" in runCommandList_0:
-                    runCommandList_0 = runCommandList_0.replace("--preExec \'", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"PILOT_EVENTRANGECHANNEL_CHANGE_ME\";")
-                elif '--preExec \"' in runCommandList_0:
-                    runCommandList_0 = runCommandList_0.replace('--preExec \"', '--preExec \"from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"PILOT_EVENTRANGECHANNEL_CHANGE_ME\";')
+                if "--preExec " in runCommandList_0:
+                    runCommandList_0 = runCommandList_0.replace("--preExec ", "--preExec \'from AthenaMP.AthenaMPFlags import jobproperties as jps;jps.AthenaMPFlags.EventRangeChannel=\"PILOT_EVENTRANGECHANNEL_CHANGE_ME\"\' ")
                 else:
                     tolog("!!WARNING!!43431! --preExec has an unknown format - expected \'--preExec \"\' or \"--preExec \'\", got: %s" % (runCommandList[0]))
 
