@@ -85,7 +85,7 @@ def set_environment():
     env['experiment'] = "ATLAS"                # Current experiment (can be set with pilot option -F <experiment>)
     env['getjobmaxtime'] = 3*60                # Maximum time the pilot will attempt to download a single job (seconds)
     env['pandaJobDataFileName'] = "pandaJobData.out" # Job definition file name
-    env['verifySoftwareDirectory'] = True      # Normally the softwre directory should be verified, but potentially not on an HPC system
+    env['verifySoftwareDirectory'] = True      # Normally the software directory should be verified, but potentially not on an HPC system
     env['workerNode'] = None
     env['hasQueueData'] = None
     env['stdout_tail'] = ""
@@ -101,10 +101,13 @@ def set_environment():
 
     # In case the PILOT_INITDIR file has not been created yet, which means that this module is being
     # used by pilot.py, it will be created here using the current directory as init dir
-    path = os.path.join(os.getcwd(), "PILOT_INITDIR")
+    print "Current directory:", os.getcwd()
+    path = os.path.join(os.getcwd(), "PILOT_INITDIR2")
     if not os.path.exists(path):
         writeToFile(path, os.getcwd())
-    env['pilot_initdir'] = readStringFromFile("PILOT_INITDIR")
+    else:
+        print "File exists:", path
+    env['pilot_initdir'] = readStringFromFile("PILOT_INITDIR2")
 
     # data structure for job information in main loop
     # jobDic = {'prod/analy':[pid,job,os.getpgrp]}
@@ -147,7 +150,8 @@ def storePilotInitdir(targetdir, pilot_initdir):
 
     # This function must be called before the global env variable is instantiated in the pilot
 
-    path = os.path.join(targetdir, "PILOT_INITDIR")
+    print "Storing PILOT_INITDIR2"
+    path = os.path.join(targetdir, "PILOT_INITDIR2")
     writeToFile(path, pilot_initdir)
 
 def writeToFile(filename, s):

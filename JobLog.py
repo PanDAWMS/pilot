@@ -876,7 +876,7 @@ class JobLog:
                 else:
                     tolog("Transferred additional CERNVM files")
 
-    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename):
+    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename, jobId):
         """ Return the benchmark json dictionary """
 
         benchmark_dictionary = {}
@@ -895,11 +895,36 @@ class JobLog:
                 _dummy = benchmark_dictionary['metadata'].pop('osdist', None) # duplicated in machine section
                 _dummy = benchmark_dictionary['metadata'].pop('pnode', None) # duplicated in machine section
                 _dummy = benchmark_dictionary['metadata'].pop('freetext', None) # unwanted (not set by pilot, still present in dictionary, empty)
-                _dummy = benchmark_dictionary['metadata'].pop('UID', None) # duplicated in benchmark section (_id key)
+                _dummy = benchmark_dictionary['metadata'].pop('UID', None) # unwanted
+                _dummy = benchmark_dictionary.pop('_id', None) # unwanted
 
                 # add additional information to the metadata key
                 benchmark_dictionary['metadata']['ATLASSite'] = sitename
                 benchmark_dictionary['metadata']['PanDAQueue'] = queuename
+                benchmark_dictionary['metadata']['PanDAID'] = int(jobId)
+
+                # convert from string to int
+                if benchmark_dictionary['metadata'].has_key('mp_num'):
+                    try:
+                        benchmark_dictionary['metadata']['mp_num'] = int(benchmark_dictionary['metadata']['mp_num'])
+                    except:
+                        pass
+
+            # rename
+            benchmark_dictionary['timestamp'] = benchmark_dictionary.pop('_timestamp', None)
+
+            # convert from string to float
+            if benchmark_dictionary.has_key('profiles'):
+                if benchmark_dictionary['profiles'].has_key('whetstone'):
+                    try:
+                        benchmark_dictionary['profiles']['whetstone']['score'] = float(benchmark_dictionary['profiles']['whetstone']['score'])
+                    except:
+                        pass
+                if benchmark_dictionary['profiles'].has_key('fastBmk'):
+                    try:
+                        benchmark_dictionary['profiles']['fastBmk']['value'] = float(benchmark_dictionary['profiles']['fastBmk']['value'])
+                    except:
+                        pass
 
         return benchmark_dictionary
 
@@ -918,14 +943,14 @@ class JobLog:
         strXML, workdir = self.getXMLAndWorkdir(jr, site.workdir, job.workdir, job.newDirNM, job.jobId)
 
         # was the benchmark suite executed? if so, get the output dictionary and add it to the machine section of the jobReport
-        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement)
+        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement, job.jobId)
         if benchmark_dictionary != {}:
             addToJobReport(workdir, "benchmark", benchmark_dictionary, section="resource", subsection="machine")
 
             # Also send the benchmark dictionary to ES (intermediary service)
             benchmark_dictionary['type'] = 'BenchmarkData'
             url = "http://uct2-collectd.mwt2.org:8080"
-            cmd = "curl --connect-timeout 20 --max-time 120 -H \"Content-Type: application/json\" -X POST -d \'%s\' %s" % (benchmark_dictionary, url)
+            cmd = "curl --connect-timeout 20 --max-time 120 -H \"Content-Type: application/json\" -X POST -d \'%s\' %s" % (str(benchmark_dictionary).replace("'", '"'), url)
             tolog("Executing command: %s" % (cmd))
             try:
                 ret, output = commands.getstatusoutput(cmd)
