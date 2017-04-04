@@ -891,10 +891,11 @@ class JobLog:
 
             # remove unwanted information that is either useless or duplicated
             if benchmark_dictionary.has_key('metadata'):
-                _dummy = benchmark_dictionary['metadata'].pop('cpuname', None) # duplicated in machine section
+                # remove later: _dummy = benchmark_dictionary['metadata'].pop('cpuname', None) # duplicated in machine section
                 _dummy = benchmark_dictionary['metadata'].pop('osdist', None) # duplicated in machine section
                 _dummy = benchmark_dictionary['metadata'].pop('pnode', None) # duplicated in machine section
                 _dummy = benchmark_dictionary['metadata'].pop('freetext', None) # unwanted (not set by pilot, still present in dictionary, empty)
+                _dummy = benchmark_dictionary['metadata'].pop('classification', None) # unwanted
                 _dummy = benchmark_dictionary['metadata'].pop('UID', None) # unwanted
                 _dummy = benchmark_dictionary.pop('_id', None) # unwanted
 
@@ -945,9 +946,8 @@ class JobLog:
         # was the benchmark suite executed? if so, get the output dictionary and add it to the machine section of the jobReport
         benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement, job.jobId)
         if benchmark_dictionary != {}:
-            addToJobReport(workdir, "benchmark", benchmark_dictionary, section="resource", subsection="machine")
 
-            # Also send the benchmark dictionary to ES (intermediary service)
+            # Send the benchmark dictionary to ES (intermediary service)
             benchmark_dictionary['type'] = 'BenchmarkData'
             url = "http://uct2-collectd.mwt2.org:8080"
             cmd = "curl --connect-timeout 20 --max-time 120 -H \"Content-Type: application/json\" -X POST -d \'%s\' %s" % (str(benchmark_dictionary).replace("'", '"'), url)
@@ -956,6 +956,13 @@ class JobLog:
                 ret, output = commands.getstatusoutput(cmd)
             except Exception, e:
                 tolog("!!WARNING!!1999!! Failed with curl command: %s" % str(e))
+
+            # Now remove the cpuname since it is repeated in the jobReport machine section (it was needed for ES)
+            if benchmark_dictionary.has_key('metadata'):
+                _dummy = benchmark_dictionary['metadata'].pop('cpuname', None)
+
+            # Add the dictionary to the jobReport
+            addToJobReport(workdir, "benchmark", benchmark_dictionary, section="resource", subsection="machine")
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
         # removes any work directory after the LSF job finishes which of course makes job recovery impossible)
