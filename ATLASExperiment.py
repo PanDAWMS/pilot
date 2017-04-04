@@ -137,8 +137,6 @@ class ATLASExperiment(Experiment):
         pilotErrorDiag = ""
         cmd = ""
         special_setup_cmd = ""
-        pysiteroot = ""
-        siteroot = ""
         JEM = "NO"
 
         # homePackage variants:
@@ -251,15 +249,8 @@ class ATLASExperiment(Experiment):
 
             tolog("Generic job")
 
-            # Set python executable (after SITEROOT has been set)
-            if siteroot == "":
-                try:
-                    siteroot = os.environ['SITEROOT']
-                except:
-                    tolog("Warning: $SITEROOT unknown at this stage (3)")
-
-            tolog("Will use $SITEROOT: %s (3)" % (siteroot))
-            ec, pilotErrorDiag, pybin = self.setPython(siteroot, job.release, job.homePackage, cmtconfig, jobSite.sitename)
+            # Set python executable
+            ec, pilotErrorDiag, pybin = self.setPython(job.release, job.homePackage, cmtconfig, jobSite.sitename)
             if ec == self.__error.ERR_MISSINGINSTALLATION:
                 return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
@@ -989,7 +980,7 @@ class ATLASExperiment(Experiment):
 
         return cacheDir, cacheVer
 
-    def setPython(self, site_root, atlasRelease, homePackage, cmtconfig, sitename):
+    def setPython(self, atlasRelease, homePackage, cmtconfig, sitename):
         """ set the python executable """
 
         ec = 0

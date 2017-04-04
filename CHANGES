@@ -309,6 +309,7 @@ M pUtil.py (13)
 68.2
 
 General changes:
+- Removed deprecated code form repo (PilotUtils, dataPilot, globusPilot, trivialPilot)
 
 Payload setup:
 - Added 'master' and 'multithreading' to special cache dir list in getCacheInfo() (ATLASExperiment)
@@ -319,6 +320,7 @@ Payload setup:
   getHighestVersionDir(), isForceConfigCompatible(), getLCGSwbase(), findPythonInRelease(), getSiterootWithHomepackage(), getProperASetup(),
   getInstallDir(), getInstallDir2(), getProdCmd2(), getSpecialSetupCommand(), getAnalyCmd2(), updateAnalyCmd2(), useAtlasSetup(), getSplitHomePackage() (ATLASExperiment)
 - Added getASetup() and getASetupOptions() (ATLASExperiment)
+- Removed unnecessary usage of siteroot in several places (ATLASExperiment)
 
 Memory monitoring:
 - getUtilityCommand() now using getModernASetup() instead of deprecated getProperASetup() (ATLASExperiment)
