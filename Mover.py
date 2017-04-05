@@ -340,7 +340,7 @@ def get_data_new(job,
             pfn = fspec.turl
         files[fspec.guid] = pfn or ''
         lfns.append(fspec.lfn)
-    
+
     createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
 
     return 0, "", None, FAX_dictionary
@@ -5165,7 +5165,7 @@ def updateReport(report, gpfn, dsname, fsize, sitemover):
 
     # update the tracing report with the correct dataset for this file
     report['dataset'] = dsname
-    report['filesize'] = str(fsize)
+    report['filesize'] = long(fsize)
 
     return report
 
