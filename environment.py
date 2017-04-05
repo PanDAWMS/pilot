@@ -8,7 +8,7 @@ def set_environment():
     env = Configuration()
 
     # env['version'] = pUtil.getPilotVersion()
-    env['pilot_version_tag'] = 'RC' #'PR' # 'RC'
+    env['pilot_version_tag'] = 'PR' # 'RC'
     env['force_devpilot'] = False
 
     # get the python executable path, to be used by child job
