@@ -358,6 +358,18 @@ File Changes
 
 M RunJobHpcEvent.py (8)
 
+Updates from M. Lassnig:
+
+  https://github.com/PanDAWMS/pilot/pull/128
+
+Commit Summary
+
+fix an easy way to break elasticsearch (sending filesize as long instead of string)
+
+File Changes
+
+M Mover.py (4)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:

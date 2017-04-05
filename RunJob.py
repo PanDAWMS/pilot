@@ -1670,7 +1670,7 @@ if __name__ == "__main__":
 
         # Loop until the benchmark subprocess has finished
         if benchmark_subprocess:
-            max_count = 4
+            max_count = 6
             _sleep = 15
             count = 0
             while benchmark_subprocess.poll() is None:
