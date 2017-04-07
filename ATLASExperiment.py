@@ -2245,7 +2245,7 @@ class ATLASExperiment(Experiment):
 
         # Could anything be extracted?
         #if homePackage == cacheVer: # (no)
-        if isAGreaterOrEqualToB(default_release, release) or default_release == release:  # or NG
+        if isAGreaterOrEqualToB(default_release, release) or default_release == release or release == "NULL":  # or NG
             # This means there is no patched release available, ie. we need to use the fallback
             useDefault = True
             tolog("%s >= %s" % (default_release, release))

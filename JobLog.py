@@ -876,7 +876,7 @@ class JobLog:
                 else:
                     tolog("Transferred additional CERNVM files")
 
-    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename, jobId):
+    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename, jobId, nodename):
         """ Return the benchmark json dictionary """
 
         benchmark_dictionary = {}
@@ -900,6 +900,7 @@ class JobLog:
                 _dummy = benchmark_dictionary.pop('_id', None) # unwanted
 
                 # add additional information to the metadata key
+                benchmark_dictionary['metadata']['node'] = nodename
                 benchmark_dictionary['metadata']['ATLASSite'] = sitename
                 benchmark_dictionary['metadata']['PanDAQueue'] = queuename
                 benchmark_dictionary['metadata']['PanDAID'] = int(jobId)
@@ -944,7 +945,7 @@ class JobLog:
         strXML, workdir = self.getXMLAndWorkdir(jr, site.workdir, job.workdir, job.newDirNM, job.jobId)
 
         # was the benchmark suite executed? if so, get the output dictionary and add it to the machine section of the jobReport
-        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement, job.jobId)
+        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement, job.jobId, workerNode.nodename)
         if benchmark_dictionary != {}:
 
             # Send the benchmark dictionary to ES (intermediary service)
