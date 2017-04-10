@@ -102,12 +102,12 @@ def set_environment():
     # In case the PILOT_INITDIR file has not been created yet, which means that this module is being
     # used by pilot.py, it will be created here using the current directory as init dir
     print "Current directory:", os.getcwd()
-    path = os.path.join(os.getcwd(), "PILOT_INITDIR2")
+    path = os.path.join(os.getcwd(), "PILOT_INITDIR")
     if not os.path.exists(path):
         writeToFile(path, os.getcwd())
     else:
         print "File exists:", path
-    env['pilot_initdir'] = readStringFromFile("PILOT_INITDIR2")
+    env['pilot_initdir'] = readStringFromFile("PILOT_INITDIR")
 
     # data structure for job information in main loop
     # jobDic = {'prod/analy':[pid,job,os.getpgrp]}
