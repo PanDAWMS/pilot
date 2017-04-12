@@ -1493,22 +1493,25 @@ class RunJob(object):
 
             # Zip the output files according to the zip map
             import zipfile
+            cwd = os.getcwd()
+            os.chdir(job.workdir)
             for archive in zip_map.keys():
                 tolog("Creating zip archive %s for files %s" % (archive, zip_map[archive]))
                 fname = os.path.join(workdir, archive)
                 zf = zipfile.ZipFile(fname, mode='w', compression=zipfile.ZIP_STORED) # zero compression
                 for content_file in zip_map[archive]:
                     try:
-                        tolog("Adding %s" % (content_file))
+                        tolog("Adding %s to %s" % (content_file, archive))
                         zf.write(content_file)
                     except Exception, e:
-                        tolog("!!WARNING!!3333!! Failed to add file %s to archive - aborting" % (content_file))
+                        tolog("!!WARNING!!3333!! Failed to add file %s to archive - aborting: %s" % (content_file, e))
                         zip_map = None
                         break
                     finally:
                         zf.close()
             archive_names = zip_map.keys()
 
+        os.chdir(cwd)
         return zip_map, archive_names
 
 # main process starts here
