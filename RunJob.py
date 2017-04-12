@@ -1481,7 +1481,7 @@ class RunJob(object):
             status, output = commands.getstatusoutput(command)
             tolog("status: %s, output: %s\n" % (status, output))
 
-    def createArchives(self, output_files, zipmapString):
+    def createArchives(self, output_files, zipmapString, workdir):
         """ Create archives for the files in the zip map """
         # The zip_map dictionary itself is also created and returned by this function
 
@@ -1495,7 +1495,8 @@ class RunJob(object):
             import zipfile
             for archive in zip_map.keys():
                 tolog("Creating zip archive %s for files %s" % (archive, zip_map[archive]))
-                zf = zipfile.ZipFile(archive, mode='w')
+                fname = os.path.join(workdir, archive)
+                zf = zipfile.ZipFile(fname, mode='w', compression=zipfile.ZIP_STORED) # zero compression
                 for content_file in zip_map[archive]:
                     try:
                         tolog("Adding %s" % (content_file))
@@ -1789,7 +1790,7 @@ if __name__ == "__main__":
                     tolog("Empty extracted guids list")
 
         # Should any output be zipped? If so, the zipmapString was previously set (otherwise the returned variables are set to None)
-        zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString)
+        zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString, job.workdir)
         if zip_map:
             # Add the zip archives to the output file lists
             job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
