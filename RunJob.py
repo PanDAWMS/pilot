@@ -1481,6 +1481,34 @@ class RunJob(object):
             status, output = commands.getstatusoutput(command)
             tolog("status: %s, output: %s\n" % (status, output))
 
+    def createArchives(self, output_files, zipmapString):
+        """ Create archives for the files in the zip map """
+        # The zip_map dictionary itself is also created and returned by this function
+
+        zip_map = None
+        archive_names = None
+
+        if zipmapString != "":
+            zip_map = job.populateZipMap(output_files, zipmapString)
+
+            # Zip the output files according to the zip map
+            import zipfile
+            for archive in zip_map.keys():
+                tolog("Creating zip archive %s for files %s" % (archive, zip_map[archive]))
+                zf = zipfile.ZipFile(archive, mode='w')
+                for content_file in zip_map[archive]:
+                    try:
+                        tolog("Adding %s" % (content_file))
+                        zf.write(content_file)
+                    except Exception, e:
+                        tolog("!!WARNING!!3333!! Failed to add file %s to archive - aborting" % (content_file))
+                        zip_map = None
+                        break
+                    finally:
+                        zf.close()
+            archive_names = zip_map.keys()
+
+        return zip_map, archive_names
 
 # main process starts here
 if __name__ == "__main__":
@@ -1608,6 +1636,13 @@ if __name__ == "__main__":
         # send [especially] the process group back to the pilot
         job.setState([job.jobState, 0, 0])
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
+
+        # in case zipmaps will be used for the output files, save the zipmap string for later use and remove it from the jobPars
+        if "ZIP_MAP" in job.jobPars:
+            job.jobPars, zipmapString = job.removeZipMapString(job.jobPars)
+            tolog("Extracted zipmap string from jobPars: %s (removed from jobPars)" % (zipmapString))
+        else:
+            zipmapString = ""
 
         # prepare the setup and get the run command list
         ec, runCommandList, job, multi_trf = runJob.setup(job, jobSite, thisExperiment)
@@ -1752,6 +1787,13 @@ if __name__ == "__main__":
                     tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
                 else:
                     tolog("Empty extracted guids list")
+
+        # Should any output be zipped? If so, the zipmapString was previously set (otherwise the returned variables are set to None)
+        zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString)
+        if zip_map:
+            # Add the zip archives to the output file lists
+            job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
+
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
         if ec:
@@ -1761,7 +1803,7 @@ if __name__ == "__main__":
         # update the current file states
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
         dumpFileStates(runJob.getParentWorkDir(), job.jobId)
-
+            
         # create xml string to pass to server
         outputFileInfo = {}
         if outs or (job.logFile and job.logFile != ''):
@@ -1779,6 +1821,17 @@ if __name__ == "__main__":
             ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
             if ec:
                 runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+
+            # in case the output files have been zipped, it is now safe to remove them and update the outFiles list
+            for archive in archive_names:
+                for filename in zip_map[archive]:
+                    fname = os.path.join(job.workdir, filename)
+                    try:
+                        os.remove("%s" % (fname))
+                    except Exception,e:
+                        tolog("!!WARNING!!3000!! Failed to delete file %s: %s" % (fname, str(e)))
+                        pass
+
 
         # move output files from workdir to local DDM area
         finalUpdateDone = False

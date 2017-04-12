@@ -377,6 +377,12 @@ M Mover.py (4)
 General changes:
 ..
 
+ZIP_MAP support:
+- Added zipmap data member (Job)
+- Processing jobPars for ZIP_MAP info in new functions removeZipMapString() and populateZipMap() (Job)
+- Created addArchivesToOutput() to update output file info for archives (Job)
+- Created createArchives() used with ZIP_MAP info (RunJob)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:

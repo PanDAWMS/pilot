@@ -1144,6 +1144,8 @@ class SiteMover(object):
         error = PilotErrors()
         pilotErrorDiag = ""
 
+        tolog("getLocalFileInfo")
+
         # does the file exist?
         if not os.path.isfile(fname):
             if fname.find("DBRelease") >= 0 and os.path.exists(os.path.dirname(fname)):
@@ -1157,6 +1159,7 @@ class SiteMover(object):
 
             # get the modification time if needed and store it in the mutable object
             if date:
+                tolog("calling getModTime")
                 date = SiteMover.getModTime(os.path.dirname(fname), os.path.basename(fname))
 
         # get the file size

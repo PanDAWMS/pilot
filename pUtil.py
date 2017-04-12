@@ -396,7 +396,7 @@ def prepareMetadata(metadata_filename):
 
     return metadata_filename
 
-def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None, logToOS=False):
+def PFCxml(experiment, fname, fnlist=[], fguids=[], fntag=None, alog=None, alogguid=None, fsize=[], checksum=[], analJob=False, jr=False, additionalOutputFile=None, additionalOutputFileGuid=None, logToOS=False, archive=None):
     """ Create a PFC style XML file """
 
     # fnlist = output file list
@@ -965,6 +965,8 @@ def getOutputFileInfo(outputFiles, checksum_cmd, skiplog=False, logFile=""):
     Return lists with file sizes and checksums for the given output files
     """
 
+    tolog("getOutputFileInfo")
+
     ec = 0
     fsize = []
     checksum = []
@@ -983,7 +985,9 @@ def getOutputFileInfo(outputFiles, checksum_cmd, skiplog=False, logFile=""):
         if filename == logFile and skiplog:
             ec = -1
         else:
+            tolog("Importing SiteMover")
             from SiteMover import SiteMover
+            tolog("Imported SiteMover, calling getLocalFileInfo")
             ec, pilotErrorDiag, _fsize, _checksum = SiteMover.getLocalFileInfo(filename, csumtype=checksum_cmd)
             tolog("Adding %s,%s for file %s using %s" % (_fsize, _checksum, filename, checksum_cmd))
         if ec == 0:
