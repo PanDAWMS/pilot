@@ -84,6 +84,7 @@ class RunJobHpcEvent(RunJob):
         self.__yoda_to_os = False
         self.__yoda_to_zip = False
         self.__es_to_zip = False
+        self.__stageout_status = False
 
         # for recovery
         self.__jobStateFile = None
@@ -1447,6 +1448,7 @@ class RunJobHpcEvent(RunJob):
             tolog("RunHPCEvent failed: %s" % traceback.format_exc())
 
         self.stageOutZipFiles()
+        self.__stageout_status = True
 
         try:
             hpcManager.postRun()
@@ -1695,7 +1697,8 @@ class RunJobHpcEvent(RunJob):
             tolog("RunHPCEvent failed: %s" % traceback.format_exc())
 
         try:
-            self.stageOutZipFiles()
+            if not self.__stageout_status == True:
+                self.stageOutZipFiles()
         except:
             tolog("RunHPCEvent failed: %s" % traceback.format_exc())
 
