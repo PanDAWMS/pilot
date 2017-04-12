@@ -625,7 +625,7 @@ class Job:
         # this also means that zipmaps will only be supported for production jobs since only these produce 
         # the jobReport. Zipmaps are of interested for spillover jobs.
 
-        pattern = r" <ZIP_MAP>(.+)<\/ZIP_MAP>"
+        pattern = r" \'?<ZIP_MAP>(.+)<\/ZIP_MAP>\'?" # there might or might not be any '-signs
         compiled_pattern = re.compile(pattern)
 
         # Extract the zip map
