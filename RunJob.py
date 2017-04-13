@@ -1507,8 +1507,8 @@ class RunJob(object):
                         tolog("!!WARNING!!3333!! Failed to add file %s to archive - aborting: %s" % (content_file, e))
                         zip_map = None
                         break
-                    finally:
-                        zf.close()
+                if zf:
+                    zf.close()
             archive_names = zip_map.keys()
 
         os.chdir(cwd)
