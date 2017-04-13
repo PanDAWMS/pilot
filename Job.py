@@ -681,7 +681,7 @@ class Job:
 
         return zip_map
 
-    def addArchivesToOutput(zip_map, outFiles, destinationDblock, destinationDBlockToken, scopeOut):
+    def addArchivesToOutput(self, zip_map, outFiles, destinationDblock, destinationDBlockToken, scopeOut):
         """ Add the zip archives to the output file lists """
 
         for archive in zip_map.keys():
