@@ -1822,9 +1822,12 @@ if __name__ == "__main__":
                 runJob.moveTrfMetadata(job.workdir, job.jobId)
 
             # create the metadata for the output + log files
-            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
-            if ec:
-                runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+            try:
+                ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
+                if ec:
+                    runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+            except Exception, e:
+                tolog("!!WARNING!!6565!! Exception caught: %s" % (e))
 
             # in case the output files have been zipped, it is now safe to remove them and update the outFiles list
             for archive in archive_names:
@@ -1836,6 +1839,16 @@ if __name__ == "__main__":
                         tolog("!!WARNING!!3000!! Failed to delete file %s: %s" % (fname, str(e)))
                         pass
 
+                    # find the list index for the file (we need to remove the related file info from several lists)
+                    if filename in job.outFiles:
+                        index = job.outFiles.index(filename)
+                        # now remove the file from the related lists
+                        del job.outFiles[index]
+                        del job.destinationDblock[index]
+                        del job.destinationDBlockToken[index]
+                        del job.scopeOut[index]
+                    else:
+                        tolog("!!WARNING!!3454!! Failed to locate file %s in outFiles list" % (filename))
 
         # move output files from workdir to local DDM area
         finalUpdateDone = False
