@@ -1514,6 +1514,37 @@ class RunJob(object):
         os.chdir(cwd)
         return zip_map, archive_names
 
+    def cleanupForZip(self, zip_map, archive_names, job, outs):
+        """ Remove redundant output files and update file lists """
+
+        for archive in archive_names:
+            # remove zipped output files from disk
+            file_indices = []
+            for filename in zip_map[archive]:
+                fname = os.path.join(job.workdir, filename)
+                try:
+                    os.remove("%s" % (fname))
+                except Exception,e:
+                    tolog("!!WARNING!!3000!! Failed to delete file %s: %s" % (fname, str(e)))
+                    pass
+
+                # find the list index for the file (we need to remove the related file info from several lists)
+                if filename in job.outFiles:
+                    # store the file index and remove the file from the outs list
+                    file_indices.append(job.outFiles.index(filename))
+                    outs.remove(filename)
+                else:
+                    tolog("!!WARNING!!3454!! Failed to locate file %s in outFiles list" % (filename))
+
+            # now remove the file from the related lists
+            for index in file_indices:
+                del job.outFiles[index]
+                del job.destinationDblock[index]
+                del job.destinationDBlockToken[index]
+                del job.scopeOut[index]
+
+        return job, outs
+
 # main process starts here
 if __name__ == "__main__":
 
@@ -1822,38 +1853,13 @@ if __name__ == "__main__":
                 runJob.moveTrfMetadata(job.workdir, job.jobId)
 
             # create the metadata for the output + log files
-            try:
-                ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
-                if ec:
-                    runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
-            except Exception, e:
-                tolog("!!WARNING!!6565!! Exception caught: %s" % (e))
+            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
+            if ec:
+                runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 
             # in case the output files have been zipped, it is now safe to remove them and update the outFiles list
-            for archive in archive_names:
-                for filename in zip_map[archive]:
-                    fname = os.path.join(job.workdir, filename)
-                    try:
-                        os.remove("%s" % (fname))
-                    except Exception,e:
-                        tolog("!!WARNING!!3000!! Failed to delete file %s: %s" % (fname, str(e)))
-                        pass
-
-                    # find the list index for the file (we need to remove the related file info from several lists)
-                    file_indices = []
-                    if filename in job.outFiles:
-                        # store the file index and remove the file from the outs list
-                        file_indices.append(job.outFiles.index(filename))
-                        outs.remove(filename)
-                    else:
-                        tolog("!!WARNING!!3454!! Failed to locate file %s in outFiles list" % (filename))
-
-                    # now remove the file from the related lists
-                    for index in file_indices:
-                        del job.outFiles[index]
-                        del job.destinationDblock[index]
-                        del job.destinationDBlockToken[index]
-                        del job.scopeOut[index]
+            if zip_map:
+                job, outs = runJob.cleanupForZip(zip_map, archive_names, job, outs)
 
         # move output files from workdir to local DDM area
         finalUpdateDone = False
