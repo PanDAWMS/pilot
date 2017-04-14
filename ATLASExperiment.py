@@ -195,6 +195,14 @@ class ATLASExperiment(Experiment):
         #     homePackage=AtlasProduction/20.1.5.10
 
 
+        # Should the pilot do the asetup or do the jobPars already contain the information?
+        if job.noExecStrCnv:
+            tolog("asetup is expected to be defined in jobPars")
+            prepareASetup = False
+        else:
+            tolog("Pilot will prepare asetup")
+            prepareASetup = True
+
         # Is it a user job or not?
         analysisJob = isAnalysisJob(job.trf)
 
@@ -202,7 +210,7 @@ class ATLASExperiment(Experiment):
         cmtconfig = getCmtconfig(job.cmtconfig)
 
         # Define the setup for asetup, i.e. including full path to asetup and setting of ATLAS_LOCAL_ROOT_BASE
-        asetup_path = self.getModernASetup()
+        asetup_path = self.getModernASetup(asetup=prepareASetup)
         asetup_options = " "
 
         # Local software path
@@ -1849,27 +1857,28 @@ class ATLASExperiment(Experiment):
 
         return release
 
-    def getModernASetup(self, swbase=None):
+    def getModernASetup(self, swbase=None, asetup=True):
         """ Return the full modern setup for asetup """
+        # Only include the actual asetup script if asetup==True. This is not needed if the jobPars contain the payload command
+        # but the pilot still needs to added the exports and the atlasLocalSetup.
 
-        # Handle nightlies correctly, since these releases will have different initial paths
         path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
+        cmd = ""
         if os.path.exists(path):
-            # Handle nightlies correctly, since these releases will have different initial paths
             cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
             cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
-            cmd += "source $AtlasSetup/scripts/asetup.sh"
-
-            return cmd
+            if asetup:
+                cmd += "source $AtlasSetup/scripts/asetup.sh"
         else:
             appdir = readpar('appdir')
             if appdir == "":
                 if os.environ.has_key('VO_ATLAS_SW_DIR'):
                     appdir = os.environ['VO_ATLAS_SW_DIR']
             if appdir != "":
-                cmd = "source %s/scripts/asetup.sh" % appdir
-                return cmd
-        return ''
+                if asetup:
+                    cmd = "source %s/scripts/asetup.sh" % appdir
+
+        return cmd
 
     # Optional
     def useTracingService(self):

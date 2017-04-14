@@ -377,6 +377,10 @@ M Mover.py (4)
 General changes:
 ..
 
+jobPars based payload setup:
+- Added noExecStrCnv (Job)
+- Added asetup boolean to getModernASetup() (ATLASExperiment)
+
 ZIP_MAP support:
 - Added zipmap data member (Job)
 - Processing jobPars for ZIP_MAP info in new functions removeZipMapString() and populateZipMap() (Job)

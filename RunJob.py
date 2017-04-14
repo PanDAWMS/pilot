@@ -1840,15 +1840,20 @@ if __name__ == "__main__":
                         pass
 
                     # find the list index for the file (we need to remove the related file info from several lists)
+                    file_indices = []
                     if filename in job.outFiles:
-                        index = job.outFiles.index(filename)
-                        # now remove the file from the related lists
+                        # store the file index and remove the file from the outs list
+                        file_indices.append(job.outFiles.index(filename))
+                        outs.remove(filename)
+                    else:
+                        tolog("!!WARNING!!3454!! Failed to locate file %s in outFiles list" % (filename))
+
+                    # now remove the file from the related lists
+                    for index in file_indices:
                         del job.outFiles[index]
                         del job.destinationDblock[index]
                         del job.destinationDBlockToken[index]
                         del job.scopeOut[index]
-                    else:
-                        tolog("!!WARNING!!3454!! Failed to locate file %s in outFiles list" % (filename))
 
         # move output files from workdir to local DDM area
         finalUpdateDone = False

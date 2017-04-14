@@ -119,6 +119,7 @@ class Job:
         self.prefetcher = False            # ESS v1
         self.subStatus = None              # subStatus of the job
         self.subError = None               # subError of the job
+        self.noExecStrCnv = None           # True if the jobPars contain the full payload setup
 
         # zipped event outputs to a file, for event service
         self.outputZipName = None
@@ -460,6 +461,7 @@ class Job:
                 pUtil.tolog("!!WARNING!!2999!! Could not rearrange destinationDBlockToken list: %s" % str(e))
             else:
                 pUtil.tolog("destinationDBlockToken = %s" % self.destinationDBlockToken)
+
         # put the chirp server info for the log file at the end of the list
         # note: any NULL value corresponding to a log file will automatically be handled
         if i_log != -1 and self.dispatchDBlockTokenForOut != None and self.dispatchDBlockTokenForOut != []:
@@ -486,7 +488,16 @@ class Job:
         self.jobPars = data.get('jobPars', '')
 #        self.jobPars +=' --useTestASetup'
 #        self.jobPars +=' --useTestXRootD'
-#PN
+
+        _noExecStrCnv = data.get('noExecStrCnv', None)
+        if _noExecStrCnv:
+            if _noExecStrCnv.lower() == 'true':
+                self.noExecStrCnv = True
+            else:
+                self.noExecStrCnv = False
+        else:
+            self.noExecStrCnv = False
+        pUtil.tolog("noExecStrCnv=%s" % (self.noExecStrCnv))
 
         self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true'
 
@@ -497,12 +508,11 @@ class Job:
             self.accessmode = 'direct'
 
         # job input options overwrite any Job settings
-        if '--accessmode=direct' in self.jobPars: # fix me later
+        if '--accessmode=direct' in self.jobPars:
             self.accessmode = 'direct'
-        if '--accessmode=copy' in self.jobPars:   # fix me later
+        if '--accessmode=copy' in self.jobPars:
             self.accessmode = 'copy'
 
-        # for jem testing: self.jobPars += ' --enable-jem --jem-config \"a=1;\"'
         if "--pfnList" in self.jobPars:
             # extract any additional input files from the job parameters and add them to the input file list
 
