@@ -1457,8 +1457,6 @@ class RunJob(object):
 
         return tag_file, tag_file_guid
 
-    # (end event service methods) ................................................................................
-
     def extractEventRanges(self, message):
         """ Extract all event ranges from the server message """
 
@@ -1481,9 +1479,51 @@ class RunJob(object):
             status, output = commands.getstatusoutput(command)
             tolog("status: %s, output: %s\n" % (status, output))
 
+    # (end event service methods) ................................................................................
+
+    def handleAdditionalOutFiles(job, analysisJob):
+        """ Update output file lists in case there are additional output files in the jobReport """
+        # Note: only for production jobs
+
+        fromJSON = False
+        extracted_output_files, extracted_guids = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles, job.outFilesGuids)
+        if extracted_output_files != []:
+            tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
+
+            new_destinationDBlockToken = []
+            new_destinationDblock = []
+            new_scopeOut = []
+            try:
+                for f in extracted_output_files:
+                    _destinationDBlockToken, _destinationDblock, _scopeOut = getDestinationDBlockItems(f, job.outFiles, job.destinationDBlockToken, job.destinationDblock, job.scopeOut)
+                    new_destinationDBlockToken.append(_destinationDBlockToken)
+                    new_destinationDblock.append(_destinationDblock)
+                    new_scopeOut.append(_scopeOut)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Exception caught: %s" % (e))
+            else:
+                # Finally replace the output file lists
+                job.outFiles = extracted_output_files
+                job.destinationDblock = new_destinationDblock
+                job.destinationDBlockToken = new_destinationDBlockToken
+                job.scopeOut = new_scopeOut
+                tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
+                tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
+                tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
+                tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
+                if extracted_guids != []:
+                    fromJSON = True
+                    job.outFilesGuids = extracted_guids
+                    tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
+                else:
+                    tolog("Empty extracted guids list")
+
+        return job, fromJSON
+
     def createArchives(self, output_files, zipmapString, workdir):
         """ Create archives for the files in the zip map """
         # The zip_map dictionary itself is also created and returned by this function
+        # Note that the files are not to be further compressed (already assumed to be compressed)
 
         zip_map = None
         archive_names = None
@@ -1501,7 +1541,7 @@ class RunJob(object):
                 zf = zipfile.ZipFile(fname, mode='w', compression=zipfile.ZIP_STORED) # zero compression
                 for content_file in zip_map[archive]:
                     try:
-                        tolog("Adding %s to %s" % (content_file, archive))
+                        tolog("Adding %s to archive .." % (content_file))
                         zf.write(content_file)
                     except Exception, e:
                         tolog("!!WARNING!!3333!! Failed to add file %s to archive - aborting: %s" % (content_file, e))
@@ -1790,38 +1830,7 @@ if __name__ == "__main__":
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
         # are there any additional output files created by the trf/payload?
-        fromJSON = False
-        extracted_output_files, extracted_guids = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles, job.outFilesGuids)
-        if extracted_output_files != []:
-            tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
-
-            new_destinationDBlockToken = []
-            new_destinationDblock = []
-            new_scopeOut = []
-            try:
-                for f in extracted_output_files:
-                    _destinationDBlockToken, _destinationDblock, _scopeOut = getDestinationDBlockItems(f, job.outFiles, job.destinationDBlockToken, job.destinationDblock, job.scopeOut)
-                    new_destinationDBlockToken.append(_destinationDBlockToken)
-                    new_destinationDblock.append(_destinationDblock)
-                    new_scopeOut.append(_scopeOut)
-            except Exception, e:
-                tolog("!!WARNING!!3434!! Exception caught: %s" % (e))
-            else:
-                # Finally replace the output file lists
-                job.outFiles = extracted_output_files
-                job.destinationDblock = new_destinationDblock
-                job.destinationDBlockToken = new_destinationDBlockToken
-                job.scopeOut = new_scopeOut
-                tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
-                tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
-                tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
-                tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
-                if extracted_guids != []:
-                    fromJSON = True
-                    job.outFilesGuids = extracted_guids
-                    tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
-                else:
-                    tolog("Empty extracted guids list")
+        job, fromJSON = runJob.handleAdditionalOutFiles(job, analysisJob)
 
         # Should any output be zipped? If so, the zipmapString was previously set (otherwise the returned variables are set to None)
         zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString, job.workdir)
