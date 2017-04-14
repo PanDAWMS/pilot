@@ -1481,7 +1481,7 @@ class RunJob(object):
 
     # (end event service methods) ................................................................................
 
-    def handleAdditionalOutFiles(job, analysisJob):
+    def handleAdditionalOutFiles(self, job, analysisJob):
         """ Update output file lists in case there are additional output files in the jobReport """
         # Note: only for production jobs
 
