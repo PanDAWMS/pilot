@@ -1807,7 +1807,7 @@ if __name__ == "__main__":
 
         # run the job(s) ...................................................................................
 
-        # Set ATLAS_CONDDB if necessary, and other env vars
+        # set ATLAS_CONDDB if necessary, and other env vars
         RunJobUtilities.setEnvVars(jobSite.sitename)
 
         # execute the payload
@@ -1829,10 +1829,10 @@ if __name__ == "__main__":
         job.jobState = "stageout"
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
-        # are there any additional output files created by the trf/payload?
+        # are there any additional output files created by the trf/payload? if so, the outut file list must be updated
         job, fromJSON = runJob.handleAdditionalOutFiles(job, analysisJob)
 
-        # Should any output be zipped? If so, the zipmapString was previously set (otherwise the returned variables are set to None)
+        # should any output be zipped? if so, the zipmapString was previously set (otherwise the returned variables are set to None)
         zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString, job.workdir)
         if zip_map:
             # Add the zip archives to the output file lists
