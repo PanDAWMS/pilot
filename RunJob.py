@@ -1549,9 +1549,9 @@ class RunJob(object):
                         break
                 if zf:
                     zf.close()
+            os.chdir(cwd)
             archive_names = zip_map.keys()
 
-        os.chdir(cwd)
         return zip_map, archive_names
 
     def cleanupForZip(self, zip_map, archive_names, job, outs):
