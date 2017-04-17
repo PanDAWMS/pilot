@@ -1843,6 +1843,8 @@ if __name__ == "__main__":
         if ec:
             # missing output file (only error code from prepareOutFiles)
             runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
+        tolog("outs=%s"%str(outs))
+        tolog("outsDict=%s"%str(outsDict))
 
         # update the current file states
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
@@ -1853,6 +1855,8 @@ if __name__ == "__main__":
         if outs or (job.logFile and job.logFile != ''):
             # get the datasets for the output files
             dsname, datasetDict = runJob.getDatasets(job)
+
+            tolog("datasetDict=%s"%str(datasetDict))
 
             # re-create the metadata.xml file, putting guids of ALL output files into it.
             # output files that miss guids from the job itself will get guids in PFCxml function
@@ -1865,6 +1869,8 @@ if __name__ == "__main__":
             ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
             if ec:
                 runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+
+            tolog("outputFileInfo=%s"%str(outputFileInfo))
 
             # in case the output files have been zipped, it is now safe to remove them and update the outFiles list
             if zip_map:

@@ -831,7 +831,7 @@ class JobMover(object):
         for fspec in files:
             pfn = fspec.pfn if fspec.pfn else os.path.join(self.job.workdir, fspec.lfn)
             if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
-                error = "Error: input pfn file is not exist: %s" % pfn
+                error = "Error: output pfn file does not exist: %s" % pfn
                 self.log(error)
                 raise PilotException(error, code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="FILE_INFO_FAIL")
             fspec.filesize = os.path.getsize(pfn)
@@ -1246,7 +1246,7 @@ class JobMover(object):
                 self.log("[do_put_files] TURL=%s" % turl)
 
                 if not os.path.isfile(pfn) or not os.access(pfn, os.R_OK):
-                    error = "Erron: input pfn file is not exist: %s" % pfn
+                    error = "Erron: output pfn file does not exist: %s" % pfn
                     self.log(error)
                     raise PilotException(error, code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="FILE_INFO_FAIL")
 

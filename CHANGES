@@ -376,6 +376,7 @@ M Mover.py (4)
 
 General changes:
 - Created handleAdditionalOutFiles() to cleanup main function a bit (RunJob)
+- Corrected error messages (grammatical) in stageout(), do_put_files() (mover)
 
 jobPars based payload setup:
 - Added noExecStrCnv (Job)
