@@ -1163,6 +1163,12 @@ class RunJob(object):
             note: returning `job` is useless since reference passing
         """
 
+        tolog("xxx outs=%s" % str(outs))
+        tolog("xxx job.outFilesGuids=%s" % str(job.outFilesGuids))
+        tolog("xxx job.outFiles=%s" % str(job.outFiles))
+        tolog("xxx datasetDict=%s" % str(datasetDict))
+        tolog("xxx outputFileInfo=%s" % str(outputFileInfo))
+
         # warning: in main workflow if jobReport is used as source for output file it completely overwtites job.outFiles ==> suppose it's wrong behaviour .. do extend outFiles instead.
         # extend job.outData from job.outFiles (consider extra files extractOutputFilesFromJSON in the main workflow)
 
@@ -1228,11 +1234,6 @@ class RunJob(object):
         rc = 0
         latereg = False
         rf = None
-
-        tolog("xxx outs=%s" % str(outs))
-        tolog("xxx job.outFilesGuids=%s" % str(job.outFilesGuids))
-        tolog("xxx datasetDict=%s" % str(datasetDict))
-        tolog("xxx outputFileInfo=%s" % str(outputFileInfo))
 
         # generate the xml for the output files and the site mover
         pfnFile = "OutPutFileCatalog.xml"
@@ -1559,7 +1560,7 @@ class RunJob(object):
 
         return zip_map, archive_names
 
-    def cleanupForZip(self, zip_map, archive_names, job, outs, outputFileInfo):
+    def cleanupForZip(self, zip_map, archive_names, job, outs, outputFileInfo, datasetDict):
         """ Remove redundant output files and update file lists """
 
         for archive in archive_names:
@@ -1581,12 +1582,14 @@ class RunJob(object):
                 else:
                     tolog("!!WARNING!!3454!! Failed to locate file %s in outFiles list" % (filename))
 
-                # remove 'filename' key from dictionary if it exists
+                # remove 'filename' key from dictionaries if it exists
                 dummy = outputFileInfo.pop(filename, None)
+                dummy = datasetDict.pop(filename, None)
 
-            # now remove the file from the related lists
-            for index in file_indices:
+            # now remove the file from the related lists (in reverse order)
+            for index in reversed(file_indices):
                 del job.outFiles[index]
+                del job.outFilesGuids[index]
                 del job.destinationDblock[index]
                 del job.destinationDBlockToken[index]
                 del job.scopeOut[index]
@@ -1882,7 +1885,7 @@ if __name__ == "__main__":
 
             # in case the output files have been zipped, it is now safe to remove them and update the outFiles list
             if zip_map:
-                job, outs, outputFileInfo = runJob.cleanupForZip(zip_map, archive_names, job, outs, outputFileInfo)
+                job, outs, outputFileInfo = runJob.cleanupForZip(zip_map, archive_names, job, outs, outputFileInfo, datasetDict)
 
         # move output files from workdir to local DDM area
         finalUpdateDone = False
