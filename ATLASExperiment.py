@@ -215,7 +215,7 @@ class ATLASExperiment(Experiment):
 
 
         # Should the pilot do the asetup or do the jobPars already contain the information?
-        prepareASetup = shouldPilotPrepareASetup(job.noExecStrCnv, job.jobPars)
+        prepareASetup = self.shouldPilotPrepareASetup(job.noExecStrCnv, job.jobPars)
 
         # Is it a user job or not?
         analysisJob = isAnalysisJob(job.trf)
