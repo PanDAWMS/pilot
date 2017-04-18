@@ -489,10 +489,6 @@ class PandaServerClient:
                     tolog("%s \n%s" % (cmd, out))
                     xmldir = workdir
 
-                # which checksum command should be used? query the site mover
-                from SiteMoverFarm import getSiteMover
-                sitemover = getSiteMover(readpar('copytool'), "")
-
                 if os.environ.has_key('Nordugrid_pilot'):
                     fname = os.path.join(self.__pilot_initdir, job.logFile)
                 else:

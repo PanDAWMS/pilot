@@ -736,8 +736,7 @@ class JobLog:
 
         # add metadata about log file to metadata.xml
         from SiteMover import SiteMover
-        from SiteMoverFarm import getSiteMover
-        sitemover = getSiteMover(readpar('copytool'), "")
+
         _date = "None"
         strXML = ""
 
