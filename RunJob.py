@@ -20,7 +20,7 @@ from json import loads
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand, getSiteInformation,\
+from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getSiteInformation,\
      tailPilotErrorDiag, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
@@ -1064,7 +1064,7 @@ class RunJob(object):
 
         # get the file sizes and checksums for the local output files
         # WARNING: any errors are lost if occur in getOutputFileInfo()
-        ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(outFiles), getChecksumCommand(), skiplog=True, logFile=job.logFile)
+        ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(outFiles), "adler32", skiplog=True, logFile=job.logFile)
         if ec != 0:
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
             self.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)

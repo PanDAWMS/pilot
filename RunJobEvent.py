@@ -35,7 +35,7 @@ from FileStateClient import dumpFileStates, getFilesOfState
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand,\
+from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict,\
      tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService,\
      getSiteInformation, getGUID, isAGreaterOrEqualToB
 from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes
@@ -1258,7 +1258,7 @@ class RunJobEvent(RunJob):
 
         # get the file sizes and checksums for the local output files
         # WARNING: any errors are lost if occur in getOutputFileInfo()
-        ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(self.getOutputFiles()), getChecksumCommand(), skiplog=True, logFile=self.__job.logFile)
+        ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(self.getOutputFiles()), "adler32", skiplog=True, logFile=self.__job.logFile)
         if ec != 0:
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
             self.failJob(self.__job.result[1], ec, self.__job, pilotErrorDiag=pilotErrorDiag)
@@ -1360,7 +1360,7 @@ class RunJobEvent(RunJob):
 
         # Get the file size and checksum for the local output file
         # WARNING: any errors are lost if occur in getOutputFileInfo()
-        ec, pilotErrorDiag, fsize_list, checksum_list = pUtil.getOutputFileInfo([outputFile], getChecksumCommand(), skiplog=True)
+        ec, pilotErrorDiag, fsize_list, checksum_list = pUtil.getOutputFileInfo([outputFile], "adler32", skiplog=True)
         if ec != 0:
             tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
             return ec, pilotErrorDiag, None

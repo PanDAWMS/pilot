@@ -2743,14 +2743,6 @@ def getFileGuid(metadata_filename, guid_filename):
 
     return logFileGuid
 
-def getChecksumCommand():
-    """ return the site mover checksum command """
-
-    # which checksum command should be used? query the site mover
-    from SiteMoverFarm import getSiteMover
-    sitemover = getSiteMover(readpar('copytool'), "")
-    return sitemover.getChecksumCommand()
-
 def tailPilotErrorDiag(pilotErrorDiag, size=256):
     """ Return the last n characters of pilotErrorDiag """
 

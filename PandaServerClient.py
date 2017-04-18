@@ -501,7 +501,7 @@ class PandaServerClient:
                     fnamelog = "%s/logfile.xml" % (xmldir)
                     guids_status = PFCxml(experiment, fnamelog, fntag="lfn", alog=job.logFile, alogguid=job.tarFileGuid, jr=jr)
                     from SiteMover import SiteMover
-                    ec, pilotErrorDiag, _fsize, _checksum = SiteMover.getLocalFileInfo(fname, csumtype=sitemover.getChecksumCommand())
+                    ec, pilotErrorDiag, _fsize, _checksum = SiteMover.getLocalFileInfo(fname, csumtype="adler32")
                     if ec != 0:
                         tolog("!!WARNING!!1300!! getLocalFileInfo failed: (%d, %s, %s)" % (ec, str(_fsize), str(_checksum)))
                         tolog("!!WARNING!!1300!! Can not set XML (will not be sent to server)")

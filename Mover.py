@@ -2964,9 +2964,6 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
                      <-- 3  calls by pilot.RecoverLostJobs()
                      <-- pilot.transferLogFile() <-- pilot.RecoverLostJobs() # stop
 
-           -- JobLog.transferAdditionalFile() <-- JobLog.transferAdditionalCERNVMFiles() <-- JobLog.postJobTask() # ignore for now
-               -- only for case: site=CERNVM & special pilot (useCoPilot)
-
            -- pilot.moveLostOutputFiles() <-- 3 calls from pilot.RecoverLostJobs() # ?? ignore for Now
 
     """

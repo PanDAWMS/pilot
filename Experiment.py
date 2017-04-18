@@ -387,26 +387,6 @@ class Experiment(object):
 
         return dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl
 
-    def getSetupFromCopysetup(self, copysetup):
-        """ Extract the setup file from copysetup """
-
-        # Remove the direct access info
-        if "^" in copysetup:
-            _copysetup = copysetup[:copysetup.find("^")]
-        else:
-            _copysetup = copysetup
-
-        # Does copysetup exist?
-        if _copysetup != "":
-            if os.path.exists(_copysetup):
-                tolog("Setup file exists: %s" % (_copysetup))
-            else:
-                tolog("!!WARNING!!2999!! Setup file does not exist: %s (reset to empty string)" % (_copysetup))
-        else:
-            tolog("No setup file in copysetup")
-
-        return _copysetup
-
     def getGuidsFromJobPars(self, jobPars, inputFiles, inFilesGuids):
         """ Extract the correct guid from the input file list """
 

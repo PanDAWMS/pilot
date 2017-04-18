@@ -386,8 +386,7 @@ class ATLASExperiment(Experiment):
             # sort out when directIn and useFileStager options should be used
             if useDirectAccess and '--directIn' not in job.jobPars and '--directIn' not in run_command:
                 run_command += ' --directIn'
-            if useFileStager and '--useFileStager' not in job.jobPars:
-                run_command += ' --useFileStager'
+
             # old style copysetups will contain oldPrefix and newPrefix needed for the old style remote I/O
             if oldPrefix != "" and newPrefix != "":
                 run_command += ' --oldPrefix "%s" --newPrefix %s' % (oldPrefix, newPrefix)
@@ -449,7 +448,7 @@ class ATLASExperiment(Experiment):
                     run_command += ' --usePFCTurl'
 
             # need to add proxy if not there already
-            if ("--directIn" in run_command or "--useFileStager" in run_command) and not "export X509_USER_PROXY" in run_command:
+            if "--directIn" in run_command and not "export X509_USER_PROXY" in run_command:
                 if os.environ.has_key('X509_USER_PROXY'):
                     run_command = run_command.replace("./%s" % (trfName), "export X509_USER_PROXY=%s;./%s" % (os.environ['X509_USER_PROXY'], trfName))
                 else:
