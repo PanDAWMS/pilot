@@ -284,7 +284,7 @@ class ATLASExperiment(Experiment):
                     return status, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
                 # Set up the run command
-                if job.prodSourceLabel == 'ddm' or job.prodSourceLabel == 'software':
+                if (job.prodSourceLabel == 'ddm' or job.prodSourceLabel == 'software') and prepareASetup:
                     cmd = '%s %s %s' % (pybin, trfName, job.jobPars)
                 else:
                     ec, pilotErrorDiag, cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
@@ -364,11 +364,6 @@ class ATLASExperiment(Experiment):
         # get relevant file transfer info
         dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl =\
                self.getFileTransferInfo(job.transferType, isBuildJob(job.outFiles))
-
-        # extract the setup file from copysetup (and verify that it exists)
-        _copysetup = self.getSetupFromCopysetup(copysetup)
-        if _copysetup != "" and os.path.exists(_copysetup):
-            run_command = 'source %s;' % (_copysetup)
 
         # add the user proxy
         if os.environ.has_key('X509_USER_PROXY'):

@@ -379,6 +379,9 @@ General changes:
 - Corrected error messages (grammatical) in stageout(), do_put_files() (mover)
 - Removed useless lfchost from getFileTransferInfo() (Experiment)
 - Removed useless lfchost from getAnalysisRunCommand() (ATLASExperiment)
+- Removed sourcing of copysetup in getAnalysisRunCommand() (ATLASExperiment)
+  Tadashi's comment: IIRC, it was required for some trfs to read input files directly from BNL dcache which was unavailable in login shell by default.
+  (BNL queues have used the new movers for a while and schedconfig.copysetup has been set to OLDMOVERDEPRECATED with no reported problem)
 
 jobPars based payload setup:
 - Added noExecStrCnv (Job)
