@@ -490,7 +490,7 @@ class Job:
 #        self.jobPars +=' --useTestXRootD'
 
 # PN
-        _noExecStrCnv = 'true' #data.get('noExecStrCnv', None)
+        _noExecStrCnv = data.get('noExecStrCnv', None)
         if _noExecStrCnv:
             if _noExecStrCnv.lower() == 'true':
                 self.noExecStrCnv = True

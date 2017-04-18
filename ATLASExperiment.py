@@ -287,9 +287,12 @@ class ATLASExperiment(Experiment):
                 if (job.prodSourceLabel == 'ddm' or job.prodSourceLabel == 'software') and prepareASetup:
                     cmd = '%s %s %s' % (pybin, trfName, job.jobPars)
                 else:
-                    ec, pilotErrorDiag, cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
-                    if ec != 0:
-                        return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+                    if prepareASetup:
+                        ec, pilotErrorDiag, cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
+                        if ec != 0:
+                            return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+                    else:
+                        cmd = job.jobPars
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 cmd2 = self.addMAKEFLAGS(job.coreCount, "")
@@ -297,22 +300,23 @@ class ATLASExperiment(Experiment):
                 cmd = cmd2 + cmd
 
                 # should asetup be used? If so, sqeeze it into the run command (rather than moving the entire getAnalysisRunCommand() into this class)
-                m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
-                if m_cacheDirVer != None:
-                    # homePackage="AnalysisTransforms-AthAnalysisBase_2.0.14"
-                    # -> cacheDir = AthAnalysisBase, cacheVer = 2.0.14
-                    cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
-                    if cacheDir != "" and cacheVer != "":
-                        asetup = self.getModernASetup()
-                        asetup += " %s,%s --platform=%s;" % (cacheDir, cacheVer, cmtconfig)
+                if prepareASetup:
+                    m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
+                    if m_cacheDirVer != None:
+                        # homePackage="AnalysisTransforms-AthAnalysisBase_2.0.14"
+                        # -> cacheDir = AthAnalysisBase, cacheVer = 2.0.14
+                        cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
+                        if cacheDir != "" and cacheVer != "":
+                            asetup = self.getModernASetup()
+                            asetup += " %s,%s --platform=%s;" % (cacheDir, cacheVer, cmtconfig)
 
-                        # now squeeze it back in
-                        cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
-                        tolog("Updated run command for special homePackage: %s" % (cmd))
+                            # now squeeze it back in
+                            cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
+                            tolog("Updated run command for special homePackage: %s" % (cmd))
+                        else:
+                            tolog("asetup not needed (mo special home package: %s)" % (job.homePackage))
                     else:
-                        tolog("asetup not needed (mo special home package: %s)" % (job.homePackage))
-                else:
-                    tolog("asetup not needed (no special homePackage)")
+                        tolog("asetup not needed (no special homePackage)")
 
             elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
 
@@ -321,14 +325,20 @@ class ATLASExperiment(Experiment):
                            "payload": ("%s/%s" % (job.homePackage, job.trf)),
                            "parameters": job.jobPars }
                 else:
-                    cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
+                    if prepareASetup:
+                        cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
+                    else:
+                        cmd = job.jobPars
             else:
                 if 'HPC_' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": job.trf,
                            "parameters": job.jobPars }
                 else:
-                    cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
+                    if prepareASetup:
+                        cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
+                    else:
+                        cmd = job.jobPars
 
         # Add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
@@ -362,7 +372,7 @@ class ATLASExperiment(Experiment):
         # (directAccess info is stored in the copysetup variable)
 
         # get relevant file transfer info
-        dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl =\
+        dInfo, useCopyTool, useDirectAccess, dummy, oldPrefix, newPrefix, copysetup, usePFCTurl =\
                self.getFileTransferInfo(job.transferType, isBuildJob(job.outFiles))
 
         # add the user proxy
@@ -383,7 +393,7 @@ class ATLASExperiment(Experiment):
                 run_command += ' --usePFCTurl'
                 tolog("reset old/newPrefix (forced TURL mode (1))")
 
-            # sort out when directIn and useFileStager options should be used
+            # sort out when directIn should be used
             if useDirectAccess and '--directIn' not in job.jobPars and '--directIn' not in run_command:
                 run_command += ' --directIn'
 
@@ -401,16 +411,14 @@ class ATLASExperiment(Experiment):
         if job.transferType == 'direct':
             # update the copysetup
             # transferType is only needed if copysetup does not contain remote I/O info
-            updateCopysetups(run_command, transferType=job.transferType, useCT=False, directIn=useDirectAccess, useFileStager=useFileStager)
+            updateCopysetups(run_command, transferType=job.transferType, useCT=False, directIn=useDirectAccess)
 
         # add options for file stager if necessary (ignore if transferType = direct)
         if "accessmode" in job.jobPars and job.transferType != 'direct':
             accessmode_useCT = None
-            accessmode_useFileStager = None
             accessmode_directIn = None
             _accessmode_dic = { "--accessmode=copy":["copy-to-scratch mode", ""],
-                                "--accessmode=direct":["direct access mode", " --directIn"],
-                                "--accessmode=filestager":["direct access / file stager mode", " --directIn --useFileStager"]}
+                                "--accessmode=direct":["direct access mode", " --directIn"]}
             # update run_command according to jobPars
             for _mode in _accessmode_dic.keys():
                 if _mode in job.jobPars:
@@ -421,19 +429,15 @@ class ATLASExperiment(Experiment):
                         usePFCTurl = False
                         accessmode_useCT = True
                         accessmode_directIn = False
-                        accessmode_useFileStager = False
                     elif _mode == "--accessmode=direct":
                         # make sure copy-to-scratch and file stager get turned off
                         usePFCTurl = True
                         accessmode_useCT = False
                         accessmode_directIn = True
-                        accessmode_useFileStager = False
                     else:
-                        # make sure file stager gets turned on
                         usePFCTurl = False
                         accessmode_useCT = False
-                        accessmode_directIn = True
-                        accessmode_useFileStager = True
+                        accessmode_directIn = False
 
                     # update run_command (do not send the accessmode switch to runAthena)
                     run_command += _accessmode_dic[_mode][1]
@@ -455,7 +459,7 @@ class ATLASExperiment(Experiment):
                     tolog("Did not add user proxy to the run command (proxy does not exist)")
 
             # update the copysetup
-            updateCopysetups(run_command, transferType=None, useCT=accessmode_useCT, directIn=accessmode_directIn, useFileStager=accessmode_useFileStager)
+            updateCopysetups(run_command, transferType=None, useCT=accessmode_useCT, directIn=accessmode_directIn)
 
         # add guids when needed
         # get the correct guids list (with only the direct access files)

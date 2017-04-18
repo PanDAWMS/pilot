@@ -394,6 +394,7 @@ General changes:
 - Removed getSiteMover() and its import in createMetadataForOutput() (JobLog)
 - Using fixed time-out instead of time-out from old site movers in for looping stage-outs in __loopingJobKiller() and removed usage of getSiteMover() (Monitor)
 - Removed usage of deprecated function getSiteMover() in getXML() (PandaServerClient)
+- Removed deprecated use of file stager variables in getAnalysisRunCommand() (ATLASExperiment)
 
 jobPars based payload setup:
 - Added noExecStrCnv (Job)
