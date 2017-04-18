@@ -131,6 +131,25 @@ class ATLASExperiment(Experiment):
 
         return status
 
+    # Optional
+    def shouldPilotPrepareASetup(self, noExecStrCnv, jobPars):
+        """ Should pilot be in charge of preparing asetup? """
+        # If noExecStrCnv is set, then jobPars is expected to contain asetup.sh + options
+
+        prepareASetup = True
+        if job.noExecStrCnv:
+            if "asetup.sh" in job.jobPars:
+                tolog("asetup will be taken from jobPars")
+                prepareASetup = False
+            else:
+                tolog("noExecStrCnv is set but asetup command was not found in jobPars (pilot will prepare asetup)")
+                prepareASetup = True
+        else:
+            tolog("Pilot will prepare asetup")
+            prepareASetup = True
+
+        return prepareASetup
+
     def getJobExecutionCommand(self, job, jobSite, pilot_initdir):
         """ Define and test the command(s) that will be used to execute the payload """
 
@@ -196,12 +215,7 @@ class ATLASExperiment(Experiment):
 
 
         # Should the pilot do the asetup or do the jobPars already contain the information?
-        if job.noExecStrCnv:
-            tolog("asetup is expected to be defined in jobPars")
-            prepareASetup = False
-        else:
-            tolog("Pilot will prepare asetup")
-            prepareASetup = True
+        prepareASetup = shouldPilotPrepareASetup(job.noExecStrCnv, job.jobPars)
 
         # Is it a user job or not?
         analysisJob = isAnalysisJob(job.trf)
@@ -213,32 +227,29 @@ class ATLASExperiment(Experiment):
         asetup_path = self.getModernASetup(asetup=prepareASetup)
         asetup_options = " "
 
-        # Local software path
-        swbase = self.getSwbase(jobSite.appdir, job.release, job.homePackage, job.processingType, cmtconfig)
-        tolog("Local software path: swbase = %s" % (swbase))
-
         # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...')
         if self.__atlasEnv:
 
             # Normal setup (production and user jobs)
             tolog("Preparing normal production/analysis job setup command")
 
-            options = self.getASetupOptions(job.release, job.homePackage)
-            asetup_options = " " + options + " --platform " + cmtconfig
+            if prepareASetup:
+                options = self.getASetupOptions(job.release, job.homePackage)
+                asetup_options = " " + options + " --platform " + cmtconfig
 
-            # always set the --makeflags option (to prevent asetup from overwriting it)
-            asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
+                # always set the --makeflags option (to prevent asetup from overwriting it)
+                asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
 
-            cmd = asetup_path + asetup_options
-            trf = job.trf
+                cmd = asetup_path + asetup_options
+            else:
+                cmd = "" # add the job.jobPars further down
 
             if analysisJob:
                 # Set the INDS env variable (used by runAthena)
                 self.setINDS(job.realDatasetsIn)
 
                 # Try to download the trf
-                wgetCommand = 'wget'
-                ec, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
+                ec, pilotErrorDiag, trfName = self.getAnalysisTrf('wget', job.trf, pilot_initdir)
                 if ec != 0:
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
@@ -251,7 +262,11 @@ class ATLASExperiment(Experiment):
                 cmd = cmd.replace(';;', ';')
             else:
                 # Add the transform and the job parameters (production jobs)
-                cmd += ";%s %s" % (trf, job.jobPars)
+                if prepareASetup:
+                    cmd += ";%s %s" % (job.trf, job.jobPars)
+
+            if not prepareASetup:
+                cmd += "; " + job.jobPars
 
         else: # Generic, non-ATLAS specific jobs, or at least a job with undefined swRelease
 
@@ -264,8 +279,7 @@ class ATLASExperiment(Experiment):
 
             if analysisJob:
                 # Try to download the analysis trf
-                wgetCommand = 'wget'
-                status, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
+                status, pilotErrorDiag, trfName = self.getAnalysisTrf('wget', job.trf, pilot_initdir)
                 if status != 0:
                     return status, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
@@ -348,7 +362,7 @@ class ATLASExperiment(Experiment):
         # (directAccess info is stored in the copysetup variable)
 
         # get relevant file transfer info
-        dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl, lfcHost =\
+        dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl =\
                self.getFileTransferInfo(job.transferType, isBuildJob(job.outFiles))
 
         # extract the setup file from copysetup (and verify that it exists)
@@ -383,7 +397,7 @@ class ATLASExperiment(Experiment):
             if oldPrefix != "" and newPrefix != "":
                 run_command += ' --oldPrefix "%s" --newPrefix %s' % (oldPrefix, newPrefix)
             else:
-                # --directIn should be used in combination with --usePFCTurl, but not --old/newPrefix and --lfcHost
+                # --directIn should be used in combination with --usePFCTurl, but not --old/newPrefix
                 if usePFCTurl and not '--usePFCTurl' in run_command:
                     run_command += ' --usePFCTurl'
 
@@ -446,28 +460,14 @@ class ATLASExperiment(Experiment):
                 else:
                     tolog("Did not add user proxy to the run command (proxy does not exist)")
 
-            # add the lfcHost if not there already
-            if not "--lfcHost" in run_command and lfcHost != "":
-                run_command += " --lfcHost %s" % (lfcHost)
-
             # update the copysetup
             updateCopysetups(run_command, transferType=None, useCT=accessmode_useCT, directIn=accessmode_directIn, useFileStager=accessmode_useFileStager)
 
-        # add guids and lfc host when needed
-        if lfcHost != "":
-            # get the correct guids list (with only the direct access files)
-            if not isBuildJob(job.outFiles):
-                _guids = self.getGuidsFromJobPars(job.jobPars, job.inFiles, job.inFilesGuids)
-                # only add the lfcHost if --usePFCTurl is not specified
-                if usePFCTurl:
-                    run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
-                else:
-                    if not "--lfcHost" in run_command:
-                        run_command += ' --lfcHost %s' % (lfcHost)
-                    run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
-            else:
-                if not usePFCTurl and not "--lfcHost" in run_command:
-                    run_command += ' --lfcHost %s' % (lfcHost)
+        # add guids when needed
+        # get the correct guids list (with only the direct access files)
+        if not isBuildJob(job.outFiles):
+            _guids = self.getGuidsFromJobPars(job.jobPars, job.inFiles, job.inFilesGuids)
+            run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
 
         # if both direct access and the accessmode loop added a directIn switch, remove the first one from the string
         if run_command.count("directIn") > 1:

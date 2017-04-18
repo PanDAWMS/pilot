@@ -377,6 +377,8 @@ M Mover.py (4)
 General changes:
 - Created handleAdditionalOutFiles() to cleanup main function a bit (RunJob)
 - Corrected error messages (grammatical) in stageout(), do_put_files() (mover)
+- Removed useless lfchost from getFileTransferInfo() (Experiment)
+- Removed useless lfchost from getAnalysisRunCommand() (ATLASExperiment)
 
 jobPars based payload setup:
 - Added noExecStrCnv (Job)

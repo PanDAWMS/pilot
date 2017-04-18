@@ -347,7 +347,6 @@ class Experiment(object):
         useCopyTool = False
         useFileStager = False
         useDirectAccess = False
-        lfcHost = readpar('lfchost')
         oldPrefix = ""
         newPrefix = ""
         dInfo = None
@@ -370,8 +369,6 @@ class Experiment(object):
             useCopyTool = False
             useFileStager = False
             useDirectAccess = True
-            if oldPrefix == "" and newPrefix == "":
-                lfcHost = ""
 
         # should pilot create TURL based PFC? (not done here, but setup needs to be aware of it)
         # if dInfo and useDirectAccess and oldPrefix == "" and newPrefix == "":
@@ -388,7 +385,7 @@ class Experiment(object):
             oldPrefix = ""
             newPrefix = ""
 
-        return dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl, lfcHost
+        return dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl
 
     def getSetupFromCopysetup(self, copysetup):
         """ Extract the setup file from copysetup """
