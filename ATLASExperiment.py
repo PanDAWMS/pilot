@@ -253,10 +253,12 @@ class ATLASExperiment(Experiment):
                 if ec != 0:
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
-                ec, pilotErrorDiag, _cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
-                if ec != 0:
-                    return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
-
+                if prepareASetup:
+                    ec, pilotErrorDiag, _cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
+                    if ec != 0:
+                        return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+                else:
+                    _cmd = job.jobPars
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 cmd += "; " + self.addMAKEFLAGS(job.coreCount, "") + _cmd
                 cmd = cmd.replace(';;', ';')
@@ -264,9 +266,8 @@ class ATLASExperiment(Experiment):
                 # Add the transform and the job parameters (production jobs)
                 if prepareASetup:
                     cmd += ";%s %s" % (job.trf, job.jobPars)
-
-            if not prepareASetup:
-                cmd += "; " + job.jobPars
+                else:
+                    cmd += "; " + job.jobPars
 
         else: # Generic, non-ATLAS specific jobs, or at least a job with undefined swRelease
 

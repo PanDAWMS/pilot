@@ -488,9 +488,9 @@ class Job:
         self.jobPars = data.get('jobPars', '')
 #        self.jobPars +=' --useTestASetup'
 #        self.jobPars +=' --useTestXRootD'
-
+        self.jobPars = 'source $AtlasSetup/scripts/asetup.sh AtlasProduction,20.1.4.14,notest,here --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py --maxEvents=1 --inputHITSFile HITS.06828093._000096.pool.root.1 --outputRDOFile RDO_951ca186-3669-4638-98a2-2f63c10ab32b.root'
 # PN
-        _noExecStrCnv = data.get('noExecStrCnv', None)
+        _noExecStrCnv = 'true' #data.get('noExecStrCnv', None)
         if _noExecStrCnv:
             if _noExecStrCnv.lower() == 'true':
                 self.noExecStrCnv = True

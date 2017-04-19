@@ -2540,7 +2540,7 @@ def mover_get_data(lfns,
                 sitemover = old_sitemover
 
                 # If FAX is used as a primary site mover, in combination with direct access, set the usedFAXandDirectIO flag
-                # this will later be used to update the run command (e.g. --lfcHost is not needed etc)
+                # this will later be used to update the run command
                 if copycmd == "fax":
                     usedFAXandDirectIO = True
             else:
