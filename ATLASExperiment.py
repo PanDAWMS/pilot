@@ -137,8 +137,8 @@ class ATLASExperiment(Experiment):
         # If noExecStrCnv is set, then jobPars is expected to contain asetup.sh + options
 
         prepareASetup = True
-        if job.noExecStrCnv:
-            if "asetup.sh" in job.jobPars:
+        if noExecStrCnv:
+            if "asetup.sh" in jobPars:
                 tolog("asetup will be taken from jobPars")
                 prepareASetup = False
             else:
