@@ -371,7 +371,7 @@ if __name__ == "__main__":
         # remote_io modes have been changed to copy_to_scratch as can happen with ByteStream files)
         # and update the run command list if necessary.
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
-        # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
+        # the run command should not contain the --oldPrefix, --newPrefix options but use --usePFCTurl
         hasInput = job.inFiles != ['']
         if hasInput:
             runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
