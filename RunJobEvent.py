@@ -124,6 +124,9 @@ class RunJobEvent(RunJob):
     # external stagout time(time after athenaMP terminated)
     __external_stagout_time = 0
 
+    # allow read/download remote inputs if closest RSE is in downtime
+    __allow_remote_inputs = False
+
     # Getter and setter methods
 
     def getNEvents(self):
@@ -1195,12 +1198,22 @@ class RunJobEvent(RunJob):
                 self.__esToZip = True
             catchalls = readpar('catchall')
             if 'zip_time_gap' in catchalls:
-                for catchall in catalls.split(","):
+                for catchall in catchalls.split(","):
                     if 'zip_time_gap' in catchall:
                         name, value = catchall.split('=')
                         self.__asyncOutputStager_thread_sleep_time = int(value)
         except:
             tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
+
+    def initAllowRemoteInputs(self, job):
+        try:
+            catchalls = readpar('catchall')
+            if 'allow_remote_inputs' in catchalls:
+                self.__allow_remote_inputs = True
+                job.setAllowRemoteInputs(self.__allow_remote_inputs)
+            tolog("Allow remote inputs: %s" % self.__allow_remote_inputs)
+        except:
+            tolog("Failed to init allow_remote_inputs cofnig: %s, it will use default value False" % traceback.format_exc())
 
     def convertToLFNs(self):
         """ Convert the output file names to LFNs """
@@ -1517,7 +1530,7 @@ class RunJobEvent(RunJob):
         """
         tolog("To stage out event %s: %s" % (event_range_id, file_paths))
 
-        activity = "pes" ## pilot log special/second transfer
+        activity = "es_events" ## pilot log special/second transfer
 
         if not self.__siteInfo:
             self.__siteInfo = getSiteInformation(self.__experiment)
@@ -1536,11 +1549,18 @@ class RunJobEvent(RunJob):
 
             tolog("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
 
-            if not osddms:
-                return PilotErrors.ERR_NOSTORAGE, "Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), None
-
-            self.__stageOutDDMEndpoint = osddms[0]
-            self.__stageOutObjectstoreId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+            if False: #if osddms:
+                self.__stageOutDDMEndpoint = osddms[0]
+                self.__stageOutObjectstoreId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+            else:
+                tolog("[stage-out-os] no osddms defined, looking for associated storages with activity: %s" % (activity))
+                associate_storages = self.__siteInfo.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+                esDDMEndpoints = associate_storages.get(activity, [])
+                if esDDMEndpoints:
+                    self.__stageOutDDMEndpoint = esDDMEndpoints[0]
+                    self.__stageOutObjectstoreId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+                else:
+                    return PilotErrors.ERR_NOSTORAGE, "Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue(os_ddms:%s) nor associate es_events activity storage" % (os_ddms), None
 
             protocols = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('rprotocols', {})
             access_key = None
@@ -1565,7 +1585,7 @@ class RunJobEvent(RunJob):
                             os.environ['S3_SECRET_KEY'] = keyPair["privateKey"]
                             os.environ['S3_IS_SECURE'] = str(is_secure)
                             break
-            tolog("[stage-out] [%s] resolved OS ddmendpoint=%s for es transfer with access key %s" % (activity, self.__stageOutDDMEndpoint, os.environ.get('S3_ACCESS_KEY', None)))
+            tolog("[stage-out] [%s] resolved ddmendpoint=%s for es transfer with access key %s" % (activity, self.__stageOutDDMEndpoint, os.environ.get('S3_ACCESS_KEY', None)))
 
 
         files = []
@@ -1582,6 +1602,8 @@ class RunJobEvent(RunJob):
 
         #ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry(), files=files, workDir=None)
         ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=1, files=files, workDir=None)
+        if os_bucket_id is None or os_bucket_id == 0:
+            os_bucket_id = -1
         return ret_code, ret_str, os_bucket_id
 
 
@@ -2641,10 +2663,32 @@ class RunJobEvent(RunJob):
         if os.environ.has_key('Nordugrid_pilot'):
             return 0, ""
         try:
-            from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
-            testSiteMover = S3ObjectstoreSiteMover('')
-            status, output = testSiteMover.setup(experiment=self.getExperiment())
-            return status, output
+            use_newmover = readpar('use_newmover')
+            if not str(use_newmover).lower() in ["1", "true"]:
+                from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
+                testSiteMover = S3ObjectstoreSiteMover('')
+                status, output = testSiteMover.setup(experiment=self.getExperiment())
+                return status, output
+            else:
+                activity = "es_events"
+                self.__siteInfo = getSiteInformation(self.__experiment)
+                jobSite = self.getJobSite()
+                queuename = jobSite.computingElement
+                self.__siteInfo.setQueueName(queuename)
+
+                pandaqueue = self.__siteInfo.getQueueName() # FIX ME LATER
+                os_ddms = self.__siteInfo.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
+                ddmconf = self.__siteInfo.resolveDDMConf(os_ddms)
+                osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
+                tolog("[%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
+                if not osddms:
+                    tolog("osddms is not defined.")
+                    tolog("check associated storages with activity: %s" % activity)
+                    associate_storages = self.__siteInfo.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+                    esDDMEndpoints = associate_storages.get('es_events', [])
+                    if not esDDMEndpoints:
+                        PilotErrors.ERR_UNKNOWN, "No associated storages for %s" % activity
+                return 0, ""
         except:
             err_msg = "Failed to check setup Objectstore: %s" % traceback.format_exc()
             return PilotErrors.ERR_UNKNOWN, err_msg
@@ -2799,6 +2843,9 @@ if __name__ == "__main__":
         JR = JobRecovery()
         try:
             job = Job.Job()
+            # init whether it allows to read/download inputs remotely
+            # should be executed before setJobDef(), because setJobDef() sets job.inData
+            runJob.initAllowRemoteInputs(job)
             job.setJobDef(newJobDef.job)
             job.workdir = jobSite.workdir
             job.experiment = runJob.getExperiment()
@@ -2873,6 +2920,7 @@ if __name__ == "__main__":
         runJob.setAnalysisJob(analysisJob)
 
         runJob.initZipConf()
+
         status, output = runJob.checkSetupObjectstore()
         if status != 0:
             tolog("ObjectStore setup test failed. Will exit: %s" % output)
