@@ -46,15 +46,19 @@ class objectstoreSiteMover(rucioSiteMover):
         Overridden method -- unused
         """
         if ddm:
-            if ddm.get('type') not in ['OS_LOGS', 'OS_ES']:
-                return {}
-            if ddm.get('aprotocols'):
-                surl_schema = 's3'
-                xprot = [e for e in ddm.get('aprotocols').get('r', []) if e[0] and e[0].startswith(surl_schema)]
-                if xprot:
-                    surl = self.getSURL(xprot[0][0], xprot[0][2], fspec.scope, fspec.lfn)
+            if ddm.get('type') in ['OS_LOGS', 'OS_ES']:
+                if ddm.get('aprotocols'):
+                    surl_schema = 's3'
+                    xprot = [e for e in ddm.get('aprotocols').get('r', []) if e[0] and e[0].startswith(surl_schema)]
+                    if xprot:
+                        surl = self.getSURL(xprot[0][0], xprot[0][2], fspec.scope, fspec.lfn)
 
-                    return {'ddmendpoint': fspec.ddmendpoint,
-                            'surl': surl,
-                            'pfn': surl}
+                        return {'ddmendpoint': fspec.ddmendpoint,
+                                'surl': surl,
+                                'pfn': surl}
+            else:
+                if ddm.get('is_deterministic'):
+                   return super(objectstoreSiteMover, self).resolve_replica(fspec, protocol, ddm)
+                else:
+                   return {}
         return {}
