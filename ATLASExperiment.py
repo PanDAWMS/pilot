@@ -227,12 +227,16 @@ class ATLASExperiment(Experiment):
         asetup_path = self.getModernASetup(asetup=prepareASetup)
         asetup_options = " "
 
+        tolog("prepareASetup = %s" % str(prepareASetup))
+        tolog("asetup_path = %s" % asetup_path)
+
         # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...')
         if self.__atlasEnv:
 
             # Normal setup (production and user jobs)
             tolog("Preparing normal production/analysis job setup command")
 
+            cmd = asetup_path
             if prepareASetup:
                 options = self.getASetupOptions(job.release, job.homePackage)
                 asetup_options = " " + options + " --platform " + cmtconfig
@@ -240,9 +244,8 @@ class ATLASExperiment(Experiment):
                 # always set the --makeflags option (to prevent asetup from overwriting it)
                 asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
 
-                cmd = asetup_path + asetup_options
-            else:
-                cmd = "" # add the job.jobPars further down
+                cmd += asetup_options
+            tolog("1. cmd = %s" % cmd)
 
             if analysisJob:
                 # Set the INDS env variable (used by runAthena)
@@ -259,15 +262,23 @@ class ATLASExperiment(Experiment):
                         return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
                 else:
                     _cmd = job.jobPars
+
+                tolog("_cmd = %s" % (_cmd))
+
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 cmd += "; " + self.addMAKEFLAGS(job.coreCount, "") + _cmd
-                cmd = cmd.replace(';;', ';')
+
+                tolog("2. cmd = %s" % (cmd))
             else:
                 # Add the transform and the job parameters (production jobs)
                 if prepareASetup:
                     cmd += ";%s %s" % (job.trf, job.jobPars)
                 else:
                     cmd += "; " + job.jobPars
+
+            tolog("3. cmd = %s" % (cmd))
+            cmd = cmd.replace(';;', ';')
+            tolog("4. cmd = %s" % (cmd))
 
         else: # Generic, non-ATLAS specific jobs, or at least a job with undefined swRelease
 

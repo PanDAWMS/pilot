@@ -374,6 +374,10 @@ M Mover.py (4)
 
 69.0
 
+setup not correct for analy jobs in getJobExecutionCommand(), addMAKEFLAGS called too late
+
+
+
 General changes:
 - Created handleAdditionalOutFiles() to cleanup main function a bit (RunJob)
 - Corrected error messages (grammatical) in stageout(), do_put_files() (mover)
