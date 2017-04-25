@@ -140,6 +140,9 @@ class Job:
         self.mode = None
         self.hpcStatus = None
 
+        # allow to read/download inputs remotely
+        self.allowRemoteInputs = False
+
         # yoda accounting info
         self.yodaJobMetrics = None
 
@@ -220,6 +223,12 @@ class Job:
 
     def getHpcStatus(self):
         return self.hpcStatus
+
+    def setAllowRemoteInputs(self, allowRemoteInputs):
+        self.allowRemoteInputs = allowRemoteInputs
+
+    def getAllowRemoteInputs(self):
+        return self.allowRemoteInputs
 
     def setJobDef(self, data):
         """ set values for a job object from a dictionary data
@@ -557,6 +566,7 @@ class Job:
                 idat[attrname] = ksources[k][ind] if len(ksources[k]) > ind else None
             if 'lfn' in idat and idat['lfn'].startswith("zip://"):
                 idat['lfn'] = idat['lfn'].replace("zip://", "")
+            idat['allowRemoteInputs'] = self.allowRemoteInputs
             finfo = FileSpec(type='input', **idat)
             self.inData.append(finfo)
 
@@ -844,6 +854,7 @@ class FileSpec(object):
                     'dispatchDblock', 'dispatchDBlockToken',
                     'guid', 'filesize', 'checksum',
                     'prodDBlock', 'prodDBlockToken',
+                    'allowRemoteInputs'
                     ]
 
 
