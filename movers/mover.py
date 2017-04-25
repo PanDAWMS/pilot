@@ -149,7 +149,8 @@ class JobMover(object):
             ddms.setdefault(dat['site'], []).append(dat)
 
         for fdat in files:
-            if fdat.objectstoreId:# skip OS ddms
+            if fdat.objectstoreId and fdat.objectstoreId > 0:
+                # skip OS ddms, objectstoreId -1 means normal RSE
                 #self.log("fdat.objectstoreId: %s" % fdat.objectstoreId)
                 #fdat.inputddms = [fdat.ddmendpoint]         ### is it used for OS?
                 pass
@@ -317,6 +318,10 @@ class JobMover(object):
                 fspec.ddmendpoint = os_ddms.get(fspec.objectstoreId)
                 self.get_objectstore_keys(fspec.ddmendpoint)
                 es_files.append(fspec)
+            elif fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit() and int(fspec.prodDBlockToken) == -1:
+                # es outputs in normal RSEs (not in objectstore)
+                fspec.allowRemoteInputs = True
+                normal_files.append(fspec)
             else:
                 normal_files.append(fspec)
 
@@ -332,7 +337,7 @@ class JobMover(object):
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
             self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='per', copytools=copytools)
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events', copytools=copytools)
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
@@ -494,8 +499,11 @@ class JobMover(object):
                     replica_site = self.ddmconf.get(fdata.ddmendpoint, {}).get('site')
 
                     if protocol_site != replica_site:
-                        self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
-                        continue
+                        if fdata.allowRemoteInputs is None or not fdata.allowRemoteInputs:
+                            self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched and remote inputs is not allowed.. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
+                            continue
+                        else:
+                            self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched but remote inputs is allowed.. keep processing for copytool=%s' % (protocol_site, replica_site, copytool))
 
                 # fill trace details
                 self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
