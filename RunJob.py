@@ -1163,12 +1163,6 @@ class RunJob(object):
             note: returning `job` is useless since reference passing
         """
 
-        tolog("xxx outs=%s" % str(outs))
-        tolog("xxx job.outFilesGuids=%s" % str(job.outFilesGuids))
-        tolog("xxx job.outFiles=%s" % str(job.outFiles))
-        tolog("xxx datasetDict=%s" % str(datasetDict))
-        tolog("xxx outputFileInfo=%s" % str(outputFileInfo))
-
         # warning: in main workflow if jobReport is used as source for output file it completely overwtites job.outFiles ==> suppose it's wrong behaviour .. do extend outFiles instead.
         # extend job.outData from job.outFiles (consider extra files extractOutputFilesFromJSON in the main workflow)
 

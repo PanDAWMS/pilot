@@ -637,20 +637,21 @@ class Job:
         # this also means that zipmaps will only be supported for production jobs since only these produce 
         # the jobReport. Zipmaps are of interested for spillover jobs.
 
-        # Note that updateQueuedataFromJobParameters() might have messed up the jobParameters by adding unwanted \' \', if so replace with ' '
-        jobParameters = re.sub(r'\'\ \'', ' ', jobParameters)
+        # Note that updateQueuedataFromJobParameters() might have messed up the jobParameters by adding
+        # unwanted \' \' in the wrong place, if so replace with ' '
+        _jobParameters = re.sub(r'\'\ \'', ' ', jobParameters)
 
         pattern = r" \'?<ZIP_MAP>(.+)<\/ZIP_MAP>\'?" # there might or might not be any '-signs
         compiled_pattern = re.compile(pattern)
 
         # Extract the zip map
-        found = re.findall(compiled_pattern, jobParameters)
+        found = re.findall(compiled_pattern, _jobParameters)
         if len(found) > 0:
             zipmapString = found[0]
         else:
             zipmapString = ""
 
-        # Remove the pattern and update the jobParameters
+        # Remove the pattern and update the original jobParameters
         jobParameters = re.sub(pattern, '', jobParameters)
 
         return jobParameters, zipmapString
