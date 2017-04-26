@@ -12,7 +12,7 @@ from pUtil import tolog, readpar, isLogfileCopied, isAnalysisJob, removeFiles, g
     getMetadata, returnLogMsg, removeLEDuplicates, getPilotlogFilename, remove, getExeErrors, updateJobState, \
     makeJobReport, chdir, addSkippedToPFC, updateMetadata, getJobReport, filterJobReport, timeStamp, \
     getPilotstderrFilename, safe_call, updateXMLWithSURLs, putMetadata, getCmtconfig, getExperiment, getSiteInformation, \
-    getGUID, timedCommand, updateXMLWithEndpoints
+    timedCommand, updateXMLWithEndpoints
 from FileHandling import addToOSTransferDictionary, getOSTransferDictionaryFilename, getOSTransferDictionary, \
     getWorkDirSizeFilename, getDirSize, storeWorkDirSize, addToJobReport, getJSONDictionary
 from JobState import JobState
@@ -736,16 +736,15 @@ class JobLog:
 
         # add metadata about log file to metadata.xml
         from SiteMover import SiteMover
-        from SiteMoverFarm import getSiteMover
-        sitemover = getSiteMover(readpar('copytool'), "")
+
         _date = "None"
         strXML = ""
 
         tolog("Preparing to create metadata for output files")
 
-        # get the file info for the log file and, if needed, for the CERNVM outputFilesXML file
+        # get the file info for the log file
         ec, pilotErrorDiag, _fsize, _checksum = \
-            SiteMover.getLocalFileInfo(os.path.join(workdir, filename), csumtype=sitemover.getChecksumCommand(), date=_date)
+            SiteMover.getLocalFileInfo(os.path.join(workdir, filename), csumtype="adler32", date=_date)
         if ec != 0:
             tolog("!!WARNING!!2995!! Failed while trying to get the log file info: %d" % (ec))
             tolog("fsize=%s" % (_fsize))
@@ -755,7 +754,7 @@ class JobLog:
         _filename = JS.getFilename(workdir, jobId)
         if os.path.exists(_filename):
             ec, pilotErrorDiag, _fsizeAdditional, _checksumAdditional = \
-                SiteMover.getLocalFileInfo(_filename, csumtype=sitemover.getChecksumCommand(), date=_date)
+                SiteMover.getLocalFileInfo(_filename, csumtype="adler32", date=_date)
             if ec != 0:
                 tolog("!!WARNING!!2995!! Failed while trying to get the additional file (%s) info: %d" % (os.path.basename(_filename), ec))
                 _fsizeAdditional = None
@@ -860,23 +859,7 @@ class JobLog:
             else:
                 tolog("Successfully copied log extracts file to pilot init dir for NG: %s" % (self.__env['pilot_initdir']))
 
-    def transferAdditionalCERNVMFiles(self, job, site, experiment):
-        """ Transfer additional files for CERNVM """
-
-        fname = os.path.join(site.workdir, job.outputFilesXML)
-        if os.path.exists(fname):
-            ret, job = self.transferAdditionalFile(job, site, experiment, fname)
-            if not ret:
-                tolog("!!WARNING!!2994!! Additional CERNVM transfer failed: %s" % (job.pilotErrorDiag))
-            else:
-                JS = JobState()
-                ret, job = self.transferAdditionalFile(job, site, experiment, JS.getFilename(site.workdir, job.jobId))
-                if not ret:
-                    tolog("!!WARNING!!2994!! Additional CERNVM transfer failed: %s" % (job.pilotErrorDiag))
-                else:
-                    tolog("Transferred additional CERNVM files")
-
-    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename):
+    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename, jobId, nodename):
         """ Return the benchmark json dictionary """
 
         benchmark_dictionary = {}
@@ -891,15 +874,42 @@ class JobLog:
 
             # remove unwanted information that is either useless or duplicated
             if benchmark_dictionary.has_key('metadata'):
-                _dummy = benchmark_dictionary['metadata'].pop('cpuname', None) # duplicated in machine section
+                # remove later: _dummy = benchmark_dictionary['metadata'].pop('cpuname', None) # duplicated in machine section
                 _dummy = benchmark_dictionary['metadata'].pop('osdist', None) # duplicated in machine section
                 _dummy = benchmark_dictionary['metadata'].pop('pnode', None) # duplicated in machine section
                 _dummy = benchmark_dictionary['metadata'].pop('freetext', None) # unwanted (not set by pilot, still present in dictionary, empty)
-                _dummy = benchmark_dictionary['metadata'].pop('UID', None) # duplicated in benchmark section (_id key)
+                _dummy = benchmark_dictionary['metadata'].pop('classification', None) # unwanted
+                _dummy = benchmark_dictionary['metadata'].pop('UID', None) # unwanted
+                _dummy = benchmark_dictionary.pop('_id', None) # unwanted
 
                 # add additional information to the metadata key
+                benchmark_dictionary['metadata']['node'] = nodename
                 benchmark_dictionary['metadata']['ATLASSite'] = sitename
                 benchmark_dictionary['metadata']['PanDAQueue'] = queuename
+                benchmark_dictionary['metadata']['PanDAID'] = int(jobId)
+
+                # convert from string to int
+                if benchmark_dictionary['metadata'].has_key('mp_num'):
+                    try:
+                        benchmark_dictionary['metadata']['mp_num'] = int(benchmark_dictionary['metadata']['mp_num'])
+                    except:
+                        pass
+
+            # rename
+            benchmark_dictionary['timestamp'] = benchmark_dictionary.pop('_timestamp', None)
+
+            # convert from string to float
+            if benchmark_dictionary.has_key('profiles'):
+                if benchmark_dictionary['profiles'].has_key('whetstone'):
+                    try:
+                        benchmark_dictionary['profiles']['whetstone']['score'] = float(benchmark_dictionary['profiles']['whetstone']['score'])
+                    except:
+                        pass
+                if benchmark_dictionary['profiles'].has_key('fastBmk'):
+                    try:
+                        benchmark_dictionary['profiles']['fastBmk']['value'] = float(benchmark_dictionary['profiles']['fastBmk']['value'])
+                    except:
+                        pass
 
         return benchmark_dictionary
 
@@ -912,14 +922,29 @@ class JobLog:
         """
 
         tc_0 = os.times()
-        transferAdditional = False
 
         # get the metadata and the relevant workdir
         strXML, workdir = self.getXMLAndWorkdir(jr, site.workdir, job.workdir, job.newDirNM, job.jobId)
 
         # was the benchmark suite executed? if so, get the output dictionary and add it to the machine section of the jobReport
-        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement)
+        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement, job.jobId, workerNode.nodename)
         if benchmark_dictionary != {}:
+
+            # Send the benchmark dictionary to ES (intermediary service)
+            benchmark_dictionary['type'] = 'BenchmarkData'
+            url = "http://uct2-collectd.mwt2.org:8080"
+            cmd = "curl --connect-timeout 20 --max-time 120 -H \"Content-Type: application/json\" -X POST -d \'%s\' %s" % (str(benchmark_dictionary).replace("'", '"'), url)
+            tolog("Executing command: %s" % (cmd))
+            try:
+                ret, output = commands.getstatusoutput(cmd)
+            except Exception, e:
+                tolog("!!WARNING!!1999!! Failed with curl command: %s" % str(e))
+
+            # Now remove the cpuname since it is repeated in the jobReport machine section (it was needed for ES)
+            if benchmark_dictionary.has_key('metadata'):
+                _dummy = benchmark_dictionary['metadata'].pop('cpuname', None)
+
+            # Add the dictionary to the jobReport
             addToJobReport(workdir, "benchmark", benchmark_dictionary, section="resource", subsection="machine")
 
         # set any holding job to failed for sites that do not use job recovery (e.g. sites with LSF, that immediately
@@ -1043,12 +1068,6 @@ class JobLog:
                     else:
                         tolog("!!WARNING!!1600!! Job failed with EC %d - lock file will not be removed (job might be recovered by a later pilot)" % job.result[2])
 
-                # transfer additional files for CERNVM (below, after the final server update which update the job state file with the metadata XML)
-                # note: only needed in CoPilot mode
-                fname = os.path.join(site.workdir, job.outputFilesXML)
-                if os.path.exists(fname) and ("CERNVM" in site.sitename and self.__env['useCoPilot']):
-                    transferAdditional = True
-
                 # update the job state file
                 job.jobState = job.result[0]
                 _retjs = JR.updateJobStateTest(job, site, workerNode, mode="test")
@@ -1146,10 +1165,6 @@ class JobLog:
             else:
                 tolog("updatePandaServer did not return a node structure. XML is assumed to have been sent to the server.")
 
-        # transfer additional files for CERNVM
-        if transferAdditional:
-            self.transferAdditionalCERNVMFiles(job, site, experiment)
-
         # add the log extracts to the batch log
         if logMsg != "":
             tolog("Begin log extracts.......................................................................................")
@@ -1179,119 +1194,6 @@ class JobLog:
                                         xmlstr = xmlstr, spaceReport = spaceReport, log = log, ra = ra, jr = jr,
                                         useCoPilot = self.__env['useCoPilot'],
                                         stdout_tail = stdout_tail, stdout_path = stdout_path, additionalMetadata = additionalMetadata)
-
-    def transferAdditionalFile(self, job, site, experiment, fileName):
-        """
-        Transfer additional CERNVM files for CERNVM to the intermediate storage location
-        where it will be read by special tool responsible for final SE transfers
-        """
-
-        status = True
-        error = PilotErrors()
-        pilotErrorDiag = ""
-        N_filesNormalStageOut = 0
-        N_filesAltStageOut = 0
-
-        tolog("Preparing to transfer additional file: %s" % (fileName))
-        updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="file_state", state="not_transferred")
-        updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="reg_state", state="not_registered")
-
-        # get file info
-        from SiteMover import SiteMover
-        from SiteMoverFarm import getSiteMover
-        sitemover = getSiteMover(readpar('copytool'), "")
-        _date = "None"
-        ec, pilotErrorDiag, _fsize, _checksum = \
-            SiteMover.getLocalFileInfo(fileName, csumtype=sitemover.getChecksumCommand(), date=_date)
-        if ec != 0:
-            job.pilotErrorDiag = "Failed to get the XML file info: %d, %s" % (ec, pilotErrorDiag)
-            return False, job
-        else:
-            tolog("File %s has size %s and checksum %s" % (os.path.basename(fileName), _fsize, _checksum))
-
-        # see if it's an analysis job or not
-        analyJob = isAnalysisJob(job.trf.split(",")[0])
-
-        # assign a random guid
-        additionalFileGuid = getGUID()
-
-        # the cmtconfig is needed by at least the xrdcp site mover
-        cmtconfig = getCmtconfig(job.cmtconfig)
-
-        # for backwards compatibility
-        try:
-            experiment = job.experiment
-        except:
-            experiment = "unknown"
-
-        # create the xml needed for the registration
-        filename_xml = "CERNVM.xml"
-        try:
-            guids_status = PFCxml(experiment, filename_xml, fntag="pfn", additionalOutputFile=fileName, additionalOutputFileGuid=additionalFileGuid)
-        except Exception, e:
-            # update the current file state
-            # updateFileState(filename_xml, site.workdir, job.jobId, mode="file_state", state="not_transferred")
-            tolog("!!WARNING!!1500!! Could not generate xml for CERNVM: %s" % str(e))
-            status = False
-        else:
-            dsname = "%s-%s-%s" % (localtime()[0:3]) # pass it a random name
-            tolog("dsname = %s" % (dsname))
-            ec = 0
-            _state = ""
-            _msg = ""
-            try:
-                ec, pilotErrorDiag, rf, rs, N_filesNormalStageOut, N_filesAltStageOut, os_bucket_id = mover.mover_put_data("xmlcatalog_file:%s" % (filename_xml),
-                                                                  dsname, site.sitename, site.computingElement, analysisJob = analyJob,
-                                                                  testLevel = self.__env['testLevel'],
-                                                                  proxycheck = self.__env['proxycheckFlag'],
-                                                                  pinitdir = self.__env['pilot_initdir'],
-                                                                  datasetDict = None,
-                                                                  outputDir = self.__env['outputDir'],
-                                                                  stageoutTries = self.__env['stageoutTries'],
-                                                                  cmtconfig = cmtconfig,
-                                                                  job=job) # quick workaround
-            except Exception, e:
-                status = False
-                import traceback
-                if 'format_exc' in traceback.__all__:
-                    trace = traceback.format_exc()
-                    pilotErrorDiag = "Exception caught when saving the log tarball: %s, %s" % (str(e), trace)
-                else:
-                    tolog("traceback.format_exc() not available in this python version")
-                    pilotErrorDiag = "Exception caught when saving the log tarball: %s" % (str(e))
-                tolog("!!%s!!1500!! %s" % (self.__env['errorLabel'], pilotErrorDiag))
-            else:
-                tolog("mover_put_data finished with EC = %s" % str(ec))
-                if ec != 0:
-                    job.result[0] = "holding"
-
-                    # remove any trailing "\r" or "\n" (there can be two of them)
-                    if rs != None:
-                        rs = rs.rstrip()
-                        tolog("Error string: %s" % (rs))
-
-                    # is the job recoverable?
-                    if error.isRecoverableErrorCode(ec):
-                        _state = "holding"
-                        _msg = "WARNING"
-                    else:
-                        _state = "failed"
-                        _msg = self.__env['errorLabel']
-                else:
-                    updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="file_state", state="transferred")
-                    if site.sitename != "CERNVM":
-                        updateFileState(os.path.basename(fileName), site.workdir, job.jobId, mode="reg_state", state="registered")
-
-        # do not overwrite any existing pilotErrorDiag (from a get operation e.g.)
-        if job.pilotErrorDiag != "" and job.pilotErrorDiag != None:
-            if pilotErrorDiag != "" and pilotErrorDiag != None:
-                # add pilotErrorDiag to the end of the existing string but do not add the xml put error identifier to save space
-                job.pilotErrorDiag += "|XML put error: " + pilotErrorDiag
-        else:
-            if pilotErrorDiag != "" and pilotErrorDiag != None:
-                job.pilotErrorDiag = "XML put error: " + pilotErrorDiag
-
-        return status, job
 
     def createLogFile(self, job):
         """ Create the log file; rename the workdir, tar and zip it """

@@ -190,7 +190,6 @@ class PandaServerClient:
         jobMetrics += workerNode.addToJobMetrics(job.result[0], self.__pilot_initdir, job.jobId)
 
         si = getSiteInformation(job.experiment)
-        tolog("Benchmark dictionary=%s" % str(si.getBenchmarkDictionary(job.workdir)))
 
         _jobMetrics = ""
 
@@ -490,10 +489,6 @@ class PandaServerClient:
                     tolog("%s \n%s" % (cmd, out))
                     xmldir = workdir
 
-                # which checksum command should be used? query the site mover
-                from SiteMoverFarm import getSiteMover
-                sitemover = getSiteMover(readpar('copytool'), "")
-
                 if os.environ.has_key('Nordugrid_pilot'):
                     fname = os.path.join(self.__pilot_initdir, job.logFile)
                 else:
@@ -502,7 +497,7 @@ class PandaServerClient:
                     fnamelog = "%s/logfile.xml" % (xmldir)
                     guids_status = PFCxml(experiment, fnamelog, fntag="lfn", alog=job.logFile, alogguid=job.tarFileGuid, jr=jr)
                     from SiteMover import SiteMover
-                    ec, pilotErrorDiag, _fsize, _checksum = SiteMover.getLocalFileInfo(fname, csumtype=sitemover.getChecksumCommand())
+                    ec, pilotErrorDiag, _fsize, _checksum = SiteMover.getLocalFileInfo(fname, csumtype="adler32")
                     if ec != 0:
                         tolog("!!WARNING!!1300!! getLocalFileInfo failed: (%d, %s, %s)" % (ec, str(_fsize), str(_checksum)))
                         tolog("!!WARNING!!1300!! Can not set XML (will not be sent to server)")

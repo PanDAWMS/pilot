@@ -127,7 +127,7 @@ class CMSExperiment(Experiment):
                self.getFileTransferInfo(job.transferType, isBuildJob(job.outFiles))
 
         # extract the setup file from copysetup (and verify that it exists)
-        _copysetup = self.getSetupFromCopysetup(copysetup)
+        _copysetup = "" #self.getSetupFromCopysetup(copysetup)
         tolog("copysetup = %s" % _copysetup)
         if _copysetup != "" and os.path.exists(_copysetup):
             run_command = 'source %s; ' % (_copysetup)

@@ -309,6 +309,27 @@ M pUtil.py (13)
 68.2
 
 General changes:
+- Removed deprecated code form repo (PilotUtils, dataPilot, globusPilot, trivialPilot)
+
+Payload setup:
+- Added 'master' and 'multithreading' to special cache dir list in getCacheInfo() (ATLASExperiment)
+- Added 'Athena' to special cache dir list in getProperASetup() (ATLASExperiment)
+- Changed all occurrances of --cmtconfig to --platform, requested by Graeme Stewart (ATLASExperiment)
+- Removed deprecated methods getVerifiedAtlasSetupPath(), installPacman(), installPyJobTransforms(), getCmtsiteCmd(), getTag(), isCMTCONFIGOutcommented(),
+  checkCMTCONFIG(), verifyCMTCONFIG(), verifyCmtsiteCmd(), verifyReleaseInTagsFile(), verifySetupCommand(), getProperSiterootAndCmtconfig(),
+  getHighestVersionDir(), isForceConfigCompatible(), getLCGSwbase(), findPythonInRelease(), getSiterootWithHomepackage(), getProperASetup(),
+  getInstallDir(), getInstallDir2(), getProdCmd2(), getSpecialSetupCommand(), getAnalyCmd2(), updateAnalyCmd2(), useAtlasSetup(), getSplitHomePackage() (ATLASExperiment)
+- Added getASetup() and getASetupOptions() (ATLASExperiment)
+- Removed unnecessary usage of siteroot in several places (ATLASExperiment)
+
+Memory monitoring:
+- getUtilityCommand() now using getModernASetup() instead of deprecated getProperASetup() (ATLASExperiment)
+
+Event Service:
+- Improved support for Event Streaming Service (RunJobEvent)
+
+Benchmarking:
+- Now sending benchmark dictionary to intermediary ES service in postJobTask() (JobLog)
 
 Updates from D. Drizhuk:
 
@@ -323,6 +344,72 @@ File Changes
     M ATLASExperiment.py (8)
     M pUtil.py (18) 
 
+Updates from W. Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/126
+
+Commit Summary
+
+The problem in RunJobEvent.py is already fixed. Last time I forgot to fix the same problem in RunJobHpcEvent.py
+
+fix jps problem in RunJobHpcEvent
+
+File Changes
+
+M RunJobHpcEvent.py (8)
+
+Updates from M. Lassnig:
+
+  https://github.com/PanDAWMS/pilot/pull/128
+
+Commit Summary
+
+fix an easy way to break elasticsearch (sending filesize as long instead of string)
+
+File Changes
+
+M Mover.py (4)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+69.0
+
+setup not correct for analy jobs in getJobExecutionCommand(), addMAKEFLAGS called too late
+
+
+
+General changes:
+- Created handleAdditionalOutFiles() to cleanup main function a bit (RunJob)
+- Corrected error messages (grammatical) in stageout(), do_put_files() (mover)
+- Removed useless lfchost from getFileTransferInfo() (Experiment)
+- Removed useless lfchost from getAnalysisRunCommand() (ATLASExperiment)
+- Removed sourcing of copysetup in getAnalysisRunCommand() (ATLASExperiment)
+  Tadashi's comment: IIRC, it was required for some trfs to read input files directly from BNL dcache which was unavailable in login shell by default.
+  (BNL queues have used the new movers for a while and schedconfig.copysetup has been set to OLDMOVERDEPRECATED with no reported problem)
+- Removed deprecated function getSetupFromCopysetup() (Experiment)
+- Removed deprecated function transferAdditionalCERNVMFiles() and its call (JobLog)
+- Removed deprecated function transferAdditionalFile() and its call (JobLog)
+- Removed deprecated variable transferAdditional from postJobTask() (JobLog)
+- Removed deprecated usage of getChecksumCommand(), replaced with "adler32" string in createMetadataForOutput(), 2 times (JobLog)
+- Removed deprecated usage of getChecksumCommand(), replaced with "adler32" string in getXML() (PandaServerClient)
+- Removed deprecated usage of getChecksumCommand(), replaced with "adler32" string in createFileMetadata() (RunJob)
+- Removed deprecated usage of getChecksumCommand(), replaced with "adler32" string in createFileMetadata(), createFileMetadata4EventRange() (RunJobEvent)
+- Removed deprecated function getChecksumCommand() (pUtil)
+- Removed getSiteMover() and its import in createMetadataForOutput() (JobLog)
+- Using fixed time-out instead of time-out from old site movers in for looping stage-outs in __loopingJobKiller() and removed usage of getSiteMover() (Monitor)
+- Removed usage of deprecated function getSiteMover() in getXML() (PandaServerClient)
+- Removed deprecated use of file stager variables in getAnalysisRunCommand() (ATLASExperiment)
+- Removed deprecated lfchost in updateRunCommandList() (RunJobUtilities)
+
+jobPars based payload setup:
+- Added noExecStrCnv (Job)
+- Added asetup boolean to getModernASetup() (ATLASExperiment)
+
+ZIP_MAP support:
+- Added zipmap data member (Job)
+- Processing jobPars for ZIP_MAP info in new functions removeZipMapString() and populateZipMap() (Job)
+- Created addArchivesToOutput() to update output file info for archives (Job)
+- Created createArchives() used with ZIP_MAP info (RunJob)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

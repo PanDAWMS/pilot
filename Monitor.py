@@ -674,11 +674,8 @@ class Monitor:
                     # how much time has passed since stage-out began?
                     time_passed = int(time.time()) - self.__env['stageoutStartTime']
 
-                    # find out the timeout limit for the relevant site mover
-                    from SiteMoverFarm import getSiteMover
-                    sitemover = getSiteMover(pUtil.readpar('copytool'), "")
-                    timeout = sitemover.get_timeout()
-
+                    # max time-out as defined in movers/base
+                    timeout = 5 + 3*3600
                     pUtil.tolog("Stage-out with %s site mover began at %s (%d s ago, site mover time-out: %d s)"
                                 %(pUtil.readpar('copytool'), time.strftime("%H:%M:%S", time.gmtime(self.__env['stageoutStartTime'])), time_passed, timeout))
 

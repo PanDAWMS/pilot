@@ -1844,6 +1844,7 @@ def storePilotInitdir(targetdir, pilot_initdir):
     # This function must be called before the global env variable is instantiated in the pilot
 
     path = os.path.join(targetdir, "PILOT_INITDIR")
+    print "Creating file %s with content %s" % (path, pilot_initdir)
     pUtil.tolog("Creating file %s with content %s" % (path, pilot_initdir))
     pUtil.writeToFile(path, pilot_initdir)
 

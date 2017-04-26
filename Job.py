@@ -2,6 +2,7 @@ import json
 import os
 import time
 import pUtil
+import re
 
 from subprocess import Popen, PIPE, STDOUT
 
@@ -118,12 +119,16 @@ class Job:
         self.prefetcher = False            # ESS v1
         self.subStatus = None              # subStatus of the job
         self.subError = None               # subError of the job
+        self.noExecStrCnv = None           # True if the jobPars contain the full payload setup
 
         # zipped event outputs to a file, for event service
         self.outputZipName = None
         self.outputZipEventRangesName = None
         self.outputZipBucketID = None
         self.inputZipFiles = []
+
+        # zipped output files [for non-event service use]
+        self.zipmap = {}                   # ZIP_MAP dictionary, FORMAT: { <archive name1>:[content_file1, ..], .. }
 
         # HPC MPI jobid
         self.HPCJobId = None
@@ -456,6 +461,7 @@ class Job:
                 pUtil.tolog("!!WARNING!!2999!! Could not rearrange destinationDBlockToken list: %s" % str(e))
             else:
                 pUtil.tolog("destinationDBlockToken = %s" % self.destinationDBlockToken)
+
         # put the chirp server info for the log file at the end of the list
         # note: any NULL value corresponding to a log file will automatically be handled
         if i_log != -1 and self.dispatchDBlockTokenForOut != None and self.dispatchDBlockTokenForOut != []:
@@ -482,7 +488,18 @@ class Job:
         self.jobPars = data.get('jobPars', '')
 #        self.jobPars +=' --useTestASetup'
 #        self.jobPars +=' --useTestXRootD'
-#PN
+#        self.jobPars = 'source $AtlasSetup/scripts/asetup.sh AtlasProduction,20.1.4.14,notest,here --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py --maxEvents=1 --inputHITSFile HITS.06828093._000096.pool.root.1 --outputRDOFile RDO_111.root'
+# PN
+        _noExecStrCnv = data.get('noExecStrCnv', None)
+        _noExecStrCnv = 'true'
+        if _noExecStrCnv:
+            if _noExecStrCnv.lower() == 'true':
+                self.noExecStrCnv = True
+            else:
+                self.noExecStrCnv = False
+        else:
+            self.noExecStrCnv = False
+        pUtil.tolog("noExecStrCnv=%s" % (self.noExecStrCnv))
 
         self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true'
 
@@ -493,15 +510,12 @@ class Job:
             self.accessmode = 'direct'
 
         # job input options overwrite any Job settings
-        if '--accessmode=direct' in self.jobPars: # fix me later
+        if '--accessmode=direct' in self.jobPars:
             self.accessmode = 'direct'
-        if '--accessmode=copy' in self.jobPars:   # fix me later
+        if '--accessmode=copy' in self.jobPars:
             self.accessmode = 'copy'
 
-        # for jem testing: self.jobPars += ' --enable-jem --jem-config \"a=1;\"'
         if "--pfnList" in self.jobPars:
-            import re
-
             # extract any additional input files from the job parameters and add them to the input file list
 
             pattern = re.compile(r"\-\-pfnList\=(\S+)")
@@ -614,6 +628,105 @@ class Job:
             finfo = FileSpec(**idat)
             ref_dat.append(finfo)
 
+    def removeZipMapString(self, jobParameters):
+        """ Retrieve the zipmap string from the jobParameters """
+        # This function is needed to save the zipmap string for later use. The zipmap must be removed
+        # from the jobParameters before the payload can be executed, but the zipmap can only be
+        # properly populated until after the payload has finished since the final output file list will 
+        # not be known until then. The pilot extracts the final output file list from the jobReport - 
+        # this also means that zipmaps will only be supported for production jobs since only these produce 
+        # the jobReport. Zipmaps are of interested for spillover jobs.
+
+        # Note that updateQueuedataFromJobParameters() might have messed up the jobParameters by adding
+        # unwanted \' \' in the wrong place, if so replace with ' '
+        _jobParameters = re.sub(r'\'\ \'', ' ', jobParameters)
+
+        pattern = r" \'?<ZIP_MAP>(.+)<\/ZIP_MAP>\'?" # there might or might not be any '-signs
+        compiled_pattern = re.compile(pattern)
+
+        # Extract the zip map
+        found = re.findall(compiled_pattern, _jobParameters)
+        if len(found) > 0:
+            zipmapString = found[0]
+        else:
+            zipmapString = ""
+
+        # Remove the pattern and update the original jobParameters
+        jobParameters = re.sub(pattern, '', jobParameters)
+
+        return jobParameters, zipmapString
+
+    def populateZipMap(self, outFiles, zipmapString):
+        """ Populate the zip_map dictionary """
+        # The function returns a populated zip_map dictionary using the previously extracted
+        # zipmapString from the jobParameters. The outFiles list is also needed since wildcards 
+        # might be present in the ZIP_MAP
+
+        zip_map = {} # FORMAT: { <archive name1>:[content_file1, ..], .. }
+        pattern = r" <ZIP_MAP>(.+)<\/ZIP_MAP>"
+        compiled_pattern = re.compile(pattern)
+
+        # Populate the zip map
+        archives_list = zipmapString.split(' ')
+        for entry in archives_list:
+            # entry = "archive:file1,file2,.."
+            if ":" in entry:
+                archive = entry.split(":")[0] # the name of the zip archive
+                file_names = entry.split(":")[1].split(',') # the files that will be stored in the archive
+
+                for file_name in file_names:
+                    # Handle wildcards
+                    if "*" in file_name:
+                        # Construct the wildcards pattern using the known file name
+                        compiled_wildcard_pattern = re.compile(file_name.replace('*','[^\s]*'))
+
+                        # Find the corresponding files from the outFiles list
+                        for outFile in outFiles:
+                            if compiled_wildcard_pattern.match(outFile):
+                                if not zip_map.has_key(archive):
+                                    zip_map[archive] = [outFile]
+                                else:
+                                    zip_map[archive].append(outFile)
+                    else:
+                        if not zip_map.has_key(archive):
+                            zip_map[archive] = [file_name]
+                        else:
+                            zip_map[archive].append(file_name)
+            else:
+                tolog("!!WARNING!!2323!! Unexpected archive:file entry: %s" % (entry))
+
+        return zip_map
+
+    def addArchivesToOutput(self, zip_map, outFiles, destinationDblock, destinationDBlockToken, scopeOut):
+        """ Add the zip archives to the output file lists """
+
+        for archive in zip_map.keys():
+            content_files = zip_map[archive]
+
+            # Find the corresponding destinationDblock, destinationDBlockToken, scopeOut for the content_files
+            # so we can use them for the archive itself
+            i = 0
+            found = False
+            for outFile in outFiles:
+                if content_files[0] == outFile: # assume same info for all output files in this archive, use first file
+                    found = True
+                    break
+            if found:
+                archiveDestinationDblock = destinationDblock[i]
+                archiveDestinationDBlockToken = destinationDBlockToken[i]
+                archiveScopeOut = scopeOut[i]
+            else:
+                tolog("!!WARNING!!3434!! Did not find zip content file among output files")
+                archiveDestinationDblock = "UNKNOWN"
+                archiveDestinationDBlockToken = "UNKNOWN"
+                archiveScopeOut = "UNKNOWN"
+
+            outFiles.append(archive)
+            destinationDblock.append(archiveDestinationDblock)
+            destinationDBlockToken.append(archiveDestinationDBlockToken)
+            scopeOut.append(archiveScopeOut)
+
+        return outFiles, destinationDblock, destinationDBlockToken, scopeOut
 
     def isAnalysisJob(self):
         """

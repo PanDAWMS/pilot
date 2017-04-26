@@ -735,9 +735,6 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
                 if "--usePFCTurl" in cmd:
                     tolog("(Removing --usePFCTurl instruction from run command since it is not needed)")
                     cmd = cmd.replace(" --usePFCTurl", "")
-                if not "--lfcHost" in cmd and analysisJob:
-                    tolog("Adding lfcHost to run command")
-                    cmd += ' --lfcHost %s' % (readpar('lfchost'))
 
             tolog("Updated run command: %s" % (cmd))
             _runCommandList.append(cmd)
@@ -751,12 +748,6 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
         _runCommandList2 = []
 
         for cmd in _runCommandList:
-            # remove the --lfcHost
-            if "--lfcHost" in cmd:
-                _lfcHost = ' --lfcHost %s' % (readpar('lfchost'))
-                cmd = cmd.replace(_lfcHost, '')
-                tolog("(Removed the LFC host:%s)" % (_lfcHost))
-
             # remove the --oldPrefix
             if "--oldPrefix" in cmd:
                 pattern = "(\-\-oldPrefix\ \S+)"
@@ -789,12 +780,8 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
 
         for cmd in _runCommandList:
 
-            # remove the --lfcHost, --oldPrefix, --newPrefix
+            # remove --oldPrefix, --newPrefix
             # add --usePFCTurl
-
-            if "--lfcHost" in cmd:
-                cmd = removePattern(cmd, "(\-\-lfcHost\ \S+)")
-                tolog("(Removed the --lfcHost)")
 
             if "--oldPrefix" in cmd:
                 pattern = "(\-\-oldPrefix\ \S+)"

@@ -12,14 +12,12 @@ from pUtil import readpar                       # Used to read values from the s
 from pUtil import isAnalysisJob                 # Is the current job a user analysis job or a production job?
 from pUtil import grep                          # Grep function - reimplement using cli command
 from pUtil import getCmtconfig                  # Get the cmtconfig from the job def or queuedata
-from pUtil import getCmtconfigAlternatives      # Get a list of locally available cmtconfigs
 from pUtil import verifyReleaseString           # To verify the release string (move to Experiment later)
 from pUtil import getProperTimeout              #
 from pUtil import timedCommand                  # Protect cmd with timed_command
 from pUtil import getSiteInformation            # Get the SiteInformation object corresponding to the given experiment
 from pUtil import isBuildJob                    # Is the current job a build job?
 from pUtil import remove                        # Used to remove redundant file before log file creation
-from pUtil import extractFilePaths              # Used by verifySetupCommand
 from pUtil import getInitialDirs                # Used by getModernASetup()
 from pUtil import isAGreaterOrEqualToB          #
 from pUtil import convert_unicode_string        # Needed to avoid unicode strings in the memory output text file
@@ -133,14 +131,31 @@ class ATLASExperiment(Experiment):
 
         return status
 
+    # Optional
+    def shouldPilotPrepareASetup(self, noExecStrCnv, jobPars):
+        """ Should pilot be in charge of preparing asetup? """
+        # If noExecStrCnv is set, then jobPars is expected to contain asetup.sh + options
+
+        prepareASetup = True
+        if noExecStrCnv:
+            if "asetup.sh" in jobPars:
+                tolog("asetup will be taken from jobPars")
+                prepareASetup = False
+            else:
+                tolog("noExecStrCnv is set but asetup command was not found in jobPars (pilot will prepare asetup)")
+                prepareASetup = True
+        else:
+            tolog("Pilot will prepare asetup")
+            prepareASetup = True
+
+        return prepareASetup
+
     def getJobExecutionCommand(self, job, jobSite, pilot_initdir):
         """ Define and test the command(s) that will be used to execute the payload """
 
         pilotErrorDiag = ""
         cmd = ""
         special_setup_cmd = ""
-        pysiteroot = ""
-        siteroot = ""
         JEM = "NO"
 
         # homePackage variants:
@@ -157,29 +172,29 @@ class ATLASExperiment(Experiment):
         # Tested (USER ANALYSIS)
         #     homePackage = AnalysisTransforms
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh 17.2.7,notest --cmtconfig x86_64-slc5-gcc43-opt --makeflags=\"$MAKEFLAGS\";
+        #                 source $AtlasSetup/scripts/asetup.sh 17.2.7,notest --platform x86_64-slc5-gcc43-opt --makeflags=\"$MAKEFLAGS\";
         #                 export MAKEFLAGS=\"-j1 QUICK=1 -l1\";[proxy export];./runAthena-00-00-11 ..
         #     homePackage = AnalysisTransforms-AtlasDerivation_20.1.5.7
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7,notest --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
         #                 export MAKEFLAGS=\"-j1 QUICK=1 -l1\";[proxy export];./runAthena-00-00-11 ..
         #     homePackage=AnalysisTransforms-AtlasDerivation_rel_1
         #        setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                  source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.X.Y-VAL,rel_1,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
+        #                  source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.X.Y-VAL,rel_1,notest --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";
         #                  export MAKEFLAGS=\"-j1 QUICK=1 -l1\";source /cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh;[proxy export];./runAthena-00-00-11 ..
         #     homePackage not set, release not set
         #        setup = source /cvmfs/atlas.cern.ch/repo/sw/local/setup.sh; [proxy export];./runGen-00-00-02 ..
         #     homePackage = AnalysisTransforms-AthAnalysisBase_2.3.11 (release = AthAnalysisBase/x86_64-slc6-gcc48-opt/2.3.11
         #        setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                  source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.11,notest --cmtconfig x86_64-slc6-gcc48-opt --makeflags="$MAKEFLAGS";
+        #                  source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.11,notest --platform x86_64-slc6-gcc48-opt --makeflags="$MAKEFLAGS";
         #                  export MAKEFLAGS="-j1 QUICK=1 -l1";source /cvmfs/atlas.cern.ch/repo/sw/local/xrootdsetup.sh;[proxy export];./runAthena-00-00-11 ..
         # Tested (PRODUCTION)
         #     homePackage = AtlasProduction/17.7.3.12
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh AtlasProduction,17.7.3.12 --cmtconfig x86_64-slc6-gcc46-opt --makeflags=\"$MAKEFLAGS\";Sim_tf.py ..
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasProduction,17.7.3.12 --platform x86_64-slc6-gcc46-opt --makeflags=\"$MAKEFLAGS\";Sim_tf.py ..
         #     homePackage = AtlasDerivation/20.1.5.7
         #       setup = export ATLAS_LOCAL_ROOT_BASE=/cvmfs/atlas.cern.ch/repo/ATLASLocalRootBase;source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;
-        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7 --cmtconfig x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py ..
+        #                 source $AtlasSetup/scripts/asetup.sh AtlasDerivation,20.1.5.7 --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py ..
         #  TRF's:
         #   AtlasG4_tf.py:
         #     PandaID=2675460595
@@ -199,6 +214,9 @@ class ATLASExperiment(Experiment):
         #     homePackage=AtlasProduction/20.1.5.10
 
 
+        # Should the pilot do the asetup or do the jobPars already contain the information?
+        prepareASetup = self.shouldPilotPrepareASetup(job.noExecStrCnv, job.jobPars)
+
         # Is it a user job or not?
         analysisJob = isAnalysisJob(job.trf)
 
@@ -206,12 +224,11 @@ class ATLASExperiment(Experiment):
         cmtconfig = getCmtconfig(job.cmtconfig)
 
         # Define the setup for asetup, i.e. including full path to asetup and setting of ATLAS_LOCAL_ROOT_BASE
-        asetup_path = self.getModernASetup()
+        asetup_path = self.getModernASetup(asetup=prepareASetup)
         asetup_options = " "
 
-        # Local software path
-        swbase = self.getSwbase(jobSite.appdir, job.release, job.homePackage, job.processingType, cmtconfig)
-        tolog("Local software path: swbase = %s" % (swbase))
+        tolog("prepareASetup = %s" % str(prepareASetup))
+        tolog("asetup_path = %s" % asetup_path)
 
         # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...')
         if self.__atlasEnv:
@@ -219,100 +236,75 @@ class ATLASExperiment(Experiment):
             # Normal setup (production and user jobs)
             tolog("Preparing normal production/analysis job setup command")
 
-            # Extract the project (cacheDir) and cache version, if any
-            m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage) # User jobs
-            if m_cacheDirVer != None:
-                # user jobs
-                cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, job.release)
-            elif "," in job.homePackage or self.isNightliesRelease(job.homePackage):
-                # nightlies; e.g. homePackage = "AtlasProduction,rel_0"
-                cacheDir = job.homePackage
-                cacheVer = job.release #None
-            else:
-                # normal production jobs; e.g. homePackage = "AtlasProduction/20.1.5"
-                cacheDir, cacheVer = self.getSplitHomePackage(job.homePackage)
+            cmd = asetup_path
+            if prepareASetup:
+                options = self.getASetupOptions(job.release, job.homePackage)
+                asetup_options = " " + options + " --platform " + cmtconfig
 
-            if cacheVer == "":
-                tolog("No release/patch info in homePackage (%s), using job.release=%s" % (job.homePackage, job.release))
-                cacheVer = job.release
+                # always set the --makeflags option (to prevent asetup from overwriting it)
+                asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
 
-            # Add the appropriate options (release/patch/project/cache)
-            if cacheDir:
-                # Do not add AnalysisTransforms since it is not a cache directory
-                if cacheDir != "AnalysisTransforms":
-                    asetup_options += cacheDir
-            if cacheVer:
-                if asetup_options == " ":
-                    asetup_options += cacheVer
-                else:
-                    asetup_options += "," + cacheVer
-
-                # add the fast option if possible (for the moment, check for locally defined env variable)
-                if analysisJob:
-                    if os.environ.has_key("ATLAS_FAST_ASETUP"):
-                        asetup_options += ",notest,fast"
-                    else:
-                        asetup_options += ",notest"
-
-            asetup_options += " --cmtconfig " + cmtconfig
-
-            # always set the --makeflags option (to prevent asetup from overwriting it)
-            asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
-
-            cmd = asetup_path + asetup_options
-            trf = job.trf
+                cmd += asetup_options
+            tolog("1. cmd = %s" % cmd)
 
             if analysisJob:
                 # Set the INDS env variable (used by runAthena)
                 self.setINDS(job.realDatasetsIn)
 
                 # Try to download the trf
-                wgetCommand = 'wget'
-                ec, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
+                ec, pilotErrorDiag, trfName = self.getAnalysisTrf('wget', job.trf, pilot_initdir)
                 if ec != 0:
                     return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
-                ec, pilotErrorDiag, _cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
-                if ec != 0:
-                    return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+                if prepareASetup:
+                    ec, pilotErrorDiag, _cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
+                    if ec != 0:
+                        return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+                else:
+                    _cmd = job.jobPars
+
+                tolog("_cmd = %s" % (_cmd))
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 cmd += "; " + self.addMAKEFLAGS(job.coreCount, "") + _cmd
-                cmd = cmd.replace(';;', ';')
+
+                tolog("2. cmd = %s" % (cmd))
             else:
                 # Add the transform and the job parameters (production jobs)
-                cmd += ";%s %s" % (trf, job.jobPars)
+                if prepareASetup:
+                    cmd += ";%s %s" % (job.trf, job.jobPars)
+                else:
+                    cmd += "; " + job.jobPars
+
+            tolog("3. cmd = %s" % (cmd))
+            cmd = cmd.replace(';;', ';')
+            tolog("4. cmd = %s" % (cmd))
 
         else: # Generic, non-ATLAS specific jobs, or at least a job with undefined swRelease
 
             tolog("Generic job")
 
-            # Set python executable (after SITEROOT has been set)
-            if siteroot == "":
-                try:
-                    siteroot = os.environ['SITEROOT']
-                except:
-                    tolog("Warning: $SITEROOT unknown at this stage (3)")
-
-            tolog("Will use $SITEROOT: %s (3)" % (siteroot))
-            ec, pilotErrorDiag, pybin = self.setPython(siteroot, job.release, job.homePackage, cmtconfig, jobSite.sitename)
+            # Set python executable
+            ec, pilotErrorDiag, pybin = self.setPython(job.release, job.homePackage, cmtconfig, jobSite.sitename)
             if ec == self.__error.ERR_MISSINGINSTALLATION:
                 return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
             if analysisJob:
                 # Try to download the analysis trf
-                wgetCommand = 'wget'
-                status, pilotErrorDiag, trfName = self.getAnalysisTrf(wgetCommand, job.trf, pilot_initdir)
+                status, pilotErrorDiag, trfName = self.getAnalysisTrf('wget', job.trf, pilot_initdir)
                 if status != 0:
                     return status, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
 
                 # Set up the run command
-                if job.prodSourceLabel == 'ddm' or job.prodSourceLabel == 'software':
+                if (job.prodSourceLabel == 'ddm' or job.prodSourceLabel == 'software') and prepareASetup:
                     cmd = '%s %s %s' % (pybin, trfName, job.jobPars)
                 else:
-                    ec, pilotErrorDiag, cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
-                    if ec != 0:
-                        return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+                    if prepareASetup:
+                        ec, pilotErrorDiag, cmd = self.getAnalysisRunCommand(job, jobSite, trfName)
+                        if ec != 0:
+                            return ec, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+                    else:
+                        cmd = job.jobPars
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 cmd2 = self.addMAKEFLAGS(job.coreCount, "")
@@ -320,22 +312,23 @@ class ATLASExperiment(Experiment):
                 cmd = cmd2 + cmd
 
                 # should asetup be used? If so, sqeeze it into the run command (rather than moving the entire getAnalysisRunCommand() into this class)
-                m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
-                if m_cacheDirVer != None:
-                    # homePackage="AnalysisTransforms-AthAnalysisBase_2.0.14"
-                    # -> cacheDir = AthAnalysisBase, cacheVer = 2.0.14
-                    cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
-                    if cacheDir != "" and cacheVer != "":
-                        asetup = self.getModernASetup()
-                        asetup += " %s,%s --cmtconfig=%s;" % (cacheDir, cacheVer, cmtconfig)
+                if prepareASetup:
+                    m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', job.homePackage)
+                    if m_cacheDirVer != None:
+                        # homePackage="AnalysisTransforms-AthAnalysisBase_2.0.14"
+                        # -> cacheDir = AthAnalysisBase, cacheVer = 2.0.14
+                        cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, "dummy_atlasRelease")
+                        if cacheDir != "" and cacheVer != "":
+                            asetup = self.getModernASetup()
+                            asetup += " %s,%s --platform=%s;" % (cacheDir, cacheVer, cmtconfig)
 
-                        # now squeeze it back in
-                        cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
-                        tolog("Updated run command for special homePackage: %s" % (cmd))
+                            # now squeeze it back in
+                            cmd = cmd.replace('./' + trfName, asetup + './' + trfName)
+                            tolog("Updated run command for special homePackage: %s" % (cmd))
+                        else:
+                            tolog("asetup not needed (mo special home package: %s)" % (job.homePackage))
                     else:
-                        tolog("asetup not needed (mo special home package: %s)" % (job.homePackage))
-                else:
-                    tolog("asetup not needed (no special homePackage)")
+                        tolog("asetup not needed (no special homePackage)")
 
             elif verifyReleaseString(job.homePackage) != 'NULL' and job.homePackage != ' ':
 
@@ -344,14 +337,20 @@ class ATLASExperiment(Experiment):
                            "payload": ("%s/%s" % (job.homePackage, job.trf)),
                            "parameters": job.jobPars }
                 else:
-                    cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
+                    if prepareASetup:
+                        cmd = "%s %s/%s %s" % (pybin, job.homePackage, job.trf, job.jobPars)
+                    else:
+                        cmd = job.jobPars
             else:
                 if 'HPC_' in readpar("catchall"):
                     cmd = {"interpreter": pybin,
                            "payload": job.trf,
                            "parameters": job.jobPars }
                 else:
-                    cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
+                    if prepareASetup:
+                        cmd = "%s %s %s" % (pybin, job.trf, job.jobPars)
+                    else:
+                        cmd = job.jobPars
 
         # Add FRONTIER debugging and RUCIO env variables
         if 'HPC_' in readpar("catchall") and 'HPC_HPC' not in readpar("catchall"):
@@ -386,13 +385,8 @@ class ATLASExperiment(Experiment):
         # (directAccess info is stored in the copysetup variable)
 
         # get relevant file transfer info
-        dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl, lfcHost =\
+        dInfo, useCopyTool, useDirectAccess, dummy, oldPrefix, newPrefix, copysetup, usePFCTurl =\
                self.getFileTransferInfo(job.transferType, isBuildJob(job.outFiles))
-
-        # extract the setup file from copysetup (and verify that it exists)
-        _copysetup = self.getSetupFromCopysetup(copysetup)
-        if _copysetup != "" and os.path.exists(_copysetup):
-            run_command = 'source %s;' % (_copysetup)
 
         # add the user proxy
         if os.environ.has_key('X509_USER_PROXY'):
@@ -412,16 +406,15 @@ class ATLASExperiment(Experiment):
                 run_command += ' --usePFCTurl'
                 tolog("reset old/newPrefix (forced TURL mode (1))")
 
-            # sort out when directIn and useFileStager options should be used
+            # sort out when directIn should be used
             if useDirectAccess and '--directIn' not in job.jobPars and '--directIn' not in run_command:
                 run_command += ' --directIn'
-            if useFileStager and '--useFileStager' not in job.jobPars:
-                run_command += ' --useFileStager'
+
             # old style copysetups will contain oldPrefix and newPrefix needed for the old style remote I/O
             if oldPrefix != "" and newPrefix != "":
                 run_command += ' --oldPrefix "%s" --newPrefix %s' % (oldPrefix, newPrefix)
             else:
-                # --directIn should be used in combination with --usePFCTurl, but not --old/newPrefix and --lfcHost
+                # --directIn should be used in combination with --usePFCTurl, but not --old/newPrefix
                 if usePFCTurl and not '--usePFCTurl' in run_command:
                     run_command += ' --usePFCTurl'
 
@@ -431,16 +424,14 @@ class ATLASExperiment(Experiment):
         if job.transferType == 'direct':
             # update the copysetup
             # transferType is only needed if copysetup does not contain remote I/O info
-            updateCopysetups(run_command, transferType=job.transferType, useCT=False, directIn=useDirectAccess, useFileStager=useFileStager)
+            updateCopysetups(run_command, transferType=job.transferType, useCT=False, directIn=useDirectAccess)
 
         # add options for file stager if necessary (ignore if transferType = direct)
         if "accessmode" in job.jobPars and job.transferType != 'direct':
             accessmode_useCT = None
-            accessmode_useFileStager = None
             accessmode_directIn = None
             _accessmode_dic = { "--accessmode=copy":["copy-to-scratch mode", ""],
-                                "--accessmode=direct":["direct access mode", " --directIn"],
-                                "--accessmode=filestager":["direct access / file stager mode", " --directIn --useFileStager"]}
+                                "--accessmode=direct":["direct access mode", " --directIn"]}
             # update run_command according to jobPars
             for _mode in _accessmode_dic.keys():
                 if _mode in job.jobPars:
@@ -451,19 +442,15 @@ class ATLASExperiment(Experiment):
                         usePFCTurl = False
                         accessmode_useCT = True
                         accessmode_directIn = False
-                        accessmode_useFileStager = False
                     elif _mode == "--accessmode=direct":
                         # make sure copy-to-scratch and file stager get turned off
                         usePFCTurl = True
                         accessmode_useCT = False
                         accessmode_directIn = True
-                        accessmode_useFileStager = False
                     else:
-                        # make sure file stager gets turned on
                         usePFCTurl = False
                         accessmode_useCT = False
-                        accessmode_directIn = True
-                        accessmode_useFileStager = True
+                        accessmode_directIn = False
 
                     # update run_command (do not send the accessmode switch to runAthena)
                     run_command += _accessmode_dic[_mode][1]
@@ -478,34 +465,20 @@ class ATLASExperiment(Experiment):
                     run_command += ' --usePFCTurl'
 
             # need to add proxy if not there already
-            if ("--directIn" in run_command or "--useFileStager" in run_command) and not "export X509_USER_PROXY" in run_command:
+            if "--directIn" in run_command and not "export X509_USER_PROXY" in run_command:
                 if os.environ.has_key('X509_USER_PROXY'):
                     run_command = run_command.replace("./%s" % (trfName), "export X509_USER_PROXY=%s;./%s" % (os.environ['X509_USER_PROXY'], trfName))
                 else:
                     tolog("Did not add user proxy to the run command (proxy does not exist)")
 
-            # add the lfcHost if not there already
-            if not "--lfcHost" in run_command and lfcHost != "":
-                run_command += " --lfcHost %s" % (lfcHost)
-
             # update the copysetup
-            updateCopysetups(run_command, transferType=None, useCT=accessmode_useCT, directIn=accessmode_directIn, useFileStager=accessmode_useFileStager)
+            updateCopysetups(run_command, transferType=None, useCT=accessmode_useCT, directIn=accessmode_directIn)
 
-        # add guids and lfc host when needed
-        if lfcHost != "":
-            # get the correct guids list (with only the direct access files)
-            if not isBuildJob(job.outFiles):
-                _guids = self.getGuidsFromJobPars(job.jobPars, job.inFiles, job.inFilesGuids)
-                # only add the lfcHost if --usePFCTurl is not specified
-                if usePFCTurl:
-                    run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
-                else:
-                    if not "--lfcHost" in run_command:
-                        run_command += ' --lfcHost %s' % (lfcHost)
-                    run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
-            else:
-                if not usePFCTurl and not "--lfcHost" in run_command:
-                    run_command += ' --lfcHost %s' % (lfcHost)
+        # add guids when needed
+        # get the correct guids list (with only the direct access files)
+        if not isBuildJob(job.outFiles):
+            _guids = self.getGuidsFromJobPars(job.jobPars, job.inFiles, job.inFilesGuids)
+            run_command += ' --inputGUIDs \"%s\"' % (str(_guids))
 
         # if both direct access and the accessmode loop added a directIn switch, remove the first one from the string
         if run_command.count("directIn") > 1:
@@ -993,310 +966,6 @@ class ATLASExperiment(Experiment):
 
         return out_of_memory
 
-    def verifyReleaseInTagsFile(self, vo_atlas_sw_dir, atlasRelease):
-        """ verify that the release is in the tags file """
-
-        status = False
-
-        # make sure the release is actually set
-        if verifyReleaseString(atlasRelease) == "NULL":
-            return status
-
-        tags = dumpOutput(vo_atlas_sw_dir + '/tags')
-        if tags != "":
-            # is the release among the tags?
-            if tags.find(atlasRelease) >= 0:
-                tolog("Release %s was found in tags file" % (atlasRelease))
-                status = True
-            else:
-                tolog("!!WARNING!!3000!! Release %s was not found in tags file" % (atlasRelease))
-                # error = PilotErrors()
-                # failJob(0, self.__error.ERR_MISSINGINSTALLATION, job, pilotserver, pilotport, ins=ins)
-        else:
-            tolog("!!WARNING!!3000!! Next pilot release might fail at this stage since there was no tags file")
-
-        return status
-
-
-    def getInstallDir(self, job, workdir, siteroot, swbase, cmtconfig):
-        """ Get the path to the release """
-
-        ec = 0
-        pilotErrorDiag = ""
-
-        # do not proceed for unset homepackage strings (treat as release strings in the following function)
-        if verifyReleaseString(job.homePackage) == "NULL":
-            return ec, pilotErrorDiag, siteroot, ""
-
-        # install the trf in the work dir if it is not installed on the site
-        # special case for nightlies (rel_N already in siteroot path, so do not add it)
-
-        if self.isNightliesRelease(job.homePackage):
-            installDir = siteroot
-        else:
-            installDir = os.path.join(siteroot, job.homePackage)
-        installDir = installDir.replace('//','/')
-
-        tolog("Atlas release: %s" % (job.release))
-        tolog("Job home package: %s" % (job.homePackage))
-        tolog("Trf installation dir: %s" % (installDir))
-
-        return ec, pilotErrorDiag, siteroot, installDir
-
-    def getInstallDir2(self, job, workdir, siteroot, swbase, cmtconfig):
-        """ Get the path to the release, install patch if necessary """
-
-        ec = 0
-        pilotErrorDiag = ""
-
-        # do not proceed for unset homepackage strings (treat as release strings in the following function)
-        if verifyReleaseString(job.homePackage) == "NULL":
-            return ec, pilotErrorDiag, siteroot, ""
-
-        # install the trf in the work dir if it is not installed on the site
-        # special case for nightlies (rel_N already in siteroot path, so do not add it)
-        if self.isNightliesRelease(job.homePackage):
-            installDir = siteroot
-        else:
-            installDir = os.path.join(siteroot, job.homePackage)
-        installDir = installDir.replace('//','/')
-
-        tolog("Atlas release: %s" % (job.release))
-        tolog("Job home package: %s" % (job.homePackage))
-        tolog("Trf installation dir: %s" % (installDir))
-
-        # special case for nightlies (no RunTime dir)
-        if self.isNightliesRelease(job.homePackage):
-            sfile = os.path.join(installDir, "setup.sh")
-        else:
-            sfile = installDir + ('/%sRunTime/cmt/setup.sh' % job.homePackage.split('/')[0])
-        sfile = sfile.replace('//','/')
-        if not os.path.isfile(sfile):
-
-#            pilotErrorDiag = "Patch not available (will not attempt dynamic patch installation)"
-#            tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
-#            ec = self.__error.ERR_DYNTRFINST
-
-# uncomment this section (and remove the comments in the above three lines) for dynamic path installation
-
-            tolog("!!WARNING!!3000!! Trf setup file does not exist at: %s" % (sfile))
-            tolog("Will try to install trf in work dir...")
-
-            # Install trf in the run dir
-            try:
-                ec, pilotErrorDiag = self.installPyJobTransforms(job.release, job.homePackage, swbase, cmtconfig)
-            except Exception, e:
-                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(e)
-                tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
-                ec = self.__error.ERR_DYNTRFINST
-            else:
-                if ec == 0:
-                    tolog("Successfully installed trf")
-                    installDir = workdir + "/" + job.homePackage
-
-                    # replace siteroot="$SITEROOT" with siteroot=rundir
-                    os.environ['SITEROOT'] = workdir
-                    siteroot = workdir
-
-# comment until here
-
-        else:
-            tolog("Found trf setup file: %s" % (sfile))
-            tolog("Using install dir = %s" % (installDir))
-
-        return ec, pilotErrorDiag, siteroot, installDir
-
-    def installPyJobTransforms(self, release, package, swbase, cmtconfig):
-        """ Install new python based TRFS """
-
-        status = False
-        pilotErrorDiag = ""
-
-        import string
-
-        if package.find('_') > 0: # jobdef style (e.g. "AtlasProduction_12_0_7_2")
-            ps = package.split('_')
-            if len(ps) == 5:
-                status = True
-                # dotver = string.join(ps[1:], '.')
-                # pth = 'AtlasProduction/%s' % dotver
-            else:
-                status = False
-        else: # Panda style (e.g. "AtlasProduction/12.0.3.2")
-            # Create pacman package = AtlasProduction_12_0_7_1
-            ps = package.split('/')
-            if len(ps) == 2:
-                ps2 = ps[1].split('.')
-                if len(ps2) == 4 or len(ps2) == 5:
-                    dashver = string.join(ps2, '_')
-                    pacpack = '%s_%s' % (ps[0], dashver)
-                    tolog("Pacman package name: %s" % (pacpack))
-                    status = True
-                else:
-                    status = False
-            else:
-                status = False
-
-        if not status:
-            pilotErrorDiag = "installPyJobTransforms: Prod cache has incorrect format: %s" % (package)
-            tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-            return self.__error.ERR_DYNTRFINST, pilotErrorDiag
-
-        # Check if it exists already in rundir
-        tolog("Checking for path: %s" % (package))
-
-        # Current directory should be the job workdir at this point
-        if os.path.exists(package):
-            tolog("Found production cache, %s, in run directory" % (package))
-            return 0, pilotErrorDiag
-
-        # Install pacman
-        status, pilotErrorDiag = self.installPacman()
-        if status:
-            tolog("Pacman installed correctly")
-        else:
-            return self.__error.ERR_DYNTRFINST, pilotErrorDiag
-
-        # Prepare release setup command
-        if self.useAtlasSetup(swbase, release, package, cmtconfig):
-            setup_pbuild = self.getProperASetup(swbase, release, package, cmtconfig, source=False)
-        else:
-            setup_pbuild = '%s/%s/cmtsite/setup.sh -tag=%s,AtlasOffline,%s' % (swbase, release, release, cmtconfig)
-        got_JT = False
-        caches = [
-            'http://classis01.roma1.infn.it/pacman/Production/cache',
-            'http://atlas-computing.web.cern.ch/atlas-computing/links/kitsDirectory/Analysis/cache'
-            ]
-
-        # shuffle list so same cache is not hit by all jobs
-        from random import shuffle
-        shuffle(caches)
-        for cache in caches:
-            # Need to setup some CMTROOT first
-            # Pretend platfrom for non-slc3, e.g. centOS on westgrid
-            # Parasitacally, while release is setup, get DBRELEASE version too
-            cmd = 'source %s' % (setup_pbuild)
-            cmd+= ';CMT_=`echo $CMTCONFIG | sed s/-/_/g`'
-            cmd+= ';cd pacman-*;source ./setup.sh;cd ..;echo "y"|'
-            cmd+= 'pacman -pretend-platform SLC -get %s:%s_$CMT_ -trust-all-caches'%\
-                  (cache, pacpack)
-            tolog('Pacman installing JT %s from %s' % (pacpack, cache))
-
-            exitcode, output = timedCommand(cmd, timeout=60*60)
-            if exitcode != 0:
-                pilotErrorDiag = "installPyJobTransforms failed: %s" % str(output)
-                tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
-            else:
-                tolog('Installed JobTransforms %s from %s' % (pacpack, cache))
-                got_JT = True
-                break
-
-        if got_JT:
-            ec = 0
-        else:
-            ec = self.__error.ERR_DYNTRFINST
-
-        return ec, pilotErrorDiag
-
-    def installPacman(self):
-        """ Pacman installation """
-
-        pilotErrorDiag = ""
-
-        # Pacman version
-        pacman = 'pacman-3.18.3.tar.gz'
-
-        urlbases = [
-            'http://physics.bu.edu/~youssef/pacman/sample_cache/tarballs',
-            'http://atlas.web.cern.ch/Atlas/GROUPS/SOFTWARE/OO/Production'
-            ]
-
-        # shuffle list so same server is not hit by all jobs
-        from random import shuffle
-        shuffle(urlbases)
-        got_tgz = False
-        for urlbase in urlbases:
-            url = urlbase + '/' + pacman
-            tolog('Downloading: %s' % (url))
-            try:
-                # returns httpMessage
-                from urllib import urlretrieve
-                (filename, msg) = urlretrieve(url, pacman)
-                if 'content-type' in msg.keys():
-                    if msg['content-type'] == 'application/x-gzip':
-                        got_tgz = True
-                        tolog('Got %s' % (url))
-                        break
-                    else:
-                        tolog('!!WARNING!!4000!! Failed to get %s' % (url))
-            except Exception ,e:
-                tolog('!!WARNING!!4000!! URL: %s throws: %s' % (url, e))
-
-        if got_tgz:
-            tolog('Success')
-            cmd = 'tar -zxf %s' % (pacman)
-            tolog("Executing command: %s" % (cmd))
-            (exitcode, output) = commands.getstatusoutput(cmd)
-            if exitcode != 0:
-                # Got a tgz but can't unpack it. Could try another source but will fail instead.
-                pilotErrorDiag = "%s failed: %d : %s" % (cmd, exitcode, output)
-                tolog('!!FAILED!!4000!! %s' % (pilotErrorDiag))
-                return False, pilotErrorDiag
-            else:
-                tolog('Pacman tarball install succeeded')
-                return True, pilotErrorDiag
-        else:
-            pilotErrorDiag = "Failed to get %s from any source url" % (pacman)
-            tolog('!!FAILED!!4000!! %s' % (pilotErrorDiag))
-            return False, pilotErrorDiag
-
-    def getCmtsiteCmd(self, swbase, atlasRelease, homePackage, cmtconfig, siteroot=None, analysisJob=False, cacheDir=None, cacheVer=None):
-        """ Get the cmtsite setup command """
-
-        ec = 0
-        pilotErrorDiag = ""
-        cmd = ""
-
-        if verifyReleaseString(homePackage) == "NULL":
-            homePackage = ""
-
-        # Handle sites using builds area in a special way
-        if swbase[-len('builds'):] == 'builds' or verifyReleaseString(atlasRelease) == "NULL":
-            _path = swbase
-        else:
-            _path = os.path.join(swbase, atlasRelease)
-
-        if self.useAtlasSetup(swbase, atlasRelease, homePackage, cmtconfig):
-            # homePackage=AnalysisTransforms-AtlasTier0_15.5.1.6
-            # cacheDir = AtlasTier0
-            # cacheVer = 15.5.1.6
-            m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', homePackage)
-            if m_cacheDirVer != None:
-                cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, atlasRelease)
-            elif "," in homePackage or self.isNightliesRelease(homePackage): # if nightlies are used, e.g. homePackage = "AtlasProduction,rel_0"
-                cacheDir = homePackage
-            cmd = self.getProperASetup(swbase, atlasRelease, homePackage, cmtconfig, cacheVer=cacheVer, cacheDir=cacheDir)
-        else:
-            # Get the tags
-            tags = self.getTag(analysisJob, swbase, atlasRelease, cacheDir, cacheVer)
-
-            ec, pilotErrorDiag, status = self.isForceConfigCompatible(swbase, atlasRelease, homePackage, cmtconfig, siteroot=siteroot)
-            if ec == self.__error.ERR_MISSINGINSTALLATION:
-                return ec, pilotErrorDiag, cmd
-            else:
-                if status:
-                    if "slc5" in cmtconfig and os.path.exists("%s/gcc43_inst" % (_path)):
-                        cmd = "source %s/gcc43_inst/setup.sh;export CMTCONFIG=%s;" % (_path, cmtconfig)
-                    elif "slc5" in cmtconfig and "slc5" in swbase and os.path.exists(_path):
-                        cmd = "source %s/setup.sh;export CMTCONFIG=%s;" % (_path, cmtconfig)
-                    else:
-                        cmd = "export CMTCONFIG=%s;" % (cmtconfig)
-                    cmd += "source %s/cmtsite/setup.sh %s,forceConfig" % (_path, tags)
-                else:
-                    cmd = "source %s/cmtsite/setup.sh %s" % (_path, tags)
-
-        return ec, pilotErrorDiag, cmd
-
     def getCacheInfo(self, m_cacheDirVer, atlasRelease):
         """ Get the cacheDir and cacheVer """
 
@@ -1307,7 +976,7 @@ class ATLASExperiment(Experiment):
 
             # Special case for AtlasDerivation. In this case cacheVer = rel_N
             # and we need to add cacheDir and the release itself
-            special_cacheDirs = ['AtlasDerivation','AtlasOffline','VAL', '.X', '-GIT'] # Add more cases if necessary
+            special_cacheDirs = ['AtlasDerivation','AtlasOffline','VAL', '.X', '-GIT', 'master', 'multithreading'] # Add more cases if necessary
             if cacheDir in special_cacheDirs and self.isNightliesRelease(cacheVer):
                 # strip any special cacheDirs from the release string, if present
                 for special_cacheDir in special_cacheDirs:
@@ -1330,289 +999,7 @@ class ATLASExperiment(Experiment):
 
         return cacheDir, cacheVer
 
-    def getTag(self, analysisJob, path, release, cacheDir, cacheVer):
-        """ Define the setup tags """
-
-        _setup = False
-        tag = "-tag="
-
-        if analysisJob:
-            if cacheDir and cacheDir != "" and cacheVer and cacheVer != "" and cacheVer.count('.') < 4:
-                # E.g. -tag=AtlasTier0,15.5.1.6,32,setup
-                tag += "%s" % (cacheDir)
-                tag += ",%s" % (cacheVer)
-                _setup = True
-            else:
-                # E.g. -tag=AtlasOffline,15.5.1
-                tag += "AtlasOffline"
-                if verifyReleaseString(release) != "NULL":
-                    tag += ",%s" % (release)
-            # only add the "32" part if CMTCONFIG has been out-commented in the requirements file
-            if self.isCMTCONFIGOutcommented(path, release):
-                tag += ",32"
-            if _setup:
-                tag += ",setup"
-        else:
-            # for production jobs
-            tag = "-tag=AtlasOffline"
-            if verifyReleaseString(release) != "NULL":
-                tag += ",%s" % (release)
-
-        # always add the runtime
-        tag += ",runtime"
-
-        return tag
-
-    def isCMTCONFIGOutcommented(self, path, release):
-        """ Is CMTCONFIG out-commented in requirements file? """
-
-        status = False
-        filename = "%s%s/cmtsite/requirements" % (path, release)
-        if os.path.exists(filename):
-            cmd = "grep CMTCONFIG %s" % (filename)
-            ec, rs = commands.getstatusoutput(cmd)
-            if ec == 0:
-                if rs.startswith("#"):
-                    status = True
-
-        return status
-
-    def verifyCmtsiteCmd(self, exitcode, _pilotErrorDiag):
-        """ Verify the cmtsite command """
-
-        pilotErrorDiag = "unknown"
-
-        if "#CMT> Warning: template <src_dir> not expected in pattern install_scripts (from TDAQCPolicy)" in _pilotErrorDiag:
-            tolog("Detected CMT warning (return code %d)" % (exitcode))
-            tolog("Installation setup command passed test (with precaution)")
-        elif "Error:" in _pilotErrorDiag or "Fatal exception:" in _pilotErrorDiag:
-            pilotErrorDiag = "Detected severe CMT error: %d, %s" % (exitcode, _pilotErrorDiag)
-            tolog("!!WARNING!!2992!! %s" % (pilotErrorDiag))
-        elif exitcode != 0:
-            if "Command time-out" in _pilotErrorDiag:
-                pilotErrorDiag = "cmtsite command was timed out: %s, %s" % (str(exitcode), _pilotErrorDiag)
-            else:
-                from futil import is_timeout
-                if is_timeout(exitcode):
-                    pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
-                else:
-                    if "timed out" in _pilotErrorDiag:
-                        pilotErrorDiag = "cmtsite command was timed out: %d, %s" % (exitcode, _pilotErrorDiag)
-                    else:
-                        pilotErrorDiag = "cmtsite command failed: %d, %s" % (exitcode, _pilotErrorDiag)
-
-            tolog("!!WARNING!!2992!! %s" % (pilotErrorDiag))
-        else:
-            tolog("Release test command returned exit code %d" % (exitcode))
-            pilotErrorDiag = ""
-
-        return pilotErrorDiag
-
-    def verifyCMTCONFIG(self, releaseCommand, cmtconfig_required, siteroot="", cacheDir="", cacheVer=""):
-        """ Make sure that the required CMTCONFIG match that of the local system """
-        # ...and extract CMTCONFIG, SITEROOT, ATLASVERSION, ATLASPROJECT
-
-        status = True
-        pilotErrorDiag = ""
-
-        _cmd = "%s;echo CMTCONFIG=$CMTCONFIG;echo SITEROOT=$SITEROOT;echo ATLASVERSION=$AtlasVersion;echo ATLASPROJECT=$AtlasProject" % (releaseCommand)
-
-        exitcode, output = timedCommand(_cmd, timeout=getProperTimeout(_cmd))
-        tolog("Command output: %s" % (output))
-
-        # Verify the cmtsite command
-        pilotErrorDiag = self.verifyCmtsiteCmd(exitcode, output)
-        if pilotErrorDiag != "":
-            return False, pilotErrorDiag, siteroot, "", ""
-
-        # Get cmtConfig
-        re_cmtConfig = re.compile('CMTCONFIG=(.+)')
-        _cmtConfig = re_cmtConfig.search(output)
-        if _cmtConfig:
-            cmtconfig_local = _cmtConfig.group(1)
-        else:
-            tolog("CMTCONFIG not found in command output: %s" % (output))
-            cmtconfig_local = ""
-
-        # Set siteroot if not already set
-        if siteroot == "":
-            re_sroot = re.compile('SITEROOT=(.+)')
-            _sroot = re_sroot.search(output)
-            if _sroot:
-                siteroot = _sroot.group(1)
-            else:
-                tolog("SITEROOT not found in command output: %s" % (output))
-
-        # Get atlasVersion
-        re_atlasVersion = re.compile('ATLASVERSION=(.+)')
-        _atlasVersion = re_atlasVersion.search(output)
-        if _atlasVersion:
-            atlasVersion = _atlasVersion.group(1)
-        else:
-            tolog("AtlasVersion not found in command output: %s" % (output))
-            if cacheVer != "":
-                tolog("AtlasVersion will be set to: %s" % (cacheVer))
-            atlasVersion = cacheVer
-
-        # Get atlasProject
-        re_atlasProject = re.compile('ATLASPROJECT=(.+)')
-        _atlasProject = re_atlasProject.search(output)
-        if _atlasProject:
-            atlasProject = _atlasProject.group(1)
-        else:
-            tolog("AtlasProject not found in command output: %s" % (output))
-            if cacheDir != "":
-                tolog("AtlasProject will be set to: %s" % (cacheDir))
-            atlasProject = cacheDir
-
-        # Verify cmtconfig
-        if cmtconfig_local == "":
-            cmtconfig_local = "local cmtconfig not set"
-        elif cmtconfig_local == "NotSupported":
-            pilotErrorDiag = "CMTCONFIG is not supported on the local system: %s (required of task: %s)" %\
-                             (cmtconfig_local, cmtconfig_required)
-            tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-            status = False
-        elif cmtconfig_local == "NotAvailable":
-            if "non-existent" in output:
-                output = output.replace("\n",",")
-                pilotErrorDiag = "Installation problem: %s" % (output)
-            else:
-                pilotErrorDiag = "CMTCONFIG is not available on the local system: %s (required of task: %s)" %\
-                                 (cmtconfig_local, cmtconfig_required)
-            tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-            status = False
-
-        if cmtconfig_required == "" or cmtconfig_required == None:
-            cmtconfig_required = "required cmtconfig not set"
-
-        # Does the required CMTCONFIG match that of the local system?
-        if status and cmtconfig_required != cmtconfig_local:
-            pilotErrorDiag = "Required CMTCONFIG (%s) incompatible with that of local system (%s)" %\
-                             (cmtconfig_required, cmtconfig_local)
-            tolog("!!WARNING!!2990!! %s" % (pilotErrorDiag))
-            status = False
-
-        return status, pilotErrorDiag, siteroot, atlasVersion, atlasProject
-
-    def checkCMTCONFIG(self, cmd1, cmtconfig, atlasRelease, siteroot="", cacheDir="", cacheVer=""):
-        """ Make sure the CMTCONFIG is available and valid """
-
-        ec = 0
-        pilotErrorDiag = ""
-        atlasProject = ""
-        atlasVersion = ""
-
-        # verify CMTCONFIG for set release strings only
-        if verifyReleaseString(atlasRelease) != "NULL":
-            status, pilotErrorDiag, siteroot, atlasVersion, atlasProject = self.verifyCMTCONFIG(cmd1, cmtconfig, siteroot=siteroot, cacheDir=cacheDir, cacheVer=cacheVer)
-            if status:
-                tolog("CMTCONFIG verified for release: %s" % (atlasRelease))
-                if siteroot != "":
-                    tolog("Got siteroot = %s from CMTCONFIG verification" % (siteroot))
-                if atlasVersion != "":
-                    tolog("Got atlasVersion = %s from CMTCONFIG verification" % (atlasVersion))
-                if atlasProject != "":
-                    tolog("Got atlasProject = %s from CMTCONFIG verification" % (atlasProject))
-            else:
-                if "Installation problem" in pilotErrorDiag:
-                    errorText = "Installation problem discovered in release: %s" % (atlasRelease)
-                    ec = self.__error.ERR_MISSINGINSTALLATION
-                elif "timed out" in pilotErrorDiag:
-                    errorText = "Command used for extracting CMTCONFIG, SITEROOT, etc, timed out"
-                    ec = self.__error.ERR_COMMANDTIMEOUT
-                else:
-                    errorText = "CMTCONFIG verification failed for release: %s" % (atlasRelease)
-                    ec = self.__error.ERR_CMTCONFIG
-                tolog("!!WARNING!!1111!! %s" % (errorText))
-        else:
-            tolog("Skipping CMTCONFIG verification for unspecified release")
-
-        return ec, pilotErrorDiag, siteroot, atlasVersion, atlasProject
-
-    def getProdCmd2(self, installDir, homePackage):
-        """ Get cmd2 for production jobs """
-
-        pilotErrorDiag = ""
-
-        # Define cmd2
-        try:
-            # Special case for nightlies
-            if self.isNightliesRelease(homePackage) or "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage: # rel_N is already in installDir, do not add like below
-                cmd2 = '' #unset CMTPATH;'
-            else:
-                cmd2 = 'unset CMTPATH;cd %s/%sRunTime/cmt;source ./setup.sh;cd -;' % (installDir, homePackage.split('/')[0])
-
-                # Correct setup for athena post 14.5 (N.B. harmless for version < 14.5)
-                cmd2 += 'export AtlasVersion=%s;export AtlasPatchVersion=%s' % (homePackage.split('/')[-1], homePackage.split('/')[-1])
-        except Exception, e:
-            pilotErrorDiag = "Bad homePackage format: %s, %s" % (homePackage, str(e))
-            tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
-            cmd2 = ""
-
-        return cmd2, pilotErrorDiag
-
-    def getSpecialSetupCommand(self):
-        """ Set special_setup_cmd if necessary """
-
-        # Note: this special setup command is hardly used and could probably be removed
-        # in case any special setup should be added to the setup string before the trf is executed, the command defined in this method
-        # could be added to the run command by using method addSPSetupToCmd().
-        # the special command is also forwarded to the get and put functions (currently not used)
-
-        special_setup_cmd = ""
-
-        # add envsetup to the special command setup on tier-3 sites
-        # (unknown if this is still needed)
-
-        # get the site information object
-        si = getSiteInformation(self.__experiment)
-        if si.isTier3():
-            _envsetup = readpar('envsetup')
-            if _envsetup != "":
-                special_setup_cmd += _envsetup
-                if not special_setup_cmd.endswith(';'):
-                    special_setup_cmd += ";"
-
-        return special_setup_cmd
-
-    def getAnalyCmd2(self, swbase, cmtconfig, homePackage, atlasRelease):
-        """ Return a proper cmd2 setup command """
-
-        cacheDir = None
-        cacheVer = None
-        cmd2 = ""
-
-        # cannot set cmd2 for unset release/homepackage strings
-        if verifyReleaseString(atlasRelease) == "NULL" or verifyReleaseString(homePackage) == "NULL":
-            return cmd2, cacheDir, cacheVer
-
-        # homePackage=AnalysisTransforms-AtlasTier0_15.5.1.6
-        # cacheDir = AtlasTier0
-        # cacheVer = 15.5.1.6
-        m_cacheDirVer = re.search('AnalysisTransforms-([^/]+)', homePackage)
-        if m_cacheDirVer != None:
-            cacheDir, cacheVer = self.getCacheInfo(m_cacheDirVer, atlasRelease)
-            if not self.useAtlasSetup(swbase, atlasRelease, homePackage, cmtconfig):
-                cmd2 = "export CMTPATH=$SITEROOT/%s/%s" % (cacheDir, cacheVer)
-
-        return cmd2, cacheDir, cacheVer
-
-    def updateAnalyCmd2(self, cmd2, atlasVersion, atlasProject, useAsetup):
-        """ Add AtlasVersion and AtlasProject to cmd2 """
-
-        # Add everything to cmd2 unless AtlasSetup is used
-        if not useAsetup:
-            if atlasVersion != "" and atlasProject != "":
-                if cmd2 == "" or cmd2.endswith(";"):
-                    pass
-                else:
-                    cmd2 += ";"
-                cmd2 += "export AtlasVersion=%s;export AtlasProject=%s" % (atlasVersion, atlasProject)
-
-        return cmd2
-
-    def setPython(self, site_root, atlasRelease, homePackage, cmtconfig, sitename):
+    def setPython(self, atlasRelease, homePackage, cmtconfig, sitename):
         """ set the python executable """
 
         ec = 0
@@ -1620,14 +1007,6 @@ class ATLASExperiment(Experiment):
         pybin = ""
 
         if os.environ.has_key('VO_ATLAS_SW_DIR') and verifyReleaseString(atlasRelease) != "NULL":
-            #ec, pilotErrorDiag, _pybin = self.findPythonInRelease(site_root, atlasRelease, homePackage, cmtconfig, sitename)
-            #if ec == self.__error.ERR_MISSINGINSTALLATION:
-            #    return ec, pilotErrorDiag, pybin
-
-            #if _pybin != "":
-            #    pybin = _pybin
-
-            #pybin = "`which python`"
             pybin = "python"
 
         if pybin == "":
@@ -1642,105 +1021,6 @@ class ATLASExperiment(Experiment):
 
         tolog("Using %s" % (pybin))
         return ec, pilotErrorDiag, pybin
-
-    def findPythonInRelease(self, siteroot, atlasRelease, homePackage, cmtconfig, sitename):
-        """ Set the python executable in the release dir (LCG sites only) """
-
-        ec = 0
-        pilotErrorDiag = ""
-        py = ""
-
-        tolog("Trying to find a python executable for release: %s" % (atlasRelease))
-        scappdir = readpar('appdir')
-
-        # only use underscored cmtconfig paths on older cvmfs systems and only for now (remove at a later time)
-        _cmtconfig = cmtconfig.replace("-", "_")
-
-        if scappdir != "":
-            _swbase = self.getLCGSwbase(scappdir)
-            tolog("Using swbase: %s" % (_swbase))
-
-            # get the site information object
-            si = getSiteInformation(self.__experiment)
-
-            if self.useAtlasSetup(_swbase, atlasRelease, homePackage, cmtconfig):
-                cmd = self.getProperASetup(_swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=True)
-                tolog("Using new AtlasSetup: %s" % (cmd))
-            elif os.path.exists("%s/%s/%s/cmtsite/setup.sh" % (_swbase, _cmtconfig, atlasRelease)) and (si.isTier3() or "CERNVM" in sitename):
-                # use cmtconfig sub dir on CERNVM or tier3 (actually for older cvmfs systems)
-                cmd  = "source %s/%s/%s/cmtsite/setup.sh -tag=%s,32,runtime;" % (_swbase, _cmtconfig, atlasRelease, atlasRelease)
-            else:
-                ec, pilotErrorDiag, status = self.isForceConfigCompatible(_swbase, atlasRelease, homePackage, cmtconfig, siteroot=siteroot)
-                if ec == self.__error.ERR_MISSINGINSTALLATION:
-                    return ec, pilotErrorDiag, py
-                else:
-                    if status:
-                        if "slc5" in cmtconfig and os.path.exists("%s/%s/gcc43_inst" % (_swbase, atlasRelease)):
-                            cmd = "source %s/%s/gcc43_inst/setup.sh;export CMTCONFIG=%s;" % (_swbase, atlasRelease, cmtconfig)
-                        elif "slc5" in cmtconfig and "slc5" in _swbase and os.path.exists("%s/%s" % (_swbase, atlasRelease)):
-                            cmd = "source %s/%s/setup.sh;export CMTCONFIG=%s;" % (_swbase, atlasRelease, cmtconfig)
-                        else:
-                            cmd = "export CMTCONFIG=%s;" % (cmtconfig)
-                        cmd += "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,forceConfig,runtime;" % (_swbase, atlasRelease, atlasRelease)
-                    else:
-                        cmd  = "source %s/%s/cmtsite/setup.sh -tag=%s,32,runtime;" % (_swbase, atlasRelease, atlasRelease)
-        else:
-            vo_atlas_sw_dir = os.path.expandvars('$VO_ATLAS_SW_DIR')
-            if "gcc43" in cmtconfig and vo_atlas_sw_dir != '' and os.path.exists('%s/software/slc5' % (vo_atlas_sw_dir)):
-                cmd  = "source $VO_ATLAS_SW_DIR/software/slc5/%s/setup.sh;" % (atlasRelease)
-                tolog("Found explicit slc5 dir in path: %s" % (cmd))
-            else:
-                # no known appdir, default to VO_ATLAS_SW_DIR
-                _appdir = vo_atlas_sw_dir
-                _swbase = self.getLCGSwbase(_appdir)
-                tolog("Using swbase: %s" % (_swbase))
-                if self.useAtlasSetup(_swbase, atlasRelease, homePackage, cmtconfig):
-                    cmd = self.getProperASetup(_swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=True)
-                    tolog("Using new AtlasSetup: %s" % (cmd))
-                else:
-                    _path = os.path.join(_appdir, "software/%s/cmtsite/setup.sh" % (atlasRelease))
-                    if os.path.exists(_path):
-                        cmd = "source " + _path + ";"
-                    else:
-                        cmd = ""
-                        tolog("!!WARNING!!1888!! No known path for setup script (using default python version)")
-
-        cmd += "which python"
-        exitcode, output = timedCommand(cmd, timeout=getProperTimeout(cmd))
-
-        if exitcode == 0:
-            if output.startswith('/'):
-                tolog("Found: %s" % (output))
-                py = output
-            else:
-                if '\n' in output:
-                    output = output.split('\n')[-1]
-
-                if output.startswith('/'):
-                    tolog("Found: %s" % (output))
-                    py = output
-                else:
-                    tolog("!!WARNING!!4000!! No python executable found in release dir: %s" % (output))
-                    tolog("!!WARNING!!4000!! Will use default python")
-                    py = "python"
-        else:
-            tolog("!!WARNING!!4000!! Find command failed: %d, %s" % (exitcode, output))
-            tolog("!!WARNING!!4000!! Will use default python")
-            py = "python"
-
-        return ec, pilotErrorDiag, py
-
-    def getLCGSwbase(self, scappdir):
-        """ Return the LCG swbase """
-
-        if os.path.exists(os.path.join(scappdir, 'software/releases')):
-            _swbase = os.path.join(scappdir, 'software/releases')
-        elif os.path.exists(os.path.join(scappdir, 'software')):
-            _swbase = os.path.join(scappdir, 'software')
-        else:
-            _swbase = scappdir
-
-        return _swbase
 
     def addEnvVars2Cmd(self, cmd, jobId, taskId, processingType, sitename, analysisJob):
         """ Add env variables """
@@ -1801,418 +1081,37 @@ class ATLASExperiment(Experiment):
 
         return variables
 
-    def isForceConfigCompatible(self, _dir, release, homePackage, cmtconfig, siteroot=None):
-        """ Test if the installed AtlasSettings and AtlasLogin versions are compatible with forceConfig """
-        # The forceConfig cmt tag was introduced in AtlasSettings-03-02-07 and AtlasLogin-00-03-07
+    def getASetupOptions(self, atlasRelease, homePackage):
+        """ Determine the proper asetup options """
 
-        status = True
-        ec = 0
-        pilotErrorDiag = ""
+        asetup_opt = []
+        release = re.sub('^Atlas-', '', atlasRelease)
 
-        # only perform the forceConfig test for set release strings
-        if verifyReleaseString(release) == "NULL":
-            return ec, pilotErrorDiag, False
+        # is it a user analysis homePackage?
+        if 'AnalysisTransforms' in homePackage:
 
-        names = {"AtlasSettings":"AtlasSettings-03-02-07", "AtlasLogin":"AtlasLogin-00-03-07" }
-        for name in names.keys():
-            try:
-                ec, pilotErrorDiag, v, siteroot = self.getHighestVersionDir(release, homePackage, name, _dir, cmtconfig, siteroot=siteroot)
-            except Exception, e:
-                tolog("!!WARNING!!2999!! Exception caught: %s" % str(e))
-                v = None
-            if v:
-                if v >= names[name]:
-                    tolog("%s version verified: %s" % (name, v))
-                else:
-                    tolog("%s version too old: %s (older than %s, not forceConfig compatible)" % (name, v, names[name]))
-                    status = False
-            else:
-                tolog("%s version not verified (not forceConfig compatible)" % (name))
-                status = False
+            _homepackage = re.sub('^AnalysisTransforms-*', '', homePackage)
+            if _homepackage == '' or re.search('^\d+\.\d+\.\d+$', release) is None:
+                if release != "":
+                    asetup_opt.append(release)
+            if _homepackage != '':
+                asetup_opt += _homepackage.split('_')
 
-        return ec, pilotErrorDiag, status
-
-    def getHighestVersionDir(self, release, homePackage, name, swbase, cmtconfig, siteroot=None):
-        """ Grab the directory (AtlasLogin, AtlasSettings) with the highest version number """
-        # e.g. v = AtlasLogin-00-03-26
-
-        highestVersion = None
-        ec = 0
-        pilotErrorDiag = ""
-
-        # get the siteroot
-        if not siteroot:
-            ec, pilotErrorDiag, status, siteroot, cmtconfig = self.getProperSiterootAndCmtconfig(swbase, release, homePackage, cmtconfig)
         else:
-            status = True
 
-        if ec != 0:
-            return ec, pilotErrorDiag, None, siteroot
+            asetup_opt += homePackage.split('/')
+            if release not in homePackage:
+                asetup_opt.append(release)
 
-        if status and siteroot != "" and os.path.exists(os.path.join(siteroot, name)):
-            _dir = os.path.join(siteroot, name)
-        else:
-            if swbase[-len('builds'):] == 'builds':
-                _dir = os.path.join(swbase, name)
-            else:
-                _dir = os.path.join(swbase, release, name)
+        # Add the notest,here for all setups (not necessary for late releases but harmless to add)
+        asetup_opt.append('notest')
+        asetup_opt.append('here')
 
-        if not os.path.exists(_dir):
-            tolog("Directory does not exist: %s" % (_dir))
-            return ec, pilotErrorDiag, None, siteroot
-
-        tolog("Probing directory: %s" % (_dir))
-        if os.path.exists(_dir):
-            dirs = os.listdir(_dir)
-            _dirs = []
-            if dirs != []:
-                tolog("Found directories: %s" % str(dirs))
-                for d in dirs:
-                    if d.startswith(name):
-                        _dirs.append(d)
-                if _dirs != []:
-                    # sort the directories
-                    _dirs.sort()
-                    # grab the directory with the highest version
-                    highestVersion = _dirs[-1]
-                    tolog("Directory with highest version: %s" % (highestVersion))
-                else:
-                    tolog("WARNING: Found no %s dirs in %s" % (name, _dir))
-            else:
-                tolog("WARNING: Directory is empty: %s" % (_dir))
-        else:
-            tolog("Directory does not exist: %s" % (_dir))
-
-        return ec, pilotErrorDiag, highestVersion, siteroot
-
-    def getProperSiterootAndCmtconfig(self, swbase, release, homePackage, _cmtconfig, cmtconfig_alternatives=None):
-        """ return a proper $SITEROOT and cmtconfig """
-
-        status = False
-        siteroot = ""
-        ec = 0 # only non-zero for fatal errors (missing installation)
-        pilotErrorDiag = ""
-
-        # make sure the cmtconfig_alternatives is not empty/not set
-        if not cmtconfig_alternatives:
-            cmtconfig_alternatives = [_cmtconfig]
-
-        if swbase[-len('builds'):] == 'builds':
-            status = True
-            return ec, pilotErrorDiag, status, swbase, _cmtconfig
-
-        # loop over all available cmtconfig's until a working one is found (the default cmtconfig value is the first to be tried)
-        for cmtconfig in cmtconfig_alternatives:
-            ec = 0
-            pilotErrorDiag = ""
-            tolog("Testing cmtconfig=%s" % (cmtconfig))
-
-            if self.useAtlasSetup(swbase, release, homePackage, cmtconfig):
-                cmd = self.getProperASetup(swbase, release, homePackage, cmtconfig, tailSemiColon=True)
-            elif "slc5" in cmtconfig and "gcc43" in cmtconfig:
-                cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,%s,runtime" % (swbase, release, release, cmtconfig)
-            else:
-                cmd = "source %s/%s/cmtsite/setup.sh -tag=AtlasOffline,%s,runtime" % (swbase, release, release)
-
-            # verify that the setup path actually exists before attempting the source command
-            ec, pilotErrorDiag = self.verifySetupCommand(cmd)
-            if ec != 0:
-                pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (pilotErrorDiag)
-                tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                ec = self.__error.ERR_MISSINGINSTALLATION
-                continue
-
-            # do not test the source command, it is enough to verify its existence
-            (exitcode, output) = timedCommand(cmd, timeout=getProperTimeout(cmd))
-
-            if exitcode == 0:
-                # a proper cmtconfig has been found, now set the SITEROOT
-                # e.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
-
-                # note: this format (using cmtconfig is only valid on CVMFS, not on AFS)
-                # VO_ATLAS_RELEASE_DIR is only set on AFS (CERN)
-                if ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage) and os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
-                    tolog("Encountered HLT homepackage: %s (must use special siteroot)" % (homePackage))
-                    siteroot = os.path.join(swbase, release)
-                elif homePackage.startswith('AthSimulation'):
-                    tolog("Encountered an Ath* release: %s" % (homePackage))
-                    siteroot = self.getSiterootWithHomepackage(swbase, homePackage, cmtconfig, release)
-                else:
-                    # default SITEROOT on CVMFS
-                    if "/cvmfs" in swbase:
-                        siteroot = os.path.join(os.path.join(swbase, cmtconfig), release)
-                    else:
-                        siteroot = os.path.join(swbase, release)
-
-                siteroot = siteroot.replace('//','/')
-
-                # make sure that the path actually exists
-                if os.path.exists(siteroot):
-                    tolog("SITEROOT path has been defined and exists: %s" % (siteroot))
-                    status = True
-                    break
-                else:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: cmtconfig %s has been confirmed but SITEROOT does not exist: %s" % (cmtconfig, siteroot)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_MISSINGINSTALLATION
-                    break
-
-            elif exitcode != 0 or "Error:" in output or "(ERROR):" in output:
-                # if time out error, don't bother with trying another cmtconfig
-
-                tolog("ATLAS setup for SITEROOT failed: ec=%s, output=%s" % (str(exitcode), output))
-
-                if "No such file or directory" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Missing installation: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_MISSINGINSTALLATION
-                    continue
-                elif "Error:" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Caught CMT error: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_SETUPFAILURE
-                    continue
-                elif "AtlasSetup(ERROR):" in output:
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: Caught AtlasSetup error: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_SETUPFAILURE
-                    continue
-                elif "timed out" in output:
-                    # CVMFS problem, no point in continuing
-                    pilotErrorDiag = "getProperSiterootAndCmtconfig: CVMFS setup command timed out: %s" % (output)
-                    tolog("!!WARNING!!1996!! %s" % (pilotErrorDiag))
-                    ec = self.__error.ERR_COMMANDTIMEOUT
-                    break
-
-        # reset errors if siteroot was found
-        if status:
-            ec = 0
-            pilotErrorDiag = ""
-        return ec, pilotErrorDiag, status, siteroot, cmtconfig
-
-    def getVerifiedAtlasSetupPath(self, swbase, release, homePackage, cmtconfig):
-        """ Get a verified asetup path"""
-
-        path = None
-        skipVerification = False # verification not possible for more complicated setup (nightlies)
-        if 'HPC_' in readpar("catchall"):
-            skipVerification = True # verification not possible for more complicated setup (nightlies)
-
-        # First try with the cmtconfig in the path. If that fails, try without it
-
-        # Are we using nightlies?
-        timestamp = self.extractNightliesTimestamp(homePackage)
-        if timestamp != "":
-            # extract the nightlies time stamp and use it in the path
-            tolog("Extracted timestamp=%s from homePackage=%s" % (timestamp, homePackage))
-            # path = "%s/%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release, timestamp)
-            path = self.getModernASetup(swbase=swbase)
-            tolog("1. path = %s" % (path))
-            skipVerification = True
-        if not path:
-            path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, cmtconfig, release)
-
-        if not skipVerification:
-            status = os.path.exists(path)
-            if status:
-                tolog("Using AtlasSetup (%s exists with cmtconfig in the path)" % (path))
-            else:
-                tolog("%s does not exist (trying without cmtconfig in the path)" % (path))
-                if timestamp != "":
-                    path = "%s/%s/%s/cmtsite/asetup.sh" % (swbase, release, timestamp)
-                else:
-                    path = "%s/%s/cmtsite/asetup.sh" % (swbase, release)
-                status = os.path.exists(path)
-                if status:
-                    tolog("Using AtlasSetup (%s exists)" % (path))
-                else:
-                    tolog("Cannot use AtlasSetup since %s does not exist either" % (path))
-        else:
-            tolog("Skipping verification of asetup path for nightlies")
-            status = True
-
-        return status, path
-
-    def useAtlasSetup(self, swbase, release, homePackage, cmtconfig):
-        """ Determine whether AtlasSetup is to be used """
-
-        # Previously this method returned False for older releases than 16.1.0. Since pilot release 64.0, this method returns True [i.e. use asetup for all ATLAS releases]
-        return True
-
-    def getSplitHomePackage(self, homePackage):
-        """ Split the homePackage if it has a project/release format """
-        # E.g. homePackage = AthSimulationBase/1.0.3 -> AthSimulationBase, 1.0.3
-        # homePackage = AnalysisTransforms-AtlasP1HLT_20.2.3.6 -> 'AtlasP1HLT', '20.2.3.6'
-
-        if "/" in homePackage:
-            s = homePackage.split('/')
-            project = s[0]
-            release = s[1]
-        else:
-            if "AnalysisTransforms" in homePackage and ("AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage):
-                homePackage = homePackage.replace("AnalysisTransforms-", "")
-                s = homePackage.split('_')
-                project = s[0]
-                release = s[1]
-            else:
-                project = homePackage
-                release = ""
-
-        return project, release
-
-    def getSiterootWithHomepackage(self, swbase, homePackage, cmtconfig, release):
-        """ Use the homePackage to set the siteroot """
-
-        _project, _release = self.getSplitHomePackage(homePackage)
-        if _release != "": # i.e. "/" is present in homePackage:
-            path = os.path.join(swbase, _project) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase
-            path = os.path.join(path, cmtconfig)
-            siteroot = os.path.join(path, _release) # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/AthSimulationBase/1.0.3
-        else:
-            if release == "":
-                tolog("!!WARNING!!4545!! Found no slash in homePackage and release is not set - have to guess siteroot")
-                if os.path.exists(os.path.join(swbase, _project)):
-                    siteroot = os.path.join(swbase, _project)
-                    if os.path.exists(os.path.join(siteroot, cmtconfig)):
-                        siteroot = os.path.join(siteroot, cmtconfig)
-                    else:
-                        siteroot = os.path.join(swbase, _project)
-                else:
-                    siteroot = os.path.join(swbase, cmtconfig)
-            else:
-                tolog("!!WARNING!!4545!! Found no slash in homePackage - have to guess siteroot")
-                # E.g. /cvmfs/atlas.cern.ch/repo/sw/software/i686-slc5-gcc43-opt/17.2.11
-                siteroot = os.path.join(swbase, cmtconfig)
-                siteroot = os.path.join(siteroot, release)
-
-        return siteroot
-
-    def getProperASetup(self, swbase, atlasRelease, homePackage, cmtconfig, tailSemiColon=False, source=True, cacheVer=None, cacheDir=None):
-        """ return a proper asetup.sh command """
-
-        # handle sites using builds area in a special way
-        if swbase[-len('builds'):] == 'builds' or verifyReleaseString(atlasRelease) == "NULL":
-            path = swbase
-        else:
-            # Check for special release (such as AthSimulationBase/1.0.3)
-            done = False
-            if homePackage.startswith('AthSimulation'):
-                path = self.getSiterootWithHomepackage(swbase, homePackage, cmtconfig, "") # do not send the release in this case
-                if os.path.exists(path):
-                    tolog("Verified siteroot path: %s" % (path))
-                    done = True
-                else:
-                    tolog("!!WARNING!!4545!! Siteroot path does not exist: %s" % (path))
-
-            # Normal setup
-            if not done:
-                if os.path.exists(os.path.join(swbase, cmtconfig)):
-                    if os.path.exists(os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)):
-                        path = os.path.join(os.path.join(swbase, cmtconfig), atlasRelease)
-                    else:
-                        path = os.path.join(swbase, atlasRelease)
-                else:
-                    path = os.path.join(swbase, atlasRelease)
-
-        # need to tell asetup where the compiler is in the US (location of special config file)
-        _path = "%s/AtlasSite/AtlasSiteSetup" % (path)
-        if readpar('cloud') == "US" and os.path.exists(_path):
-            _input = "--input %s" % (_path)
-        else:
-            _input = ""
-
-        # add a tailing semicolon if needed
-        if tailSemiColon:
-            tail = ";"
-        else:
-            tail = ""
-
-        # define the setup options
-        if not cacheVer:
-            cacheVer = atlasRelease
-
-        # add the fast option if possible (for the moment, check for locally defined env variable)
+        # Add the fast option if possible (for the moment, check for locally defined env variable)
         if os.environ.has_key("ATLAS_FAST_ASETUP"):
-            options = cacheVer + ",notest,fast"
-        else:
-            options = cacheVer + ",notest"
-        if cacheDir and cacheDir != "":
-            options += ",%s" % (cacheDir)
+            asetup_opt.append('fast')
 
-        # special case for Ath* releases
-        if homePackage.startswith('AthSimulation'):
-            _project, _release = self.getSplitHomePackage(homePackage)
-            options = options.replace("notest", "%s,notest" % (_project))
-
-        # nightlies setup?
-        timestamp = self.extractNightliesTimestamp(homePackage)
-        if timestamp != "":
-            tolog("Extracted timestamp=%s from homePackage=%s" % (timestamp, homePackage))
-            # asetup_path = "%s/%s/cmtsite/asetup.sh" % (path, timestamp)
-            asetup_path = self.getModernASetup(swbase=swbase)
-            tolog("2. path=%s" % (asetup_path))
-            # use special options for nightlies (not the release info set above)
-            # NOTE: 'HERE' IS NEEDED FOR MODERN SETUP
-            # Special case for AtlasDerivation. In this case cacheVer = timestamp,
-            # so we don't want to add both cacheVer and timestamp,
-            # and we need to add cacheDir and the release itself
-            special_cacheDirs = ['AtlasDerivation'] # Add more cases if necessary
-            if cacheDir in special_cacheDirs:
-                # strip any special cacheDirs from the release string, if present
-                for special_cacheDir in special_cacheDirs:
-                    if special_cacheDir in atlasRelease:
-                        tolog("Found special cacheDir=%s in release string: %s (will be removed)" % (special_cacheDir, atlasRelease)) # 19.1.X.Y-VAL-AtlasDerivation
-                        atlasRelease = atlasRelease.replace('-' + special_cacheDir, '')
-                        tolog("Release string updated: %s" % (atlasRelease))
-                # E.g. AtlasDerivation,19.1.X.Y-VAL,2016-11-29T2119,notest,here
-                options = cacheDir + "," + atlasRelease + "," + timestamp + ",notest,here"
-            else:
-                # correct an already set cacheVer if necessary
-                if cacheVer == timestamp:
-                    tolog("Found a cacheVer set to %s: resetting to atlasRelease=%s" % (cacheVer, atlasRelease))
-                    cacheVer = atlasRelease
-                options = cacheVer + "," + timestamp + ",notest,here"
-                tolog("Options: %s" % (options))
-        else:
-            asetup_path = "%s/cmtsite/asetup.sh" % (path)
-
-        # make sure that cmd doesn't start with 'source' if the asetup_path start with 'export', if so reset it (cmd and asetup_path will be added below)
-        if asetup_path.startswith('export'):
-            cmd = ""
-        elif source:
-            # add the source command (default), not wanted for installPyJobTransforms()
-            cmd = "source"
-        else:
-            cmd = ""
-
-        # HLT on AFS
-        if "AtlasP1HLT" in homePackage or "AtlasHLT" in homePackage:
-            try:
-                project, patch = self.getSplitHomePackage(homePackage) # ('AtlasP1HLT', '18.1.0.1')
-            except Exception, e:
-                tolog("!!WARNING!!1234!! Could not extract project and patch from %s" % (homePackage))
-            else:
-                tolog("Extracted %s, %s from homePackage=%s" % (patch, project, homePackage))
-                if os.environ.has_key('VO_ATLAS_RELEASE_DIR'):
-                    cmd = "export AtlasSetup=%s/../dist/AtlasSetup; " % readpar('appdir')
-                    options = "%s,%s,notest,afs" % (patch, project)
-                else:
-                    cmd = "export AtlasSetup=%s/AtlasSetup; " % (path)
-                    options = "%s,%s,notest" % (patch, project)
-                    #cmd = "source"
-                    #asetup_path = os.path.join(path, 'AtlasSetup/scripts/asetup.sh')
-                asetup_path = "source $AtlasSetup/scripts/asetup.sh"
-
-        # for HPC
-        if 'HPC_HPC' in readpar("catchall"):
-            quick_setup = "%s/setup-quick.sh" % (path)
-            tolog("quick setup path: %s" % quick_setup)
-            if os.path.exists(quick_setup):
-                cmd = "source %s" % (quick_setup)
-                asetup_path = ""
-                cmtconfig = cmtconfig + " --cmtextratags=ATLAS,useDBRelease "
-
-        return '%s %s %s --makeflags=\"$MAKEFLAGS\" --cmtconfig %s %s%s' % (cmd, asetup_path, options, cmtconfig, _input, tail)
+        return ','.join(asetup_opt)
 
     def extractNightliesTimestamp(self, homePackage):
         """ Extract the nightlies timestamp from the homePackage """
@@ -2969,78 +1868,28 @@ class ATLASExperiment(Experiment):
 
         return release
 
-    def getModernASetup(self, swbase=None):
+    def getModernASetup(self, swbase=None, asetup=True):
         """ Return the full modern setup for asetup """
+        # Only include the actual asetup script if asetup==True. This is not needed if the jobPars contain the payload command
+        # but the pilot still needs to added the exports and the atlasLocalSetup.
 
-        # Handle nightlies correctly, since these releases will have different initial paths
         path = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
+        cmd = ""
         if os.path.exists(path):
-            # Handle nightlies correctly, since these releases will have different initial paths
             cmd = "export ATLAS_LOCAL_ROOT_BASE=%s/ATLASLocalRootBase;" % (path)
             cmd += "source ${ATLAS_LOCAL_ROOT_BASE}/user/atlasLocalSetup.sh --quiet;"
-            cmd += "source $AtlasSetup/scripts/asetup.sh"
-
-            return cmd
+            if asetup:
+                cmd += "source $AtlasSetup/scripts/asetup.sh"
         else:
             appdir = readpar('appdir')
             if appdir == "":
                 if os.environ.has_key('VO_ATLAS_SW_DIR'):
                     appdir = os.environ['VO_ATLAS_SW_DIR']
             if appdir != "":
-                cmd = "source %s/scripts/asetup.sh" % appdir
-                return cmd
-        return ''
+                if asetup:
+                    cmd = "source %s/scripts/asetup.sh" % appdir
 
-    def verifySetupCommand(self, _setup_str):
-        """ Make sure the setup command exists """
-
-        ec = 0
-        pilotErrorDiag = ""
-
-        # remove any '-signs
-        _setup_str = _setup_str.replace("'", "")
-        tolog("Will verify: %s" % (_setup_str))
-
-        if _setup_str != "" and "source " in _setup_str:
-            # if a modern setup is used (i.e. a naked asetup instead of asetup.sh), then we need to verify that the entire setup string works
-            # and not just check the existance of the path (i.e. the modern setup is more complicated to test)
-            if self.getModernASetup() in _setup_str:
-                tolog("Modern asetup detected, need to verify entire setup (not just existance of path)")
-                tolog("Executing command: %s" % (_setup_str))
-                exitcode, output = timedCommand(_setup_str)
-                if exitcode != 0:
-                    pilotErrorDiag = output
-                    tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
-                    if "No such file or directory" in output:
-                        ec = self.__error.ERR_NOSUCHFILE
-                    elif "timed out" in output:
-                        ec = self.__error.ERR_COMMANDTIMEOUT
-                    else:
-                        ec = self.__error.ERR_SETUPFAILURE
-                else:
-                    tolog("Setup has been verified")
-            else:
-                # first extract the file paths from the source command(s)
-                setup_paths = extractFilePaths(_setup_str)
-
-                # only run test if string begins with an "/"
-                if setup_paths:
-                    # verify that the file paths actually exists
-                    for setup_path in setup_paths:
-                        if os.path.exists(setup_path):
-                            tolog("File %s has been verified" % (setup_path))
-                        else:
-                            pilotErrorDiag = "No such file or directory: %s" % (setup_path)
-                            tolog('!!WARNING!!2991!! %s' % (pilotErrorDiag))
-                            ec = self.__error.ERR_NOSUCHFILE
-                            break
-                else:
-                    # nothing left to test
-                    pass
-        else:
-            tolog("Nothing to verify in setup: %s (either empty string or no source command)" % (_setup_str))
-
-        return ec, pilotErrorDiag
+        return cmd
 
     # Optional
     def useTracingService(self):
@@ -3401,12 +2250,9 @@ class ATLASExperiment(Experiment):
         # default_cmtconfig = "x86_64-slc6-gcc49-opt"
         # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
         default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        # default_setup = "source %s/%s/%s/cmtsite/asetup.sh %s,notest" % (default_swbase, default_cmtconfig, default_release, default_patch_release)
         default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
                         "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" %\
                         (default_swbase, default_swbase, default_release)
-
-        # source /cvmfs/atlas.cern.ch/repo/sw/software/x86_64-slc6-gcc49-opt/20.7.5/cmtsite/asetup.sh 20.7.5.8,notest
 
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):
@@ -3419,7 +2265,7 @@ class ATLASExperiment(Experiment):
 
         # Could anything be extracted?
         #if homePackage == cacheVer: # (no)
-        if isAGreaterOrEqualToB(default_release, release) or default_release == release:  # or NG
+        if isAGreaterOrEqualToB(default_release, release) or default_release == release or release == "NULL":  # or NG
             # This means there is no patched release available, ie. we need to use the fallback
             useDefault = True
             tolog("%s >= %s" % (default_release, release))
@@ -3432,7 +2278,7 @@ class ATLASExperiment(Experiment):
             cmd = default_setup
         else:
             # get the standard setup
-            standard_setup = self.getProperASetup(default_swbase, release, homePackage, cmtconfig, cacheVer=cacheVer)
+            standard_setup = self.getModernASetup()
             _cmd = standard_setup + "; which MemoryMonitor"
             # Can the MemoryMonitor be found?
             try:

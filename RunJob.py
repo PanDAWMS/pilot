@@ -20,7 +20,7 @@ from json import loads
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getChecksumCommand, getSiteInformation,\
+from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getSiteInformation,\
      tailPilotErrorDiag, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
@@ -1064,7 +1064,7 @@ class RunJob(object):
 
         # get the file sizes and checksums for the local output files
         # WARNING: any errors are lost if occur in getOutputFileInfo()
-        ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(outFiles), getChecksumCommand(), skiplog=True, logFile=job.logFile)
+        ec, pilotErrorDiag, fsize, checksum = pUtil.getOutputFileInfo(list(outFiles), "adler32", skiplog=True, logFile=job.logFile)
         if ec != 0:
             tolog("!!FAILED!!2999!! %s" % (pilotErrorDiag))
             self.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
@@ -1457,8 +1457,6 @@ class RunJob(object):
 
         return tag_file, tag_file_guid
 
-    # (end event service methods) ................................................................................
-
     def extractEventRanges(self, message):
         """ Extract all event ranges from the server message """
 
@@ -1481,6 +1479,116 @@ class RunJob(object):
             status, output = commands.getstatusoutput(command)
             tolog("status: %s, output: %s\n" % (status, output))
 
+    # (end event service methods) ................................................................................
+
+    def handleAdditionalOutFiles(self, job, analysisJob):
+        """ Update output file lists in case there are additional output files in the jobReport """
+        # Note: only for production jobs
+
+        fromJSON = False
+        extracted_output_files, extracted_guids = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles, job.outFilesGuids)
+        if extracted_output_files != []:
+            tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
+
+            new_destinationDBlockToken = []
+            new_destinationDblock = []
+            new_scopeOut = []
+            try:
+                for f in extracted_output_files:
+                    _destinationDBlockToken, _destinationDblock, _scopeOut = getDestinationDBlockItems(f, job.outFiles, job.destinationDBlockToken, job.destinationDblock, job.scopeOut)
+                    new_destinationDBlockToken.append(_destinationDBlockToken)
+                    new_destinationDblock.append(_destinationDblock)
+                    new_scopeOut.append(_scopeOut)
+            except Exception, e:
+                tolog("!!WARNING!!3434!! Exception caught: %s" % (e))
+            else:
+                # Finally replace the output file lists
+                job.outFiles = extracted_output_files
+                job.destinationDblock = new_destinationDblock
+                job.destinationDBlockToken = new_destinationDBlockToken
+                job.scopeOut = new_scopeOut
+                tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
+                tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
+                tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
+                tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
+                if extracted_guids != []:
+                    fromJSON = True
+                    job.outFilesGuids = extracted_guids
+                    tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
+                else:
+                    tolog("Empty extracted guids list")
+
+        return job, fromJSON
+
+    def createArchives(self, output_files, zipmapString, workdir):
+        """ Create archives for the files in the zip map """
+        # The zip_map dictionary itself is also created and returned by this function
+        # Note that the files are not to be further compressed (already assumed to be compressed)
+
+        zip_map = None
+        archive_names = None
+
+        if zipmapString != "":
+            zip_map = job.populateZipMap(output_files, zipmapString)
+
+            # Zip the output files according to the zip map
+            import zipfile
+            cwd = os.getcwd()
+            os.chdir(job.workdir)
+            for archive in zip_map.keys():
+                tolog("Creating zip archive %s for files %s" % (archive, zip_map[archive]))
+                fname = os.path.join(workdir, archive)
+                zf = zipfile.ZipFile(fname, mode='w', compression=zipfile.ZIP_STORED) # zero compression
+                for content_file in zip_map[archive]:
+                    try:
+                        tolog("Adding %s to archive .." % (content_file))
+                        zf.write(content_file)
+                    except Exception, e:
+                        tolog("!!WARNING!!3333!! Failed to add file %s to archive - aborting: %s" % (content_file, e))
+                        zip_map = None
+                        break
+                if zf:
+                    zf.close()
+            os.chdir(cwd)
+            archive_names = zip_map.keys()
+
+        return zip_map, archive_names
+
+    def cleanupForZip(self, zip_map, archive_names, job, outs, outputFileInfo, datasetDict):
+        """ Remove redundant output files and update file lists """
+
+        for archive in archive_names:
+            # remove zipped output files from disk
+            file_indices = []
+            for filename in zip_map[archive]:
+                fname = os.path.join(job.workdir, filename)
+                try:
+                    os.remove("%s" % (fname))
+                except Exception,e:
+                    tolog("!!WARNING!!3000!! Failed to delete file %s: %s" % (fname, str(e)))
+                    pass
+
+                # find the list index for the file (we need to remove the related file info from several lists)
+                if filename in job.outFiles:
+                    # store the file index and remove the file from the outs list
+                    file_indices.append(job.outFiles.index(filename))
+                    outs.remove(filename)
+                else:
+                    tolog("!!WARNING!!3454!! Failed to locate file %s in outFiles list" % (filename))
+
+                # remove 'filename' key from dictionaries if it exists
+                dummy = outputFileInfo.pop(filename, None)
+                dummy = datasetDict.pop(filename, None)
+
+            # now remove the file from the related lists (in reverse order)
+            for index in reversed(file_indices):
+                del job.outFiles[index]
+                del job.outFilesGuids[index]
+                del job.destinationDblock[index]
+                del job.destinationDBlockToken[index]
+                del job.scopeOut[index]
+
+        return job, outs, outputFileInfo
 
 # main process starts here
 if __name__ == "__main__":
@@ -1609,6 +1717,13 @@ if __name__ == "__main__":
         job.setState([job.jobState, 0, 0])
         rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort())
 
+        # in case zipmaps will be used for the output files, save the zipmap string for later use and remove it from the jobPars
+        if "ZIP_MAP" in job.jobPars:
+            job.jobPars, zipmapString = job.removeZipMapString(job.jobPars)
+            tolog("Extracted zipmap string from jobPars: %s (removed from jobPars)" % (zipmapString))
+        else:
+            zipmapString = ""
+
         # prepare the setup and get the run command list
         ec, runCommandList, job, multi_trf = runJob.setup(job, jobSite, thisExperiment)
         if ec != 0:
@@ -1656,7 +1771,7 @@ if __name__ == "__main__":
         # remote_io modes have been changed to copy_to_scratch as can happen with ByteStream files)
         # and update the run command list if necessary.
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
-        # the run command should not contain the --oldPrefix, --newPrefix, --lfcHost options but use --usePFCTurl
+        # the run command should not contain the --oldPrefix, --newPrefix options but use --usePFCTurl
         hasInput = job.inFiles != ['']
         runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
 
@@ -1670,7 +1785,7 @@ if __name__ == "__main__":
 
         # Loop until the benchmark subprocess has finished
         if benchmark_subprocess:
-            max_count = 4
+            max_count = 6
             _sleep = 15
             count = 0
             while benchmark_subprocess.poll() is None:
@@ -1697,7 +1812,7 @@ if __name__ == "__main__":
 
         # run the job(s) ...................................................................................
 
-        # Set ATLAS_CONDDB if necessary, and other env vars
+        # set ATLAS_CONDDB if necessary, and other env vars
         RunJobUtilities.setEnvVars(jobSite.sitename)
 
         # execute the payload
@@ -1719,54 +1834,34 @@ if __name__ == "__main__":
         job.jobState = "stageout"
         _retjs = JR.updateJobStateTest(job, jobSite, node, mode="test")
 
-        # are there any additional output files created by the trf/payload?
-        fromJSON = False
-        extracted_output_files, extracted_guids = extractOutputFiles(analysisJob, job.workdir, job.allowNoOutput, job.outFiles, job.outFilesGuids)
-        if extracted_output_files != []:
-            tolog("Will update the output file lists since files were discovered in the job report (production job) or listed in allowNoOutput and do not exist (user job)")
+        # are there any additional output files created by the trf/payload? if so, the outut file list must be updated
+        job, fromJSON = runJob.handleAdditionalOutFiles(job, analysisJob)
 
-            new_destinationDBlockToken = []
-            new_destinationDblock = []
-            new_scopeOut = []
-            try:
-                for f in extracted_output_files:
-                    _destinationDBlockToken, _destinationDblock, _scopeOut = getDestinationDBlockItems(f, job.outFiles, job.destinationDBlockToken, job.destinationDblock, job.scopeOut)
-                    new_destinationDBlockToken.append(_destinationDBlockToken)
-                    new_destinationDblock.append(_destinationDblock)
-                    new_scopeOut.append(_scopeOut)
-            except Exception, e:
-                tolog("!!WARNING!!3434!! Exception caught: %s" % (e))
-            else:
-                # Finally replace the output file lists
-                job.outFiles = extracted_output_files
-                job.destinationDblock = new_destinationDblock
-                job.destinationDBlockToken = new_destinationDBlockToken
-                job.scopeOut = new_scopeOut
-                tolog("Updated: job.outFiles=%s" % str(extracted_output_files))
-                tolog("Updated: job.destinationDblock=%s" % str(job.destinationDblock))
-                tolog("Updated: job.destinationDBlockToken=%s" % str(job.destinationDBlockToken))
-                tolog("Updated: job.scopeOut=%s" % str(job.scopeOut))
-                if extracted_guids != []:
-                    fromJSON = True
-                    job.outFilesGuids = extracted_guids
-                    tolog("Updated: job.outFilesGuids=%s" % str(job.outFilesGuids))
-                else:
-                    tolog("Empty extracted guids list")
+        # should any output be zipped? if so, the zipmapString was previously set (otherwise the returned variables are set to None)
+        zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString, job.workdir)
+        if zip_map:
+            # Add the zip archives to the output file lists
+            job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
+
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
         if ec:
             # missing output file (only error code from prepareOutFiles)
             runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
+        tolog("outs=%s"%str(outs))
+        tolog("outsDict=%s"%str(outsDict))
 
         # update the current file states
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
         dumpFileStates(runJob.getParentWorkDir(), job.jobId)
-
+            
         # create xml string to pass to server
         outputFileInfo = {}
         if outs or (job.logFile and job.logFile != ''):
             # get the datasets for the output files
             dsname, datasetDict = runJob.getDatasets(job)
+
+            tolog("datasetDict=%s"%str(datasetDict))
 
             # re-create the metadata.xml file, putting guids of ALL output files into it.
             # output files that miss guids from the job itself will get guids in PFCxml function
@@ -1779,6 +1874,12 @@ if __name__ == "__main__":
             ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
             if ec:
                 runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
+
+            tolog("outputFileInfo=%s"%str(outputFileInfo))
+
+            # in case the output files have been zipped, it is now safe to remove them and update the outFiles list
+            if zip_map:
+                job, outs, outputFileInfo = runJob.cleanupForZip(zip_map, archive_names, job, outs, outputFileInfo, datasetDict)
 
         # move output files from workdir to local DDM area
         finalUpdateDone = False

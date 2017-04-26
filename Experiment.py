@@ -347,7 +347,6 @@ class Experiment(object):
         useCopyTool = False
         useFileStager = False
         useDirectAccess = False
-        lfcHost = readpar('lfchost')
         oldPrefix = ""
         newPrefix = ""
         dInfo = None
@@ -370,8 +369,6 @@ class Experiment(object):
             useCopyTool = False
             useFileStager = False
             useDirectAccess = True
-            if oldPrefix == "" and newPrefix == "":
-                lfcHost = ""
 
         # should pilot create TURL based PFC? (not done here, but setup needs to be aware of it)
         # if dInfo and useDirectAccess and oldPrefix == "" and newPrefix == "":
@@ -392,27 +389,7 @@ class Experiment(object):
             import re
             re.sub(r'\/xrootdsetup\.sh', '/xrootdsetup-dev.sh', copysetup)
 
-        return dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl, lfcHost
-
-    def getSetupFromCopysetup(self, copysetup):
-        """ Extract the setup file from copysetup """
-
-        # Remove the direct access info
-        if "^" in copysetup:
-            _copysetup = copysetup[:copysetup.find("^")]
-        else:
-            _copysetup = copysetup
-
-        # Does copysetup exist?
-        if _copysetup != "":
-            if os.path.exists(_copysetup):
-                tolog("Setup file exists: %s" % (_copysetup))
-            else:
-                tolog("!!WARNING!!2999!! Setup file does not exist: %s (reset to empty string)" % (_copysetup))
-        else:
-            tolog("No setup file in copysetup")
-
-        return _copysetup
+        return dInfo, useCopyTool, useDirectAccess, useFileStager, oldPrefix, newPrefix, copysetup, usePFCTurl
 
     def getGuidsFromJobPars(self, jobPars, inputFiles, inFilesGuids):
         """ Extract the correct guid from the input file list """
