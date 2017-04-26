@@ -756,7 +756,7 @@ class ATLASSiteInformation(SiteInformation):
         """ Build command to prepend the xrdcp command [xrdcp will in general not be known in a given site] """
 
         # Use the dev version of the XRootD setup if --useTestXRootD is set in job parameters
-        if hasattr(self, 'xrootd_test') and self.xrootd_test:
+        if os.environ.get("TestXRootD", 'True', 'False') == 'True' or hasattr(self, 'xrootd_test') and self.xrootd_test:
             cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup-dev.sh' % (self.getFileSystemRootPath())
         else:
             cmd = 'source %s/atlas.cern.ch/repo/sw/local/xrootdsetup.sh' % (self.getFileSystemRootPath())
