@@ -486,8 +486,6 @@ class Job:
         pUtil.tolog("Updated ddmEndPointLog=%s" % self.ddmEndPointLog)
 
         self.jobPars = data.get('jobPars', '')
-#        self.jobPars +=' --useTestASetup'
-#        self.jobPars +=' --useTestXRootD'
 #        self.jobPars = 'source $AtlasSetup/scripts/asetup.sh AtlasProduction,20.1.4.14,notest,here --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py --maxEvents=1 --inputHITSFile HITS.06828093._000096.pool.root.1 --outputRDOFile RDO_111.root'
 # PN
         _noExecStrCnv = data.get('noExecStrCnv', None)
@@ -678,7 +676,7 @@ class Job:
                     # Handle wildcards
                     if "*" in file_name:
                         # Construct the wildcards pattern using the known file name
-                        compiled_wildcard_pattern = re.compile(file_name.replace('*','[^\s]*'))
+                        compiled_wildcard_pattern = re.compile(file_name) #re.compile(file_name.replace('*','[^\s]*'))
 
                         # Find the corresponding files from the outFiles list
                         for outFile in outFiles:

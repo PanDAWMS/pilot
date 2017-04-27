@@ -411,6 +411,9 @@ ZIP_MAP support:
 - Created addArchivesToOutput() to update output file info for archives (Job)
 - Created createArchives() used with ZIP_MAP info (RunJob)
 
+Singularity support:
+- Created new module (Singularity)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:

@@ -367,6 +367,13 @@ class ATLASExperiment(Experiment):
         else:
             tolog("ALRB_asetupVersion is not set")
 
+        si = getSiteInformation(self.__experiment)
+        x=si.getLocalROOTSetup()
+        tolog("getLocalROOTSetup=%s"%(x))
+
+        # Wrap the job execution command with Singularity if necessary
+        from Singularity import singularityWrapper
+        cmd = singularityWrapper(cmd, cmtconfig)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
         return 0, pilotErrorDiag, cmd, special_setup_cmd, JEM, cmtconfig
