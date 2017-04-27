@@ -385,7 +385,7 @@ class Experiment(object):
             oldPrefix = ""
             newPrefix = ""
 
-        if os.environ.get("TestXRootD", 'True', 'False') == 'True':
+        if os.environ.get("TestXRootD", 'False') == 'True':
             import re
             re.sub(r'\/xrootdsetup\.sh', '/xrootdsetup-dev.sh', copysetup)
 
