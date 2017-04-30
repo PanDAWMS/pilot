@@ -1557,11 +1557,13 @@ class RunJobEvent(RunJob):
                 associate_storages = self.__siteInfo.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
                 esDDMEndpoints = associate_storages.get(activity, [])
                 if esDDMEndpoints:
+                    tolog("[stage-out-os] found associated storages %s with activity: %s" % (esDDMEndpoints, activity))
                     self.__stageOutDDMEndpoint = esDDMEndpoints[0]
                     self.__stageOutObjectstoreId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
                 else:
                     return PilotErrors.ERR_NOSTORAGE, "Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue(os_ddms:%s) nor associate es_events activity storage" % (os_ddms), None
 
+            tolog("[stage-out-os] ddmendpoints %s,  objectstoreId %s with activity %s" % (self.__stageOutDDMEndpoint, self.__stageOutObjectstoreId, activity))
             protocols = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('rprotocols', {})
             access_key = None
             secret_key = None
