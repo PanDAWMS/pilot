@@ -166,7 +166,7 @@ class JobMover(object):
                 fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
         # consider only normal ddmendpoints
-        xfiles = [e for e in files if not e.objectstoreId]
+        xfiles = [e for e in files if e.objectstoreId is None]
 
         if not xfiles:
             return files
@@ -181,6 +181,13 @@ class JobMover(object):
         # Get the replica list
         try:
             replicas = c.list_replicas(dids, schemes=schemes)
+            result = []
+            for rep in replicas:
+                if 'SFU-LCG2_DATADISK' in rep['rses']:
+                    del rep['rses']['SFU-LCG2_DATADISK']
+                result.append(rep)
+            replicas = result
+            self.log("replicas got from rucio: %s" % replicas)
         except Exception, e:
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
@@ -189,6 +196,7 @@ class JobMover(object):
         for r in replicas:
             k = r['scope'], r['name']
             fdat = files_lfn.get(k)
+            self.log("fdat %s" % fdat)
             if not fdat: # not requested replica returned?
                 continue
             fdat.replicas = [] # reset replicas list
@@ -204,6 +212,22 @@ class JobMover(object):
                     ddm_path += 'rucio/'
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+
+            self.log("fdat.replicas: %s" % fdat.replicas)
+            self.log("fdat.allowRemoteInputs: %s" % fdat.allowRemoteInputs)
+            self.log(not fdat.replicas and fdat.allowRemoteInputs)
+            if not fdat.replicas and fdat.allowRemoteInputs:
+                self.log("No local replicas(%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
+                for ddm in r['rses']:
+                    ddm_se = self.ddmconf[ddm].get('se', '')
+                    ddm_path = self.ddmconf[ddm].get('endpoint', '')
+                    if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
+                        if ddm_path[-1] != '/':
+                            ddm_path += '/'
+                        ddm_path += 'rucio/'
+
+                    fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
             cc_ad = 'ad:%s' % r['adler32']
@@ -214,6 +238,7 @@ class JobMover(object):
             # update filesize & checksum info from Rucio?
             # TODO
 
+        self.log(files)
         return files
 
     def is_directaccess(self):
@@ -298,6 +323,7 @@ class JobMover(object):
         """
 
         files = self.job.inData
+        self.log("To stagein files: %s" % files)
 
         normal_files, es_files = [], []
         transferred_files, failed_transfers = [], []
@@ -318,10 +344,24 @@ class JobMover(object):
                 fspec.ddmendpoint = os_ddms.get(fspec.objectstoreId)
                 self.get_objectstore_keys(fspec.ddmendpoint)
                 es_files.append(fspec)
-            elif fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit() and int(fspec.prodDBlockToken) == -1:
-                # es outputs in normal RSEs (not in objectstore)
+            elif fspec.prodDBlockToken and fspec.prodDBlockToken.strip() == '-1':
+                # es outputs in normal RSEs (not in objectstore) but not registered in rucio
                 fspec.allowRemoteInputs = True
-                normal_files.append(fspec)
+                fspec.objectstoreId = -1
+                activity = 'es_events_read'
+                self.log("[stage-in] looking for associated storages with activity: %s" % (activity))
+                pandaqueue = self.si.getQueueName()
+                associate_storages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+                esDDMEndpoints = associate_storages.get(activity, [])
+                if esDDMEndpoints:
+                    tolog("[stage-in] found associated storages %s with activity: %s" % (esDDMEndpoints, activity))
+                    fspec.ddmendpoint = esDDMEndpoints[0]
+                es_files.append(fspec)
+            elif fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit() and int(fspec.prodDBlockToken) == 0:
+                # es outputs in normal RSEs (not in objectstore) and registered in rucio
+                fspec.allowRemoteInputs = True
+                fspec.objectstoreId = None  # resolve replicas needs to be called for it
+                es_files.append(fspec)
             else:
                 normal_files.append(fspec)
 
@@ -337,7 +377,7 @@ class JobMover(object):
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
             self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events', copytools=copytools)
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools)
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
@@ -914,7 +954,7 @@ class JobMover(object):
                     dat['copytools'] = cdat
 
                 if not dat['copytools']:
-                    msg = 'FAILED to resolve final copytools settings for ddmendpoint=%s, please check schedconf.copytools settings: copytools=%s, iprotocols=' % list(ddmendpoint, copytools, iprotocols)
+                    msg = 'FAILED to resolve final copytools settings for ddmendpoint=%s, please check schedconf.copytools settings: copytools=%s, iprotocols=%s' % (ddmendpoint, copytools, iprotocols)
                     self.log(msg)
                     raise PilotException(msg, code=PilotErrors.ERR_NOSTORAGE, state="NO_COPYTOOLS")
 
