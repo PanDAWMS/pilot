@@ -183,8 +183,6 @@ class JobMover(object):
             replicas = c.list_replicas(dids, schemes=schemes)
             result = []
             for rep in replicas:
-                if 'SFU-LCG2_DATADISK' in rep['rses']:
-                    del rep['rses']['SFU-LCG2_DATADISK']
                 result.append(rep)
             replicas = result
             self.log("replicas got from rucio: %s" % replicas)
@@ -196,7 +194,6 @@ class JobMover(object):
         for r in replicas:
             k = r['scope'], r['name']
             fdat = files_lfn.get(k)
-            self.log("fdat %s" % fdat)
             if not fdat: # not requested replica returned?
                 continue
             fdat.replicas = [] # reset replicas list
@@ -213,9 +210,6 @@ class JobMover(object):
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
-            self.log("fdat.replicas: %s" % fdat.replicas)
-            self.log("fdat.allowRemoteInputs: %s" % fdat.allowRemoteInputs)
-            self.log(not fdat.replicas and fdat.allowRemoteInputs)
             if not fdat.replicas and fdat.allowRemoteInputs:
                 self.log("No local replicas(%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
                 for ddm in r['rses']:
@@ -238,7 +232,6 @@ class JobMover(object):
             # update filesize & checksum info from Rucio?
             # TODO
 
-        self.log(files)
         return files
 
     def is_directaccess(self):

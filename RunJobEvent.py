@@ -1549,7 +1549,7 @@ class RunJobEvent(RunJob):
 
             tolog("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
 
-            if False: #if osddms:
+            if osddms:
                 self.__stageOutDDMEndpoint = osddms[0]
                 self.__stageOutObjectstoreId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
             else:
