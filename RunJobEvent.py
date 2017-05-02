@@ -1202,6 +1202,7 @@ class RunJobEvent(RunJob):
                     if 'zip_time_gap' in catchall:
                         name, value = catchall.split('=')
                         self.__asyncOutputStager_thread_sleep_time = int(value)
+            tolog("Sleep time between staging out: %s" % self.__asyncOutputStager_thread_sleep_time)
         except:
             tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
 
