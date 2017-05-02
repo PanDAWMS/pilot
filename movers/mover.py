@@ -155,6 +155,8 @@ class JobMover(object):
                 #fdat.inputddms = [fdat.ddmendpoint]         ### is it used for OS?
                 pass
             else:
+                if fdat.objectstoreId == 0:
+                    fdat.objectstoreId = None
                 # build and order list of local ddms
                 ddmdat = self.ddmconf.get(fdat.ddmendpoint)
                 if not ddmdat:
