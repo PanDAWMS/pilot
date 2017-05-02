@@ -1324,6 +1324,22 @@ class SiteMover(object):
             return '%s/%s/%s/%s/%s/%s' % (bpath, project, dataset_type, tag, stripped_dsn, lfn)
     to_native_lfn = staticmethod(to_native_lfn)
 
+    def calc_adler32(file_name):
+        """ calculate the checksum for a file with the zlib.adler32 algorithm """
+
+        val = 1
+        blockSize = 32 * 1024 * 1024
+        with open(file_name) as fp:
+            while True:
+                data = fp.read(blockSize)
+                if not data:
+                    break
+                val = zlib.adler32(data, val)
+        if val < 0:
+            val += 2 ** 32
+        return hex(val)[2:10].zfill(8).lower()
+    calc_adler32 = staticmethod(calc_adler32)
+
     def adler32(filename):
         """ calculate the checksum for a file with the zlib.adler32 algorithm """
         # note: a failed file open will return '1'
