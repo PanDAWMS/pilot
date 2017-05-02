@@ -807,10 +807,17 @@ class JobMover(object):
 
         self.log("[stage-outlog-special] [%s] resolved os_ddms=%s => logs=%s" % (activity, os_ddms, osddms))
 
-        if not osddms:
-            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
-
-        ddmendpoint = osddms[0]
+        if osddms:
+            ddmendpoint = osddms[0]
+        else:
+            self.log("[stage-outlog-special] no osddms defined, looking for associated storages with activity: %s" % (activity))
+            associate_storages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+            esDDMEndpoints = associate_storages.get(activity, [])
+            if esDDMEndpoints:
+                self.log("[stage-outlog-special] found associated storages %s with activity: %s" % (esDDMEndpoints, activity))
+                ddmendpoint = esDDMEndpoints[0]
+            else:
+                raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
 
         self.get_objectstore_keys(ddmendpoint)
 
