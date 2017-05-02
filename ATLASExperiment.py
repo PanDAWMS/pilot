@@ -245,7 +245,6 @@ class ATLASExperiment(Experiment):
                 asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
 
                 cmd += asetup_options
-            tolog("1. cmd = %s" % cmd)
 
             if analysisJob:
                 # Set the INDS env variable (used by runAthena)
@@ -366,10 +365,6 @@ class ATLASExperiment(Experiment):
             tolog("ALRB_asetupVersion is set to %s" % ver)
         else:
             tolog("ALRB_asetupVersion is not set")
-
-        si = getSiteInformation(self.__experiment)
-        x=si.getLocalROOTSetup()
-        tolog("getLocalROOTSetup=%s"%(x))
 
         # Wrap the job execution command with Singularity if necessary
         from Singularity import singularityWrapper
@@ -2285,7 +2280,10 @@ class ATLASExperiment(Experiment):
             cmd = default_setup
         else:
             # get the standard setup
-            standard_setup = self.getModernASetup()
+            options = self.getASetupOptions(release, homePackage)
+            asetup_options = " " + options + " --platform " + cmtconfig
+            standard_setup = self.getModernASetup() + asetup_options
+
             _cmd = standard_setup + "; which MemoryMonitor"
             # Can the MemoryMonitor be found?
             try:

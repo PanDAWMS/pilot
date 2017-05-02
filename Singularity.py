@@ -9,11 +9,12 @@ def extractSingularityOptions():
 
     # e.g. catchall = "somestuff singularity_options=\'-B /etc/grid-security/certificates,/var/spool/slurmd,/cvmfs,/ceph/grid,/data0,/sys/fs/cgroup\'"
     catchall = readpar("catchall")
-    pattern = re.compile(r" singularity\_options\=\'?\"?(.+)\'?\"?")
+    tolog("catchall: %s" % catchall)
+    pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
     found = re.findall(pattern, catchall)
     if len(found) > 0:
         singularity_options = found[0]
-        if singularity_options.endswith("'"):
+        if singularity_options.endswith("'") or singularity_options.endswith('"'):
             singularity_options = singularity_options[:-1]
     else:
         singularity_options = ""
@@ -28,6 +29,10 @@ def getFileSystemRootPath(experiment):
 
 def getGridImageForSingularity(platform, experiment):
     """ Return the full path to the singularity grid image """
+
+    if not platform or platform == "":
+        platform = "x86_64-slc6"
+        tolog("!!WARNING!!3333!! Using default platform=%s (cmtconfig not set)" % (platform))
 
     image = platform + ".img"
     path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/images/singularity")
@@ -48,13 +53,14 @@ def singularityWrapper(cmd, platform, experiment="ATLAS"):
         # Does the image exist?
         if os.path.exists(image_path):
             # Prepend it to the given command
-            cmd = "singularity exec " + singularity_options + " " + image_path + " " + cmd
+            cmd = "singularity exec " + singularity_options + " " + image_path + " \'" + cmd + "\'"
         else:
             tolog("!!WARNING!!4444!! Singularity options found but image does not exist: %s" % (image_path))
     else:
         # Return the original command as it was
-        pass
-
+        tolog("No singularity options found in catchall field")
+#        pass
+    tolog("Singularity check: Using command %s" % (cmd))
     return cmd
 
 if __name__ == "__main__":

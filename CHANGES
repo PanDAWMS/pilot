@@ -401,6 +401,9 @@ General changes:
 - Removed deprecated use of file stager variables in getAnalysisRunCommand() (ATLASExperiment)
 - Removed deprecated lfchost in updateRunCommandList() (RunJobUtilities)
 
+Memory monitoring
+- Fixed missing asetup options for releases > 21.0.18 in getUtilityCommand() (ATLASExperiment)
+
 jobPars based payload setup:
 - Added noExecStrCnv (Job)
 - Added asetup boolean to getModernASetup() (ATLASExperiment)
