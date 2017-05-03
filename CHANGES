@@ -418,6 +418,74 @@ ZIP_MAP support:
 Singularity support:
 - Created new module (Singularity)
 
+Updates from D. Drizhuk:
+
+  https://github.com/PanDAWMS/pilot/pull/129
+
+Commit Summary
+
+Fix for https://its.cern.ch/jira/browse/ATLASPANDA-322?focusedCommentId=1413036&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1413036
+Fix for https://its.cern.ch/jira/browse/ATLASPANDA-322?focusedCommentId=1413036&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1413036
+One more param
+
+File Changes
+
+M ATLASExperiment.py (7)
+M ATLASSiteInformation.py (2)
+M Experiment.py (4)
+M SiteInformation.py (13)
+
+  https://github.com/PanDAWMS/pilot/pull/130
+
+Commit Summary
+
+Fix for https://github.com/PanDAWMS/pilot/pull/129#issuecomment-297464358
+
+File Changes
+
+M ATLASSiteInformation.py (2)
+M Experiment.py (2)
+
+Updates from W. Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/131
+
+Commit Summary
+
+1) allowRemoteInputs,
+   When a site's storage is in down time, if this option is set, the site can still run es jobs which will get inputs files from other sites(based on rucio to select the sites). Before we did an es test when bnl dcache was in down time, the test failed because we were not allowed to get remote inputs files.
+
+2) normalize objectstore as normal RSE.
+In the new mover structure, objectstore is not a special storage anymore. With this patch, we can update agis to define es output/logs storages. I already tested it to run both es jobs and es merge jobs.
+
+1. add allowRemoteInputs. If it's set, pilot will check local replicas at first. If there is no local replica, pilot will read/download remote replicas.
+2. enable to use activity for es outputs.
+pilot was designed to use special functions to call objectstores in es jobs. new updates make pilot be able to use activity in agis to use storages more than objectstores and different copytools.
+3. fix mover part to be able to merge es files from normal storages.
+4. fix objectstore sitemover to be able to generate surl for files which are in normal grid storages but not registered in rucio.
+
+to avoid calling stageout function two times
+add allowRemoteInputs option
+update activity pes to es_events
+fix mover to support allowRemoteInputs and normal RSE as es storage
+update objectstore sitemover to support normal rse
+normalize os as normal rse
+add log when using associating storages
+fix issues in normalizing objectstore as normal RSE
+removing test logs
+add log
+fix stagout log part
+fix objectstoreId when file is registerred
+
+File Changes
+
+M Job.py (11)
+M Mover.py (2)
+M RunJobEvent.py (75)
+M RunJobHpcEvent.py (5)
+M movers/mover.py (70)
+M movers/objectstore_sitemover.py (53)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
