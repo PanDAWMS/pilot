@@ -217,7 +217,7 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
             copytools = [('objectstore', {'setup': ''})]
         else:
             copytools = None
-        transferred_files, failed_transfers = mover.stageout(activity="pes", files=files, copytools=copytools)
+        transferred_files, failed_transfers = mover.stageout(activity="es_events", files=files, copytools=copytools)
     except PilotException, e:
         error = e
     except Exception, e:

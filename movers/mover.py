@@ -149,11 +149,14 @@ class JobMover(object):
             ddms.setdefault(dat['site'], []).append(dat)
 
         for fdat in files:
-            if fdat.objectstoreId:# skip OS ddms
+            if fdat.objectstoreId and fdat.objectstoreId > 0:
+                # skip OS ddms, objectstoreId -1 means normal RSE
                 #self.log("fdat.objectstoreId: %s" % fdat.objectstoreId)
                 #fdat.inputddms = [fdat.ddmendpoint]         ### is it used for OS?
                 pass
             else:
+                if fdat.objectstoreId == 0:
+                    fdat.objectstoreId = None
                 # build and order list of local ddms
                 ddmdat = self.ddmconf.get(fdat.ddmendpoint)
                 if not ddmdat:
@@ -165,7 +168,7 @@ class JobMover(object):
                 fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
         # consider only normal ddmendpoints
-        xfiles = [e for e in files if not e.objectstoreId]
+        xfiles = [e for e in files if e.objectstoreId is None]
 
         if not xfiles:
             return files
@@ -180,6 +183,11 @@ class JobMover(object):
         # Get the replica list
         try:
             replicas = c.list_replicas(dids, schemes=schemes)
+            result = []
+            for rep in replicas:
+                result.append(rep)
+            replicas = result
+            self.log("replicas got from rucio: %s" % replicas)
         except Exception, e:
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
@@ -203,6 +211,19 @@ class JobMover(object):
                     ddm_path += 'rucio/'
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+
+            if not fdat.replicas and fdat.allowRemoteInputs:
+                self.log("No local replicas(%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
+                for ddm in r['rses']:
+                    ddm_se = self.ddmconf[ddm].get('se', '')
+                    ddm_path = self.ddmconf[ddm].get('endpoint', '')
+                    if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
+                        if ddm_path[-1] != '/':
+                            ddm_path += '/'
+                        ddm_path += 'rucio/'
+
+                    fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
             cc_ad = 'ad:%s' % r['adler32']
@@ -297,6 +318,7 @@ class JobMover(object):
         """
 
         files = self.job.inData
+        self.log("To stagein files: %s" % files)
 
         normal_files, es_files = [], []
         transferred_files, failed_transfers = [], []
@@ -317,6 +339,24 @@ class JobMover(object):
                 fspec.ddmendpoint = os_ddms.get(fspec.objectstoreId)
                 self.get_objectstore_keys(fspec.ddmendpoint)
                 es_files.append(fspec)
+            elif fspec.prodDBlockToken and fspec.prodDBlockToken.strip() == '-1':
+                # es outputs in normal RSEs (not in objectstore) but not registered in rucio
+                fspec.allowRemoteInputs = True
+                fspec.objectstoreId = -1
+                activity = 'es_events_read'
+                self.log("[stage-in] looking for associated storages with activity: %s" % (activity))
+                pandaqueue = self.si.getQueueName()
+                associate_storages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+                esDDMEndpoints = associate_storages.get(activity, [])
+                if esDDMEndpoints:
+                    tolog("[stage-in] found associated storages %s with activity: %s" % (esDDMEndpoints, activity))
+                    fspec.ddmendpoint = esDDMEndpoints[0]
+                es_files.append(fspec)
+            elif fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit() and int(fspec.prodDBlockToken) == 0:
+                # es outputs in normal RSEs (not in objectstore) and registered in rucio
+                fspec.allowRemoteInputs = True
+                fspec.objectstoreId = None  # resolve replicas needs to be called for it
+                es_files.append(fspec)
             else:
                 normal_files.append(fspec)
 
@@ -332,7 +372,7 @@ class JobMover(object):
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
             self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='per', copytools=copytools)
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools)
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
@@ -494,8 +534,11 @@ class JobMover(object):
                     replica_site = self.ddmconf.get(fdata.ddmendpoint, {}).get('site')
 
                     if protocol_site != replica_site:
-                        self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched .. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
-                        continue
+                        if fdata.allowRemoteInputs is None or not fdata.allowRemoteInputs:
+                            self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched and remote inputs is not allowed.. skip file processing for copytool=%s' % (protocol_site, replica_site, copytool))
+                            continue
+                        else:
+                            self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched but remote inputs is allowed.. keep processing for copytool=%s' % (protocol_site, replica_site, copytool))
 
                 # fill trace details
                 self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
@@ -767,10 +810,17 @@ class JobMover(object):
 
         self.log("[stage-outlog-special] [%s] resolved os_ddms=%s => logs=%s" % (activity, os_ddms, osddms))
 
-        if not osddms:
-            raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
-
-        ddmendpoint = osddms[0]
+        if osddms:
+            ddmendpoint = osddms[0]
+        else:
+            self.log("[stage-outlog-special] no osddms defined, looking for associated storages with activity: %s" % (activity))
+            associate_storages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+            esDDMEndpoints = associate_storages.get(activity, [])
+            if esDDMEndpoints:
+                self.log("[stage-outlog-special] found associated storages %s with activity: %s" % (esDDMEndpoints, activity))
+                ddmendpoint = esDDMEndpoints[0]
+            else:
+                raise PilotException("Failed to stage-out logs to OS: no OS_LOGS ddmendpoint attached to the queue, os_ddms=%s" % (os_ddms), code=PilotErrors.ERR_NOSTORAGE, state='NO_OS_DEFINED')
 
         self.get_objectstore_keys(ddmendpoint)
 
@@ -907,7 +957,7 @@ class JobMover(object):
                     dat['copytools'] = cdat
 
                 if not dat['copytools']:
-                    msg = 'FAILED to resolve final copytools settings for ddmendpoint=%s, please check schedconf.copytools settings: copytools=%s, iprotocols=' % list(ddmendpoint, copytools, iprotocols)
+                    msg = 'FAILED to resolve final copytools settings for ddmendpoint=%s, please check schedconf.copytools settings: copytools=%s, iprotocols=%s' % (ddmendpoint, copytools, iprotocols)
                     self.log(msg)
                     raise PilotException(msg, code=PilotErrors.ERR_NOSTORAGE, state="NO_COPYTOOLS")
 
