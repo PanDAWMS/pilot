@@ -375,6 +375,9 @@ M Mover.py (4)
 68.3
 
 Memory Monitoring:
+- Fixed missing asetup options for releases > 21.0.18 in getUtilityCommand() (ATLASExperiment)
+- Now using getModernASetup() also for the default setup in getUtilityCommand() (ATLASExperiment)
+- Updated default release from 21.0.18 to 21.0.22 which addresses a recently discovered bug in the memory monitor, getUtilityCommand() (ATLASExperiment)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
