@@ -488,6 +488,17 @@ M RunJobHpcEvent.py (5)
 M movers/mover.py (70)
 M movers/objectstore_sitemover.py (53)
 
+  https://github.com/PanDAWMS/pilot/pull/132
+
+Commit Summary
+
+patch to support new file related event position since Athena 21.0.21
+
+File Changes
+
+M Job.py (9)
+M RunJobEvent.py (32)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
