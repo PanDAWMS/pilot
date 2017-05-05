@@ -776,11 +776,11 @@ class Job:
 
     def get_input_files(self):
         files = {}
-        for file in self.inData:
-            if file.status in ['remote_io']:
-                files["%s:%s" % (file.scope, file.lfn)] = file.turl
-            if file.status in ['transferred']:
-                files["%s:%s" % (file.scope, file.lfn)] = os.path.join(self.workdir or '', file.lfn)
+        for f in self.inData:
+            if f.status in ['remote_io']:
+                files["%s:%s" % (f.scope, f.lfn)] = f.turl
+            if f.status in ['transferred']:
+                files["%s:%s" % (f.scope, f.lfn)] = os.path.join(self.workdir or '', f.lfn)
         return files
 
     def print_files(self, files): # quick stub to be checked later
