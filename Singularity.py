@@ -73,7 +73,7 @@ def singularityWrapper(cmd, platform, experiment="ATLAS"):
         # Does the image exist?
         if os.path.exists(image_path):
             # Prepend it to the given command
-            cmd = "singularity exec " + singularity_options + " " + image_path + " \'" + cmd.replace("\'","\\'").replace('\"','\\"') + "\'"
+            cmd = "singularity exec " + singularity_options + " " + image_path + " /bin/bash -c \'" + cmd.replace("\'","\\'").replace('\"','\\"') + "\'"
         else:
             tolog("!!WARNING!!4444!! Singularity options found but image does not exist: %s" % (image_path))
     else:
