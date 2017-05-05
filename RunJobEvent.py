@@ -127,6 +127,9 @@ class RunJobEvent(RunJob):
     # allow read/download remote inputs if closest RSE is in downtime
     __allow_remote_inputs = False
 
+    # input files
+    __input_files = {}
+
     # Getter and setter methods
 
     def getNEvents(self):
@@ -803,6 +806,28 @@ class RunJobEvent(RunJob):
             self.__guid_list.append(guid)
         for lfn in self.__job.inFiles:
             self.__lfn_list.append(lfn)
+
+    def init_input_files(self, job):
+        """ Init input files list"""
+        self.__input_files = job.get_input_files()
+
+    def add_input_file(self, scope, name, pfn):
+        """ Add a file to input files """
+        self.__input_files['%s:%s' % (scope, name)] = pfn
+
+    def get_input_files(self):
+        return self.__input_files
+
+    def adaptEventRanges(self, eventRanges):
+        """ If an event range is file related, add pfn to the event range"""
+        for eventRange in eventRanges:
+            if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true'):
+                key = '%s:%s' % (eventRange['scope'], eventRange['lfn'])
+                if key in self.__input_files:
+                    eventRange['pfn'] = self.__input_files[key]
+                else:
+                    eventRange['pfn'] = 'file_is_not_staged_in'
+        return eventRanges
 
     def setAsyncOutputStagerSleepTime(self, sleep_time=600):
         self.__asyncOutputStager_thread_sleep_time = sleep_time
@@ -3007,6 +3032,10 @@ if __name__ == "__main__":
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 
+        # stagein successfully
+        # init the intput files dictionary
+        runJob.init_input_files(job)
+
         # Already staged in files should be in the guid list and lfn list
         runJob.init_guid_list()
 
@@ -3299,6 +3328,9 @@ if __name__ == "__main__":
                     tolog("No more events")
                     runJob.sendMessage("No more events")
                     break
+
+                # if event range is file related position, add pfn to it
+                event_ranges = runJob.adaptEventRanges(event_ranges)
 
                 # Update the token extractor file list and keep track of added guids to the file list (not needed for Event Index)
                 if not runJob.useEventIndex():

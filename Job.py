@@ -774,6 +774,15 @@ class Job:
 
         pUtil.tolog(msg + '\n' + output)
 
+    def get_input_files(self):
+        files = {}
+        for file in self.inData:
+            if file.status in ['remote_io']:
+                files["%s:%s" % (file.scope, file.lfn)] = file.turl
+            if file.status in ['transferred']:
+                files["%s:%s" % (file.scope, file.lfn)] = os.path.join(self.workdir or '', file.lfn)
+        return files
+
     def print_files(self, files): # quick stub to be checked later
 
         ifiles = [os.path.join(self.workdir or '', e.lfn) for e in files]
