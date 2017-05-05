@@ -2247,14 +2247,18 @@ class ATLASExperiment(Experiment):
         workdir = argdict.get('workdir', '.')
         interval = 60
 
-        default_release = "21.0.18" #"21.0.17" #"20.7.5" #"20.1.5"
+        default_release = "21.0.22" #"21.0.18" #"21.0.17" #"20.7.5" #"20.1.5"
         # default_patch_release = "20.7.5.8" #"20.1.5.2" #"20.1.4.1"
         # default_cmtconfig = "x86_64-slc6-gcc49-opt"
         # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
         default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
-                        "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" %\
-                        (default_swbase, default_swbase, default_release)
+        # default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
+        #                 "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" %\
+        #                 (default_swbase, default_swbase, default_release)
+        # default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
+        #                 "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh Athena,%s" %\
+        #                 (default_swbase, default_swbase, default_release)
+        default_setup = self.getModernASetup() + " Athena," + default_release
 
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):
