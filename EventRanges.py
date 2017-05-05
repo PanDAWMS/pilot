@@ -55,7 +55,7 @@ def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10, url="https://pand
     return None
 
 def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', os_bucket_id=-1, errorCode=None):
-    """ Update an list of event ranges on the Event Server """
+    """ Update an event range on the server """
 
     try:
         tolog("Updating an event range..")
@@ -79,7 +79,8 @@ def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', o
     return None
 
 def updateEventRanges(event_ranges, url="https://pandaserver.cern.ch:25443/server/panda", version=0):
-    """ Update an event range on the Event Server """
+    """ Update a list of event ranges on the server """
+
     tolog("Updating event ranges..")
 
     try:

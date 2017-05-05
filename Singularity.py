@@ -27,6 +27,23 @@ def getFileSystemRootPath(experiment):
     e = getExperiment(experiment)
     return e.getCVMFSPath()
 
+def extractPlatformAndOS(platform):
+    """ Extract the platform and OS substring from platform """
+    # platform = "x86_64-slc6-gcc48-opt"
+    # return "x86_64-slc6"
+    # In case of failure, return the full platform
+
+    pattern = r"([A-Za-z0-9_-]+)-.+-.+"
+    a = re.findall(re.compile(pattern), platform)
+
+    if len(a) > 0:
+        ret = a[0]
+    else:
+        tolog("!!WARNING!!7777!! Could not extract architecture and OS substring using pattern=%s from platform=%s (will use %s for image name)" % (pattern, platform, platform))
+        ret = platform
+
+    return ret
+
 def getGridImageForSingularity(platform, experiment):
     """ Return the full path to the singularity grid image """
 
@@ -34,7 +51,10 @@ def getGridImageForSingularity(platform, experiment):
         platform = "x86_64-slc6"
         tolog("!!WARNING!!3333!! Using default platform=%s (cmtconfig not set)" % (platform))
 
-    image = platform + ".img"
+    arch_and_os = extractPlatformAndOS(platform)
+    image = arch_and_os + ".img"
+    tolog("Constructed image name %s from %s" % (image, platform))
+
     path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/images/singularity")
     return os.path.join(path, image)
 
