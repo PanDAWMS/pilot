@@ -8,7 +8,7 @@ def extractSingularityOptions():
     """ Extract any singularity options from catchall """
 
     # e.g. catchall = "somestuff singularity_options=\'-B /etc/grid-security/certificates,/var/spool/slurmd,/cvmfs,/ceph/grid,/data0,/sys/fs/cgroup\'"
-    catchall = readpar("catchall")
+    catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir}:/scratch --contain\'" #readpar("catchall")
     tolog("catchall: %s" % catchall)
     pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
     found = re.findall(pattern, catchall)
@@ -73,7 +73,7 @@ def singularityWrapper(cmd, platform, experiment="ATLAS"):
         # Does the image exist?
         if os.path.exists(image_path):
             # Prepend it to the given command
-            cmd = "singularity exec " + singularity_options + " " + image_path + " /bin/bash -c \'" + cmd.replace("\'","\\'").replace('\"','\\"') + "\'"
+            cmd = "singularity exec " + singularity_options + " " + image_path + " /bin/bash -c \'cd /scratch;" + cmd.replace("\'","\\'").replace('\"','\\"') + "\'"
         else:
             tolog("!!WARNING!!4444!! Singularity options found but image does not exist: %s" % (image_path))
     else:
