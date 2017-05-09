@@ -1325,6 +1325,13 @@ class RunJobHpcEvent(RunJob):
                 eventstatusFile = str(job.jobId) + "_event_status.dump.zipped"
                 tolog("Copying dump file %s to %s" % (eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile))))
                 shutil.copyfile(eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile)))
+
+                jobMetricsFileName = "jobMetrics-yoda.json"
+                jobMetricsFile = os.path.join(self.__pilotWorkingDir, jobMetricsFileName)
+                if os.path.exists(jobMetricsFile):
+                    tolog("Copying job metrics file %s to %s" % (jobMetricsFile, os.path.join(outputDir, os.path.basename(jobMetricsFile))))
+                    shutil.copyfile(jobMetricsFile, os.path.join(outputDir, os.path.basename(jobMetricsFile)))
+
                 return
 
             report = getInitialTracingReport(userid=job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=False, jobId=job.jobId, jobDefId=job.jobDefinitionID, dn=job.prodUserID)
