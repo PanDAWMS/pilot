@@ -426,7 +426,7 @@ class ATLASSiteInformation(SiteInformation):
         if 'aipanda007' in pshttpurl or force_devpilot:
             ec = self.replaceQueuedataField("timefloor", "0")
 
-        #ec = self.replaceQueuedataField("timefloor", "0")
+        ec = self.replaceQueuedataField("timefloor", "0")
 
 #        ec = self.replaceQueuedataField("retry", "false")
 

@@ -819,7 +819,7 @@ class RunJobEvent(RunJob):
         #    tolog("Prefetcher will not be used")
         #    self.__usePrefetcher = False
 
-        if release == "20.3.7" or release == "Atlas-20.3.7":
+        if release == "21.0.21" or release == "Atlas-21.0.21":
             tolog("Prefetcher will be used for release %s" % (release))
             self.__usePrefetcher = True
         else:
