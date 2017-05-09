@@ -516,6 +516,18 @@ File Changes
 M Job.py (9)
 M RunJobEvent.py (32)
 
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/133
+
+Commit Summary
+
+mv mover: stage out to TURL rather than SURL
+
+File Changes
+
+M movers/mv_sitemover.py (2)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:

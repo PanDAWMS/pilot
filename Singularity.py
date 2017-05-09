@@ -59,7 +59,7 @@ def getGridImageForSingularity(platform, experiment):
     path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/images/singularity")
     return os.path.join(path, image)
 
-def singularityWrapper(cmd, platform, experiment="ATLAS"):
+def singularityWrapper(cmd, platform, workdir, experiment="ATLAS"):
     """ Prepend the given command with the singularity execution command """
     # E.g. cmd = /bin/bash hello_world.sh
     # -> singularity_command = singularity exec -B <bindmountsfromcatchall> <img> /bin/bash hello_world.sh
@@ -74,7 +74,7 @@ def singularityWrapper(cmd, platform, experiment="ATLAS"):
         # Does the image exist?
         if os.path.exists(image_path):
             # Prepend it to the given command
-            cmd = "singularity exec " + singularity_options + " " + image_path + " /bin/bash -c \'cd /scratch;" + cmd.replace("\'","\\'").replace('\"','\\"') + "\'"
+            cmd = "export workdir=%s" + workdir + "; singularity exec " + singularity_options + " " + image_path + " /bin/bash -c \'cd /scratch;" + cmd.replace("\'","\\'").replace('\"','\\"') + "\'"
         else:
             tolog("!!WARNING!!4444!! Singularity options found but image does not exist: %s" % (image_path))
     else:
