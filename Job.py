@@ -190,7 +190,7 @@ class Job:
         ec = 0
         errorText = ""
         if not self.workdir:
-            self.workdir = "%s/PandaJob"
+            self.workdir = "%s/PandaJob" % (sitewd)
             #self.workdir = "%s/PandaJob_%s_%s" % (sitewd, self.jobId, str(int(time.time())))
         if not os.path.isdir(self.workdir):
             try:
