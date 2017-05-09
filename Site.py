@@ -18,5 +18,6 @@ class Site:
     def getWorkDir(self):
         """ When there are multi-jobs, the site workdir needs to be updated """
 
-        jobworkdir = "Panda_Pilot_%d_%s" % (os.getpid(), str(int(time.time())))
+        jobworkdir = "Panda_Pilot"
+        # jobworkdir = "Panda_Pilot_%d_%s" % (os.getpid(), str(int(time.time())))
         return os.path.join(self.wntmpdir, jobworkdir) # this pilots' workdir
