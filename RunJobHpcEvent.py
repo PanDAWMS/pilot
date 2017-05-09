@@ -1642,6 +1642,14 @@ class RunJobHpcEvent(RunJob):
         os.chdir(current_dir)
         tolog("Finished job %s" % job.jobId)
 
+    def ignore_files(self, dir, files):
+        result = []
+        for f in files:
+            if f.startswith("sqlite"):
+                result.append(f)
+        tolog("Ignore files: %s" % result)
+        return result
+
     def copyLogFilesToJob(self):
         found_dirs = {}
         found_files = {}
@@ -1668,7 +1676,7 @@ class RunJobHpcEvent(RunJob):
                 dest_dir = os.path.join(job.workdir, file)
                 try:
                     if file == 'rank_0' or (file.startswith("rank_") and os.path.exists(dest_dir)):
-                        pUtil.recursive_overwrite(path, dest_dir)
+                        pUtil.recursive_overwrite(path, dest_dir, ignore=self.ignore_files)
                 except:
                     tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
             for file in found_files:
@@ -1685,7 +1693,7 @@ class RunJobHpcEvent(RunJob):
                        or file.startswith("curl_updateEventRanges_")\
                        or file.startswith("surlDictionary") or file.startswith("jobMetrics-rank") or "event_status.dump" in file:
                         if str(jobId) in file:
-                            pUtil.recursive_overwrite(path, dest_dir)
+                            pUtil.recursive_overwrite(path, dest_dir, ignore=self.ignore_files)
                     else:
                         pUtil.recursive_overwrite(path, dest_dir)
                 except:
