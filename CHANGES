@@ -419,6 +419,9 @@ Work directory
 Memory monitor
 - Created new getUtilityCommand() for Nordugrid since default function has problems with complex ND release (NordugridATLASExperiment)
 
+Event Streaming Service
+- Now waiting for Prefetcher to finish in __main__() (RunJobEvent)
+
 jobPars based payload setup:
 - Added noExecStrCnv (Job)
 - Added asetup boolean to getModernASetup() (ATLASExperiment)
