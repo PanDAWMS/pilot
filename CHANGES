@@ -411,6 +411,9 @@ General changes:
 - Removed deprecated lfchost in updateRunCommandList() (RunJobUtilities)
 - Added a new function for calculating adler32 (same as Harvester), calc_adler32() (SiteMover)
 
+Memory monitor
+- Created new getUtilityCommand() for Nordugrid since default function has problems with complex ND release (NordugridATLASExperiment)
+
 jobPars based payload setup:
 - Added noExecStrCnv (Job)
 - Added asetup boolean to getModernASetup() (ATLASExperiment)
