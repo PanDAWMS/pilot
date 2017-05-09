@@ -2292,8 +2292,7 @@ def getNewJob(tofile=True):
 
     # look for special commands in the job parameters (can be set by HammerCloud jobs; --overwriteQueuedata, --disableFAX)
     # if present, queuedata needs to be updated (as well as jobParameters - special commands need to be removed from the string)
-    data['jobPars'] += " --useTestASetup --useTestXRootD"
-#PN
+
     data['jobPars'], transferType = env['si'].updateQueuedataFromJobParameters(data['jobPars'])
     if transferType != "":
         # we will overwrite whatever is in job.transferType using jobPars

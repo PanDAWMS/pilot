@@ -367,8 +367,9 @@ class ATLASExperiment(Experiment):
             tolog("ALRB_asetupVersion is not set")
 
         # Wrap the job execution command with Singularity if necessary
-        from Singularity import singularityWrapper
-        cmd = singularityWrapper(cmd, cmtconfig)
+        if jobSite.sitename == "UKI-SCOTGRID-GLASGOW_TEST":
+            from Singularity import singularityWrapper
+            cmd = singularityWrapper(cmd, cmtconfig)
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
         return 0, pilotErrorDiag, cmd, special_setup_cmd, JEM, cmtconfig

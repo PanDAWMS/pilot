@@ -298,7 +298,7 @@ class NordugridATLASExperiment(ATLASExperiment):
         return setup_path
 
     # Optional
-    def NOTUSEDgetUtilityCommand(self, **argdict):
+    def getUtilityCommand(self, **argdict):
         """ Prepare a utility command string """
 
         # This method can be used to prepare a setup string for an optional utility tool, e.g. a memory monitor,
@@ -308,71 +308,23 @@ class NordugridATLASExperiment(ATLASExperiment):
         # to memory information.
 
         pid = argdict.get('pid', 0)
-        release = argdict.get('release', '')
-        homePackage = argdict.get('homePackage', '')
-        cmtconfig = argdict.get('cmtconfig', '')
         summary = self.getUtilityJSONFilename()
-        job_command = argdict.get('job_command', '')
-        trf = argdict.get('trf', 0)
+        workdir = argdict.get('workdir', '.')
         interval = 60
 
-        # Get the setup path for the job command (everything up until the trf name)
-        setup_path = self.getSetupPath(job_command, trf)
+        default_release = "21.0.22" #"21.0.18" #"21.0.17" #"20.7.5" #"20.1.5"
+        # default_patch_release = "20.7.5.8" #"20.1.5.2" #"20.1.4.1"
+        # default_cmtconfig = "x86_64-slc6-gcc49-opt"
+        # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
+        default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
+        default_setup = self.getModernASetup() + " Athena," + default_release
 
-        default_release = "20.1.5"
-        default_patch_release = "20.1.5.2" #"20.1.4.1"
-        default_cmtconfig = "x86_64-slc6-gcc48-opt"
-        default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
-
-        cacheVer = homePackage.split('/')[-1]
-
-        # could anything be extracted?
-        if homePackage == cacheVer or cmtconfig == "": # (no)
-            # This means there is no patched release available, ie. we need to use the fallback
-            useDefault = True
-            cacheVer = ""
-        else:
-            useDefault = False
-
-        tolog("setup_path=%s"%setup_path)
-        tolog("release=%s"%release)
-        tolog("default_release=%s"%default_release)
-        tolog("cacheVer=%s"%cacheVer)
-        tolog("default_patch_release=%s"%default_patch_release)
-        tolog("cmtconfig=%s"%cmtconfig)
-        tolog("default_cmtconfig=%s"%default_cmtconfig)
-        default_setup = self.updateSetupPathWithReleaseAndCmtconfig(setup_path, release, default_release, cacheVer, default_patch_release, cmtconfig, default_cmtconfig)
-        tolog("default_setup=%s"%default_setup)
-        # Construct the name of the output file using the summary variable
-        if summary.endswith('.json'):
-            output = summary.replace('.json', '.txt')
-        else:
-            output = summary + '.txt'
-
-        if useDefault:
-            tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
-            cmd = default_setup
-        else:
-            # Get the standard setup
-            standard_setup = setup_path
-            _cmd = standard_setup + " which MemoryMonitor"
-
-            # Can the MemoryMonitor be found?
-            try:
-                ec, output = timedCommand(_cmd, timeout=60)
-            except Exception, e:
-                tolog("!!WARNING!!3434!! Failed to locate MemoryMonitor: will use default (for patch release %s): %s" % (default_patch_release, e))
-                cmd = default_setup
-            else:
-                if "which: no MemoryMonitor in" in output:
-                    tolog("Failed to locate MemoryMonitor: will use default (for patch release %s)" % (default_patch_release))
-                    cmd = default_setup
-                else:
-                    # Standard setup passed the test
-                    cmd = standard_setup
+        tolog("Will use default (fallback) setup for MemoryMonitor")
+        cmd = default_setup
 
         # Now add the MemoryMonitor command
-        cmd += "MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, "memory_monitor_output.txt", summary, interval)
+        cmd += "; MemoryMonitor --pid %d --filename %s --json-summary %s --interval %d" % (pid, self.getUtilityOutputFilename(), summary, interval)
+        cmd = "cd " + workdir + ";" + cmd
 
         return cmd
 
