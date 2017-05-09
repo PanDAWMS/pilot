@@ -308,9 +308,6 @@ class NordugridATLASExperiment(ATLASExperiment):
         # to memory information.
 
         pid = argdict.get('pid', 0)
-        release = argdict.get('release', '')
-        homePackage = argdict.get('homePackage', '')
-        cmtconfig = argdict.get('cmtconfig', '')
         summary = self.getUtilityJSONFilename()
         workdir = argdict.get('workdir', '.')
         interval = 60
@@ -320,12 +317,6 @@ class NordugridATLASExperiment(ATLASExperiment):
         # default_cmtconfig = "x86_64-slc6-gcc49-opt"
         # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
         default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        # default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
-        #                 "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh AtlasOffline,%s,notest" %\
-        #                 (default_swbase, default_swbase, default_release)
-        # default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
-        #                 "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh Athena,%s" %\
-        #                 (default_swbase, default_swbase, default_release)
         default_setup = self.getModernASetup() + " Athena," + default_release
 
         tolog("Will use default (fallback) setup for MemoryMonitor")
