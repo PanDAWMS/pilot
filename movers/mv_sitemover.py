@@ -30,7 +30,7 @@ class mvSiteMover(BaseSiteMover):
         checksum = self.calc_file_checksum(dest)[0]
         token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
         # Add ARC options to SURL
-        destsurl = re.sub(r'((:\d+)/)', r'\2;autodir=no;spacetoken=%s/' % token, fspec.surl)
+        destsurl = re.sub(r'((:\d+)/)', r'\2;autodir=no;spacetoken=%s/' % token, fspec.turl)
         destsurl += ':checksumtype=%s:checksumvalue=%s' % (self.checksum_type, checksum)
 
         self.log('Adding to output.list: %s %s' % (fspec.lfn, destsurl))
