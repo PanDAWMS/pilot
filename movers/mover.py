@@ -934,8 +934,8 @@ class JobMover(object):
                 d = dconf.get('aprotocols', {})
                 xprot = d.get('SE', [])
                 if not xprot:
-                    surl_schema = 's3' if dconf.get('type') in ['OS_LOGS', 'OS_ES'] else 'srm'
-                    xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and e[0].startswith(surl_schema)]
+                    surl_schema = ['s3'] if dconf.get('type') in ['OS_LOGS', 'OS_ES'] else ['srm', 'gsiftp']
+                    xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and True in set([e[0].startswith(sc) for sc in surl_schema])]
 
                 surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(xprot, key=lambda x: x[1])]
                 if surl_prot:
