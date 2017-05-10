@@ -528,6 +528,20 @@ File Changes
 
 M movers/mv_sitemover.py (2)
 
+Updates from Alexey Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/134
+
+Commit Summary
+
+lsmSiteMover: added gsiftp and root protocols to the list of supported schemes
+Merge branch 'main-dev' of https://github.com/PanDAWMS/pilot into main-dev
+
+File Changes
+
+M movers/lsm_sitemover.py (2)
+M movers/mover.py (4)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
