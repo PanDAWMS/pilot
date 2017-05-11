@@ -859,7 +859,7 @@ class RunJobEvent(RunJob):
 
         for eventRange in eventRanges:
             if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true') or self.__usePrefetcher:
-                key = '%s:%s' % (eventRange['scope'], eventRange['lfn'])
+                key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
                 if key in self.__input_files:
                     eventRange['pfn'] = self.__input_files[key]
                 else:
@@ -870,7 +870,7 @@ class RunJobEvent(RunJob):
         """ Add the pfn to an event range """
         # If an event range is file related, we need to add the pfn to the event range
 
-        key = '%s:%s' % (eventRange['scope'], eventRange['lfn'])
+        key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
         if key in self.__input_files:
             eventRange['pfn'] = self.__input_files[key]
         else:
@@ -3497,6 +3497,7 @@ if __name__ == "__main__":
                     break
 
                 # if event range is file related position, add pfn to it (Prefetcher aware)
+                tolog("event_ranges=%s"%str(event_ranges))
                 event_ranges = runJob.addPFNsToEventRanges(event_ranges)
 
                 # Update the token extractor file list and keep track of added guids to the file list (not needed for Event Index)
