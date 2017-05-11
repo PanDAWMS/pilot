@@ -1319,7 +1319,7 @@ class JobMover(object):
                     try:
                         # quick work around
                         from Job import FileSpec
-                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint, guid=guid, scope=scope, lfn=lfn)
+                        stub_fspec = FileSpec(ddmendpoint=ddmendpoint, guid=guid, scope=scope, lfn=lfn, cmtconfig=self.job.cmtconfig)
                         result = sitemover.stageOut(pfn, turl, stub_fspec)
                         break # transferred successfully
                     except PilotException, e:

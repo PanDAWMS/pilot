@@ -72,6 +72,7 @@ class rucioSiteMover(BaseSiteMover):
         # Prepend the command with singularity if necessary
         from Singularity import singularityWrapper
         cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
+
         tolog('stageIn: %s' % cmd)
         s, o = getstatusoutput(cmd)
         if s:
@@ -116,6 +117,11 @@ class rucioSiteMover(BaseSiteMover):
             cmd = 'rucio upload%s --no-register --rse %s --scope %s %s' % (guid, fspec.ddmendpoint,
                                                                            fspec.scope,
                                                                            fspec.pfn if fspec.pfn else fspec.lfn)
+
+        # Prepend the command with singularity if necessary
+        from Singularity import singularityWrapper
+        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
+
         tolog('stageOutCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)
         tolog('stageOutOutput: %s' % o)

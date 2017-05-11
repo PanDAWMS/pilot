@@ -979,7 +979,8 @@ class FileSpec(object):
                     'dispatchDblock', 'dispatchDBlockToken',
                     'guid', 'filesize', 'checksum',
                     'prodDBlock', 'prodDBlockToken',
-                    'allowRemoteInputs'
+                    'allowRemoteInputs',
+                    'cmtconfig' # Needed for Singularity
                     ]
 
 
@@ -989,7 +990,8 @@ class FileSpec(object):
                     'fileDestinationSE',
                     'dispatchDBlockTokenForOut',
                     'prodDBlockTokenForOutput', # exposed only for eventservice related job
-                    'ddmendpoint_alt' # alternative location of ddmendpoint
+                    'ddmendpoint_alt', # alternative location of ddmendpoint
+                    'cmtconfig' # Needed for Singularity
                     ]
 
     _os_keys = ['eventRangeId', 'objectstoreId']
