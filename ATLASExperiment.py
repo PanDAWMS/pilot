@@ -269,6 +269,8 @@ class ATLASExperiment(Experiment):
 
                 tolog("2. cmd = %s" % (cmd))
             else:
+                # Add Database commands if they are set by the local site
+                cmd += os.environ.get('PILOT_DB_LOCAL_SETUP_CMD','')
                 # Add the transform and the job parameters (production jobs)
                 if prepareASetup:
                     cmd += ";%s %s" % (job.trf, job.jobPars)
@@ -1053,7 +1055,7 @@ class ATLASExperiment(Experiment):
             tolog("!!WARNING!!1887!! RUCIO_APPID needs job.processingType but it is not set!")
         else:
             _rucio = 'export RUCIO_APPID=\"%s\";' % (processingType)
-        _rucio += 'export RUCIO_ACCOUNT=\"pilot\";'
+        _rucio += 'export RUCIO_ACCOUNT=\"' + os.environ.get('RUCIO_ACCOUNT','pilot') + '\";'
 
         return _sitename + _ttc + _frontier1 + _frontier2 + _rucio + _coreCount + _unset + cmd
 
