@@ -8,8 +8,8 @@ def extractSingularityOptions():
     """ Extract any singularity options from catchall """
 
     # e.g. catchall = "somestuff singularity_options=\'-B /etc/grid-security/certificates,/var/spool/slurmd,/cvmfs,/ceph/grid,/data0,/sys/fs/cgroup\'"
-    catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir}:/scratch --contain\'" #readpar("catchall")
-    #catchall = readpar("catchall")
+    #catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir}:/scratch --contain\'" #readpar("catchall")
+    catchall = readpar("catchall")
     tolog("catchall: %s" % catchall)
     pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
     found = re.findall(pattern, catchall)
