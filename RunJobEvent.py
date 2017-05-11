@@ -806,27 +806,23 @@ class RunJobEvent(RunJob):
         # Decision is based on if the release is new enough to support Prefetcher
         # Note that 'use' can be be used to override any setup string activation
 
-        #if use:
-        #    # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
-        #    if release != "":
-        #        if pUtil.isAGreaterOrEqualToB(release, "20.3.7"):
-        #            tolog("Prefetcher will be used for release %s" % (release))
-        #            self.__usePrefetcher = True
-        #    else:
-        #        tolog("Prefetcher will not be used (cannot verify release)")
-        #        self.__usePrefetcher = False
-        #else:
-        #    tolog("Prefetcher will not be used")
-        #    self.__usePrefetcher = False
+        if "Atlas-" in release:
+            release = release.strip('Atlas-')
 
-        if release == "21.0.21" or release == "Atlas-21.0.21":
-            tolog("Prefetcher will be used for release %s" % (release))
-            self.__usePrefetcher = True
+        if use:
+            # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
+            if release != "":
+                # Can only use Prefetcher for releases >= 21.0.21 or for non-numerical releases (e.g. 'master')
+                _relelase = release.replace('.','')
+                if isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit():
+                    tolog("Prefetcher will be used for release %s" % (release))
+                    self.__usePrefetcher = True
+            else:
+                tolog("Prefetcher will not be used (cannot verify release)")
+                self.__usePrefetcher = False
         else:
-            tolog("Prefetcher will not be used for release %s" % (release))
+            tolog("Prefetcher will/cannot not be used")
             self.__usePrefetcher = False
-        #tolog("Prefetcher will not be used for release %s" % (release))
-        #self.__usePrefetcher = False
 
     def getPanDAServer(self):
         """ Getter for __pandaserver """
@@ -857,15 +853,28 @@ class RunJobEvent(RunJob):
     def get_input_files(self):
         return self.__input_files
 
-    def adaptEventRanges(self, eventRanges):
-        """ If an event range is file related, add pfn to the event range"""
+    def addPFNsToEventRanges(self, eventRanges):
+        """ Add the pfn's to the event ranges """
+        # If an event range is file related, we need to add the pfn to the event range
+
         for eventRange in eventRanges:
-            if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true'):
+            if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true') or self.__usePrefetcher:
                 key = '%s:%s' % (eventRange['scope'], eventRange['lfn'])
                 if key in self.__input_files:
                     eventRange['pfn'] = self.__input_files[key]
                 else:
                     eventRange['pfn'] = 'file_is_not_staged_in'
+        return eventRanges
+
+    def addPFNToEventRange(self, eventRange):
+        """ Add the pfn to an event range """
+        # If an event range is file related, we need to add the pfn to the event range
+
+        key = '%s:%s' % (eventRange['scope'], eventRange['lfn'])
+        if key in self.__input_files:
+            eventRange['pfn'] = self.__input_files[key]
+        else:
+            eventRange['pfn'] = 'file_is_not_staged_in'
         return eventRanges
 
     def setAsyncOutputStagerSleepTime(self, sleep_time=600):
@@ -3487,8 +3496,8 @@ if __name__ == "__main__":
                     runJob.sendMessage("No more events")
                     break
 
-                # if event range is file related position, add pfn to it
-                event_ranges = runJob.adaptEventRanges(event_ranges)
+                # if event range is file related position, add pfn to it (Prefetcher aware)
+                event_ranges = runJob.addPFNsToEventRanges(event_ranges)
 
                 # Update the token extractor file list and keep track of added guids to the file list (not needed for Event Index)
                 if not runJob.useEventIndex():
@@ -3557,8 +3566,15 @@ if __name__ == "__main__":
                                 # Update the event_range
                                 event_range['LFN'] = runJob.getUpdatedLFN()
 
+                                # Add the PFN (local file path)
+                                event_range = runJob.addPFNToEventRange(event_range)
+
+                                # Update the positional event numbers
+                                event_range['lastEvent'] = 1 + event_range['lastEvent'] - event_range['startEvent']
+                                event_range['startEvent'] = 1
                                 tolog("Updated event_range=%s"%str(event_range))
-                                # Prefetcher should now have written the event info to a local file, pilot can continue to send the updated event range to AthenaMP
+
+                                # Pilot can continue to send the updated event range to AthenaMP
                                 break
                             else:
                                 time.sleep(1)

@@ -894,7 +894,7 @@ class Job:
         for f in self.inData:
             if f.status in ['remote_io']:
                 files["%s:%s" % (f.scope, f.lfn)] = f.turl
-            if f.status in ['transferred']:
+            if f.status in ['transferred'] or f.status in ['prefetch']:
                 files["%s:%s" % (f.scope, f.lfn)] = os.path.join(self.workdir or '', f.lfn)
         return files
 
