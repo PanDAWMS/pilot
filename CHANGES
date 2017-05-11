@@ -62,6 +62,8 @@ ZIP_MAP support:
 
 Singularity support:
 - Created new module (Singularity)
+- Added cmtconfig to idat dictionary in setJobDef() so that it will be propagated with the file specification down to the movers (Job)
+- Added the singularity wrapper to the stage-in command in stageIn() (rucio_sitemover)
 
 Updates from D. Drizhuk:
 

@@ -583,6 +583,7 @@ class Job:
             if 'lfn' in idat and idat['lfn'].startswith("zip://"):
                 idat['lfn'] = idat['lfn'].replace("zip://", "")
             idat['allowRemoteInputs'] = self.allowRemoteInputs
+            idat['cmtconfig'] = self.cmtconfig
             finfo = FileSpec(type='input', **idat)
             self.inData.append(finfo)
 
