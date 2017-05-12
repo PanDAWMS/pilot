@@ -875,7 +875,7 @@ class RunJobEvent(RunJob):
             eventRange['pfn'] = self.__input_files[key]
         else:
             eventRange['pfn'] = 'file_is_not_staged_in'
-        return eventRanges
+        return eventRange
 
     def setAsyncOutputStagerSleepTime(self, sleep_time=600):
         self.__asyncOutputStager_thread_sleep_time = sleep_time

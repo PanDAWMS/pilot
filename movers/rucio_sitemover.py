@@ -120,7 +120,7 @@ class rucioSiteMover(BaseSiteMover):
 
         # Prepend the command with singularity if necessary
         from Singularity import singularityWrapper
-        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
+        #cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
 
         tolog('stageOutCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)

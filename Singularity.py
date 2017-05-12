@@ -8,7 +8,11 @@ def extractSingularityOptions():
     """ Extract any singularity options from catchall """
 
     # e.g. catchall = "somestuff singularity_options=\'-B /etc/grid-security/certificates,/var/spool/slurmd,/cvmfs,/ceph/grid,/data0,/sys/fs/cgroup\'"
-    #catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir}:/scratch --contain\'" #readpar("catchall")
+    #catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir} --contain\'" #readpar("catchall")
+
+    # ${workdir} should be there, otherwise the pilot cannot add the current workdir
+    # if not there, add it
+
     catchall = readpar("catchall")
     tolog("catchall: %s" % catchall)
     pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
