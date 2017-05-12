@@ -173,6 +173,23 @@ File Changes
 M movers/lsm_sitemover.py (2)
 M movers/mover.py (4)
 
+Updates from Taylor Childers:
+
+  https://github.com/PanDAWMS/pilot/pull/135
+
+Commit Summary
+
+I've changed two parts of the cmd line creation for the ATLAS job.
+
+If the environment has RUCIO_ACCOUNT set, it overrides the default of 'pilot'.
+The local site can override the Database setup by ATLASLocalRootBase by setting the environment variable 'PILOT_DB_LOCAL_SETUP_CMD'. This avoids having to edit the pilot directly for local environment changes.
+
+- adding ability to change local database environment before transform is executed. Also added ability to override RUCIO_ACCOUNT via the environment
+
+File Changes
+
+M ATLASExperiment.py (4)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
