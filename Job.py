@@ -894,6 +894,8 @@ class Job:
         retFiles = {}
         if files is None:
             files = self.inData
+        pUtil.tolog("Staged in files: %s" % files)
+
         for f in files:
             if f.status in ['remote_io']:
                 retFiles["%s:%s" % (f.scope, f.lfn)] = f.turl
@@ -915,7 +917,7 @@ class Job:
                      'dispatchDblock': self.dispatchDblock, 'dispatchDBlockToken': self.dispatchDBlockToken,
                      'dataset': self.realDatasetsIn, 'ddmendpoint': self.ddmEndPointIn,
                      'allowRemoteInputs': allowRemoteInputs}
-            finfo = FileSpec(type='input', **idat)
+            finfo = FileSpec(type='input', **idata)
             reqs.append(finfo)
         return reqs
 
@@ -1014,7 +1016,7 @@ class FileSpec(object):
                     'cmtconfig' # Needed for Singularity
                     ]
 
-    _os_keys = ['eventRangeId', 'objectstoreId']
+    _os_keys = ['eventRangeId', 'storageId']
 
     _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code']
 

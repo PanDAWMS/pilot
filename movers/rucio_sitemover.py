@@ -107,7 +107,7 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        if fspec.objectstoreId and int(fspec.objectstoreId) > 0:
+        if fspec.storageId and int(fspec.storageId) > 0:
             cmd = 'rucio upload --no-register --rse %s --scope %s --pfn %s %s' % (fspec.ddmendpoint,
                                                                                   fspec.scope,
                                                                                   fspec.turl,
