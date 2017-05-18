@@ -584,6 +584,7 @@ class Job:
                 idat['lfn'] = idat['lfn'].replace("zip://", "")
             idat['allowRemoteInputs'] = self.allowRemoteInputs
             idat['cmtconfig'] = self.cmtconfig
+            idat['eventService'] = self.eventService
             finfo = FileSpec(type='input', **idat)
             self.inData.append(finfo)
 
@@ -1016,7 +1017,7 @@ class FileSpec(object):
                     'cmtconfig' # Needed for Singularity
                     ]
 
-    _os_keys = ['eventRangeId', 'storageId']
+    _os_keys = ['eventRangeId', 'storageId', 'eventService']
 
     _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code']
 
@@ -1027,6 +1028,7 @@ class FileSpec(object):
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
 
         self.filesize = int(getattr(self, 'filesize', 0) or 0)
+        self.eventService = False if self.eventService is None
         self.replicas = []
 
     def __repr__(self):

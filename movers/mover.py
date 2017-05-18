@@ -356,7 +356,20 @@ class JobMover(object):
 
         if failed_transfers:
             self.log("Failed to transfer normal files: %s" % failed_transfers)
-            return transferred_files, failed_transfers
+            # if it's eventservice, can try remote stagein
+            remain_files = [e for e in normal_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
+            remain_non_es_input_files = [e for e in remain_files if not e.eventService]
+
+            # there are non eventservcie input files, will not continue 
+            if remain_non_es_input_files:
+                return transferred_files, failed_transfers
+
+            # all are eventservice input files, consider remote inputs
+            [e.allowRemoteInputs = True for e in remain_files]
+            copytools = [('rucio', {'setup': ''})]
+            transferred_files, failed_transfers = self.stagein_real(files=remain_files, activity='es_read', copytools=copytools)
+            if failed_transfers:
+                return transferred_files, failed_transfers
 
         if es_files:
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
