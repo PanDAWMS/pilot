@@ -120,6 +120,8 @@ class RunJobEvent(RunJob):
     __nEventsW = 0
     __nEventsFailed = 0
     __nEventsFailedStagedOut = 0
+    __nStageOutFailures = 0
+    __nStageOutSuccessAfterFailure = 0
 
     # error fatal code
     __esFatalCode = None
@@ -154,7 +156,13 @@ class RunJobEvent(RunJob):
             return 'all_success'
 
     def setFinalESStatus(self, job):
-        if not self.__eventRangeID_dictionary:
+        if self.__nStageOutFailures > 5:
+            job.subStatus = 'pilot_failed'  # 'no_events'
+            job.pilotErrorDiag = "Too many stageout failures"
+            job.result[0] = "failed"
+            job.result[2] = self.__error.ERR_ESRECOVERABLE
+            job.jobState = "failed"
+        elif not self.__eventRangeID_dictionary:
             job.subStatus = 'pilot_failed'  # 'no_events'
             job.pilotErrorDiag = "Pilot got no events"
             job.result[0] = "failed"
@@ -1775,6 +1783,8 @@ class RunJobEvent(RunJob):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges, url=self.getPanDAServer())
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                self.__nStageOutFailures += 1
+                self.__nStageOutSuccessAfterFailure = 0
             else:
                 eventRanges = []
                 for eventRangeID in output_eventRanges:
@@ -1786,6 +1796,9 @@ class RunJobEvent(RunJob):
                     event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
                     status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                self.__nStageOutSuccessAfterFailure += 1
+                if self.__nStageOutSuccessAfterFailure > 10:
+                    self.__nStageOutFailures = 0
 
     @mover.use_newmover(stageOutZipFiles_new)
     def stageOutZipFiles(self, output_name=None, output_eventRanges=None, output_eventRange_id=None):
@@ -3033,6 +3046,12 @@ class RunJobEvent(RunJob):
         if prefetcher_stdout:
             prefetcher_stderr.close()
 
+    def checkStageOutFailures(self):
+        # if there are two many stageout failures, stop
+        if self.__nStageOutFailures > 5:
+             self.sendMessage("No more events")
+
+
 # main process starts here
 if __name__ == "__main__":
 
@@ -3530,6 +3549,8 @@ if __name__ == "__main__":
                 # agreed to only report stagedout events to panda
                 job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+
+            runJob.checkStageOutFailures()
 
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
