@@ -1028,7 +1028,8 @@ class FileSpec(object):
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
 
         self.filesize = int(getattr(self, 'filesize', 0) or 0)
-        self.eventService = False if self.eventService is None
+        if self.eventService is None:
+            self.eventService = False
         self.replicas = []
 
     def __repr__(self):
