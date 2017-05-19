@@ -890,14 +890,34 @@ class Job:
 
         pUtil.tolog(msg + '\n' + output)
 
-    def get_input_files(self):
-        files = {}
-        for f in self.inData:
+    def get_stagedIn_files(self, files=None):
+        retFiles = {}
+        if files is None:
+            files = self.inData
+        for f in files:
             if f.status in ['remote_io']:
-                files["%s:%s" % (f.scope, f.lfn)] = f.turl
-            if f.status in ['transferred'] or f.status in ['prefetch']:
-                files["%s:%s" % (f.scope, f.lfn)] = os.path.join(self.workdir or '', f.lfn)
-        return files
+                retFiles["%s:%s" % (f.scope, f.lfn)] = f.turl
+            if f.status in ['transferred']:
+                retFiles["%s:%s" % (f.scope, f.lfn)] = os.path.join(self.workdir or '', f.lfn)
+        return retFiles
+
+    def get_stagein_requests(self, files, allowRemoteInputs=False):
+        in_keys = [('inFiles', 'lfn'),
+                   ('dispatchDblock', 'dispatchDblock'), ('dispatchDBlockToken', 'dispatchDBlockToken'),
+                   ('realDatasetsIn', 'dataset'), ('GUID', 'guid'),
+                   ('fsize', 'filesize'), ('checksum', 'checksum'), ('scopeIn', 'scope'),
+                   ('prodDBlocks', 'prodDBlock'), ('prodDBlockToken', 'prodDBlockToken'),
+                   ('ddmEndPointIn', 'ddmendpoint')]
+
+        reqs = []
+        for file in files:
+            idata = {'scope': file['scope'], 'lfn': file['lfn'], 'guid': file['guid'],
+                     'dispatchDblock': self.dispatchDblock, 'dispatchDBlockToken': self.dispatchDBlockToken,
+                     'dataset': self.realDatasetsIn, 'ddmendpoint': self.ddmEndPointIn,
+                     'allowRemoteInputs': allowRemoteInputs}
+            finfo = FileSpec(type='input', **idat)
+            reqs.append(finfo)
+        return reqs
 
     def print_files(self, files): # quick stub to be checked later
 

@@ -844,7 +844,7 @@ class RunJobEvent(RunJob):
 
     def init_input_files(self, job):
         """ Init input files list"""
-        self.__input_files = job.get_input_files()
+        self.__input_files = job.get_stagedIn_files()
 
     def add_input_file(self, scope, name, pfn):
         """ Add a file to input files """
@@ -2670,6 +2670,11 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, file_info_dictionary
 
+    def createPoolFileCatalog_new(self, inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment, workdir, ddmEndPointIn):
+        """In the new mover, the catalog file is created by get_data_new. we don't need to create poolFileCatalog again"""
+        return 0, "", {}
+
+    @mover.use_newmover(createPoolFileCatalog_new)
     def createPoolFileCatalog(self, inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment, workdir, ddmEndPointIn):
         """ Create the Pool File Catalog """
 
@@ -2754,6 +2759,38 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
         return ec, pilotErrorDiag, file_info_dictionary
+
+    def stageInForEventRanges_new(self, eventRanges, job):
+        """"Stagein files for event ranges"""
+        staged_input_files = job.get_stagedIn_files()
+        for key in staged_input_files:
+            if key not in self.__input_files:
+                self.__input_files[key] = staged_input_files[key]
+
+        files = []
+        for eventRange in eventRanges:
+            f = {'scope': eventRange['scope'], 'lfn': eventRange['LFN'], 'guid': eventRange['GUID']}
+            if f not in files:
+                files.append(f)
+
+        to_stagein_files = job.get_stagein_requests(files, allowRemoteInputs=True)
+        super(RunJobEvent, self).stageIn(to_stagein_files)
+
+        staged_input_files = job.get_stagedIn_files(to_stagein_files)
+        for f in files:
+            key = '%s:%s' % (f['scope'], f['lfn'])
+            if key not in staged_input_files:
+                ec = PilotErrors.ERR_STAGEINFAILED
+                pilotErrorDiag = "Failed to stage in file for %s" % key
+                return ec, pilotErrorDiag, {}
+            else:
+                self.__input_files[key] = staged_input_files[key]
+
+        return 0, "", {}
+
+    @mover.use_newmover(stageInForEventRanges_new)
+    def stageInForEventRanges(self, eventRanges, job):
+        return 0, "", {}
 
     def getEventRangeFilesDictionary(self, event_ranges, eventRangeFilesDictionary):
         """ Build and return the event ranges dictionary out of the event_ranges dictinoary """
@@ -3496,6 +3533,13 @@ if __name__ == "__main__":
                     runJob.sendMessage("No more events")
                     break
 
+                if not runJob.usePrefetcher():
+                    ec, pilotErrorDiag, dummy = runJob.stageInForEventRanges(event_ranges, job)
+                    if ec != 0:
+                        tolog("Failed to stagein some files for event ranges - cannot continue, will stop: %s" % pilotErrorDiag)
+                        runJob.sendMessage("No more events")
+                        break
+
                 # if event range is file related position, add pfn to it (Prefetcher aware)
                 tolog("event_ranges=%s"%str(event_ranges))
                 event_ranges = runJob.addPFNsToEventRanges(event_ranges)
@@ -3512,12 +3556,12 @@ if __name__ == "__main__":
                 # Store the current event range id's in the total event range id dictionary
                 runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
 
-                # Create a new PFC for the current event ranges
-                ec, pilotErrorDiag, dummy = runJob.createPoolFileCatalogFromMessage(message, thisExperiment)
-                if ec != 0:
-                    tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
-                    runJob.sendMessage("No more events")
-                    break
+                ### # Create a new PFC for the current event ranges
+                ### ec, pilotErrorDiag, dummy = runJob.createPoolFileCatalogFromMessage(message, thisExperiment)
+                ### if ec != 0:
+                ###    tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
+                ###    runJob.sendMessage("No more events")
+                ###    break
 
                 # Loop over the event ranges and call AthenaMP for each event range
                 i = 0

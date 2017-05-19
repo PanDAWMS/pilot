@@ -618,6 +618,7 @@ class RunJob(object):
                     job,
                     jobSite,
                     analysisJob=None,  # not used: job.isAnalysisJob() should be used instead
+                    files=None,
                     pfc_name="PoolFileCatalog.xml"):
         """
             Perform the stage-in
@@ -639,7 +640,7 @@ class RunJob(object):
 
         t0 = os.times()
 
-        job.result[2], job.pilotErrorDiag, _dummy, FAX_dictionary = mover.get_data_new(job, jobSite, stageinTries=self.__stageinretry, proxycheck=False, workDir=self.__pworkdir, pfc_name=pfc_name)
+        job.result[2], job.pilotErrorDiag, _dummy, FAX_dictionary = mover.get_data_new(job, jobSite, stageinTries=self.__stageinretry, proxycheck=False, workDir=self.__pworkdir, pfc_name=pfc_name, files=files)
 
         t1 = os.times()
 

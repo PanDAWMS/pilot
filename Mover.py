@@ -257,6 +257,7 @@ def get_data_new(job,
                  proxycheck=True,  # TODO
                  inputDir="",      # for mv mover?? not used??
                  workDir="",       # pilot work dir used to check/update file states
+                 files=None,       # input files to stagein
                  pfc_name="PoolFileCatalog.xml"
                  ):
 
@@ -286,7 +287,7 @@ def get_data_new(job,
     mover.trace_report.init(job)
     error = None
     try:
-        output = mover.stagein()
+        output = mover.stagein(files)
     except PilotException, e:
         error = e
         tolog("!!WARNING!!4545!! Caught exception: %s" % (e))
