@@ -1017,7 +1017,7 @@ class FileSpec(object):
                     'cmtconfig' # Needed for Singularity
                     ]
 
-    _os_keys = ['eventRangeId', 'storageId', 'eventService']
+    _os_keys = ['eventRangeId', 'storageId', 'eventService', 'allowAllInputRSEs']
 
     _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code']
 
@@ -1030,6 +1030,7 @@ class FileSpec(object):
         self.filesize = int(getattr(self, 'filesize', 0) or 0)
         if self.eventService is None:
             self.eventService = False
+        self.allowAllInputRSEs = False
         self.replicas = []
 
     def __repr__(self):

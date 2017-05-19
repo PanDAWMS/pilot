@@ -367,6 +367,7 @@ class JobMover(object):
             # all are eventservice input files, consider remote inputs
             for e in remain_files:
                 e.allowRemoteInputs = True
+                e.allowAllInputRSEs = True
             copytools = [('rucio', {'setup': ''})]
             transferred_files, failed_transfers = self.stagein_real(files=remain_files, activity='es_read', copytools=copytools)
             if failed_transfers:

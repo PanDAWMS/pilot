@@ -59,10 +59,15 @@ class rucioSiteMover(BaseSiteMover):
         """
 
         if fspec.replicas:
-            cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
-                                                              fspec.replicas[0][0],
-                                                              fspec.scope,
-                                                              fspec.lfn)
+            if not fspec.allowAllInputRSEs:
+                cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                                  fspec.replicas[0][0],
+                                                                  fspec.scope,
+                                                                  fspec.lfn)
+            else:
+                cmd = 'rucio download --dir %s %s:%s' % (dirname(dst),
+                                                         fspec.scope,
+                                                         fspec.lfn)
         else:
             cmd = 'rucio download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
                                                                        fspec.ddmendpoint,
