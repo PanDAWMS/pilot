@@ -895,7 +895,6 @@ class Job:
         retFiles = {}
         if files is None:
             files = self.inData
-        pUtil.tolog("Staged in files: %s" % files)
 
         for f in files:
             if f.status in ['remote_io']:

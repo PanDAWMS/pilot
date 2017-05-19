@@ -821,7 +821,7 @@ class RunJobEvent(RunJob):
             # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
             if release != "":
                 # Can only use Prefetcher for releases >= 21.0.21 or for non-numerical releases (e.g. 'master')
-                _relelase = release.replace('.','')
+                _release = release.replace('.','')
                 if isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit():
                     tolog("Prefetcher will be used for release %s" % (release))
                     self.__usePrefetcher = True
@@ -3048,7 +3048,9 @@ class RunJobEvent(RunJob):
 
     def checkStageOutFailures(self):
         # if there are two many stageout failures, stop
-        if self.__nStageOutFailures > 5:
+        tolog("Continous stageout failures: %s" % self.__nStageOutFailures)
+        if self.__nStageOutFailures >= 3:
+             tolog("Too many stageout failures, send 'No more events' to AthenaMP")
              self.sendMessage("No more events")
 
 
