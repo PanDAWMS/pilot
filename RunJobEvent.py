@@ -156,7 +156,7 @@ class RunJobEvent(RunJob):
             return 'all_success'
 
     def setFinalESStatus(self, job):
-        if self.__nStageOutFailures > 5:
+        if self.__nStageOutFailures >= 3:
             job.subStatus = 'pilot_failed'  # 'no_events'
             job.pilotErrorDiag = "Too many stageout failures"
             job.result[0] = "failed"
@@ -3048,10 +3048,11 @@ class RunJobEvent(RunJob):
 
     def checkStageOutFailures(self):
         # if there are two many stageout failures, stop
-        tolog("Continous stageout failures: %s" % self.__nStageOutFailures)
+        if self.__nStageOutFailures > 0:
+            tolog("Continous stageout failures: %s" % self.__nStageOutFailures)
         if self.__nStageOutFailures >= 3:
-             tolog("Too many stageout failures, send 'No more events' to AthenaMP")
-             self.sendMessage("No more events")
+            tolog("Too many stageout failures, send 'No more events' to AthenaMP")
+            self.sendMessage("No more events")
 
 
 # main process starts here
