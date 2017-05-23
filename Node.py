@@ -51,7 +51,7 @@ class Node:
             self.disk = float(disks.splitlines()[1].split()[3])
 
         return self.mem, self.cpu, self.disk
-    
+
     def setNumberOfCores(self) :
         """ Report the number of cores in the WN """
         # 1. Grab corecount from queuedata

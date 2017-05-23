@@ -14,6 +14,7 @@ def extractSingularityOptions():
     # if not there, add it
 
     catchall = readpar("catchall")
+    #catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir} --contain\'"
     tolog("catchall: %s" % catchall)
     pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
     found = re.findall(pattern, catchall)

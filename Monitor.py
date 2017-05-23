@@ -645,7 +645,6 @@ class Monitor:
                 # did we receive a command to turn on debug mode?
                 if "debug" in self.__env['jobDic'][k][1].action.lower():
                     pUtil.tolog("Pilot received a command to turn on debug mode from the server")
-#                    self.__env['update_freq_server'] = 2*60
                     self.__env['update_freq_server'] = 5*60
                     pUtil.tolog("Server update frequency lowered to %d s" % (self.__env['update_freq_server']))
                     self.__env['jobDic'][k][1].debug = "True"

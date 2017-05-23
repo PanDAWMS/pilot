@@ -2643,6 +2643,10 @@ def runMain(runpars):
 
         while True:
 
+            cmd = "df;ls -al;pwd;whoami"
+            pUtil.tolog("Executing command: %s" % (cmd))
+            pUtil.tolog(commands.getoutput(cmd))
+
             # create the pilot workdir (if it was not created before, needed for the first job)
             if env['number_of_jobs'] > 0:
                 # update the workdir (i.e. define a new workdir and create it)

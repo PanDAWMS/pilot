@@ -70,8 +70,8 @@ class rucioSiteMover(BaseSiteMover):
                                                                        fspec.scope,
                                                                        fspec.lfn)
         # Prepend the command with singularity if necessary
-        from Singularity import singularityWrapper
-        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
+        #from Singularity import singularityWrapper
+        #cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
 
         tolog('stageIn: %s' % cmd)
         s, o = getstatusoutput(cmd)
