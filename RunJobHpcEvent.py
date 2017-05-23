@@ -556,8 +556,65 @@ class RunJobHpcEvent(RunJob):
                 break
         self.__hpcStatue = ''
         #self.updateAllJobsState('starting', self.__hpcStatue)
-            
 
+    def stageInOneJob_new(self, job, jobSite, analysisJob, avail_files={}, pfc_name="PoolFileCatalog.xml"):
+        """ Perform the stage-in """
+
+        current_dir = self.__pilotWorkingDir
+        os.chdir(job.workdir)
+        tolog("Start to stage in input files for job %s" % job.jobId)
+        tolog("Switch from current dir %s to job %s workdir %s" % (current_dir, job.jobId, job.workdir))
+
+        real_stagein = False
+        for lfn in job.inFiles:
+            if not (lfn in self.__avail_files):
+                real_stagein = True
+        if not real_stagein:
+            tolog("All files for job %s have copies locally, will try to copy locally" % job.jobId)
+            for lfn in job.inFiles:
+                try:
+                    copy_src = self.__avail_files[lfn]
+                    copy_dest = os.path.join(job.workdir, lfn)
+                    tolog("Copy %s to %s" % (copy_src, copy_dest))
+                    shutil.copyfile(copy_src, copy_dest)
+                except:
+                    tolog("Failed to copy file: %s" % traceback.format_exc())
+                    real_stagein = True
+                    break
+        if not real_stagein:
+            tolog("All files for job %s copied locally" % job.jobId)
+            tolog("Switch back from job %s workdir %s to current dir %s" % (job.jobId, job.workdir, current_dir))
+            os.chdir(current_dir)
+            return job, job.inFiles, None, None
+
+
+        tolog("Preparing for get command [stageIn_new]")
+
+        infiles = [e.lfn for e in job.inData]
+
+        tolog("Input file(s): (%s in total)" % len(infiles))
+        for ind, lfn in enumerate(infiles, 1):
+            tolog("%s. %s" % (ind, lfn))
+
+        if not infiles:
+            tolog("No input files for this job .. skip stage-in")
+            return job, infiles, None, False
+
+        t0 = os.times()
+
+        job.result[2], job.pilotErrorDiag, _dummy, FAX_dictionary = mover.get_data_new(job, jobSite, stageinTries=self.__stageinretry, proxycheck=False, workDir=job.workdir, pfc_name=pfc_name)
+
+        t1 = os.times()
+
+        job.timeStageIn = int(round(t1[4] - t0[4]))
+
+        usedFAXandDirectIO = FAX_dictionary.get('usedFAXandDirectIO', False)
+
+        statusPFCTurl = None
+
+        return job, infiles, statusPFCTurl, usedFAXandDirectIO
+
+    @mover.use_newmover(stageInOneJob_new)
     def stageInOneJob(self, job, jobSite, analysisJob, avail_files={}, pfc_name="PoolFileCatalog.xml"):
         """ Perform the stage-in """
 
@@ -1325,6 +1382,13 @@ class RunJobHpcEvent(RunJob):
                 eventstatusFile = str(job.jobId) + "_event_status.dump.zipped"
                 tolog("Copying dump file %s to %s" % (eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile))))
                 shutil.copyfile(eventstatusFile, os.path.join(outputDir, os.path.basename(eventstatusFile)))
+
+                jobMetricsFileName = "jobMetrics-yoda.json"
+                jobMetricsFile = os.path.join(self.__pilotWorkingDir, jobMetricsFileName)
+                if os.path.exists(jobMetricsFile):
+                    tolog("Copying job metrics file %s to %s" % (jobMetricsFile, os.path.join(outputDir, os.path.basename(jobMetricsFile))))
+                    shutil.copyfile(jobMetricsFile, os.path.join(outputDir, os.path.basename(jobMetricsFile)))
+
                 return
 
             report = getInitialTracingReport(userid=job.prodUserID, sitename=self.__jobSite.sitename, dsname=dsname, eventType="objectstore", analysisJob=False, jobId=job.jobId, jobDefId=job.jobDefinitionID, dn=job.prodUserID)
@@ -1635,6 +1699,14 @@ class RunJobHpcEvent(RunJob):
         os.chdir(current_dir)
         tolog("Finished job %s" % job.jobId)
 
+    def ignore_files(self, dir, files):
+        result = []
+        for f in files:
+            if f.startswith("sqlite"):
+                result.append(f)
+        tolog("Ignore files: %s" % result)
+        return result
+
     def copyLogFilesToJob(self):
         found_dirs = {}
         found_files = {}
@@ -1661,7 +1733,7 @@ class RunJobHpcEvent(RunJob):
                 dest_dir = os.path.join(job.workdir, file)
                 try:
                     if file == 'rank_0' or (file.startswith("rank_") and os.path.exists(dest_dir)):
-                        pUtil.recursive_overwrite(path, dest_dir)
+                        pUtil.recursive_overwrite(path, dest_dir, ignore=self.ignore_files)
                 except:
                     tolog("Failed to copy %s to %s: %s" % (path, dest_dir, traceback.format_exc()))
             for file in found_files:
@@ -1678,7 +1750,7 @@ class RunJobHpcEvent(RunJob):
                        or file.startswith("curl_updateEventRanges_")\
                        or file.startswith("surlDictionary") or file.startswith("jobMetrics-rank") or "event_status.dump" in file:
                         if str(jobId) in file:
-                            pUtil.recursive_overwrite(path, dest_dir)
+                            pUtil.recursive_overwrite(path, dest_dir, ignore=self.ignore_files)
                     else:
                         pUtil.recursive_overwrite(path, dest_dir)
                 except:

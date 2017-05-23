@@ -149,14 +149,14 @@ class JobMover(object):
             ddms.setdefault(dat['site'], []).append(dat)
 
         for fdat in files:
-            if fdat.objectstoreId and fdat.objectstoreId > 0:
-                # skip OS ddms, objectstoreId -1 means normal RSE
-                #self.log("fdat.objectstoreId: %s" % fdat.objectstoreId)
+            if fdat.storageId and fdat.storageId > 0:
+                # skip OS ddms, storageId -1 means normal RSE
+                #self.log("fdat.storageId: %s" % fdat.storageId)
                 #fdat.inputddms = [fdat.ddmendpoint]         ### is it used for OS?
                 pass
             else:
-                if fdat.objectstoreId == 0:
-                    fdat.objectstoreId = None
+                if fdat.storageId == 0 or fdat.storageId == -1:
+                    fdat.storageId = None
                 # build and order list of local ddms
                 ddmdat = self.ddmconf.get(fdat.ddmendpoint)
                 if not ddmdat:
@@ -168,7 +168,7 @@ class JobMover(object):
                 fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
         # consider only normal ddmendpoints
-        xfiles = [e for e in files if e.objectstoreId is None]
+        xfiles = [e for e in files if e.storageId is None]
 
         if not xfiles:
             return files
@@ -312,12 +312,13 @@ class JobMover(object):
             self.log("Failed to get the keyPair name for S3 objectstore from ddm config")
             self.objectstorekeys[ddmendpoint] = {'status': False}
 
-    def stagein(self):
+    def stagein(self, files=None):
         """
             :return: (transferred_files, failed_transfers)
         """
 
-        files = self.job.inData
+        if files is None:
+            files = self.job.inData
         self.log("To stagein files: %s" % files)
 
         normal_files, es_files = [], []
@@ -330,32 +331,21 @@ class JobMover(object):
         for ddm, dat in self.ddmconf.iteritems():
             if dat.get('type') in ['OS_ES', 'OS_LOGS']:
                 os_ddms.setdefault(int(dat.get('resource', {}).get('bucket_id', -1)), ddm)
+        for ddm, dat in self.ddmconf.iteritems():
+            os_ddms.setdefault(int(dat.get('id', -1)), ddm)
 
         self.log("os_ddms: %s" % os_ddms)
 
         for fspec in files:
             if fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit() and int(fspec.prodDBlockToken) > 0:
-                fspec.objectstoreId = int(fspec.prodDBlockToken)
-                fspec.ddmendpoint = os_ddms.get(fspec.objectstoreId)
+                fspec.storageId = int(fspec.prodDBlockToken)
+                fspec.ddmendpoint = os_ddms.get(fspec.storageId)
                 self.get_objectstore_keys(fspec.ddmendpoint)
                 es_files.append(fspec)
-            elif fspec.prodDBlockToken and fspec.prodDBlockToken.strip() == '-1':
-                # es outputs in normal RSEs (not in objectstore) but not registered in rucio
-                fspec.allowRemoteInputs = True
-                fspec.objectstoreId = -1
-                activity = 'es_events_read'
-                self.log("[stage-in] looking for associated storages with activity: %s" % (activity))
-                pandaqueue = self.si.getQueueName()
-                associate_storages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
-                esDDMEndpoints = associate_storages.get(activity, [])
-                if esDDMEndpoints:
-                    tolog("[stage-in] found associated storages %s with activity: %s" % (esDDMEndpoints, activity))
-                    fspec.ddmendpoint = esDDMEndpoints[0]
-                es_files.append(fspec)
-            elif fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit() and int(fspec.prodDBlockToken) == 0:
+            elif fspec.prodDBlockToken and (fspec.prodDBlockToken.strip() == '-1' or fspec.prodDBlockToken.strip() == '0'):
                 # es outputs in normal RSEs (not in objectstore) and registered in rucio
                 fspec.allowRemoteInputs = True
-                fspec.objectstoreId = None  # resolve replicas needs to be called for it
+                fspec.storageId = None  # resolve replicas needs to be called for it
                 es_files.append(fspec)
             else:
                 normal_files.append(fspec)
@@ -366,7 +356,22 @@ class JobMover(object):
 
         if failed_transfers:
             self.log("Failed to transfer normal files: %s" % failed_transfers)
-            return transferred_files, failed_transfers
+            # if it's eventservice, can try remote stagein
+            remain_files = [e for e in normal_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
+            remain_non_es_input_files = [e for e in remain_files if not e.eventService]
+
+            # there are non eventservcie input files, will not continue 
+            if remain_non_es_input_files:
+                return transferred_files, failed_transfers
+
+            # all are eventservice input files, consider remote inputs
+            for e in remain_files:
+                e.allowRemoteInputs = True
+                e.allowAllInputRSEs = True
+            copytools = [('rucio', {'setup': ''})]
+            transferred_files, failed_transfers = self.stagein_real(files=remain_files, activity='es_read', copytools=copytools)
+            if failed_transfers:
+                return transferred_files, failed_transfers
 
         if es_files:
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])

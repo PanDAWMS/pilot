@@ -109,7 +109,7 @@ class RunJobEvent(RunJob):
     # ES zip
     __esToZip = False
     __stageOutDDMEndpoint = None
-    __stageOutObjectstoreId = None
+    __stageOutStorageId = None
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
@@ -120,6 +120,8 @@ class RunJobEvent(RunJob):
     __nEventsW = 0
     __nEventsFailed = 0
     __nEventsFailedStagedOut = 0
+    __nStageOutFailures = 0
+    __nStageOutSuccessAfterFailure = 0
 
     # error fatal code
     __esFatalCode = None
@@ -154,7 +156,13 @@ class RunJobEvent(RunJob):
             return 'all_success'
 
     def setFinalESStatus(self, job):
-        if not self.__eventRangeID_dictionary:
+        if self.__nStageOutFailures >= 3:
+            job.subStatus = 'pilot_failed'  # 'no_events'
+            job.pilotErrorDiag = "Too many stageout failures"
+            job.result[0] = "failed"
+            job.result[2] = self.__error.ERR_ESRECOVERABLE
+            job.jobState = "failed"
+        elif not self.__eventRangeID_dictionary:
             job.subStatus = 'pilot_failed'  # 'no_events'
             job.pilotErrorDiag = "Pilot got no events"
             job.result[0] = "failed"
@@ -813,7 +821,7 @@ class RunJobEvent(RunJob):
             # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
             if release != "":
                 # Can only use Prefetcher for releases >= 21.0.21 or for non-numerical releases (e.g. 'master')
-                _relelase = release.replace('.','')
+                _release = release.replace('.','')
                 if isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit():
                     tolog("Prefetcher will be used for release %s" % (release))
                     self.__usePrefetcher = True
@@ -844,7 +852,7 @@ class RunJobEvent(RunJob):
 
     def init_input_files(self, job):
         """ Init input files list"""
-        self.__input_files = job.get_input_files()
+        self.__input_files = job.get_stagedIn_files()
 
     def add_input_file(self, scope, name, pfn):
         """ Add a file to input files """
@@ -1625,7 +1633,8 @@ class RunJobEvent(RunJob):
 
             if osddms:
                 self.__stageOutDDMEndpoint = osddms[0]
-                self.__stageOutObjectstoreId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+                # self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+                self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
             else:
                 tolog("[stage-out-os] no osddms defined, looking for associated storages with activity: %s" % (activity))
                 associate_storages = self.__siteInfo.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
@@ -1633,11 +1642,11 @@ class RunJobEvent(RunJob):
                 if esDDMEndpoints:
                     tolog("[stage-out-os] found associated storages %s with activity: %s" % (esDDMEndpoints, activity))
                     self.__stageOutDDMEndpoint = esDDMEndpoints[0]
-                    self.__stageOutObjectstoreId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+                    self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
                 else:
                     return PilotErrors.ERR_NOSTORAGE, "Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue(os_ddms:%s) nor associate es_events activity storage" % (os_ddms), None
 
-            tolog("[stage-out-os] ddmendpoints %s,  objectstoreId %s with activity %s" % (self.__stageOutDDMEndpoint, self.__stageOutObjectstoreId, activity))
+            tolog("[stage-out-os] ddmendpoints %s,  storageId %s with activity %s" % (self.__stageOutDDMEndpoint, self.__stageOutStorageId, activity))
             protocols = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('rprotocols', {})
             access_key = None
             secret_key = None
@@ -1671,7 +1680,7 @@ class RunJobEvent(RunJob):
                          'dataset': job.destinationDblock[0],
                          'scope': job.scopeOut[0],
                          'eventRangeId': event_range_id,
-                         'objectstoreId': self.__stageOutObjectstoreId,
+                         'storageId': self.__stageOutStorageId,
                          'ddmendpoint': self.__stageOutDDMEndpoint}
             finfo = Job.FileSpec(type='output', **file_dict)
             files.append(finfo)
@@ -1774,6 +1783,8 @@ class RunJobEvent(RunJob):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges, url=self.getPanDAServer())
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                self.__nStageOutFailures += 1
+                self.__nStageOutSuccessAfterFailure = 0
             else:
                 eventRanges = []
                 for eventRangeID in output_eventRanges:
@@ -1785,6 +1796,9 @@ class RunJobEvent(RunJob):
                     event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
                     status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                self.__nStageOutSuccessAfterFailure += 1
+                if self.__nStageOutSuccessAfterFailure > 10:
+                    self.__nStageOutFailures = 0
 
     @mover.use_newmover(stageOutZipFiles_new)
     def stageOutZipFiles(self, output_name=None, output_eventRanges=None, output_eventRange_id=None):
@@ -1917,12 +1931,14 @@ class RunJobEvent(RunJob):
 
         # Note: this is run as a thread
 
-        sleep_time = self.__asyncOutputStager_thread_sleep_time
+        sleep_time = 60
+        finished_first_upload = False
         run_time = time.time()
         tolog("Asynchronous output stager thread initiated")
         while not self.__asyncOutputStager_thread.stopped():
           try:
-            sleep_time = self.__asyncOutputStager_thread_sleep_time
+            if finished_first_upload:
+                sleep_time = self.__asyncOutputStager_thread_sleep_time
             if len(self.__stageout_queue) > 0 and time.time() > run_time + sleep_time:
                 tolog("Asynchronous output stager thread working")
                 run_time = time.time()
@@ -2010,6 +2026,7 @@ class RunJobEvent(RunJob):
                                 tolog("output_files = %s" % (self.__output_files))
                     tolog("Files %s are zipped to %s" % (output_eventRanges, output_name))
                     self.stageOutZipFiles_new(output_name, output_eventRanges, output_eventRange_id)
+                    finished_first_upload = True
             time.sleep(1)
           except:
                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
@@ -2670,6 +2687,14 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, file_info_dictionary
 
+    def createPoolFileCatalog_new(self, inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment, workdir, ddmEndPointIn):
+        """In the new mover, the catalog file is created by get_data_new. we don't need to create poolFileCatalog again"""
+        self.setPoolFileCatalogPath(os.path.join(self.__job.workdir, "PFC.xml"))
+        tolog("Using PFC path: %s" % (self.getPoolFileCatalogPath()))
+
+        return 0, "", {}
+
+    @mover.use_newmover(createPoolFileCatalog_new)
     def createPoolFileCatalog(self, inFiles, scopeIn, inFilesGuids, tokens, filesizeIn, checksumIn, thisExperiment, workdir, ddmEndPointIn):
         """ Create the Pool File Catalog """
 
@@ -2754,6 +2779,43 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2222!! %s" % (pilotErrorDiag))
 
         return ec, pilotErrorDiag, file_info_dictionary
+
+    def stageInForEventRanges_new(self, eventRanges, job):
+        """"Stagein files for event ranges"""
+        staged_input_files = job.get_stagedIn_files()
+        for key in staged_input_files:
+            if key not in self.__input_files:
+                self.__input_files[key] = staged_input_files[key]
+        tolog("Files already staged in: %s" % self.__input_files)
+
+        files = []
+        for eventRange in eventRanges:
+            f = {'scope': eventRange['scope'], 'lfn': eventRange['LFN'], 'guid': eventRange['GUID']}
+            if f not in files:
+                key = '%s:%s' % (f['scope'], f['lfn'])
+                if key not in self.__input_files:
+                    files.append(f)
+
+        if files:
+            tolog("Will stagein files for events: %s" % files)
+            to_stagein_files = job.get_stagein_requests(files, allowRemoteInputs=True)
+            super(RunJobEvent, self).stageIn(self.getJob(), self.getJobSite(), to_stagein_files)
+
+            staged_input_files = job.get_stagedIn_files(to_stagein_files)
+            for f in files:
+                key = '%s:%s' % (f['scope'], f['lfn'])
+                if key not in staged_input_files:
+                    ec = PilotErrors.ERR_STAGEINFAILED
+                    pilotErrorDiag = "Failed to stage in file for %s" % key
+                    return ec, pilotErrorDiag, {}
+                else:
+                    self.__input_files[key] = staged_input_files[key]
+
+        return 0, "", {}
+
+    @mover.use_newmover(stageInForEventRanges_new)
+    def stageInForEventRanges(self, eventRanges, job):
+        return 0, "", {}
 
     def getEventRangeFilesDictionary(self, event_ranges, eventRangeFilesDictionary):
         """ Build and return the event ranges dictionary out of the event_ranges dictinoary """
@@ -2983,6 +3045,15 @@ class RunJobEvent(RunJob):
             prefetcher_stderr.close()
         if prefetcher_stdout:
             prefetcher_stderr.close()
+
+    def checkStageOutFailures(self):
+        # if there are two many stageout failures, stop
+        if self.__nStageOutFailures > 0:
+            tolog("Continous stageout failures: %s" % self.__nStageOutFailures)
+        if self.__nStageOutFailures >= 3:
+            tolog("Too many stageout failures, send 'No more events' to AthenaMP")
+            self.sendMessage("No more events")
+
 
 # main process starts here
 if __name__ == "__main__":
@@ -3437,12 +3508,18 @@ if __name__ == "__main__":
 
         # download event ranges before athenaMP
         # Pilot will download some event ranges from the Event Server
-        message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount, url=runJob.getPanDAServer())
+        message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
         # Create a list of event ranges from the downloaded message
         first_event_ranges = runJob.extractEventRanges(message)
         if first_event_ranges is None or first_event_ranges == []:
             tolog("No more events. will finish this job directly")
             runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=True)
+
+        # Get the current list of eventRangeIDs
+        currentEventRangeIDs = runJob.extractEventRangeIDs(first_event_ranges)
+
+        # Store the current event range id's in the total event range id dictionary
+        runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
 
         # Create and start the AthenaMP process
         t0 = os.times()
@@ -3476,6 +3553,8 @@ if __name__ == "__main__":
                 job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
 
+            runJob.checkStageOutFailures()
+
             # if the AthenaMP workers are ready for event processing, download some event ranges
             # the boolean will be set to true in the listener after the "Ready for events" message is received from the client
             if runJob.isAthenaMPReady():
@@ -3485,7 +3564,7 @@ if __name__ == "__main__":
                     first_event_ranges = None
                 else:
                     # Pilot will download some event ranges from the Event Server
-                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount, url=runJob.getPanDAServer())
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
 
                     # Create a list of event ranges from the downloaded message
                     event_ranges = runJob.extractEventRanges(message)
@@ -3495,6 +3574,19 @@ if __name__ == "__main__":
                     tolog("No more events")
                     runJob.sendMessage("No more events")
                     break
+
+                # Get the current list of eventRangeIDs
+                currentEventRangeIDs = runJob.extractEventRangeIDs(event_ranges)
+
+                # Store the current event range id's in the total event range id dictionary
+                runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
+
+                if not runJob.usePrefetcher():
+                    ec, pilotErrorDiag, dummy = runJob.stageInForEventRanges(event_ranges, job)
+                    if ec != 0:
+                        tolog("Failed to stagein some files for event ranges - cannot continue, will stop: %s" % pilotErrorDiag)
+                        runJob.sendMessage("No more events")
+                        break
 
                 # if event range is file related position, add pfn to it (Prefetcher aware)
                 tolog("event_ranges=%s"%str(event_ranges))
@@ -3506,18 +3598,12 @@ if __name__ == "__main__":
                     if runJob.useTokenExtractor():
                         eventRangeFilesDictionary = runJob.updateTokenExtractorInputFile(eventRangeFilesDictionary, input_file)
 
-                # Get the current list of eventRangeIDs
-                currentEventRangeIDs = runJob.extractEventRangeIDs(event_ranges)
-
-                # Store the current event range id's in the total event range id dictionary
-                runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
-
-                # Create a new PFC for the current event ranges
-                ec, pilotErrorDiag, dummy = runJob.createPoolFileCatalogFromMessage(message, thisExperiment)
-                if ec != 0:
-                    tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
-                    runJob.sendMessage("No more events")
-                    break
+                ### # Create a new PFC for the current event ranges
+                ### ec, pilotErrorDiag, dummy = runJob.createPoolFileCatalogFromMessage(message, thisExperiment)
+                ### if ec != 0:
+                ###    tolog("!!WARNING!!4444!! Failed to create PFC - cannot continue, will stop all threads")
+                ###    runJob.sendMessage("No more events")
+                ###    break
 
                 # Loop over the event ranges and call AthenaMP for each event range
                 i = 0

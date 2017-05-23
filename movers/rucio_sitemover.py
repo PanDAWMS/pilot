@@ -59,10 +59,15 @@ class rucioSiteMover(BaseSiteMover):
         """
 
         if fspec.replicas:
-            cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
-                                                              fspec.replicas[0][0],
-                                                              fspec.scope,
-                                                              fspec.lfn)
+            if not fspec.allowAllInputRSEs:
+                cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                                  fspec.replicas[0][0],
+                                                                  fspec.scope,
+                                                                  fspec.lfn)
+            else:
+                cmd = 'rucio download --dir %s %s:%s' % (dirname(dst),
+                                                         fspec.scope,
+                                                         fspec.lfn)
         else:
             cmd = 'rucio download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
                                                                        fspec.ddmendpoint,
@@ -107,7 +112,7 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        if fspec.objectstoreId and int(fspec.objectstoreId) > 0:
+        if fspec.storageId and int(fspec.storageId) > 0:
             cmd = 'rucio upload --no-register --rse %s --scope %s --pfn %s %s' % (fspec.ddmendpoint,
                                                                                   fspec.scope,
                                                                                   fspec.turl,

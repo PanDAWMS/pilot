@@ -209,11 +209,11 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
     mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
     mover.trace_report.init(job)
     error = None
-    objectstoreId = None
+    storageId = None
     try:
         file = files[0]
-        if file.objectstoreId and file.objectstoreId != -1:
-            objectstoreId = file.objectstoreId
+        if file.storageId and file.storageId != -1:
+            storageId = file.storageId
             copytools = [('objectstore', {'setup': ''})]
         else:
             copytools = None
@@ -242,7 +242,7 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
         error = PilotException('STAGEOUT FAILED, exception=%s' % message, code=PilotErrors.ERR_STAGEOUTFAILED, state='STAGEOUT_FAILED')
         return error.code, error.message, None
 
-    return 0, "", objectstoreId
+    return 0, "", storageId
 
 
 # new mover implementation:
@@ -257,6 +257,7 @@ def get_data_new(job,
                  proxycheck=True,  # TODO
                  inputDir="",      # for mv mover?? not used??
                  workDir="",       # pilot work dir used to check/update file states
+                 files=None,       # input files to stagein
                  pfc_name="PoolFileCatalog.xml"
                  ):
 
@@ -286,7 +287,7 @@ def get_data_new(job,
     mover.trace_report.init(job)
     error = None
     try:
-        output = mover.stagein()
+        output = mover.stagein(files)
     except PilotException, e:
         error = e
         tolog("!!WARNING!!4545!! Caught exception: %s" % (e))

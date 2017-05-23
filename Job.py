@@ -584,6 +584,7 @@ class Job:
                 idat['lfn'] = idat['lfn'].replace("zip://", "")
             idat['allowRemoteInputs'] = self.allowRemoteInputs
             idat['cmtconfig'] = self.cmtconfig
+            idat['eventService'] = self.eventService
             finfo = FileSpec(type='input', **idat)
             self.inData.append(finfo)
 
@@ -890,14 +891,35 @@ class Job:
 
         pUtil.tolog(msg + '\n' + output)
 
-    def get_input_files(self):
-        files = {}
-        for f in self.inData:
+    def get_stagedIn_files(self, files=None):
+        retFiles = {}
+        if files is None:
+            files = self.inData
+
+        for f in files:
             if f.status in ['remote_io']:
-                files["%s:%s" % (f.scope, f.lfn)] = f.turl
-            if f.status in ['transferred'] or f.status in ['prefetch']:
-                files["%s:%s" % (f.scope, f.lfn)] = os.path.join(self.workdir or '', f.lfn)
-        return files
+                retFiles["%s:%s" % (f.scope, f.lfn)] = f.turl
+            if f.status in ['transferred']:
+                retFiles["%s:%s" % (f.scope, f.lfn)] = os.path.join(self.workdir or '', f.lfn)
+        return retFiles
+
+    def get_stagein_requests(self, files, allowRemoteInputs=False):
+        in_keys = [('inFiles', 'lfn'),
+                   ('dispatchDblock', 'dispatchDblock'), ('dispatchDBlockToken', 'dispatchDBlockToken'),
+                   ('realDatasetsIn', 'dataset'), ('GUID', 'guid'),
+                   ('fsize', 'filesize'), ('checksum', 'checksum'), ('scopeIn', 'scope'),
+                   ('prodDBlocks', 'prodDBlock'), ('prodDBlockToken', 'prodDBlockToken'),
+                   ('ddmEndPointIn', 'ddmendpoint')]
+
+        reqs = []
+        for file in files:
+            idata = {'scope': file['scope'], 'lfn': file['lfn'], 'guid': file['guid'],
+                     'dispatchDblock': self.dispatchDblock, 'dispatchDBlockToken': self.dispatchDBlockToken,
+                     'dataset': self.realDatasetsIn, 'ddmendpoint': self.ddmEndPointIn,
+                     'allowRemoteInputs': allowRemoteInputs}
+            finfo = FileSpec(type='input', **idata)
+            reqs.append(finfo)
+        return reqs
 
     def print_files(self, files): # quick stub to be checked later
 
@@ -994,7 +1016,7 @@ class FileSpec(object):
                     'cmtconfig' # Needed for Singularity
                     ]
 
-    _os_keys = ['eventRangeId', 'objectstoreId']
+    _os_keys = ['eventRangeId', 'storageId', 'eventService', 'allowAllInputRSEs']
 
     _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code']
 
@@ -1005,6 +1027,9 @@ class FileSpec(object):
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
 
         self.filesize = int(getattr(self, 'filesize', 0) or 0)
+        if self.eventService is None:
+            self.eventService = False
+        self.allowAllInputRSEs = False
         self.replicas = []
 
     def __repr__(self):
