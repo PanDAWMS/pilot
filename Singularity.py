@@ -22,6 +22,11 @@ def extractSingularityOptions():
         singularity_options = found[0]
         if singularity_options.endswith("'") or singularity_options.endswith('"'):
             singularity_options = singularity_options[:-1]
+
+        # add the workdir if missing
+        if not "${workdir}" in singularity_options and " --contain" in singularity_options:
+            singularity_options = singularity_options.replace(" --contain", ",${workdir} --contain")
+            tolog("Note: added missing ${workdir} to singularity_options")
     else:
         singularity_options = ""
 
