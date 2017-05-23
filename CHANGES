@@ -190,6 +190,43 @@ File Changes
 
 M ATLASExperiment.py (4)
 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/136
+
+    copy jobMetrics-yoda.json to top working directory for ARC.
+    ignore sqlite200 in ES logs copying(when copying logs from rank_* directory to pilot directory).
+    update to download number of events from corecount to corecount*2
+    update to support new mover in RunJobHpcEvent.py
+    update to use storageId(rse id) instead of objectstoreId, in this case we can use normal grid storages.
+    when normal stagein failed, ES will be able to try to stage in files from remote storages with rucio sitemover.
+    stop eventservice when there are too many continuous stageout failures. 
+
+Commit Summary
+
+    copy jobmetrics file to top directory
+    ignore to copy sqlite200 to logs
+    download 2 times corecount events
+    to support new mover in hpc es
+    merge
+    update objectstoreid to storageid, disable old createpoolcatalog in runjobevent
+    try remote inputs for failed stagein in eventservice
+    stop ES when two many stageout failures
+    able to stagein remote inputs for es
+    to allow stagein from all other sites for es
+    small fixes
+    small fix 
+
+File Changes
+
+    M Job.py (41)
+    M Mover.py (11)
+    M RunJob.py (3)
+    M RunJobEvent.py (134)
+    M RunJobHpcEvent.py (78)
+    M movers/mover.py (57)
+    M movers/rucio_sitemover.py (15) 
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
