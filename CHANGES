@@ -37,7 +37,6 @@ General changes:
 Work directory
 - Work directory naming has been simplified to make it simpler for especially checkpointing
 - Removed time stamp and panda id from job work directory in mkJobWorkdir() (Job)
-- Removed process id and time stamp from site workdir in getWorkDir() (Site)
 
 Memory monitor
 - Created new getUtilityCommand() for Nordugrid since default function has problems with complex ND release (NordugridATLASExperiment)

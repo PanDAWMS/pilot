@@ -497,6 +497,7 @@ class Job:
 
         self.jobPars = data.get('jobPars', '')
 #        self.jobPars = 'source $AtlasSetup/scripts/asetup.sh AtlasProduction,20.1.4.14,notest,here --platform x86_64-slc6-gcc48-opt --makeflags=\"$MAKEFLAGS\";Reco_tf.py --maxEvents=1 --inputHITSFile HITS.06828093._000096.pool.root.1 --outputRDOFile RDO_bd5792cc-6f23-4c59-8add-2db7a15a44ef.root'
+#        self.jobPars = "source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.48 --platform=x86_64-slc6-gcc49-opt;./runAthena-00-00-11 " + self.jobPars
 # PN
         _noExecStrCnv = data.get('noExecStrCnv', None)
         _noExecStrCnv = 'true'
