@@ -2,9 +2,11 @@
 
 import json
 import os
+import traceback
 from pUtil import httpConnect, tolog
+from EventRangesPandaProxy import downloadEventRangesPandaProxy, updateEventRangePandaProxy, updateEventRangesPandaProxy
 
-def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10, url="https://pandaserver.cern.ch:25443/server/panda"):
+def downloadEventRanges(jobId, jobsetID, taskID, pandaProxySecretKey, numRanges=10, url="https://pandaserver.cern.ch:25443/server/panda"):
     """ Download event ranges from the Event Server """
 
     try:
@@ -24,6 +26,9 @@ def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10, url="https://pand
         # Note: the returned message is a string (of a list of dictionaries). If it needs to be converted back to a list, use json.loads(message)
 
         tolog("Downloading new event ranges for jobId=%s, taskID=%s and jobsetID=%s" % (jobId, taskID, jobsetID))
+                
+        if pandaProxySecretKey is not None and pandaProxySecretKey != "" :
+            return  downloadEventRangesPandaProxy(jobId, jobsetID, pandaProxySecretKey)
 
         # message = "[{u'lastEvent': 2, u'LFN': u'mu_E50_eta0-25.evgen.pool.root',u'eventRangeID': u'130-2068634812-21368-1-1', u'startEvent': 2, u'GUID':u'74DFB3ED-DAA7-E011-8954-001E4F3D9CB1'}]"
 
@@ -54,11 +59,15 @@ def downloadEventRanges(jobId, jobsetID, taskID, numRanges=10, url="https://pand
         tolog("Failed to download event ranges: %s" % traceback.format_exc())
     return None
 
-def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', os_bucket_id=-1, errorCode=None):
-    """ Update an event range on the server """
+def updateEventRange(event_range_id, eventRangeList, jobId, pandaProxySecretKey, status='finished', os_bucket_id=-1, errorCode=None):
+    """ Update an list of event ranges on the Event Server """
+    # parameter eventRangeList is not used
 
     try:
         tolog("Updating an event range..")
+
+        if pandaProxySecretKey is not None and pandaProxySecretKey != "" :
+            return  updateEventRangePandaProxy(event_range_id, eventRangeList, jobId, pandaProxySecretKey, status, os_bucket_id, errorCode)
 
         eventrange = {'eventRangeID': event_range_id, 'eventStatus': status}
 
@@ -78,12 +87,13 @@ def updateEventRange(event_range_id, eventRangeList, jobId, status='finished', o
         tolog("Failed to update event range: %s" % traceback.format_exc())
     return None
 
-def updateEventRanges(event_ranges, url="https://pandaserver.cern.ch:25443/server/panda", version=0):
-    """ Update a list of event ranges on the server """
-
-    tolog("Updating event ranges..")
+def updateEventRanges(event_ranges, pandaProxySecretKey=None, jobId=None, url="https://pandaserver.cern.ch:25443/server/panda", version=0):
+    """ Update an event range on the Event Server """
+    tolog("Updating event ranges...")
 
     try:
+        if pandaProxySecretKey is not None and pandaProxySecretKey != "" :
+            return  updateEventRangesPandaProxy(event_ranges, pandaProxySecretKey, jobId)
         message = ""
 
         # eventRanges = [{'eventRangeID': '4001396-1800223966-4426028-1-2', 'eventStatus':'running'}, {'eventRangeID': '4001396-1800223966-4426028-2-2','eventStatus':'running'}]
