@@ -64,6 +64,8 @@ Singularity support:
 - Added cmtconfig to idat dictionary in setJobDef() so that it will be propagated with the file specification down to the movers (Job)
 - Added the singularity wrapper to the stage-in command in stageIn() (rucio_sitemover)
 - Added the singularity wrapper to the stage-out command in stageOut() (rucio_sitemover)
+- Added the singularity wrapper to the stage-in command in stageInFile() (gfalcopy_sitemover)
+- Added the singularity wrapper to the stage-out command in stageOutFile() (gfalcopy_sitemover)
 - Sending cmtconfig to FileSpec in do_put_files() (mover)
 - Added cmtconfig to _infile_keys and _outfile_keys in FileSpec (Job)
 
