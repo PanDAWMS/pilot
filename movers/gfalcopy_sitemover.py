@@ -9,6 +9,7 @@ from TimerCommand import TimerCommand
 from PilotErrors import PilotErrors, PilotException
 
 from datetime import datetime
+from os.path import dirname
 import time
 
 import re
