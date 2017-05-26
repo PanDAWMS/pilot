@@ -158,6 +158,10 @@ class gfalcopySiteMover(BaseSiteMover):
         src = "file://%s" % os.path.abspath(source)
         cmd = '%s --verbose %s -p -f -t %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" -S %s %s %s' % (self.copy_command, checksum_opt, timeout, token, src, destination)
 
+        # Prepend the command with singularity if necessary
+        from Singularity import singularityWrapper
+        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(source))
+
         return self._stagefile(cmd, source, destination, filesize, is_stagein=False)
 
 
@@ -178,6 +182,10 @@ class gfalcopySiteMover(BaseSiteMover):
 
         dst = "file://%s" % os.path.abspath(destination)
         cmd = '%s --verbose %s -f -t %s -D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp" %s %s' % (self.copy_command, checksum_opt, timeout, source, dst)
+
+        # Prepend the command with singularity if necessary
+        from Singularity import singularityWrapper
+        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(destination))
 
         return self._stagefile(cmd, source, destination, fspec.filesize, is_stagein=True)
 
