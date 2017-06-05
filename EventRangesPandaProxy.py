@@ -6,7 +6,7 @@ import cgi
 from pUtil import httpConnect, tolog
 from Configuration import Configuration
 try:
-	import requests
+    import requests
 except  ImportError:
     tolog("pp: unable to import module 'requests', which is necessary if panda proxy is used")
 
