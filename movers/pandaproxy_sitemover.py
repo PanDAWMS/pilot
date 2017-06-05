@@ -15,12 +15,17 @@ from PilotErrors import PilotException
 
 import os
 #import traceback
-import requests
 import cgi
 
 from datetime import datetime
 from TimerCommand import TimerCommand
 #from subprocess import Popen, PIPE, STDOUT
+
+try:
+	import requests
+except:
+	pass
+
 
 class pandaproxySiteMover(BaseSiteMover):
     """ sitemover to upload files with panda proxy to object store"""
@@ -231,7 +236,7 @@ class pandaproxySiteMover(BaseSiteMover):
         """
         Overridden method -- unused
         """
-        self.log("agb: resolve_replica: fspec=%s" % fspec)
+        self.log("pp: resolve_replica: fspec=%s" % fspec)
         if ddm:
             if ddm.get('type') not in ['OS_LOGS', 'OS_ES']:
                 return {}

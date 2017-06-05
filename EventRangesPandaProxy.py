@@ -2,10 +2,13 @@
 
 import json
 import os
-import requests
 import cgi
 from pUtil import httpConnect, tolog
 from Configuration import Configuration
+try:
+	import requests
+except  ImportError:
+    tolog("pp: unable to import module 'requests', which is necessary if panda proxy is used")
 
 def envPandaProxyURL():
     """ Compose "panda proxy URL" from environment variables in Configuration module
@@ -140,6 +143,6 @@ def updateEventRangesPandaProxy(event_ranges, pandaProxySecretKey, jobId):
         eventRangeStatus = range['eventStatus']
         retStatus, message =  updateEventRangePandaProxy_normalized(eventRangeId, jobId, pandaProxySecretKey, eventRangeStatus)
         if message != "":
-                return retStatus, mesage
-    return retStatus, message
+            return retStatus, message
+    return retStatus, message		
    
