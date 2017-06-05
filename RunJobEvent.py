@@ -3063,23 +3063,26 @@ class RunJobEvent(RunJob):
 
         # Extract the inputEVNTFile from the jobPars
         if "--inputEVNTFile" in jobPars:
-            pattern = r"\-\-inputEVNTFile\=(.+) "
-            found = re.findall(pattern, jobPars)
-            if len(found) > 0:
-                inputfile_list = found[0]
+            found_items = re.findall(r'\S+', jobPars)
 
-                # Did it find any input EVNT files? If so, does the extracted string contain any brackets?
-                if inputfile_list != "" and "[" in inputfile_list:
-                    tolog("Found bracket list: {0}".format(inputfile_list))
+            pattern = r"\-\-inputEVNTFile\=(.+)"
+            for item in found_items:
+                found = re.findall(pattern, item)
+                if len(found) > 0:
+                    inputfile_list = found[0]
 
-                    # Replace the extracted string with the full input file list
-                    l = ",".join(inputFiles)
-                    jobPars = jobPars.replace(inputfile_list, l)
-                    tolog("Updated jobPars={0}".format(jobPars))
-            else:
-                print "Found no --inputEVNTFile pattern in jobPars"
+                    # Did it find any input EVNT files? If so, does the extracted string contain any brackets?
+                    if inputfile_list != "" and "[" in inputfile_list:
+                        tolog("Found bracket list: {0}".format(inputfile_list))
 
-        return jobPars
+                        # Replace the extracted string with the full input file list
+                        l = ",".join(inputFiles)
+                        jobPars = jobPars.replace(inputfile_list, l)
+                        tolog("Updated jobPars={0}".format(jobPars))
+                    break
+
+    return jobPars
+
 
 # main process starts here
 if __name__ == "__main__":
