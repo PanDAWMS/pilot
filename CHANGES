@@ -46,6 +46,7 @@ Event Streaming Service
 - Created addPFNToEventRange() (RunJobEvent)
 - Added 'prefetch' support in get_input_files() (Job)
 - Updated setUsePrefetcher() (RunJobEvent)
+- Added updateJobParsForBrackets() for testing (RunJobEvent)
 
 jobPars based payload setup:
 - Added noExecStrCnv (Job)

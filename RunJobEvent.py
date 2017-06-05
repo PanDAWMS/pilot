@@ -3054,6 +3054,32 @@ class RunJobEvent(RunJob):
             tolog("Too many stageout failures, send 'No more events' to AthenaMP")
             self.sendMessage("No more events")
 
+    def updateJobParsForBrackets(self, jobPars, inputFiles):
+        """ Replace problematic bracket lists with full file names """
+        # jobPars = .. --inputEVNTFile=EVNT.01416937._[000003,000004].pool.root ..
+        # ->
+        # jobPars = .. --inputEVNTFile=EVNT.01416937._000003.pool.root,EVNT.01416937._000004.pool.root ..
+        # Note: this function should only be used for testing purposes - although there appears to be a bug in the Sim_tf seen with multiple input files
+
+        # Extract the inputEVNTFile from the jobPars
+        if "--inputEVNTFile" in jobPars:
+            pattern = r"\-\-inputEVNTFile\=(.+) "
+            found = re.findall(pattern, jobPars)
+            if len(found) > 0:
+                inputfile_list = found[0]
+
+                # Did it find any input EVNT files? If so, does the extracted string contain any brackets?
+                if inputfile_list != "" and "[" in inputfile_list:
+                    tolog("Found bracket list: {0}".format(inputfile_list))
+
+                    # Replace the extracted string with the full input file list
+                    l = ",".join(inputFiles)
+                    jobPars = jobPars.replace(inputfile_list, l)
+                    tolog("Updated jobPars={0}".format(jobPars))
+            else:
+                print "Found no --inputEVNTFile pattern in jobPars"
+
+        return jobPars
 
 # main process starts here
 if __name__ == "__main__":
@@ -3135,6 +3161,9 @@ if __name__ == "__main__":
 
         # Should the Event Index be used?
         runJob.setUseEventIndex(job.jobPars)
+
+        # Update problematic bracket lists (for testing only)
+        job.jobPars = runJob.updateJobParsForBrackets(job.jobPars, job.inFiles)
 
         # Set the taskID
         runJob.setTaskID(job.taskID)
@@ -3427,7 +3456,11 @@ if __name__ == "__main__":
             prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
 
             # Get the full path to the input file from the fileState file
-            input_files = getFilesOfState(runJob.getParentWorkDir(), job.jobId, ftype="input", state="prefetch")
+            if job.transferType == "direct":
+                state = "remote_io"
+            else:
+                state = "prefetch"
+            input_files = getFilesOfState(runJob.getParentWorkDir(), job.jobId, ftype="input", state=state)
             if input_files == "":
                 pilotErrorDiag = "Did not find any turls in fileState file"
                 tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
