@@ -3065,7 +3065,7 @@ class RunJobEvent(RunJob):
         if "--inputEVNTFile" in jobPars:
             found_items = re.findall(r'\S+', jobPars)
 
-            pattern = r"\-\-inputEVNTFile\=(.+)"
+            pattern = r"\'?\-\-inputEVNTFile\=(.+)\'?"
             for item in found_items:
                 found = re.findall(pattern, item)
                 if len(found) > 0:
@@ -3073,6 +3073,8 @@ class RunJobEvent(RunJob):
 
                     # Did it find any input EVNT files? If so, does the extracted string contain any brackets?
                     if inputfile_list != "" and "[" in inputfile_list:
+                        if inputfile_list.endswith("\'"):
+                            inputfile_list = inputfile_list[:-1]
                         tolog("Found bracket list: {0}".format(inputfile_list))
 
                         # Replace the extracted string with the full input file list
