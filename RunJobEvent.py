@@ -3081,7 +3081,7 @@ class RunJobEvent(RunJob):
                         tolog("Updated jobPars={0}".format(jobPars))
                     break
 
-    return jobPars
+        return jobPars
 
 
 # main process starts here
