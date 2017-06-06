@@ -822,11 +822,11 @@ class RunJobEvent(RunJob):
             if release != "":
                 # Can only use Prefetcher for releases >= 21.0.21 or for non-numerical releases (e.g. 'master')
                 _release = release.replace('.','')
-                if isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit():
+                if (isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit()) and 'useprefetcher' in readpar('catchall'):
                     tolog("Prefetcher will be used for release %s" % (release))
                     self.__usePrefetcher = True
             else:
-                tolog("Prefetcher will not be used (cannot verify release)")
+                tolog("Prefetcher will not be used")
                 self.__usePrefetcher = False
         else:
             tolog("Prefetcher will/cannot not be used")
@@ -3692,7 +3692,7 @@ if __name__ == "__main__":
                                 event_range['LFN'] = runJob.getUpdatedLFN()
 
                                 # Add the PFN (local file path)
-                                event_range = runJob.addPFNToEventRange(event_range)
+                                # event_range = runJob.addPFNToEventRange(event_range)
 
                                 # Update the positional event numbers
                                 event_range['lastEvent'] = 1 + event_range['lastEvent'] - event_range['startEvent']
