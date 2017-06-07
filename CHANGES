@@ -4,10 +4,6 @@ Complete change log for the Pilot 1
 
 69.0
 
-timefloor
-
-
-
 General changes:
 - Created handleAdditionalOutFiles() to cleanup main function a bit (RunJob)
 - Corrected error messages (grammatical) in stageout(), do_put_files() (mover)
@@ -31,6 +27,7 @@ General changes:
 - Removed deprecated use of file stager variables in getAnalysisRunCommand() (ATLASExperiment)
 - Removed deprecated lfchost in updateRunCommandList() (RunJobUtilities)
 - Added a new function for calculating adler32 (same as Harvester), calc_adler32() (SiteMover)
+- Avoid using the NordugridATLASExperiment::getJobExecutionCommand() (NordugridATLASExperiment)
 
 Work directory
 - Work directory naming has been simplified to make it simpler for especially checkpointing
