@@ -225,6 +225,45 @@ File Changes
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+69.1
+
+General changes
+
+
+Updates from Alexander 
+
+  https://github.com/PanDAWMS/pilot/pull/137
+
+Commit Summary
+
+new ES panda proxy features for BOINC
+
+File Changes
+
+M EventRanges.py (24)
+A EventRangesPandaProxy.py (145)
+M Job.py (8)
+M PILOTVERSION (2)
+M RunJobEvent.py (46)
+A S3ObjectstorePresignedURLSiteMover.py (510)
+M movers/mv_sitemover.py (31)
+A movers/pandaproxy_sitemover.py (252)
+M movers/sitemovers.py (1)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/138
+
+Commit Summary
+
+  update to set zip as default
+
+File Changes
+
+M RunJobEvent.py (4)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 OS log transfers:
