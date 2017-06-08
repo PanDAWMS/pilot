@@ -1632,9 +1632,8 @@ class RunJobEvent(RunJob):
             tolog("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
 
             if osddms:
-                self.__stageOutDDMEndpoint = osddms[0]
-                # self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
-                self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
+                self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+                # self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
             else:
                 tolog("[stage-out-os] no osddms defined, looking for associated storages with activity: %s" % (activity))
                 associate_storages = self.__siteInfo.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
