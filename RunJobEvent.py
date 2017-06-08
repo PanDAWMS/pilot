@@ -822,11 +822,11 @@ class RunJobEvent(RunJob):
             if release != "":
                 # Can only use Prefetcher for releases >= 21.0.21 or for non-numerical releases (e.g. 'master')
                 _release = release.replace('.','')
-                if isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit():
+                if (isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit()) and 'useprefetcher' in readpar('catchall'):
                     tolog("Prefetcher will be used for release %s" % (release))
                     self.__usePrefetcher = True
             else:
-                tolog("Prefetcher will not be used (cannot verify release)")
+                tolog("Prefetcher will not be used")
                 self.__usePrefetcher = False
         else:
             tolog("Prefetcher will/cannot not be used")
@@ -3066,6 +3066,37 @@ class RunJobEvent(RunJob):
             tolog("Too many stageout failures, send 'No more events' to AthenaMP")
             self.sendMessage("No more events")
 
+    def updateJobParsForBrackets(self, jobPars, inputFiles):
+        """ Replace problematic bracket lists with full file names """
+        # jobPars = .. --inputEVNTFile=EVNT.01416937._[000003,000004].pool.root ..
+        # ->
+        # jobPars = .. --inputEVNTFile=EVNT.01416937._000003.pool.root,EVNT.01416937._000004.pool.root ..
+        # Note: this function should only be used for testing purposes - although there appears to be a bug in the Sim_tf seen with multiple input files
+
+        # Extract the inputEVNTFile from the jobPars
+        if "--inputEVNTFile" in jobPars:
+            found_items = re.findall(r'\S+', jobPars)
+
+            pattern = r"\'?\-\-inputEVNTFile\=(.+)\'?"
+            for item in found_items:
+                found = re.findall(pattern, item)
+                if len(found) > 0:
+                    inputfile_list = found[0]
+
+                    # Did it find any input EVNT files? If so, does the extracted string contain any brackets?
+                    if inputfile_list != "" and "[" in inputfile_list:
+                        if inputfile_list.endswith("\'"):
+                            inputfile_list = inputfile_list[:-1]
+                        tolog("Found bracket list: {0}".format(inputfile_list))
+
+                        # Replace the extracted string with the full input file list
+                        l = ",".join(inputFiles)
+                        jobPars = jobPars.replace(inputfile_list, l)
+                        tolog("Updated jobPars={0}".format(jobPars))
+                    break
+
+        return jobPars
+
 
 # main process starts here
 if __name__ == "__main__":
@@ -3147,6 +3178,9 @@ if __name__ == "__main__":
 
         # Should the Event Index be used?
         runJob.setUseEventIndex(job.jobPars)
+
+        # Update problematic bracket lists (for testing only)
+        job.jobPars = runJob.updateJobParsForBrackets(job.jobPars, job.inFiles)
 
         # Set the taskID
         runJob.setTaskID(job.taskID)
@@ -3435,7 +3469,11 @@ if __name__ == "__main__":
             prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout.txt", stderrName="prefetcher_stderr.txt")
 
             # Get the full path to the input file from the fileState file
-            input_files = getFilesOfState(runJob.getParentWorkDir(), job.jobId, ftype="input", state="prefetch")
+            if job.transferType == "direct":
+                state = "remote_io"
+            else:
+                state = "prefetch"
+            input_files = getFilesOfState(runJob.getParentWorkDir(), job.jobId, ftype="input", state=state)
             if input_files == "":
                 pilotErrorDiag = "Did not find any turls in fileState file"
                 tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
@@ -3662,7 +3700,7 @@ if __name__ == "__main__":
                                 event_range['LFN'] = runJob.getUpdatedLFN()
 
                                 # Add the PFN (local file path)
-                                event_range = runJob.addPFNToEventRange(event_range)
+                                # event_range = runJob.addPFNToEventRange(event_range)
 
                                 # Update the positional event numbers
                                 event_range['lastEvent'] = 1 + event_range['lastEvent'] - event_range['startEvent']

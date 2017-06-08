@@ -59,7 +59,7 @@ class NordugridATLASExperiment(ATLASExperiment):
         else:
             self.__warning = "setParameters found no job object"
 
-    def getJobExecutionCommand(self, job, jobSite, pilot_initdir):
+    def getJobExecutionCommandObsolete(self, job, jobSite, pilot_initdir):
         """ Define and test the command(s) that will be used to execute the payload """
 
         # Input tuple: (method is called from RunJob*)
