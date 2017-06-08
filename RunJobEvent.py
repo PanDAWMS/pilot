@@ -107,7 +107,7 @@ class RunJobEvent(RunJob):
     __pandaserver = ""                   # Full PanDA server url incl. port and sub dirs
 
     # ES zip
-    __esToZip = False
+    __esToZip = True
     __stageOutDDMEndpoint = None
     __stageOutStorageId = None
 
@@ -1277,6 +1277,8 @@ class RunJobEvent(RunJob):
             catchalls = readpar('catchall')
             if 'es_to_zip' in catchalls:
                 self.__esToZip = True
+            if 'not_es_to_zip' in catchalls:
+                self.__esToZip = False
             catchalls = readpar('catchall')
             if 'zip_time_gap' in catchalls:
                 for catchall in catchalls.split(","):
