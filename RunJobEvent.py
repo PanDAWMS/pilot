@@ -1673,6 +1673,8 @@ class RunJobEvent(RunJob):
             tolog("[stage-out] [%s] resolved ddmendpoint=%s for es transfer with access key %s" % (activity, self.__stageOutDDMEndpoint, os.environ.get('S3_ACCESS_KEY', None)))
 
 
+        osPublicKey = self.__siteInfo.getObjectstoresField("os_access_key", os_bucket_name="eventservice")
+        osPrivateKey = self.__siteInfo.getObjectstoresField("os_secret_key", os_bucket_name="eventservice")
         files = []
         for file_path in file_paths:
             file_dict = {'lfn': os.path.basename(file_path),
@@ -1681,7 +1683,12 @@ class RunJobEvent(RunJob):
                          'scope': job.scopeOut[0],
                          'eventRangeId': event_range_id,
                          'storageId': self.__stageOutStorageId,
-                         'ddmendpoint': self.__stageOutDDMEndpoint}
+                         'ddmendpoint': self.__stageOutDDMEndpoint,
+                         'pandaProxySecretKey': job.pandaProxySecretKey,
+                         'jobId':job.jobId,
+                         'osPrivateKey':osPrivateKey,
+                         'osPublicKey':osPublicKey
+                         }
             finfo = Job.FileSpec(type='output', **file_dict)
             files.append(finfo)
 
@@ -1781,7 +1788,7 @@ class RunJobEvent(RunJob):
 
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
-                    status, output = updateEventRanges(chunkEventRanges, url=self.getPanDAServer())
+                    status, output = updateEventRanges(chunkEventRanges, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
                 self.__nStageOutFailures += 1
                 self.__nStageOutSuccessAfterFailure = 0
@@ -1794,7 +1801,7 @@ class RunJobEvent(RunJob):
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
-                    status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1)
+                    status, output = updateEventRanges(event_status, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
                 self.__nStageOutSuccessAfterFailure += 1
                 if self.__nStageOutSuccessAfterFailure > 10:
@@ -1865,7 +1872,7 @@ class RunJobEvent(RunJob):
 
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
-                    status, output = updateEventRanges(chunkEventRanges, url=self.getPanDAServer())
+                    status, output = updateEventRanges(chunkEventRanges, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
             else:
                 eventRanges = []
@@ -1876,7 +1883,7 @@ class RunJobEvent(RunJob):
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
-                    status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1)
+                    status, output = updateEventRanges(event_status, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey=self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
         else:
             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
@@ -1978,7 +1985,7 @@ class RunJobEvent(RunJob):
 
                                 try:
                                     # Time to update the server
-                                    msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode)
+                                    msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode, pandaProxySecretKey=self.__job.pandaProxySecretKey)
 
                                     # Did the updateEventRange back channel contain an instruction?
                                     if msg == "tobekilled":
@@ -2094,7 +2101,7 @@ class RunJobEvent(RunJob):
 
                             try:
                                 # Time to update the server
-                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode)
+                                msg = updateEventRange(event_range_id, self.__eventRange_dictionary[event_range_id], self.__job.jobId, status=status, os_bucket_id=os_bucket_id, errorCode=errorCode, pandaProxySecretKey=self.__job.pandaProxySecretKey)
 
                                 # Did the updateEventRange back channel contain an instruction?
                                 if msg == "tobekilled":
@@ -2254,17 +2261,18 @@ class RunJobEvent(RunJob):
 
                         # Time to update the server
                         self.__nEventsFailed += 1
-                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status=event_status, errorCode=error_code)
+                        msg = updateEventRange(event_range_id, [], self.__job.jobId, status=event_status, errorCode=error_code, pandaProxySecretKey=self.__job.pandaProxySecretKey)
                         if msg != "":
                             tolog("!!WARNING!!2145!! Problem with updating event range: %s" % (msg))
                         else:
                             tolog("Updated server for failed event range")
 
                         if error_code:
-                            # result = ["failed", 0, error_code]
-                            tolog("Error code: %d, send 'No more events' to stop AthenaMP" % (error_code))
-                            # self.setJobResult(result, pilot_failed=True)
-                            self.sendMessage("No more events")
+                            result = ["failed", 0, error_code]
+                            tolog("Setting error code: %d" % (error_code))
+                            self.setJobResult(result, pilot_failed=True)
+
+                            # ..
                     else:
                         tolog("!!WARNING!!2245!! Extracted error acronym %s and error diagnostics \'%s\' (event range could not be extracted - cannot update server)" % (error_acronym, error_diagnostics))
 
@@ -2902,7 +2910,11 @@ class RunJobEvent(RunJob):
             use_newmover = readpar('use_newmover')
             if not str(use_newmover).lower() in ["1", "true"]:
                 from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
-                testSiteMover = S3ObjectstoreSiteMover('')
+                from S3ObjectstorePresignedURLSiteMover import S3ObjectstorePresignedURLSiteMover
+                if self.__job.pandaProxySecretKey is not None and self.__job.pandaProxySecretKey != "" :
+                    testSiteMover = S3ObjectstorePresignedURLSiteMover('')
+                else:
+                    testSiteMover = S3ObjectstoreSiteMover('')
                 status, output = testSiteMover.setup(experiment=self.getExperiment())
                 return status, output
             else:
@@ -3324,11 +3336,7 @@ if __name__ == "__main__":
         runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
 
         if not os.environ.has_key('ATHENA_PROC_NUMBER'):
-            tolog("ATHENA_PROC_NUMBER not defined, setting it to 1")
             runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
-            job.coreCount = 1
-        else:
-            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
 
         # (stage-in ends here) .............................................................................
 
@@ -3546,7 +3554,7 @@ if __name__ == "__main__":
 
         # download event ranges before athenaMP
         # Pilot will download some event ranges from the Event Server
-        message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
+        message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
         # Create a list of event ranges from the downloaded message
         first_event_ranges = runJob.extractEventRanges(message)
         if first_event_ranges is None or first_event_ranges == []:
@@ -3602,7 +3610,7 @@ if __name__ == "__main__":
                     first_event_ranges = None
                 else:
                     # Pilot will download some event ranges from the Event Server
-                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
 
                     # Create a list of event ranges from the downloaded message
                     event_ranges = runJob.extractEventRanges(message)
