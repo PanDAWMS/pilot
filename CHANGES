@@ -227,8 +227,26 @@ File Changes
 
 69.1
 
-General changes
+Updates from Wen Guan:
 
+Urgent fix for a problem with stale ddmendpoints cvmfs dictionary affecting some CERN T0 nodes.
+
+  https://github.com/PanDAWMS/pilot/pull/141
+
+Commit Summary
+
+  rollback one change
+
+File Changes
+
+M RunJobEvent.py (4)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+69.2
+
+General changes
+..
 
 Updates from Alexander 
 
@@ -261,6 +279,21 @@ Commit Summary
 File Changes
 
 M RunJobEvent.py (4)
+
+Updates from Mario Lassnig/Frank Berghaus
+
+Rucio now supports the DAV protocol. It uses the protocol to slightly modify it's behavior when talking to a strict DAV endpoint compared to a more relaxed HTTP 
+endpoint. Integrating the DynaFed into ATLAS DDM requires Rucio to make this distinction. Davs protocol added to the pilot.
+
+  https://github.com/PanDAWMS/pilot/pull/139
+
+Commit Summary
+
+  add DAVs to protocols supported by rucio
+
+File Changes
+
+M movers/rucio_sitemover.py (2)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
