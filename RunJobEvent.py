@@ -108,6 +108,8 @@ class RunJobEvent(RunJob):
 
     # ES zip
     __esToZip = True
+    __multipleBuckets = None
+    __numBuckets = 10
     __stageOutDDMEndpoint = None
     __stageOutStorageId = None
 
@@ -1275,12 +1277,31 @@ class RunJobEvent(RunJob):
             self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s" % self.__job.jobId)
             self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
             catchalls = readpar('catchall')
+
+            if 'multiple_buckets' in catchalls:
+                self.__multipleBuckets = 1
+            if 'multiple_buckets_with_taskid' in catchalls:
+                self.__multipleBuckets = 2
+            if 'disable_multiple_buckets' in catchalls:
+                self.__multipleBuckets = None
+            if "num_buckets=" in catchalls:
+                for catchall in catchalls.split(","):
+                    if 'num_buckets=' in catchall:
+                        name, value = catchall.split('=')
+                        self.__numBuckets = int(value)
+                        if self.__numBuckets < 1:
+                            tolog("Number of buckets %s is smaller than 1, set it to 1" % (self.__numBuckets))
+                            self.__numBuckets = 1
+                        if self.__numBuckets > 99:
+                            tolog("Number of buckets %s is bigger than 99, set it to 99" % (self.__numBuckets))
+                            self.__numBuckets = 99
+
             if 'es_to_zip' in catchalls:
                 self.__esToZip = True
             if 'not_es_to_zip' in catchalls:
                 self.__esToZip = False
             catchalls = readpar('catchall')
-            if 'zip_time_gap' in catchalls:
+            if 'zip_time_gap=' in catchalls:
                 for catchall in catchalls.split(","):
                     if 'zip_time_gap' in catchall:
                         name, value = catchall.split('=')
@@ -1603,7 +1624,7 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, os_bucket_id
 
-    def stage_out_es(self, job, event_range_id, file_paths):
+    def stage_out_es(self, job, event_range_id, file_paths, pathConvention=None):
         """
         event_range_id: event range id as a string.
         file_paths: List of file paths.
@@ -1686,6 +1707,7 @@ class RunJobEvent(RunJob):
                          'scope': job.scopeOut[0],
                          'eventRangeId': event_range_id,
                          'storageId': self.__stageOutStorageId,
+                         'pathConvention': pathConvention,
                          'ddmendpoint': self.__stageOutDDMEndpoint,
                          'pandaProxySecretKey': job.pandaProxySecretKey,
                          'jobId':job.jobId,
@@ -1731,6 +1753,25 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag
 
+    def getPathConvention(self, taskId, jobId):
+        # __multipleBuckets:
+        # 1: final path will be atlaseventservice_<pathConvention>
+        # 2: final path will be atlaseventservice_<taskid>_<pathConvention>
+
+        # __numBuckets is from 1 to 99
+
+        # @returns: 
+        #  if multiple buckets with task id: 100 + int(jobid) % __numBuckets
+        #  if multiple buckets without task id: int(jobid) % __numBuckets
+
+        if self.__multipleBuckets:
+            if self.__multipleBuckets == 1:
+                return int(jobId) % self.__numBuckets
+            if self.__multipleBuckets == 2:
+                return int(jobId) % self.__numBuckets + 100
+
+        return None
+
     def stageOutZipFiles_new(self, output_name=None, output_eventRanges=None, output_eventRange_id=None):
         if not self.__esToZip:
             tolog("ES to zip is not configured")
@@ -1764,8 +1805,10 @@ class RunJobEvent(RunJob):
                     handle.write("%s %s\n" % (eventRange, output_eventRanges[eventRange]))
             return 0, None
 
+        pathConvention = self.getPathConvention(self.__job.taskID, self.__job.jobId)
+
         try:
-            ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, output_eventRange_id, [output_name])
+            ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, output_eventRange_id, [output_name], pathConvention=pathConvention)
         except Exception, e:
             tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
         else:
@@ -1803,8 +1846,11 @@ class RunJobEvent(RunJob):
 
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
-                    event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
-                    status, output = updateEventRanges(event_status, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
+                    if pathConvention:
+                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'pathConvention': pathConvention}}]
+                    else:
+                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
+                    status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1, jobId = self.__job.jobId, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
                 self.__nStageOutSuccessAfterFailure += 1
                 if self.__nStageOutSuccessAfterFailure > 10:

@@ -30,7 +30,7 @@ class objectstoreSiteMover(rucioSiteMover):
         """
         pass
 
-    def getSURL(self, se, se_path, scope, lfn, job=None):
+    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None):
         """
             Get final destination SURL of file to be moved
             job instance is passing here for possible JOB specific processing ?? FIX ME LATER
@@ -38,6 +38,28 @@ class objectstoreSiteMover(rucioSiteMover):
 
         ### quick fix: this actually should be reported back from Rucio upload in stageOut()
         ### surl is currently (required?) being reported back to Panda in XML
+
+        if job == None or pathConvention == None:
+            surl = se + os.path.join(se_path, lfn)
+            return surl
+
+        # If pathConvention is not None, it means multiple buckets are used.
+        # If pathConvention is bigger than or equal 100:
+        #     The bucket name is '<atlas-eventservice>-<taskid>-<pathConventionNumber>'
+        #     Real pathConvention is pathConvention - 100
+        # Else:
+        #     The bucket name is '<atlas-eventservice>-<pathConventionNumber>'
+        #     Real pathConvention is pathConvention.
+
+        while se_path.endswith("/"):
+            se_path = se_path[:-1]
+
+        if pathConvention >= 100:
+            pathConvention = pathConvention - 100
+            taskId = job.taskID
+            se_path = "%s-%s-%s" % (se_path, taskId, pathConvention)
+        else:
+            se_path = "%s-%s" % (se_path, pathConvention)
 
         surl = se + os.path.join(se_path, lfn)
         return surl
