@@ -19,7 +19,7 @@ class rucioSiteMover(BaseSiteMover):
     """ SiteMover that uses rucio CLI for both get and put functionality """
 
     name = 'rucio'
-    schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio']
+    schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio', 'davs']
 
 
     def __which(self, pgm):
