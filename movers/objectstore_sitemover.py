@@ -56,7 +56,7 @@ class objectstoreSiteMover(rucioSiteMover):
         Overridden method -- unused
         """
         # tolog("To resolve replica for file (%s) protocol (%s) ddm (%s)" % (fspec, protocol, ddm))
-        if ddm:
+        if ddm and fspec.storageId and fspec.storageId > 0:
             if ddm.get('type') in ['OS_LOGS', 'OS_ES']:
                 if ddm.get('aprotocols'):
                     surl_schema = 's3'
