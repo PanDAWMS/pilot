@@ -30,7 +30,7 @@ class objectstoreSiteMover(rucioSiteMover):
         """
         pass
 
-    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None):
+    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None, taskId=None):
         """
             Get final destination SURL of file to be moved
             job instance is passing here for possible JOB specific processing ?? FIX ME LATER
@@ -56,7 +56,8 @@ class objectstoreSiteMover(rucioSiteMover):
 
         if pathConvention >= 100:
             pathConvention = pathConvention - 100
-            taskId = job.taskID
+            if taskId is None:
+                taskId = job.taskID
             se_path = "%s-%s-%s" % (se_path, taskId, pathConvention)
         else:
             se_path = "%s-%s" % (se_path, pathConvention)
@@ -84,7 +85,7 @@ class objectstoreSiteMover(rucioSiteMover):
                     surl_schema = 's3'
                     xprot = [e for e in ddm.get('aprotocols').get('r', []) if e[0] and e[0].startswith(surl_schema)]
                     if xprot:
-                        surl = self.getSURL(xprot[0][0], xprot[0][2], fspec.scope, fspec.lfn)
+                        surl = self.getSURL(xprot[0][0], xprot[0][2], fspec.scope, fspec.lfn, pathConvention=fspec.pathConvention, taskId=fspec.taskId)
 
                         return {'ddmendpoint': fspec.ddmendpoint,
                                 'surl': surl,

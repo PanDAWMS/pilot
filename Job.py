@@ -595,6 +595,7 @@ class Job:
                 if storageId.strip() == '0' or storageId.strip() == '-1' or storageId.isdigit():
                     idat['prodDBlockToken'] = storageId
                     idat['pathConvention'] = pathConvention
+                    idat['taskId'] = self.taskID
                     if len(idat['pathConvention']) ==0:
                         idat['pathConvention'] = None
 
@@ -1032,7 +1033,7 @@ class FileSpec(object):
                     'cmtconfig' # Needed for Singularity
                     ]
 
-    _os_keys = ['eventRangeId', 'storageId', 'eventService', 'allowAllInputRSEs', 'pandaProxySecretKey', 'jobId', 'osPrivateKey', 'osPublicKey', 'pathConvention']
+    _os_keys = ['eventRangeId', 'storageId', 'eventService', 'allowAllInputRSEs', 'pandaProxySecretKey', 'jobId', 'osPrivateKey', 'osPublicKey', 'pathConvention', 'taskId']
 
     _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code']
 
