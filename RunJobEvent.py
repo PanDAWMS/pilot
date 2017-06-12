@@ -109,7 +109,7 @@ class RunJobEvent(RunJob):
     # ES zip
     __esToZip = True
     __multipleBuckets = None
-    __numBuckets = 10
+    __numBuckets = 1
     __stageOutDDMEndpoint = None
     __stageOutStorageId = None
 
