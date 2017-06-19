@@ -1974,7 +1974,7 @@ class _Curl:
         if os.path.exists(tmpName):
             com += ' --config %s' % tmpName
         else:
-            tolog("!!WARNING!!2999!! Can not set --config option since curl.config could not be created, curl will fail")
+            tolog("!!WARNING!!2999!! Can not set --config option since %s could not be created, curl will fail" % tmpName)
         com += ' %s' % url
         # execute
         tolog("Executing command: %s" % (com))

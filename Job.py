@@ -502,7 +502,6 @@ class Job:
 #        self.jobPars = "source $AtlasSetup/scripts/asetup.sh AthAnalysisBase,2.3.48 --platform=x86_64-slc6-gcc49-opt;./runAthena-00-00-11 " + self.jobPars
 # PN
         _noExecStrCnv = data.get('noExecStrCnv', None)
-        _noExecStrCnv = 'true'
         if _noExecStrCnv:
             if _noExecStrCnv.lower() == 'true':
                 self.noExecStrCnv = True
@@ -519,12 +518,13 @@ class Job:
         self.accessmode = ""
         if self.transferType == 'direct': # enable direct access mode
             self.accessmode = 'direct'
-
+        pUtil.tolog("transferType=%s"%self.transferType)
         # job input options overwrite any Job settings
         if '--accessmode=direct' in self.jobPars:
             self.accessmode = 'direct'
         if '--accessmode=copy' in self.jobPars:
             self.accessmode = 'copy'
+        pUtil.tolog("accessmode=%s"%self.accessmode)
 
         if "--pfnList" in self.jobPars:
             # extract any additional input files from the job parameters and add them to the input file list

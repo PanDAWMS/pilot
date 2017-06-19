@@ -148,6 +148,7 @@ class JobMover(object):
                 continue
             ddms.setdefault(dat['site'], []).append(dat)
 
+        self.log("files=%s"%files)
         for fdat in files:
             if fdat.storageId and fdat.storageId > 0:
                 # skip OS ddms, storageId -1 means normal RSE
@@ -169,7 +170,7 @@ class JobMover(object):
 
         # consider only normal ddmendpoints
         xfiles = [e for e in files if e.storageId is None]
-
+        self.log("xfiles=%s"%xfiles)
         if not xfiles:
             return files
 
@@ -179,7 +180,8 @@ class JobMover(object):
 
         dids = [dict(scope=e.scope, name=e.lfn) for e in xfiles]
         schemes = ['srm', 'root', 'https', 'gsiftp']
-
+        self.log("dids=%s"%dids)
+        self.log("schemes=%s"%schemes)
         # Get the replica list
         try:
             replicas = c.list_replicas(dids, schemes=schemes)
@@ -192,19 +194,22 @@ class JobMover(object):
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
         files_lfn = dict(((e.scope, e.lfn), e) for e in xfiles)
-
+        self.log("files_lfn=%s"%files_lfn)
         for r in replicas:
             k = r['scope'], r['name']
             fdat = files_lfn.get(k)
+            self.log("fdat=%s"%fdat)
             if not fdat: # not requested replica returned?
                 continue
             fdat.replicas = [] # reset replicas list
             for ddm in fdat.inputddms:
+                self.log('ddm=%s'%ddm)
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
                 ddm_se = self.ddmconf[ddm].get('se', '')          ## FIX ME LATER: resolve from default protocol (srm?)
+                self.log('ddm_se=%s'%ddm_se)
                 ddm_path = self.ddmconf[ddm].get('endpoint', '')  ##
-
+                self.log('ddm_path=%s'%ddm_path)
                 if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
                     if ddm_path[-1] != '/':
                         ddm_path += '/'
@@ -212,6 +217,7 @@ class JobMover(object):
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
+            self.log('fdat.replicas=%s'%fdat.replicas)
             if not fdat.replicas and fdat.allowRemoteInputs:
                 self.log("No local replicas(%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
                 for ddm in r['rses']:
@@ -234,6 +240,7 @@ class JobMover(object):
             # update filesize & checksum info from Rucio?
             # TODO
 
+        self.log('files=%s'%files)
         return files
 
     def is_directaccess(self):
