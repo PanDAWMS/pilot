@@ -2671,6 +2671,12 @@ def runMain(runpars):
             env['workerNode'].collectWNInfo(os.path.dirname(env['thisSite'].workdir))
             env['workerNode'].mem = getsetWNMem(env['memory'])
 
+            vm = env['workerNode'].isAVirtualMachine()
+            if vm:
+                pUtil.tolog("Pilot is running in a virtual machine")
+            else:
+                pUtil.tolog("Pilot is not running in a virtual machine")
+
             # do we have enough local disk space to run the job?
             # (skip this test for ND true pilots - job will be failed in Monitor::monitor_job() instead)
             if not (env['updateServerFlag'] == True and env['jobRequestFlag'] == False):

@@ -24,7 +24,25 @@ class Node:
 
     def displayNodeInfo(self):
         tolog("CPU: %0.2f, memory: %0.2f, disk space: %0.2f" % (self.cpu, self.mem, self.disk))
-        
+    
+    def isAVirtualMachine(self):
+        """ Are we running in a virtual machine? """
+
+        status = False
+
+        fd = open("/proc/cpuinfo", "r")
+        if fd:
+            lines = fd.readlines()
+            fd.close()
+            for line in lines:
+                if "hypervisor" in line:
+                    status = True
+                    break
+        else:
+            tolog("Failed to open cpuinfo")
+
+        return status
+
     def collectWNInfo(self, diskpath):
         """ collect node information (cpu, memory and disk space) """
 
