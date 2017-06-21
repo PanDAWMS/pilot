@@ -2311,6 +2311,14 @@ def getNewJob(tofile=True):
                 pUtil.tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
                 return None, pilotErrorDiag
 
+    nCores = env['workerNode'].getNumberOfCoresFromEnvironment()
+    if nCores:
+        if data['coreCount'] != nCores:
+            pUtil.tolog(
+                "Updating job.coreCount from %d to %d (using environment)" % (data['coreCount'], nCores))
+            data['coreCount'] = nCores
+    pUtil.tolog("job.coreCount is %d" % data['coreCount'])
+
     # convert the data into a file for child process to pick for running real job later
     try:
         f = open("Job_%s.py" % data['PandaID'], "w")
@@ -2643,10 +2651,6 @@ def runMain(runpars):
 
         while True:
 
-            cmd = "df;ls -al;pwd;whoami"
-            pUtil.tolog("Executing command: %s" % (cmd))
-            pUtil.tolog(commands.getoutput(cmd))
-
             # create the pilot workdir (if it was not created before, needed for the first job)
             if env['number_of_jobs'] > 0:
                 # update the workdir (i.e. define a new workdir and create it)
@@ -2727,6 +2731,7 @@ def runMain(runpars):
                         return pUtil.shellExitCode(ec)
                     except Exception, e:
                         pUtil.tolog("Caught exception: %s" % (e))
+
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))
 

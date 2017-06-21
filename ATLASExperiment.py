@@ -1564,22 +1564,17 @@ class ATLASExperiment(Experiment):
         pilotErrorDiag = ""
 
         try:
-            coreCount = int(jobCoreCount)
-        except:
-            coreCount = None
-
-        try:
             athenaProcNumber = int(os.environ['ATHENA_PROC_NUMBER'])
         except:
             athenaProcNumber = None
 
-        # Make sure that ATHENA_PROC_NUMBER has a proper value for the current job
-        if (coreCount == 1 or coreCount == None) and (athenaProcNumber > 1):
-            ec = self.__error.ERR_CORECOUNTMISMATCH
-            pilotErrorDiag = "Encountered a mismatch between core count from schedconfig (%s) and job definition (%s)" % (str(athenaProcNumber), str(coreCount))
-            tolog("!!WARNING!!3333!! %s" % (pilotErrorDiag))
+        # Note: if ATHENA_PROC_NUMBER is set (by the wrapper), then do not overwrite it
+        # Otherwise, set it to the value of job.coreCount
+        if athenaProcNumber:
+            tolog("Encountered a set ATHENA_PROC_NUMBER, will not overwrite it")
         else:
-            tolog("Using core count values: %s (job definition), %s (schedconfig)" % (str(coreCount), str(athenaProcNumber)))
+            os.environ('ATHENA_PROC_NUMBER') = job.coreCount
+            tolog("Set ATHENA_PROC_NUMBER to %d" % (job.coreCount))
 
         return ec, pilotErrorDiag
 

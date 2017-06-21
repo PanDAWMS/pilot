@@ -255,8 +255,16 @@ transferType in pilot.py = direct
 
 General changes
 - Removed function getNumberOfCores() as it is not used (Node)
+- Modernized file open in collectWNInfo() (Node)
+- Created isAVirtualMachine() (Node)
 
-Updates from Alexander 
+Core count
+- Simplified setNumberOfCores() as discussed in JIRA ticket https://its.cern.ch/jira/browse/ADCDPA-49
+- Renamed setNumberOfCores() to getNumberOfCores() (Node)
+- Created getNumberOfCoresFromEnvironment() (Node)
+- Now setting job.coreCount in getNewJob() (pilot)
+
+Updates from Alexander
 
   https://github.com/PanDAWMS/pilot/pull/137
 
