@@ -254,7 +254,7 @@ transferType in pilot.py = direct
 
 
 General changes
-..
+- Removed function getNumberOfCores() as it is not used (Node)
 
 Updates from Alexander 
 

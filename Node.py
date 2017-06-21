@@ -121,9 +121,6 @@ class Node:
 
         return nCores
 
-    def getNumberOfCores(self):
-        return self.numberOfCores
-
     def readValue(self, path):
         """ Read value from file """
 
