@@ -2317,7 +2317,7 @@ def getNewJob(tofile=True):
             pUtil.tolog(
                 "Updating job.coreCount from %d to %d (using environment)" % (data['coreCount'], nCores))
             data['coreCount'] = nCores
-    pUtil.tolog("job.coreCount is %d" % data['coreCount'])
+    pUtil.tolog("job.coreCount is %s" % data['coreCount'])
 
     # convert the data into a file for child process to pick for running real job later
     try:
