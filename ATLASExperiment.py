@@ -1573,7 +1573,7 @@ class ATLASExperiment(Experiment):
         if athenaProcNumber:
             tolog("Encountered a set ATHENA_PROC_NUMBER, will not overwrite it")
         else:
-            os.environ('ATHENA_PROC_NUMBER') = job.coreCount
+            os.environ['ATHENA_PROC_NUMBER'] = job.coreCount
             tolog("Set ATHENA_PROC_NUMBER to %d" % (job.coreCount))
 
         return ec, pilotErrorDiag
