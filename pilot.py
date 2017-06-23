@@ -2313,10 +2313,14 @@ def getNewJob(tofile=True):
 
     nCores = env['workerNode'].getNumberOfCoresFromEnvironment()
     if nCores:
-        if data['coreCount'] != nCores:
+        try:
+            _coreCount = int(data['coreCount'])
+        except:
+            _coreCount = -1
+        if _coreCount != nCores:
             pUtil.tolog(
-                "Updating job.coreCount from %d to %d (using environment)" % (data['coreCount'], nCores))
-            data['coreCount'] = nCores
+                "Updating job.coreCount from %d to %d (using environment)" % (_coreCount, nCores))
+            data['coreCount'] = str(nCores)
     pUtil.tolog("job.coreCount is %s" % data['coreCount'])
 
     # convert the data into a file for child process to pick for running real job later
