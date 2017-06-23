@@ -55,8 +55,8 @@ def downloadEventRanges(jobId, jobsetID, taskID, pandaProxySecretKey, numRanges=
             message = "No more events"
 
         return message
-    except:
-        tolog("Failed to download event ranges: %s" % traceback.format_exc())
+    except Exception, e:
+        tolog("Failed to download event ranges: %s: %s" % (str(e), traceback.format_exc()))
     return None
 
 def updateEventRange(event_range_id, eventRangeList, jobId, pandaProxySecretKey, status='finished', os_bucket_id=-1, errorCode=None):
