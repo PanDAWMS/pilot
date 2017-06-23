@@ -132,7 +132,34 @@ class JobMover(object):
         return ddms
 
 
-    def resolve_replicas(self, files):
+    def get_pfns(self, replicas, protocol='root'):
+        """ Extract the PFNs from the replicas dictionary"""
+
+        pfns = {}  # FORMAT: { 'endpoint': [pfn1, ..], .. }
+
+        for pfn in replicas[0]['pfns'].keys():
+            if pfn.startswith(protocol):
+                endpoint = replicas[0]['pfns'][pfn]['rse']
+                if endpoint in pfns:
+                    pfns[endpoint].append(pfn)
+                else:
+                    pfns[endpoint] = [pfn]
+        return pfns
+
+
+    def get_turl(self, pfns, endpoint=None):
+        """ Get a turl from the pfns dictionary """
+
+        turl = ""
+        if not endpoint:
+            keys = pfns.keys()
+            turl = pfns[keys[0]][0]
+        else:
+            turl = pfns[endpoint][0]
+        return turl
+
+
+    def resolve_replicas(self, files, directaccesstype):
         """
             populates fdat.replicas of each entry from `files` list
             fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
@@ -189,7 +216,7 @@ class JobMover(object):
             for rep in replicas:
                 result.append(rep)
             replicas = result
-            self.log("replicas got from rucio: %s" % replicas)
+            self.log("replicas received from rucio: %s" % replicas)
         except Exception, e:
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
@@ -202,6 +229,18 @@ class JobMover(object):
             if not fdat: # not requested replica returned?
                 continue
             fdat.replicas = [] # reset replicas list
+
+            # if directaccess WAN, allow remote replicas
+            self.log("direct access type=%s" % directaccesstype)
+            if directaccesstype == "WAN":
+                # Assume the replicas to be geo-sorted, i.e. take the first root replica
+                pfns = self.get_pfns(replicas)
+                self.log("pfns=%s" % pfns)
+
+                # Get 'random' entry
+                turl = self.get_turl(pfns)
+                self.log("turl=%s" % turl)
+
             for ddm in fdat.inputddms:
                 self.log('ddm=%s'%ddm)
                 if ddm not in r['rses']: # skip not interesting rse
@@ -243,18 +282,18 @@ class JobMover(object):
         self.log('files=%s'%files)
         return files
 
-    def is_directaccess(self):
+    def get_directaccess(self):
         """
-            check if direct access I/O is allowed
+            Check if direct access I/O is allowed. Also return the directaccess type (WAN or LAN)
             quick workaround: should be properly implemented in SiteInformation
         """
 
         try:
-            from FileHandling import useDirectAccessLAN
-            return useDirectAccessLAN()
+            from FileHandling import getDirectAccess
+            return getDirectAccess()
         except Exception, e:
             self.log("mover.is_directaccess(): Failed to resolve direct access settings: exception=%s" % e)
-            return False
+            return False, None
 
     def handle_dbreleases(self, files):
         """
@@ -446,13 +485,16 @@ class JobMover(object):
         nprotocols = len(protocols)
 
         # direct access settings
-        allow_directaccess = self.is_directaccess()
+        allow_directaccess, directaccesstype = self.get_directaccess()
         if self.job.accessmode == 'copy':
             allow_directaccess = False
         elif self.job.accessmode == 'direct':
-            allow_directaccess = True
+            if allow_directaccess:
+                self.log("Direct access mode requested by task - allowed by the site (type = %s)" % directaccesstype)
+            else:
+                self.log("Direct access mode requested by task - but not allowed by the site (type = %s)" % directaccesstype)
 
-        self.log("direct access settings: job.accessmode=%s, mover.is_directaccess()=%s => allow_direct_access=%s" % (self.job.accessmode, self.is_directaccess(), allow_directaccess))
+        self.log("direct access settings: job.accessmode=%s, allow_direct_access=%s" % (self.job.accessmode, allow_directaccess))
 
         sitemover_objects = {}
         is_replicas_resolved = False
@@ -498,7 +540,7 @@ class JobMover(object):
                 bad_copytools = False
 
                 if sitemover.require_replicas and not is_replicas_resolved:
-                    self.resolve_replicas(files) ## do populate fspec.replicas for each entry in files
+                    self.resolve_replicas(files, directaccesstype) ## do populate fspec.replicas for each entry in files
                     is_replicas_resolved = True
 
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))

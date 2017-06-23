@@ -264,6 +264,12 @@ Core count
 - Created getNumberOfCoresFromEnvironment() (Node)
 - Now setting job.coreCount in getNewJob() (pilot)
 
+Direct access
+- Removed name conflicts (there is both is_directaccess and is_directaccess() in stagein_real()) (mover)
+- Rewrote is_directaccess(), renamed it to get_directaccess(), returning both allow_directaccess and type (mover)
+- Sending directaccesstype to resolve_replicas(), added argument (mover)
+- Created get_pfns() and get_turls() (mover)
+
 Updates from Alexander Bogdanchikov
 
   https://github.com/PanDAWMS/pilot/pull/137
