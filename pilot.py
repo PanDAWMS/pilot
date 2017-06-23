@@ -2500,6 +2500,38 @@ def getsetWNMem(memory):
 
     return maxmemory
 
+def isAVirtualMachine():
+    """ Are we running inside a virtual machine? """
+
+    status = False
+
+    cmd = "grep -q ^flags.*\ hypervisor /proc/cpuinfo"
+    pUtil.tolog("Executing command: %s" % cmd)
+    ec, out = commands.getstatusoutput(cmd)
+    pUtil.tolog(ec)
+    pUtil.tolog(out)
+
+    cmd = "grep ^flags.*\ hypervisor /proc/cpuinfo"
+    pUtil.tolog("Executing command: %s" % cmd)
+    ec, out = commands.getstatusoutput(cmd)
+    pUtil.tolog(ec)
+    pUtil.tolog(out)
+
+    cmd = "grep hypervisor /proc/cpuinfo"
+    pUtil.tolog("Executing command: %s" % cmd)
+    ec, out = commands.getstatusoutput(cmd)
+    pUtil.tolog(ec)
+    pUtil.tolog(out)
+
+    cmd = "dmidecode -s system-product-name"
+    pUtil.tolog("Executing command: %s" % cmd)
+    ec, out = commands.getstatusoutput(cmd)
+    pUtil.tolog(ec)
+    pUtil.tolog(out)
+
+    return status
+
+
 # main process starts here
 def runMain(runpars):
 
@@ -2643,9 +2675,7 @@ def runMain(runpars):
 
         while True:
 
-            cmd = "df;ls -al;pwd;whoami"
-            pUtil.tolog("Executing command: %s" % (cmd))
-            pUtil.tolog(commands.getoutput(cmd))
+            _a=isAVirtualMachine()
 
             # create the pilot workdir (if it was not created before, needed for the first job)
             if env['number_of_jobs'] > 0:
