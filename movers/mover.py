@@ -231,17 +231,6 @@ class JobMover(object):
                 continue
             fdat.replicas = [] # reset replicas list
 
-            # if directaccess WAN, allow remote replicas
-            self.log("direct access type=%s" % directaccesstype)
-            if directaccesstype == "WAN":
-                # Assume the replicas to be geo-sorted, i.e. take the first root replica
-                pfns = self.get_pfns(r)
-                self.log("pfns=%s" % pfns)
-
-                # Get 'random' entry
-                turl = self.get_turl(pfns)
-                self.log("turl=%s" % turl)
-
             for ddm in fdat.inputddms:
                 self.log('ddm=%s'%ddm)
                 if ddm not in r['rses']: # skip not interesting rse
@@ -257,6 +246,19 @@ class JobMover(object):
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
+            # if directaccess WAN, allow remote replicas
+            self.log("direct access type=%s" % directaccesstype)
+            if directaccesstype == "WAN":
+                fdat.allowRemoteInputs = True
+
+                # Assume the replicas to be geo-sorted, i.e. take the first root replica
+                pfns = self.get_pfns(r)
+                self.log("pfns=%s" % pfns)
+
+                # Get 'random' entry
+                turl = self.get_turl(pfns)
+                self.log("turl=%s" % turl)
+
             self.log('fdat.replicas=%s'%fdat.replicas)
             if not fdat.replicas and fdat.allowRemoteInputs:
                 self.log("No local replicas(%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
@@ -268,7 +270,7 @@ class JobMover(object):
                             ddm_path += '/'
                         ddm_path += 'rucio/'
 
-                    fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
