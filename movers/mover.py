@@ -222,6 +222,18 @@ class JobMover(object):
 
         files_lfn = dict(((e.scope, e.lfn), e) for e in xfiles)
         self.log("files_lfn=%s"%files_lfn)
+
+        # if directaccess WAN, allow remote replicas
+        self.log("direct access type=%s" % directaccesstype)
+        if directaccesstype == "WAN":
+            # Assume the replicas to be geo-sorted, i.e. take the first root replica
+            pfns = self.get_pfns(replicas)
+            self.log("pfns=%s" % pfns)
+
+            # Get 'random' entry
+            turl = self.get_turl(pfns)
+            self.log("turl=%s" % turl)
+
         for r in replicas:
             k = r['scope'], r['name']
             fdat = files_lfn.get(k)
@@ -229,17 +241,6 @@ class JobMover(object):
             if not fdat: # not requested replica returned?
                 continue
             fdat.replicas = [] # reset replicas list
-
-            # if directaccess WAN, allow remote replicas
-            self.log("direct access type=%s" % directaccesstype)
-            if directaccesstype == "WAN":
-                # Assume the replicas to be geo-sorted, i.e. take the first root replica
-                pfns = self.get_pfns(replicas)
-                self.log("pfns=%s" % pfns)
-
-                # Get 'random' entry
-                turl = self.get_turl(pfns)
-                self.log("turl=%s" % turl)
 
             for ddm in fdat.inputddms:
                 self.log('ddm=%s'%ddm)
