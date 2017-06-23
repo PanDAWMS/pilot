@@ -264,7 +264,7 @@ Core count
 - Created getNumberOfCoresFromEnvironment() (Node)
 - Now setting job.coreCount in getNewJob() (pilot)
 
-Updates from Alexander
+Updates from Alexander Bogdanchikov
 
   https://github.com/PanDAWMS/pilot/pull/137
 
@@ -283,6 +283,16 @@ A S3ObjectstorePresignedURLSiteMover.py (510)
 M movers/mv_sitemover.py (31)
 A movers/pandaproxy_sitemover.py (252)
 M movers/sitemovers.py (1)
+
+  https://github.com/PanDAWMS/pilot/pull/143
+
+Commit Summary
+
+more details in the log when download event ranges failure: print exception
+
+File Changes
+
+M EventRanges.py (4)
 
 Updates from Wen Guan:
 
