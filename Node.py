@@ -24,26 +24,40 @@ class Node:
 
     def displayNodeInfo(self):
         tolog("CPU: %0.2f, memory: %0.2f, disk space: %0.2f" % (self.cpu, self.mem, self.disk))
-        
+    
+    def isAVirtualMachine(self):
+        """ Are we running in a virtual machine? """
+
+        status = False
+
+        # if we are running inside a VM, then linux will put 'hypervisor' in cpuinfo
+        with open("/proc/cpuinfo", "r") as fd:
+            lines = fd.readlines()
+            fd.close()
+            for line in lines:
+                if "hypervisor" in line:
+                    status = True
+                    break
+
+        return status
+
     def collectWNInfo(self, diskpath):
         """ collect node information (cpu, memory and disk space) """
 
-        fd = open("/proc/meminfo", "r")
-        mems = fd.readline()
-        while mems:
-            if mems.upper().find("MEMTOTAL") != -1:
-                self.mem = float(mems.split()[1])/1024
-                break
+        with open("/proc/meminfo", "r") as fd:
             mems = fd.readline()
-        fd.close()
+            while mems:
+                if mems.upper().find("MEMTOTAL") != -1:
+                    self.mem = float(mems.split()[1])/1024
+                    break
+                mems = fd.readline()
 
-        fd = open("/proc/cpuinfo", "r")
-        lines = fd.readlines()
-        fd.close()
-        for line in lines:
-            if not string.find(line, "cpu MHz"):
-                self.cpu = float(line.split(":")[1])
-                break
+        with open("/proc/cpuinfo", "r") as fd:
+            lines = fd.readlines()
+            for line in lines:
+                if not string.find(line, "cpu MHz"):
+                    self.cpu = float(line.split(":")[1])
+                    break
 
         diskpipe = os.popen("df -mP %s" % (diskpath)) # -m = MB
         disks = diskpipe.read()
@@ -52,59 +66,42 @@ class Node:
 
         return self.mem, self.cpu, self.disk
 
-    def setNumberOfCores(self) :
-        """ Report the number of cores in the WN """
-        # 1. Grab corecount from queuedata
-        # 2. If corecount is number and corecount > 1, set ATHENA_PROC_NUMBER env variable to this value
-        # 3. If corecount is 0, null, or doesn't exist, then don't set the env. variable
-        # 4. If corecount is '-1', then get number of cores from /proc/cpuinfo, and set the env. variable accordingly.
+    def getNumberOfCores(self):
+        """ Report the number of cores """
 
-        cores = []
-        nCores = None
+        return self.numberOfCores
 
-        # grab the schedconfig value
-        try:
-            nCores = int(readpar('corecount'))
-        except ValueError: # covers the case 'NULL'
-            tolog("corecount not an integer in queuedata")
-        except Exception, e:
-            tolog("corecount not set in queuedata: %s" % str(e))
-        else:
-            if nCores > 1:
-                tolog("Setting number of cores: ATHENA_PROC_NUMBER=%d (from schedconfig.corecount)" % (nCores))
-                os.environ['ATHENA_PROC_NUMBER'] = str(nCores)
-                return nCores
+    def setNumberOfCores(self, nCores=0):
+        """ Get the number of cores """
+        # Note: this is usually as specified in the job description, ie the requested number of codes, not the
+        # physical number of cores on the WN
+        # Note also that this method will be called when the node object is created - before the job description
+        # is downloaded, to get a default initial value. The method should be called once the job has been downloaded.
 
-        if not nCores or nCores == 0:
-            tolog("Will not set ATHENA_PROC_NUMBER")
-            return nCores
-
-        if nCores == -1:
-            # check locally
-            try:
-                cpuinfo = open("/proc/cpuinfo")
-            except Exception, e:
-                tolog("!!WARNING!!2998!! Failed to get the number of cores: %s" % str(e))
-            else:
-                for line in cpuinfo :
-                    if re.match('core id', line):
-                        a = re.search('core id\s*:\s*(\d+)', line)
-                        cores.append(a.group(1))
-
-                cpuinfo.close()
-                nCores = len(cores)
-                if nCores == 0:
+        # Since pilot version 69.2, the pilot will only set the number of cores if known by ATHENA_PROC_NUMBER
+        # If nCores is not specified, try to get it from the environment
+        if nCores == 0:
+            if 'ATHENA_PROC_NUMBER' in os.environ:
+                try:
+                    nCores = int(os.environ['ATHENA_PROC_NUMBER'])
+                except:
                     nCores = 1
+            else:
+                nCores = 1
 
-                tolog("Setting number of cores: ATHENA_PROC_NUMBER=%d (from cpuinfo)" % (nCores))
-                os.environ['ATHENA_PROC_NUMBER'] = str(nCores)
-        else:
-            tolog("Will not set ATHENA_PROC_NUMBER (nCores=%d)" % (nCores))
+        self.numberOfCores = nCores
+
+    def getNumberOfCoresFromEnvironment(self):
+        """ Get the number of cores from the environment """
+
+        nCores = None
+        if 'ATHENA_PROC_NUMBER' in os.environ:
+            try:
+                nCores = int(os.environ['ATHENA_PROC_NUMBER'])
+            except:
+                nCores = None
 
         return nCores
-
-    def getNumberOfCores(self):
-        return self.numberOfCores
 
     def readValue(self, path):
         """ Read value from file """

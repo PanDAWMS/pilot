@@ -2311,6 +2311,14 @@ def getNewJob(tofile=True):
                 pUtil.tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
                 return None, pilotErrorDiag
 
+    nCores = env['workerNode'].getNumberOfCoresFromEnvironment()
+    if nCores:
+        if data['coreCount'] != nCores:
+            pUtil.tolog(
+                "Updating job.coreCount from %d to %d (using environment)" % (data['coreCount'], nCores))
+            data['coreCount'] = nCores
+    pUtil.tolog("job.coreCount is %s" % data['coreCount'])
+
     # convert the data into a file for child process to pick for running real job later
     try:
         f = open("Job_%s.py" % data['PandaID'], "w")
@@ -2500,37 +2508,6 @@ def getsetWNMem(memory):
 
     return maxmemory
 
-def isAVirtualMachine():
-    """ Are we running inside a virtual machine? """
-
-    status = False
-
-    cmd = "grep -q ^flags.*\ hypervisor /proc/cpuinfo"
-    pUtil.tolog("Executing command: %s" % cmd)
-    ec, out = commands.getstatusoutput(cmd)
-    pUtil.tolog(ec)
-    pUtil.tolog(out)
-
-    cmd = "grep ^flags.*\ hypervisor /proc/cpuinfo"
-    pUtil.tolog("Executing command: %s" % cmd)
-    ec, out = commands.getstatusoutput(cmd)
-    pUtil.tolog(ec)
-    pUtil.tolog(out)
-
-    cmd = "grep hypervisor /proc/cpuinfo"
-    pUtil.tolog("Executing command: %s" % cmd)
-    ec, out = commands.getstatusoutput(cmd)
-    pUtil.tolog(ec)
-    pUtil.tolog(out)
-
-    cmd = "dmidecode -s system-product-name"
-    pUtil.tolog("Executing command: %s" % cmd)
-    ec, out = commands.getstatusoutput(cmd)
-    pUtil.tolog(ec)
-    pUtil.tolog(out)
-
-    return status
-
 
 # main process starts here
 def runMain(runpars):
@@ -2675,8 +2652,6 @@ def runMain(runpars):
 
         while True:
 
-            _a=isAVirtualMachine()
-
             # create the pilot workdir (if it was not created before, needed for the first job)
             if env['number_of_jobs'] > 0:
                 # update the workdir (i.e. define a new workdir and create it)
@@ -2700,6 +2675,12 @@ def runMain(runpars):
             pUtil.tolog("Collecting WN info from: %s" % (os.path.dirname(env['thisSite'].workdir)))
             env['workerNode'].collectWNInfo(os.path.dirname(env['thisSite'].workdir))
             env['workerNode'].mem = getsetWNMem(env['memory'])
+
+            vm = env['workerNode'].isAVirtualMachine()
+            if vm:
+                pUtil.tolog("Pilot is running in a virtual machine")
+            else:
+                pUtil.tolog("Pilot is not running in a virtual machine")
 
             # do we have enough local disk space to run the job?
             # (skip this test for ND true pilots - job will be failed in Monitor::monitor_job() instead)
@@ -2751,6 +2732,7 @@ def runMain(runpars):
                         return pUtil.shellExitCode(ec)
                     except Exception, e:
                         pUtil.tolog("Caught exception: %s" % (e))
+
             except Exception, e:
                 pUtil.tolog("Caught exception: %s" % (e))
 
