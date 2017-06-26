@@ -1272,18 +1272,33 @@ class RunJobEvent(RunJob):
 
         return exitCode, exitAcronym, exitMsg
 
+    def resolveConfigItem(self, itemName):
+        if not self.__siteInfo:
+            self.__siteInfo = getSiteInformation(self.__experiment)
+            jobSite = self.getJobSite()
+            queuename = jobSite.computingElement
+            self.__siteInfo.setQueueName(queuename)
+
+        pandaqueue = self.__siteInfo.getQueueName()
+        items = self.__siteInfo.resolveItems(pandaqueue, itemName)
+        return items[pandaqueue]
+
     def initZipConf(self):
         try:
             self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s" % self.__job.jobId)
             self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
-            catchalls = readpar('catchall')
+            catchalls = self.resolveConfigItem('catchall')
 
             if 'multiple_buckets' in catchalls:
                 self.__multipleBuckets = 1
+                tolog("Enable multiple_buckets without taskid")
             if 'multiple_buckets_with_taskid' in catchalls:
                 self.__multipleBuckets = 2
+                tolog("Enable multiple_buckets with taskid")
             if 'disable_multiple_buckets' in catchalls:
                 self.__multipleBuckets = None
+                tolog("Disable multiple_buckets")
+
             if "num_buckets=" in catchalls:
                 for catchall in catchalls.split(","):
                     if 'num_buckets=' in catchall:
@@ -1295,12 +1310,13 @@ class RunJobEvent(RunJob):
                         if self.__numBuckets > 99:
                             tolog("Number of buckets %s is bigger than 99, set it to 99" % (self.__numBuckets))
                             self.__numBuckets = 99
+            tolog("Number of buckets is %s" % (self.__numBuckets))
 
             if 'es_to_zip' in catchalls:
                 self.__esToZip = True
             if 'not_es_to_zip' in catchalls:
                 self.__esToZip = False
-            catchalls = readpar('catchall')
+            catchalls = self.resolveConfigItem('catchall')
             if 'zip_time_gap=' in catchalls:
                 for catchall in catchalls.split(","):
                     if 'zip_time_gap' in catchall:
@@ -1312,7 +1328,7 @@ class RunJobEvent(RunJob):
 
     def initAllowRemoteInputs(self, job):
         try:
-            catchalls = readpar('catchall')
+            catchalls = self.resolveConfigItem('catchall')
             if 'allow_remote_inputs' in catchalls:
                 self.__allow_remote_inputs = True
                 job.setAllowRemoteInputs(self.__allow_remote_inputs)
@@ -1715,6 +1731,7 @@ class RunJobEvent(RunJob):
                          'osPublicKey':osPublicKey
                          }
             finfo = Job.FileSpec(type='output', **file_dict)
+            tolog(finfo)
             files.append(finfo)
 
         #ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry(), files=files, workDir=None)
@@ -1806,6 +1823,7 @@ class RunJobEvent(RunJob):
             return 0, None
 
         pathConvention = self.getPathConvention(self.__job.taskID, self.__job.jobId)
+        tolog("pathConvention: %s" % pathConvention)
 
         try:
             ec, pilotErrorDiag, os_bucket_id = self.stage_out_es(self.__job, output_eventRange_id, [output_name], pathConvention=pathConvention)
@@ -1846,7 +1864,7 @@ class RunJobEvent(RunJob):
 
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
-                    if pathConvention:
+                    if not pathConvention is None:
                         event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'pathConvention': pathConvention}}]
                     else:
                         event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
@@ -2956,7 +2974,7 @@ class RunJobEvent(RunJob):
         if os.environ.has_key('Nordugrid_pilot'):
             return 0, ""
         try:
-            use_newmover = readpar('use_newmover')
+            use_newmover = self.resolveConfigItem('use_newmover')
             if not str(use_newmover).lower() in ["1", "true"]:
                 from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
                 from S3ObjectstorePresignedURLSiteMover import S3ObjectstorePresignedURLSiteMover

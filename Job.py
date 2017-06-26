@@ -598,6 +598,8 @@ class Job:
                     idat['taskId'] = self.taskID
                     if len(idat['pathConvention']) ==0:
                         idat['pathConvention'] = None
+                    else:
+                        idat['pathConvention'] = int(idat['pathConvention'])
 
             idat['allowRemoteInputs'] = self.allowRemoteInputs
             idat['cmtconfig'] = self.cmtconfig
