@@ -30,7 +30,7 @@ class objectstoreSiteMover(rucioSiteMover):
         """
         pass
 
-    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None, taskId=None):
+    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None, taskId=None, ddmType=None):
         """
             Get final destination SURL of file to be moved
             job instance is passing here for possible JOB specific processing ?? FIX ME LATER
@@ -39,7 +39,8 @@ class objectstoreSiteMover(rucioSiteMover):
         ### quick fix: this actually should be reported back from Rucio upload in stageOut()
         ### surl is currently (required?) being reported back to Panda in XML
 
-        if job == None or pathConvention == None:
+        tolog("getSURL: pathConvention: %s, taskId: %s, ddmType: %s" % (pathConvention, taskId, ddmType))
+        if pathConvention == None:
             surl = se + os.path.join(se_path, lfn)
             return surl
 
@@ -56,11 +57,19 @@ class objectstoreSiteMover(rucioSiteMover):
 
         if pathConvention >= 100:
             pathConvention = pathConvention - 100
+            if taskId is None and job is None:
+                raise PilotException("getSURL with pathConvention(%s) failed becuase both taskId(%s) and job(%s) are None" % (pathConvention, taskId, job), code=PilotErrors.ERR_FAILEDLFCGETREPS)
             if taskId is None:
                 taskId = job.taskID
-            se_path = "%s-%s-%s" % (se_path, taskId, pathConvention)
+            if ddmType and ddmType in ['OS_LOGS', 'OS_ES']:
+                se_path = "%s-%s-%s" % (se_path, taskId, pathConvention)
+            else:
+                se_path = "%s/%s-%s" % (se_path, taskId, pathConvention)
         else:
-            se_path = "%s-%s" % (se_path, pathConvention)
+            if ddmType and ddmType in ['OS_LOGS', 'OS_ES']:
+                se_path = "%s-%s" % (se_path, pathConvention)
+            else:
+                se_path = "%s/%s" % (se_path, pathConvention)
 
         surl = se + os.path.join(se_path, lfn)
         return surl
@@ -85,7 +94,7 @@ class objectstoreSiteMover(rucioSiteMover):
                     surl_schema = 's3'
                     xprot = [e for e in ddm.get('aprotocols').get('r', []) if e[0] and e[0].startswith(surl_schema)]
                     if xprot:
-                        surl = self.getSURL(xprot[0][0], xprot[0][2], fspec.scope, fspec.lfn, pathConvention=fspec.pathConvention, taskId=fspec.taskId)
+                        surl = self.getSURL(xprot[0][0], xprot[0][2], fspec.scope, fspec.lfn, pathConvention=fspec.pathConvention, taskId=fspec.taskId, ddmType=ddm.get('type'))
 
                         return {'ddmendpoint': fspec.ddmendpoint,
                                 'surl': surl,
@@ -103,8 +112,6 @@ class objectstoreSiteMover(rucioSiteMover):
                                 min = prot[1]
                                 proto = prot
                     if proto:
-                        surl = ''.join([proto[2], '/', self.get_path(fspec.scope, fspec.lfn)])
-                        surl = surl.replace('//', '/')
-                        surl = ''.join([proto[0], surl])
+                        surl = self.getSURL(proto[0], proto[2], fspec.scope, fspec.lfn, pathConvention=fspec.pathConvention, taskId=fspec.taskId, ddmType=ddm.get('type'))
                         return {'ddmendpoint': fspec.ddmendpoint, 'surl': surl, 'pfn': surl}
         return {}
