@@ -257,6 +257,8 @@ General changes
 - Removed function getNumberOfCores() as it is not used (Node)
 - Modernized file open in collectWNInfo() (Node)
 - Created isAVirtualMachine() (Node)
+- Reset cpuConsumptionTime to -1 if > 10**9 in getNodeStructure(). Requested by Wenjing Wu (PandaServerClient)
+- Now looking for local agis_ddmendpoints.json before trying download from AGIS/CVMFS, in loadDDMConfData(). Requested by Wenjing Wu (SiteInformation)
 
 Core count
 - Simplified setNumberOfCores() as discussed in JIRA ticket https://its.cern.ch/jira/browse/ADCDPA-49

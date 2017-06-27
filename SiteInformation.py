@@ -1903,24 +1903,33 @@ class SiteInformation(object):
                            'AGIS':  {'url':'http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&preset=dict&ddmendpoint=%s' % ','.join(ddmendpoints),
                                      'nretry':3,
                                      'fname': os.path.join(base_dir, 'agis_ddmendpoints.agis.%s.json' % ('_'.join(sorted(ddmendpoints)) or 'ALL'))},
+                           'LOCAL': {'url':None,
+                                     'nretry':1,
+                                     'fname': os.path.join(base_dir, 'agis_ddmendpoints.json')},
                            'PANDA' : None
         }
 
-        ddmconf_sources_order = ['CVMFS', 'AGIS'] # can be moved into the schedconfig in order to configure workflow in AGIS on fly: TODO
+        ddmconf_sources_order = ['LOCAL', 'CVMFS', 'AGIS'] # can be moved into the schedconfig in order to configure workflow in AGIS on fly: TODO
 
         for key in ddmconf_sources_order:
             dat = ddmconf_sources.get(key)
             if not dat:
                 continue
 
-            content = self.loadURLData(cache_time=cache_time, **dat)
-            if not content:
-                continue
-            try:
-                data = json.loads(content)
-            except Exception, e:
-                tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
-                data = None
+            if key == 'LOCAL':
+                if os.path.exists(dat['fname']):
+                    data = getJSONDictionary(dat['fname'])
+                else:
+                    continue
+            else:
+                content = self.loadURLData(cache_time=cache_time, **dat)
+                if not content:
+                    continue
+                try:
+                    data = json.loads(content)
+                except Exception, e:
+                    tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
+                    data = None
 
             if data and isinstance(data, dict):
                 return data
