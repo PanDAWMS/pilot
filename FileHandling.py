@@ -972,14 +972,14 @@ def useDirectAccessWAN():
 
     return _useDirectAccess(LAN=False, WAN=True)
 
-def getReplicaDictionaryFromXML(workdir, pfc="PoolFileCatalog.xml"):
+def getReplicaDictionaryFromXML(workdir, pfc_name="PoolFileCatalog.xml"):
     """ Return the replica information from a PFC """
     # NOTE: Currently this function only returns LFNs and PFNs
 
     ec = 0
     pilotErrorDiag = ""
     replica_dictionary = {} # FORMAT: { <lfn1>:{'pfn':<pfn1>, ..}, .. }
-    pfcFile = os.path.join(workdir, pfc)
+    pfcFile = os.path.join(workdir, pfc_name)
 
     if not os.path.exists(pfcFile):
         tolog("!!WARNING!!3332!! No such file: %s" % pfcFile)

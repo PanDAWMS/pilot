@@ -3361,8 +3361,8 @@ if __name__ == "__main__":
         # Replace the LFN:s in the input file list with full paths in direct access mode
         if job.transferType == 'direct':
             # Populate the full_paths_dictionary
-            full_paths_dictionary = getReplicaDictionaryFromXML(job.workdir)
-            if full_paths_dictionary != {}:
+            full_paths_dictionary = getReplicaDictionaryFromXML(job.workdir, pfc_name="PFC.xml")
+            if full_paths_dictionary and full_paths_dictionary != {}:
                 job.jobPars = runJob.addFullPathsAsInput(job.jobPars, full_paths_dictionary)
                 tolog("Updated input file list with full paths: %s" % job.jobPars)
             else:
