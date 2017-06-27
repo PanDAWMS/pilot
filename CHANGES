@@ -271,6 +271,7 @@ Direct access
 - Rewrote is_directaccess(), renamed it to get_directaccess(), returning both allow_directaccess and type (mover)
 - Sending directaccesstype to resolve_replicas(), added argument (mover)
 - Created get_pfns() and get_turls() (mover)
+- Created getReplicaDictionaryFromXML() (FileHandling)
 
 Updates from Alexander Bogdanchikov
 

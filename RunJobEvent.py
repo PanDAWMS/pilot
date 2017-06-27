@@ -38,7 +38,7 @@ from StoppableThread import StoppableThread
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict,\
      tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService,\
      getSiteInformation, getGUID, isAGreaterOrEqualToB
-from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes
+from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes, getReplicaDictionaryFromXML
 from EventRanges import downloadEventRanges, updateEventRange, updateEventRanges
 
 try:
@@ -3099,6 +3099,37 @@ class RunJobEvent(RunJob):
 
         return jobPars
 
+    def addFullPathsAsInput(self, jobPars, full_paths_dictionary):
+        """ Replace LFNs with full root paths """
+        # jobPars = .. --inputEVNTFile=EVNT.01416937._000003.pool.root,EVNT.01416937._000004.pool.root ..
+        # ->
+        # jobPars = .. --inputEVNTFile=root://../EVNT.01416937._000003.pool.root,root://../EVNT.01416937._000004.pool.root
+        # FORMAT: full_paths_dictionary = { 'LFN1':'protocol://fullpath/LFN1', .. }
+
+        # Extract the inputEVNTFile from the jobPars
+        if "--inputEVNTFile" in jobPars:
+            found_items = re.findall(r'\S+', jobPars)
+
+            pattern = r"\'?\-\-inputEVNTFile\=(.+)\'?"
+            for item in found_items:
+                found = re.findall(pattern, item)
+                if len(found) > 0:
+                    input_files = found[0]
+                    if input_files.endswith("\'"):
+                        input_files = input_files[:-1]
+                    if len(input_files) > 0:
+                        for lfn in input_files.split(','):
+                            if lfn in full_paths_dictionary.keys():
+                                full_path = full_paths_dictionary[lfn]
+                                jobPars = jobPars.replace(lfn, full_path)
+                            else:
+                                tolog("!!WARNING!!3435!! Did not find LFN=%s" % lfn)
+                    else:
+                        tolog(
+                            "!!WARNING!!3434!! Zero length list, cannot update LFN:s with full paths (remote I/O will not work)")
+
+        return jobPars
+
 
 # main process starts here
 if __name__ == "__main__":
@@ -3181,7 +3212,7 @@ if __name__ == "__main__":
         # Should the Event Index be used?
         runJob.setUseEventIndex(job.jobPars)
 
-        # Update problematic bracket lists (for testing only)
+        # Update problematic bracket lists
         job.jobPars = runJob.updateJobParsForBrackets(job.jobPars, job.inFiles)
 
         # Set the taskID
@@ -3321,12 +3352,21 @@ if __name__ == "__main__":
             runJob.failJob(0, job.result[2], job, ins=ins, pilotErrorDiag=job.pilotErrorDiag)
         runJob.setJob(job)
 
-        # stagein successfully
-        # init the intput files dictionary
+        # Initialize the intput files dictionary
         runJob.init_input_files(job)
 
         # Already staged in files should be in the guid list and lfn list
         runJob.init_guid_list()
+
+        # Replace the LFN:s in the input file list with full paths in direct access mode
+        if job.transferType == 'direct':
+            # Populate the full_paths_dictionary
+            full_paths_dictionary = getReplicaDictionaryFromXML(job.workdir)
+            if full_paths_dictionary != {}:
+                job.jobPars = runJob.addFullPathsAsInput(job.jobPars, full_paths_dictionary)
+                tolog("Updated input file list with full paths: %s" % job.jobPars)
+            else:
+                tolog("!!WARNING!!5555!! Empty full paths dictionary (direct I/O will not work)")
 
         # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
         # consult the FileState file dictionary if cmd3 should be updated (--directIn should not be set if all

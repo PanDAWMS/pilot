@@ -971,3 +971,29 @@ def useDirectAccessWAN():
     """ Should direct i/o be used over WAN? """
 
     return _useDirectAccess(LAN=False, WAN=True)
+
+def getReplicaDictionaryFromXML(workdir, pfc="PoolFileCatalog.xml"):
+    """ Return the replica information from a PFC """
+    # NOTE: Currently this function only returns LFNs and PFNs
+
+    ec = 0
+    pilotErrorDiag = ""
+    replica_dictionary = {} # FORMAT: { <lfn1>:{'pfn':<pfn1>, ..}, .. }
+    pfcFile = os.path.join(workdir, pfc)
+
+    if not os.path.exists(pfcFile):
+        tolog("!!WARNING!!3332!! No such file: %s" % pfcFile)
+        return None
+
+    # make sure the PFC exists
+    from xml.dom import minidom
+    xmldoc = minidom.parse(pfcFile)
+    fileList = xmldoc.getElementsByTagName("File")
+    for thisfile in fileList:
+        lfn = str(thisfile.getElementsByTagName("lfn")[0].getAttribute("name"))
+        pfn = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
+        replica_dictionary[lfn] = {}
+        replica_dictionary[lfn]['pfn'] = pfn
+
+    return replica_dictionary
+
