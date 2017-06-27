@@ -1912,6 +1912,7 @@ class SiteInformation(object):
         ddmconf_sources_order = ['LOCAL', 'CVMFS', 'AGIS'] # can be moved into the schedconfig in order to configure workflow in AGIS on fly: TODO
 
         for key in ddmconf_sources_order:
+            tolog("Loading DDMConfData from source %s" % key)
             dat = ddmconf_sources.get(key)
             if not dat:
                 continue
