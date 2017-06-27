@@ -1917,20 +1917,14 @@ class SiteInformation(object):
             if not dat:
                 continue
 
-            if key == 'LOCAL':
-                if os.path.exists(dat['fname']):
-                    data = getJSONDictionary(dat['fname'])
-                else:
-                    continue
-            else:
-                content = self.loadURLData(cache_time=cache_time, **dat)
-                if not content:
-                    continue
-                try:
-                    data = json.loads(content)
-                except Exception, e:
-                    tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
-                    data = None
+            content = self.loadURLData(cache_time=cache_time, **dat)
+            if not content:
+                continue
+            try:
+                data = json.loads(content)
+            except Exception, e:
+                tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
+                data = None
 
             if data and isinstance(data, dict):
                 return data
