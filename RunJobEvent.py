@@ -3120,7 +3120,7 @@ class RunJobEvent(RunJob):
                     if len(input_files) > 0:
                         for lfn in input_files.split(','):
                             if lfn in full_paths_dictionary.keys():
-                                full_path = full_paths_dictionary[lfn]
+                                full_path = full_paths_dictionary[lfn]['pfn']
                                 jobPars = jobPars.replace(lfn, full_path)
                             else:
                                 tolog("!!WARNING!!3435!! Did not find LFN=%s" % lfn)
