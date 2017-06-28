@@ -3099,37 +3099,6 @@ class RunJobEvent(RunJob):
 
         return jobPars
 
-    def addFullPathsAsInput(self, jobPars, full_paths_dictionary):
-        """ Replace LFNs with full root paths """
-        # jobPars = .. --inputEVNTFile=EVNT.01416937._000003.pool.root,EVNT.01416937._000004.pool.root ..
-        # ->
-        # jobPars = .. --inputEVNTFile=root://../EVNT.01416937._000003.pool.root,root://../EVNT.01416937._000004.pool.root
-        # FORMAT: full_paths_dictionary = { 'LFN1':'protocol://fullpath/LFN1', .. }
-
-        # Extract the inputEVNTFile from the jobPars
-        if "--inputEVNTFile" in jobPars:
-            found_items = re.findall(r'\S+', jobPars)
-
-            pattern = r"\'?\-\-inputEVNTFile\=(.+)\'?"
-            for item in found_items:
-                found = re.findall(pattern, item)
-                if len(found) > 0:
-                    input_files = found[0]
-                    if input_files.endswith("\'"):
-                        input_files = input_files[:-1]
-                    if len(input_files) > 0:
-                        for lfn in input_files.split(','):
-                            if lfn in full_paths_dictionary.keys():
-                                full_path = full_paths_dictionary[lfn]['pfn']
-                                jobPars = jobPars.replace(lfn, full_path)
-                            else:
-                                tolog("!!WARNING!!3435!! Did not find LFN=%s" % lfn)
-                    else:
-                        tolog(
-                            "!!WARNING!!3434!! Zero length list, cannot update LFN:s with full paths (remote I/O will not work)")
-
-        return jobPars
-
 
 # main process starts here
 if __name__ == "__main__":
@@ -3358,15 +3327,13 @@ if __name__ == "__main__":
         # Already staged in files should be in the guid list and lfn list
         runJob.init_guid_list()
 
-        # Replace the LFN:s in the input file list with full paths in direct access mode
+        # The LFN:s in the input file list need to be replaced with full paths in direct access mode
+        # (will be replaced in updateRunCommandList() below, first get the replica dictionary)
         if job.transferType == 'direct':
             # Populate the full_paths_dictionary
             full_paths_dictionary = getReplicaDictionaryFromXML(job.workdir, pfc_name="PFC.xml")
-            if full_paths_dictionary and full_paths_dictionary != {}:
-                job.jobPars = runJob.addFullPathsAsInput(job.jobPars, full_paths_dictionary)
-                tolog("Updated input file list with full paths: %s" % job.jobPars)
-            else:
-                tolog("!!WARNING!!5555!! Empty full paths dictionary (direct I/O will not work)")
+        else:
+            full_paths_dictionary = None
 
         # after stageIn, all file transfer modes are known (copy_to_scratch, file_stager, remote_io)
         # consult the FileState file dictionary if cmd3 should be updated (--directIn should not be set if all
@@ -3375,7 +3342,7 @@ if __name__ == "__main__":
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix options but use --usePFCTurl
         hasInput = job.inFiles != ['']
-        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken)
+        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken, full_paths_dictionary=full_paths_dictionary)
 
         if not os.environ.has_key('ATHENA_PROC_NUMBER'):
             runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])

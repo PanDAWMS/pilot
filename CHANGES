@@ -272,6 +272,7 @@ Direct access
 - Sending directaccesstype to resolve_replicas(), added argument (mover)
 - Created get_pfns() and get_turls() (mover)
 - Created getReplicaDictionaryFromXML() (FileHandling)
+- Created addFullPathsAsInput() (RunJobUtilities)
 
 Updates from Alexander Bogdanchikov
 

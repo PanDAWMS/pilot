@@ -693,7 +693,38 @@ def setEnvVars(sitename):
     os.environ["COPY_TOOL"] = copytool
     tolog("Set COPY_TOOL = %s" % (copytool))
 
-def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, prodDBlockToken):
+def addFullPathsAsInput(jobPars, full_paths_dictionary):
+    """ Replace LFNs with full root paths """
+    # jobPars = .. --inputEVNTFile=EVNT.01416937._000003.pool.root,EVNT.01416937._000004.pool.root ..
+    # ->
+    # jobPars = .. --inputEVNTFile=root://../EVNT.01416937._000003.pool.root,root://../EVNT.01416937._000004.pool.root
+    # FORMAT: full_paths_dictionary = { 'LFN1':'protocol://fullpath/LFN1', .. }
+
+    # Extract the inputEVNTFile from the jobPars
+    if "--inputEVNTFile" in jobPars:
+        found_items = re.findall(r'\S+', jobPars)
+
+        pattern = r"\'?\-\-inputEVNTFile\=(.+)\'?"
+        for item in found_items:
+            found = re.findall(pattern, item)
+            if len(found) > 0:
+                input_files = found[0]
+                if input_files.endswith("\'"):
+                    input_files = input_files[:-1]
+                if len(input_files) > 0:
+                    for lfn in input_files.split(','):
+                        if lfn in full_paths_dictionary.keys():
+                            full_path = full_paths_dictionary[lfn]['pfn']
+                            jobPars = jobPars.replace(lfn, full_path)
+                        else:
+                            tolog("!!WARNING!!3435!! Did not find LFN=%s" % lfn)
+                else:
+                    tolog(
+                        "!!WARNING!!3434!! Zero length list, cannot update LFN:s with full paths (remote I/O will not work)")
+
+    return jobPars
+
+def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, prodDBlockToken, full_paths_dictionary=None):
     """ update the run command list if --directIn is no longer needed """
     # the method is using the file state dictionary
 
@@ -770,6 +801,15 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
 
         _runCommandList = _runCommandList2
 
+
+    # for remote i/o in production jobs, we need to update the jobPars
+    if full_paths_dictionary:
+        for cmd in runCommandList:
+            if full_paths_dictionary and full_paths_dictionary != {}:
+                cmd = addFullPathsAsInput(cmd, full_paths_dictionary)
+                tolog("Updated input file list with full paths: %s" % cmd)
+            else:
+                tolog("!!WARNING!!5555!! Empty full paths dictionary (direct I/O will not work)")
 
     ### new movers quick integration: reuse usedFAXandDirectIO variable with special meaning
     ### to avoid any LFC and prefixes lookups in transformation scripts
