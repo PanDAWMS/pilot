@@ -585,6 +585,22 @@ class Job:
                 idat[attrname] = ksources[k][ind] if len(ksources[k]) > ind else None
             if 'lfn' in idat and idat['lfn'].startswith("zip://"):
                 idat['lfn'] = idat['lfn'].replace("zip://", "")
+
+            # prodDBlockToken:
+            #  1) number: storageId or objectstoreId
+            #  2) number/number: storageId( or objectstoreId)/pathConvention
+            #  3) normal storage token
+            if 'prodDBlockToken' in idat and idat['prodDBlockToken'] and idat['prodDBlockToken'].count('/') == 1:
+                storageId, pathConvention = idat['prodDBlockToken'].split('/')
+                if storageId.strip() == '0' or storageId.strip() == '-1' or storageId.isdigit():
+                    idat['prodDBlockToken'] = storageId
+                    idat['pathConvention'] = pathConvention
+                    idat['taskId'] = self.taskID
+                    if len(idat['pathConvention']) ==0:
+                        idat['pathConvention'] = None
+                    else:
+                        idat['pathConvention'] = int(idat['pathConvention'])
+
             idat['allowRemoteInputs'] = self.allowRemoteInputs
             idat['cmtconfig'] = self.cmtconfig
             idat['eventService'] = self.eventService
@@ -1019,7 +1035,7 @@ class FileSpec(object):
                     'cmtconfig' # Needed for Singularity
                     ]
 
-    _os_keys = ['eventRangeId', 'storageId', 'eventService', 'allowAllInputRSEs', 'pandaProxySecretKey', 'jobId', 'osPrivateKey', 'osPublicKey']
+    _os_keys = ['eventRangeId', 'storageId', 'eventService', 'allowAllInputRSEs', 'pandaProxySecretKey', 'jobId', 'osPrivateKey', 'osPublicKey', 'pathConvention', 'taskId']
 
     _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code']
 

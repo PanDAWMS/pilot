@@ -991,7 +991,7 @@ class JobMover(object):
                 d = dconf.get('aprotocols', {})
                 xprot = d.get('SE', [])
                 if not xprot:
-                    surl_schema = ['s3'] if dconf.get('type') in ['OS_LOGS', 'OS_ES'] else ['srm', 'gsiftp']
+                    surl_schema = ['s3'] if dconf.get('type') in ['OS_LOGS', 'OS_ES'] else ['srm', 'gsiftp', 'root', 'http']
                     xprot = [e for e in d.get('a', d.get('r', [])) if e[0] and True in set([e[0].startswith(sc) for sc in surl_schema])]
 
                 surl_prot = [dict(se=e[0], path=e[2]) for e in sorted(xprot, key=lambda x: x[1])]
@@ -1087,11 +1087,19 @@ class JobMover(object):
                     se, se_path = dat.get('se', ''), dat.get('path', '')
 
                     if not fdata.surl:
-                        fdata.surl = sitemover.getSURL(surl_protocols[fdata.ddmendpoint].get('se'), surl_protocols[fdata.ddmendpoint].get('path'), fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
+                        # job is passing here for possible JOB specific processing
+                        fdata.surl = sitemover.getSURL(surl_protocols[fdata.ddmendpoint].get('se'),
+                                                       surl_protocols[fdata.ddmendpoint].get('path'),
+                                                       fdata.scope,
+                                                       fdata.lfn,
+                                                       self.job,
+                                                       pathConvention=fdata.pathConvention,
+                                                       ddmType=self.ddmconf.get(fdata.ddmendpoint, {}).get('type'))
 
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="output")
 
-                    fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job) # job is passing here for possible JOB specific processing
+                    # job is passing here for possible JOB specific processing
+                    fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job, pathConvention=fdata.pathConvention, ddmType=self.ddmconf.get(fdata.ddmendpoint, {}).get('type'))
 
                     self.log("[stage-out] [%s] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.surl, fdata.lfn, fdata.ddmendpoint))
                     self.log("[stage-out] [%s] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.turl, fdata.lfn, fdata.ddmendpoint))
@@ -1342,8 +1350,10 @@ class JobMover(object):
                 scope, lfn, pfn = fdata.get('scope', ''), fdata.get('lfn'), fdata.get('pfn')
                 guid = fdata.get('guid', '')
 
-                surl = sitemover.getSURL(surl_prot.get('se'), surl_prot.get('path'), scope, lfn, self.job) # job is passing here for possible JOB specific processing
-                turl = sitemover.getSURL(se, se_path, scope, lfn, self.job) # job is passing here for possible JOB specific processing
+                # job is passing here for possible JOB specific processing
+                surl = sitemover.getSURL(surl_prot.get('se'), surl_prot.get('path'), scope, lfn, self.job, pathConvention=fdata.pathConvention, ddmType=self.ddmconf.get(fdata.ddmendpoint, {}).get('type'))
+                # job is passing here for possible JOB specific processing
+                turl = sitemover.getSURL(se, se_path, scope, lfn, self.job, pathConvention=fdata.pathConvention, ddmType=self.ddmconf.get(fdata.ddmendpoint, {}).get('type'))
 
                 self.trace_report.update(scope=scope, dataset=fdata.get('dsname_report'), url=surl)
                 self.trace_report.update(catStart=time.time(), filename=lfn, guid=guid.replace('-', ''))
