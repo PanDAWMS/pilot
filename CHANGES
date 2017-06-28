@@ -259,6 +259,7 @@ General changes
 - Created isAVirtualMachine() (Node)
 - Reset cpuConsumptionTime to -1 if > 10**9 in getNodeStructure(). Requested by Wenjing Wu (PandaServerClient)
 - Now looking for local agis_ddmendpoints.json before trying download from AGIS/CVMFS, in loadDDMConfData(). Requested by Wenjing Wu (SiteInformation)
+- Added ckpt* to removeRedundantFiles() (ATLASExperiment)
 
 Core count
 - Simplified setNumberOfCores() as discussed in JIRA ticket https://its.cern.ch/jira/browse/ADCDPA-49

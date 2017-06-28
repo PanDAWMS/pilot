@@ -586,7 +586,8 @@ class ATLASExperiment(Experiment):
                     "HPC",
                     "objectstore*.json",
                     "saga",
-                    "radical"]
+                    "radical",
+                    "ckpt*"]
 
         # remove core and pool.root files from AthenaMP sub directories
         try:
