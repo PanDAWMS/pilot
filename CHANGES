@@ -316,6 +316,33 @@ File Changes
 
 M RunJobEvent.py (4)
 
+https://github.com/PanDAWMS/pilot/pull/144
+
+1. using storageId but fallback to bucket id if storageid is not available
+2. only when storageId is set, objectstoresitemover will build replica.
+3. implementation to support multiple buckets.
+4. fix getSURL in objectstoresitemover to use pathConvention.
+5. replace readpar to use new function. because readpar is reading old schedconf which can be different from the schedconfi the new mover is using.
+
+Commit Summary
+
+use storageid but fallback to bucket id if storageid is not available
+fix to only buil replica url when storageId is set
+multiple buckets implementation
+fix pathConvention in stagein
+change default num of buckets to 1
+fix getSURL with pathConvention
+replace readpar to use new function based on new mover agis
+
+File Changes
+
+M Job.py (18)
+M RunJobEvent.py (87)
+M SiteInformation.py (18)
+M movers/base.py (2)
+M movers/mover.py (20)
+M movers/objectstore_sitemover.py (42)
+
 Updates from Mario Lassnig/Frank Berghaus
 
 Rucio now supports the DAV protocol. It uses the protocol to slightly modify it's behavior when talking to a strict DAV endpoint compared to a more relaxed HTTP 
