@@ -158,8 +158,8 @@ class RunJobEvent(RunJob):
             return 'all_success'
 
     def setFinalESStatus(self, job):
-        if self.__nStageOutFailures >= 3:
-            job.subStatus = 'pilot_failed'  # 'no_events'
+        if self.__nEventsW < 1 and self.__nStageOutFailures >= 3:
+            job.subStatus = 'pilot_failed'
             job.pilotErrorDiag = "Too many stageout failures"
             job.result[0] = "failed"
             job.result[2] = self.__error.ERR_ESRECOVERABLE
