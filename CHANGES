@@ -245,14 +245,6 @@ M RunJobEvent.py (4)
 
 69.2
 
-Prerelease testing: (remove before release)
-
-BENCHMARKING ON
-For testing direct access:
-transfertype in Job = direct
-transferType in pilot.py = direct
-
-
 General changes
 - Removed function getNumberOfCores() as it is not used (Node)
 - Modernized file open in collectWNInfo() (Node)
