@@ -1545,8 +1545,6 @@ class ATLASExperiment(Experiment):
         # the server. If the job definition e.g. contains information that contradicts WN specifics, this method can
         # be used to fail the job
 
-        tolog('job id2=%s'%job.jobId)
-
         ec = 0
         pilotErrorDiag = ""
 
@@ -1556,8 +1554,6 @@ class ATLASExperiment(Experiment):
             if ec != 0:
                 tolog("!!WARNING!!3222!! %s" % (pilotErrorDiag))
                 return ec, pilotErrorDiag
-
-        tolog('job id3=%s'%job.jobId)
 
         return ec, pilotErrorDiag
 
@@ -1578,8 +1574,8 @@ class ATLASExperiment(Experiment):
         if athenaProcNumber:
             tolog("Encountered a set ATHENA_PROC_NUMBER, will not overwrite it")
         else:
-            os.environ['ATHENA_PROC_NUMBER'] = job.coreCount
-            tolog("Set ATHENA_PROC_NUMBER to %d" % (job.coreCount))
+            os.environ['ATHENA_PROC_NUMBER'] = coreCount
+            tolog("Set ATHENA_PROC_NUMBER to %d" % (coreCount))
 
         return ec, pilotErrorDiag
 
