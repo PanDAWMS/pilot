@@ -2712,10 +2712,12 @@ def runMain(runpars):
             else:
                 env['isJobDownloaded'] = True
                 pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))
-
+            pUtil.tolog('job id1=%s'%env['job'].jobId)
             # verify any contradicting job definition parameters here
             try:
+                pUtil.tolog('aaaaa')
                 ec, pilotErrorDiag = thisExperiment.postGetJobActions(env['job'])
+                pUtil.tolog('bbbbb')
                 if ec == 0:
                     pUtil.tolog("postGetJobActions: OK")
                 else:
