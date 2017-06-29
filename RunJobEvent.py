@@ -3408,6 +3408,7 @@ if __name__ == "__main__":
         # the run command should not contain the --oldPrefix, --newPrefix options but use --usePFCTurl
         hasInput = job.inFiles != ['']
         runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken, full_paths_dictionary=full_paths_dictionary)
+        tolog("runCommandList=%s"%str(runCommandList))
 
         if not os.environ.has_key('ATHENA_PROC_NUMBER'):
             runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
