@@ -390,11 +390,16 @@ class PandaServerClient:
 
         try:
             # report CPUTime and CPUunit at the end of the job
-            if job.cpuConsumptionTime < 10**9:
-                node['cpuConsumptionTime'] = job.cpuConsumptionTime
-            else:
-                tolog("!!WARNING!!2222!! Unrealistic cpuConsumptionTime: %d (reset to -1)" % job.cpuConsumptionTime)
-                node['cpuConsumptionTime'] = -1
+            try:
+                constime = int(job.cpuConsumptionTime)
+            except:
+                constime = None
+            if constime:
+                if constime < 10**9:
+                    node['cpuConsumptionTime'] = job.cpuConsumptionTime
+                else:
+                    tolog("!!WARNING!!2222!! Unrealistic cpuConsumptionTime: %s (reset to -1)" % job.cpuConsumptionTime)
+                    node['cpuConsumptionTime'] = "-1"
         except:
             tolog("Failed to get cpu time: %s" % traceback.format_exc())
 

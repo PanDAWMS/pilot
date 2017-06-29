@@ -1878,13 +1878,11 @@ class SiteInformation(object):
             return content
 
         try:
-            f = open(fname, "r")
-            content = f.read()
-            f.close()
+            with open(fname, 'r') as f:
+                content = f.read()
         except Exception, e:
-            tolog("!!WARNING!! loadURLData: Exception catched: %s" % e)
+            tolog("loadURLData: Caught exception: %s" % e)
             return None
-            # raise # ??
 
         return content
 
