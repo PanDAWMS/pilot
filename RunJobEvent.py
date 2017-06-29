@@ -3407,7 +3407,10 @@ if __name__ == "__main__":
         # in addition to the above, if FAX is used as a primary site mover and direct access is enabled, then
         # the run command should not contain the --oldPrefix, --newPrefix options but use --usePFCTurl
         hasInput = job.inFiles != ['']
-        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId, statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput, job.prodDBlockToken, full_paths_dictionary=full_paths_dictionary)
+        runCommandList = RunJobUtilities.updateRunCommandList(runCommandList, runJob.getParentWorkDir(), job.jobId,\
+                                                              statusPFCTurl, analysisJob, usedFAXandDirectIO, hasInput,\
+                                                              job.prodDBlockToken,\
+                                                              full_paths_dictionary=full_paths_dictionary)
 
         if not os.environ.has_key('ATHENA_PROC_NUMBER'):
             runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
@@ -3427,7 +3430,8 @@ if __name__ == "__main__":
                     count += 1
 
                     # Take a short nap
-                    tolog("Benchmark suite has not finished yet, taking a %d s nap (iteration #%d/%d)" % (_sleep, count, max_count))
+                    tolog("Benchmark suite has not finished yet, taking a %d s nap (iteration #%d/%d)" % \
+                          (_sleep, count, max_count))
                     time.sleep(15)
 
         # Prepare XML for input files to be read by the Event Server
