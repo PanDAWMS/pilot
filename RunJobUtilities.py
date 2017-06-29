@@ -801,16 +801,6 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
 
         _runCommandList = _runCommandList2
 
-
-    # for remote i/o in production jobs, we need to update the jobPars
-    if full_paths_dictionary:
-        for cmd in runCommandList:
-            if full_paths_dictionary and full_paths_dictionary != {}:
-                cmd = addFullPathsAsInput(cmd, full_paths_dictionary)
-                tolog("Updated input file list with full paths: %s" % cmd)
-            else:
-                tolog("!!WARNING!!5555!! Empty full paths dictionary (direct I/O will not work)")
-
     ### new movers quick integration: reuse usedFAXandDirectIO variable with special meaning
     ### to avoid any LFC and prefixes lookups in transformation scripts
     ### since new movers already form proper pfn values
@@ -848,6 +838,18 @@ def updateRunCommandList(runCommandList, pworkdir, jobId, statusPFCTurl, analysi
             _runCommandList2.append(cmd)
 
         _runCommandList = _runCommandList2
+
+    # for remote i/o in production jobs, we need to update the jobPars
+    if full_paths_dictionary:
+        _runCommandList3 = []
+        for cmd in _runCommandList:
+            if full_paths_dictionary and full_paths_dictionary != {}:
+                cmd = addFullPathsAsInput(cmd, full_paths_dictionary)
+                tolog("Updated input file list with full paths: %s" % cmd)
+            else:
+                tolog("!!WARNING!!5555!! Empty full paths dictionary (direct I/O will not work)")
+            _runCommandList3.append(cmd)
+        _runCommandList = _runCommandList3
 
     tolog("Dumping final input file states")
     dumpFileStates(pworkdir, jobId, ftype="input")
