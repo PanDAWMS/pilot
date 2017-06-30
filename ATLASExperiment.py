@@ -1558,7 +1558,7 @@ class ATLASExperiment(Experiment):
         return ec, pilotErrorDiag
 
     # Local method (not defined in Experiment)
-    def verifyNCoresSettings(self, jobCoreCount):
+    def verifyNCoresSettings(self, coreCount):
         """ Verify that nCores settings are correct """
 
         ec = 0
