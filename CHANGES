@@ -248,7 +248,6 @@ M RunJobEvent.py (4)
 General changes
 - Removed function getNumberOfCores() as it is not used (Node)
 - Modernized file open in collectWNInfo() (Node)
-- Created isAVirtualMachine() (Node)
 - Reset cpuConsumptionTime to -1 if > 10**9 in getNodeStructure(). Requested by Wenjing Wu (PandaServerClient)
 - Now looking for local agis_ddmendpoints.json before trying download from AGIS/CVMFS, in loadDDMConfData(). Requested by Wenjing Wu (SiteInformation)
 - Added ckpt* to removeRedundantFiles() (ATLASExperiment)
@@ -262,6 +261,7 @@ Core count and core info
 - Now setting job.coreCount in getNewJob() (pilot)
 - Created collectCoreInfo() (Node)
 - Created isAVirtualMachine() (Node)
+- Added core info (threads_per_core, cores_per_socket, sockets and if running in a VM) to benchmark dictionary. Requested by Ilija Vukotic (JobLog)
 
 Direct access
 - Removed name conflicts (there is both is_directaccess and is_directaccess() in stagein_real()) (mover)

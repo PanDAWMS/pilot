@@ -859,7 +859,7 @@ class JobLog:
             else:
                 tolog("Successfully copied log extracts file to pilot init dir for NG: %s" % (self.__env['pilot_initdir']))
 
-    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename, jobId, nodename):
+    def getBenchmarkDictionary(self, workdir, experiment, sitename, queuename, jobId, node):
         """ Return the benchmark json dictionary """
 
         benchmark_dictionary = {}
@@ -883,11 +883,21 @@ class JobLog:
                 _dummy = benchmark_dictionary.pop('_id', None) # unwanted
 
                 # add additional information to the metadata key
-                benchmark_dictionary['metadata']['node'] = nodename
+                benchmark_dictionary['metadata']['node'] = node.nodename
                 benchmark_dictionary['metadata']['ATLASSite'] = sitename
                 benchmark_dictionary['metadata']['PanDAQueue'] = queuename
                 benchmark_dictionary['metadata']['PanDAID'] = int(jobId)
 
+                # add the core info as well
+                try:
+                    threads_per_core, cores_per_socket, sockets = node.collectCoreInfo()
+                    benchmark_dictionary['metadata']['threadsPerCore'] = threads_per_core
+                    benchmark_dictionary['metadata']['coresPerSocket'] = cores_per_socket
+                    benchmark_dictionary['metadata']['sockets'] = sockets
+                    benchmark_dictionary['metadata']['isAVM'] = node.isAVirtualMachine()
+                    tolog("Added core info to benchmark dictionary: threadsPerCore=%d, coresPerSocket=%d, sockets=%d, isAVM=%s" % (threads_per_core, cores_per_socket, sockets, str(node.isAVirtualMachine())))
+                except Exception, e:
+                    tolog("Caught exception: %s" % e)
                 # convert from string to int
                 if benchmark_dictionary['metadata'].has_key('mp_num'):
                     try:
@@ -927,7 +937,7 @@ class JobLog:
         strXML, workdir = self.getXMLAndWorkdir(jr, site.workdir, job.workdir, job.newDirNM, job.jobId)
 
         # was the benchmark suite executed? if so, get the output dictionary and add it to the machine section of the jobReport
-        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement, job.jobId, workerNode.nodename)
+        benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement, job.jobId, workerNode)
         if benchmark_dictionary != {}:
 
             # Send the benchmark dictionary to ES (intermediary service)

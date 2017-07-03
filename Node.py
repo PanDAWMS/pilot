@@ -71,6 +71,22 @@ class Node:
                     sockets_found = re.findall(sockets_pattern, line)
                     if len(sockets_found) > 0:
                         tolog("Found %s socket(s)" % (sockets_found[0]))
+                    # convert to ints
+                    try:
+                        threads_found = int(threads_found)
+                    except ValueError, e:
+                        tolog("Caught exception: %s" % e)
+                        threads_found = 0
+                    try:
+                        cores_found = int(cores_found)
+                    except ValueError, e:
+                        cores_found = 0
+                        tolog("Caught exception: %s" % e)
+                    try:
+                        sockets_found = int(sockets_found)
+                    except ValueError, e:
+                        sockets_found = 0
+                        tolog("Caught exception: %s" % e)
 
         return threads_per_code, cores_per_socket, sockets
 
