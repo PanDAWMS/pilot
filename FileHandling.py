@@ -929,14 +929,12 @@ def getDirectAccess():
     directInWAN = useDirectAccessWAN()
     directInType = 'None'
 
+    directIn = False
     if directInLAN:
         directInType = 'LAN'
-    if directInWAN:
-        directInType = 'WAN' # Overrides LAN if both booleans are set to True
-    if directInWAN or directInLAN:
         directIn = True
-    else:
-        directIn = False
+    if directInWAN and directInLAN:
+        directInType = 'WAN' # Overrides LAN if both booleans are set to True
 
     return directIn, directInType
 
