@@ -744,7 +744,7 @@ class JobMover(object):
                 raise PilotException("STAGEIN FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(fdata.status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=fdata.status_code, state='STAGEIN_FILE_FAILED')
 
             if bad_copytools:
-                raise PilotException("STAGEIN FAILED: bad copytools: no one copytools supported", code=PilotErrors.ERR_NOSTORAGE, state='STAGEIN_BAD_COPYTOOLS')
+                raise PilotException("STAGEIN FAILED: bad copytools: no supported copytools", code=PilotErrors.ERR_NOSTORAGE, state='STAGEIN_BAD_COPYTOOLS')
 
         self.log('INFO: all input files have been successfully processed')
 
@@ -1144,7 +1144,7 @@ class JobMover(object):
                         except Exception, e:
                             result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED, state="STAGEOUT_ATTEMPT_FAILED")
                             self.log(traceback.format_exc())
-                            self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s) (exception): skip further retry (if any)' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry))
+                            self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s) (exception): skip further retries (if any)' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry))
                             break
 
                         self.log('WARNING: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s): %s' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry, result))
@@ -1161,12 +1161,12 @@ class JobMover(object):
 
 
             if fdata.status == 'error' and not skip_transfer_failure:
-                self.log('[stage-out] [%s] failed to transfer file (%s/%s) with lfn=%s: code=%s .. skip transferring of remain data..' % (activity, fnum, nfiles, fdata.lfn, fdata.status_code))
+                self.log('[stage-out] [%s] failed to transfer file (%s/%s) with lfn=%s: code=%s .. skip transferring of remaining data..' % (activity, fnum, nfiles, fdata.lfn, fdata.status_code))
                 dumpFileStates(self.workDir, self.job.jobId, ftype="output")
                 raise PilotException("STAGEOUT FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(fdata.status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=fdata.status_code, state='STAGEOUT_FILE_FAILED')
 
             if bad_copytools:
-                raise PilotException("STAGEOUT FAILED: bad copytools: no one copytools supported", code=PilotErrors.ERR_NOSTORAGE, state='STAGEOUT_BAD_COPYTOOLS')
+                raise PilotException("STAGEOUT FAILED: bad copytools: no supported copytools", code=PilotErrors.ERR_NOSTORAGE, state='STAGEOUT_BAD_COPYTOOLS')
 
 
         dumpFileStates(self.workDir, self.job.jobId, ftype="output")
