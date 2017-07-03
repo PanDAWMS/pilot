@@ -259,16 +259,18 @@ class JobMover(object):
                 turl = self.get_turl(pfns)
                 self.log("turl=%s" % turl)
 
-            self.log('fdat.replicas=%s'%fdat.replicas)
+            self.log('r[rses]=%s'%r['rses'])
             if not fdat.replicas and fdat.allowRemoteInputs:
                 self.log("No local replicas(%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
                 for ddm in r['rses']:
+                    self.log('ddm=%s'%ddm)
                     ddm_se = self.ddmconf[ddm].get('se', '')
                     ddm_path = self.ddmconf[ddm].get('endpoint', '')
                     if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
                         if ddm_path[-1] != '/':
                             ddm_path += '/'
                         ddm_path += 'rucio/'
+                    break
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
