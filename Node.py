@@ -33,13 +33,46 @@ class Node:
         # if we are running inside a VM, then linux will put 'hypervisor' in cpuinfo
         with open("/proc/cpuinfo", "r") as fd:
             lines = fd.readlines()
-            fd.close()
             for line in lines:
                 if "hypervisor" in line:
                     status = True
                     break
 
         return status
+
+    def collectCoreInfo(self):
+        """ Collect information about cores and threads from lscpu """
+
+        # Thread(s) per core:    1
+        # Core(s) per socket:    1
+        # Socket(s):             8
+
+        threads_per_code = 0
+        cores_per_socket = 0
+        sockets = 0
+
+        threads_pattern = re.compile(r"Thread\(s\)\ per\ core\:.+(\d+)+")
+        cores_pattern = re.compile(r"Core\(s\)\ per\ socket\:.+(\d+)+")
+        sockets_pattern = re.compile(r"Socket\(s\)\:.+(\d+)+")
+
+        lscpu = os.popen('lscpu')
+        if lscpu:
+            lines = lscpu.readlines()
+            lscpu.close()
+
+            if lines:
+                for line in lines:
+                    threads_found = re.findall(threads_pattern, line)
+                    if len(threads_found) > 0:
+                        tolog("Found %s thread(s) per core" % (threads_found[0]))
+                    cores_found = re.findall(cores_pattern, line)
+                    if len(cores_found) > 0:
+                        tolog("Found %s core(s) per socket" % (cores_found[0]))
+                    sockets_found = re.findall(sockets_pattern, line)
+                    if len(sockets_found) > 0:
+                        tolog("Found %s socket(s)" % (sockets_found[0]))
+
+        return threads_per_code, cores_per_socket, sockets
 
     def collectWNInfo(self, diskpath):
         """ collect node information (cpu, memory and disk space) """

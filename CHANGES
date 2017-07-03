@@ -255,11 +255,13 @@ General changes
 - Using with open in loadURLData(), grammatical change, removed warning text (SiteInformation)
 - Added WebDAV protocol ('davs') to GFAL2 mover, requested Frank Berghaus (gfalcopy_sitemover)
 
-Core count
+Core count and core info
 - Simplified setNumberOfCores() as discussed in JIRA ticket https://its.cern.ch/jira/browse/ADCDPA-49
 - Renamed setNumberOfCores() to getNumberOfCores() (Node)
 - Created getNumberOfCoresFromEnvironment() (Node)
 - Now setting job.coreCount in getNewJob() (pilot)
+- Created collectCoreInfo() (Node)
+- Created isAVirtualMachine() (Node)
 
 Direct access
 - Removed name conflicts (there is both is_directaccess and is_directaccess() in stagein_real()) (mover)
