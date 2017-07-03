@@ -175,7 +175,6 @@ class JobMover(object):
                 continue
             ddms.setdefault(dat['site'], []).append(dat)
 
-        self.log("files=%s"%files)
         for fdat in files:
             if fdat.storageId and fdat.storageId > 0:
                 # skip OS ddms, storageId -1 means normal RSE
@@ -197,7 +196,6 @@ class JobMover(object):
 
         # consider only normal ddmendpoints
         xfiles = [e for e in files if e.storageId is None]
-        self.log("xfiles=%s"%xfiles)
         if not xfiles:
             return files
 
@@ -207,8 +205,6 @@ class JobMover(object):
 
         dids = [dict(scope=e.scope, name=e.lfn) for e in xfiles]
         schemes = ['srm', 'root', 'https', 'gsiftp']
-        self.log("dids=%s"%dids)
-        self.log("schemes=%s"%schemes)
         # Get the replica list
         try:
             replicas = c.list_replicas(dids, schemes=schemes)
@@ -216,7 +212,7 @@ class JobMover(object):
             for rep in replicas:
                 result.append(rep)
             replicas = result
-            self.log("replicas received from rucio: %s" % replicas)
+            self.log("replicas received from Rucio: %s" % replicas)
         except Exception, e:
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
@@ -226,19 +222,15 @@ class JobMover(object):
         for r in replicas:
             k = r['scope'], r['name']
             fdat = files_lfn.get(k)
-            self.log("fdat=%s"%fdat)
             if not fdat: # not requested replica returned?
                 continue
             fdat.replicas = [] # reset replicas list
 
             for ddm in fdat.inputddms:
-                self.log('ddm=%s'%ddm)
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
                 ddm_se = self.ddmconf[ddm].get('se', '')          ## FIX ME LATER: resolve from default protocol (srm?)
-                self.log('ddm_se=%s'%ddm_se)
                 ddm_path = self.ddmconf[ddm].get('endpoint', '')  ##
-                self.log('ddm_path=%s'%ddm_path)
                 if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
                     if ddm_path[-1] != '/':
                         ddm_path += '/'
@@ -247,30 +239,27 @@ class JobMover(object):
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
             # if directaccess WAN, allow remote replicas
-            self.log("direct access type=%s" % directaccesstype)
             if directaccesstype == "WAN":
                 fdat.allowRemoteInputs = True
 
                 # Assume the replicas to be geo-sorted, i.e. take the first root replica
-                pfns = self.get_pfns(r)
-                self.log("pfns=%s" % pfns)
+                #pfns = self.get_pfns(r)
+                #self.log("pfns=%s" % pfns)
 
                 # Get 'random' entry
-                turl = self.get_turl(pfns)
-                self.log("turl=%s" % turl)
+                #turl = self.get_turl(pfns)
+                #self.log("turl=%s" % turl)
 
-            self.log('r[rses]=%s'%r['rses'])
             if not fdat.replicas and fdat.allowRemoteInputs:
-                self.log("No local replicas(%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
+                self.log("No local replicas (%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
                 for ddm in r['rses']:
-                    self.log('ddm=%s'%ddm)
                     ddm_se = self.ddmconf[ddm].get('se', '')
                     ddm_path = self.ddmconf[ddm].get('endpoint', '')
                     if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
                         if ddm_path[-1] != '/':
                             ddm_path += '/'
                         ddm_path += 'rucio/'
-                    break
+                    break # just take the first replica for now - need to use LAN and WAN setting betters, as well as geo-sorting
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
