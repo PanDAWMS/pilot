@@ -238,7 +238,7 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
     # keep track of which files have been copied
 
     if failed_transfers:
-        message = "Not all files are staged out, remain files: %s" % [e.lfn for e in failed_transfers]
+        message = "Not all files are staged out, remain files: %s" % [f.lfn for f in failed_transfers]
         error = PilotException('STAGEOUT FAILED, exception=%s' % message, code=PilotErrors.ERR_STAGEOUTFAILED, state='STAGEOUT_FAILED')
         return error.code, error.message, None
 

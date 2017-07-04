@@ -1713,8 +1713,16 @@ class RunJobEvent(RunJob):
             tolog("[stage-out] [%s] resolved ddmendpoint=%s for es transfer with access key %s" % (activity, self.__stageOutDDMEndpoint, os.environ.get('S3_ACCESS_KEY', None)))
 
 
-        osPublicKey = self.__siteInfo.getObjectstoresField("os_access_key", os_bucket_name="eventservice")
-        osPrivateKey = self.__siteInfo.getObjectstoresField("os_secret_key", os_bucket_name="eventservice")
+        try:
+            osPublicKey = self.__siteInfo.getObjectstoresField("os_access_key", os_bucket_name="eventservice")
+        except:
+            tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+            osPublicKey = ""
+        try:
+            osPrivateKey = self.__siteInfo.getObjectstoresField("os_secret_key", os_bucket_name="eventservice")
+        except:
+            tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+            osPrivateKey = ""
         files = []
         for file_path in file_paths:
             file_dict = {'lfn': os.path.basename(file_path),
