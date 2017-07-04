@@ -41,7 +41,10 @@ class objectstoreSiteMover(rucioSiteMover):
 
         tolog("getSURL: pathConvention: %s, taskId: %s, ddmType: %s" % (pathConvention, taskId, ddmType))
         if pathConvention == None:
-            surl = se + os.path.join(se_path, lfn)
+            if ddmType and ddmType in ['OS_LOGS', 'OS_ES', 'SPECIAL']:
+                surl = se + os.path.join(se_path, lfn)
+            else:
+                surl = se + os.path.join(se_path, self.get_path(scope, lfn))
             return surl
 
         # If pathConvention is not None, it means multiple buckets are used.
@@ -63,13 +66,19 @@ class objectstoreSiteMover(rucioSiteMover):
                 taskId = job.taskID
             if ddmType and ddmType in ['OS_LOGS', 'OS_ES']:
                 se_path = "%s-%s-%s" % (se_path, taskId, pathConvention)
-            else:
+            elif ddmType and ddmType in ['SPECIAL']:
                 se_path = "%s/%s-%s" % (se_path, taskId, pathConvention)
+            else:
+                surl = se + os.path.join(se_path, self.get_path(scope, lfn))
+                return surl
         else:
             if ddmType and ddmType in ['OS_LOGS', 'OS_ES']:
                 se_path = "%s-%s" % (se_path, pathConvention)
-            else:
+            elif ddmType and ddmType in ['SPECIAL']:
                 se_path = "%s/%s" % (se_path, pathConvention)
+            else:
+                surl = se + os.path.join(se_path, self.get_path(scope, lfn))
+                return surl
 
         surl = se + os.path.join(se_path, lfn)
         return surl
