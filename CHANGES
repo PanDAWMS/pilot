@@ -341,6 +341,21 @@ M movers/base.py (2)
 M movers/mover.py (20)
 M movers/objectstore_sitemover.py (42)
 
+ https://github.com/PanDAWMS/pilot/pull/145
+
+Commit Summary
+
+disable tar/zip when pandaproxy is used
+fix mover at checking errors part by checking file status, not checking failed_transfers
+fix objectstoremover to handle rucio standard paths
+
+File Changes
+
+M Mover.py (2)
+M RunJobEvent.py (12)
+M UpdateHandler.py (2)
+M movers/objectstore_sitemover.py (15)
+
 Updates from Mario Lassnig/Frank Berghaus
 
 Rucio now supports the DAV protocol. It uses the protocol to slightly modify it's behavior when talking to a strict DAV endpoint compared to a more relaxed HTTP 
