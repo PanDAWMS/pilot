@@ -62,7 +62,7 @@ class UpdateHandler(BaseRequestHandler):
                         self.__env['jobDic'][k][1].timeStageOut = jobinfo["timeStageOut"]
                         self.__env['jobDic'][k][1].timeSetup = jobinfo["timeSetup"]
                         self.__env['jobDic'][k][1].timeExe = jobinfo["timeExe"]
-                        self.__env['jobDic'][k][1].cpuConsumptionTime = jobinfo["cpuTime"]
+                        self.__env['jobDic'][k][1].cpuConsumptionTime = int(jobinfo["cpuTime"])
                         self.__env['jobDic'][k][1].cpuConsumptionUnit = jobinfo["cpuUnit"]
                         self.__env['jobDic'][k][1].cpuConversionFactor = jobinfo["cpuConversionFactor"]
                         self.__env['jobDic'][k][1].jobState = jobinfo["jobState"]

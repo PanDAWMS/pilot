@@ -237,10 +237,11 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
     # prepare compatible output
     # keep track of which files have been copied
 
-    if failed_transfers:
-        message = "Not all files are staged out, remain files: %s" % [e.lfn for e in failed_transfers]
-        error = PilotException('STAGEOUT FAILED, exception=%s' % message, code=PilotErrors.ERR_STAGEOUTFAILED, state='STAGEOUT_FAILED')
-        return error.code, error.message, None
+    not_transferred = [e.lfn for e in files if e.status not in ['transferred']]
+    if not_transferred:
+        err_msg = 'STAGEOUT FAILED: not all output files have been copied: remain files=%s, errors=%s' % ('\n'.join(not_transferred), ';'.join([str(ee) for ee in failed_transfers]))
+        tolog("Mover put data finished: error_msg=%s" % err_msg)
+        return PilotErrors.ERR_STAGEOUTFAILED, err_msg, None
 
     return 0, "", storageId
 
