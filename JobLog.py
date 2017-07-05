@@ -891,6 +891,8 @@ class JobLog:
                 # add the core info as well
                 try:
                     threads_per_core, cores_per_socket, sockets = node.collectCoreInfo()
+                    tolog("Read core info")
+                    tolog("types:%s,%s,%s,%s"%(type(threads_per_core),type(cores_per_socket),type(sockets),type(node.isAVirtualMachine())))
                     benchmark_dictionary['metadata']['threadsPerCore'] = threads_per_core
                     benchmark_dictionary['metadata']['coresPerSocket'] = cores_per_socket
                     benchmark_dictionary['metadata']['sockets'] = sockets
