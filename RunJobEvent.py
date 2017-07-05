@@ -1316,7 +1316,7 @@ class RunJobEvent(RunJob):
                 self.__esToZip = True
             if 'not_es_to_zip' in catchalls:
                 self.__esToZip = False
-            if job.pandaProxySecretKey is not None and job.pandaProxySecretKey != ""
+            if job.pandaProxySecretKey is not None and job.pandaProxySecretKey != "":
                 self.__esToZip = False
                 tolog("Disable tar/zip because job.pandaProxySecretKey is defined")
 
