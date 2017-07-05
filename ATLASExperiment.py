@@ -1540,7 +1540,7 @@ class ATLASExperiment(Experiment):
 
         ec = 0
         pilotErrorDiag = ""
-
+        tolog("pre verifyNCoresSettings")
         # Make sure that ATHENA_PROC_NUMBER has a proper value for the current job
         if job.prodSourceLabel != "install":
             ec, pilotErrorDiag = self.verifyNCoresSettings(job.coreCount)
@@ -1568,7 +1568,7 @@ class ATLASExperiment(Experiment):
             tolog("Encountered a set ATHENA_PROC_NUMBER (%d), will not overwrite it" % athenaProcNumber)
         else:
             os.environ['ATHENA_PROC_NUMBER'] = coreCount
-            tolog("Set ATHENA_PROC_NUMBER to %d" % (coreCount))
+            tolog("Set ATHENA_PROC_NUMBER to %s" % (coreCount))
 
         return ec, pilotErrorDiag
 
@@ -1592,8 +1592,6 @@ class ATLASExperiment(Experiment):
             scappdir = readpar('appdir')
             # protect against complex appdir form
             if "|" in scappdir and appdir != "":
-                #from SiteInformation import SiteInformation
-                #si = SiteInformation()
                 si = getSiteInformation(self.__experiment)
                 ec, _scappdir = si.extractAppdir(scappdir, processingType, homePackage)
                 if ec != 0:
