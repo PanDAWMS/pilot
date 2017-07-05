@@ -227,9 +227,6 @@ class ATLASExperiment(Experiment):
         asetup_path = self.getModernASetup(asetup=prepareASetup)
         asetup_options = " "
 
-        tolog("prepareASetup = %s" % str(prepareASetup))
-        tolog("asetup_path = %s" % asetup_path)
-
         # Is it a standard ATLAS job? (i.e. with swRelease = 'Atlas-...')
         if self.__atlasEnv:
 
@@ -266,8 +263,6 @@ class ATLASExperiment(Experiment):
 
                 # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 cmd += "; " + self.addMAKEFLAGS(job.coreCount, "") + _cmd
-
-                tolog("2. cmd = %s" % (cmd))
             else:
                 # Add Database commands if they are set by the local site
                 cmd += os.environ.get('PILOT_DB_LOCAL_SETUP_CMD','')
@@ -277,9 +272,7 @@ class ATLASExperiment(Experiment):
                 else:
                     cmd += "; " + job.jobPars
 
-            tolog("3. cmd = %s" % (cmd))
             cmd = cmd.replace(';;', ';')
-            tolog("4. cmd = %s" % (cmd))
 
         else: # Generic, non-ATLAS specific jobs, or at least a job with undefined swRelease
 
@@ -1572,7 +1565,7 @@ class ATLASExperiment(Experiment):
         # Note: if ATHENA_PROC_NUMBER is set (by the wrapper), then do not overwrite it
         # Otherwise, set it to the value of job.coreCount
         if athenaProcNumber:
-            tolog("Encountered a set ATHENA_PROC_NUMBER, will not overwrite it")
+            tolog("Encountered a set ATHENA_PROC_NUMBER (%d), will not overwrite it" % athenaProcNumber)
         else:
             os.environ['ATHENA_PROC_NUMBER'] = coreCount
             tolog("Set ATHENA_PROC_NUMBER to %d" % (coreCount))
