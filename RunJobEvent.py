@@ -1283,7 +1283,7 @@ class RunJobEvent(RunJob):
         items = self.__siteInfo.resolveItems(pandaqueue, itemName)
         return items[pandaqueue]
 
-    def initZipConf(self):
+    def initZipConf(self, job=None):
         try:
             self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s" % self.__job.jobId)
             self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
@@ -1316,6 +1316,10 @@ class RunJobEvent(RunJob):
                 self.__esToZip = True
             if 'not_es_to_zip' in catchalls:
                 self.__esToZip = False
+            if job.pandaProxySecretKey is not None and job.pandaProxySecretKey != ""
+                self.__esToZip = False
+                tolog("Disable tar/zip because job.pandaProxySecretKey is defined")
+
             catchalls = self.resolveConfigItem('catchall')
             if 'zip_time_gap=' in catchalls:
                 for catchall in catchalls.split(","):
@@ -3309,7 +3313,7 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
 
-        runJob.initZipConf()
+        runJob.initZipConf(job)
 
         status, output = runJob.checkSetupObjectstore()
         if status != 0:
