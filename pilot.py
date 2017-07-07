@@ -2310,6 +2310,14 @@ def getNewJob(tofile=True):
                 pilotErrorDiag = "Cannot switch to FAX site mover for transferType=%s since faxredirector is not set" % (data['transferType'])
                 pUtil.tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
                 return None, pilotErrorDiag
+        # make sure that direct access settings are not set for production jobs if transferType is not set
+        if data.has_key('trf'):
+            analyJob = pUtil.isAnalysisJob(data['trf'].split(",")[0])
+            if not analyJob:
+                if data['transferType'] == "":
+                    pUtil.tolog("!!WARNING!!3434!! Resetting direct access fields since transferType is not set")
+                    ec = env['si'].replaceQueuedataField("direct_access_lan", "False")
+                    ec = env['si'].replaceQueuedataField("direct_access_wan", "False")
 
     nCores = env['workerNode'].getNumberOfCoresFromEnvironment()
     if nCores:
