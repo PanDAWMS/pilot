@@ -2316,7 +2316,7 @@ def getNewJob(tofile=True):
             analyJob = pUtil.isAnalysisJob(data['transformation'].split(",")[0])
             if not analyJob:
                 pUtil.tolog("direct access: not analy job")
-                if data['transferType'] == "":
+                if data['transferType'] == "" or data['transferType'] == 'NULL':
                     pUtil.tolog("!!WARNING!!3434!! Resetting direct access fields since transferType is not set")
                     ec = env['si'].replaceQueuedataField("direct_access_lan", "False")
                     ec = env['si'].replaceQueuedataField("direct_access_wan", "False")
