@@ -3650,7 +3650,7 @@ if __name__ == "__main__":
         first_event_ranges = runJob.extractEventRanges(message)
         if first_event_ranges is None or first_event_ranges == []:
             tolog("No more events. will finish this job directly")
-            runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=True)
+            runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP", pilot_failed=False)
 
         # Get the current list of eventRangeIDs
         currentEventRangeIDs = runJob.extractEventRangeIDs(first_event_ranges)
