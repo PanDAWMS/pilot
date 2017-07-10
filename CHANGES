@@ -356,6 +356,15 @@ M RunJobEvent.py (12)
 M UpdateHandler.py (2)
 M movers/objectstore_sitemover.py (15)
 
+  https://github.com/PanDAWMS/pilot/pull/146
+
+Commit Summary
+
+pilot failed should be false when no events
+File Changes
+
+M RunJobEvent.py (2)
+
 Updates from Mario Lassnig/Frank Berghaus
 
 Rucio now supports the DAV protocol. It uses the protocol to slightly modify it's behavior when talking to a strict DAV endpoint compared to a more relaxed HTTP 
