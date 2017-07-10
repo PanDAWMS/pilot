@@ -2311,9 +2311,9 @@ def getNewJob(tofile=True):
                 pUtil.tolog("!!WARNING!!1234!! %s" % (pilotErrorDiag))
                 return None, pilotErrorDiag
         # make sure that direct access settings are not set for production jobs if transferType is not set
-        if data.has_key('trf'):
-            pUtil.tolog("direct access: trf")
-            analyJob = pUtil.isAnalysisJob(data['trf'].split(",")[0])
+        if data.has_key('transformation'):
+            pUtil.tolog("direct access: transformation")
+            analyJob = pUtil.isAnalysisJob(data['transformation'].split(",")[0])
             if not analyJob:
                 pUtil.tolog("direct access: not analy job")
                 if data['transferType'] == "":
