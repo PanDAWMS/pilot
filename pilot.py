@@ -2312,12 +2312,22 @@ def getNewJob(tofile=True):
                 return None, pilotErrorDiag
         # make sure that direct access settings are not set for production jobs if transferType is not set
         if data.has_key('trf'):
+            pUtil.tolog("direct access: trf")
             analyJob = pUtil.isAnalysisJob(data['trf'].split(",")[0])
             if not analyJob:
+                pUtil.tolog("direct access: not analy job")
                 if data['transferType'] == "":
                     pUtil.tolog("!!WARNING!!3434!! Resetting direct access fields since transferType is not set")
                     ec = env['si'].replaceQueuedataField("direct_access_lan", "False")
                     ec = env['si'].replaceQueuedataField("direct_access_wan", "False")
+                else:
+                    pUtil.tolog("direct access: transferType=%s"%data['transferType'])
+            else:
+                pUtil.tolog("direct access: analy job")
+        else:
+            pUtil.tolog("direct access: no trf key")
+    else:
+        pUtil.tolog("direct access: no transferType")
 
     nCores = env['workerNode'].getNumberOfCoresFromEnvironment()
     if nCores:
