@@ -265,6 +265,8 @@ Core count and core info
 
 ATHENA_PROC_NUMBER
 - Created addAthenaProcNumber() (ATLASExperiment)
+- Now adding ATHENA_PROC_NUMBER explicitly to payload execution command, as long as it has a value > 1 (ATLASExperiment)
+- The pilot is not overwriting ATHENA_PROC_NUMBER but is using a tmp variable instead (ATHENA_PROC_NUMBER_JOB)
 
 Direct access
 - Removed name conflicts (there is both is_directaccess and is_directaccess() in stagein_real()) (mover)
