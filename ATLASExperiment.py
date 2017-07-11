@@ -1,4 +1,4 @@
-# Class definition:
+# Class de                tolog("Unset ATHENA_PROC_NUMBER")finition:
 #   ATLASExperiment
 #   This class is the ATLAS experiment class inheriting from Experiment
 #   Instances are generated with ExperimentFactory via pUtil::getExperiment()
@@ -360,6 +360,17 @@ class ATLASExperiment(Experiment):
             tolog("ALRB_asetupVersion is set to %s" % ver)
         else:
             tolog("ALRB_asetupVersion is not set")
+
+        # Explicitly add the ATHENA_PROC_NUMBER (or JOB value)
+        if not "ATHENA_PROC_NUMBER" in cmd:
+            if "ATHENA_PROC_NUMBER" in os.environ:
+                cmd = 'export ATHENA_PROC_NUMBER=%s' % os.environ['ATHENA_PROC_NUMBER'] + cmd
+            elif "ATHENA_PROC_NUMBER_JOB" in os.environ:
+                cmd = 'export ATHENA_PROC_NUMBER=%s' % os.environ['ATHENA_PROC_NUMBER_JOB'] + cmd
+            else:
+                tolog("!!WARNING!!3434!! Don't know how to set ATHENA_PROC_NUMBER (could not find it in os.environ)")
+        else:
+            tolog("ATHENA_PROC_NUMBER already in job command")
 
         # Wrap the job execution command with Singularity if necessary
         from Singularity import singularityWrapper
@@ -1558,17 +1569,25 @@ class ATLASExperiment(Experiment):
         pilotErrorDiag = ""
 
         try:
+            del os.environ['ATHENA_PROC_NUMBER_JOB']
+            tolog("Unset existing ATHENA_PROC_NUMBER_JOB")
+        except:
+            pass
+
+        try:
             athenaProcNumber = int(os.environ['ATHENA_PROC_NUMBER'])
         except:
             athenaProcNumber = None
 
         # Note: if ATHENA_PROC_NUMBER is set (by the wrapper), then do not overwrite it
         # Otherwise, set it to the value of job.coreCount
+        # (actually set ATHENA_PROC_NUMBER_JOB and use it if it exists, otherwise use ATHENA_PROC_NUMBER directly;
+        # ATHENA_PROC_NUMBER_JOB will always be the value from the job definition)
         if athenaProcNumber:
             tolog("Encountered a set ATHENA_PROC_NUMBER (%d), will not overwrite it" % athenaProcNumber)
         else:
-            os.environ['ATHENA_PROC_NUMBER'] = coreCount
-            tolog("Set ATHENA_PROC_NUMBER to %s" % (coreCount))
+            os.environ['ATHENA_PROC_NUMBER_JOB'] = coreCount
+            tolog("Set ATHENA_PROC_NUMBER_JOB to %s (ATHENA_PROC_NUMBER will not be overwritten/set - JOB var will be added to cmd)" % (coreCount))
 
         return ec, pilotErrorDiag
 

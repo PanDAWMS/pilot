@@ -2697,11 +2697,6 @@ def runMain(runpars):
 
             # getJob begins here....................................................................................
 
-            if 'ATHENA_PROC_NUMBER' in os.environ:
-                pUtil.tolog("ATHENA_PROC_NUMBER already set to %d" % os.environ['ATHENA_PROC_NUMBER'])
-            else:
-                pUtil.tolog('ATHENA_PROC_NUMBER not set in environment')
-
             # create the first job, usually a production job, but analysis job is ok as well
             # we just use the first job as a MARKER of the "walltime" of the pilot
             env['isJobDownloaded'] = False # (reset in case of multi-jobs)
