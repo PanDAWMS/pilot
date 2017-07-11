@@ -362,15 +362,15 @@ class ATLASExperiment(Experiment):
             tolog("ALRB_asetupVersion is not set")
 
         # Explicitly add the ATHENA_PROC_NUMBER (or JOB value)
-        if not "ATHENA_PROC_NUMBER" in cmd:
-            if "ATHENA_PROC_NUMBER" in os.environ:
-                cmd = 'export ATHENA_PROC_NUMBER=%s;' % os.environ['ATHENA_PROC_NUMBER'] + cmd
-            elif "ATHENA_PROC_NUMBER_JOB" in os.environ:
-                cmd = 'export ATHENA_PROC_NUMBER=%s;' % os.environ['ATHENA_PROC_NUMBER_JOB'] + cmd
-            else:
-                tolog("!!WARNING!!3434!! Don't know how to set ATHENA_PROC_NUMBER (could not find it in os.environ)")
-        else:
-            tolog("ATHENA_PROC_NUMBER already in job command")
+#        if not "ATHENA_PROC_NUMBER" in cmd:
+#            if "ATHENA_PROC_NUMBER" in os.environ:
+#                cmd = 'export ATHENA_PROC_NUMBER=%s;' % os.environ['ATHENA_PROC_NUMBER'] + cmd
+#            elif "ATHENA_PROC_NUMBER_JOB" in os.environ:
+#                cmd = 'export ATHENA_PROC_NUMBER=%s;' % os.environ['ATHENA_PROC_NUMBER_JOB'] + cmd
+#            else:
+#                tolog("!!WARNING!!3434!! Don't know how to set ATHENA_PROC_NUMBER (could not find it in os.environ)")
+#        else:
+#            tolog("ATHENA_PROC_NUMBER already in job command")
 
         # Wrap the job execution command with Singularity if necessary
         from Singularity import singularityWrapper
