@@ -263,6 +263,9 @@ Core count and core info
 - Created isAVirtualMachine() (Node)
 - Added core info (threads_per_core, cores_per_socket, sockets and if running in a VM) to benchmark dictionary. Requested by Ilija Vukotic (JobLog)
 
+ATHENA_PROC_NUMBER
+- Created addAthenaProcNumber() (ATLASExperiment)
+
 Direct access
 - Removed name conflicts (there is both is_directaccess and is_directaccess() in stagein_real()) (mover)
 - Rewrote is_directaccess(), renamed it to get_directaccess(), returning both allow_directaccess and type (mover)

@@ -362,15 +362,7 @@ class ATLASExperiment(Experiment):
             tolog("ALRB_asetupVersion is not set")
 
         # Explicitly add the ATHENA_PROC_NUMBER (or JOB value)
-#        if not "ATHENA_PROC_NUMBER" in cmd:
-#            if "ATHENA_PROC_NUMBER" in os.environ:
-#                cmd = 'export ATHENA_PROC_NUMBER=%s;' % os.environ['ATHENA_PROC_NUMBER'] + cmd
-#            elif "ATHENA_PROC_NUMBER_JOB" in os.environ:
-#                cmd = 'export ATHENA_PROC_NUMBER=%s;' % os.environ['ATHENA_PROC_NUMBER_JOB'] + cmd
-#            else:
-#                tolog("!!WARNING!!3434!! Don't know how to set ATHENA_PROC_NUMBER (could not find it in os.environ)")
-#        else:
-#            tolog("ATHENA_PROC_NUMBER already in job command")
+        cmd = self.addAthenaProcNumber(cmd)
 
         # Wrap the job execution command with Singularity if necessary
         from Singularity import singularityWrapper
@@ -378,6 +370,33 @@ class ATLASExperiment(Experiment):
         tolog("\nCommand to run the job is: \n%s" % (cmd))
 
         return 0, pilotErrorDiag, cmd, special_setup_cmd, JEM, cmtconfig
+
+    def addAthenaProcNumber(self, cmd):
+        """
+        Add the ATHENA_PROC_NUMBER to the payload command if necessary
+        :param cmd: payload execution command
+        :return: updated payload execution command
+        """
+
+        if not "ATHENA_PROC_NUMBER" in cmd:
+            if "ATHENA_PROC_NUMBER" in os.environ:
+                cmd = 'export ATHENA_PROC_NUMBER=%s;' % os.environ['ATHENA_PROC_NUMBER'] + cmd
+            elif "ATHENA_PROC_NUMBER_JOB" in os.environ:
+                try:
+                    value = int(os.environ['ATHENA_PROC_NUMBER'])
+                except:
+                    tolog("!!WARNING!!3433!! Failed to convert ATHENA_PROC_NUMBER=%s to int" % (os.environ['ATHENA_PROC_NUMBER']))
+                else:
+                    if value > 1:
+                        cmd = 'export ATHENA_PROC_NUMBER=%d;' % value + cmd
+                    else:
+                        tolog("Will not set ATHENA_PROC_NUMBER since the value is %d" % value)
+            else:
+                tolog("!!WARNING!!3434!! Don't know how to set ATHENA_PROC_NUMBER (could not find it in os.environ)")
+        else:
+            tolog("ATHENA_PROC_NUMBER already in job command")
+
+        return cmd
 
     def getAnalysisRunCommand(self, job, jobSite, trfName):
         """ Get the run command for analysis jobs """
