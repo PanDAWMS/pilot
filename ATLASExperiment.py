@@ -383,14 +383,14 @@ class ATLASExperiment(Experiment):
                 cmd = 'export ATHENA_PROC_NUMBER=%s;' % os.environ['ATHENA_PROC_NUMBER'] + cmd
             elif "ATHENA_PROC_NUMBER_JOB" in os.environ:
                 try:
-                    value = int(os.environ['ATHENA_PROC_NUMBER'])
+                    value = int(os.environ['ATHENA_PROC_NUMBER_JOB'])
                 except:
-                    tolog("!!WARNING!!3433!! Failed to convert ATHENA_PROC_NUMBER=%s to int" % (os.environ['ATHENA_PROC_NUMBER']))
+                    tolog("!!WARNING!!3433!! Failed to convert ATHENA_PROC_NUMBER_JOB=%s to int" % (os.environ['ATHENA_PROC_NUMBER_JOB']))
                 else:
                     if value > 1:
                         cmd = 'export ATHENA_PROC_NUMBER=%d;' % value + cmd
                     else:
-                        tolog("Will not set ATHENA_PROC_NUMBER since the value is %d" % value)
+                        tolog("Will not add ATHENA_PROC_NUMBER to cmd since the value is %d" % value)
             else:
                 tolog("!!WARNING!!3434!! Don't know how to set ATHENA_PROC_NUMBER (could not find it in os.environ)")
         else:
