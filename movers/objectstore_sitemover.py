@@ -41,7 +41,7 @@ class objectstoreSiteMover(rucioSiteMover):
 
         tolog("getSURL: pathConvention: %s, taskId: %s, ddmType: %s" % (pathConvention, taskId, ddmType))
         if pathConvention == None:
-            if ddmType and ddmType in ['OS_LOGS', 'OS_ES', 'SPECIAL']:
+            if ddmType and ddmType in ['OS_LOGS', 'OS_ES']:
                 surl = se + os.path.join(se_path, lfn)
             else:
                 surl = se + os.path.join(se_path, self.get_path(scope, lfn))
@@ -66,16 +66,12 @@ class objectstoreSiteMover(rucioSiteMover):
                 taskId = job.taskID
             if ddmType and ddmType in ['OS_LOGS', 'OS_ES']:
                 se_path = "%s-%s-%s" % (se_path, taskId, pathConvention)
-            elif ddmType and ddmType in ['SPECIAL']:
-                se_path = "%s/%s-%s" % (se_path, taskId, pathConvention)
             else:
                 surl = se + os.path.join(se_path, self.get_path(scope, lfn))
                 return surl
         else:
             if ddmType and ddmType in ['OS_LOGS', 'OS_ES']:
                 se_path = "%s-%s" % (se_path, pathConvention)
-            elif ddmType and ddmType in ['SPECIAL']:
-                se_path = "%s/%s" % (se_path, pathConvention)
             else:
                 surl = se + os.path.join(se_path, self.get_path(scope, lfn))
                 return surl
