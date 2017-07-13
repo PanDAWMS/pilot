@@ -204,7 +204,7 @@ class JobMover(object):
         c = Client()
 
         dids = [dict(scope=e.scope, name=e.lfn) for e in xfiles]
-        schemes = ['srm', 'root', 'https', 'gsiftp']
+        schemes = ['srm', 'root', 'davs', 'gsiftp']
         # Get the replica list
         try:
             replicas = c.list_replicas(dids, schemes=schemes)
