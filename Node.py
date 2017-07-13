@@ -64,13 +64,13 @@ class Node:
                 for line in lines:
                     threads_found = re.findall(threads_pattern, line)
                     if len(threads_found) > 0:
-                        tolog("Found %d thread(s) per core" % (threads_found[0]))
+                        tolog("Found %s thread(s) per core" % (threads_found[0]))
                     cores_found = re.findall(cores_pattern, line)
                     if len(cores_found) > 0:
-                        tolog("Found %d core(s) per socket" % (cores_found[0]))
+                        tolog("Found %s core(s) per socket" % (cores_found[0]))
                     sockets_found = re.findall(sockets_pattern, line)
                     if len(sockets_found) > 0:
-                        tolog("Found %d socket(s)" % (sockets_found[0]))
+                        tolog("Found %s socket(s)" % (sockets_found[0]))
             else:
                 tolog("No info from lscpu")
         else:
