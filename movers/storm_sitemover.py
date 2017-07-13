@@ -54,7 +54,7 @@ class stormSiteMover(BaseSiteMover):
         rc = ReplicaClient()
         http_surl_reps = [r for r in rc.list_replicas(dids=[{'scope': fspec.scope,
                                                              'name': fspec.lfn}],
-                                                      schemes=['https'],
+                                                      schemes=['davs'],
                                                       rse_expression=fspec.ddmendpoint)]
         self.log('http_surl_reps: %s' % http_surl_reps)
 
