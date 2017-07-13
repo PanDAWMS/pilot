@@ -47,7 +47,7 @@ class Node:
         # Core(s) per socket:    1
         # Socket(s):             8
 
-        threads_per_code = 0
+        threads_per_core = 0
         cores_per_socket = 0
         sockets = 0
 
@@ -65,18 +65,21 @@ class Node:
                     threads_found = re.findall(threads_pattern, line)
                     if len(threads_found) > 0:
                         tolog("Found %s thread(s) per core" % (threads_found[0]))
+                        threads_per_core = threads_found[0]
                     cores_found = re.findall(cores_pattern, line)
                     if len(cores_found) > 0:
                         tolog("Found %s core(s) per socket" % (cores_found[0]))
+                        cores_per_socket = cores_found[0]
                     sockets_found = re.findall(sockets_pattern, line)
                     if len(sockets_found) > 0:
                         tolog("Found %s socket(s)" % (sockets_found[0]))
+                        sockets = sockets_found[0]
             else:
                 tolog("No info from lscpu")
         else:
             tolog("Failed to open lscpu (cannot report core info with benchmarks)")
 
-        return threads_per_code, cores_per_socket, sockets
+        return threads_per_core, cores_per_socket, sockets
 
     def collectWNInfo(self, diskpath):
         """ collect node information (cpu, memory and disk space) """
