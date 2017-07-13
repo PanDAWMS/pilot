@@ -154,6 +154,25 @@ File Changes
 
 M movers/rucio_sitemover.py (2)
 
+Updates from Petr Vokac:
+
+Rucio no longer provides replica location for HTTPS protocol, because the name
+was changed to DAVS. We had at least one site where our jobs failed due to
+no access to input files using StoRM site mover (GGUS:129509) and there are
+more sites that also fail while use StoRM site mover but luckily they fallback
+to to lcgcp site mover.
+
+  https://github.com/PanDAWMS/pilot/pull/148
+
+Commit Summary
+
+Updated protocol name "https" -> "davs" for listing rucio replicas
+
+File Changes
+
+M movers/mover.py (2)
+M movers/storm_sitemover.py (2)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
