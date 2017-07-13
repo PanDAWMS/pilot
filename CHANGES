@@ -177,8 +177,6 @@ M movers/storm_sitemover.py (2)
 
 70.1
 
-BENCHMARKS ON
-
 General changes:
 - Fixed conversion problem (%d instead of %s) in collectCoreInfo() (JobLog)
 
