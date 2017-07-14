@@ -896,8 +896,8 @@ class JobLog:
                     benchmark_dictionary['metadata']['threadsPerCore'] = threads_per_core
                     benchmark_dictionary['metadata']['coresPerSocket'] = cores_per_socket
                     benchmark_dictionary['metadata']['sockets'] = sockets
-                    benchmark_dictionary['metadata']['isAVM'] = node.isAVirtualMachine().lower()
-                    tolog("Added core info to benchmark dictionary: threadsPerCore=%d, coresPerSocket=%d, sockets=%d, isAVM=%s" % (threads_per_core, cores_per_socket, sockets, str(node.isAVirtualMachine())))
+                    benchmark_dictionary['metadata']['isAVM'] = str(node.isAVirtualMachine()).lower()
+                    tolog("Added core info to benchmark dictionary: threadsPerCore=%d, coresPerSocket=%d, sockets=%d, isAVM=%s" % (threads_per_core, cores_per_socket, sockets, benchmark_dictionary['metadata']['isAVM']))
                 except Exception, e:
                     tolog("Caught exception: %s" % e)
                 # convert from string to int
