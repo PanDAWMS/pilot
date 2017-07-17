@@ -836,7 +836,6 @@ class ATLASSiteInformation(SiteInformation):
     def shouldExecuteBenchmark(self):
         """ Should the pilot execute a benchmark test before asking server for a job? """
 
-        return True
         # 1% of the times only?
         from random import randint
         if randint(0,99) == 0:
