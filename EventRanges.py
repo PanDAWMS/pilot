@@ -6,7 +6,7 @@ import traceback
 from pUtil import httpConnect, tolog
 from EventRangesPandaProxy import downloadEventRangesPandaProxy, updateEventRangePandaProxy, updateEventRangesPandaProxy
 
-def downloadEventRanges(jobId, jobsetID, taskID, pandaProxySecretKey, numRanges=10, url="https://pandaserver.cern.ch:25443/server/panda"):
+def downloadEventRanges(jobId, jobsetID, taskID, pandaProxySecretKey=None, numRanges=10, url="https://pandaserver.cern.ch:25443/server/panda"):
     """ Download event ranges from the Event Server """
 
     try:
