@@ -186,6 +186,7 @@ General changes:
 
 General changes:
 - Cleaned up a reset of job.coreCount (wrongly set to 1 when ATHENA_PROC_NUMBER was not set) (RunJobEvent)
+- Fixed double occurrence of ATHENA_PROC_NUMBER (RunJobEvent)
 
 Updates from Wen Guan:
 
