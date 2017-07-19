@@ -3342,12 +3342,6 @@ if __name__ == "__main__":
 
         # Setup starts here ................................................................................
 
-        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
-            tolog("ATHENA_PROC_NUMBER not defined, setting corecount to 1")
-            job.coreCount = 1
-        else:
-            job.coreCount = int(os.environ['ATHENA_PROC_NUMBER'])
-
         # Update the job state file
         job.jobState = "setup"
         runJob.setJobState(job.jobState)
@@ -3425,7 +3419,7 @@ if __name__ == "__main__":
                                                               full_paths_dictionary=full_paths_dictionary)
         tolog("runCommandList=%s"%str(runCommandList))
 
-        if not os.environ.has_key('ATHENA_PROC_NUMBER'):
+        if not os.environ.has_key('ATHENA_PROC_NUMBER') and 'ATHENA_PROC_NUMBER' not in runCommandList[0]:
             runCommandList[0] = 'export ATHENA_PROC_NUMBER=1; %s' % (runCommandList[0])
 
         # (stage-in ends here) .............................................................................
