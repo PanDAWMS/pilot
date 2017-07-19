@@ -1,7 +1,5 @@
 import os, time
 
-# NOTE: should this be incorporated into new SiteInformation class?
-
 class Site:
     """ site information """
 
