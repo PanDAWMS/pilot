@@ -2978,8 +2978,12 @@ def updateXMLWithEndpoints(xml, filenames, endpoints):
         for filename in filenames:
             p = filename + '-ddmendpoint_tobeset'
             if p in line:
-                lines.append(line.replace(p, endpoints[i]))
-                s = True
+                if endpoints[i] == None:
+                    # remove this line without append
+                    s = True
+                else:
+                    lines.append(line.replace(p, endpoints[i]))
+                    s = True
                 break
             i += 1
         if not s:
