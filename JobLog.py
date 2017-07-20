@@ -1100,11 +1100,14 @@ class JobLog:
             strXML = updateXMLWithSURLs(experiment, strXML, site.workdir, job.jobId, self.__env['jobrec']) # do not use format 'NG' here (even for NG)
 
             # was the log file transferred to an OS? check in the OS transfer dictionary
+            tolog("job.logBucketID: %s" % job.logBucketID)
             if job.logBucketID != -1:
                 # get the corresponding ddm endpoint
                 si = getSiteInformation(experiment)
                 os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(job.logBucketID)
                 strXML = updateXMLWithEndpoints(strXML, [job.logFile], [os_ddmendpoint])
+            else:
+                strXML = updateXMLWithEndpoints(strXML, [job.logFile], [None])
 
             tolog("Updated XML:\n%s" % (strXML))
 
