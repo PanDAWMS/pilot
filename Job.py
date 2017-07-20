@@ -511,7 +511,7 @@ class Job:
             self.noExecStrCnv = False
         pUtil.tolog("noExecStrCnv=%s" % (self.noExecStrCnv))
 
-        self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true'
+        self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true' or self.eventService
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
 
