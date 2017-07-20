@@ -200,6 +200,18 @@ File Changes
 
 M EventRanges.py (2)
 
+  https://github.com/PanDAWMS/pilot/pull/150
+
+Commit Summary
+
+Fix to report os ddmendpoint properly to panda
+
+File Changes
+
+M Job.py (2)
+M JobLog.py (3)
+M pUtil.py (8)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
