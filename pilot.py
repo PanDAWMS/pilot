@@ -2476,59 +2476,35 @@ def getsetWNMem(memory):
     wn_mem = 0
 
     # Get the memory limit primarily from queuedata
-    # Note: memory will soon be changed to maxmemory
-    _maxmemory = pUtil.readpar('maxmemory')
-    if _maxmemory == "":
-        _maxmemory = pUtil.readpar('memory')
+    _maxrss = pUtil.readpar('maxrss')
 
-    if _maxmemory != "":
+    if _maxrss != "":
         try:
-            maxmemory = int(_maxmemory) # Should already be an int
+            maxrss = int(_maxrss) # Should already be an int
         except Exception, e:
-            pUtil.tolog("Could not convert maxmemory to an int: %s" % (e))
-            maxmemory = -1
+            pUtil.tolog("Could not convert maxrss to an int: %s" % (e))
+            maxrss = -1
         else:
-            pUtil.tolog("Got max memory limit: %d MB (from queuedata)" % (maxmemory))
+            pUtil.tolog("Got max memory limit: %d MB (from queuedata)" % (maxrss))
     else:
-        maxmemory = -1
+        maxrss = -1
 
     # Get the max memory limit from the -k pilot option if specified
-    if maxmemory == -1 and memory:
+    if maxrss == -1 and memory:
         try:
-            maxmemory = int(memory)
+            maxrss = int(memory)
         except Exception, e:
             pUtil.tolog("Could not convert memory to an int: %s" % (e))
-            maxmemory = -1
+            maxrss = -1
         else:
-            pUtil.tolog("Got max memory limit: %d MB (from pilot option -k)" % (maxmemory))
+            pUtil.tolog("Got max memory limit: %d MB (from pilot option -k)" % (maxrss))
 
-    # Set the memory limit
-    if maxmemory > 0:
+    cmd = "ulimit -a"
+    pUtil.tolog("Executing command: %s" % (cmd))
+    out = commands.getoutput(cmd)
+    pUtil.tolog("\n%s" % (out))
 
-        # Convert MB to Bytes for the setrlimit function
-        _maxmemory = maxmemory*1024**2
-
-        # Only proceed if not a CGROUPS site
-#        if not isCGROUPSSite():
-#            pUtil.tolog("Not a CGROUPS site, proceeding with setting the memory limit")
-#            try:
-#                import resource
-#                resource.setrlimit(resource.RLIMIT_AS, [_maxmemory, _maxmemory])
-#            except Exception, e:
-#                pUtil.tolog("!!WARNING!!3333!! resource.setrlimit failed: %s" % (e))
-#            else:
-#                pUtil.tolog("Max memory limit set to: %d B" % (_maxmemory))
-#        else:
-#            pUtil.tolog("Detected a CGROUPS site, will not set the memory limit")
-
-        cmd = "ulimit -a"
-        pUtil.tolog("Executing command: %s" % (cmd))
-        out = commands.getoutput(cmd)
-        pUtil.tolog("\n%s" % (out))
-    else:
-        pUtil.tolog("Max memory will not be set")
-
-    return maxmemory
+    return maxrss
 
 
 # main process starts here

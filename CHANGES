@@ -218,6 +218,7 @@ M pUtil.py (8)
 
 General changes:
 - Dropped "here" in asetup options, getASetupOptions(). Requested by G. Rybkin et al (ATLASExperiment)
+- Replaced outdated usages of 'maxmemory' and 'memory' with 'maxrss'. Requested by R. Walker et al. (pilot, Monitor)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
