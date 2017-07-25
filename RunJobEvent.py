@@ -3094,7 +3094,7 @@ class RunJobEvent(RunJob):
         """ Update the run command with additional options """
 
         # AthenaMP needs to know where exactly is the PFC
-        runCommand += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.getPoolFileCatalogPath())
+        # runCommand += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (self.getPoolFileCatalogPath())
 
         # Tell AthenaMP the name of the yampl channel
         if "PILOT_EVENTRANGECHANNEL" in runCommand:
