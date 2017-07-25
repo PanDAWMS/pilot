@@ -4013,7 +4013,7 @@ if __name__ == "__main__":
         if cpuConsumptionTime == 0:
             tolog("!!WARNING!!3434!! Falling back to less accurate os.times() measurement of CPU time")
             job.cpuConsumptionUnit, cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
-        if cpuConsumptionTime > job.cpuConsumptionTime * 0.9:
+        if cpuConsumptionTime > 0:
             # if payload is killed, cpu time returned from os.times() will not be correct.
             job.cpuConsumptionTime = cpuConsumptionTime
         tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
