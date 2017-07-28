@@ -3075,15 +3075,16 @@ class RunJobEvent(RunJob):
             CLOCK_TICKS = os.sysconf("SC_CLK_TCK")
             if processId:
                 self.__childProcs = []
+                self.__child_cpuTime = {}
                 self.getChildren(processId)
                 for process in self.__childProcs:
                     if process not in self.__child_cpuTime.keys():
                         self.__child_cpuTime[process] = 0
                 for process in self.__child_cpuTime.keys():
                     cpuTime = self.getCPUConsumptionTimeFromProcPid(process) / CLOCK_TICKS
-                    if cpuTime > self.__child_cpuTime[process]:
-                        # process can return a small value if it's killed
-                        self.__child_cpuTime[process] = cpuTime
+                    # if cpuTime > self.__child_cpuTime[process]:
+                    # process can return a small value if it's killed
+                    self.__child_cpuTime[process] = cpuTime
                     cpuConsumptionTime += self.__child_cpuTime[process]
             tolog("cpuConsumptionTime for %s: %s" % (processId, cpuConsumptionTime))
         except:
