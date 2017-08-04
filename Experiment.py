@@ -209,10 +209,8 @@ class Experiment(object):
                           "http://pandaserver.cern.ch",\
                           "http://atlpan.web.cern.ch/atlpan",\
                           "https://atlpan.web.cern.ch/atlpan",\
-                          "http://common-analysis-framework.cern.ch",\
                           "http://classis01.roma1.infn.it",\
-                          "http://atlas-install.roma1.infn.it",\
-                          "http://homepages.physik.uni-muenchen.de/~Johannes.Ebke"]
+                          "http://atlas-install.roma1.infn.it"]
 
         if order:
             validBaseURLs.append(order)

@@ -13,12 +13,10 @@ from pUtil import isAnalysisJob                 # Is the current job a user anal
 from pUtil import grep                          # Grep function - reimplement using cli command
 from pUtil import getCmtconfig                  # Get the cmtconfig from the job def or queuedata
 from pUtil import verifyReleaseString           # To verify the release string (move to Experiment later)
-from pUtil import getProperTimeout              #
 from pUtil import timedCommand                  # Protect cmd with timed_command
 from pUtil import getSiteInformation            # Get the SiteInformation object corresponding to the given experiment
 from pUtil import isBuildJob                    # Is the current job a build job?
 from pUtil import remove                        # Used to remove redundant file before log file creation
-from pUtil import getInitialDirs                # Used by getModernASetup()
 from pUtil import isAGreaterOrEqualToB          #
 from pUtil import convert_unicode_string        # Needed to avoid unicode strings in the memory output text file
 from PilotErrors import PilotErrors             # Error codes
@@ -238,10 +236,20 @@ class ATLASExperiment(Experiment):
                 options = self.getASetupOptions(job.release, job.homePackage)
                 asetup_options = " " + options + " --platform " + cmtconfig
 
-                # always set the --makeflags option (to prevent asetup from overwriting it)
+                # Always set the --makeflags option (to prevent asetup from overwriting it)
                 asetup_options += ' --makeflags=\"$MAKEFLAGS\"'
 
                 cmd += asetup_options
+
+                # Verify that the setup works
+                exitcode, output = timedCommand(cmd, timeout=5*60)
+                if exitcode != 0:
+                    if "No release candidates found" in output:
+                        pilotErrorDiag = "No release candidates found"
+                        tolog("!!WARNING!!3434!! %s" % (pilotErrorDiag))
+                        return self.__error.ERR_NORELEASEFOUND, pilotErrorDiag, "", special_setup_cmd, JEM, cmtconfig
+                else:
+                    tolog("Verified setup command")
 
             if analysisJob:
                 # Set the INDS env variable (used by runAthena)
@@ -261,7 +269,7 @@ class ATLASExperiment(Experiment):
 
                 tolog("_cmd = %s" % (_cmd))
 
-                # correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
+                # Correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make)
                 cmd += "; " + self.addMAKEFLAGS(job.coreCount, "") + _cmd
             else:
                 # Add Database commands if they are set by the local site
@@ -357,9 +365,6 @@ class ATLASExperiment(Experiment):
         ver = os.environ.get('ALRB_asetupVersion', None)
         if ver is not None:
             cmd = 'export ALRB_asetupVersion=%s;%s' % (ver, cmd)
-            tolog("ALRB_asetupVersion is set to %s" % ver)
-        else:
-            tolog("ALRB_asetupVersion is not set")
 
         # Explicitly add the ATHENA_PROC_NUMBER (or JOB value)
         cmd = self.addAthenaProcNumber(cmd)

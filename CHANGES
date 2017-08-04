@@ -219,6 +219,11 @@ M pUtil.py (8)
 General changes:
 - Dropped "here" in asetup options, getASetupOptions(). Requested by G. Rybkin et al (ATLASExperiment)
 - Replaced outdated usages of 'maxmemory' and 'memory' with 'maxrss'. Requested by R. Walker et al. (pilot, Monitor)
+- Removed outdated sources from getValidURLBase() (ATLASExperiment)
+
+Release verification
+- Added missing payload setup verification in getJobExecutionCommand(), requested by Will Buttinger (ATLASExperiment)
+- Added new error code, 1244, ERR_NORELEASEFOUND: "No release candidates found" (PilotErrors)
 
 Updates from Wen Guan:
 
