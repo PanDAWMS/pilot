@@ -1338,7 +1338,7 @@ class RunJobEvent(RunJob):
                 job.setAllowRemoteInputs(self.__allow_remote_inputs)
             tolog("Allow remote inputs: %s" % self.__allow_remote_inputs)
         except:
-            tolog("Failed to init allow_remote_inputs cofnig: %s, it will use default value False" % traceback.format_exc())
+            tolog("Failed to init allow_remote_inputs config: %s, it will use default value False" % traceback.format_exc())
 
     def convertToLFNs(self):
         """ Convert the output file names to LFNs """
