@@ -1133,7 +1133,7 @@ class ATLASExperiment(Experiment):
 
         # Add the notest,here for all setups (not necessary for late releases but harmless to add)
         asetup_opt.append('notest')
-        asetup_opt.append('here')
+        # asetup_opt.append('here')
 
         # Add the fast option if possible (for the moment, check for locally defined env variable)
         if os.environ.has_key("ATLAS_FAST_ASETUP"):
