@@ -220,6 +220,28 @@ General changes:
 - Dropped "here" in asetup options, getASetupOptions(). Requested by G. Rybkin et al (ATLASExperiment)
 - Replaced outdated usages of 'maxmemory' and 'memory' with 'maxrss'. Requested by R. Walker et al. (pilot, Monitor)
 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/152
+
+Commit Summary
+
+fix cputime
+
+File Changes
+
+M RunJobEvent.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/151
+
+Commit Summary
+
+remove explicitly PFC for ES
+
+File Changes
+
+M RunJobEvent.py (2)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
