@@ -1085,12 +1085,12 @@ class JobMover(object):
                                                        fdata.lfn,
                                                        self.job,
                                                        pathConvention=fdata.pathConvention,
-                                                       ddmType=self.ddmconf.get(fdata.ddmendpoint, {}).get('type'))
+                                                       ddmEndpoint=fdata.ddmendpoint)
 
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="output")
 
                     # job is passing here for possible JOB specific processing
-                    fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job, pathConvention=fdata.pathConvention, ddmType=self.ddmconf.get(fdata.ddmendpoint, {}).get('type'))
+                    fdata.turl = sitemover.getSURL(se, se_path, fdata.scope, fdata.lfn, self.job, pathConvention=fdata.pathConvention, ddmEndpoint=fdata.ddmendpoint)
 
                     self.log("[stage-out] [%s] resolved SURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.surl, fdata.lfn, fdata.ddmendpoint))
                     self.log("[stage-out] [%s] resolved TURL=%s to be used for lfn=%s, ddmendpoint=%s" % (activity, fdata.turl, fdata.lfn, fdata.ddmendpoint))
@@ -1342,9 +1342,9 @@ class JobMover(object):
                 guid = fdata.get('guid', '')
 
                 # job is passing here for possible JOB specific processing
-                surl = sitemover.getSURL(surl_prot.get('se'), surl_prot.get('path'), scope, lfn, self.job, pathConvention=fdata.pathConvention, ddmType=self.ddmconf.get(fdata.ddmendpoint, {}).get('type'))
+                surl = sitemover.getSURL(surl_prot.get('se'), surl_prot.get('path'), scope, lfn, self.job, pathConvention=fdata.pathConvention, ddmEndpoint=fdata.ddmendpoint)
                 # job is passing here for possible JOB specific processing
-                turl = sitemover.getSURL(se, se_path, scope, lfn, self.job, pathConvention=fdata.pathConvention, ddmType=self.ddmconf.get(fdata.ddmendpoint, {}).get('type'))
+                turl = sitemover.getSURL(se, se_path, scope, lfn, self.job, pathConvention=fdata.pathConvention, ddmEndpoint=fdata.ddmendpoint)
 
                 self.trace_report.update(scope=scope, dataset=fdata.get('dsname_report'), url=surl)
                 self.trace_report.update(catStart=time.time(), filename=lfn, guid=guid.replace('-', ''))

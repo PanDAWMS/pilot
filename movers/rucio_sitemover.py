@@ -47,6 +47,8 @@ class rucioSiteMover(BaseSiteMover):
         tolog('which gfal2: %s' % o)
         tolog('which gfal-copy: %s' % self.__which('gfal-copy'))
 
+    def isDeterministic(self, endpoint):
+        return self.ddmconf.get(ddmendpoint, {}).get('is_deterministic', None)
 
     def stageIn(self, turl, dst, fspec):
         """
@@ -69,11 +71,17 @@ class rucioSiteMover(BaseSiteMover):
                                                          fspec.scope,
                                                          fspec.lfn)
         else:
-            cmd = 'rucio download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
-                                                                       fspec.ddmendpoint,
-                                                                       fspec.turl,
-                                                                       fspec.scope,
-                                                                       fspec.lfn)
+            if self.isDeterministic(fspec.ddmendpoint):
+                cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                                  fspec.ddmendpoint,
+                                                                  fspec.scope,
+                                                                  fspec.lfn)
+            else:
+                cmd = 'rucio download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
+                                                                           fspec.ddmendpoint,
+                                                                           fspec.turl,
+                                                                           fspec.scope,
+                                                                           fspec.lfn)
         # Prepend the command with singularity if necessary
         from Singularity import singularityWrapper
         cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
@@ -113,10 +121,15 @@ class rucioSiteMover(BaseSiteMover):
         """
 
         if fspec.storageId and int(fspec.storageId) > 0:
-            cmd = 'rucio upload --no-register --rse %s --scope %s --pfn %s %s' % (fspec.ddmendpoint,
-                                                                                  fspec.scope,
-                                                                                  fspec.turl,
-                                                                                  fspec.pfn if fspec.pfn else fspec.lfn)
+            if self.isDeterministic(fspec.ddmendpoint):
+                cmd = 'rucio upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
+                                                                             fspec.scope,
+                                                                             fspec.pfn if fspec.pfn else fspec.lfn)
+            else:
+                cmd = 'rucio upload --no-register --rse %s --scope %s --pfn %s %s' % (fspec.ddmendpoint,
+                                                                                      fspec.scope,
+                                                                                      fspec.turl,
+                                                                                      fspec.pfn if fspec.pfn else fspec.lfn)
         else:
             guid = ' --guid %s' % fspec.guid if fspec.lfn and '.root' in fspec.lfn else ''
             cmd = 'rucio upload%s --no-register --rse %s --scope %s %s' % (guid, fspec.ddmendpoint,
