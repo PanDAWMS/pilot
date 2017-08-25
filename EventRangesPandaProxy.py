@@ -132,7 +132,7 @@ def updateEventRangePandaProxy_normalized(eventRangeId, jobId, pandaProxySecretK
             tolog('pp: the event range was successfully updated, returned: \"%s\"' % message)
         else:
             # where is error string? orig:message = "Failed to update event range - error code = %d, error: %s"  % (ret[0], ret[1])
-            message = "Failed to update event range - error code = %d" % retStatus
+            message = "Failed to update event range - error code = %s" % retStatus
             tolog('pp:  update event range failed, returned statusCode: %s' % retStatus)
         return retStatus, message
     return retStatus, message
