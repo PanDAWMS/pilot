@@ -15,7 +15,7 @@ class mvSiteMover(BaseSiteMover):
 
     name = 'mv'
     # list of supported schemes for transfers - use them all since surl is not used
-    schemes = ['file', 'srm', 'gridftp', 'https', 'root', 'davs', 's3']
+    schemes = ['file', 'srm', 'gsiftp', 'https', 'root', 'davs', 's3']
 
     require_replicas = False       ## quick hack to avoid query Rucio to resolve input replicas
 
