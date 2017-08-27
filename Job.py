@@ -167,6 +167,8 @@ class Job:
 
         self.accessmode = "" # accessmode=direct,copy: Should direct i/o be used for input files of this job
 
+        # structured data of output ES files (similar to outData)
+        self.stagedOutESFiles = []
 
     def displayJob(self):
         """ dump job specifics """
@@ -940,6 +942,16 @@ class Job:
             reqs.append(finfo)
         return reqs
 
+    def addStageOutESFiles(self, finfo):
+        self.stagedOutESFiles.append(finfo)
+
+    def getStagedOutESFiles(self):
+        ret = []
+        for f in self.stagedOutESFiles:
+            if f.status in ['transferred']:
+                ret.append({'scope': f.scope, 'name': f.lfn, 'turl': f.turl, 'ddmendpoint': f.ddmendpoint, 'filesize': f.filesize, 'checksum': f.checksum})
+        return ret
+
     def print_files(self, files): # quick stub to be checked later
 
         ifiles = [os.path.join(self.workdir or '', e.lfn) for e in files]
@@ -962,7 +974,6 @@ class Job:
 
     def print_logfiles(self):
         return self._print_files('logData')
-
 
     def _sync_outdata(self):
         """
