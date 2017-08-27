@@ -40,10 +40,16 @@ class objectstoreSiteMover(rucioSiteMover):
         ### surl is currently (required?) being reported back to Panda in XML
 
         tolog("getSURL: pathConvention: %s, taskId: %s, ddmEndpoint: %s" % (pathConvention, taskId, ddmEndpoint))
-        if not ddmEndpoint or self.isDeterministic(ddmEndpoint):
-            return surl = se + os.path.join(se_path, self.get_path(scope, lfn))
+        if pathConvention >= 1000:
+            scope = 'transient'
+            pathConvention = pathConvention - 1000
+            if pathConvention == 0:
+                pathConvention = None
 
-        ddmType = self.ddmconf.get(fdata.ddmendpoint, {}).get('type')
+        if not ddmEndpoint or self.isDeterministic(ddmEndpoint):
+            return se + os.path.join(se_path, self.get_path(scope, lfn))
+
+        ddmType = self.ddmconf.get(ddmEndpoint, {}).get('type')
         if pathConvention == None:
             if ddmType and ddmType in ['OS_ES']:
                 surl = se + os.path.join(se_path, lfn)
