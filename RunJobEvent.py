@@ -10,6 +10,7 @@ from pUtil import tolog, writeToFileWithStatus   # Logging method that sends tex
 
 # Standard python modules
 import os
+import json
 import re
 import sys
 import time
@@ -40,6 +41,7 @@ from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getD
      getSiteInformation, getGUID, isAGreaterOrEqualToB
 from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes, getReplicaDictionaryFromXML
 from EventRanges import downloadEventRanges, updateEventRange, updateEventRanges
+from movers.base import BaseSiteMover
 
 try:
     from PilotYamplServer import PilotYamplServer as MessageServer
@@ -1644,6 +1646,10 @@ class RunJobEvent(RunJob):
 
         return ec, pilotErrorDiag, os_bucket_id
 
+    def getTransientPathConvention(self, pathConvention=None):
+        # To switch to use 'transient' scope for all ES files, we use a pathConvention which is 1000 + pathConvention
+        return 1000 if pathConvention is None else pathConvention + 1000
+
     def stage_out_es(self, job, event_range_id, file_paths, pathConvention=None):
         """
         event_range_id: event range id as a string.
@@ -1732,10 +1738,10 @@ class RunJobEvent(RunJob):
             file_dict = {'lfn': os.path.basename(file_path),
                          'pfn': file_path,
                          'dataset': job.destinationDblock[0],
-                         'scope': job.scopeOut[0],
+                         'scope': 'transient',
                          'eventRangeId': event_range_id,
                          'storageId': self.__stageOutStorageId,
-                         'pathConvention': pathConvention,
+                         'pathConvention': self.getTransientPathConvention(),
                          'ddmendpoint': self.__stageOutDDMEndpoint,
                          'pandaProxySecretKey': job.pandaProxySecretKey,
                          'jobId':job.jobId,
@@ -1745,6 +1751,7 @@ class RunJobEvent(RunJob):
             finfo = Job.FileSpec(type='output', **file_dict)
             tolog(finfo)
             files.append(finfo)
+            job.addStageOutESFiles(finfo)
 
         #ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry(), files=files, workDir=None)
         ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=1, files=files, workDir=None)
@@ -1869,6 +1876,10 @@ class RunJobEvent(RunJob):
                 self.__nStageOutFailures += 1
                 self.__nStageOutSuccessAfterFailure = 0
             else:
+                filesize = os.path.getsize(output_name)
+                baseMover = BaseSiteMover()
+                checksum, checksum_type = baseMover.calc_file_checksum(output_name)
+
                 eventRanges = []
                 for eventRangeID in output_eventRanges:
                     self.__nEventsW += 1
@@ -1876,10 +1887,11 @@ class RunJobEvent(RunJob):
 
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
                     tolog("Update event ranges: %s" % chunkEventRanges)
-                    if not pathConvention is None:
-                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'pathConvention': pathConvention}}]
+                    transientPathConvention = self.getTransientPathConvention(pathConvention)
+                    if not transientPathConvention is None:
+                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'filesize': filesize, checksum_type: checksum, 'pathConvention': transientPathConvention}}]
                     else:
-                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
+                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'filesize': filesize, checksum_type: checksum}}]
                     status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1, jobId = self.__job.jobId, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
                 self.__nStageOutSuccessAfterFailure += 1
@@ -1966,6 +1978,21 @@ class RunJobEvent(RunJob):
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
         else:
             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
+
+    def syncStagedOutESFileStatus(self):
+        try:
+            tolog("Synchronizing staged out es files status to local file")
+            job = self.getJob()
+            retFiles = job.getStagedOutESFiles()
+
+            esFilesStatus = "metadata_stagedOut_ES_%s.json" % job.jobId
+            esFilesStatus = os.path.join(job.workdir, esFilesStatus)
+            esFilesStatus_pre = esFilesStatus + ".pre"
+            with open(esFilesStatus_pre, 'w') as fb:
+                json.dump(retFiles, fb)
+            os.rename(esFilesStatus_pre, esFilesStatus)
+        except:
+            tolog("Failed to sync staged out es files status to local file: %s" % traceback.format_exc())
 
     def startMessageThreadPayload(self):
         """ Start the message thread for the payload """
@@ -2113,6 +2140,7 @@ class RunJobEvent(RunJob):
                     tolog("Files %s are zipped to %s" % (output_eventRanges, output_name))
                     self.stageOutZipFiles_new(output_name, output_eventRanges, output_eventRange_id)
                     finished_first_upload = True
+                self.syncStagedOutESFileStatus()
             time.sleep(1)
           except:
                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
