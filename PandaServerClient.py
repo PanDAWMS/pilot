@@ -6,7 +6,7 @@ from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries
+from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries, updateXMLWithEndpoints
 from JobState import JobState
 from FileStateClient import getFilesOfState
 from FileHandling import getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
@@ -504,7 +504,7 @@ class PandaServerClient:
                     fname = os.path.join(workdir, job.logFile)
                 if os.path.exists(fname):
                     fnamelog = "%s/logfile.xml" % (xmldir)
-                    guids_status = PFCxml(experiment, fnamelog, fntag="lfn", alog=job.logFile, alogguid=job.tarFileGuid, jr=jr)
+                    guids_status = PFCxml(experiment, fnamelog, fntag="lfn", alog=job.logFile, alogguid=job.tarFileGuid, jr=jr, logToOS=job.putLogToOS)
                     from SiteMover import SiteMover
                     ec, pilotErrorDiag, _fsize, _checksum = SiteMover.getLocalFileInfo(fname, csumtype="adler32")
                     if ec != 0:
@@ -900,6 +900,18 @@ class PandaServerClient:
                 if node.has_key('xml'):
                     tolog("Updating node structure XML with SURLs")
                     node['xml'] = updateXMLWithSURLs(experiment, node['xml'], site.workdir, job.jobId, self.__jobrec) # do not use format 'NG' here
+
+                    # was the log file transferred to an OS? check in the OS transfer dictionary
+                    tolog("job.logBucketID: %s" % job.logBucketID)
+                    if job.logBucketID != -1:
+                        # get the corresponding ddm endpoint
+                        si = getSiteInformation(experiment)
+                        os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(job.logBucketID)
+                        node['xml'] = updateXMLWithEndpoints(node['xml'], [job.logFile], [os_ddmendpoint])
+                    else:
+                        node['xml'] = updateXMLWithEndpoints(node['xml'], [job.logFile], [None])
+
+                    tolog("Updated XML:\n%s" % (node['xml']))
                 else:
                     tolog("WARNING: Found no xml entry in the node structure")
 
@@ -916,6 +928,18 @@ class PandaServerClient:
             # update xml with SURLs stored in special SURL dictionary file
             tolog("Updating node structure XML with SURLs")
             node['xml'] = updateXMLWithSURLs(experiment, node['xml'], site.workdir, job.jobId, self.__jobrec)
+
+            # was the log file transferred to an OS? check in the OS transfer dictionary
+            tolog("job.logBucketID: %s" % job.logBucketID)
+            if job.logBucketID != -1:
+                # get the corresponding ddm endpoint
+                si = getSiteInformation(experiment)
+                os_ddmendpoint = si.getObjectstoreDDMEndpointFromBucketID(job.logBucketID)
+                node['xml'] = updateXMLWithEndpoints(node['xml'], [job.logFile], [os_ddmendpoint])
+            else:
+                node['xml'] = updateXMLWithEndpoints(node['xml'], [job.logFile], [None])
+
+            tolog("Updated XML:\n%s" % (node['xml']))
 
             _xml = node['xml']
             if not isLogfileCopied(site.workdir, job.jobId):
