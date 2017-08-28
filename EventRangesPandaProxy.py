@@ -117,18 +117,23 @@ def updateEventRangePandaProxy_normalized(eventRangeId, jobId, pandaProxySecretK
         tmpDict = cgi.parse_qs(res.text.encode('ascii'))
         # example: tmpDict = {'Command': ['{\"3128686946\": null}'], 'StatusCode': ['0']}
         tolog("pp: tmpDict = %s" % tmpDict)
-        retStatus = tmpDict['StatusCode'][0]
-        if jobId:
-            message = json.loads(tmpDict['Command'][0])["%s"%jobId]
-        else:
-            littleDict = json.loads(tmpDict['Command'][0]) # {\"3128686946\": null}
-            message = littleDict [littleDict.keys()[0]]
+        try:
+            retStatus = tmpDict['StatusCode'][0]
+        except:
+            tolog("pp: Could not intepret panda response")
+            return "112233", "Failed to update event range - strange response from Panda"
+
         if  int(retStatus) == 0:
+            if jobId:
+                message = json.loads(tmpDict['Command'][0])["%s"%jobId]
+            else:
+                littleDict = json.loads(tmpDict['Command'][0]) # {\"3128686946\": null}
+                message = littleDict [littleDict.keys()[0]]
             tolog('pp: the event range was successfully updated, returned: \"%s\"' % message)
         else:
             # where is error string? orig:message = "Failed to update event range - error code = %d, error: %s"  % (ret[0], ret[1])
-            message = "Failed to update event range - error code = %d" % retStatus
-            tolog('pp:  update event range failed, returned statusCode: %s' % statusCode)
+            message = "Failed to update event range - error code = %s" % retStatus
+            tolog('pp:  update event range failed, returned statusCode: %s' % retStatus)
         return retStatus, message
     return retStatus, message
 
