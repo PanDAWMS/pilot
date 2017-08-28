@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import commands
 import traceback
 from time import localtime
@@ -937,6 +938,20 @@ class JobLog:
 
         # get the metadata and the relevant workdir
         strXML, workdir = self.getXMLAndWorkdir(jr, site.workdir, job.workdir, job.newDirNM, job.jobId)
+
+        stagedOutES = None
+        if job.eventService:
+            try:
+                f = os.path.join(job.workdir, "metadata_stagedOut_ES_%s.json" % job.jobId)
+                tolog("loading staged out es files status from local file: %s" % f)
+                if os.path.exists(f):
+                    with open(f, 'r') as fb:
+                        stagedOutES = json.load(fb)
+                else:
+                    tolog("Stagedout ES status file (%s) doesn't exist" % f)
+            except:
+                tolog("Failed to load staged out es files status from local file: %s" % traceback.format_exc())
+                stagedOutES = None
 
         # was the benchmark suite executed? if so, get the output dictionary and add it to the machine section of the jobReport
         benchmark_dictionary = self.getBenchmarkDictionary(workdir, experiment, site.sitename, site.computingElement, job.jobId, workerNode)
