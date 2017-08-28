@@ -249,6 +249,72 @@ M RunJobEvent.py (2)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+70.4
+
+Updates from David Cameron:
+
+  https://github.com/PanDAWMS/pilot/pull/153
+
+Commit Summary
+
+support for log to OS in mv mover
+
+File Changes
+
+M ATLASExperiment.py (2)
+M movers/mover.py (1)
+M movers/mv_sitemover.py (44)
+
+  https://github.com/PanDAWMS/pilot/pull/154
+
+Commit Summary
+
+add new parameters in getSURL
+
+File Changes
+
+M movers/pandaproxy_sitemover.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/156
+
+Commit Summary
+
+protect updateEventRanges against unexpected responses
+
+File Changes
+
+M EventRangesPandaProxy.py (21)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/157
+
+1. fix wrong name convention in logsToOS
+2. keep record of the zipped es files
+3. report zipped es file size and checksum, change the scope to 'transient'.
+4. fix register logsInOS when the job fails
+
+Commit Summary
+
+fix wrong name convention in logsToOS
+keep record the zipped ES files
+report ES zip file size and checksum, change the scope to report to rucio
+update pathconvention to report es zip files to rucio
+fix register logsInOS when the job fails
+
+File Changes
+
+M Job.py (13)
+M JobLog.py (15)
+M PandaServerClient.py (28)
+M RunJobEvent.py (38)
+M movers/base.py (2)
+M movers/mover.py (8)
+M movers/objectstore_sitemover.py (24)
+M movers/rucio_sitemover.py (31)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 OS log transfers:
