@@ -220,7 +220,7 @@ class pandaproxySiteMover(BaseSiteMover):
         raise Exception('NOT IMPLEMENTED')
 
 
-    def getSURL(self, se, se_path, scope, lfn, job=None):
+    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None, ddmType=None):
         """
             Get final destination SURL of file to be moved
             job instance is passing here for possible JOB specific processing ?? FIX ME LATER
