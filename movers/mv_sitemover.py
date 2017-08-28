@@ -15,7 +15,7 @@ class mvSiteMover(BaseSiteMover):
 
     name = 'mv'
     # list of supported schemes for transfers - use them all since surl is not used
-    schemes = ['file', 'srm', 'gridftp', 'https', 'root']
+    schemes = ['file', 'srm', 'gsiftp', 'https', 'root', 'davs', 's3']
 
     require_replicas = False       ## quick hack to avoid query Rucio to resolve input replicas
 
@@ -25,18 +25,42 @@ class mvSiteMover(BaseSiteMover):
 
     def createOutputList(self, fspec, dest):
 
-        # Calculate checksum of file - even though it is already known by pilot
-        # it is not passed through to new movers
-        checksum = self.calc_file_checksum(dest)[0]
-        token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
-        # Add ARC options to SURL
-        destsurl = re.sub(r'((:\d+)/)', r'\2;autodir=no;spacetoken=%s/' % token, fspec.turl)
-        destsurl += ':checksumtype=%s:checksumvalue=%s' % (self.checksum_type, checksum)
+        if fspec.turl.startswith('s3://'):
+            # Use Rucio proxy to upload to OS
+            turl = fspec.turl
+            turl = re.sub(r'^s3', 's3+rucio', turl)
+            # Add failureallowed option so failed upload does not fail job
+            rucio = 'rucio://rucio-lb-prod.cern.ch;failureallowed=yes/objectstores'
+            rse = fspec.ddmendpoint
+            activity = 'write'
+            destsurl = '/'.join([rucio, turl, rse, activity])
+        else:
+            # Calculate checksum of file - even though it is already known by pilot
+            # it is not passed through to new movers
+            checksum = self.calc_file_checksum(dest)[0]
+            token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
+            # Add ARC options to SURL
+            destsurl = re.sub(r'((:\d+)/)', r'\2;autodir=no;spacetoken=%s/' % token, fspec.turl)
+            destsurl += ':checksumtype=%s:checksumvalue=%s' % (self.checksum_type, checksum)
 
         self.log('Adding to output.list: %s %s' % (fspec.lfn, destsurl))
         # Write output.list
         with open(os.path.join(self.init_dir, 'output.list'), 'a') as f:
             f.write('%s %s\n' % (fspec.lfn, destsurl))
+
+
+    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None, taskId=None, ddmType=None):
+        """
+        Override from base because it throws an exception for paths without
+        '/rucio' so we need this to do OS uploads 
+        """
+
+        if ddmType and ddmType in ['OS_LOGS', 'OS_ES']:
+            surl = se + os.path.join(se_path, "%s:%s" % (scope, lfn))
+        else:
+            surl = self.getSURLRucio(se, se_path, scope, lfn, job)
+        return surl
+
 
     def stageIn(self, source, destination, fspec):
         """
@@ -113,7 +137,9 @@ class mvSiteMover(BaseSiteMover):
         dest = os.path.join(self.init_dir, fspec.lfn)
         self.log('Moving %s to %s' % (src, dest))
         try:
-            shutil.move(src, dest)
+            # OS copy is done first so don't move
+            if fspec.activity != 'pls':
+                shutil.move(src, dest)
         except IOError as e:
             raise PilotException('stageOut failed: %s' % str(e))
 

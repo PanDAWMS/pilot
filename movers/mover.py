@@ -933,6 +933,7 @@ class JobMover(object):
                 self.log(error)
                 raise PilotException(error, code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="FILE_INFO_FAIL")
             fspec.filesize = os.path.getsize(pfn)
+            fspec.activity = activity
 
         totalsize = reduce(lambda x, y: x + y.filesize, files, 0)
 
