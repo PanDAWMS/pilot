@@ -251,6 +251,9 @@ M RunJobEvent.py (2)
 
 70.4
 
+General changes:
+..
+
 Updates from Andrej Filipcic:
 
 Fixes for release 21 on Nordugrid;

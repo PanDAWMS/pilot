@@ -90,7 +90,7 @@ def set_environment():
     env['hasQueueData'] = None
     env['stdout_tail'] = ""
     env['stdout_path'] = ""
-
+    env['maxtime'] = 999999                    # The maximum time a job is allowed to run (always set in pilot using schedconfig.maxtime)
     # panda proxy variables
     env['panda_proxy_url'] = ""
     env['panda_proxy_port'] = ""
