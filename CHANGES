@@ -251,6 +251,11 @@ M RunJobEvent.py (2)
 
 70.4
 
+Updates from Andrej Filipcic:
+
+Fixes for release 21 on Nordugrid;
+- Renamed getRelease() to getReleaseObsolete() (NordugridATLASExperiment)
+
 Updates from David Cameron:
 
   https://github.com/PanDAWMS/pilot/pull/153

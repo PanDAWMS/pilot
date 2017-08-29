@@ -198,7 +198,7 @@ class NordugridATLASExperiment(ATLASExperiment):
 
         return self.__warning
 
-    def getRelease(self, release):
+    def getReleaseObsolete(self, release):
         """ Return a list of the software release id's """
         # Assuming 'release' is a string that separates release id's with '\n'
         # Used in the case of payload using multiple steps with different release versions
