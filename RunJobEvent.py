@@ -10,7 +10,6 @@ from pUtil import tolog, writeToFileWithStatus   # Logging method that sends tex
 
 # Standard python modules
 import os
-import json
 import re
 import sys
 import time
@@ -20,7 +19,7 @@ import signal
 import commands
 import traceback
 from optparse import OptionParser
-from json import loads
+from json import loads, dump
 from shutil import copy2
 from xml.dom import minidom
 
@@ -1989,7 +1988,7 @@ class RunJobEvent(RunJob):
             esFilesStatus = os.path.join(job.workdir, esFilesStatus)
             esFilesStatus_pre = esFilesStatus + ".pre"
             with open(esFilesStatus_pre, 'w') as fb:
-                json.dump(retFiles, fb)
+                dump(retFiles, fb)
             os.rename(esFilesStatus_pre, esFilesStatus)
         except:
             tolog("Failed to sync staged out es files status to local file: %s" % traceback.format_exc())

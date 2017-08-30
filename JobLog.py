@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import commands
 import traceback
 from time import localtime
@@ -942,11 +941,12 @@ class JobLog:
         stagedOutES = None
         if job.eventService:
             try:
+                from json import load
                 f = os.path.join(job.workdir, "metadata_stagedOut_ES_%s.json" % job.jobId)
                 tolog("loading staged out es files status from local file: %s" % f)
                 if os.path.exists(f):
                     with open(f, 'r') as fb:
-                        stagedOutES = json.load(fb)
+                        stagedOutES = load(fb)
                 else:
                     tolog("Stagedout ES status file (%s) doesn't exist" % f)
             except:
