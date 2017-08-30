@@ -250,6 +250,9 @@ class Monitor:
                 self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                 self.__skip = True
 
+                # Store the exit code so that it is reported when the pilot finishes
+                pUtil.writeToFile(os.path.join(self.__env['thisSite'].workdir, "EXITCODE"), str(self.__error.ERR_NOLOCALSPACE))
+
                 # store the error info
                 updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
 

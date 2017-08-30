@@ -252,7 +252,7 @@ M RunJobEvent.py (2)
 70.4
 
 General changes:
-..
+- Returning proper exit code to wrapper for out of local space, via __checkLocalSpace() (Monitor)
 
 Updates from Andrej Filipcic:
 
