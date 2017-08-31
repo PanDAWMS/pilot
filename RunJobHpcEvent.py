@@ -354,6 +354,8 @@ class RunJobHpcEvent(RunJob):
         JR = JobRecovery(pshttpurl='https://pandaserver.cern.ch', pilot_initdir=job.workdir)
         JR.updateJobStateTest(job, self.__jobSite, self.__node, mode="test")
         JR.updatePandaServer(job, self.__jobSite, self.__node, 25443)
+        self.__jobs[job.jobId]['job'] = job
+        self.__jobs[job.jobId]['JR'] = JR
 
         # prepare the setup and get the run command list
         ec, runCommandList, job, multi_trf = self.setup(job, self.__jobSite, self.__thisExperiment)

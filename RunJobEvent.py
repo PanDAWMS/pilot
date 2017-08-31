@@ -1884,13 +1884,14 @@ class RunJobEvent(RunJob):
                     self.__nEventsW += 1
                     eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status})
 
-                for chunkEventRanges in pUtil.chunks(eventRanges, 100):
+                numEvents = len(eventRanges)
+                for chunkEventRanges in pUtil.chunks(eventRanges, 1000):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     transientPathConvention = self.getTransientPathConvention(pathConvention)
                     if not transientPathConvention is None:
-                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'filesize': filesize, checksum_type: checksum, 'pathConvention': transientPathConvention}}]
+                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'fsize': filesize, checksum_type: checksum, 'numEvents': numEvents, 'pathConvention': transientPathConvention}}]
                     else:
-                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'filesize': filesize, checksum_type: checksum}}]
+                        event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'fsize': filesize, checksum_type: checksum, 'numEvents': numEvents}}]
                     status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1, jobId = self.__job.jobId, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
                 self.__nStageOutSuccessAfterFailure += 1

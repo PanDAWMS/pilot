@@ -360,7 +360,7 @@ class ATLASExperiment(Experiment):
         else:
             cmd = self.addEnvVars2Cmd(cmd, job.jobId, job.taskID, job.processingType, jobSite.sitename, analysisJob)
         if 'HPC_HPC' in readpar("catchall"):
-            cmd = 'export JOB_RELEASE=%s;export JOB_HOMEPACKAGE=%s;JOB_CACHEVERSION=%s;JOB_CMTCONFIG=%s;%s' % (job.release, job.homePackage, cacheVer, cmtconfig, cmd)
+            cmd = 'export JOB_RELEASE=%s;export JOB_HOMEPACKAGE=%s;JOB_CMTCONFIG=%s;%s' % (job.release, job.homePackage, cmtconfig, cmd)
 
         ver = os.environ.get('ALRB_asetupVersion', None)
         if ver is not None:
