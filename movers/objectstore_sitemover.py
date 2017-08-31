@@ -40,7 +40,7 @@ class objectstoreSiteMover(rucioSiteMover):
         ### surl is currently (required?) being reported back to Panda in XML
 
         tolog("getSURL: pathConvention: %s, taskId: %s, ddmEndpoint: %s" % (pathConvention, taskId, ddmEndpoint))
-        if pathConvention >= 1000:
+        if pathConvention and pathConvention >= 1000:
             scope = 'transient'
             pathConvention = pathConvention - 1000
             if pathConvention == 0:
@@ -104,6 +104,8 @@ class objectstoreSiteMover(rucioSiteMover):
         """
         # tolog("To resolve replica for file (%s) protocol (%s) ddm (%s)" % (fspec, protocol, ddm))
         if ddm and fspec.storageId and fspec.storageId > 0:
+            if fspec.pathConvention and fspec.pathConvention >= 1000:
+                fspec.scope = 'transient'
             if ddm.get('type') in ['OS_LOGS', 'OS_ES']:
                 if ddm.get('aprotocols'):
                     surl_schema = 's3'
