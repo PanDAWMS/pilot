@@ -334,6 +334,15 @@ M ATLASExperiment.py (2)
 M RunJobEvent.py (7)
 M RunJobHpcEvent.py (2)
 
+  https://github.com/PanDAWMS/pilot/pull/159
+
+Commit Summary
+
+fix transient scope for downloading
+File Changes
+
+M movers/objectstore_sitemover.py (4)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
