@@ -321,6 +321,19 @@ M movers/mover.py (8)
 M movers/objectstore_sitemover.py (24)
 M movers/rucio_sitemover.py (31)
 
+  https://github.com/PanDAWMS/pilot/pull/158
+
+Commit Summary
+
+update metadata with updateEventRanges
+fix setup runCommandList
+
+File Changes
+
+M ATLASExperiment.py (2)
+M RunJobEvent.py (7)
+M RunJobHpcEvent.py (2)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
