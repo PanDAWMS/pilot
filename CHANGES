@@ -253,6 +253,8 @@ M RunJobEvent.py (2)
 
 General changes:
 - Returning proper exit code to wrapper for out of local space, via __checkLocalSpace() (Monitor)
+- Removed outdated but explicit pandaProxySecretKey (objectstoreSiteMover)
+- Out-commented log message that could contain explicit pandaProxySecretKey values, in stagein() (mover)
 
 Updates from Andrej Filipcic:
 

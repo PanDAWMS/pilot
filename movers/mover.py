@@ -359,7 +359,10 @@ class JobMover(object):
 
         if files is None:
             files = self.job.inData
-        self.log("To stagein files: %s" % files)
+        _files = files
+
+        # only print out 'files' for debugging purposes since it might contain explicit pandaProxySecretKey values
+        # self.log("To stagein files: %s" % files)
 
         normal_files, es_files = [], []
         transferred_files, failed_transfers = [], []

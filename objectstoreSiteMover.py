@@ -105,7 +105,7 @@ if __name__ == '__main__':
     lfn = "NTUP_PHOTON.01255150._000001.root.1"
     localSize = None
     localChecksum = None
-    print f.put_data(source, dest, fsize=localSize, fchecksum=localChecksum, prodSourceLabel='ptest', experiment='ATLAS', report =report, lfn=lfn, guid='aa8ee1ae-54a5-468b-a0a0-41cf17477ffc', jobId=2730987843, jobsetID=2728044425,pandaProxySecretKey='deb05b9fb5034a45b80c03bd671359c9')
+    print f.put_data(source, dest, fsize=localSize, fchecksum=localChecksum, prodSourceLabel='ptest', experiment='ATLAS', report =report, lfn=lfn, guid='aa8ee1ae-54a5-468b-a0a0-41cf17477ffc', jobId=2730987843, jobsetID=2728044425,pandaProxySecretKey='')
 
     gpfn = "s3://ceph003.usatlas.bnl.gov:8443//wguan_bucket/dir1/dir2/NTUP_PHOTON.01255150._000001.root.1"
     gpfn = "s3://s3-us-west-2.amazonaws.com:80//s3-atlasdatadisk-west2-racf/dir1/NTUP_PHOTON.01255150._000001.root.1"
