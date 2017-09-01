@@ -256,6 +256,11 @@ General changes:
 - Removed outdated but explicit pandaProxySecretKey (objectstoreSiteMover)
 - Out-commented log message that could contain explicit pandaProxySecretKey values, in stagein() (mover)
 
+Unified PanDA queue changes:
+- Removed isAnalyJob() and replaced call with isAnalysisJob(), which looks at trf name (begins with 'http' for ANALY jobs) (JobLog)
+- Now using isAnalysisJob() and sending analyJob to __getLoopingLimit() instead of using sitename (Monitor)
+- Out-commented uflag setting in argParser() (pilot)
+
 Updates from Andrej Filipcic:
 
 Fixes for release 21 on Nordugrid;

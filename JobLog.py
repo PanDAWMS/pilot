@@ -632,15 +632,6 @@ class JobLog:
 
         return strXML, workdir
 
-    def isAnalyJob(self, sitename):
-        """ Determine if the job is a user analysis job using the site name """
-
-        if "ANALY" in sitename:
-            analyJob = True
-        else:
-            analyJob = False
-        return analyJob
-
     def removeCoreDumps(self, siteWorkdir, workdir):
         """ Remove any remaining core dumps so they do not end up in the log tarball """
 
@@ -982,7 +973,8 @@ class JobLog:
                 tolog("This site does not support job recovery: HOLDING state reset to FAILED")
 
         # is it a user analysis job?
-        analyJob = self.isAnalyJob(site.sitename)
+        #analyJob = self.isAnalyJob(site.sitename)
+        analyJob = isAnalysisJob(job.trf.split(",")[0])
 
         # build log extracts
         logMsg = self.buildLogExtracts(job, workdir, analyJob)

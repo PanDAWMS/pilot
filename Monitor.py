@@ -838,11 +838,11 @@ class Monitor:
 
         return ec
 
-    def __getLoopingLimit(self, maxCpuCount, jobPars, sitename):
+    def __getLoopingLimit(self, maxCpuCount, jobPars, analyJob):
         """ Get the looping time limit for the current job (in seconds) """
 
         # start with the default looping time limit, use maxCpuCount if necessary
-        if "ANALY_" in sitename:
+        if analyJob:
             loopingLimit = self.__env['loopingLimitDefaultUser']
         else:
             loopingLimit = self.__env['loopingLimitDefaultProd']
@@ -1331,7 +1331,8 @@ class Monitor:
 
             # does the looping job limit need to be updated?
             pUtil.tolog("env = %s" % str(self.__env['job'].jobPars))
-            self.__env['loopingLimit'] = self.__getLoopingLimit(self.__env['job'].maxCpuCount, self.__env['job'].jobPars, self.__env['thisSite'].sitename)
+            analyJob = pUtil.isAnalysisJob(self.__env['job'].trf.split(",")[0])
+            self.__env['loopingLimit'] = self.__getLoopingLimit(self.__env['job'].maxCpuCount, self.__env['job'].jobPars, analyJob)
 
             # get the experiment object
             thisExperiment = pUtil.getExperiment(self.__env['experiment'])
