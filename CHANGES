@@ -260,6 +260,8 @@ Unified PanDA queue changes:
 - Removed isAnalyJob() and replaced call with isAnalysisJob(), which looks at trf name (begins with 'http' for ANALY jobs) (JobLog)
 - Now using isAnalysisJob() and sending analyJob to __getLoopingLimit() instead of using sitename (Monitor)
 - Out-commented uflag setting in argParser() (pilot)
+- Now using isAnalysisJob() instead of sitename in updatePandaServer(), getNodeStructure() (PandaServerClient)
+- Renamed checkLocalSE() to checkLocalSEDeprecated() (pilot, Mover)
 
 Updates from Andrej Filipcic:
 

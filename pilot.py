@@ -1814,22 +1814,17 @@ def diskCleanup(wntmpdir, _uflag):
         _ec = cleaner.cleanup()
         del cleaner
 
-def checkLocalSE(sitename, error):
+def checkLocalSEDeprecated(sitename, error):
     """ Make sure that the local SE is responding """
 
     ec = 0
 
-    if "ANALY" in sitename:
-        analyJob = True
-    else:
-        analyJob = False
-
-    if not mover.checkLocalSE(analyJob):
+    if not mover.checkLocalSE(False):
         _delay = 2*60
         pUtil.tolog("!!WARNING!!1111!! Detected problem with the local SE")
         pUtil.tolog("Taking a nap for %d s before trying again" % (_delay))
         time.sleep(_delay)
-        if not mover.checkLocalSE(analyJob):
+        if not mover.checkLocalSE(False):
             pUtil.tolog("!!WARNING!!1111!! Detected problem with the local SE (again) - giving up")
             ec = error.ERR_SEPROBLEM
     return ec

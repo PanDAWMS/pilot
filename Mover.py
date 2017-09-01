@@ -4556,7 +4556,7 @@ def getPoolFileCatalogND(guids, lfns, pinitdir, pfc_name=None):
 
     return ec, pilotErrorDiag, xml_from_PFC, xml_source
 
-def checkLocalSE(analyJob):
+def checkLocalSEDeprecated(analyJob):
     """ Make sure that the local SE is responding """
 
     status = False

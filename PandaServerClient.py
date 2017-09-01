@@ -6,7 +6,9 @@ from commands import getstatusoutput, getoutput
 from shutil import copy2
 
 from PilotErrors import PilotErrors
-from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC, makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger, getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries, updateXMLWithEndpoints
+from pUtil import tolog, readpar, timeStamp, getBatchSystemJobID, getCPUmodel, PFCxml, updateMetadata, addSkippedToPFC,\
+    makeHTTPUpdate, tailPilotErrorDiag, isLogfileCopied, updateJobState, updateXMLWithSURLs, getMetadata, toPandaLogger,\
+    getSiteInformation, getExperiment, readStringFromFile, merge_dictionaries, updateXMLWithEndpoints, isAnalysisJob
 from JobState import JobState
 from FileStateClient import getFilesOfState
 from FileHandling import getOSTransferDictionaryFilename, getOSTransferDictionary, getHighestPriorityError
@@ -427,7 +429,8 @@ class PandaServerClient:
                         tolog("!!WARNING!!1300!! Could not write mismatch error to log extracts: %s" % mismatch)
 
             # check if Pilot-controlled resubmission is required:
-            if (job.result[0] == "failed" and 'ANALY' in site.sitename):
+            analyJob = isAnalysisJob(job.trf.split(",")[0])
+            if (job.result[0] == "failed" and analyJob):
                 pilotExitCode = job.result[2]
                 error = PilotErrors()
                 if (error.isPilotResubmissionErrorCode(pilotExitCode) or job.isPilotResubmissionRequired):
@@ -862,7 +865,8 @@ class PandaServerClient:
                 payloadXMLProblem = True
         else:
             # athena XML should exist at the end of the job
-            if job.result[0] == 'finished' and 'Install' not in site.sitename and 'ANALY' not in site.sitename and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not eventService:
+            analyJob = isAnalysisJob(job.trf.split(",")[0])
+            if job.result[0] == 'finished' and 'Install' not in site.sitename and not analyJob and 'DDM' not in site.sitename and 'test' not in site.sitename and job.prodSourceLabel != "install" and not eventService:
                 pilotErrorDiag = "Metadata does not exist: %s" % (filenamePayloadMetadata)
                 payloadXMLProblem = True
 
