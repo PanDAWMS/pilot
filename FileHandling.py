@@ -554,7 +554,7 @@ def addToJobReport(workDir, key, value, section=None, subsection=None):
             if not writeJSON(filename, jobReport_dictionary):
                 tolog("!!WARNING!!2323!! Failed to write updated jobReport")
         else:
-            tolog("!!WARNING!!2322!! Empty jobReport, will not add new key: %s" % (key))
+            tolog("jobReport not available, will not add new key: %s" % (key))
     except Exception, e:
         tolog("!!WARNING!!2321!! Exception caught: %s" % (e))
 

@@ -262,6 +262,10 @@ Unified PanDA queue changes:
 - Out-commented uflag setting in argParser() (pilot)
 - Now using isAnalysisJob() instead of sitename in updatePandaServer(), getNodeStructure() (PandaServerClient)
 - Renamed checkLocalSE() to checkLocalSEDeprecated() (pilot, Mover)
+- Removed ANALY restriction from benchmark execution, getBenchmarkSubprocess() (RunJob)
+
+Benchmarking:
+- Now running benchmark suite also for user jobs
 
 Updates from Andrej Filipcic:
 

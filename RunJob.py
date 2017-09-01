@@ -807,7 +807,7 @@ class RunJob(object):
         # run benchmark test if required by experiment site information object
 
         si = getSiteInformation(self.getExperiment())
-        if si.shouldExecuteBenchmark() and not sitename.startswith("ANALY"):
+        if si.shouldExecuteBenchmark():
             thisExperiment = getExperiment(self.getExperiment())
             cmd = si.getBenchmarkCommand(cloud=readpar('cloud'), cores=coreCount, workdir=workdir)
             benchmark_subprocess = self.getSubprocess(thisExperiment, cmd)
