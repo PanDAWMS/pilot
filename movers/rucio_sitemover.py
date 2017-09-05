@@ -47,9 +47,6 @@ class rucioSiteMover(BaseSiteMover):
         tolog('which gfal2: %s' % o)
         tolog('which gfal-copy: %s' % self.__which('gfal-copy'))
 
-    def isDeterministic(self, ddmendpoint):
-        return self.ddmconf.get(ddmendpoint, {}).get('is_deterministic', None)
-
     def stageIn(self, turl, dst, fspec):
         """
         Use the rucio download command to stage in the file.
