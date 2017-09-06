@@ -356,6 +356,17 @@ File Changes
 
 M movers/objectstore_sitemover.py (4)
 
+  https://github.com/PanDAWMS/pilot/pull/160
+
+Commit Summary
+
+fix missing parameters because of merge
+
+File Changes
+
+M movers/mv_sitemover.py (2)
+M movers/pandaproxy_sitemover.py (4)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
