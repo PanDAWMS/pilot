@@ -91,6 +91,9 @@ class BaseSiteMover(object):
         #scope = os.path.join(*scope.split('.')) # correct scope
         #return os.path.join(prefix, scope, hash_hex[0:2], hash_hex[2:4], lfn)
 
+    def isDeterministic(self, ddmendpoint):
+        return self.ddmconf.get(ddmendpoint, {}).get('is_deterministic', None)
+
     def getSURLRucio(self, se, se_path, scope, lfn, job=None):
         """
             Get final destination SURL of file to be moved
@@ -116,7 +119,7 @@ class BaseSiteMover(object):
         # do proper extract is_determetistic flag from DDMEndpoint: TODO
 
         # quick hack for now
-        if se_path and se_path.rstrip('/').endswith('/rucio'):
+        if (ddmEndpoint and self.isDeterministic(ddmEndpoint)) or (se_path and se_path.rstrip('/').endswith('/rucio')):
             return self.getSURLRucio(se, se_path, scope, lfn)
 
         raise Exception("getSURL(): NOT IMPLEMENTED error: processing of non Rucio transfers is not implemented yet, se_path=%s" % se_path)

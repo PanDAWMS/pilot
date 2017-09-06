@@ -49,7 +49,7 @@ class mvSiteMover(BaseSiteMover):
             f.write('%s %s\n' % (fspec.lfn, destsurl))
 
 
-    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None, taskId=None, ddmType=None):
+    def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None, taskId=None, ddmEndpoint=None):
         """
         Override from base because it throws an exception for paths without
         '/rucio' so we need this to do OS uploads 
