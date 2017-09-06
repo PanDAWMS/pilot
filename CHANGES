@@ -306,6 +306,16 @@ File Changes
 
 M EventRangesPandaProxy.py (21)
 
+ https://github.com/PanDAWMS/pilot/pull/161
+
+Commit Summary
+
+adjust parameters to match base class
+
+File Changes
+
+M movers/mv_sitemover.py (3)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/157
