@@ -1,0 +1,5 @@
+pip>=7.1
+argparse
+pycurl
+py-cpuinfo
+psutil>=4.1
