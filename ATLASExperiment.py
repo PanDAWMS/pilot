@@ -1496,6 +1496,8 @@ class ATLASExperiment(Experiment):
             transferLogToObjectstore = True
         if 'HPC_HPCARC' in readpar('catchall'):
             transferLogToObjectstore = False
+        if 'disable_log_to_objectstore' in readpar('catchall'):
+            transferLogToObjectstore = False
 
         return transferLogToObjectstore
 
