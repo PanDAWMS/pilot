@@ -47,56 +47,38 @@ class objectstoreSiteMover(rucioSiteMover):
                 pathConvention = None
 
         if not ddmEndpoint or self.isDeterministic(ddmEndpoint):
-            return se + os.path.join(se_path, self.get_path(scope, lfn))
+            return self.getSURLRucio(se, se_path, scope, lfn)
 
         ddmType = self.ddmconf.get(ddmEndpoint, {}).get('type')
-        if pathConvention == None:
-            if ddmType and ddmType in ['OS_ES']:
+        if not (ddmType and ddmType in ['OS_ES']):
+            return self.getSURLRucio(se, se_path, scope, lfn)
+        else:
+            if pathConvention == None:
                 surl = se + os.path.join(se_path, lfn)
             else:
-                surl = se + os.path.join(se_path, self.get_path(scope, lfn))
-            return surl
+                # If pathConvention is not None, it means multiple buckets are used.
+                # If pathConvention is bigger than or equal 100:
+                #     The bucket name is '<atlas-eventservice>-<taskid>-<pathConventionNumber>'
+                #     Real pathConvention is pathConvention - 100
+                # Else:
+                #     The bucket name is '<atlas-eventservice>-<pathConventionNumber>'
+                #     Real pathConvention is pathConvention.
 
-        # If pathConvention is not None, it means multiple buckets are used.
-        # If pathConvention is bigger than or equal 100:
-        #     The bucket name is '<atlas-eventservice>-<taskid>-<pathConventionNumber>'
-        #     Real pathConvention is pathConvention - 100
-        # Else:
-        #     The bucket name is '<atlas-eventservice>-<pathConventionNumber>'
-        #     Real pathConvention is pathConvention.
+                while se_path.endswith("/"):
+                    se_path = se_path[:-1]
 
-        while se_path.endswith("/"):
-            se_path = se_path[:-1]
+                if pathConvention >= 100:
+                    pathConvention = pathConvention - 100
+                    if taskId is None and job is None:
+                        raise PilotException("getSURL with pathConvention(%s) failed becuase both taskId(%s) and job(%s) are None" % (pathConvention, taskId, job), code=PilotErrors.ERR_FAILEDLFCGETREPS)
+                    if taskId is None:
+                        taskId = job.taskID
+                    se_path = "%s-%s-%s" % (se_path, taskId, pathConvention)
+                else:
+                    se_path = "%s-%s" % (se_path, pathConvention)
 
-        if pathConvention >= 100:
-            pathConvention = pathConvention - 100
-            if taskId is None and job is None:
-                raise PilotException("getSURL with pathConvention(%s) failed becuase both taskId(%s) and job(%s) are None" % (pathConvention, taskId, job), code=PilotErrors.ERR_FAILEDLFCGETREPS)
-            if taskId is None:
-                taskId = job.taskID
-            if ddmType and ddmType in ['OS_ES']:
-                se_path = "%s-%s-%s" % (se_path, taskId, pathConvention)
-            else:
-                surl = se + os.path.join(se_path, self.get_path(scope, lfn))
-                return surl
-        else:
-            if ddmType and ddmType in ['OS_ES']:
-                se_path = "%s-%s" % (se_path, pathConvention)
-            else:
-                surl = se + os.path.join(se_path, self.get_path(scope, lfn))
-                return surl
-
-        surl = se + os.path.join(se_path, lfn)
+                surl = se + os.path.join(se_path, lfn)
         return surl
-
-    def get_path(self, scope, name):
-        """
-        Get rucio deterministic path
-        """
-        hstr = hashlib.md5('%s:%s' % (scope, name)).hexdigest()
-        if scope.startswith('user') or scope.startswith('group'):
-            scope = scope.replace('.', '/')
-        return '%s/%s/%s/%s' % (scope, hstr[0:2], hstr[2:4], name)
 
     def resolve_replica(self, fspec, protocol, ddm=None):
         """
