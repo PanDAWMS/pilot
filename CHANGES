@@ -379,10 +379,16 @@ M movers/pandaproxy_sitemover.py (4)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TODO:
+70.5
 
-OS log transfers:
-[TODO: set bucket to -1 for failed log transfers in jobMetrics]
+General changes:
+- Remover deprecated function updateCmd1WithProject() (ATLASExperiment)
+- Now using 'here' asetup option instead of 'notest', as requested by A. De Silva et al (ATLASExperiment)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+TODO:
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
 todo: rename pUtil.getExperiment to pUtil.getExperimentObject, correct import in SiteInformation
