@@ -1834,7 +1834,7 @@ class RunJobEvent(RunJob):
             tolog("Copying tar/zip file %s to %s" % (output_name, os.path.join(outputDir, os.path.basename(output_name))))
             os.rename(output_name, os.path.join(outputDir, os.path.basename(output_name)))
             output_eventranges_file = os.path.join(outputDir, os.path.basename(output_name).replace(".tar", "_eventranges"))
-            tolog("Creating eventranges file %s" % (output_eventranges))
+            tolog("Creating eventranges file %s" % (output_eventranges_file))
             with open(output_eventranges_file) as handle:
                 for eventRange in output_eventRanges:
                     handle.write("%s %s\n" % (eventRange, output_eventRanges[eventRange]))
