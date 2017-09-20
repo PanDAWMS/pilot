@@ -475,8 +475,8 @@ class ATLASSiteInformation(SiteInformation):
 #        if thisSite.sitename == "ANALY_UIO" or thisSite.sitename == "ANALY_SiGNET":
 #            ec = self.replaceQueuedataField("direct_access_lan", "True")
 
-        if thisSite.sitename == "OU_OSCER_ATLAS_TEST":
-            ec = self.replaceQueuedataField("catchall", "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir} --contain\'")
+        # if thisSite.sitename == "OU_OSCER_ATLAS_TEST":
+        #     ec = self.replaceQueuedataField("catchall", "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir} --contain\'")
         if thisSite.sitename == "UTA_PAUL_TEST" or thisSite.sitename == "ANALY_UTA_PAUL_TEST":
             ec = self.replaceQueuedataField("status", "online")
 #            ec = self.replaceQueuedataField("use_newmover", "True")

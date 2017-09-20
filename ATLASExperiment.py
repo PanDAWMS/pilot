@@ -80,16 +80,6 @@ class ATLASExperiment(Experiment):
         else:
             self.__warning = "setParameters found no job object"
 
-    def updateCmd1WithProject(self, cmd1, atlasProject):
-        """ Add the known project to the setup command """
-
-        if atlasProject != "" and atlasProject not in cmd1:
-            cmd1 = cmd1.replace("notest","%s,notest" % (atlasProject))
-
-        tolog("cmd1 = %s" % (cmd1))
-
-        return cmd1
-
     def addMAKEFLAGS(self, jobCoreCount, cmd2):
         """ Correct for multi-core if necessary (especially important in case coreCount=1 to limit parallel make) """
 
@@ -1137,8 +1127,8 @@ class ATLASExperiment(Experiment):
                 asetup_opt.append(release)
 
         # Add the notest,here for all setups (not necessary for late releases but harmless to add)
-        asetup_opt.append('notest')
-        # asetup_opt.append('here')
+        # asetup_opt.append('notest')
+        asetup_opt.append('here')
 
         # Add the fast option if possible (for the moment, check for locally defined env variable)
         if os.environ.has_key("ATLAS_FAST_ASETUP"):
