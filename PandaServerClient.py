@@ -405,6 +405,12 @@ class PandaServerClient:
         except:
             tolog("Failed to get cpu time: %s" % traceback.format_exc())
 
+        try:
+            node['cpuConsumptionUnit'] = job.cpuConsumptionUnit + "+" + getCPUmodel()
+        except:
+            node['cpuConsumptionUnit'] = '?'
+        node['cpuConversionFactor'] = job.cpuConversionFactor
+
         if job.result[0] == 'finished' or job.result[0] == 'failed':
             # make sure there is no mismatch between the transformation error codes (when both are reported)
             # send transformation errors depending on what is available
@@ -442,14 +448,6 @@ class PandaServerClient:
 
             node['pilotErrorCode'] = job.result[2]
             tolog("Pilot error code: %d" % (node['pilotErrorCode']))
-
-            # report CPUTime and CPUunit at the end of the job
-            node['cpuConsumptionTime'] = job.cpuConsumptionTime
-            try:
-                node['cpuConsumptionUnit'] = job.cpuConsumptionUnit + "+" + getCPUmodel()
-            except:
-                node['cpuConsumptionUnit'] = '?'
-            node['cpuConversionFactor'] = job.cpuConversionFactor
 
             # report specific time measures
             # node['pilotTiming'] = "getJob=%s setup=%s stageIn=%s payload=%s stageOut=%s" % (job.timeGetJob, job.timeSetup, job.timeStageIn, job.timeExe, job.timeStageOut)
