@@ -385,6 +385,22 @@ General changes:
 - Remover deprecated function updateCmd1WithProject() (ATLASExperiment)
 - Now using 'here' asetup option instead of 'notest', as requested by A. De Silva et al (ATLASExperiment)
 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/162
+
+Commit Summary
+
+refactored objectstore sitemover
+added option to disable logsToOS
+fixed one issue
+
+File Changes
+
+M ATLASExperiment.py (2)
+M RunJobEvent.py (2)
+M movers/objectstore_sitemover.py (70)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
