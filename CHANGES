@@ -385,6 +385,9 @@ General changes:
 - Remover deprecated function updateCmd1WithProject() (ATLASExperiment)
 - Now using 'here' asetup option instead of 'notest', as requested by A. De Silva et al (ATLASExperiment)
 
+Preparing for LAN/WAN updates:
+- Created detect_client_location() and printing out the dictionary in the log (pilot)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/162

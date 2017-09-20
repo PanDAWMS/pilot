@@ -2501,6 +2501,32 @@ def getsetWNMem(memory):
 
     return maxrss
 
+def detect_client_location(site):
+    """
+    Open a UDP socket to a machine on the internet, to get the local IP address
+    of the requesting client.
+    Try to determine the sitename automatically from common environment variables,
+    in this order: SITE_NAME, ATLAS_SITE_NAME, OSG_SITE_NAME. If none of these exist
+    use the fixed string 'ROAMING'.
+    Note: this is a modified Rucio function.
+
+    :param site: PanDA site name (simply added to the returned dictionary)
+    :return: ip, fqdn, site dictionary
+    """
+
+    ip = '0.0.0.0'
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception as e:
+        logger.warning('socket() failed to lookup local IP')
+
+    return {'ip': ip,
+            'fqdn': socket.getfqdn(),
+            'site': site}
+
 
 # main process starts here
 def runMain(runpars):
@@ -2674,6 +2700,9 @@ def runMain(runpars):
                 pUtil.tolog("Pilot is running in a virtual machine")
             else:
                 pUtil.tolog("Pilot is not running in a virtual machine")
+
+            loc = detect_client_location(env['thisSite'].sitename)
+            pUtil.tolog("Location dictionary = %s" % str(loc))
 
             # do we have enough local disk space to run the job?
             # (skip this test for ND true pilots - job will be failed in Monitor::monitor_job() instead)
