@@ -385,6 +385,7 @@ General changes:
 - Remover deprecated function updateCmd1WithProject() (ATLASExperiment)
 - Now using 'here' asetup option instead of 'notest', as requested by A. De Silva et al (ATLASExperiment)
 - Corrected overwriting of bad cpuConsumptionTime in BOINC jobs in getNodeStructure() (PandaServerClient)
+- Added back missing taskid in the tracing report (movers/trace_report)
 
 Preparing for LAN/WAN updates:
 - Created detect_client_location() and printing out the dictionary in the log (pilot)
