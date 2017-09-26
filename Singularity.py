@@ -74,6 +74,18 @@ def getGridImageForSingularity(platform, experiment):
     path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/images/singularity")
     return os.path.join(path, image)
 
+def useContainer():
+    """ Should a container be used with the command to be executed? """
+
+    status = False
+    use_container = readpar('container_use')
+    if use_container.lower() == "true":
+        status = True
+    else:
+        status = False
+
+    return status
+
 def singularityWrapper(cmd, platform, workdir, experiment="ATLAS"):
     """ Prepend the given command with the singularity execution command """
     # E.g. cmd = /bin/bash hello_world.sh
@@ -82,7 +94,7 @@ def singularityWrapper(cmd, platform, workdir, experiment="ATLAS"):
 
     # Get the singularity options from catchall field
     singularity_options = extractSingularityOptions()
-    if singularity_options != "":
+    if singularity_options != "":  # and useContainer()  <- use when field is available
         # Get the image path
         image_path = getGridImageForSingularity(platform, experiment)
 
