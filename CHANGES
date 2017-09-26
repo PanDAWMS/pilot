@@ -387,6 +387,9 @@ General changes:
 - Corrected overwriting of bad cpuConsumptionTime in BOINC jobs in getNodeStructure() (PandaServerClient)
 - Added back missing taskid in the tracing report (movers/trace_report)
 
+Containers
+- Updated extractSingularityOptions() to use container_options field instead of catchall, if it exists (Singularity)
+
 Preparing for LAN/WAN updates:
 - Created detect_client_location() and printing out the dictionary in the log (pilot)
 
