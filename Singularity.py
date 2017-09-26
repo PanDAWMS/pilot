@@ -13,24 +13,29 @@ def extractSingularityOptions():
     # ${workdir} should be there, otherwise the pilot cannot add the current workdir
     # if not there, add it
 
-    catchall = readpar("catchall")
-    #catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir} --contain\'"
-    tolog("catchall: %s" % catchall)
-    pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
-    found = re.findall(pattern, catchall)
-    if len(found) > 0:
-        singularity_options = found[0]
-        if singularity_options.endswith("'") or singularity_options.endswith('"'):
-            singularity_options = singularity_options[:-1]
+    # First try with reading new parameters from schedconfig
+    container_options = readpar("container_options")
+    if container_options == "":
+        tolog("container_options either does not exist in queuedata or is empty, trying with catchall instead")
+        catchall = readpar("catchall")
+        #catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir} --contain\'"
 
-        # add the workdir if missing
-        if not "${workdir}" in singularity_options and " --contain" in singularity_options:
-            singularity_options = singularity_options.replace(" --contain", ",${workdir} --contain")
-            tolog("Note: added missing ${workdir} to singularity_options")
+        pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
+        found = re.findall(pattern, catchall)
+        if len(found) > 0:
+            container_options = found[0]
     else:
-        singularity_options = ""
+        container_options = ""
 
-    return singularity_options
+    if container_options != "":
+        if container_options.endswith("'") or container_options.endswith('"'):
+            container_options = container_options[:-1]
+        # add the workdir if missing
+        if not "${workdir}" in container_options and " --contain" in container_options:
+            container_options = container_options.replace(" --contain", ",${workdir} --contain")
+            tolog("Note: added missing ${workdir} to singularity_options")
+
+    return container_options
 
 def getFileSystemRootPath(experiment):
     """ Return the proper file system root path (cvmfs) """
