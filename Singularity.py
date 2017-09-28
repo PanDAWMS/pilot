@@ -74,10 +74,23 @@ def getGridImageForSingularity(platform, experiment):
     path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/images/singularity")
     return os.path.join(path, image)
 
-def getContainerName():
-    """ Return the container name """
+def parseContainerUsage(user="pilot"):
+    """ Return the container name and its user """
+    # E.g. container_usage = {'singularity':'pilot','docker:wrapper'}
+    # parseContainerUsage(user='pilot') -> return 'singularity'
 
-    return readpar('container_name')
+    container_name = ""
+    container_usage = readpar('container_usage')
+    if container_usage != "":
+        if container_usage.startswith('{') and container_usage.endswith('}')
+            import ast
+            dictionary = ast.literal_eval(container_usage)
+#            container_name = dictionary[user]
+        else:
+            #container_usage_list = container_usage.split(",")
+            pass
+        if
+    return container_name
 
 def singularityWrapper(cmd, platform, workdir, experiment="ATLAS"):
     """ Prepend the given command with the singularity execution command """
