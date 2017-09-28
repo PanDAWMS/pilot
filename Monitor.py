@@ -1272,16 +1272,10 @@ class Monitor:
                 self.__env['return'] = self.__error.ERR_NOPILOTTCPSERVER
                 return
 
-            # prod job start time counter
-            tp_0 = os.times()
-
             # reset stageout start time (used by looping job killer)
             self.__env['stageoutStartTime'] = None
             self.__env['stagein'] = False
             self.__env['stageout'] = False
-
-            tp_1 = os.times()
-            self.__env['job'].timeGetJob = int(round(tp_1[4] - tp_0[4]))
 
             # update the global used in the exception handler
             globalJob = self.__env['job']
@@ -1309,7 +1303,7 @@ class Monitor:
             if not _retjs:
                 pUtil.tolog("Could not update job state test file: %s" % str(_retjs))
 
-            # getJob() ends here.....................................................................................
+            # Local checks ends here....................................................................................
 
             # copy some supporting modules to the workdir for pilot job to run
             ec = pUtil.stageInPyModules(self.__env['pilot_initdir'], self.__env['thisSite'].workdir)
@@ -1766,16 +1760,10 @@ class Monitor:
                 self.__env['return'] = self.__error.ERR_NOPILOTTCPSERVER
                 return
 
-            # prod job start time counter
-            tp_0 = os.times()
-
             # reset stageout start time (used by looping job killer)
             self.__env['stageoutStartTime'] = None
             self.__env['stagein'] = False
             self.__env['stageout'] = False
-
-            tp_1 = os.times()
-            self.__env['job'].timeGetJob = int(round(tp_1[4] - tp_0[4]))
 
             # update the global used in the exception handler
             globalJob = self.__env['job']

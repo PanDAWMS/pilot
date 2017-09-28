@@ -2718,7 +2718,9 @@ def runMain(runpars):
             # create the first job, usually a production job, but analysis job is ok as well
             # we just use the first job as a MARKER of the "walltime" of the pilot
             env['isJobDownloaded'] = False # (reset in case of multi-jobs)
+            tp_0 = os.times()
             ec, env['job'], env['number_of_jobs'] = getJob()
+            tp_1 = os.times()
             if ec != 0:
                 # remove the site workdir before exiting
                 # pUtil.writeExitCode(thisSite.workdir, error.ERR_GENERALERROR)
@@ -2730,6 +2732,7 @@ def runMain(runpars):
             else:
                 env['isJobDownloaded'] = True
                 pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))
+                env['job'].timeGetJob = int(round(tp_1[4] - tp_0[4]))
 
             # verify any contradicting job definition parameters here
             try:

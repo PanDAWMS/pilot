@@ -386,6 +386,7 @@ General changes:
 - Now using 'here' asetup option instead of 'notest', as requested by A. De Silva et al (ATLASExperiment)
 - Corrected overwriting of bad cpuConsumptionTime in BOINC jobs in getNodeStructure() (PandaServerClient)
 - Added back missing taskid in the tracing report (movers/trace_report)
+- Corrected timeGetJob, removed code from wrong place (pilot, Monitor)
 
 Containers
 - Updated extractSingularityOptions() to use container_options field instead of catchall, if it exists (Singularity)
