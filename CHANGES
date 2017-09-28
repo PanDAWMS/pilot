@@ -390,6 +390,7 @@ General changes:
 
 Containers
 - Updated extractSingularityOptions() to use container_options field instead of catchall, if it exists (Singularity)
+- Created getContainerName() (Singularity)
 
 Preparing for LAN/WAN updates:
 - Created detect_client_location() and printing out the dictionary in the log (pilot)
