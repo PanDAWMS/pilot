@@ -75,16 +75,16 @@ def getGridImageForSingularity(platform, experiment):
     return os.path.join(path, image)
 
 def getContainerName(user="pilot"):
-    """ Return the container name and its user """
-    # E.g. container_usage = {'singularity':'pilot','docker:wrapper'}
-    # parseContainerUsage(user='pilot') -> return 'singularity'
+    """ Return the container name from the container type for the given user """
+    # E.g. container_type = {'singularity':'pilot','docker:wrapper'}
+    # getContainerName(user='pilot') -> return 'singularity'
 
     container_name = ""
-    container_usage = readpar('container_usage')
-    if container_usage != "":
-        if container_usage.startswith('{') and container_usage.endswith('}')
+    container_type = readpar('container_type')
+    if container_type != "":
+        if container_type.startswith('{') and container_type.endswith('}')
             import ast
-            dictionary = ast.literal_eval(container_usage)
+            dictionary = ast.literal_eval(container_type)
             try:
                 container_name = next(key for key, value in dictionary.items() if value == user)
             except StopIteration:
