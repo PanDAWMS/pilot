@@ -935,6 +935,7 @@ def getDirectAccess():
         directIn = True
     if directInWAN:
         directInType = 'WAN' # Overrides LAN if both booleans are set to True
+        directIn = True
 
     return directIn, directInType
 
