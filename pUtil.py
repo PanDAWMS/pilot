@@ -3179,7 +3179,7 @@ def makeJobReport(job, logExtracts, foundCoreDump, version, jobIds):
             tolog(". Length pilot error diag   : %d" % (lenPilotErrorDiag))
         if job.pilotErrorDiag != "":
             l = 100
-            tolog(". Pilot error diag [%d:]    : %s" % (l, headPilotErrorDiag(job.pilotErrorDiag, size=l)))
+            tolog(". Pilot error diag [%d:]   : %s" % (l, headPilotErrorDiag(job.pilotErrorDiag, size=l)))
         else:
             tolog(". Pilot error diag          : Empty")
     else:
