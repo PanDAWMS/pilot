@@ -390,7 +390,7 @@ class JobMover(object):
             self.log("Failed to get the keyPair name for S3 objectstore from ddm config")
             self.objectstorekeys[ddmendpoint] = {'status': False}
 
-    def stagein(self, files=None, sitename):
+    def stagein(self, files=None, sitename=''):
         """
             :return: (transferred_files, failed_transfers)
         """

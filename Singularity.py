@@ -82,7 +82,7 @@ def getContainerName(user="pilot"):
     container_name = ""
     container_type = readpar('container_type')
     if container_type != "":
-        if container_type.startswith('{') and container_type.endswith('}')
+        if container_type.startswith('{') and container_type.endswith('}'):
             import ast
             dictionary = ast.literal_eval(container_type)
             try:
