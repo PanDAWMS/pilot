@@ -85,7 +85,10 @@ def getContainerName(user="pilot"):
         if container_usage.startswith('{') and container_usage.endswith('}')
             import ast
             dictionary = ast.literal_eval(container_usage)
-            container_name = next(key for key, value in dictionary.items() if value == user)
+            try:
+                container_name = next(key for key, value in dictionary.items() if value == user)
+            except StopIteration:
+                container_name = ""
             # container_name = dictionary[user]
         else:
             #container_usage_list = container_usage.split(",")
