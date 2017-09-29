@@ -158,8 +158,34 @@ class JobMover(object):
             turl = pfns[endpoint][0]
         return turl
 
+    def detect_client_location(self, site):
+        """
+        Open a UDP socket to a machine on the internet, to get the local IP address
+        of the requesting client.
+        Try to determine the sitename automatically from common environment variables,
+        in this order: SITE_NAME, ATLAS_SITE_NAME, OSG_SITE_NAME. If none of these exist
+        use the fixed string 'ROAMING'.
+        Note: this is a modified Rucio function.
 
-    def resolve_replicas(self, files, directaccesstype):
+        :param site: PanDA site name (simply added to the returned dictionary)
+        :return: ip, fqdn, site dictionary
+        """
+
+        dic = {}
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            dic = {'ip': ip,
+                   'fqdn': socket.getfqdn(),
+                   'site': site}
+        except Exception as e:
+            self.log('socket() failed to lookup local IP')
+
+        return dic
+
+    def resolve_replicas(self, files, directaccesstype, sitename):
         """
             populates fdat.replicas of each entry from `files` list
             fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
@@ -207,7 +233,17 @@ class JobMover(object):
         schemes = ['srm', 'root', 'davs', 'gsiftp']
         # Get the replica list
         try:
-            replicas = c.list_replicas(dids, schemes=schemes)
+            # if directaccess WAN, allow remote replicas
+            if directaccesstype == "WAN":
+                fdat.allowRemoteInputs = True
+                dic = self.detect_client_location(sitename)
+                if dic != {}:
+                    replicas = c.list_replicas(dids, schemes=schemes, sort='geoip', client_location=dic)
+                else:
+                    raise PilotException("Failed to get client location",
+                                         code=PilotErrors.ERR_FAILEDLFCGETREPS)
+            else:
+                replicas = c.list_replicas(dids, schemes=schemes)
             result = []
             for rep in replicas:
                 result.append(rep)
@@ -352,7 +388,7 @@ class JobMover(object):
             self.log("Failed to get the keyPair name for S3 objectstore from ddm config")
             self.objectstorekeys[ddmendpoint] = {'status': False}
 
-    def stagein(self, files=None):
+    def stagein(self, files=None, sitename):
         """
             :return: (transferred_files, failed_transfers)
         """
@@ -395,7 +431,7 @@ class JobMover(object):
 
         if normal_files:
             self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
-            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
+            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr', sitename=sitename)
 
         if failed_transfers:
             self.log("Failed to transfer normal files: %s" % failed_transfers)
@@ -412,7 +448,7 @@ class JobMover(object):
                 e.allowRemoteInputs = True
                 e.allowAllInputRSEs = True
             copytools = [('rucio', {'setup': ''})]
-            transferred_files, failed_transfers = self.stagein_real(files=remain_files, activity='es_read', copytools=copytools)
+            transferred_files, failed_transfers = self.stagein_real(files=remain_files, activity='es_read', copytools=copytools, sitename=sitename)
             if failed_transfers:
                 return transferred_files, failed_transfers
 
@@ -420,14 +456,14 @@ class JobMover(object):
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
             self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools)
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools, sitename=sitename)
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
 
         return transferred_files, failed_transfers
 
-    def stagein_real(self, files, activity='pr', copytools=None):
+    def stagein_real(self, files, activity='pr', copytools=None, sitename=''):
         """
             :return: (transferred_files, failed_transfers)
         """
@@ -537,7 +573,7 @@ class JobMover(object):
                 bad_copytools = False
 
                 if sitemover.require_replicas and not is_replicas_resolved:
-                    self.resolve_replicas(files, directaccesstype) ## do populate fspec.replicas for each entry in files
+                    self.resolve_replicas(files, directaccesstype, sitename) ## do populate fspec.replicas for each entry in files
                     is_replicas_resolved = True
 
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
