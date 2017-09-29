@@ -232,11 +232,13 @@ class JobMover(object):
         dids = [dict(scope=e.scope, name=e.lfn) for e in xfiles]
         schemes = ['srm', 'root', 'davs', 'gsiftp']
         # Get the replica list
+        self.log("directaccesstype=%s"%directaccesstype)
         try:
             # if directaccess WAN, allow remote replicas
             if directaccesstype == "WAN":
                 fdat.allowRemoteInputs = True
                 dic = self.detect_client_location(sitename)
+                self.log("dic=%s"%str(dic))
                 if dic != {}:
                     replicas = c.list_replicas(dids, schemes=schemes, sort='geoip', client_location=dic)
                 else:
