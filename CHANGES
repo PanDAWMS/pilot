@@ -387,6 +387,7 @@ General changes:
 - Corrected overwriting of bad cpuConsumptionTime in BOINC jobs in getNodeStructure() (PandaServerClient)
 - Added back missing taskid in the tracing report (movers/trace_report)
 - Corrected timeGetJob, removed code from wrong place (pilot, Monitor)
+- Fixed bug where local file was not deleted after partial stage-in, in _stagefile() (lsm_sitemover)
 
 Containers
 - Updated extractSingularityOptions() to use container_options field instead of catchall, if it exists (Singularity)
