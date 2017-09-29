@@ -576,7 +576,7 @@ class BaseSiteMover(object):
         elif "File exists" in output or 'SRM_FILE_BUSY' in output or 'file already exists' in output:
             ret['rcode'] = PilotErrors.ERR_FILEEXIST
             ret['state'] = 'FILE_EXIST'
-            ret['error'] = "File already exist in the destination: %s" % output
+            ret['error'] = "File already exists in the destination: %s" % output
         elif "No space left on device" in output:
             ret['rcode'] = PilotErrors.ERR_NOLOCALSPACE
             ret['state'] = 'NO_SPACE'
