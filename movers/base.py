@@ -451,6 +451,8 @@ class BaseSiteMover(object):
         except PilotException, e:
             # do clean up
             if e.code == PilotErrors.ERR_FILEEXIST: ## continue execution with further verification of newer file respect to already exist at storage
+                self.log("INFO: StageOutFile() failed with FILEEXIST error: skipped .. will try to verify if newer produced file is the same as from storage")
+
                 file_exist_error = e
             else:
                 self.remote_cleanup(destination, fspec)
