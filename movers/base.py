@@ -444,7 +444,8 @@ class BaseSiteMover(object):
 
         # do stageOutFile
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
-        file_exist_error = None
+        file_exist_error, dst_checksum, dst_checksum_type = None, None, None
+
         try:
             dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
         except PilotException, e:
@@ -552,10 +553,11 @@ class BaseSiteMover(object):
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file size verification: %s .. skipped" % e)
 
-        if not file_exist_error:
+        if file_exist_error:
+            raise file_exist_error
+        else:
             self.remote_cleanup(destination, fspec)
-
-        raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
+            raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
     def stageOutFile(self, source, destination, fspec):
