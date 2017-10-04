@@ -444,12 +444,16 @@ class BaseSiteMover(object):
 
         # do stageOutFile
         self.trace_report.update(relativeStart=time.time(), transferStart=time.time())
+        file_exist_error = None
         try:
             dst_checksum, dst_checksum_type = self.stageOutFile(source, destination, fspec)
-        except PilotException:
+        except PilotException, e:
             # do clean up
-            self.remote_cleanup(destination, fspec)
-            raise
+            if e.code == PilotErrors.ERR_FILEEXIST: ## continue execution with further verification of newer file respect to already exist at storage
+                file_exist_error = e
+            else:
+                self.remote_cleanup(destination, fspec)
+                raise
 
         # verify stageout by checksum
         self.trace_report.update(validateStart=time.time())
@@ -465,6 +469,8 @@ class BaseSiteMover(object):
             # Ignore in the case of lsm mover
             if self.name == 'lsm':
                 self.log("Ignoring lsm error")
+                if file_exist_error: ## no way to verify newer file against already exist at storage: do fail transfer with FILEEXIST error
+                    raise file_exist_error
                 return {'checksum': None, 'checksum_type':None, 'filesize':src_fsize}
             else:
                 self.log("Used %s mover" % (self.name))
@@ -493,6 +499,9 @@ class BaseSiteMover(object):
                             self.log("Remote checksum [%s]: %s" % (dst_checksum_type, dst_checksum))
                             self.log("checksum is_verified = %s" % is_verified)
 
+                if not is_verified and file_exist_error: ## newer file is different respect to one from storage: raise initial FILEEXIST error
+                    raise file_exist_error
+
                 if not is_verified:
                     error = "Remote and local checksums (of type %s) do not match for %s (%s != %s)" % \
                                             (src_checksum_type, os.path.basename(destination), dst_checksum, src_checksum)
@@ -508,8 +517,9 @@ class BaseSiteMover(object):
                 self.trace_report.update(clientState="DONE")
                 return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
-        except PilotException:
-            self.remote_cleanup(destination, fspec)
+        except PilotException, e:
+            if not e.code == PilotErrors.ERR_FILEEXIST:
+                self.remote_cleanup(destination, fspec)
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file checksum verification: %s ..  skipped" % e)
@@ -523,6 +533,9 @@ class BaseSiteMover(object):
             self.log("Remote filesize [%s]: %s" % (os.path.dirname(destination), dst_fsize))
             self.log("filesize is_verified = %s" % is_verified)
 
+            if not is_verified and file_exist_error: ## newer file is different respect to one from storage: raise initial FILEEXIST error
+                raise file_exist_error
+
             if not is_verified:
                 error = "Remote and local file sizes do not match for %s (%s != %s)" % (os.path.basename(destination), dst_fsize, src_fsize)
                 self.log(error)
@@ -533,12 +546,15 @@ class BaseSiteMover(object):
             return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
         except PilotException:
-            self.remote_cleanup(destination, fspec)
+            if not e.code == PilotErrors.ERR_FILEEXIST:
+                self.remote_cleanup(destination, fspec)
             raise
         except Exception, e:
             self.log("verify StageOut: caught exception while doing file size verification: %s .. skipped" % e)
 
-        self.remote_cleanup(destination, fspec)
+        if not file_exist_error:
+            self.remote_cleanup(destination, fspec)
+
         raise PilotException("Neither checksum nor file size could be verified (failing job)", code=PilotErrors.ERR_NOFILEVERIFICATION, state='NOFILEVERIFICATION')
 
 
