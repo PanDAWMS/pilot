@@ -441,7 +441,7 @@ class JobMover(object):
             remain_files = [e for e in normal_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
             remain_non_es_input_files = [e for e in remain_files if not e.eventService]
 
-            # there are non eventservcie input files, will not continue 
+            # there are non eventservcie input files, will not continue
             if remain_non_es_input_files:
                 return transferred_files, failed_transfers
 
@@ -1183,6 +1183,9 @@ class JobMover(object):
                         except PilotException, e:
                             result = e
                             self.log(traceback.format_exc())
+                            if e.code == PilotErrors.ERR_FILEEXIST: ## skip further attempts
+                                self.log('INFO: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s): File already exist: skip further retries (if any)' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry))
+                                break
                         except Exception, e:
                             result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED, state="STAGEOUT_ATTEMPT_FAILED")
                             self.log(traceback.format_exc())

@@ -43,7 +43,7 @@ def getProcessCommands(euid, pids):
         pUtil.tolog("Command failed: %s" % (rs))
     else:
         # extract the relevant processes
-        pCommands = rs.split('\n') 
+        pCommands = rs.split('\n')
         first = True
         for pCmd in pCommands:
             if first:
@@ -79,10 +79,7 @@ def dumpStackTrace(pid):
         cmd = "pstack %d" % (pid)
         timeout = 60
         exitcode, output = pUtil.timedCommand(cmd, timeout=timeout)
-        if output == "":
-            pUtil.tolog("(pstack returned empty string)")
-        else:
-            pUtil.tolog(out)
+        pUtil.tolog(output or "(pstack returned empty string)")
     else:
         pUtil.tolog("Skipping pstack dump for zombie process")
 
@@ -158,7 +155,7 @@ def killProcesses(pid, pgrp):
                     _t = 10
                     pUtil.tolog("Sleeping %d s to allow process to exit" % (_t))
                     time.sleep(_t)
-    
+
                     # now do a hardkill just in case some processes haven't gone away
                     try:
                         os.kill(i, signal.SIGKILL)
@@ -187,7 +184,7 @@ def checkProcesses(pid):
 
 def killOrphans():
     """ Find and kill all orphan processes belonging to current pilot user """
-    
+
     if 'BOINC' in pUtil.env['sitename']:
         pUtil.tolog("BOINC job, not looking for orphan processes")
         return
