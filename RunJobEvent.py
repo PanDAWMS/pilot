@@ -171,6 +171,12 @@ class RunJobEvent(RunJob):
             job.result[0] = "failed"
             job.result[2] = self.__error.ERR_NOEVENTS
             job.jobState = "failed"
+        elif self.__eventRangeID_dictionary and self.__nEventsW < 1:
+            job.subStatus = 'pilot_failed'  # 'no_running_events'
+            job.pilotErrorDiag = "Pilot didn't run any events"
+            job.result[0] = "failed"
+            job.result[2] = self.__error.ERR_NOEVENTS
+            job.jobState = "failed"
         elif self.__esFatalCode:
             job.subStatus = 'pilot_failed'
             job.pilotErrorDiag = "AthenaMP fatal error happened"
