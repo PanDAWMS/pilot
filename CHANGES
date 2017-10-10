@@ -396,6 +396,11 @@ Containers
 Preparing for LAN/WAN updates:
 - Created detect_client_location() and printing out the dictionary in the log (pilot)
 
+Event service:
+- Added support for new job def variable usePrefetcher in setJobDef() (Job)
+- Renamed variable prefetcher to usePrefetcher (Job, RunJobEvent)
+- Updated setUsePrefetcher() to use new usePrefetcher variable (RunJobEvent)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/162

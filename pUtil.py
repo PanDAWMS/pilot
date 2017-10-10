@@ -1352,7 +1352,6 @@ def getDirectAccessDic(qdata):
                 'directIn': directIn,
                 'useFileStager': useFileStager
                 }
-            tolog("directAccess: %s" % str(directAccess))
         else:
             tolog("!!WARNING!!4000!! copysetup has wrong format: %s" % (qdata))
     else:

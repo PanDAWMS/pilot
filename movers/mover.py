@@ -232,7 +232,6 @@ class JobMover(object):
         dids = [dict(scope=e.scope, name=e.lfn) for e in xfiles]
         schemes = ['srm', 'root', 'davs', 'gsiftp']
         # Get the replica list
-        self.log("directaccesstype=%s"%directaccesstype)
         try:
             # if directaccess WAN, allow remote replicas
             if directaccesstype == "WAN":
@@ -240,7 +239,11 @@ class JobMover(object):
                 dic = self.detect_client_location(sitename)
                 self.log("dic=%s"%str(dic))
                 if dic != {}:
-                    replicas = c.list_replicas(dids, schemes=schemes, sort='geoip', client_location=dic)
+                    try:
+                        replicas = c.list_replicas(dids, schemes=schemes, sort='geoip', client_location=dic)
+                    except Exception, e:
+                        self.log("!!WARNING!!4545!! Detected outdated list_replicas(), cannot do geoip-sorting: %s" % e)
+                        replicas = c.list_replicas(dids, schemes=schemes)
                 else:
                     raise PilotException("Failed to get client location",
                                          code=PilotErrors.ERR_FAILEDLFCGETREPS)
@@ -561,7 +564,7 @@ class JobMover(object):
                         sitemover.setup()
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
-                        if is_directaccess or self.job.prefetcher:
+                        if is_directaccess or self.job.usePrefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
                                 dat['scheme'] = ['root'] + dat['scheme']
                             #self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
@@ -649,7 +652,7 @@ class JobMover(object):
                 # to be called twice (or update the updateFileState function to allow list arguments)
                 # also update the file_state for the existing entry (could also be removed?)
                 # note also that at least one file still needs to be staged in, or AthenaMP will not start
-                if self.job.prefetcher:
+                if self.job.usePrefetcher:
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
@@ -803,7 +806,7 @@ class JobMover(object):
 
         self.log("stagein finished")
 
-        if not self.job.prefetcher:
+        if not self.job.usePrefetcher:
             self.job.print_infiles()
 
         return transferred_files, failed_transfers

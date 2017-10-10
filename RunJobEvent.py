@@ -812,28 +812,10 @@ class RunJobEvent(RunJob):
 
         return self.__usePrefetcher
 
-    def setUsePrefetcher(self, release, use=True):
+    def setUsePrefetcher(self, usePrefetcher):
         """ Set the __usePrefetcher variable to a boolean value """
-        # Decision is based on if the release is new enough to support Prefetcher
-        # Note that 'use' can be be used to override any setup string activation
 
-        if "Atlas-" in release:
-            release = release.strip('Atlas-')
-
-        if use:
-            # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
-            if release != "":
-                # Can only use Prefetcher for releases >= 21.0.21 or for non-numerical releases (e.g. 'master')
-                _release = release.replace('.','')
-                if (isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit()) and 'useprefetcher' in readpar('catchall'):
-                    tolog("Prefetcher will be used for release %s" % (release))
-                    self.__usePrefetcher = True
-            else:
-                tolog("Prefetcher will not be used")
-                self.__usePrefetcher = False
-        else:
-            tolog("Prefetcher will/cannot not be used")
-            self.__usePrefetcher = False
+        self.__usePrefetcher = usePrefetcher
 
     def getPanDAServer(self):
         """ Getter for __pandaserver """
@@ -3359,9 +3341,8 @@ if __name__ == "__main__":
             job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-        runJob.setUsePrefetcher(job.release)
+        runJob.setUsePrefetcher(job.usePrefetcher)
         if runJob.usePrefetcher():
-            job.prefetcher = True
             if runJob.createMessageServer(prefetcher=True):
                 tolog("The message server for Prefetcher is alive")
             else:
@@ -3617,7 +3598,7 @@ if __name__ == "__main__":
                                                                     stdout=prefetcher_stdout, stderr=prefetcher_stderr)
             if not prefetcherProcess:
                 tolog("!!WARNING!!1234!! Prefetcher could not be started - will run without it")
-                runJob.setUsePrefetcher("", use=False)
+                runJob.setUsePrefetcher(False)
             else:
                 tolog("Prefetcher is running")
         else:
