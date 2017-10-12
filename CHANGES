@@ -388,6 +388,7 @@ General changes:
 - Added back missing taskid in the tracing report (movers/trace_report)
 - Corrected timeGetJob, removed code from wrong place (pilot, Monitor)
 - Fixed bug where local file was not deleted after partial stage-in, in _stagefile() (lsm_sitemover)
+- Now killing job if used memory > 2*RSS for all sites (before only on non-cgroups sites), in __check_memory_usage() (Monitor)
 
 Containers
 - Updated extractSingularityOptions() to use container_options field instead of catchall, if it exists (Singularity)

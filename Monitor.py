@@ -335,7 +335,7 @@ class Monitor:
                                 # Compare the maxRSS with the maxPSS from memory monitor
                                 if maxRSS_int > 0:
                                     if maxPSS_int > 0:
-                                        if maxPSS_int > maxRSS_int and not isCGROUPSSite():
+                                        if maxPSS_int > maxRSS_int:
                                             pilotErrorDiag = "Job has exceeded the memory limit %d kB > %d kB (2*schedconfig.maxrss)" % (maxPSS_int, maxRSS_int)
                                             pUtil.tolog("!!WARNING!!9902!! %s" % (pilotErrorDiag))
 
