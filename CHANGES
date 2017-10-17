@@ -41,6 +41,30 @@ M ATLASExperiment.py (2)
 M RunJobEvent.py (2)
 M movers/objectstore_sitemover.py (70)
 
+Updates from Alexey Anisenkov
+
+Updates of sitemovers stage-out workflow:
+
+- Skip removal of remote file if given file already exists at storage
+- Try to continue stageout step of file validation by checksum/filesize if given file already exists in storage.
+  In case of validation error fail stageout with FILEEXIST error
+- Skip further transfer attempts in case of file exists error
+- Fixed typo bug in processes.py (undefined variable)
+
+  https://github.com/PanDAWMS/pilot/pull/164
+
+Commit Summary
+
+stageout workflow updates:
+fixed typo bug in process.py (undefined variable)
+stage-out fixes
+sitemovers: add verbose message
+File Changes
+
+M movers/base.py (36)
+M movers/mover.py (5)
+M processes.py (11)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
