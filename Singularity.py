@@ -118,7 +118,7 @@ def singularityWrapper(cmd, platform, workdir, experiment="ATLAS"):
                 tolog("!!WARNING!!4444!! Singularity options found but image does not exist: %s" % (image_path))
         else:
             # Return the original command as it was
-            tolog("No singularity options found in catchall field")
+            tolog("No singularity options found in container_options or catchall fields")
 
     tolog("Using command %s" % cmd)
     return cmd
