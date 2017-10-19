@@ -873,12 +873,13 @@ class JobMover(object):
             Do stage-out of log files
         """
 
-        activities = ['pl', 'pw', 'w']
+        activities = ['pl', 'pw', 'w']  ## look up order of astorages activities
+        activities_cp = ['pl', 'pw']    ## look up order of copytools activities
 
         # apply pilot side decision about which destination should be used
         data = self._prepare_destinations(self.job.logData, activities)
 
-        return self.stageout(activities[0], data, skip_transfer_failure=True)
+        return self.stageout(activities_cp, data, skip_transfer_failure=True)
 
 
     def stageout_logfiles_os(self):
@@ -948,6 +949,7 @@ class JobMover(object):
         """
             Copy files to dest SE:
             main control function, it should care about alternative stageout and retry-policy for diffrent ddmendpoints
+        :param activity: activity or resolution order of activities
         :param copytools: default copytools to be used
         :param skip_transfer_failure: if enabled then all errors with previous file transfers will be ignored and the logic will continue processing of all remaining files
         :return: list of entries (is_success, success_transfers, failed_transfers, exception) for each ddmendpoint
@@ -958,14 +960,17 @@ class JobMover(object):
         if not files:
             raise PilotException("Failed to put files: empty file list to be transferred", code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="NO_OUTFILES")
 
+        activities = [activity] if isinstance(activity, (str, unicode)) else activity
+        activity = activities[0] ## primary activity
+
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
         if copytools:
             self.log("Mover.stageout() [new implementation] [%s]: default copytools=%s" % (activity, copytools))
 
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activities, copytools)[pandaqueue]
 
-        self.log("Mover.stageout() [new implementation] started for activity=%s, files=%s, protocols=%s, copytools=%s" % (activity, files, protocols, copytools))
+        self.log("Mover.stageout() [new implementation] started for activity=%s, order of activities=%s, files=%s, protocols=%s, copytools=%s" % (activity, activities, files, protocols, copytools))
 
         # check if file exists before actual processing
         # populate filesize if need
