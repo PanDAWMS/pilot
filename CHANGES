@@ -43,6 +43,8 @@ M movers/objectstore_sitemover.py (70)
 
 Updates from Alexey Anisenkov
 
+  https://github.com/PanDAWMS/pilot/pull/164
+
 Updates of sitemovers stage-out workflow:
 
 - Skip removal of remote file if given file already exists at storage
@@ -51,19 +53,39 @@ Updates of sitemovers stage-out workflow:
 - Skip further transfer attempts in case of file exists error
 - Fixed typo bug in processes.py (undefined variable)
 
-  https://github.com/PanDAWMS/pilot/pull/164
-
 Commit Summary
 
 stageout workflow updates:
 fixed typo bug in process.py (undefined variable)
 stage-out fixes
 sitemovers: add verbose message
+
 File Changes
 
 M movers/base.py (36)
 M movers/mover.py (5)
 M processes.py (11)
+
+  https://github.com/PanDAWMS/pilot/pull/165
+
+Commit Summary
+
+Fixed logic in look-up of default copytool: consider only copytools explicitly defined for all activities
+
+File Changes
+
+M SiteInformation.py (12)
+
+  https://github.com/PanDAWMS/pilot/pull/166
+
+Commit Summary
+
+JobMover: extend stage-out logic to support ordered list of activities to look up sitemovers to be used for transfer.
+
+File Changes
+
+M SiteInformation.py (11)
+M movers/mover.py (13)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
