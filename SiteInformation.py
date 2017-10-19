@@ -2036,8 +2036,8 @@ class SiteInformation(object):
     def resolvePandaCopytools(self, pandaqueues, activity, defval=[]):
         """
             Resolve supported copytools by given pandaqueues
-            Check first settings for requested activity (pr, pw, pl, pls), then defal values,
-            if not set then return all supported copytools
+            Check first settings for requested activity (pr, pw, pl, pls), then defval values,
+            if not set then return copytools explicitly defined for all activities (not restricted to specific activity)
             Return ordered list of accepted copytools
             :param defval: default copytools values which will be used if no copytools defined for requested activity
             :return: dict('pandaqueue':[(copytool, {settings}), ('copytool_name', {'setup':''}), ])
@@ -2059,7 +2059,11 @@ class SiteInformation(object):
             elif defval:
                 cptools = defval[:]
             else:
-                cptools = copytools.items()
+                explicit_copytools = set()
+                for v in r.get(pandaqueue, {}).get('acopytools', {}).itervalues():
+                    explicit_copytools.update(v or [])
+
+                cptools = [(cp,v) for cp,v in copytools.iteritems() if cp not in explicit_copytools]
 
             ret.setdefault(pandaqueue, cptools)
 
@@ -2125,7 +2129,7 @@ class SiteInformation(object):
     # Optional
     def getBenchmarkFileName(self, workdir):
         """ Return the filename of the benchmark dictionary """
-        
+
         return os.path.join(workdir, "benchmark.json")
 
     # Optional
