@@ -184,7 +184,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
     return 0, "", fields, "", len(transferred_files), 0
 
 # new mover implementation
-def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
+def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None):
     """
         Do jobmover.stageout_outfiles or jobmover.stageout_logfiles (if log_transfer=True)
         or jobmover.stageout_logfiles_os (if special_log_transfer=True)
@@ -211,13 +211,16 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None):
     error = None
     storageId = None
     try:
+        if not activity:
+            activity = "es_events"
+
         file = files[0]
         if file.storageId and file.storageId != -1:
             storageId = file.storageId
             copytools = [('objectstore', {'setup': ''})]
         else:
             copytools = None
-        transferred_files, failed_transfers = mover.stageout(activity="es_events", files=files, copytools=copytools)
+        transferred_files, failed_transfers = mover.stageout(activity=activity, files=files, copytools=copytools)
     except PilotException, e:
         error = e
     except Exception, e:
