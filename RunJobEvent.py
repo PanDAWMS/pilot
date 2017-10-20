@@ -1326,12 +1326,23 @@ class RunJobEvent(RunJob):
                 self.__esToZip = False
                 tolog("Disable tar/zip because job.pandaProxySecretKey is defined")
 
-            catchalls = self.resolveConfigItem('catchall')
-            if 'zip_time_gap=' in catchalls:
-                for catchall in catchalls.split(","):
-                    if 'zip_time_gap' in catchall:
-                        name, value = catchall.split('=')
-                        self.__asyncOutputStager_thread_sleep_time = int(value)
+            pledgedcpu = self.resolveConfigItem('pledgedcpu')
+            if pledgedcpu:
+                try:
+                    if int(pledgedcpu) == -1:
+                        self.__asyncOutputStager_thread_sleep_time = 600
+                    else:
+                        self.__asyncOutputStager_thread_sleep_time = 3600 * 2
+                except:
+                    tolog("Failed to read pledgedcpu: %s" % traceback.format_exc())
+
+            zip_time_gap = self.resolveConfigItem('zip_time_gap')
+            if not (zip_time_gap is None or zip_time_gap == ''):
+                try:
+                    self.__asyncOutputStager_thread_sleep_time = int(value)
+                except:
+                    tolog("Failed to read zip time gap: %s" % traceback.format_exc())
+
             tolog("Sleep time between staging out: %s" % self.__asyncOutputStager_thread_sleep_time)
         except:
             tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
