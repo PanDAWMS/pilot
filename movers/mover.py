@@ -46,7 +46,7 @@ class JobMover(object):
     _stagein_sleeptime_min = 20       # seconds, min allowed sleep time in case of stagein failure
     _stagein_sleeptime_max = 50       # seconds, max allowed sleep time in case of stagein failure
 
-    _stageout_sleeptime_min = 4.9*60  # seconds, min allowed sleep time in case of stageout failure
+    _stageout_sleeptime_min = 1*60  # seconds, min allowed sleep time in case of stageout failure
     _stageout_sleeptime_max = 5*60    # seconds, max allowed sleep time in case of stageout failure
 
 
@@ -75,8 +75,8 @@ class JobMover(object):
     def calc_stagein_sleeptime(self):
         return uniform(self._stagein_sleeptime_min, self._stagein_sleeptime_max)
 
-    def calc_stageout_sleeptime(self):
-        return uniform(self._stageout_sleeptime_min, self._stageout_sleeptime_max)
+    def calc_stageout_sleeptime(self, attempt=1):
+        return uniform(self._stageout_sleeptime_min, min(self._stageout_sleeptime_max, (attempt + 1) * self._stageout_sleeptime_min))
 
     @property
     def stageoutretry(self):
@@ -1091,7 +1091,7 @@ class JobMover(object):
                     # loop over multple stage-out attempts
                     for _attempt in xrange(1, self.stageoutretry + 1):
                         if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                            sleep_time = self.calc_stageout_sleeptime()
+                            sleep_time = self.calc_stageout_sleeptime(_attempt)
                             self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (sleep_time, fdata.lfn))
                             time.sleep(sleep_time)
 
@@ -1353,7 +1353,7 @@ class JobMover(object):
                 for _attempt in xrange(1, self.stageoutretry + 1):
 
                     if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                        sleep_time = self.calc_stageout_sleeptime()
+                        sleep_time = self.calc_stageout_sleeptime(_attempt)
                         self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (sleep_time, filename))
                         time.sleep(sleep_time)
 
