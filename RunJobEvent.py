@@ -2985,7 +2985,7 @@ class RunJobEvent(RunJob):
         """ Return the first non TAG file name in the input file list """
 
         # AthenaMP needs to know the name of an input file to be able to start
-        # Currently an Event Service job also has a TAG file in the input file list
+        # An Event Service job might also have a TAG file in the input file list
         # but AthenaMP cannot start with that file, so identify the proper name and return it
 
         filename = ""
@@ -3648,10 +3648,11 @@ if __name__ == "__main__":
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 
         # Now update the --inputEvgenFile option with the full path to the input file using the TURL
-        #inputFile = getProperInputFileName(job.inFiles)
-        #turl = file_info_dictionary[inputFile][0]
-        #runCommandList[0] = runCommandList[0].replace(inputFile, turl)
-        #tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+        if runJob.usePrefetcher():
+            inputFile = getProperInputFileName(job.inFiles)
+            turl = file_info_dictionary[inputFile][0]
+            runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+            tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
 
         # download event ranges before athenaMP
         # Pilot will download some event ranges from the Event Server
