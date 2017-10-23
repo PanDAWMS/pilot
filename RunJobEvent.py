@@ -3648,11 +3648,11 @@ if __name__ == "__main__":
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 
         # Now update the --inputEvgenFile option with the full path to the input file using the TURL
-        if runJob.usePrefetcher():
-            inputFile = getProperInputFileName(job.inFiles)
-            turl = file_info_dictionary[inputFile][0]
-            runCommandList[0] = runCommandList[0].replace(inputFile, turl)
-            tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+        #if runJob.usePrefetcher():
+        #    inputFile = getProperInputFileName(job.inFiles)
+        #    turl = file_info_dictionary[inputFile][0]
+        #    runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+        #    tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
 
         # download event ranges before athenaMP
         # Pilot will download some event ranges from the Event Server
