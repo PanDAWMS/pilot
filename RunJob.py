@@ -19,7 +19,7 @@ from json import loads
 
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
-import Mover as mover
+import Mover as mover, getFileInfoDictionaryFromXML
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getSiteInformation,\
      tailPilotErrorDiag, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
 from JobRecovery import JobRecovery
@@ -891,12 +891,20 @@ class RunJob(object):
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
                 # For direct access in prod jobs, we need to substitute the input file names with the corresponding TURLs
-                for inputFile in job.inFiles:
-                    if inputFile in runCommandList[0]:
-                        turl = file_info_dictionary[inputFile][0]
-                        runCommandList[0] = runCommandList[0].replace(inputFile, turl)
-                        tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
-
+                analysisJob = job.isAnalysisJob()
+                directAccess = job.is_directaccess()
+                if directAccess and not analysisJob:
+                    tolog("This production job will use direct access")
+                    _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
+                    if os.path.exists(_fname):
+                        file_info_dictionary = getFileInfoDictionaryFromXML(_fname)
+                        for inputFile in job.inFiles:
+                            if inputFile in runCommandList[0]:
+                                turl = file_info_dictionary[inputFile][0]
+                                runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+                                tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+                    else:
+                        tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % _fname)
                 tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
 
                 # Start the subprocess
@@ -1708,7 +1716,7 @@ if __name__ == "__main__":
         signal.signal(signal.SIGBUS, sig2exc)
 
         # see if it's an analysis job or not
-        analysisJob = isAnalysisJob(job.trf.split(",")[0])
+        analysisJob = job.isAnalysisJob()
         if analysisJob:
             tolog("User analysis job")
         else:
