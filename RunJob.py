@@ -898,19 +898,12 @@ class RunJob(object):
                         tolog("This production job will use direct access")
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
                         if os.path.exists(_fname):
-                            try:
-                                from FileHandling import openFile
-                                xml_file = openFile(_fname, "r")
-                            except:
-                                pass
-                            else:
-                                file_info_dictionary = getFileInfoDictionaryFromXML(xml_file)
-                                for inputFile in job.inFiles:
-                                    if inputFile in runCommandList[0]:
-                                        turl = file_info_dictionary[inputFile][0]
-                                        runCommandList[0] = runCommandList[0].replace(inputFile, turl)
-                                        tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
-                                xml_file.close()
+                            file_info_dictionary = getFileInfoDictionaryFromXML(xml_file)
+                            for inputFile in job.inFiles:
+                                if inputFile in runCommandList[0]:
+                                    turl = file_info_dictionary[inputFile][0]
+                                    runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+                                    tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
                         else:
                             tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % _fname)
                 except Exception, e:
