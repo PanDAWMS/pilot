@@ -92,7 +92,7 @@ M movers/mover.py (13)
 71.1
 
 General changes:
-- Now using TURLs for input in payload options when Prefetcher is used (RunJobEvent)
+- Added TURL to file state dictionary in stagein_real(), needed for direct access in prod jobs (mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
