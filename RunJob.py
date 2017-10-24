@@ -891,21 +891,33 @@ class RunJob(object):
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
                 # For direct access in prod jobs, we need to substitute the input file names with the corresponding TURLs
-                analysisJob = job.isAnalysisJob()
-                directAccess = job.is_directaccess()
-                if directAccess and not analysisJob:
-                    tolog("This production job will use direct access")
-                    _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
-                    if os.path.exists(_fname):
-                        file_info_dictionary = getFileInfoDictionaryFromXML(_fname)
-                        for inputFile in job.inFiles:
-                            if inputFile in runCommandList[0]:
-                                turl = file_info_dictionary[inputFile][0]
-                                runCommandList[0] = runCommandList[0].replace(inputFile, turl)
-                                tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
-                    else:
-                        tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % _fname)
+                try:
+                    analysisJob = job.isAnalysisJob()
+                    directAccess = job.is_directaccess()
+                    if directAccess and not analysisJob:
+                        tolog("This production job will use direct access")
+                        _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
+                        if os.path.exists(_fname):
+                            try:
+                                from FileHandling import openFile
+                                xml_file = openFile(_fname, "r")
+                            except:
+                                pass
+                            else:
+                                file_info_dictionary = getFileInfoDictionaryFromXML(xml_file)
+                                for inputFile in job.inFiles:
+                                    if inputFile in runCommandList[0]:
+                                        turl = file_info_dictionary[inputFile][0]
+                                        runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+                                        tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+                                xml_file.close()
+                        else:
+                            tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % _fname)
+                except Exception, e:
+                    tolog("Caught exception: %s" % e)
+
                 tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
+
 
                 # Start the subprocess
                 main_subprocess = self.getSubprocess(thisExperiment, cmd, stdout=file_stdout, stderr=file_stderr)
