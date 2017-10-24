@@ -19,7 +19,7 @@ from json import loads
 
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
-import Mover as mover, getFileInfoDictionaryFromXML
+import Mover as mover
 from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getSiteInformation,\
      tailPilotErrorDiag, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
 from JobRecovery import JobRecovery
@@ -898,7 +898,7 @@ class RunJob(object):
                         tolog("This production job will use direct access")
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
                         if os.path.exists(_fname):
-                            file_info_dictionary = getFileInfoDictionaryFromXML(xml_file)
+                            file_info_dictionary = mover.getFileInfoDictionaryFromXML(xml_file)
                             for inputFile in job.inFiles:
                                 if inputFile in runCommandList[0]:
                                     turl = file_info_dictionary[inputFile][0]
