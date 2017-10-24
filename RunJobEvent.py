@@ -1678,7 +1678,7 @@ class RunJobEvent(RunJob):
     def is_blacklisted(self, endpoint):
         return False
 
-    def resolve_os_access_keys(self, endpoint):
+    def resolve_os_access_keys(self, ddmconf, endpoint):
         storage_type = ddmconf.get(endpoint, {}).get('type', {})
         if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
             protocols = ddmconf.get(endpoint, {}).get('rprotocols', {})
@@ -1700,8 +1700,8 @@ class RunJobEvent(RunJob):
                         if "privateKey" not in keyPair or keyPair["privateKey"] is None:
                             tolog("Failed to get the keyPair for S3 objectstore from panda")
                         else:
-                            return {"publicKey": keyPair["publicKey"], "privateKey": keyPair["privateKey"], "is_secure": str(is_secure)}
-        return None
+                            return 0, {"publicKey": keyPair["publicKey"], "privateKey": keyPair["privateKey"], "is_secure": str(is_secure)}
+        return -1, None
 
     def reolve_stageout_endpoints(self):
         storages = {'primary': None, 'failover': None}
@@ -1744,7 +1744,7 @@ class RunJobEvent(RunJob):
         if not (endpoint is None or storageId is None or self.is_blacklisted(endpoint)):
             storage_type = ddmconf.get(endpoint, {}).get('type', {})
             if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
-                ret_code, access_keys = self.resolve_os_access_keys(endpoint)
+                ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
@@ -1762,7 +1762,7 @@ class RunJobEvent(RunJob):
         if not (endpoint is None or storageId is None or self.is_blacklisted(endpoint)):
             storage_type = ddmconf.get(endpoint, {}).get('type', {})
             if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
-                ret_code, access_keys = self.resolve_os_access_keys(endpoint)
+                ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
@@ -1771,12 +1771,8 @@ class RunJobEvent(RunJob):
             else:
                 storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
 
-        storages_to_display = storages.copy()
-        if storages['primary'] and 'access_keys' in storages['primary']:
-            storages['primary']['access_keys'] = '******'
-        if storages['failover'] and 'access_keys' in storages['failover']:
-            storages['failover']['access_keys'] = '******'
-        tolog("[reolve_stageout_endpoint] resolved storages: %s" % storages_to_display)
+        tolog("[reolve_stageout_endpoint] resolved storages: primary: %s, failover: %s" % (storages['primary']['endpoint'] if storages['primary'] else None,
+                                                                                           storages['failover']['endpoint'] if storages['failover'] else None))
 
         if storages['primary'] is None and storages['failover'] is None:
             return PilotErrors.ERR_NOSTORAGE, "Failed to reolve_stageout_endpoint: no associate storages: %s" % storages
@@ -1835,6 +1831,13 @@ class RunJobEvent(RunJob):
             os.environ['S3_SECRET_KEY'] = storage['access_keys']["privateKey"]
             os.environ['S3_IS_SECURE'] = storage['access_keys']['is_secure']
             tolog("[stage-out] [%s] resolved ddmendpoint=%s for es transfer with access key %s" % (storage['activity'], storage['endpoint'], os.environ.get('S3_ACCESS_KEY', None)))
+        else:
+            if 'S3_ACCESS_KEY' in os.environ:
+                del os.environ['S3_ACCESS_KEY']
+            if 'S3_SECRET_KEY' in os.environ:
+                del os.environ['S3_SECRET_KEY']
+            if 'S3_IS_SECURE' in os.environ:
+                del os.environ['S3_IS_SECURE']
 
         try:
             osPublicKey = self.__siteInfo.getObjectstoresField("os_access_key", os_bucket_name="eventservice")
