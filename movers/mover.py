@@ -638,8 +638,8 @@ class JobMover(object):
                 self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlock)
 
                 # check direct access
-                ignore_directaccess = False
-                if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
+                if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer for this file" % fdata.lfn)
@@ -656,7 +656,7 @@ class JobMover(object):
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
-                    self.log("Prefetcher will be used for turl=%s" % fdata.turl)
+                    self.log("Added TURL to file state dictionary: %s" % fdata.turl)
                     #updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
                     self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='prefetch')
                     self.sendTrace(self.trace_report)
