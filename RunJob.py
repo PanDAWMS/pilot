@@ -890,6 +890,13 @@ class RunJob(object):
                 to_script = cmd.replace(";", ";\n")
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
+                # For direct access in prod jobs, we need to substitute the input file names with the corresponding TURLs
+                for inputFile in job.inFiles:
+                    if inputFile in runCommandList[0]:
+                        turl = file_info_dictionary[inputFile][0]
+                        runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+                        tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+
                 tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
 
                 # Start the subprocess
