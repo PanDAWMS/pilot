@@ -901,7 +901,7 @@ class RunJob(object):
                 # For direct access in prod jobs, we need to substitute the input file names with the corresponding TURLs
                 try:
                     analysisJob = job.isAnalysisJob()
-                    directIn = self.isDirectAccess(analysisJob, transferType=job.tranfserType)
+                    directIn = self.isDirectAccess(analysisJob, transferType=job.transferType)
                     if not analysisJob and directIn:
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
                         if os.path.exists(_fname):
