@@ -10,7 +10,7 @@
 #   Note: not compatible with Singleton Design Pattern due to the subclassing
 
 # Standard python modules
-import os, sys, commands, getopt, time
+import os, sys, commands, time
 import traceback
 import atexit, signal
 import stat
@@ -20,15 +20,14 @@ from json import loads
 # Pilot modules
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict, getSiteInformation,\
-     tailPilotErrorDiag, processDBRelease, getCmtconfig, getExperiment, getGUID, dumpFile, timedCommand
+from pUtil import tolog, readpar, createLockFile, getDatasetDict, getSiteInformation,\
+     tailPilotErrorDiag, getCmtconfig, getExperiment, getGUID
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
-from ProxyGuard import ProxyGuard
 from shutil import copy2
-from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems
+from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems, getDirectAccess
 from EventRanges import downloadEventRanges
 
 # remove logguid, debuglevel - not needed
@@ -822,6 +821,15 @@ class RunJob(object):
 
         return benchmark_subprocess
 
+    def isDirectAccess(self, analysisJob, transferType=None):
+        """ determine if direct access should be used """
+
+        directIn, directInType = getDirectAccess()
+        if not analysisJob and transferType and transferType != "direct":
+            directIn = False
+
+        return directIn
+
     def executePayload(self, thisExperiment, runCommandList, job):
         """ execute the payload """
 
@@ -893,17 +901,17 @@ class RunJob(object):
                 # For direct access in prod jobs, we need to substitute the input file names with the corresponding TURLs
                 try:
                     analysisJob = job.isAnalysisJob()
-                    directAccess = job.is_directaccess()
-                    if directAccess and not analysisJob:
-                        tolog("This production job will use direct access")
+                    directIn = self.isDirectAccess(analysisJob, transferType=job.tranfserType)
+                    if not analysisJob and directIn:
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
                         if os.path.exists(_fname):
                             file_info_dictionary = mover.getFileInfoDictionaryFromXML(xml_file)
                             for inputFile in job.inFiles:
                                 if inputFile in runCommandList[0]:
                                     turl = file_info_dictionary[inputFile][0]
-                                    runCommandList[0] = runCommandList[0].replace(inputFile, turl)
-                                    tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+                                    if turl.startswith('root://'):
+                                        runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+                                        tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
                         else:
                             tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % _fname)
                 except Exception, e:
