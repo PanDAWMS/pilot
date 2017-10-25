@@ -6,14 +6,13 @@
 
 # Import relevant python/pilot modules
 from RunJob import RunJob                        # Parent RunJob class
-from pUtil import tolog, writeToFileWithStatus   # Logging method that sends text to the pilot log
+from pUtil import writeToFileWithStatus
 
 # Standard python modules
 import os
 import re
 import sys
 import time
-import stat
 import atexit
 import signal
 import commands
@@ -31,13 +30,13 @@ import pUtil
 import RunJobUtilities
 import Mover as mover
 from JobRecovery import JobRecovery
-from FileStateClient import dumpFileStates, getFilesOfState
+from FileStateClient import getFilesOfState
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict,\
-     tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService,\
-     getSiteInformation, getGUID, isAGreaterOrEqualToB
+from pUtil import tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict,\
+     tailPilotErrorDiag, getExperiment, getEventService,\
+     getSiteInformation, getGUID
 from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes, getReplicaDictionaryFromXML
 from EventRanges import downloadEventRanges, updateEventRange, updateEventRanges
 from movers.base import BaseSiteMover
