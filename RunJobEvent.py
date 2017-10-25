@@ -1278,12 +1278,17 @@ class RunJobEvent(RunJob):
 
         return exitCode, exitAcronym, exitMsg
 
-    def resolveConfigItem(self, itemName):
+    def get_site_info(self):
         if not self.__siteInfo:
             self.__siteInfo = getSiteInformation(self.__experiment)
             jobSite = self.getJobSite()
             queuename = jobSite.computingElement
             self.__siteInfo.setQueueName(queuename)
+        return self.__siteInfo
+
+    def resolveConfigItem(self, itemName):
+        if not self.__siteInfo:
+            self.__siteInfo = self.get_site_info()
 
         pandaqueue = self.__siteInfo.getQueueName()
         items = self.__siteInfo.resolveItems(pandaqueue, itemName)
@@ -1676,6 +1681,12 @@ class RunJobEvent(RunJob):
             return None, None
 
     def is_blacklisted(self, endpoint):
+        self.__siteInfo = self.get_site_info()
+        ddm_blacklisting = self.__siteInfo.resolveDDMBlacklistingConf()
+        ddm_blacklisting_endpoints = ddm_blacklisting.keys() if ddm_blacklisting else {}
+        tolog("Blacklisted ddm endpoints: %s" % ddm_blacklisting_endpoints)
+        if endpoint in ddm_blacklisting_endpoints:
+            return True
         return False
 
     def resolve_os_access_keys(self, ddmconf, endpoint):
@@ -1706,10 +1717,7 @@ class RunJobEvent(RunJob):
     def reolve_stageout_endpoints(self):
         storages = {'primary': None, 'failover': None}
 
-        self.__siteInfo = getSiteInformation(self.__experiment)
-        jobSite = self.getJobSite()
-        queuename = jobSite.computingElement
-        self.__siteInfo.setQueueName(queuename)
+        self.__siteInfo = self.get_site_info()
 
         # resolve accepted OS DDMEndpoints
 
@@ -1806,21 +1814,26 @@ class RunJobEvent(RunJob):
                 ret_code, ret_str, os_bucket_id = self.stage_out_es_real(job, event_range_id, file_paths, pathConvention=pathConvention, storage=self.__stageoutStorages['primary'])
             except Exception, e:
                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
-        if ret_code == 0:
-            tolog("[stage_out_es] Successful to stageout to primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
-            return ret_code, ret_str, os_bucket_id
+            if ret_code == 0:
+                tolog("[stage_out_es] Successful to stageout to primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
+                return ret_code, ret_str, os_bucket_id
+            else:
+                tolog("[stage_out_es] Failed to stageout to primary storage(%s): %s, %s" % (self.__stageoutStorages['primary']['endpoint'], ret_code, ret_str))
         else:
-            tolog("[stage_out_es] Failed to stageout to primary storage(%s): %s, %s" % (self.__stageoutStorages['primary']['endpoint'], ret_code, ret_str))
-            if self.__stageoutStorages['failover']:
-                tolog("[stage_out_es] Failover storage is defined. Trying to stageout with failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
-                try:
-                    ret_code, ret_str, os_bucket_id = self.stage_out_es_real(job, event_range_id, file_paths, pathConvention=pathConvention, storage=self.__stageoutStorages['failover'])
-                except Exception, e:
-                    tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
-                if ret_code == 0:
-                    tolog("[stage_out_es] Successful to stageout to failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
-                else:
-                    tolog("[stage_out_es] Failed to stageout to failover storage(%s): %s, %s" % (self.__stageoutStorages['failover']['endpoint'], ret_code, ret_str))
+            tolog("[stage_out_es] Primary storage(%s) is not available" % (self.__stageoutStorages['primary']))
+
+        if self.__stageoutStorages['failover']:
+            tolog("[stage_out_es] Failover storage is defined. Trying to stageout with failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
+            try:
+                ret_code, ret_str, os_bucket_id = self.stage_out_es_real(job, event_range_id, file_paths, pathConvention=pathConvention, storage=self.__stageoutStorages['failover'])
+            except Exception, e:
+                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+            if ret_code == 0:
+                tolog("[stage_out_es] Successful to stageout to failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
+            else:
+                tolog("[stage_out_es] Failed to stageout to failover storage(%s): %s, %s" % (self.__stageoutStorages['failover']['endpoint'], ret_code, ret_str))
+        else:
+            tolog("[stage_out_es] Failover storage(%s) is not available" % (self.__stageoutStorages['failover']))
 
         return ret_code, ret_str, os_bucket_id
 
@@ -3143,10 +3156,7 @@ class RunJobEvent(RunJob):
                 return status, output
             else:
                 activity = "es_events"
-                self.__siteInfo = getSiteInformation(self.__experiment)
-                jobSite = self.getJobSite()
-                queuename = jobSite.computingElement
-                self.__siteInfo.setQueueName(queuename)
+                self.__siteInfo = self.get_site_info()
 
                 pandaqueue = self.__siteInfo.getQueueName() # FIX ME LATER
                 os_ddms = self.__siteInfo.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
