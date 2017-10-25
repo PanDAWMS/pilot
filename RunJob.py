@@ -905,12 +905,12 @@ class RunJob(object):
                     if not analysisJob and directIn:
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
                         if os.path.exists(_fname):
-                            file_info_dictionary = mover.getFileInfoDictionaryFromXML(xml_file)
+                            file_info_dictionary = mover.getFileInfoDictionaryFromXML(_fname)
                             for inputFile in job.inFiles:
-                                if inputFile in runCommandList[0]:
+                                if inputFile in cmd:
                                     turl = file_info_dictionary[inputFile][0]
                                     if turl.startswith('root://'):
-                                        runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+                                        cmd = cmd.replace(inputFile, turl)
                                         tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
                         else:
                             tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % _fname)
