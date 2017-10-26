@@ -570,7 +570,7 @@ class JobMover(object):
                         if is_directaccess or self.job.usePrefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
                                 dat['scheme'] = ['root'] + dat['scheme']
-                            #self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
+                            self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
