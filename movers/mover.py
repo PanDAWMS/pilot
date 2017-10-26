@@ -218,7 +218,10 @@ class JobMover(object):
                     raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
                 localddms = ddms.get(ddmdat['site'])
                 # sort and filter ddms (as possible input source)
-                fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+                pandaqueue = self.si.getQueueName()
+                self.log("Calling resolvePandaAssociatedStorages() for PQ=%s" % pandaqueue)
+                fdat.inputddms = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})['pr']
+                # fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
         # consider only normal ddmendpoints
         xfiles = [e for e in files if e.storageId is None]
