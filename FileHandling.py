@@ -1,9 +1,8 @@
 # This module contains functions related to file handling.
 
 import os
-import time
 
-from pUtil import tolog, convert, getSiteInformation, readpar
+from pUtil import tolog, convert, readpar
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """

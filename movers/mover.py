@@ -218,7 +218,10 @@ class JobMover(object):
                     raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
                 localddms = ddms.get(ddmdat['site'])
                 # sort and filter ddms (as possible input source)
-                fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+                pandaqueue = self.si.getQueueName()
+                self.log("Calling resolvePandaAssociatedStorages() for PQ=%s" % pandaqueue)
+                fdat.inputddms = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})['pr']
+                # fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
         # consider only normal ddmendpoints
         xfiles = [e for e in files if e.storageId is None]
@@ -566,8 +569,8 @@ class JobMover(object):
                         dat['scheme'] = sitemover.schemes
                         if is_directaccess or self.job.usePrefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
-                                dat['scheme'] = ['root'] #+ dat['scheme']
-                            #self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
+                                dat['scheme'] = ['root'] + dat['scheme']
+                            self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
