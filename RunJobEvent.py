@@ -204,6 +204,7 @@ class RunJobEvent(RunJob):
         else:
             job.subStatus = 'all_success'
             job.jobState = "finished"
+            job.pilotErrorDiag = "AllSuccess"
 
     def getESFatalCode(self):
         return self.__esFatalCode
