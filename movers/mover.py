@@ -567,6 +567,8 @@ class JobMover(object):
                         sitemover.setup()
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
+                        self.log("is_directaccess=%s"%str(is_directaccess))
+                        self.log("self.job.usePrefetcher=%s"%str(self.job.usePrefetcher))
                         if is_directaccess or self.job.usePrefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
                                 dat['scheme'] = ['root'] #+ dat['scheme']
