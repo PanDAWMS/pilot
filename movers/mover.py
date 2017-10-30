@@ -219,9 +219,8 @@ class JobMover(object):
                 localddms = ddms.get(ddmdat['site'])
                 # sort and filter ddms (as possible input source)
                 pandaqueue = self.si.getQueueName()
-                self.log("Calling resolvePandaAssociatedStorages() for PQ=%s" % pandaqueue)
                 fdat.inputddms = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})['pr']
-                # fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+                #fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
         # consider only normal ddmendpoints
         xfiles = [e for e in files if e.storageId is None]
