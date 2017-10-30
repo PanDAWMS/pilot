@@ -1960,7 +1960,7 @@ class SiteInformation(object):
 
     def loadSchedConfData(self, pandaqueues=[], cache_time=60):
         """
-            Download the queuedata from various soures (prioritized)
+            Download the queuedata from various sources (prioritized)
             this function should replace getNewQueuedata() later.
         """
 
