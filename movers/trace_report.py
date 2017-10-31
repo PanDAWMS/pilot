@@ -42,7 +42,8 @@ class TraceReport(dict):
                 'usrdn': '',
                 'url': None,
                 'stateReason': None,
-                'uuid': None
+                'uuid': None,
+                'taskid': ''
         }
 
         super(TraceReport, self).__init__(defs)
@@ -56,6 +57,7 @@ class TraceReport(dict):
                 'usr': hashlib.md5(job.prodUserID).hexdigest(), # anonymise user and pilot id's
                 'appid': job.jobId,
                 'usrdn': job.prodUserID,
+                'taskid': job.taskID
                 }
 
         self.update(data)

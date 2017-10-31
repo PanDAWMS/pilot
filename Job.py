@@ -116,7 +116,7 @@ class Job:
         self.jobsetID = None               # Event range job set ID
         self.pandaProxySecretKey = None    # pandaproxy secret key
         self.external_stageout_time = None # External stageout time(time after athenaMP finishes)
-        self.prefetcher = False            # ESS v1
+        self.usePrefetcher = False            # ESS v1
         self.subStatus = None              # subStatus of the job
         self.subError = None               # subError of the job
         self.noExecStrCnv = None           # True if the jobPars contain the full payload setup
@@ -330,6 +330,14 @@ class Job:
         if not self.eventService and self.processingType == "evtest":
             pUtil.tolog("Turning on Event Service for processing type = %s" % self.processingType)
             self.eventService = True
+
+        # Event service prefetcher
+        if data.has_key('usePrefetcher'):
+            if data.get('usePrefetcher', '').lower() == "true":
+                self.usePrefetcher = True
+            else:
+                self.usePrefetcher = False
+            pUtil.tolog("usePrefetcher = %s" % str(self.usePrefetcher))
 
         # Event Service Merge variables
         if data.has_key('eventServiceMerge'):

@@ -2012,7 +2012,7 @@ class SiteInformation(object):
 
     def loadSchedConfData(self, pandaqueues=[], cache_time=60):
         """
-            Download the queuedata from various soures (prioritized)
+            Download the queuedata from various sources (prioritized)
             this function should replace getNewQueuedata() later.
         """
 
@@ -2088,15 +2088,20 @@ class SiteInformation(object):
     def resolvePandaCopytools(self, pandaqueues, activity, defval=[]):
         """
             Resolve supported copytools by given pandaqueues
-            Check first settings for requested activity (pr, pw, pl, pls), then defal values,
-            if not set then return all supported copytools
+            Check first settings for requested activity (pr, pw, pl, pls), then defval values,
+            if not set then return copytools explicitly defined for all activities (not restricted to specific activity)
             Return ordered list of accepted copytools
+            :param activity: activity of prioritized list of activities to resolve data
             :param defval: default copytools values which will be used if no copytools defined for requested activity
             :return: dict('pandaqueue':[(copytool, {settings}), ('copytool_name', {'setup':''}), ])
         """
 
+
         if isinstance(pandaqueues, (str, unicode)):
             pandaqueues = [pandaqueues]
+
+        if isinstance(activity, (str, unicode)):
+            activity = [activity]
 
         r = self.loadSchedConfData(pandaqueues, cache_time=6000) or {} # quick stub: fix me later: schedconf should be loaded only once in any init function from top level, cache_time is used as a workaround here
         self.schedconf = r
@@ -2105,13 +2110,21 @@ class SiteInformation(object):
         for pandaqueue in set(pandaqueues):
             copytools = r.get(pandaqueue, {}).get('copytools', {})
             cptools = []
-            acopytools = r.get(pandaqueue, {}).get('acopytools', {}).get(activity, [])
+            acopytools = None
+            for a in activity:
+                acopytools = r.get(pandaqueue, {}).get('acopytools', {}).get(a, [])
+                if acopytools:
+                    break
             if acopytools:
                 cptools = [(cp, copytools[cp]) for cp in acopytools if cp in copytools]
             elif defval:
                 cptools = defval[:]
             else:
-                cptools = copytools.items()
+                explicit_copytools = set()
+                for v in r.get(pandaqueue, {}).get('acopytools', {}).itervalues():
+                    explicit_copytools.update(v or [])
+
+                cptools = [(cp,v) for cp,v in copytools.iteritems() if cp not in explicit_copytools]
 
             ret.setdefault(pandaqueue, cptools)
 
@@ -2177,7 +2190,7 @@ class SiteInformation(object):
     # Optional
     def getBenchmarkFileName(self, workdir):
         """ Return the filename of the benchmark dictionary """
-        
+
         return os.path.join(workdir, "benchmark.json")
 
     # Optional

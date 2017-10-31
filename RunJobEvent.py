@@ -6,14 +6,13 @@
 
 # Import relevant python/pilot modules
 from RunJob import RunJob                        # Parent RunJob class
-from pUtil import tolog, writeToFileWithStatus   # Logging method that sends text to the pilot log
+from pUtil import writeToFileWithStatus
 
 # Standard python modules
 import os
 import re
 import sys
 import time
-import stat
 import atexit
 import signal
 import commands
@@ -31,13 +30,13 @@ import pUtil
 import RunJobUtilities
 import Mover as mover
 from JobRecovery import JobRecovery
-from FileStateClient import dumpFileStates, getFilesOfState
+from FileStateClient import getFilesOfState
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from StoppableThread import StoppableThread
-from pUtil import debugInfo, tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict,\
-     tailPilotErrorDiag, getCmtconfig, getExperiment, getEventService,\
-     getSiteInformation, getGUID, isAGreaterOrEqualToB
+from pUtil import tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict,\
+     tailPilotErrorDiag, getExperiment, getEventService,\
+     getSiteInformation, getGUID
 from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes, getReplicaDictionaryFromXML
 from EventRanges import downloadEventRanges, updateEventRange, updateEventRanges
 from movers.base import BaseSiteMover
@@ -817,28 +816,10 @@ class RunJobEvent(RunJob):
 
         return self.__usePrefetcher
 
-    def setUsePrefetcher(self, release, use=True):
+    def setUsePrefetcher(self, usePrefetcher):
         """ Set the __usePrefetcher variable to a boolean value """
-        # Decision is based on if the release is new enough to support Prefetcher
-        # Note that 'use' can be be used to override any setup string activation
 
-        if "Atlas-" in release:
-            release = release.strip('Atlas-')
-
-        if use:
-            # Verify that the release version is new enough, otherwise switch off Prefetcher since it is not included in the [old] release
-            if release != "":
-                # Can only use Prefetcher for releases >= 21.0.21 or for non-numerical releases (e.g. 'master')
-                _release = release.replace('.','')
-                if (isAGreaterOrEqualToB(release, "21.0.21") or not _release.isdigit()) and 'useprefetcher' in readpar('catchall'):
-                    tolog("Prefetcher will be used for release %s" % (release))
-                    self.__usePrefetcher = True
-            else:
-                tolog("Prefetcher will not be used")
-                self.__usePrefetcher = False
-        else:
-            tolog("Prefetcher will/cannot not be used")
-            self.__usePrefetcher = False
+        self.__usePrefetcher = usePrefetcher
 
     def getPanDAServer(self):
         """ Getter for __pandaserver """
@@ -3127,7 +3108,7 @@ class RunJobEvent(RunJob):
         """ Return the first non TAG file name in the input file list """
 
         # AthenaMP needs to know the name of an input file to be able to start
-        # Currently an Event Service job also has a TAG file in the input file list
+        # An Event Service job might also have a TAG file in the input file list
         # but AthenaMP cannot start with that file, so identify the proper name and return it
 
         filename = ""
@@ -3486,9 +3467,8 @@ if __name__ == "__main__":
             job.result[2] = PilotErrors.ERR_ESMESSAGESERVER
             runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
-        runJob.setUsePrefetcher(job.release)
+        runJob.setUsePrefetcher(job.usePrefetcher)
         if runJob.usePrefetcher():
-            job.prefetcher = True
             if runJob.createMessageServer(prefetcher=True):
                 tolog("The message server for Prefetcher is alive")
             else:
@@ -3744,7 +3724,7 @@ if __name__ == "__main__":
                                                                     stdout=prefetcher_stdout, stderr=prefetcher_stderr)
             if not prefetcherProcess:
                 tolog("!!WARNING!!1234!! Prefetcher could not be started - will run without it")
-                runJob.setUsePrefetcher("", use=False)
+                runJob.setUsePrefetcher(False)
             else:
                 tolog("Prefetcher is running")
         else:
@@ -3788,10 +3768,11 @@ if __name__ == "__main__":
         # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
 
         # Now update the --inputEvgenFile option with the full path to the input file using the TURL
-        #inputFile = getProperInputFileName(job.inFiles)
-        #turl = file_info_dictionary[inputFile][0]
-        #runCommandList[0] = runCommandList[0].replace(inputFile, turl)
-        #tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+        if runJob.usePrefetcher():
+            inputFile = getProperInputFileName(job.inFiles)
+            turl = file_info_dictionary[inputFile][0]
+            runCommandList[0] = runCommandList[0].replace(inputFile, turl)
+            tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
 
         # download event ranges before athenaMP
         # Pilot will download some event ranges from the Event Server

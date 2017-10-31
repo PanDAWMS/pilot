@@ -59,15 +59,16 @@ class lsmSiteMover(BaseSiteMover):
         self.log("Command execution time: %s" % dt)
         self.log("is_timeout=%s, rcode=%s, output=%s" % (is_timeout, rcode, output))
 
+        if is_timeout or rcode: ## do clean up
+            if is_stagein: # stage-in clean up: check if file was partially transferred
+                self.removeLocal(destination)
+
         if is_timeout:
             raise PilotException("Copy command self timed out after %s, timeout=%s, output=%s" % (dt, timeout, output), code=PilotErrors.ERR_GETTIMEOUT if is_stagein else PilotErrors.ERR_PUTTIMEOUT, state='CP_TIMEOUT')
 
         if rcode:
             self.log('WARNING: [is_stagein=%s] Stage file command (%s) failed: Status=%s Output=%s' % (is_stagein, cmd, rcode, output.replace("\n"," ")))
             error = self.resolveStageErrorFromOutput(output, source, is_stagein=is_stagein)
-
-            if is_stagein: # do clean up: check if file was partially transferred
-                self.removeLocal(destination)
 
             rcode = error.get('rcode')
             if not rcode:

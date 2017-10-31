@@ -158,8 +158,34 @@ class JobMover(object):
             turl = pfns[endpoint][0]
         return turl
 
+    def detect_client_location(self, site):
+        """
+        Open a UDP socket to a machine on the internet, to get the local IP address
+        of the requesting client.
+        Try to determine the sitename automatically from common environment variables,
+        in this order: SITE_NAME, ATLAS_SITE_NAME, OSG_SITE_NAME. If none of these exist
+        use the fixed string 'ROAMING'.
+        Note: this is a modified Rucio function.
 
-    def resolve_replicas(self, files, directaccesstype):
+        :param site: PanDA site name (simply added to the returned dictionary)
+        :return: ip, fqdn, site dictionary
+        """
+
+        dic = {}
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            dic = {'ip': ip,
+                   'fqdn': socket.getfqdn(),
+                   'site': site}
+        except Exception as e:
+            self.log('socket() failed to lookup local IP')
+
+        return dic
+
+    def resolve_replicas(self, files, directaccesstype, sitename):
         """
             populates fdat.replicas of each entry from `files` list
             fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
@@ -192,7 +218,10 @@ class JobMover(object):
                     raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
                 localddms = ddms.get(ddmdat['site'])
                 # sort and filter ddms (as possible input source)
-                fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+                pandaqueue = self.si.getQueueName()
+                self.log("Calling resolvePandaAssociatedStorages() for PQ=%s" % pandaqueue)
+                fdat.inputddms = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})['pr']
+                # fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
         # consider only normal ddmendpoints
         xfiles = [e for e in files if e.storageId is None]
@@ -207,7 +236,22 @@ class JobMover(object):
         schemes = ['srm', 'root', 'davs', 'gsiftp']
         # Get the replica list
         try:
-            replicas = c.list_replicas(dids, schemes=schemes)
+            # if directaccess WAN, allow remote replicas
+            if directaccesstype == "WAN":
+                fdat.allowRemoteInputs = True
+                dic = self.detect_client_location(sitename)
+                self.log("dic=%s"%str(dic))
+                if dic != {}:
+                    try:
+                        replicas = c.list_replicas(dids, schemes=schemes, sort='geoip', client_location=dic)
+                    except Exception, e:
+                        self.log("!!WARNING!!4545!! Detected outdated list_replicas(), cannot do geoip-sorting: %s" % e)
+                        replicas = c.list_replicas(dids, schemes=schemes)
+                else:
+                    raise PilotException("Failed to get client location",
+                                         code=PilotErrors.ERR_FAILEDLFCGETREPS)
+            else:
+                replicas = c.list_replicas(dids, schemes=schemes)
             result = []
             for rep in replicas:
                 result.append(rep)
@@ -352,7 +396,7 @@ class JobMover(object):
             self.log("Failed to get the keyPair name for S3 objectstore from ddm config")
             self.objectstorekeys[ddmendpoint] = {'status': False}
 
-    def stagein(self, files=None):
+    def stagein(self, files=None, sitename=''):
         """
             :return: (transferred_files, failed_transfers)
         """
@@ -395,20 +439,20 @@ class JobMover(object):
 
         if normal_files:
             self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
-            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
+            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr', sitename=sitename)
 
         if es_files:
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
             self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools)
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools, sitename=sitename)
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
 
         return transferred_files, failed_transfers
 
-    def stagein_real(self, files, activity='pr', copytools=None):
+    def stagein_real(self, files, activity='pr', copytools=None, sitename=''):
         """
             :return: (transferred_files, failed_transfers)
         """
@@ -504,10 +548,12 @@ class JobMover(object):
                         sitemover.setup()
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
-                        if is_directaccess or self.job.prefetcher:
+                        self.log("is_directaccess=%s"%str(is_directaccess))
+                        self.log("self.job.usePrefetcher=%s"%str(self.job.usePrefetcher))
+                        if is_directaccess or self.job.usePrefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
-                                dat['scheme'] = ['root'] + dat['scheme']
-                            #self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
+                                dat['scheme'] = ['root'] #+ dat['scheme']
+                            self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
@@ -518,7 +564,7 @@ class JobMover(object):
                 bad_copytools = False
 
                 if sitemover.require_replicas and not is_replicas_resolved:
-                    self.resolve_replicas(files, directaccesstype) ## do populate fspec.replicas for each entry in files
+                    self.resolve_replicas(files, directaccesstype, sitename) ## do populate fspec.replicas for each entry in files
                     is_replicas_resolved = True
 
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
@@ -578,8 +624,8 @@ class JobMover(object):
                 self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlock)
 
                 # check direct access
-                ignore_directaccess = False
-                if fdata.is_directaccess() and is_directaccess and not ignore_directaccess: # direct access mode, no transfer required
+                if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer for this file" % fdata.lfn)
@@ -592,11 +638,11 @@ class JobMover(object):
                 # to be called twice (or update the updateFileState function to allow list arguments)
                 # also update the file_state for the existing entry (could also be removed?)
                 # note also that at least one file still needs to be staged in, or AthenaMP will not start
-                if self.job.prefetcher:
+                if self.job.usePrefetcher:
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
-                    self.log("Prefetcher will be used for turl=%s" % fdata.turl)
+                    self.log("Added TURL to file state dictionary: %s" % fdata.turl)
                     #updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
                     self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='prefetch')
                     self.sendTrace(self.trace_report)
@@ -746,7 +792,7 @@ class JobMover(object):
 
         self.log("stagein finished")
 
-        if not self.job.prefetcher:
+        if not self.job.usePrefetcher:
             self.job.print_infiles()
 
         return transferred_files, failed_transfers
@@ -813,12 +859,13 @@ class JobMover(object):
             Do stage-out of log files
         """
 
-        activities = ['pl', 'pw', 'w']
+        activities = ['pl', 'pw', 'w']  ## look up order of astorages activities
+        activities_cp = ['pl', 'pw']    ## look up order of copytools activities
 
         # apply pilot side decision about which destination should be used
         data = self._prepare_destinations(self.job.logData, activities)
 
-        return self.stageout(activities[0], data, skip_transfer_failure=True)
+        return self.stageout(activities_cp, data, skip_transfer_failure=True)
 
 
     def stageout_logfiles_os(self):
@@ -888,6 +935,7 @@ class JobMover(object):
         """
             Copy files to dest SE:
             main control function, it should care about alternative stageout and retry-policy for diffrent ddmendpoints
+        :param activity: activity or resolution order of activities
         :param copytools: default copytools to be used
         :param skip_transfer_failure: if enabled then all errors with previous file transfers will be ignored and the logic will continue processing of all remaining files
         :return: list of entries (is_success, success_transfers, failed_transfers, exception) for each ddmendpoint
@@ -898,14 +946,17 @@ class JobMover(object):
         if not files:
             raise PilotException("Failed to put files: empty file list to be transferred", code=PilotErrors.ERR_MISSINGOUTPUTFILE, state="NO_OUTFILES")
 
+        activities = [activity] if isinstance(activity, (str, unicode)) else activity
+        activity = activities[0] ## primary activity
+
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
         if copytools:
             self.log("Mover.stageout() [new implementation] [%s]: default copytools=%s" % (activity, copytools))
 
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activities, copytools)[pandaqueue]
 
-        self.log("Mover.stageout() [new implementation] started for activity=%s, files=%s, protocols=%s, copytools=%s" % (activity, files, protocols, copytools))
+        self.log("Mover.stageout() [new implementation] started for activity=%s, order of activities=%s, files=%s, protocols=%s, copytools=%s" % (activity, activities, files, protocols, copytools))
 
         # check if file exists before actual processing
         # populate filesize if need
@@ -1126,6 +1177,9 @@ class JobMover(object):
                         except PilotException, e:
                             result = e
                             self.log(traceback.format_exc())
+                            if e.code == PilotErrors.ERR_FILEEXIST: ## skip further attempts
+                                self.log('INFO: Error in copying file (fspec %s/%s) (protocol %s/%s) (attempt %s/%s): File already exist: skip further retries (if any)' % (fnum, nfiles, protnum, nprotocols, _attempt, self.stageoutretry))
+                                break
                         except Exception, e:
                             result = PilotException("stageOut failed with error=%s" % e, code=PilotErrors.ERR_STAGEOUTFAILED, state="STAGEOUT_ATTEMPT_FAILED")
                             self.log(traceback.format_exc())

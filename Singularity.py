@@ -13,24 +13,27 @@ def extractSingularityOptions():
     # ${workdir} should be there, otherwise the pilot cannot add the current workdir
     # if not there, add it
 
-    catchall = readpar("catchall")
-    #catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir} --contain\'"
-    tolog("catchall: %s" % catchall)
-    pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
-    found = re.findall(pattern, catchall)
-    if len(found) > 0:
-        singularity_options = found[0]
-        if singularity_options.endswith("'") or singularity_options.endswith('"'):
-            singularity_options = singularity_options[:-1]
+    # First try with reading new parameters from schedconfig
+    container_options = readpar("container_options")
+    if container_options == "":
+        tolog("container_options either does not exist in queuedata or is empty, trying with catchall instead")
+        catchall = readpar("catchall")
+        #catchall = "singularity_options=\'-B /etc/grid-security/certificates,/cvmfs,${workdir} --contain\'"
 
+        pattern = re.compile(r"singularity\_options\=\'?\"?(.+)\'?\"?")
+        found = re.findall(pattern, catchall)
+        if len(found) > 0:
+            container_options = found[0]
+
+    if container_options != "":
+        if container_options.endswith("'") or container_options.endswith('"'):
+            container_options = container_options[:-1]
         # add the workdir if missing
-        if not "${workdir}" in singularity_options and " --contain" in singularity_options:
-            singularity_options = singularity_options.replace(" --contain", ",${workdir} --contain")
+        if not "${workdir}" in container_options and " --contain" in container_options:
+            container_options = container_options.replace(" --contain", ",${workdir} --contain")
             tolog("Note: added missing ${workdir} to singularity_options")
-    else:
-        singularity_options = ""
 
-    return singularity_options
+    return container_options
 
 def getFileSystemRootPath(experiment):
     """ Return the proper file system root path (cvmfs) """
@@ -69,29 +72,55 @@ def getGridImageForSingularity(platform, experiment):
     path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/images/singularity")
     return os.path.join(path, image)
 
+def getContainerName(user="pilot"):
+    # E.g. container_type = 'singularity:pilot;docker:wrapper'
+    # getContainerName(user='pilot') -> return 'singularity'
+
+    container_name = ""
+    container_type = readpar('container_type')
+
+    if container_type != "" and user in container_type:
+        try:
+            container_names = container_type.split(';')
+            for name in container_names:
+                t = name.split(':')
+                if user == t[1]:
+                    container_name = t[0]
+        except:
+            tolog("Failed to parse the container name: %s, %s" % (container_type, e))
+    else:
+        tolog("Container type not specified in queuedata")
+
+    return container_name
+
 def singularityWrapper(cmd, platform, workdir, experiment="ATLAS"):
     """ Prepend the given command with the singularity execution command """
     # E.g. cmd = /bin/bash hello_world.sh
     # -> singularity_command = singularity exec -B <bindmountsfromcatchall> <img> /bin/bash hello_world.sh
     # singularity exec -B <bindmountsfromcatchall>  /cvmfs/atlas.cern.ch/repo/images/singularity/x86_64-slc6.img <script> 
 
-    # Get the singularity options from catchall field
-    singularity_options = extractSingularityOptions()
-    if singularity_options != "":
-        # Get the image path
-        image_path = getGridImageForSingularity(platform, experiment)
+    # Should a container be used?
+    container_name = getContainerName()
+    if container_name == 'singularity':
+        tolog("Singularity has been requested")
 
-        # Does the image exist?
-        if os.path.exists(image_path):
-            # Prepend it to the given command
-            cmd = "export workdir=" + workdir + "; singularity exec " + singularity_options + " " + image_path + " /bin/bash -c \'cd $workdir;pwd;" + cmd.replace("\'","\\'").replace('\"','\\"') + "\'"
+        # Get the singularity options
+        singularity_options = extractSingularityOptions()
+        if singularity_options != "":
+            # Get the image path
+            image_path = getGridImageForSingularity(platform, experiment)
+
+            # Does the image exist?
+            if os.path.exists(image_path):
+                # Prepend it to the given command
+                cmd = "export workdir=" + workdir + "; singularity exec " + singularity_options + " " + image_path + " /bin/bash -c \'cd $workdir;pwd;" + cmd.replace("\'","\\'").replace('\"','\\"') + "\'"
+            else:
+                tolog("!!WARNING!!4444!! Singularity options found but image does not exist: %s" % (image_path))
         else:
-            tolog("!!WARNING!!4444!! Singularity options found but image does not exist: %s" % (image_path))
-    else:
-        # Return the original command as it was
-        tolog("No singularity options found in catchall field")
-#        pass
-    tolog("Singularity check: Using command %s" % (cmd))
+            # Return the original command as it was
+            tolog("No singularity options found in container_options or catchall fields")
+
+    tolog("Using command %s" % cmd)
     return cmd
 
 if __name__ == "__main__":
