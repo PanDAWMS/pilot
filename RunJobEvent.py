@@ -110,8 +110,7 @@ class RunJobEvent(RunJob):
     __esToZip = True
     __multipleBuckets = None
     __numBuckets = 1
-    __stageOutDDMEndpoint = None
-    __stageOutStorageId = None
+    __stageoutStorages = None
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
@@ -1260,12 +1259,17 @@ class RunJobEvent(RunJob):
 
         return exitCode, exitAcronym, exitMsg
 
-    def resolveConfigItem(self, itemName):
+    def get_site_info(self):
         if not self.__siteInfo:
             self.__siteInfo = getSiteInformation(self.__experiment)
             jobSite = self.getJobSite()
             queuename = jobSite.computingElement
             self.__siteInfo.setQueueName(queuename)
+        return self.__siteInfo
+
+    def resolveConfigItem(self, itemName):
+        if not self.__siteInfo:
+            self.__siteInfo = self.get_site_info()
 
         pandaqueue = self.__siteInfo.getQueueName()
         items = self.__siteInfo.resolveItems(pandaqueue, itemName)
@@ -1308,12 +1312,23 @@ class RunJobEvent(RunJob):
                 self.__esToZip = False
                 tolog("Disable tar/zip because job.pandaProxySecretKey is defined")
 
-            catchalls = self.resolveConfigItem('catchall')
-            if 'zip_time_gap=' in catchalls:
-                for catchall in catchalls.split(","):
-                    if 'zip_time_gap' in catchall:
-                        name, value = catchall.split('=')
-                        self.__asyncOutputStager_thread_sleep_time = int(value)
+            pledgedcpu = self.resolveConfigItem('pledgedcpu')
+            if pledgedcpu:
+                try:
+                    if int(pledgedcpu) == -1:
+                        self.__asyncOutputStager_thread_sleep_time = 600
+                    else:
+                        self.__asyncOutputStager_thread_sleep_time = 3600 * 2
+                except:
+                    tolog("Failed to read pledgedcpu: %s" % traceback.format_exc())
+
+            zip_time_gap = self.resolveConfigItem('zip_time_gap')
+            if not (zip_time_gap is None or zip_time_gap == ''):
+                try:
+                    self.__asyncOutputStager_thread_sleep_time = int(value)
+                except:
+                    tolog("Failed to read zip time gap: %s" % traceback.format_exc())
+
             tolog("Sleep time between staging out: %s" % self.__asyncOutputStager_thread_sleep_time)
         except:
             tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
@@ -1636,54 +1651,29 @@ class RunJobEvent(RunJob):
         # To switch to use 'transient' scope for all ES files, we use a pathConvention which is 1000 + pathConvention
         return 1000 if pathConvention is None else pathConvention + 1000
 
-    def stage_out_es(self, job, event_range_id, file_paths, pathConvention=None):
-        """
-        event_range_id: event range id as a string.
-        file_paths: List of file paths.
+    def get_storage_endpoint_and_id(self, ddmconf, siteInfo, pandaqueue, activity):
+        tolog("[get_storage_endpoint_and_id] looking for associated storages with activity: %s" % (activity))
+        associate_storages = siteInfo.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+        endpoints = associate_storages.get(activity, [])
+        if endpoints:
+            tolog("[get_storage_endpoint_and_id] found associated storages %s with activity: %s" % (endpoints, activity))
+            return endpoints[0], ddmconf.get(endpoints[0], {}).get('id', -1)
+        else:
+            return None, None
 
-        In ES, for one event range id, more can one output files can be produced.
-        Only all these files are staged out successfully, the ret_code can be 0 and then the event range can be marked as finished.
-        If one file in the list fails, the event range should be marked as failed.
-        """
-        tolog("To stage out event %s: %s" % (event_range_id, file_paths))
+    def is_blacklisted(self, endpoint):
+        self.__siteInfo = self.get_site_info()
+        ddm_blacklisting = self.__siteInfo.resolveDDMBlacklistingConf()
+        ddm_blacklisting_endpoints = ddm_blacklisting.keys() if ddm_blacklisting else {}
+        tolog("Blacklisted ddm endpoints: %s" % ddm_blacklisting_endpoints)
+        if endpoint in ddm_blacklisting_endpoints:
+            return True
+        return False
 
-        activity = "es_events" ## pilot log special/second transfer
-
-        if not self.__siteInfo:
-            self.__siteInfo = getSiteInformation(self.__experiment)
-            jobSite = self.getJobSite()
-            queuename = jobSite.computingElement
-            self.__siteInfo.setQueueName(queuename)
-
-        if not self.__stageOutDDMEndpoint:
-            # resolve accepted OS DDMEndpoints
-
-            pandaqueue = self.__siteInfo.getQueueName() # FIX ME LATER
-            os_ddms = self.__siteInfo.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
-            ddmconf = self.__siteInfo.resolveDDMConf(os_ddms)
-
-            osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
-
-            tolog("[stage-out-os] [%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
-
-            if osddms:
-                self.__stageOutDDMEndpoint = osddms[0]
-                self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
-                if self.__stageOutStorageId == -1:
-                    self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
-            else:
-                tolog("[stage-out-os] no osddms defined, looking for associated storages with activity: %s" % (activity))
-                associate_storages = self.__siteInfo.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
-                esDDMEndpoints = associate_storages.get(activity, [])
-                if esDDMEndpoints:
-                    tolog("[stage-out-os] found associated storages %s with activity: %s" % (esDDMEndpoints, activity))
-                    self.__stageOutDDMEndpoint = esDDMEndpoints[0]
-                    self.__stageOutStorageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
-                else:
-                    return PilotErrors.ERR_NOSTORAGE, "Failed to stage-out es to OS: no OS_ES ddmendpoint attached to the queue(os_ddms:%s) nor associate es_events activity storage" % (os_ddms), None
-
-            tolog("[stage-out-os] ddmendpoints %s,  storageId %s with activity %s" % (self.__stageOutDDMEndpoint, self.__stageOutStorageId, activity))
-            protocols = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('rprotocols', {})
+    def resolve_os_access_keys(self, ddmconf, endpoint):
+        storage_type = ddmconf.get(endpoint, {}).get('type', {})
+        if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
+            protocols = ddmconf.get(endpoint, {}).get('rprotocols', {})
             access_key = None
             secret_key = None
             is_secure = None
@@ -1702,12 +1692,146 @@ class RunJobEvent(RunJob):
                         if "privateKey" not in keyPair or keyPair["privateKey"] is None:
                             tolog("Failed to get the keyPair for S3 objectstore from panda")
                         else:
-                            os.environ['S3_ACCESS_KEY'] = keyPair["publicKey"]
-                            os.environ['S3_SECRET_KEY'] = keyPair["privateKey"]
-                            os.environ['S3_IS_SECURE'] = str(is_secure)
-                            break
-            tolog("[stage-out] [%s] resolved ddmendpoint=%s for es transfer with access key %s" % (activity, self.__stageOutDDMEndpoint, os.environ.get('S3_ACCESS_KEY', None)))
+                            return 0, {"publicKey": keyPair["publicKey"], "privateKey": keyPair["privateKey"], "is_secure": str(is_secure)}
+        return -1, None
 
+    def reolve_stageout_endpoints(self):
+        storages = {'primary': None, 'failover': None}
+
+        self.__siteInfo = self.get_site_info()
+
+        # resolve accepted OS DDMEndpoints
+
+        pandaqueue = self.__siteInfo.getQueueName() # FIX ME LATER
+        os_ddms = self.__siteInfo.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
+        ddmconf = self.__siteInfo.resolveDDMConf(os_ddms)
+
+        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
+
+        tolog("[reolve_stageout_endpoint] resolved os_ddms=%s => es=%s" % (os_ddms, osddms))
+
+        endpoint, storageId = None, None
+        for osddm in osddms:
+            if not self.is_blacklisted(osddm):
+                endpoint = osddm
+                storageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
+                if storageId == -1:
+                    storageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+
+        if endpoint is None or storageId is None:
+            activity = "es_events" ## pilot log special/second transfer
+            tolog("[reolve_stageout_endpoint] no osddms defined, looking for associated storages with activity: %s" % (activity))
+            endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, activity)
+            tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
+            if endpoint is None or storageId is None:
+                std_activity = 'pw'
+                tolog("[reolve_stageout_endpoint] no ddm endpoints defined for %s, looking for associated storages with activity: %s" % (activity, std_activity))
+                endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, std_activity)
+                tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
+                activity = std_activity
+
+        if not (endpoint is None or storageId is None or self.is_blacklisted(endpoint)):
+            storage_type = ddmconf.get(endpoint, {}).get('type', {})
+            if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
+                ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
+                if ret_code:
+                    tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
+                else:
+                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                    storages['primary']['access_keys'] = access_keys
+            else:
+                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+
+
+        # resolve failover storages
+        activity = "es_failover" ## pilot log special/second transfer
+        tolog("[reolve_stageout_endpoint] looking for associated storages with activity: %s" % (activity))
+        endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, activity)
+        tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
+        if not (endpoint is None or storageId is None or self.is_blacklisted(endpoint)):
+            storage_type = ddmconf.get(endpoint, {}).get('type', {})
+            if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
+                ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
+                if ret_code:
+                    tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
+                else:
+                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                    storages['failover']['access_keys'] = access_keys
+            else:
+                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+
+        tolog("[reolve_stageout_endpoint] resolved storages: primary: %s, failover: %s" % (storages['primary']['endpoint'] if storages['primary'] else None,
+                                                                                           storages['failover']['endpoint'] if storages['failover'] else None))
+
+        if storages['primary'] is None and storages['failover'] is None:
+            return PilotErrors.ERR_NOSTORAGE, "Failed to reolve_stageout_endpoint: no associate storages: %s" % storages
+        return 0, storages
+
+    def stage_out_es(self, job, event_range_id, file_paths, pathConvention=None):
+        """
+        event_range_id: event range id as a string.
+        file_paths: List of file paths.
+
+        In ES, for one event range id, more can one output files can be produced.
+        Only all these files are staged out successfully, the ret_code can be 0 and then the event range can be marked as finished.
+        If one file in the list fails, the event range should be marked as failed.
+        """
+        tolog("To stage out event %s: %s" % (event_range_id, file_paths))
+
+        if self.__stageoutStorages is None or\
+            self.__stageoutStorages['primary'] and self.is_blacklisted(self.__stageoutStorages['primary']['endpoint']) or\
+            self.__stageoutStorages['failover'] and self.is_blacklisted(self.__stageoutStorages['failover']['endpoint']):
+            ret, storages = self.reolve_stageout_endpoints()
+            if ret:
+                 tolog("[stage_out_es] Failed to resolve stageout endpoints: %s, %s" % (ret, storages))
+                 return PilotErrors.ERR_NOSTORAGE, "[stage_out_es] Failed to resolve stageout endpoints: %s, %s" % (ret, storages), None
+            else:
+                self.__stageoutStorages = storages
+
+        ret_code, ret_str, os_bucket_id = -1, None, -1
+        if self.__stageoutStorages['primary']:
+            tolog("[stage_out_es] Trying to stageout with primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
+            try:
+                ret_code, ret_str, os_bucket_id = self.stage_out_es_real(job, event_range_id, file_paths, pathConvention=pathConvention, storage=self.__stageoutStorages['primary'])
+            except Exception, e:
+                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+            if ret_code == 0:
+                tolog("[stage_out_es] Successful to stageout to primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
+                return ret_code, ret_str, os_bucket_id
+            else:
+                tolog("[stage_out_es] Failed to stageout to primary storage(%s): %s, %s" % (self.__stageoutStorages['primary']['endpoint'], ret_code, ret_str))
+        else:
+            tolog("[stage_out_es] Primary storage(%s) is not available" % (self.__stageoutStorages['primary']))
+
+        if self.__stageoutStorages['failover']:
+            tolog("[stage_out_es] Failover storage is defined. Trying to stageout with failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
+            try:
+                ret_code, ret_str, os_bucket_id = self.stage_out_es_real(job, event_range_id, file_paths, pathConvention=pathConvention, storage=self.__stageoutStorages['failover'])
+            except Exception, e:
+                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+            if ret_code == 0:
+                tolog("[stage_out_es] Successful to stageout to failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
+            else:
+                tolog("[stage_out_es] Failed to stageout to failover storage(%s): %s, %s" % (self.__stageoutStorages['failover']['endpoint'], ret_code, ret_str))
+        else:
+            tolog("[stage_out_es] Failover storage(%s) is not available" % (self.__stageoutStorages['failover']))
+
+        return ret_code, ret_str, os_bucket_id
+
+    def stage_out_es_real(self, job, event_range_id, file_paths, pathConvention=None, storage=None):
+        tolog("[stage-out-os] ddmendpoints %s,  storageId %s with activity %s" % (storage['endpoint'], storage['storageId'], storage['activity']))
+        if 'access_keys' in storage:
+            os.environ['S3_ACCESS_KEY'] = storage['access_keys']["publicKey"]
+            os.environ['S3_SECRET_KEY'] = storage['access_keys']["privateKey"]
+            os.environ['S3_IS_SECURE'] = storage['access_keys']['is_secure']
+            tolog("[stage-out] [%s] resolved ddmendpoint=%s for es transfer with access key %s" % (storage['activity'], storage['endpoint'], os.environ.get('S3_ACCESS_KEY', None)))
+        else:
+            if 'S3_ACCESS_KEY' in os.environ:
+                del os.environ['S3_ACCESS_KEY']
+            if 'S3_SECRET_KEY' in os.environ:
+                del os.environ['S3_SECRET_KEY']
+            if 'S3_IS_SECURE' in os.environ:
+                del os.environ['S3_IS_SECURE']
 
         try:
             osPublicKey = self.__siteInfo.getObjectstoresField("os_access_key", os_bucket_name="eventservice")
@@ -1719,6 +1843,7 @@ class RunJobEvent(RunJob):
         except:
             tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
             osPrivateKey = ""
+
         files = []
         for file_path in file_paths:
             file_dict = {'lfn': os.path.basename(file_path),
@@ -1726,9 +1851,9 @@ class RunJobEvent(RunJob):
                          'dataset': job.destinationDblock[0],
                          'scope': 'transient',
                          'eventRangeId': event_range_id,
-                         'storageId': self.__stageOutStorageId,
-                         'pathConvention': self.getTransientPathConvention(),
-                         'ddmendpoint': self.__stageOutDDMEndpoint,
+                         'storageId': storage['storageId'],
+                         'pathConvention': self.getTransientPathConvention(pathConvention),
+                         'ddmendpoint': storage['endpoint'],
                          'pandaProxySecretKey': job.pandaProxySecretKey,
                          'jobId':job.jobId,
                          'osPrivateKey':osPrivateKey,
@@ -1739,8 +1864,7 @@ class RunJobEvent(RunJob):
             files.append(finfo)
             job.addStageOutESFiles(finfo)
 
-        #ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=self.getStageOutRetry(), files=files, workDir=None)
-        ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=1, files=files, workDir=None)
+        ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=2, files=files, workDir=None, activity=storage['activity'])
         if os_bucket_id is None or os_bucket_id == 0:
             os_bucket_id = -1
         return ret_code, ret_str, os_bucket_id
@@ -3013,10 +3137,7 @@ class RunJobEvent(RunJob):
                 return status, output
             else:
                 activity = "es_events"
-                self.__siteInfo = getSiteInformation(self.__experiment)
-                jobSite = self.getJobSite()
-                queuename = jobSite.computingElement
-                self.__siteInfo.setQueueName(queuename)
+                self.__siteInfo = self.get_site_info()
 
                 pandaqueue = self.__siteInfo.getQueueName() # FIX ME LATER
                 os_ddms = self.__siteInfo.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])

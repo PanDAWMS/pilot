@@ -46,7 +46,7 @@ class JobMover(object):
     _stagein_sleeptime_min = 20       # seconds, min allowed sleep time in case of stagein failure
     _stagein_sleeptime_max = 50       # seconds, max allowed sleep time in case of stagein failure
 
-    _stageout_sleeptime_min = 4.9*60  # seconds, min allowed sleep time in case of stageout failure
+    _stageout_sleeptime_min = 1*60  # seconds, min allowed sleep time in case of stageout failure
     _stageout_sleeptime_max = 5*60    # seconds, max allowed sleep time in case of stageout failure
 
 
@@ -75,8 +75,8 @@ class JobMover(object):
     def calc_stagein_sleeptime(self):
         return uniform(self._stagein_sleeptime_min, self._stagein_sleeptime_max)
 
-    def calc_stageout_sleeptime(self):
-        return uniform(self._stageout_sleeptime_min, self._stageout_sleeptime_max)
+    def calc_stageout_sleeptime(self, attempt=1):
+        return uniform(self._stageout_sleeptime_min, min(self._stageout_sleeptime_max, (attempt + 1) * self._stageout_sleeptime_min))
 
     @property
     def stageoutretry(self):
@@ -440,25 +440,6 @@ class JobMover(object):
         if normal_files:
             self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
             transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr', sitename=sitename)
-
-        if failed_transfers:
-            self.log("Failed to transfer normal files: %s" % failed_transfers)
-            # if it's eventservice, can try remote stagein
-            remain_files = [e for e in normal_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
-            remain_non_es_input_files = [e for e in remain_files if not e.eventService]
-
-            # there are non eventservcie input files, will not continue
-            if remain_non_es_input_files:
-                return transferred_files, failed_transfers
-
-            # all are eventservice input files, consider remote inputs
-            for e in remain_files:
-                e.allowRemoteInputs = True
-                e.allowAllInputRSEs = True
-            copytools = [('rucio', {'setup': ''})]
-            transferred_files, failed_transfers = self.stagein_real(files=remain_files, activity='es_read', copytools=copytools, sitename=sitename)
-            if failed_transfers:
-                return transferred_files, failed_transfers
 
         if es_files:
             self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
@@ -1161,7 +1142,7 @@ class JobMover(object):
                     # loop over multple stage-out attempts
                     for _attempt in xrange(1, self.stageoutretry + 1):
                         if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                            sleep_time = self.calc_stageout_sleeptime()
+                            sleep_time = self.calc_stageout_sleeptime(_attempt)
                             self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (sleep_time, fdata.lfn))
                             time.sleep(sleep_time)
 
@@ -1426,7 +1407,7 @@ class JobMover(object):
                 for _attempt in xrange(1, self.stageoutretry + 1):
 
                     if _attempt > 1: # if not first stage-out attempt, take a nap before next attempt
-                        sleep_time = self.calc_stageout_sleeptime()
+                        sleep_time = self.calc_stageout_sleeptime(_attempt)
                         self.log(" -- Waiting %d seconds before next stage-out attempt for file=%s --" % (sleep_time, filename))
                         time.sleep(sleep_time)
 

@@ -38,6 +38,7 @@ class SiteInformation(object):
     __queuename = ""                       # Name of the queue
     __benchmarks = None                    # The benchmarks dictionary
     ddmconf = {}                           # DDMEndpoints data dict with protocols definition
+    ddmblacklistingconf = {}               # DDMBlacklisting Endpoints, dict
 
     def __init__(self):
         """ Default initialization """
@@ -1956,6 +1957,57 @@ class SiteInformation(object):
             ret.setdefault(ddm, protocols)
 
         return ret
+
+
+    def loadDDMBlacklistingConfData(self, cache_time=60):
+
+        # try to get data from CVMFS first
+        # then AGIS or Panda JSON sources
+        # passing cache time is a quick hack to avoid overloading
+
+        # list of sources to fetch ddmconf data from
+        base_dir = os.environ.get('PilotHomeDir', '')
+        ddmconf_sources = {'CVMFS': {'url': '/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmblacklisting.json',
+                                     'nretry': 1,
+                                     'fname': os.path.join(base_dir, 'agis_ddmblacklisting.cvmfs.json')},
+                           'AGIS':  {'url':'http://atlas-agis-api.cern.ch/request/ddmendpointstatus/query/list/?json&fstate=OFF',
+                                     'nretry':3,
+                                     'fname': os.path.join(base_dir, 'agis_ddmblacklisting.agis.json')},
+                           'LOCAL': {'url':None,
+                                     'nretry':1,
+                                     'fname': os.path.join(base_dir, 'agis_ddmblacklisting.json')},
+                           'PANDA' : None
+        }
+
+        ddmconf_sources_order = ['LOCAL', 'CVMFS', 'AGIS'] # can be moved into the schedconfig in order to configure workflow in AGIS on fly: TODO
+
+        for key in ddmconf_sources_order:
+            tolog("Loading DDMBlacklistingConfData from source %s" % key)
+            dat = ddmconf_sources.get(key)
+            if not dat:
+                continue
+
+            content = self.loadURLData(cache_time=cache_time, **dat)
+            if not content:
+                continue
+            try:
+                data = json.loads(content)
+            except Exception, e:
+                tolog("!!WARNING: loadDDMConfData(): Failed to parse JSON content from source=%s .. skipped, error=%s" % (dat.get('url'), e))
+                data = None
+
+            if data and isinstance(data, dict):
+                return data
+
+        return None
+
+    def resolveDDMBlacklistingConf(self):
+        """
+        Reload DDM Blaclisting conf every hour.
+        """
+        self.ddmblacklistingconf = self.loadDDMBlacklistingConfData(cache_time=3600) or {}
+
+        return self.ddmblacklistingconf
 
 
     def loadSchedConfData(self, pandaqueues=[], cache_time=60):
