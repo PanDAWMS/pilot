@@ -2184,6 +2184,9 @@ class RunJobEvent(RunJob):
             if finished_first_upload:
                 sleep_time = self.__asyncOutputStager_thread_sleep_time
             if len(self.__stageout_queue) > 0 and time.time() > run_time + sleep_time:
+                if not finished_first_upload and len(self.__stageout_queue) < self.__job.coreCount:
+                    tolog("Wait 1 minute for every core to finish one event.")
+                    time.sleep(60)
                 tolog("Asynchronous output stager thread working")
                 run_time = time.time()
                 if not self.__esToZip:
