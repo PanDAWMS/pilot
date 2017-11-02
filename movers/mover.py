@@ -194,6 +194,8 @@ class JobMover(object):
             :return: `files`
         """
 
+        self.log('0. files=%s'%files)
+
         # build list of local ddmendpoints grouped by site
         ddms = {}
         for ddm, dat in self.ddmconf.iteritems():
@@ -226,7 +228,7 @@ class JobMover(object):
         xfiles = [e for e in files if e.storageId is None]
         if not xfiles:
             return files
-
+        self.log('xfiles=%s'%xfiles)
         # load replicas from Rucio
         from rucio.client import Client
         c = Client()
@@ -269,6 +271,7 @@ class JobMover(object):
                 continue
             fdat.replicas = [] # reset replicas list
 
+            # local replicas
             for ddm in fdat.inputddms:
                 if ddm not in r['rses']: # skip not interesting rse
                     continue
@@ -279,7 +282,10 @@ class JobMover(object):
                         ddm_path += '/'
                     ddm_path += 'rucio/'
 
-                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+                if (directaccesstype == "WAN" or directaccesstype == "LAN") and not ddm_se.startswith('root://'):
+                    continue
+                else:
+                    fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
             # if directaccess WAN, allow remote replicas
             if directaccesstype == "WAN":
@@ -294,7 +300,7 @@ class JobMover(object):
                 #self.log("turl=%s" % turl)
 
             if not fdat.replicas and fdat.allowRemoteInputs:
-                self.log("No local replicas (%s) and allowRemoteInputs is set, looking for remote inputs" % fdat.replicas)
+                self.log("No local replicas and allowRemoteInputs is set, looking for remote inputs")
                 for ddm in r['rses']:
                     ddm_se = self.ddmconf[ddm].get('se', '')
                     ddm_path = self.ddmconf[ddm].get('endpoint', '')
@@ -302,9 +308,13 @@ class JobMover(object):
                         if ddm_path[-1] != '/':
                             ddm_path += '/'
                         ddm_path += 'rucio/'
-                    break # just take the first replica for now - need to use LAN and WAN setting betters, as well as geo-sorting
 
-                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+                    if not ddm_se.startswith('root://'):
+                        continue
+                    else:
+                        # the root replica has been found
+                        fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+                        break
 
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
@@ -315,6 +325,8 @@ class JobMover(object):
 
             # update filesize & checksum info from Rucio?
             # TODO
+
+        self.log('fdat.replicas=%s'%fdat.replicas)
 
         self.log('files=%s'%files)
         return files
