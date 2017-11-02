@@ -94,10 +94,39 @@ M movers/mover.py (13)
 General changes:
 - Added TURL to file state dictionary in stagein_real(), needed for direct access in prod jobs (mover)
 - Now using proper job.isAnalysisJob() in __main__() (RunJob)
+- Corrected exception handling in getContainerName() (Singularity)
 
 Now using associated storages when looking up replicas by getting all associated endpoints from astorages
 - Using resolvePandaAssociatedStorages() instead of _prepare_input_ddm() in resolve_replicas() (mover)
 - As discussed in thread "Multiple read DATADISK per PQ"
+
+Updates from Wen Guan:
+
+You can view, comment on, or merge this pull request online at:
+
+  https://github.com/PanDAWMS/pilot/pull/167
+
+1. clean 'es_read' activity in pilot: 'es_read' was added to read remotely for cases to run ES when there is a local
+storage downtime. It's not used.
+2. to support failover for es: attach two storages in agis for ES, if the first one fails, it will failover to the
+second storage. For the first storage, it will use 'es_events' activity if defined, otherwise it will use 'pw'
+activity. So for opportunistic PQs, we need to define 'es_events', but for normal PQs, we can run ES without defining
+'es_events'.
+3. update the default zip_time_gap. If pledgedcpu is -1, default zip_time_gap is 600 s (10 minutes). Otherwise it's 2 hours.
+4. based on es_failover, ES can support storages blacklisting: either es_events or es_failover can be blacklisted.
+
+Commit Summary
+clean "es_read" activity
+to support failover for es stageout
+update sleep time based on attempts
+update to read zip_time_gap in agis
+fix objectstore keypaire usage in failover storage
+to support blacklist for ES
+File Changes
+M Mover.py (7)
+M RunJobEvent.py (261)
+M SiteInformation.py (52)
+M movers/mover.py (29)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

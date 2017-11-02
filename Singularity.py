@@ -86,7 +86,7 @@ def getContainerName(user="pilot"):
                 t = name.split(':')
                 if user == t[1]:
                     container_name = t[0]
-        except:
+        except Exception as e:
             tolog("Failed to parse the container name: %s, %s" % (container_type, e))
     else:
         tolog("Container type not specified in queuedata")
