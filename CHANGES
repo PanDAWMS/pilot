@@ -116,13 +116,16 @@ activity. So for opportunistic PQs, we need to define 'es_events', but for norma
 4. based on es_failover, ES can support storages blacklisting: either es_events or es_failover can be blacklisted.
 
 Commit Summary
+
 clean "es_read" activity
 to support failover for es stageout
 update sleep time based on attempts
 update to read zip_time_gap in agis
 fix objectstore keypaire usage in failover storage
 to support blacklist for ES
+
 File Changes
+
 M Mover.py (7)
 M RunJobEvent.py (261)
 M SiteInformation.py (52)
