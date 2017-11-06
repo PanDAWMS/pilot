@@ -127,6 +127,7 @@ class RunJobEvent(RunJob):
 
     # error fatal code
     __esFatalCode = None
+    __isKilled = False
 
     # external stagout time(time after athenaMP terminated)
     __external_stagout_time = 0
@@ -1938,6 +1939,22 @@ class RunJobEvent(RunJob):
 
         return None
 
+    def checkSoftMessage(self, msg=None):
+        job = self.getJob()
+        if (msg and "tobekilled" in msg) or (job and pUtil.checkLockFile(job.workdir, "JOBWILLBEKILLED")):
+            self.__isKilled = True
+            tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+            self.setAbort()
+            self.setToBeKilled()
+            if job:
+                job.subStatus = 'pilot_killed'
+        if (msg and "softkill" in msg) or (job and pUtil.checkLockFile(job.workdir, "SOFTKILL")):
+            tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+            self.__isKilled = True
+            self.sendMessage("No more events")
+            if job:
+                job.subStatus = 'softkilled'
+
     def stageOutZipFiles_new(self, output_name=None, output_eventRanges=None, output_eventRange_id=None):
         if not self.__esToZip:
             tolog("ES to zip is not configured")
@@ -2003,6 +2020,7 @@ class RunJobEvent(RunJob):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    self.checkSoftMessage(output)
                 self.__nStageOutFailures += 1
                 self.__nStageOutSuccessAfterFailure = 0
             else:
@@ -2025,6 +2043,7 @@ class RunJobEvent(RunJob):
                         event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'fsize': filesize, checksum_type: checksum, 'numEvents': numEvents}}]
                     status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1, jobId = self.__job.jobId, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    self.checkSoftMessage(output)
                 self.__nStageOutSuccessAfterFailure += 1
                 if self.__nStageOutSuccessAfterFailure > 10:
                     self.__nStageOutFailures = 0
@@ -2096,6 +2115,7 @@ class RunJobEvent(RunJob):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    self.checkSoftMessage(output)
             else:
                 eventRanges = []
                 for eventRangeID in output_eventRanges:
@@ -2107,6 +2127,7 @@ class RunJobEvent(RunJob):
                     event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
                     status, output = updateEventRanges(event_status, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey=self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    self.checkSoftMessage(output)
         else:
             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
 
@@ -2177,13 +2198,19 @@ class RunJobEvent(RunJob):
 
         sleep_time = 60
         finished_first_upload = False
+        first_observe_iskilled = None
         run_time = time.time()
         tolog("Asynchronous output stager thread initiated")
         while not self.__asyncOutputStager_thread.stopped():
           try:
             if finished_first_upload:
                 sleep_time = self.__asyncOutputStager_thread_sleep_time
-            if len(self.__stageout_queue) > 0 and time.time() > run_time + sleep_time:
+            if self.__isKilled and first_observe_iskilled is None:
+                first_observe_iskilled = True
+                sleep_time = 5 * 60
+            if len(self.__stageout_queue) > 0 and (time.time() > run_time + sleep_time or first_observe_iskilled):
+                if first_observe_iskilled:
+                    first_observe_iskilled = False
                 if not finished_first_upload and len(self.__stageout_queue) < self.__job.coreCount:
                     tolog("Wait 1 minute for every core to finish one event.")
                     time.sleep(60)
@@ -3846,6 +3873,7 @@ if __name__ == "__main__":
                 # agreed to only report stagedout events to panda
                 job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+                runJob.checkSoftMessage()
 
             runJob.checkStageOutFailures()
 

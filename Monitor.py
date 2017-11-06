@@ -433,14 +433,17 @@ class Monitor:
 
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
-            # kill the job
-            #pUtil.tolog("Going to kill pid %d" %lineno())
-            pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
-            killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
-            self.__env['jobDic'][k][1].result[0] = "failed"
-            self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
-            self.__env['jobDic'][k][1].result[2] = self.__error.ERR_REACHEDMAXTIME
-            self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
+            if self.__env['jobDic'][k][1].eventService:
+                pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="SOFTKILL")
+            else:
+                # kill the job
+                #pUtil.tolog("Going to kill pid %d" %lineno())
+                pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
+                killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
+                self.__env['jobDic'][k][1].result[0] = "failed"
+                self.__env['jobDic'][k][1].currentState = self.__env['jobDic'][k][1].result[0]
+                self.__env['jobDic'][k][1].result[2] = self.__error.ERR_REACHEDMAXTIME
+                self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
 
             # store the error info
             updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
@@ -644,6 +647,11 @@ class Monitor:
 
                     # store the error info
                     updatePilotErrorReport(self.__env['jobDic'][k][1].result[2], pilotErrorDiag, "1",  self.__env['jobDic'][k][1].jobId, self.__env['pilot_initdir'])
+
+                if "softkill" in self.__env['jobDic'][k][1].action:
+                    pilotErrorDiag = "Pilot received a panda server softkill signal to kill job %s at %s" %\
+                                     (self.__env['jobDic'][k][1].jobId, pUtil.timeStamp())
+                    pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="SOFTKILL")
 
                 # did we receive a command to turn on debug mode?
                 if "debug" in self.__env['jobDic'][k][1].action.lower():
