@@ -657,7 +657,7 @@ class JobMover(object):
                     #updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
                     self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='prefetch')
                     self.sendTrace(self.trace_report)
-                    #continue - if we continue here, the the file will not be staged in, but AthenaMP needs it so we still need to stage it in
+                    continue  # - if we continue here, the the file will not be staged in, but AthenaMP needs it so we still need to stage it in
 
                 # apply site-mover custom job-specific checks for stage-in
                 try:

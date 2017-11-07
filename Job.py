@@ -108,7 +108,6 @@ class Job:
         self.dbTime = ""                   # dbTime extracted from jobReport.json, to be used in jobMetrics
         self.dbData = ""                   # dbData extracted from jobReport.json, to be used in jobMetrice
         self.putLogToOS = False            # Job def instruction to ask pilot to transfer log to OS
-        self.resourceType = ""             # Resource type (MCORE, SCORE) as set by pilot option
 
         #  event service data
         self.eventService = False          # True for event service jobs
