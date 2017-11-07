@@ -100,6 +100,9 @@ Now using associated storages when looking up replicas by getting all associated
 - Using resolvePandaAssociatedStorages() instead of _prepare_input_ddm() in resolve_replicas() (mover)
 - As discussed in thread "Multiple read DATADISK per PQ"
 
+Resource type
+- Added new pilot option -R <resourceType>, forwarded to dispatcher with getJob. Requested by Tadashi Maeno (pilot, Job)
+
 Updates from Wen Guan:
 
 You can view, comment on, or merge this pull request online at:
