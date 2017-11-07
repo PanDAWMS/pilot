@@ -2009,6 +2009,12 @@ def getDispatcherDictionary(_diskSpace, tofile):
         pUtil.tolog("Resource type: %s" % env['resourceType'])
         jNode['resourceType'] = env['resourceType']
 
+    if 'HARVESTER_ID' in os.environ:
+        jNode['harvester_id'] = os.environ['HARVESTER_ID']
+
+    if 'HARVESTER_WORKER_ID' in os.environ:
+        jNode['worker_id'] = os.environ['HARVESTER_WORKER_ID']
+
     # should the job be requested for a special DN?
     if env['uflag'] == 'self':
         # get the pilot submittor DN, and only process this users jobs
