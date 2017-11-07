@@ -1346,7 +1346,7 @@ class RunJobEvent(RunJob):
             zip_time_gap = self.resolveConfigItem('zip_time_gap')
             if not (zip_time_gap is None or zip_time_gap == ''):
                 try:
-                    self.__asyncOutputStager_thread_sleep_time = int(value)
+                    self.__asyncOutputStager_thread_sleep_time = int(zip_time_gap)
                 except:
                     tolog("Failed to read zip time gap: %s" % traceback.format_exc())
 
@@ -1735,23 +1735,23 @@ class RunJobEvent(RunJob):
         for osddm in osddms:
             if not self.is_blacklisted(osddm):
                 endpoint = osddm
-                storageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
+                storageId = ddmconf.get(endpoint, {}).get('id', -1)
                 if storageId == -1:
-                    storageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+                    storageId = ddmconf.get(endpoint, {}).get('resource', {}).get('bucket_id', -1)
 
-        if endpoint is None or storageId is None:
+        if endpoint is None or storageId is None or storageId == -1:
             activity = "es_events" ## pilot log special/second transfer
             tolog("[reolve_stageout_endpoint] no osddms defined, looking for associated storages with activity: %s" % (activity))
             endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, activity)
             tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
-            if endpoint is None or storageId is None:
+            if endpoint is None or storageId is None or storageId == -1:
                 std_activity = 'pw'
                 tolog("[reolve_stageout_endpoint] no ddm endpoints defined for %s, looking for associated storages with activity: %s" % (activity, std_activity))
                 endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, std_activity)
                 tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
                 activity = std_activity
 
-        if not (endpoint is None or storageId is None or self.is_blacklisted(endpoint)):
+        if not (endpoint is None or storageId is None or storageId == -1 or self.is_blacklisted(endpoint)):
             storage_type = ddmconf.get(endpoint, {}).get('type', {})
             if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
                 ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
@@ -1769,7 +1769,7 @@ class RunJobEvent(RunJob):
         tolog("[reolve_stageout_endpoint] looking for associated storages with activity: %s" % (activity))
         endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, activity)
         tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
-        if not (endpoint is None or storageId is None or self.is_blacklisted(endpoint)):
+        if not (endpoint is None or storageId is None or storageId == -1 or self.is_blacklisted(endpoint)):
             storage_type = ddmconf.get(endpoint, {}).get('type', {})
             if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
                 ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
@@ -2209,6 +2209,7 @@ class RunJobEvent(RunJob):
                 first_observe_iskilled = True
                 sleep_time = 5 * 60
             if len(self.__stageout_queue) > 0 and (time.time() > run_time + sleep_time or first_observe_iskilled):
+                tolog('Sleeped time: %s, is killed: %s' % (sleep_time, self.__isKilled))
                 if first_observe_iskilled:
                     first_observe_iskilled = False
                 if not finished_first_upload and len(self.__stageout_queue) < self.__job.coreCount:
