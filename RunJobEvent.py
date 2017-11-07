@@ -124,6 +124,7 @@ class RunJobEvent(RunJob):
     __nEventsFailedStagedOut = 0
     __nStageOutFailures = 0
     __nStageOutSuccessAfterFailure = 0
+    __isLastStageOutFailed = False
 
     # error fatal code
     __esFatalCode = None
@@ -1758,10 +1759,10 @@ class RunJobEvent(RunJob):
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
-                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
                     storages['primary']['access_keys'] = access_keys
             else:
-                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
 
 
         # resolve failover storages
@@ -1776,10 +1777,10 @@ class RunJobEvent(RunJob):
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
-                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
                     storages['failover']['access_keys'] = access_keys
             else:
-                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
 
         tolog("[reolve_stageout_endpoint] resolved storages: primary: %s, failover: %s" % (storages['primary']['endpoint'] if storages['primary'] else None,
                                                                                            storages['failover']['endpoint'] if storages['failover'] else None))
@@ -1809,8 +1810,8 @@ class RunJobEvent(RunJob):
             else:
                 self.__stageoutStorages = storages
 
-        ret_code, ret_str, os_bucket_id = -1, None, -1
-        if self.__stageoutStorages['primary']:
+        ret_code, ret_str, os_bucket_id = PilotErrors.ERR_STAGEOUTFAILED, "Stageout failed", -1
+        if self.__stageoutStorages['primary'] and self.__stageoutStorages['primary']['continousErrors'] < 3:
             tolog("[stage_out_es] Trying to stageout with primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
             try:
                 ret_code, ret_str, os_bucket_id = self.stage_out_es_real(job, event_range_id, file_paths, pathConvention=pathConvention, storage=self.__stageoutStorages['primary'])
@@ -1818,12 +1819,16 @@ class RunJobEvent(RunJob):
                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
             if ret_code == 0:
                 tolog("[stage_out_es] Successful to stageout to primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
+                self.__stageoutStorages['primary']['continousErrors'] = 0
                 return ret_code, ret_str, os_bucket_id
             else:
                 tolog("[stage_out_es] Failed to stageout to primary storage(%s): %s, %s" % (self.__stageoutStorages['primary']['endpoint'], ret_code, ret_str))
+                self.__stageoutStorages['primary']['continousErrors'] += 1
         else:
-            tolog("[stage_out_es] Primary storage(%s) is not available" % (self.__stageoutStorages['primary']))
+            tolog("[stage_out_es] Primary storage(%s) is not available or reached 3 times countinous errors(continousErrors:%s)" %
+                  (self.__stageoutStorages['primary'], self.__stageoutStorages['primary']['continousErrors']))
 
+        ret_code, ret_str, os_bucket_id = PilotErrors.ERR_STAGEOUTFAILED, "Stageout failed", -1
         if self.__stageoutStorages['failover']:
             tolog("[stage_out_es] Failover storage is defined. Trying to stageout with failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
             try:
@@ -1832,8 +1837,11 @@ class RunJobEvent(RunJob):
                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
             if ret_code == 0:
                 tolog("[stage_out_es] Successful to stageout to failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
+                self.__stageoutStorages['failover']['continousErrors'] = 0
+                return ret_code, ret_str, os_bucket_id
             else:
                 tolog("[stage_out_es] Failed to stageout to failover storage(%s): %s, %s" % (self.__stageoutStorages['failover']['endpoint'], ret_code, ret_str))
+                self.__stageoutStorages['failover']['continousErrors'] += 1
         else:
             tolog("[stage_out_es] Failover storage(%s) is not available" % (self.__stageoutStorages['failover']))
 
@@ -2002,8 +2010,10 @@ class RunJobEvent(RunJob):
             errorCode = None
             if ec == 0:
                 status = 'finished'
+                self.__isLastStageOutFailed = False
             else:
                 status = 'failed'
+                self.__isLastStageOutFailed = True
                 errorCode = self.__error.ERR_STAGEOUTFAILED
 
                 # Update the global status field in case of failure
@@ -2205,9 +2215,12 @@ class RunJobEvent(RunJob):
           try:
             if finished_first_upload:
                 sleep_time = self.__asyncOutputStager_thread_sleep_time
-            if self.__isKilled and first_observe_iskilled is None:
-                first_observe_iskilled = True
+            if self.__isLastStageOutFailed:
+                sleep_time = 600
+            if self.__isKilled:
                 sleep_time = 5 * 60
+                if first_observe_iskilled is None:
+                    first_observe_iskilled = True
             if len(self.__stageout_queue) > 0 and (time.time() > run_time + sleep_time or first_observe_iskilled):
                 tolog('Sleeped time: %s, is killed: %s' % (sleep_time, self.__isKilled))
                 if first_observe_iskilled:
@@ -3332,6 +3345,14 @@ class RunJobEvent(RunJob):
         if self.__nStageOutFailures >= 3:
             tolog("Too many stageout failures, send 'No more events' to AthenaMP")
             self.sendMessage("No more events")
+        if self.__stageoutStorages:
+            if ((self.__stageoutStorages['primary'] is None or 
+                 self.__stageoutStorages['primary'] and self.__stageoutStorages['primary']['continousErrors'] >= 3) and 
+                (self.__stageoutStorages['failover'] is None or 
+                 self.__stageoutStorages['failover'] and self.__stageoutStorages['failover']['continousErrors'] >= 3)):
+                 tolog("Too many stageout failures, send 'No more events' to AthenaMP")
+                 self.sendMessage("No more events")
+
 
     def updateJobParsForBrackets(self, jobPars, inputFiles):
         """ Replace problematic bracket lists with full file names """
