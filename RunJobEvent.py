@@ -3491,8 +3491,6 @@ if __name__ == "__main__":
             tolog(runJob.getGlobalPilotErrorDiag())
             if sig == signal.SIGTERM:
                 runJob.setGlobalErrorCode(error.ERR_SIGTERM)
-                runJob.setAsyncOutputStagerSleepTime(sleep_time=0)
-                runJob.asynchronousOutputStager()
             elif sig == signal.SIGQUIT:
                 runJob.setGlobalErrorCode(error.ERR_SIGQUIT)
             elif sig == signal.SIGSEGV:
@@ -3506,6 +3504,10 @@ if __name__ == "__main__":
             else:
                 runJob.setGlobalErrorCode(error.ERR_KILLSIGNAL)
             runJob.setFailureCode(runJob.getGlobalErrorCode())
+
+            runJob.setAsyncOutputStagerSleepTime(sleep_time=0)
+            runJob.asynchronousOutputStager()
+
             # print to stderr
             print >> sys.stderr, runJob.getGlobalPilotErrorDiag()
             raise SystemError(sig)
