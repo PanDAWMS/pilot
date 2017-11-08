@@ -1,9 +1,8 @@
 # This module contains functions related to file handling.
 
 import os
-import time
 
-from pUtil import tolog, convert, getSiteInformation, readpar
+from pUtil import tolog, convert, readpar
 
 def openFile(filename, mode):
     """ Open and return a file pointer for the given mode """
@@ -933,8 +932,9 @@ def getDirectAccess():
     if directInLAN:
         directInType = 'LAN'
         directIn = True
-    if directInWAN and directInLAN:
+    if directInWAN:
         directInType = 'WAN' # Overrides LAN if both booleans are set to True
+        directIn = True
 
     return directIn, directInType
 

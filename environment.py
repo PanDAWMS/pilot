@@ -94,6 +94,7 @@ def set_environment():
     # panda proxy variables
     env['panda_proxy_url'] = ""
     env['panda_proxy_port'] = ""
+    env['resourceType'] = ""
 
     # to test site mover
     env['copytool'] = 'gfal-copy'

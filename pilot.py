@@ -47,7 +47,7 @@ def usage():
         -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry>
         -B <allowSingleUser> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime>
         -H <cache> -I <schedconfigURL> -N <yodaNodes> -Q <yodaQueue> -M <use_newmover> -O <panda_proxy_url>
-        -P <panda_proxy_port> -T <maxtime>
+        -P <panda_proxy_port> -R <resourceType> -T <maxtime>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -88,6 +88,7 @@ def usage():
                <yodaQueue> The queue Yoda jobs will be sent to
                <use_newmover> Boolean flag that switches pilot to use new sitemovers workflow by default
                <maxtime> The maximum time that the pilot can run, in minutes.
+               <resourceType> MCORE, SCORE
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__
@@ -122,7 +123,7 @@ def argParser(argv):
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
-        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:M:N:O:P:Q:T:')
+        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:M:N:O:P:Q:R:T:')
     except getopt.GetoptError:
         print "Invalid arguments and options!"
         usage()
@@ -354,6 +355,9 @@ def argParser(argv):
 
         elif o == "-Q":
             env['yodaQueue'] = a
+
+        elif o == "-R":
+            env['resourceType'] = a
 
         else:
             print "Unknown option: %s (ignoring)" % o
@@ -2011,6 +2015,16 @@ def getDispatcherDictionary(_diskSpace, tofile):
         pUtil.tolog("allowOtherCountry is set to True (will be sent to dispatcher)")
         jNode['allowOtherCountry'] = env['allowOtherCountry']
 
+    if env['resourceType'] != "":
+        pUtil.tolog("Resource type: %s" % env['resourceType'])
+        jNode['resourceType'] = env['resourceType']
+
+    if 'HARVESTER_ID' in os.environ:
+        jNode['harvester_id'] = os.environ['HARVESTER_ID']
+
+    if 'HARVESTER_WORKER_ID' in os.environ:
+        jNode['worker_id'] = os.environ['HARVESTER_WORKER_ID']
+
     # should the job be requested for a special DN?
     if env['uflag'] == 'self':
         # get the pilot submittor DN, and only process this users jobs
@@ -2729,7 +2743,9 @@ def runMain(runpars):
             # create the first job, usually a production job, but analysis job is ok as well
             # we just use the first job as a MARKER of the "walltime" of the pilot
             env['isJobDownloaded'] = False # (reset in case of multi-jobs)
+            tp_0 = os.times()
             ec, env['job'], env['number_of_jobs'] = getJob()
+            tp_1 = os.times()
             if ec != 0:
                 # remove the site workdir before exiting
                 # pUtil.writeExitCode(thisSite.workdir, error.ERR_GENERALERROR)
@@ -2741,6 +2757,7 @@ def runMain(runpars):
             else:
                 env['isJobDownloaded'] = True
                 pUtil.tolog("Using job definition id: %s" % (env['job'].jobDefinitionID))
+                env['job'].timeGetJob = int(round(tp_1[4] - tp_0[4]))
 
             # verify any contradicting job definition parameters here
             try:

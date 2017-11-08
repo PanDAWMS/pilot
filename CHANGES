@@ -2,392 +2,28 @@ Complete change log for the Pilot 1
 -----------------------------------
 
 
-70.0
-
-General changes
-- Removed function getNumberOfCores() as it is not used (Node)
-- Modernized file open in collectWNInfo() (Node)
-- Reset cpuConsumptionTime to -1 if > 10**9 in getNodeStructure(). Requested by Wenjing Wu (PandaServerClient)
-- Now looking for local agis_ddmendpoints.json before trying download from AGIS/CVMFS, in loadDDMConfData(). Requested by Wenjing Wu (SiteInformation)
-- Added ckpt* to removeRedundantFiles() (ATLASExperiment)
-- Using with open in loadURLData(), grammatical change, removed warning text (SiteInformation)
-- Added WebDAV protocol ('davs') to GFAL2 mover, requested Frank Berghaus (gfalcopy_sitemover)
-
-Core count and core info
-- Simplified setNumberOfCores() as discussed in JIRA ticket https://its.cern.ch/jira/browse/ADCDPA-49
-- Renamed setNumberOfCores() to getNumberOfCores() (Node)
-- Created getNumberOfCoresFromEnvironment() (Node)
-- Now setting job.coreCount in getNewJob() (pilot)
-- Created collectCoreInfo() (Node)
-- Created isAVirtualMachine() (Node)
-- Added core info (threads_per_core, cores_per_socket, sockets and if running in a VM) to benchmark dictionary. Requested by Ilija Vukotic (JobLog)
-
-ATHENA_PROC_NUMBER
-- Created addAthenaProcNumber() (ATLASExperiment)
-- Now adding ATHENA_PROC_NUMBER explicitly to payload execution command, as long as it has a value > 1 (ATLASExperiment)
-- The pilot is not overwriting ATHENA_PROC_NUMBER but is using a tmp variable instead (ATHENA_PROC_NUMBER_JOB)
-
-Direct access
-- Removed name conflicts (there is both is_directaccess and is_directaccess() in stagein_real()) (mover)
-- Rewrote is_directaccess(), renamed it to get_directaccess(), returning both allow_directaccess and type (mover)
-- Sending directaccesstype to resolve_replicas(), added argument (mover)
-- Created get_pfns() and get_turls() (mover)
-- Created getReplicaDictionaryFromXML() (FileHandling)
-- Created addFullPathsAsInput() (RunJobUtilities)
-- Updated getDirectAccess() to be stricter (FileHandling)
-
-Updates from Alexander Bogdanchikov
-
-  https://github.com/PanDAWMS/pilot/pull/137
-
-Commit Summary
-
-new ES panda proxy features for BOINC
-
-File Changes
-
-M EventRanges.py (24)
-A EventRangesPandaProxy.py (145)
-M Job.py (8)
-M PILOTVERSION (2)
-M RunJobEvent.py (46)
-A S3ObjectstorePresignedURLSiteMover.py (510)
-M movers/mv_sitemover.py (31)
-A movers/pandaproxy_sitemover.py (252)
-M movers/sitemovers.py (1)
-
-  https://github.com/PanDAWMS/pilot/pull/143
-
-Commit Summary
-
-more details in the log when download event ranges failure: print exception
-
-File Changes
-
-M EventRanges.py (4)
-
-Updates from Wen Guan:
-
-  https://github.com/PanDAWMS/pilot/pull/138
-
-Commit Summary
-
-  update to set zip as default
-
-File Changes
-
-M RunJobEvent.py (4)
-
-https://github.com/PanDAWMS/pilot/pull/144
-
-1. using storageId but fallback to bucket id if storageid is not available
-2. only when storageId is set, objectstoresitemover will build replica.
-3. implementation to support multiple buckets.
-4. fix getSURL in objectstoresitemover to use pathConvention.
-5. replace readpar to use new function. because readpar is reading old schedconf which can be different from the schedconfi the new mover is using.
-
-Commit Summary
-
-use storageid but fallback to bucket id if storageid is not available
-fix to only buil replica url when storageId is set
-multiple buckets implementation
-fix pathConvention in stagein
-change default num of buckets to 1
-fix getSURL with pathConvention
-replace readpar to use new function based on new mover agis
-
-File Changes
-
-M Job.py (18)
-M RunJobEvent.py (87)
-M SiteInformation.py (18)
-M movers/base.py (2)
-M movers/mover.py (20)
-M movers/objectstore_sitemover.py (42)
-
- https://github.com/PanDAWMS/pilot/pull/145
-
-Commit Summary
-
-disable tar/zip when pandaproxy is used
-fix mover at checking errors part by checking file status, not checking failed_transfers
-fix objectstoremover to handle rucio standard paths
-
-File Changes
-
-M Mover.py (2)
-M RunJobEvent.py (12)
-M UpdateHandler.py (2)
-M movers/objectstore_sitemover.py (15)
-
-  https://github.com/PanDAWMS/pilot/pull/146
-
-Commit Summary
-
-pilot failed should be false when no events
-
-File Changes
-
-M RunJobEvent.py (2)
-
-  https://github.com/PanDAWMS/pilot/pull/147
-
-Commit Summary
-
-update
-File Changes
-
-M movers/objectstore_sitemover.py (6)
-
-Updates from Mario Lassnig/Frank Berghaus
-
-Rucio now supports the DAV protocol. It uses the protocol to slightly modify it's behavior when talking to a strict DAV endpoint compared to a more relaxed HTTP 
-endpoint. Integrating the DynaFed into ATLAS DDM requires Rucio to make this distinction. Davs protocol added to the pilot.
-
-  https://github.com/PanDAWMS/pilot/pull/139
-
-Commit Summary
-
-  add DAVs to protocols supported by rucio
-
-File Changes
-
-M movers/rucio_sitemover.py (2)
-
-Updates from Petr Vokac:
-
-Rucio no longer provides replica location for HTTPS protocol, because the name
-was changed to DAVS. We had at least one site where our jobs failed due to
-no access to input files using StoRM site mover (GGUS:129509) and there are
-more sites that also fail while use StoRM site mover but luckily they fallback
-to to lcgcp site mover.
-
-  https://github.com/PanDAWMS/pilot/pull/148
-
-Commit Summary
-
-Updated protocol name "https" -> "davs" for listing rucio replicas
-
-File Changes
-
-M movers/mover.py (2)
-M movers/storm_sitemover.py (2)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-70.1
-
-General changes:
-- Fixed conversion problem (%d instead of %s) in collectCoreInfo() (JobLog)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-70.2
-
-General changes:
-- Cleaned up a reset of job.coreCount (wrongly set to 1 when ATHENA_PROC_NUMBER was not set) (RunJobEvent)
-- Fixed double occurrence of ATHENA_PROC_NUMBER (RunJobEvent)
-
-Updates from Wen Guan:
-
-  https://github.com/PanDAWMS/pilot/pull/149
-
-Commit Summary
-
-fix download event ranges
-
-File Changes
-
-M EventRanges.py (2)
-
-  https://github.com/PanDAWMS/pilot/pull/150
-
-Commit Summary
-
-Fix to report os ddmendpoint properly to panda
-
-File Changes
-
-M Job.py (2)
-M JobLog.py (3)
-M pUtil.py (8)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-70.3
-
-General changes:
-- Dropped "here" in asetup options, getASetupOptions(). Requested by G. Rybkin et al (ATLASExperiment)
-- Replaced outdated usages of 'maxmemory' and 'memory' with 'maxrss'. Requested by R. Walker et al. (pilot, Monitor)
-- Removed outdated sources from getValidURLBase() (ATLASExperiment)
-
-Release verification
-- Added missing payload setup verification in getJobExecutionCommand(), requested by Will Buttinger (ATLASExperiment)
-- Added new error code, 1244, ERR_NORELEASEFOUND: "No release candidates found" (PilotErrors)
-
-Updates from Wen Guan:
-
-  https://github.com/PanDAWMS/pilot/pull/152
-
-Commit Summary
-
-fix cputime
-
-File Changes
-
-M RunJobEvent.py (2)
-
-  https://github.com/PanDAWMS/pilot/pull/151
-
-Commit Summary
-
-remove explicitly PFC for ES
-
-File Changes
-
-M RunJobEvent.py (2)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-70.4
-
-General changes:
-- Returning proper exit code to wrapper for out of local space, via __checkLocalSpace() (Monitor)
-- Removed outdated but explicit pandaProxySecretKey (objectstoreSiteMover)
-- Out-commented log message that could contain explicit pandaProxySecretKey values, in stagein() (mover)
-
-Unified PanDA queue changes:
-- Removed isAnalyJob() and replaced call with isAnalysisJob(), which looks at trf name (begins with 'http' for ANALY jobs) (JobLog)
-- Now using isAnalysisJob() and sending analyJob to __getLoopingLimit() instead of using sitename (Monitor)
-- Out-commented uflag setting in argParser() (pilot)
-- Now using isAnalysisJob() instead of sitename in updatePandaServer(), getNodeStructure() (PandaServerClient)
-- Renamed checkLocalSE() to checkLocalSEDeprecated() (pilot, Mover)
-- Removed ANALY restriction from benchmark execution, getBenchmarkSubprocess() (RunJob)
-
-Benchmarking:
-- Now running benchmark suite also for user jobs
-
-Updates from Andrej Filipcic:
-
-Fixes for release 21 on Nordugrid;
-- Renamed getRelease() to getReleaseObsolete() (NordugridATLASExperiment)
-
-Updates from David Cameron:
-
-  https://github.com/PanDAWMS/pilot/pull/153
-
-Commit Summary
-
-support for log to OS in mv mover
-
-File Changes
-
-M ATLASExperiment.py (2)
-M movers/mover.py (1)
-M movers/mv_sitemover.py (44)
-
-  https://github.com/PanDAWMS/pilot/pull/154
-
-Commit Summary
-
-add new parameters in getSURL
-
-File Changes
-
-M movers/pandaproxy_sitemover.py (2)
-
-  https://github.com/PanDAWMS/pilot/pull/156
-
-Commit Summary
-
-protect updateEventRanges against unexpected responses
-
-File Changes
-
-M EventRangesPandaProxy.py (21)
-
- https://github.com/PanDAWMS/pilot/pull/161
-
-Commit Summary
-
-adjust parameters to match base class
-
-File Changes
-
-M movers/mv_sitemover.py (3)
-
-Updates from Wen Guan:
-
-  https://github.com/PanDAWMS/pilot/pull/157
-
-1. fix wrong name convention in logsToOS
-2. keep record of the zipped es files
-3. report zipped es file size and checksum, change the scope to 'transient'.
-4. fix register logsInOS when the job fails
-
-Commit Summary
-
-fix wrong name convention in logsToOS
-keep record the zipped ES files
-report ES zip file size and checksum, change the scope to report to rucio
-update pathconvention to report es zip files to rucio
-fix register logsInOS when the job fails
-
-File Changes
-
-M Job.py (13)
-M JobLog.py (15)
-M PandaServerClient.py (28)
-M RunJobEvent.py (38)
-M movers/base.py (2)
-M movers/mover.py (8)
-M movers/objectstore_sitemover.py (24)
-M movers/rucio_sitemover.py (31)
-
-  https://github.com/PanDAWMS/pilot/pull/158
-
-Commit Summary
-
-update metadata with updateEventRanges
-fix setup runCommandList
-
-File Changes
-
-M ATLASExperiment.py (2)
-M RunJobEvent.py (7)
-M RunJobHpcEvent.py (2)
-
-  https://github.com/PanDAWMS/pilot/pull/159
-
-Commit Summary
-
-fix transient scope for downloading
-File Changes
-
-M movers/objectstore_sitemover.py (4)
-
-  https://github.com/PanDAWMS/pilot/pull/160
-
-Commit Summary
-
-fix missing parameters because of merge
-
-File Changes
-
-M movers/mv_sitemover.py (2)
-M movers/pandaproxy_sitemover.py (4)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-70.5
+71.0
 
 General changes:
 - Remover deprecated function updateCmd1WithProject() (ATLASExperiment)
-- Now using 'here' asetup option instead of 'notest', as requested by A. De Silva et al (ATLASExperiment)
 - Corrected overwriting of bad cpuConsumptionTime in BOINC jobs in getNodeStructure() (PandaServerClient)
+- Added back missing taskid in the tracing report (movers/trace_report)
+- Corrected timeGetJob, removed code from wrong place (pilot, Monitor)
+- Fixed bug where local file was not deleted after partial stage-in, in _stagefile() (lsm_sitemover)
+- Now killing job if used memory > 2*RSS for all sites (before only on non-cgroups sites), in __check_memory_usage() (Monitor)
 
-Preparing for LAN/WAN updates:
+Containers
+- Updated extractSingularityOptions() to use container_options field instead of catchall, if it exists (Singularity)
+- Created getContainerName() (Singularity)
+
+LAN/WAN updates:
 - Created detect_client_location() and printing out the dictionary in the log (pilot)
+- Using new version of list_replicas() if possible, that supports geoip sorting, resolve_replicas() (mover)
+
+Event service:
+- Added support for new job def variable usePrefetcher in setJobDef() (Job)
+- Renamed variable prefetcher to usePrefetcher (Job, RunJobEvent)
+- Updated setUsePrefetcher() to use new usePrefetcher variable (RunJobEvent)
 
 Updates from Wen Guan:
 
@@ -404,6 +40,99 @@ File Changes
 M ATLASExperiment.py (2)
 M RunJobEvent.py (2)
 M movers/objectstore_sitemover.py (70)
+
+Updates from Alexey Anisenkov
+
+  https://github.com/PanDAWMS/pilot/pull/164
+
+Updates of sitemovers stage-out workflow:
+
+- Skip removal of remote file if given file already exists at storage
+- Try to continue stageout step of file validation by checksum/filesize if given file already exists in storage.
+  In case of validation error fail stageout with FILEEXIST error
+- Skip further transfer attempts in case of file exists error
+- Fixed typo bug in processes.py (undefined variable)
+
+Commit Summary
+
+stageout workflow updates:
+fixed typo bug in process.py (undefined variable)
+stage-out fixes
+sitemovers: add verbose message
+
+File Changes
+
+M movers/base.py (36)
+M movers/mover.py (5)
+M processes.py (11)
+
+  https://github.com/PanDAWMS/pilot/pull/165
+
+Commit Summary
+
+Fixed logic in look-up of default copytool: consider only copytools explicitly defined for all activities
+
+File Changes
+
+M SiteInformation.py (12)
+
+  https://github.com/PanDAWMS/pilot/pull/166
+
+Commit Summary
+
+JobMover: extend stage-out logic to support ordered list of activities to look up sitemovers to be used for transfer.
+
+File Changes
+
+M SiteInformation.py (11)
+M movers/mover.py (13)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+71.1
+
+General changes:
+- Added TURL to file state dictionary in stagein_real(), needed for direct access in prod jobs (mover)
+- Now using proper job.isAnalysisJob() in __main__() (RunJob)
+- Corrected exception handling in getContainerName() (Singularity)
+
+Now using associated storages when looking up replicas by getting all associated endpoints from astorages
+- Using resolvePandaAssociatedStorages() instead of _prepare_input_ddm() in resolve_replicas() (mover)
+- As discussed in thread "Multiple read DATADISK per PQ"
+
+Resource type
+- Added new pilot option -R <resourceType>, forwarded to dispatcher with getJob. Requested by Tadashi Maeno (pilot, Job)
+
+Updates from Wen Guan:
+
+You can view, comment on, or merge this pull request online at:
+
+  https://github.com/PanDAWMS/pilot/pull/167
+
+1. clean 'es_read' activity in pilot: 'es_read' was added to read remotely for cases to run ES when there is a local
+storage downtime. It's not used.
+2. to support failover for es: attach two storages in agis for ES, if the first one fails, it will failover to the
+second storage. For the first storage, it will use 'es_events' activity if defined, otherwise it will use 'pw'
+activity. So for opportunistic PQs, we need to define 'es_events', but for normal PQs, we can run ES without defining
+'es_events'.
+3. update the default zip_time_gap. If pledgedcpu is -1, default zip_time_gap is 600 s (10 minutes). Otherwise it's 2 hours.
+4. based on es_failover, ES can support storages blacklisting: either es_events or es_failover can be blacklisted.
+
+Commit Summary
+
+clean "es_read" activity
+to support failover for es stageout
+update sleep time based on attempts
+update to read zip_time_gap in agis
+fix objectstore keypaire usage in failover storage
+to support blacklist for ES
+
+File Changes
+
+M Mover.py (7)
+M RunJobEvent.py (261)
+M SiteInformation.py (52)
+M movers/mover.py (29)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

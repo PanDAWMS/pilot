@@ -131,7 +131,6 @@ class JobLog:
         experiment = job.experiment
         _exp = getExperiment(experiment)
         os_transfer = _exp.doSpecialLogFileTransfer(eventService=job.eventService, putLogToOS=job.putLogToOS)
-
         if os_transfer: ## do transfer log file to ObjectStore
 
             tolog("Special log transfer: Attempting log file transfer to ObjectStore")
