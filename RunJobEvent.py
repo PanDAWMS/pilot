@@ -1732,7 +1732,7 @@ class RunJobEvent(RunJob):
 
         tolog("[reolve_stageout_endpoint] resolved os_ddms=%s => es=%s" % (os_ddms, osddms))
 
-        endpoint, storageId = None, None
+        endpoint, storageId, activity = None, None, "es_events"
         for osddm in osddms:
             if not self.is_blacklisted(osddm):
                 endpoint = osddm
