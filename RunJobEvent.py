@@ -12,6 +12,7 @@ from pUtil import writeToFileWithStatus
 import os
 import re
 import sys
+import random
 import time
 import atexit
 import signal
@@ -1792,7 +1793,7 @@ class RunJobEvent(RunJob):
                 self.__stageoutStorages = storages
 
         ret_code, ret_str, os_bucket_id = PilotErrors.ERR_STAGEOUTFAILED, "Stageout failed", -1
-        if self.__stageoutStorages['primary'] and self.__stageoutStorages['primary']['continousErrors'] < 3:
+        if self.__stageoutStorages['primary'] and (self.__stageoutStorages['primary']['continousErrors'] < 3 or random.randint(1, self.__stageoutStorages['primary']['continousErrors']) <2):
             tolog("[stage_out_es] Trying to stageout with primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
             try:
                 ret_code, ret_str, os_bucket_id = self.stage_out_es_real(job, event_range_id, file_paths, pathConvention=pathConvention, storage=self.__stageoutStorages['primary'])
