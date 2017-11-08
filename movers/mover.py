@@ -604,6 +604,7 @@ class JobMover(object):
 
                 if sitemover.require_replicas and not is_replicas_resolved:
                     self.log("mover resolving replicas")
+                    self.resolve_replicas(files, directaccesstype, sitename) ## do populate fspec.replicas for each entry in files
                     is_replicas_resolved = True
 
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
