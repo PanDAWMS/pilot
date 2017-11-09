@@ -3835,7 +3835,7 @@ if __name__ == "__main__":
         catchalls = runJob.resolveConfigItem('catchall')
         first_event_ranges = None
         if not(catchalls and 'disable_get_events_before_ready' in catchalls):
-            message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
+            message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount, url=runJob.getPanDAServer())
             # Create a list of event ranges from the downloaded message
             first_event_ranges = runJob.extractEventRanges(message)
             if first_event_ranges is None or first_event_ranges == []:
@@ -3892,7 +3892,7 @@ if __name__ == "__main__":
                     first_event_ranges = None
                 else:
                     # Pilot will download some event ranges from the Event Server
-                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount, url=runJob.getPanDAServer())
 
                     # Create a list of event ranges from the downloaded message
                     event_ranges = runJob.extractEventRanges(message)
