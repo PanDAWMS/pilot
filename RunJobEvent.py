@@ -855,7 +855,7 @@ class RunJobEvent(RunJob):
         # If an event range is file related, we need to add the pfn to the event range
 
         for eventRange in eventRanges:
-            if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true') or self.__usePrefetcher:
+            if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true'):
                 key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
                 if key in self.__input_files:
                     eventRange['pfn'] = self.__input_files[key]
