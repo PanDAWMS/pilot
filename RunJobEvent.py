@@ -3746,7 +3746,7 @@ if __name__ == "__main__":
         # The returned file info dictionary contains the TURL for the input file. AthenaMP needs to know the full path for the --inputEvgenFile option
         # If Prefetcher is used, a turl based PFC will already have been created (in Mover.py)
 
-        runJob.setPoolFileCatalogPath(os.path.join(runJob.getParentWorkDir(), "PFC.xml"))
+        runJob.setPoolFileCatalogPath(os.path.join(job.workdir, "PFC.xml"))
         tolog("Using PFC path: %s" % (runJob.getPoolFileCatalogPath()))
 
         if not runJob.usePrefetcher():
@@ -3765,14 +3765,10 @@ if __name__ == "__main__":
         # Update the run command with additional options
         runCommandList[0] = runJob.updateRunCommand(runCommandList[0])
 
-        # ONLY IF STAGE-IN IS SKIPPED: (WHICH CURRENTLY DOESN'T WORK)
-
-        # Now update the --inputEvgenFile option with the full path to the input file using the TURL
+        # Now update LFN(s) with the full path(s) to the input file(s) using the TURL
         if runJob.usePrefetcher():
-            inputFile = getProperInputFileName(job.inFiles)
-            turl = file_info_dictionary[inputFile][0]
-            runCommandList[0] = runCommandList[0].replace(inputFile, turl)
-            tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+            _fname = runJob.getPoolFileCatalogPath()
+            runCommandList[0] = runJob.replaceLFNsWithTURLs(runCommandList[0], _fname, job.inFiles)
 
         # download event ranges before athenaMP
         # Pilot will download some event ranges from the Event Server

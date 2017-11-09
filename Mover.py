@@ -291,7 +291,7 @@ def get_data_new(job,
     mover.trace_report.init(job)
     error = None
     try:
-        output = mover.stagein(files=files, sitename=jobSite.sitename)
+        output = mover.stagein(files=files)
     except PilotException, e:
         error = e
         tolog("!!WARNING!!4545!! Caught exception: %s" % (e))
