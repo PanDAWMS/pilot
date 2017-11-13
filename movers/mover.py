@@ -287,7 +287,7 @@ class JobMover(object):
                         ddm_path += '/'
                     ddm_path += 'rucio/'
 
-                if (directaccesstype == "WAN" or directaccesstype == "LAN") and not ddm_se.startswith('root://'):
+                if (directaccesstype == "WAN" or directaccesstype == "LAN"):
                     continue
                 else:
                     fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
@@ -316,7 +316,7 @@ class JobMover(object):
                             ddm_path += '/'
                         ddm_path += 'rucio/'
 
-                    # Choose the first replica
+                    # the root replica has been found
                     fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
                     break
 
