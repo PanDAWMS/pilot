@@ -841,7 +841,7 @@ class RunJob(object):
             for inputFile in inFiles:
                 if inputFile in cmd:
                     turl = file_info_dictionary[inputFile][0]
-                    if turl.startswith('root://'):
+                    if turl.startswith('root://') and turl not in cmd:
                         cmd = cmd.replace(inputFile, turl)
                         tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
         else:

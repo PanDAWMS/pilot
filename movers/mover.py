@@ -316,12 +316,9 @@ class JobMover(object):
                             ddm_path += '/'
                         ddm_path += 'rucio/'
 
-                    if not ddm_se.startswith('root://'):
-                        continue
-                    else:
-                        # the root replica has been found
-                        fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
-                        break
+                    # Choose the first replica
+                    fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+                    break
 
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
@@ -668,7 +665,7 @@ class JobMover(object):
 
                 # check direct access
                 if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
-                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="direct_access", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer for this file" % fdata.lfn)

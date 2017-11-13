@@ -3747,7 +3747,7 @@ if __name__ == "__main__":
 
             # Get the full path to the input file from the fileState file
             if job.transferType == "direct":
-                state = "remote_io"
+                state = "direct_access"
             else:
                 state = "prefetch"
             input_files = getFilesOfState(runJob.getParentWorkDir(), job.jobId, ftype="input", state=state)
