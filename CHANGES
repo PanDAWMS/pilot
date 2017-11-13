@@ -95,6 +95,8 @@ General changes:
 - Added TURL to file state dictionary in stagein_real(), needed for direct access in prod jobs (mover)
 - Now using proper job.isAnalysisJob() in __main__() (RunJob)
 - Corrected exception handling in getContainerName() (Singularity)
+- Removed sitename from detect_client_location, and from all it's calls (via stagein()), replaced with readpar (mover)
+- Added movers to redundancy list in removeRedundantFiles() (ATLASExperiment)
 
 Now using associated storages when looking up replicas by getting all associated endpoints from astorages
 - Using resolvePandaAssociatedStorages() instead of _prepare_input_ddm() in resolve_replicas() (mover)

@@ -143,7 +143,6 @@ class UpdateHandler(BaseRequestHandler):
                             pUtil.tolog("Handler received special setup command: %s" % (self.__env['jobDic'][k][1].spsetup))
 
                         if jobinfo.has_key("output_latereg"):
-                            pUtil.tolog("Got output_latereg=%s" % (jobinfo["output_latereg"]))
                             self.__env['jobDic'][k][1].output_latereg = jobinfo["output_latereg"]
     
                         if jobinfo.has_key("output_fields"):
