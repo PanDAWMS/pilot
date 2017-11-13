@@ -830,6 +830,25 @@ class RunJob(object):
 
         return directIn
 
+    def replaceLFNsWithTURLs(self, cmd, fname, inFiles):
+        """
+        Replace all LFNs with full TURLs.
+        This function is used with direct access. Athena requires a full TURL instead of LFN.
+        """
+
+        if os.path.exists(fname):
+            file_info_dictionary = mover.getFileInfoDictionaryFromXML(fname)
+            for inputFile in inFiles:
+                if inputFile in cmd:
+                    turl = file_info_dictionary[inputFile][0]
+                    if turl.startswith('root://'):
+                        cmd = cmd.replace(inputFile, turl)
+                        tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+        else:
+            tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % fname)
+
+        return cmd
+
     def executePayload(self, thisExperiment, runCommandList, job):
         """ execute the payload """
 
@@ -904,16 +923,7 @@ class RunJob(object):
                     directIn = self.isDirectAccess(analysisJob, transferType=job.transferType)
                     if not analysisJob and directIn:
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
-                        if os.path.exists(_fname):
-                            file_info_dictionary = mover.getFileInfoDictionaryFromXML(_fname)
-                            for inputFile in job.inFiles:
-                                if inputFile in cmd:
-                                    turl = file_info_dictionary[inputFile][0]
-                                    if turl.startswith('root://'):
-                                        cmd = cmd.replace(inputFile, turl)
-                                        tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
-                        else:
-                            tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % _fname)
+                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles)
                 except Exception, e:
                     tolog("Caught exception: %s" % e)
 
