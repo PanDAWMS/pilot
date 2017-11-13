@@ -1707,21 +1707,9 @@ class RunJobEvent(RunJob):
         # resolve accepted OS DDMEndpoints
 
         pandaqueue = self.__siteInfo.getQueueName() # FIX ME LATER
-        os_ddms = self.__siteInfo.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
-        ddmconf = self.__siteInfo.resolveDDMConf(os_ddms)
-
-        osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
-
-        tolog("[reolve_stageout_endpoint] resolved os_ddms=%s => es=%s" % (os_ddms, osddms))
+        ddmconf = self.__siteInfo.resolveDDMConf([])
 
         endpoint, storageId, activity = None, None, "es_events"
-        for osddm in osddms:
-            if not self.is_blacklisted(osddm):
-                endpoint = osddm
-                storageId = ddmconf.get(endpoint, {}).get('id', -1)
-                if storageId == -1:
-                    storageId = ddmconf.get(endpoint, {}).get('resource', {}).get('bucket_id', -1)
-
         if endpoint is None or storageId is None or storageId == -1:
             activity = "es_events" ## pilot log special/second transfer
             tolog("[reolve_stageout_endpoint] no osddms defined, looking for associated storages with activity: %s" % (activity))
@@ -3167,42 +3155,6 @@ class RunJobEvent(RunJob):
 
         return filename
 
-    def checkSetupObjectstore(self):
-        if os.environ.has_key('Nordugrid_pilot'):
-            return 0, ""
-        try:
-            use_newmover = self.resolveConfigItem('use_newmover')
-            if not str(use_newmover).lower() in ["1", "true"]:
-                from S3ObjectstoreSiteMover import S3ObjectstoreSiteMover
-                from S3ObjectstorePresignedURLSiteMover import S3ObjectstorePresignedURLSiteMover
-                if self.__job.pandaProxySecretKey is not None and self.__job.pandaProxySecretKey != "" :
-                    testSiteMover = S3ObjectstorePresignedURLSiteMover('')
-                else:
-                    testSiteMover = S3ObjectstoreSiteMover('')
-                status, output = testSiteMover.setup(experiment=self.getExperiment())
-                return status, output
-            else:
-                activity = "es_events"
-                self.__siteInfo = self.get_site_info()
-
-                pandaqueue = self.__siteInfo.getQueueName() # FIX ME LATER
-                os_ddms = self.__siteInfo.resolvePandaOSDDMs(pandaqueue).get(pandaqueue, [])
-                ddmconf = self.__siteInfo.resolveDDMConf(os_ddms)
-                osddms = [e for e in os_ddms if ddmconf.get(e, {}).get('type') == 'OS_ES']
-                tolog("[%s] resolved os_ddms=%s => es=%s" % (activity, os_ddms, osddms))
-                if not osddms:
-                    tolog("osddms is not defined.")
-                    tolog("check associated storages with activity: %s" % activity)
-                    associate_storages = self.__siteInfo.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
-                    esDDMEndpoints = associate_storages.get('es_events', [])
-                    if not esDDMEndpoints:
-                        PilotErrors.ERR_UNKNOWN, "No associated storages for %s" % activity
-                return 0, ""
-        except:
-            err_msg = "Failed to check setup Objectstore: %s" % traceback.format_exc()
-            return PilotErrors.ERR_UNKNOWN, err_msg
-
-
     def findChildProcesses(self,pid):
         command = "/bin/ps -e --no-headers -o pid -o ppid -o fname"
         status,output = commands.getstatusoutput(command)
@@ -3507,12 +3459,6 @@ if __name__ == "__main__":
         runJob.setAnalysisJob(analysisJob)
 
         runJob.initZipConf(job)
-
-        status, output = runJob.checkSetupObjectstore()
-        if status != 0:
-            tolog("ObjectStore setup test failed. Will exit: %s" % output)
-            job.result[2] = PilotErrors.ERR_ESOBJECTSTORESETUP
-            runJob.failJob(0, job.result[2], job, pilotErrorDiag="ObjectStore setup test failed")
 
         # Create a message server object (global message_server)
         if runJob.createMessageServer():
