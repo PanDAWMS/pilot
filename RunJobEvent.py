@@ -12,6 +12,7 @@ from pUtil import writeToFileWithStatus
 import os
 import re
 import sys
+import random
 import time
 import atexit
 import signal
@@ -123,9 +124,11 @@ class RunJobEvent(RunJob):
     __nEventsFailedStagedOut = 0
     __nStageOutFailures = 0
     __nStageOutSuccessAfterFailure = 0
+    __isLastStageOutFailed = False
 
     # error fatal code
     __esFatalCode = None
+    __isKilled = False
 
     # external stagout time(time after athenaMP terminated)
     __external_stagout_time = 0
@@ -203,6 +206,7 @@ class RunJobEvent(RunJob):
         else:
             job.subStatus = 'all_success'
             job.jobState = "finished"
+            job.pilotErrorDiag = "AllSuccess"
 
     def getESFatalCode(self):
         return self.__esFatalCode
@@ -1325,7 +1329,7 @@ class RunJobEvent(RunJob):
             zip_time_gap = self.resolveConfigItem('zip_time_gap')
             if not (zip_time_gap is None or zip_time_gap == ''):
                 try:
-                    self.__asyncOutputStager_thread_sleep_time = int(value)
+                    self.__asyncOutputStager_thread_sleep_time = int(zip_time_gap)
                 except:
                     tolog("Failed to read zip time gap: %s" % traceback.format_exc())
 
@@ -1710,37 +1714,37 @@ class RunJobEvent(RunJob):
 
         tolog("[reolve_stageout_endpoint] resolved os_ddms=%s => es=%s" % (os_ddms, osddms))
 
-        endpoint, storageId = None, None
+        endpoint, storageId, activity = None, None, "es_events"
         for osddm in osddms:
             if not self.is_blacklisted(osddm):
                 endpoint = osddm
-                storageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('id', -1)
+                storageId = ddmconf.get(endpoint, {}).get('id', -1)
                 if storageId == -1:
-                    storageId = ddmconf.get(self.__stageOutDDMEndpoint, {}).get('resource', {}).get('bucket_id', -1)
+                    storageId = ddmconf.get(endpoint, {}).get('resource', {}).get('bucket_id', -1)
 
-        if endpoint is None or storageId is None:
+        if endpoint is None or storageId is None or storageId == -1:
             activity = "es_events" ## pilot log special/second transfer
             tolog("[reolve_stageout_endpoint] no osddms defined, looking for associated storages with activity: %s" % (activity))
             endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, activity)
             tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
-            if endpoint is None or storageId is None:
+            if endpoint is None or storageId is None or storageId == -1:
                 std_activity = 'pw'
                 tolog("[reolve_stageout_endpoint] no ddm endpoints defined for %s, looking for associated storages with activity: %s" % (activity, std_activity))
                 endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, std_activity)
                 tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
                 activity = std_activity
 
-        if not (endpoint is None or storageId is None or self.is_blacklisted(endpoint)):
+        if not (endpoint is None or storageId is None or storageId == -1 or self.is_blacklisted(endpoint)):
             storage_type = ddmconf.get(endpoint, {}).get('type', {})
             if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
                 ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
-                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
                     storages['primary']['access_keys'] = access_keys
             else:
-                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
 
 
         # resolve failover storages
@@ -1748,17 +1752,17 @@ class RunJobEvent(RunJob):
         tolog("[reolve_stageout_endpoint] looking for associated storages with activity: %s" % (activity))
         endpoint, storageId = self.get_storage_endpoint_and_id(ddmconf, self.__siteInfo, pandaqueue, activity)
         tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
-        if not (endpoint is None or storageId is None or self.is_blacklisted(endpoint)):
+        if not (endpoint is None or storageId is None or storageId == -1 or self.is_blacklisted(endpoint)):
             storage_type = ddmconf.get(endpoint, {}).get('type', {})
             if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
                 ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
-                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
                     storages['failover']['access_keys'] = access_keys
             else:
-                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity}
+                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
 
         tolog("[reolve_stageout_endpoint] resolved storages: primary: %s, failover: %s" % (storages['primary']['endpoint'] if storages['primary'] else None,
                                                                                            storages['failover']['endpoint'] if storages['failover'] else None))
@@ -1788,8 +1792,8 @@ class RunJobEvent(RunJob):
             else:
                 self.__stageoutStorages = storages
 
-        ret_code, ret_str, os_bucket_id = -1, None, -1
-        if self.__stageoutStorages['primary']:
+        ret_code, ret_str, os_bucket_id = PilotErrors.ERR_STAGEOUTFAILED, "Stageout failed", -1
+        if self.__stageoutStorages['primary'] and (self.__stageoutStorages['primary']['continousErrors'] < 3 or random.randint(1, self.__stageoutStorages['primary']['continousErrors']) <2):
             tolog("[stage_out_es] Trying to stageout with primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
             try:
                 ret_code, ret_str, os_bucket_id = self.stage_out_es_real(job, event_range_id, file_paths, pathConvention=pathConvention, storage=self.__stageoutStorages['primary'])
@@ -1797,12 +1801,16 @@ class RunJobEvent(RunJob):
                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
             if ret_code == 0:
                 tolog("[stage_out_es] Successful to stageout to primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
+                self.__stageoutStorages['primary']['continousErrors'] = 0
                 return ret_code, ret_str, os_bucket_id
             else:
                 tolog("[stage_out_es] Failed to stageout to primary storage(%s): %s, %s" % (self.__stageoutStorages['primary']['endpoint'], ret_code, ret_str))
+                self.__stageoutStorages['primary']['continousErrors'] += 1
         else:
-            tolog("[stage_out_es] Primary storage(%s) is not available" % (self.__stageoutStorages['primary']))
+            tolog("[stage_out_es] Primary storage(%s) is not available or reached 3 times countinous errors(continousErrors:%s)" %
+                  (self.__stageoutStorages['primary'], self.__stageoutStorages['primary']['continousErrors']))
 
+        ret_code, ret_str, os_bucket_id = PilotErrors.ERR_STAGEOUTFAILED, "Stageout failed", -1
         if self.__stageoutStorages['failover']:
             tolog("[stage_out_es] Failover storage is defined. Trying to stageout with failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
             try:
@@ -1811,8 +1819,11 @@ class RunJobEvent(RunJob):
                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
             if ret_code == 0:
                 tolog("[stage_out_es] Successful to stageout to failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
+                self.__stageoutStorages['failover']['continousErrors'] = 0
+                return ret_code, ret_str, os_bucket_id
             else:
                 tolog("[stage_out_es] Failed to stageout to failover storage(%s): %s, %s" % (self.__stageoutStorages['failover']['endpoint'], ret_code, ret_str))
+                self.__stageoutStorages['failover']['continousErrors'] += 1
         else:
             tolog("[stage_out_es] Failover storage(%s) is not available" % (self.__stageoutStorages['failover']))
 
@@ -1918,6 +1929,22 @@ class RunJobEvent(RunJob):
 
         return None
 
+    def checkSoftMessage(self, msg=None):
+        job = self.getJob()
+        if (msg and "tobekilled" in msg) or (job and pUtil.checkLockFile(job.workdir, "JOBWILLBEKILLED")):
+            self.__isKilled = True
+            tolog("The PanDA server has issued a hard kill command for this job - AthenaMP will be killed (current event range will be aborted)")
+            self.setAbort()
+            self.setToBeKilled()
+            if job:
+                job.subStatus = 'pilot_killed'
+        if (msg and "softkill" in msg) or (job and pUtil.checkLockFile(job.workdir, "SOFTKILL")):
+            tolog("The PanDA server has issued a soft kill command for this job - current event range will be allowed to finish")
+            self.__isKilled = True
+            self.sendMessage("No more events")
+            if job:
+                job.subStatus = 'softkilled'
+
     def stageOutZipFiles_new(self, output_name=None, output_eventRanges=None, output_eventRange_id=None):
         if not self.__esToZip:
             tolog("ES to zip is not configured")
@@ -1965,8 +1992,10 @@ class RunJobEvent(RunJob):
             errorCode = None
             if ec == 0:
                 status = 'finished'
+                self.__isLastStageOutFailed = False
             else:
                 status = 'failed'
+                self.__isLastStageOutFailed = True
                 errorCode = self.__error.ERR_STAGEOUTFAILED
 
                 # Update the global status field in case of failure
@@ -1983,6 +2012,7 @@ class RunJobEvent(RunJob):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    self.checkSoftMessage(output)
                 self.__nStageOutFailures += 1
                 self.__nStageOutSuccessAfterFailure = 0
             else:
@@ -2005,6 +2035,7 @@ class RunJobEvent(RunJob):
                         event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'fsize': filesize, checksum_type: checksum, 'numEvents': numEvents}}]
                     status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1, jobId = self.__job.jobId, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    self.checkSoftMessage(output)
                 self.__nStageOutSuccessAfterFailure += 1
                 if self.__nStageOutSuccessAfterFailure > 10:
                     self.__nStageOutFailures = 0
@@ -2076,6 +2107,7 @@ class RunJobEvent(RunJob):
                     tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    self.checkSoftMessage(output)
             else:
                 eventRanges = []
                 for eventRangeID in output_eventRanges:
@@ -2087,6 +2119,7 @@ class RunJobEvent(RunJob):
                     event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
                     status, output = updateEventRanges(event_status, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey=self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    self.checkSoftMessage(output)
         else:
             tolog("!!WARNING!!1112!! Failed to create file metadata: %d, %s" % (ec, pilotErrorDiag))
 
@@ -2157,13 +2190,26 @@ class RunJobEvent(RunJob):
 
         sleep_time = 60
         finished_first_upload = False
+        first_observe_iskilled = None
         run_time = time.time()
         tolog("Asynchronous output stager thread initiated")
         while not self.__asyncOutputStager_thread.stopped():
           try:
             if finished_first_upload:
                 sleep_time = self.__asyncOutputStager_thread_sleep_time
-            if len(self.__stageout_queue) > 0 and time.time() > run_time + sleep_time:
+            if self.__isLastStageOutFailed:
+                sleep_time = 600
+            if self.__isKilled:
+                sleep_time = 5 * 60
+                if first_observe_iskilled is None:
+                    first_observe_iskilled = True
+            if len(self.__stageout_queue) > 0 and (time.time() > run_time + sleep_time or first_observe_iskilled):
+                tolog('Sleeped time: %s, is killed: %s' % (sleep_time, self.__isKilled))
+                if first_observe_iskilled:
+                    first_observe_iskilled = False
+                if not finished_first_upload and len(self.__stageout_queue) < self.__job.coreCount:
+                    tolog("Wait 1 minute for every core to finish one event.")
+                    time.sleep(60)
                 tolog("Asynchronous output stager thread working")
                 run_time = time.time()
                 if not self.__esToZip:
@@ -3281,6 +3327,14 @@ class RunJobEvent(RunJob):
         if self.__nStageOutFailures >= 3:
             tolog("Too many stageout failures, send 'No more events' to AthenaMP")
             self.sendMessage("No more events")
+        if self.__stageoutStorages:
+            if ((self.__stageoutStorages['primary'] is None or 
+                 self.__stageoutStorages['primary'] and self.__stageoutStorages['primary']['continousErrors'] >= 3) and 
+                (self.__stageoutStorages['failover'] is None or 
+                 self.__stageoutStorages['failover'] and self.__stageoutStorages['failover']['continousErrors'] >= 3)):
+                 tolog("Too many stageout failures, send 'No more events' to AthenaMP")
+                 self.sendMessage("No more events")
+
 
     def updateJobParsForBrackets(self, jobPars, inputFiles):
         """ Replace problematic bracket lists with full file names """
@@ -3419,8 +3473,6 @@ if __name__ == "__main__":
             tolog(runJob.getGlobalPilotErrorDiag())
             if sig == signal.SIGTERM:
                 runJob.setGlobalErrorCode(error.ERR_SIGTERM)
-                runJob.setAsyncOutputStagerSleepTime(sleep_time=0)
-                runJob.asynchronousOutputStager()
             elif sig == signal.SIGQUIT:
                 runJob.setGlobalErrorCode(error.ERR_SIGQUIT)
             elif sig == signal.SIGSEGV:
@@ -3434,6 +3486,10 @@ if __name__ == "__main__":
             else:
                 runJob.setGlobalErrorCode(error.ERR_KILLSIGNAL)
             runJob.setFailureCode(runJob.getGlobalErrorCode())
+
+            runJob.setAsyncOutputStagerSleepTime(sleep_time=0)
+            runJob.asynchronousOutputStager()
+
             # print to stderr
             print >> sys.stderr, runJob.getGlobalPilotErrorDiag()
             raise SystemError(sig)
@@ -3775,7 +3831,7 @@ if __name__ == "__main__":
         catchalls = runJob.resolveConfigItem('catchall')
         first_event_ranges = None
         if not(catchalls and 'disable_get_events_before_ready' in catchalls):
-            message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
+            message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount, url=runJob.getPanDAServer())
             # Create a list of event ranges from the downloaded message
             first_event_ranges = runJob.extractEventRanges(message)
             if first_event_ranges is None or first_event_ranges == []:
@@ -3819,6 +3875,7 @@ if __name__ == "__main__":
                 # agreed to only report stagedout events to panda
                 job.nEvents = job.nEventsW
                 rt = RunJobUtilities.updatePilotServer(job, runJob.getPilotServer(), runJob.getPilotPort(), final=False)
+                runJob.checkSoftMessage()
 
             runJob.checkStageOutFailures()
 
@@ -3831,7 +3888,7 @@ if __name__ == "__main__":
                     first_event_ranges = None
                 else:
                     # Pilot will download some event ranges from the Event Server
-                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount * 2, url=runJob.getPanDAServer())
+                    message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount, url=runJob.getPanDAServer())
 
                     # Create a list of event ranges from the downloaded message
                     event_ranges = runJob.extractEventRanges(message)

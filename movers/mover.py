@@ -198,13 +198,17 @@ class JobMover(object):
 
         # build list of local ddmendpoints grouped by site
         ddms = {}
+        osddms = []
         for ddm, dat in self.ddmconf.iteritems():
+            if dat.get('type') in ['OS_ES']:
+                osddms.append(ddm)
             if dat.get('state') != 'ACTIVE': # skip DISABLED ddms
                 continue
             ddms.setdefault(dat['site'], []).append(dat)
 
         for fdat in files:
-            if fdat.storageId and fdat.storageId > 0:
+            if fdat.storageId and fdat.storageId > 0 and fdat.ddmendpoint in osddms:
+                self.log('file(%s:%s) in os ddms(%s), skip resolving replicas' % (fdat.scope, fdat.lfn, osddms))
                 # skip OS ddms, storageId -1 means normal RSE
                 #self.log("fdat.storageId: %s" % fdat.storageId)
                 #fdat.inputddms = [fdat.ddmendpoint]         ### is it used for OS?
@@ -225,7 +229,7 @@ class JobMover(object):
                 #fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
 
         # consider only normal ddmendpoints
-        xfiles = [e for e in files if e.storageId is None]
+        xfiles = [e for e in files if (e.storageId is None or not e.ddmendpoint in osddms)]
         if not xfiles:
             return files
         self.log('xfiles=%s'%xfiles)
@@ -321,13 +325,18 @@ class JobMover(object):
 
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
+            if fdat.filesize is None or fdat.filesize == 'NULL' or fdat.filesize == 0:
+                self.log("WARNING: filesize is not defined, assigning info got from Rucio to it.")
+                fdat.filesize = r['bytes']
             cc_ad = 'ad:%s' % r['adler32']
             cc_md = 'md:%s' % r['md5']
             if fdat.checksum not in [cc_ad, cc_md]:
                 self.log("WARNING: checksum value of input file=%s mismatched with info got from Rucio replica:  job.indata.checksum=%s, replica.checksum=%s, fdat=%s" % (fdat.lfn, fdat.filesize, (cc_ad, cc_md), fdat))
-
-            # update filesize & checksum info from Rucio?
-            # TODO
+            if fdat.checksum is None or fdat.checksum == 'NULL':
+                if r['adler32']:
+                    fdat.checksum = cc_ad
+                elif r['md5']:
+                    fdat.checksum = cc_md
 
         self.log('fdat.replicas=%s'%fdat.replicas)
 
@@ -410,6 +419,12 @@ class JobMover(object):
             self.log("Failed to get the keyPair name for S3 objectstore from ddm config")
             self.objectstorekeys[ddmendpoint] = {'status': False}
 
+    def is_local_storage(self, ddmendpoint, activity='pr'):
+        pandaqueue = self.si.getQueueName() # FIX ME LATER
+        associate_storages = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})
+        ddmendpoints = associate_storages.get(activity, [])
+        return ddmendpoint in ddmendpoints
+
     def stagein(self, files=None):
         """
             :return: (transferred_files, failed_transfers)
@@ -422,7 +437,7 @@ class JobMover(object):
         # only print out 'files' for debugging purposes since it might contain explicit pandaProxySecretKey values
         # self.log("To stagein files: %s" % files)
 
-        normal_files, es_files = [], []
+        normal_files, es_files, es_local_files = [], [], []
         transferred_files, failed_transfers = [], []
 
         self.ddmconf.update(self.si.resolveDDMConf([])) # load ALL ddmconf
@@ -438,11 +453,15 @@ class JobMover(object):
         self.log("os_ddms: %s" % os_ddms)
 
         for fspec in files:
+            if fspec.pathConvention and fspec.pathConvention >= 1000:
+                fspec.scope = 'transient'
             if fspec.prodDBlockToken and fspec.prodDBlockToken.isdigit() and int(fspec.prodDBlockToken) > 0:
                 fspec.storageId = int(fspec.prodDBlockToken)
                 fspec.ddmendpoint = os_ddms.get(fspec.storageId)
                 self.get_objectstore_keys(fspec.ddmendpoint)
                 es_files.append(fspec)
+                if self.is_local_storage(fspec.ddmendpoint, activity='pr'):
+                    es_local_files.append(fspec)
             elif fspec.prodDBlockToken and (fspec.prodDBlockToken.strip() == '-1' or fspec.prodDBlockToken.strip() == '0'):
                 # es outputs in normal RSEs (not in objectstore) and registered in rucio
                 fspec.allowRemoteInputs = True
@@ -455,8 +474,17 @@ class JobMover(object):
             self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
             transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
 
-        if es_files:
-            self.log("Will stagin es files: %s" % [f.lfn for f in es_files])
+        if es_local_files:
+            self.log("Will stagin es local files: %s" % [f.lfn for f in es_local_files])
+            self.trace_report.update(eventType='get_es')
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_local_files, activity='pr')
+            transferred_files += transferred_files_es
+            failed_transfers += failed_transfers_es
+            self.log("Failed to transfer files: %s" % failed_transfers)
+
+        remain_files = [e for e in es_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
+        if remain_files:
+            self.log("Will stagin remain es files: %s" % [f.lfn for f in remain_files])
             self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
             transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools)
@@ -578,6 +606,7 @@ class JobMover(object):
                 bad_copytools = False
 
                 if sitemover.require_replicas and not is_replicas_resolved:
+                    self.log("mover resolving replicas")
                     self.resolve_replicas(files, directaccesstype) ## do populate fspec.replicas for each entry in files
                     is_replicas_resolved = True
 

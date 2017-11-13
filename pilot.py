@@ -47,7 +47,7 @@ def usage():
         -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry>
         -B <allowSingleUser> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime>
         -H <cache> -I <schedconfigURL> -N <yodaNodes> -Q <yodaQueue> -M <use_newmover> -O <panda_proxy_url>
-        -P <panda_proxy_port> -R <resourceType>
+        -P <panda_proxy_port> -R <resourceType> -T <maxtime>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -87,6 +87,7 @@ def usage():
                <yodaNodes> The maximum nodes Yoda will start with
                <yodaQueue> The queue Yoda jobs will be sent to
                <use_newmover> Boolean flag that switches pilot to use new sitemovers workflow by default
+               <maxtime> The maximum time that the pilot can run, in minutes.
                <resourceType> MCORE, SCORE
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
@@ -122,7 +123,7 @@ def argParser(argv):
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
-        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:M:N:O:P:Q:R:')
+        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:M:N:O:P:Q:R:T:')
     except getopt.GetoptError:
         print "Invalid arguments and options!"
         usage()
@@ -289,7 +290,7 @@ def argParser(argv):
 
         elif o == "-C":
             try:
-                env['timefloor_default'] = int(a)
+                env['timefloor_default'] = int(a) * 60
             except ValueError:
                 print "timefloor_default not an integer:", a
 
@@ -321,6 +322,15 @@ def argParser(argv):
             else:
                 if _getjobmaxtime > 1:
                     env['getjobmaxtime'] = _getjobmaxtime
+
+        elif o == "-T":
+            try:
+                _maxtime = int(a)*60 # convert to seconds
+            except ValueError:
+                print "maxtime not an integer:", a
+            else:
+                if _maxtime > 1:
+                    env['maxtime'] = _maxtime
 
         elif o == "-H":
             env['cache'] = a
@@ -2586,7 +2596,8 @@ def runMain(runpars):
             return pUtil.shellExitCode(ec)
 
         # the maximum time this pilot is allowed to run
-        env['maxtime'] = getMaxtime()
+        if not ('maxtime' in env and env['maxtime']):
+            env['maxtime'] = getMaxtime()
 
         # get the experiment object
         thisExperiment = pUtil.getExperiment(env['experiment'])
