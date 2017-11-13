@@ -287,7 +287,7 @@ class JobMover(object):
                         ddm_path += '/'
                     ddm_path += 'rucio/'
 
-                if (directaccesstype == "WAN" or directaccesstype == "LAN") and not ddm_se.startswith('root://'):
+                if (directaccesstype == "WAN" or directaccesstype == "LAN"):
                     continue
                 else:
                     fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
@@ -316,12 +316,9 @@ class JobMover(object):
                             ddm_path += '/'
                         ddm_path += 'rucio/'
 
-                    if not ddm_se.startswith('root://'):
-                        continue
-                    else:
-                        # the root replica has been found
-                        fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
-                        break
+                    # the root replica has been found
+                    fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+                    break
 
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
