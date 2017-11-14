@@ -678,7 +678,7 @@ class JobMover(object):
                 # to be called twice (or update the updateFileState function to allow list arguments)
                 # also update the file_state for the existing entry (could also be removed?)
                 # note also that at least one file still needs to be staged in, or AthenaMP will not start
-                if self.job.usePrefetcher:
+                if self.job.usePrefetcher and self.job.eventService:
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
