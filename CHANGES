@@ -87,6 +87,22 @@ File Changes
 
 M RunJobEvent.py (2)
 
+  https://github.com/PanDAWMS/pilot/pull/170
+
+Commit Summary
+
+Merge pull request #1 from PanDAWMS/main-dev
+Fix broken resolve replicas for WAN access
+Merge branch 'main-dev' of git://github.com/PanDAWMS/pilot into PanDAWMS-main-dev
+Merge branch 'PanDAWMS-main-dev' into main-dev
+
+File Changes
+
+M RunJob.py (2)
+M RunJobEvent.py (2)
+M movers/mover.py (2)
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
