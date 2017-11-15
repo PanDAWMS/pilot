@@ -665,7 +665,7 @@ class JobMover(object):
 
                 # check direct access
                 if fdata.is_directaccess() and is_directaccess: # direct access mode, no transfer required
-                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="prefetch", ftype="input")
+                    updateFileState(fdata.turl, self.workDir, self.job.jobId, mode="file_state", state="direct_access", ftype="input")
                     fdata.status = 'remote_io'
                     updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state=fdata.status, ftype="input")
                     self.log("Direct access mode will be used for lfn=%s .. skip transfer for this file" % fdata.lfn)
