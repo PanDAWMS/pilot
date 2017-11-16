@@ -112,6 +112,7 @@ class RunJobEvent(RunJob):
     __multipleBuckets = None
     __numBuckets = 1
     __stageoutStorages = None
+    __max_wait_for_tail_events = 30
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
@@ -637,6 +638,11 @@ class RunJobEvent(RunJob):
         """ Setter for __current_event_range """
 
         self.__current_event_range = current_event_range
+
+    def getMaxWaitTailEvents(self):
+        """ Getter for __max_wait_for_tail_events """
+
+        return self.__max_wait_for_tail_events
 
     def shouldBeAborted(self):
         """ Should the job be aborted? """
@@ -1279,7 +1285,7 @@ class RunJobEvent(RunJob):
         items = self.__siteInfo.resolveItems(pandaqueue, itemName)
         return items[pandaqueue]
 
-    def initZipConf(self, job=None):
+    def initESConf(self, job=None):
         try:
             self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s" % self.__job.jobId)
             self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
@@ -1334,6 +1340,12 @@ class RunJobEvent(RunJob):
                     tolog("Failed to read zip time gap: %s" % traceback.format_exc())
 
             tolog("Sleep time between staging out: %s" % self.__asyncOutputStager_thread_sleep_time)
+
+            if "max_wait_for_tail_events=" in catchalls:
+                for catchall in catchalls.split(","):
+                    if 'max_wait_for_tail_events=' in catchall:
+                        name, value = catchall.split('=')
+                        self.__max_wait_for_tail_events = int(value)
         except:
             tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
 
@@ -3458,7 +3470,7 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
 
-        runJob.initZipConf(job)
+        runJob.initESConf(job)
 
         # Create a message server object (global message_server)
         if runJob.createMessageServer():
@@ -3804,7 +3816,7 @@ if __name__ == "__main__":
         tolog("Entering monitoring loop")
 
         k = 0
-        max_wait = 30
+        max_wait = runJob.getMaxWaitTailEvents()
         nap = 5
         eventRangeFilesDictionary = {}
         time_to_calculate_cuptime = time.time()
