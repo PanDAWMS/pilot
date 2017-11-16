@@ -72,6 +72,26 @@ File Changes
 
 M RunJobEvent.py (56)
 
+  https://github.com/PanDAWMS/pilot/pull/172
+
+Commit Summary
+
+fix a bug in mover which fails esmerge jobs
+
+File Changes
+
+M movers/mover.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/173
+
+Commit Summary
+
+option to define maxwait for tail events
+
+File Changes
+
+M RunJobEvent.py (18)
+
 Updates from Nicolo Magini
 
   https://github.com/PanDAWMS/pilot/pull/169

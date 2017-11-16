@@ -194,8 +194,6 @@ class JobMover(object):
             :return: `files`
         """
 
-        self.log('0. files=%s'%files)
-
         # build list of local ddmendpoints grouped by site
         ddms = {}
         osddms = []
@@ -232,7 +230,7 @@ class JobMover(object):
         xfiles = [e for e in files if (e.storageId is None or not e.ddmendpoint in osddms)]
         if not xfiles:
             return files
-        self.log('xfiles=%s'%xfiles)
+
         # load replicas from Rucio
         from rucio.client import Client
         c = Client()
@@ -242,7 +240,7 @@ class JobMover(object):
         # Get the replica list
         try:
             # if directaccess WAN, allow remote replicas
-            if directaccesstype == "WAN":
+            if directaccesstype == "WAN" and self.job.accessmode == 'direct':
                 fdat.allowRemoteInputs = True
                 dic = self.detect_client_location()
                 schemes = ['root']
@@ -446,8 +444,6 @@ class JobMover(object):
                 os_ddms.setdefault(int(dat.get('resource', {}).get('bucket_id', -1)), ddm)
         for ddm, dat in self.ddmconf.iteritems():
             os_ddms.setdefault(int(dat.get('id', -1)), ddm)
-
-        self.log("os_ddms: %s" % os_ddms)
 
         for fspec in files:
             if fspec.pathConvention and fspec.pathConvention >= 1000:
