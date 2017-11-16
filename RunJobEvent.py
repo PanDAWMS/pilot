@@ -1351,13 +1351,14 @@ class RunJobEvent(RunJob):
                     if 'max_wait_for_tail_events=' in catchall:
                         name, value = catchall.split('=')
                         self.__max_wait_for_tail_events = int(value)
+            tolog("Max wait time for tail evnets(minutes): %s" % self.__max_wait_for_tail_events)
 
             if "min_events=" in catchalls:
                 for catchall in catchalls.split(","):
                     if 'min_events=' in catchall:
                         name, value = catchall.split('=')
                         self.__min_events = int(value)
-
+            tolog("Minimal events requirement: %s events" % self.__min_events)
         except:
             tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
 
@@ -3800,6 +3801,10 @@ if __name__ == "__main__":
         # Pilot will download some event ranges from the Event Server
         catchalls = runJob.resolveConfigItem('catchall')
         first_event_ranges = None
+        try:
+            job.coreCount = int(job.coreCount)
+        except:
+            pass
         if not(catchalls and 'disable_get_events_before_ready' in catchalls):
             numRanges = max(job.coreCount, runJob.getMinEvents())
             message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=numRanges, url=runJob.getPanDAServer())
