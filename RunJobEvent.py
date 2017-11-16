@@ -113,6 +113,7 @@ class RunJobEvent(RunJob):
     __numBuckets = 1
     __stageoutStorages = None
     __max_wait_for_tail_events = 30
+    __min_events = 1
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
@@ -643,6 +644,10 @@ class RunJobEvent(RunJob):
         """ Getter for __max_wait_for_tail_events """
 
         return self.__max_wait_for_tail_events
+
+    def getMinEvents(self):
+        """ Getter for __min_events """
+        return self.__min_events
 
     def shouldBeAborted(self):
         """ Should the job be aborted? """
@@ -1346,6 +1351,13 @@ class RunJobEvent(RunJob):
                     if 'max_wait_for_tail_events=' in catchall:
                         name, value = catchall.split('=')
                         self.__max_wait_for_tail_events = int(value)
+
+            if "min_events=" in catchalls:
+                for catchall in catchalls.split(","):
+                    if 'min_events=' in catchall:
+                        name, value = catchall.split('=')
+                        self.__min_events = int(value)
+
         except:
             tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
 
@@ -3789,12 +3801,16 @@ if __name__ == "__main__":
         catchalls = runJob.resolveConfigItem('catchall')
         first_event_ranges = None
         if not(catchalls and 'disable_get_events_before_ready' in catchalls):
-            message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount, url=runJob.getPanDAServer())
+            numRanges = max(job.coreCount, runJob.getMinEvents())
+            message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=numRanges, url=runJob.getPanDAServer())
             # Create a list of event ranges from the downloaded message
             first_event_ranges = runJob.extractEventRanges(message)
             if first_event_ranges is None or first_event_ranges == []:
                 tolog("No more events. will finish this job directly")
                 runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP")
+            if len(first_event_ranges) < runJob.getMinEvents():
+                tolog("Got less events(%s events) than minimal requirement(%s events). will finish this job directly" % (len(first_event_ranges), runJob.getMinEvents()))
+                runJob.failJob(0, error.ERR_TOOFEWEVENTS, job, pilotErrorDiag="Got less events(%s events) than minimal requirement(%s events)" % (len(first_event_ranges), runJob.getMinEvents()))
 
         # Get the current list of eventRangeIDs
         currentEventRangeIDs = runJob.extractEventRangeIDs(first_event_ranges)

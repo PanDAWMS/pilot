@@ -141,6 +141,7 @@ class PilotErrors:
     ERR_CHKSUMNOTSUP = 1242
     ERR_ESPREFETCHERDIED = 1243
     ERR_NORELEASEFOUND = 1244
+    ERR_TOOFEWEVENTS = 1245
 
     # internal error codes
     ERR_DDMREG = 1
@@ -288,6 +289,7 @@ class PilotErrors:
         ERR_CHKSUMNOTSUP: "Mover error: query checksum is not supported",
         ERR_ESPREFETCHERDIED: "Prefetcher ended Event Service job prematurely",
         ERR_NORELEASEFOUND: "No release candidates found",
+        ERR_TOOFEWEVENTS: "Too few events, less events than minimal requirement",
     }
 
     getErrorCodes = [1097, 1099, 1100, 1103, 1107, 1113, 1130, 1145, 1151, 1164, 1167, 1168, 1171, 1175, 1178, 1179, 1180, 1182]
