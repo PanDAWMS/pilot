@@ -243,7 +243,7 @@ class JobMover(object):
             if directaccesstype == "WAN" and self.job.accessmode == 'direct':
                 fdat.allowRemoteInputs = True
                 dic = self.detect_client_location()
-                schemes = ['root']
+                # schemes = ['root']
                 self.log("dic=%s"%str(dic))
                 if dic != {}:
                     try:
