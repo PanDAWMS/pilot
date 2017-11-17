@@ -1098,7 +1098,7 @@ class FileSpec(object):
 
     def is_directaccess(self, ensure_replica=True):
 
-        from SiteMover import isRootFileName
+        from SiteMover import SiteMover
         # is_rootfile = '.root' in self.lfn
         sm = SiteMover()
         is_rootfile = sm.isRootFileName(self.lfn)
