@@ -93,6 +93,16 @@ File Changes
 
 M RunJobEvent.py (18)
 
+  https://github.com/PanDAWMS/pilot/pull/175
+
+Commit Summary
+
+fix inFilePosEvtNum for ES and prefetcher
+
+File Changes
+
+M RunJobEvent.py (9)
+
 Updates from Nicolo Magini
 
   https://github.com/PanDAWMS/pilot/pull/169
