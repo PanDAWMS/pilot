@@ -587,7 +587,7 @@ class JobMover(object):
                         self.log("self.job.usePrefetcher=%s"%str(self.job.usePrefetcher))
                         if is_directaccess or self.job.usePrefetcher:
                             if dat['scheme'] and dat['scheme'][0] != 'root':
-                                dat['scheme'] = ['root'] #+ dat['scheme']
+                                dat['scheme'] = ['root'] + dat['scheme']
                             self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
