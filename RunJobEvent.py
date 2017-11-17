@@ -112,6 +112,8 @@ class RunJobEvent(RunJob):
     __multipleBuckets = None
     __numBuckets = 1
     __stageoutStorages = None
+    __max_wait_for_tail_events = 30
+    __min_events = 1
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
@@ -638,6 +640,15 @@ class RunJobEvent(RunJob):
 
         self.__current_event_range = current_event_range
 
+    def getMaxWaitTailEvents(self):
+        """ Getter for __max_wait_for_tail_events """
+
+        return self.__max_wait_for_tail_events
+
+    def getMinEvents(self):
+        """ Getter for __min_events """
+        return self.__min_events
+
     def shouldBeAborted(self):
         """ Should the job be aborted? """
 
@@ -862,9 +873,9 @@ class RunJobEvent(RunJob):
             if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true'):
                 key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
                 if key in self.__input_files:
-                    eventRange['pfn'] = self.__input_files[key]
+                    eventRange['PFN'] = self.__input_files[key]
                 else:
-                    eventRange['pfn'] = 'file_is_not_staged_in'
+                    eventRange['PFN'] = eventRange['LFN']
         return eventRanges
 
     def addPFNToEventRange(self, eventRange):
@@ -873,9 +884,9 @@ class RunJobEvent(RunJob):
 
         key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
         if key in self.__input_files:
-            eventRange['pfn'] = self.__input_files[key]
+            eventRange['PFN'] = self.__input_files[key]
         else:
-            eventRange['pfn'] = 'file_is_not_staged_in'
+            eventRange['PFN'] = eventRange['LFN']
         return eventRange
 
     def setAsyncOutputStagerSleepTime(self, sleep_time=600):
@@ -1279,7 +1290,7 @@ class RunJobEvent(RunJob):
         items = self.__siteInfo.resolveItems(pandaqueue, itemName)
         return items[pandaqueue]
 
-    def initZipConf(self, job=None):
+    def initESConf(self, job=None):
         try:
             self.__job.outputZipName = os.path.join(self.__job.workdir, "EventService_premerge_%s" % self.__job.jobId)
             self.__job.outputZipEventRangesName = os.path.join(self.__job.workdir, "EventService_premerge_eventranges_%s.txt" % self.__job.jobId)
@@ -1334,6 +1345,20 @@ class RunJobEvent(RunJob):
                     tolog("Failed to read zip time gap: %s" % traceback.format_exc())
 
             tolog("Sleep time between staging out: %s" % self.__asyncOutputStager_thread_sleep_time)
+
+            if "max_wait_for_tail_events=" in catchalls:
+                for catchall in catchalls.split(","):
+                    if 'max_wait_for_tail_events=' in catchall:
+                        name, value = catchall.split('=')
+                        self.__max_wait_for_tail_events = int(value)
+            tolog("Max wait time for tail evnets(minutes): %s" % self.__max_wait_for_tail_events)
+
+            if "min_events=" in catchalls:
+                for catchall in catchalls.split(","):
+                    if 'min_events=' in catchall:
+                        name, value = catchall.split('=')
+                        self.__min_events = int(value)
+            tolog("Minimal events requirement: %s events" % self.__min_events)
         except:
             tolog("Failed to init zip cofnig: %s" % traceback.format_exc())
 
@@ -3458,7 +3483,7 @@ if __name__ == "__main__":
         analysisJob = isAnalysisJob(trf.split(",")[0])
         runJob.setAnalysisJob(analysisJob)
 
-        runJob.initZipConf(job)
+        runJob.initESConf(job)
 
         # Create a message server object (global message_server)
         if runJob.createMessageServer():
@@ -3776,13 +3801,21 @@ if __name__ == "__main__":
         # Pilot will download some event ranges from the Event Server
         catchalls = runJob.resolveConfigItem('catchall')
         first_event_ranges = None
+        try:
+            job.coreCount = int(job.coreCount)
+        except:
+            pass
         if not(catchalls and 'disable_get_events_before_ready' in catchalls):
-            message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=job.coreCount, url=runJob.getPanDAServer())
+            numRanges = max(job.coreCount, runJob.getMinEvents())
+            message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=numRanges, url=runJob.getPanDAServer())
             # Create a list of event ranges from the downloaded message
             first_event_ranges = runJob.extractEventRanges(message)
             if first_event_ranges is None or first_event_ranges == []:
                 tolog("No more events. will finish this job directly")
                 runJob.failJob(0, error.ERR_NOEVENTS, job, pilotErrorDiag="No events before start AthenaMP")
+            if len(first_event_ranges) < runJob.getMinEvents():
+                tolog("Got less events(%s events) than minimal requirement(%s events). will finish this job directly" % (len(first_event_ranges), runJob.getMinEvents()))
+                runJob.failJob(0, error.ERR_TOOFEWEVENTS, job, pilotErrorDiag="Got less events(%s events) than minimal requirement(%s events)" % (len(first_event_ranges), runJob.getMinEvents()))
 
         # Get the current list of eventRangeIDs
         currentEventRangeIDs = runJob.extractEventRangeIDs(first_event_ranges)
@@ -3804,7 +3837,7 @@ if __name__ == "__main__":
         tolog("Entering monitoring loop")
 
         k = 0
-        max_wait = 30
+        max_wait = runJob.getMaxWaitTailEvents()
         nap = 5
         eventRangeFilesDictionary = {}
         time_to_calculate_cuptime = time.time()
@@ -3922,6 +3955,7 @@ if __name__ == "__main__":
                                 # Prefetcher should now have sent back the updated LFN
                                 # Update the event_range
                                 event_range['LFN'] = runJob.getUpdatedLFN()
+                                event_range['PFN'] = runJob.getUpdatedLFN()
 
                                 # Add the PFN (local file path)
                                 # event_range = runJob.addPFNToEventRange(event_range)

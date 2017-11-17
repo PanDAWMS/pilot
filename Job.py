@@ -1098,7 +1098,10 @@ class FileSpec(object):
 
     def is_directaccess(self, ensure_replica=True):
 
-        is_rootfile = '.root' in self.lfn
+        from SiteMover import SiteMover
+        # is_rootfile = '.root' in self.lfn
+        sm = SiteMover()
+        is_rootfile = sm.isRootFileName(self.lfn)
 
         exclude_pattern = ['.tar.gz', '.lib.tgz', '.raw.']
         for e in exclude_pattern:
