@@ -873,9 +873,9 @@ class RunJobEvent(RunJob):
             if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true'):
                 key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
                 if key in self.__input_files:
-                    eventRange['pfn'] = self.__input_files[key]
+                    eventRange['PFN'] = self.__input_files[key]
                 else:
-                    eventRange['pfn'] = 'file_is_not_staged_in'
+                    eventRange['PFN'] = eventRange['LFN']
         return eventRanges
 
     def addPFNToEventRange(self, eventRange):
@@ -884,9 +884,9 @@ class RunJobEvent(RunJob):
 
         key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
         if key in self.__input_files:
-            eventRange['pfn'] = self.__input_files[key]
+            eventRange['PFN'] = self.__input_files[key]
         else:
-            eventRange['pfn'] = 'file_is_not_staged_in'
+            eventRange['PFN'] = eventRange['LFN']
         return eventRange
 
     def setAsyncOutputStagerSleepTime(self, sleep_time=600):
@@ -3955,6 +3955,7 @@ if __name__ == "__main__":
                                 # Prefetcher should now have sent back the updated LFN
                                 # Update the event_range
                                 event_range['LFN'] = runJob.getUpdatedLFN()
+                                event_range['PFN'] = runJob.getUpdatedLFN()
 
                                 # Add the PFN (local file path)
                                 # event_range = runJob.addPFNToEventRange(event_range)
