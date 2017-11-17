@@ -1100,7 +1100,8 @@ class FileSpec(object):
 
         from SiteMover import isRootFileName
         # is_rootfile = '.root' in self.lfn
-        is_rootfile = isRootFileName(self.lfn)
+        sm = SiteMover()
+        is_rootfile = sm.isRootFileName(self.lfn)
 
         exclude_pattern = ['.tar.gz', '.lib.tgz', '.raw.']
         for e in exclude_pattern:
