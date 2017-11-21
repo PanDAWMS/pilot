@@ -338,7 +338,7 @@ class JobMover(object):
         self.log('files=%s'%files)
         return files
 
-    def get_directaccess(self):
+    def get_directaccess(self, analyjob=False):
         """
             Check if direct access I/O is allowed. Also return the directaccess type (WAN or LAN)
             quick workaround: should be properly implemented in SiteInformation
@@ -346,7 +346,7 @@ class JobMover(object):
 
         try:
             from FileHandling import getDirectAccess
-            return getDirectAccess()
+            return getDirectAccess(analyjob=analyjob)
         except Exception, e:
             self.log("mover.is_directaccess(): Failed to resolve direct access settings: exception=%s" % e)
             return False, None
@@ -542,7 +542,7 @@ class JobMover(object):
         nprotocols = len(protocols)
 
         # direct access settings
-        allow_directaccess, directaccesstype = self.get_directaccess()
+        allow_directaccess, directaccesstype = self.get_directaccess(analyjob=analyjob)
         if self.job.accessmode == 'copy':
             allow_directaccess = False
         elif self.job.accessmode == 'direct':
@@ -600,7 +600,7 @@ class JobMover(object):
 
                 if sitemover.require_replicas and not is_replicas_resolved:
                     self.log("mover resolving replicas")
-                    self.resolve_replicas(files, directaccesstype) ## do populate fspec.replicas for each entry in files
+                    self.resolve_replicas(files, directaccesstype, analyjob=analyjob) ## do populate fspec.replicas for each entry in files
                     is_replicas_resolved = True
 
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
@@ -623,7 +623,7 @@ class JobMover(object):
                         continue
 
                 try:
-                    r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint), analyjob=analyjob)
+                    r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint))
                 except Exception, e:
                     if sitemover.require_replicas:
                         self.log("resolve_replica() failed for [%s/%s]-protocol.. skipped.. will check next available protocol, error=%s" % (protnum, nprotocols, e))
