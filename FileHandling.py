@@ -932,7 +932,8 @@ def getDirectAccess(analyjob=False):
     if directInLAN:
         directInType = 'LAN'
         directIn = True
-    if (directInWAN and not analyjob) or (directInWAN and directInLAN and analyjob):
+    if directInWAN:
+    # if (directInWAN and not analyjob) or (directInWAN and directInLAN and analyjob):
         directInType = 'WAN' # Overrides LAN if both booleans are set to True
         directIn = True
 
