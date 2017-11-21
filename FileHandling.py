@@ -921,7 +921,7 @@ def getCPUTimes(workDir):
 
     return cpuCU, totalCPUTime, conversionFactor
 
-def getDirectAccess():
+def getDirectAccess(analyjob=False):
     """ Should direct i/o be used, and which type of direct i/o """
 
     directInLAN = useDirectAccessLAN()
@@ -933,6 +933,7 @@ def getDirectAccess():
         directInType = 'LAN'
         directIn = True
     if directInWAN:
+    # if (directInWAN and not analyjob) or (directInWAN and directInLAN and analyjob):
         directInType = 'WAN' # Overrides LAN if both booleans are set to True
         directIn = True
 

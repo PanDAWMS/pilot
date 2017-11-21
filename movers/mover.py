@@ -185,7 +185,7 @@ class JobMover(object):
 
         return dic
 
-    def resolve_replicas(self, files, directaccesstype):
+    def resolve_replicas(self, files, directaccesstype, analyjob=False):
         """
             populates fdat.replicas of each entry from `files` list
             fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
@@ -291,7 +291,7 @@ class JobMover(object):
                     fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
             # if directaccess WAN, allow remote replicas
-            if directaccesstype == "WAN":
+            if directaccesstype == "WAN" and not analyjob:
                 fdat.allowRemoteInputs = True
 
                 # Assume the replicas to be geo-sorted, i.e. take the first root replica
@@ -338,7 +338,7 @@ class JobMover(object):
         self.log('files=%s'%files)
         return files
 
-    def get_directaccess(self):
+    def get_directaccess(self, analyjob=False):
         """
             Check if direct access I/O is allowed. Also return the directaccess type (WAN or LAN)
             quick workaround: should be properly implemented in SiteInformation
@@ -346,7 +346,7 @@ class JobMover(object):
 
         try:
             from FileHandling import getDirectAccess
-            return getDirectAccess()
+            return getDirectAccess(analyjob=analyjob)
         except Exception, e:
             self.log("mover.is_directaccess(): Failed to resolve direct access settings: exception=%s" % e)
             return False, None
@@ -420,7 +420,7 @@ class JobMover(object):
         ddmendpoints = associate_storages.get(activity, [])
         return ddmendpoint in ddmendpoints
 
-    def stagein(self, files=None):
+    def stagein(self, files=None, analyjob=False):
         """
             :return: (transferred_files, failed_transfers)
         """
@@ -465,12 +465,12 @@ class JobMover(object):
 
         if normal_files:
             self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
-            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr')
+            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr', analyjob=analyjob)
 
         if es_local_files:
             self.log("Will stagin es local files: %s" % [f.lfn for f in es_local_files])
             self.trace_report.update(eventType='get_es')
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_local_files, activity='pr')
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_local_files, activity='pr', analyjob=analyjob)
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
@@ -480,14 +480,14 @@ class JobMover(object):
             self.log("Will stagin remain es files: %s" % [f.lfn for f in remain_files])
             self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools)
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools, analyjob=analyjob)
             transferred_files += transferred_files_es
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
 
         return transferred_files, failed_transfers
 
-    def stagein_real(self, files, activity='pr', copytools=None):
+    def stagein_real(self, files, activity='pr', copytools=None, analyjob=False):
         """
             :return: (transferred_files, failed_transfers)
         """
@@ -542,7 +542,7 @@ class JobMover(object):
         nprotocols = len(protocols)
 
         # direct access settings
-        allow_directaccess, directaccesstype = self.get_directaccess()
+        allow_directaccess, directaccesstype = self.get_directaccess(analyjob=analyjob)
         if self.job.accessmode == 'copy':
             allow_directaccess = False
         elif self.job.accessmode == 'direct':
@@ -600,7 +600,7 @@ class JobMover(object):
 
                 if sitemover.require_replicas and not is_replicas_resolved:
                     self.log("mover resolving replicas")
-                    self.resolve_replicas(files, directaccesstype) ## do populate fspec.replicas for each entry in files
+                    self.resolve_replicas(files, directaccesstype, analyjob=analyjob) ## do populate fspec.replicas for each entry in files
                     is_replicas_resolved = True
 
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
