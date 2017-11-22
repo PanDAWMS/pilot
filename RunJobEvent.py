@@ -3734,11 +3734,24 @@ if __name__ == "__main__":
             input_file = ""
             infiles = input_files.split(",")
             for infile in infiles:
-                if job.inFiles[0] in infile:
-                    input_file = infile
-                    break
+                for inFileLfn in job.inFiles:
+                    if inFileLfn in infile:
+                        input_file += infile + " "
+                        break
+                else:
+                    pilotErrorDiag = "Did not find turl for lfn=%s in fileState file" % (inFileLfn)
+                    tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+
+                    # Set error code
+                    job.result[0] = "failed"
+                    job.result[2] = error.ERR_ESRECOVERABLE
+                    runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
+            if input_file.endswith(" "):
+                input_file = input_file[:-1]
+
             if input_file == "":
-                pilotErrorDiag = "Did not find turl for lfn=%s in fileState file" % (job.inFiles[0])
+                pilotErrorDiag = "Did not find turl for any lfn in fileState file"
                 tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
 
                 # Set error code
