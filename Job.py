@@ -117,6 +117,7 @@ class Job:
         self.pandaProxySecretKey = None    # pandaproxy secret key
         self.external_stageout_time = None # External stageout time(time after athenaMP finishes)
         self.usePrefetcher = False            # ESS v1
+        self.inFilePosEvtNum = False       # Use event range numbers relative to in-file position
         self.subStatus = None              # subStatus of the job
         self.subError = None               # subError of the job
         self.noExecStrCnv = None           # True if the jobPars contain the full payload setup
@@ -338,6 +339,14 @@ class Job:
             else:
                 self.usePrefetcher = False
             pUtil.tolog("usePrefetcher = %s" % str(self.usePrefetcher))
+       
+        # Event number ranges relative to in-file position
+        if data.has_key('inFilePosEvtNum'):
+            if data.get('inFilePosEvtNum', '').lower() == "true":
+                self.inFilePosEvtNum = True
+            else:
+                self.inFilePosEvtNum = False
+            pUtil.tolog("inFilePosEvtNum = %s" % str(self.inFilePosEvtNum))
 
         # Event Service Merge variables
         if data.has_key('eventServiceMerge'):

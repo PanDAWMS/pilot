@@ -105,6 +105,7 @@ class RunJobEvent(RunJob):
     __updated_lfn = ""                           # Updated LFN sent from the Prefetcher
     __useTokenExtractor = False                  # Should the TE be used?
     __usePrefetcher = False                      # Should the Prefetcher be user
+    __inFilePosEvtNum = False                    # Use event number ranges relative to in-file position
     __pandaserver = ""                   # Full PanDA server url incl. port and sub dirs
 
     # ES zip
@@ -836,6 +837,16 @@ class RunJobEvent(RunJob):
 
         self.__usePrefetcher = usePrefetcher
 
+    def getInFilePosEvtNum(self):
+        """ Should the event range numbers relative to in-file position be used? """
+
+        return self.__inFilePosEvtNum
+
+    def setInFilePosEvtNum(self, inFilePosEvtNum):
+        """ Set the __inFilePosEvtNum variable to a boolean value """
+
+        self.__inFilePosEvtNum = inFilePosEvtNum
+
     def getPanDAServer(self):
         """ Getter for __pandaserver """
 
@@ -869,14 +880,14 @@ class RunJobEvent(RunJob):
         """ Add the pfn's to the event ranges """
         # If an event range is file related, we need to add the pfn to the event range
 
-        for eventRange in eventRanges:
-            if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true'):
+        if self.getInFilePosEvtNum():
+            for eventRange in eventRanges:
                 key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
                 if key in self.__input_files:
                     eventRange['PFN'] = self.__input_files[key]
                 else:
                     eventRange['PFN'] = eventRange['LFN']
-        return eventRanges
+       	return eventRanges
 
     def addPFNToEventRange(self, eventRange):
         """ Add the pfn to an event range """
@@ -3502,6 +3513,10 @@ if __name__ == "__main__":
                 tolog("!!WARNING!!1111!! The message server for Prefetcher could not be created, cannot use Prefetcher")
         else:
             tolog("!!WARNING!!1111!! The message server for Prefetcher could not be created, cannot use Prefetcher")
+
+        runJob.setInFilePosEvtNum(job.inFilePosEvtNum)
+        if runJob.getInFilePosEvtNum():
+            tolog("Event number ranges relative to in-file position will be used")
 
         # Setup starts here ................................................................................
 
