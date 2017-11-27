@@ -1707,7 +1707,7 @@ class RunJobEvent(RunJob):
             secret_key = None
             is_secure = None
             for protocol in protocols:
-                if 'w' in protocols[protocol].get('activities', []):
+                if 'w' in protocols[protocol].get('activities', []) or 'write_wan' in protocols[protocol].get('activities', []):
                     settings = protocols[protocol].get('settings', {})
                     access_key = settings.get('access_key', None)
                     secret_key = settings.get('secret_key', None)
