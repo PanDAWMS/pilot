@@ -397,7 +397,7 @@ class JobMover(object):
         if ddmendpoint in self.objectstorekeys:
             return
 
-        endpoint_id = self.si.getObjectstoreEndpointID(ddmendpoint=ddmendpoint, label='r', protocol='s3')
+        endpoint_id = self.si.getObjectstoreEndpointID(ddmendpoint=ddmendpoint, label='read_wan', protocol='s3')
         os_access_key, os_secret_key, os_is_secure = self.si.getObjectstoreKeyInfo(endpoint_id, ddmendpoint=ddmendpoint)
 
         if os_access_key and os_access_key != "" and os_secret_key and os_secret_key != "":

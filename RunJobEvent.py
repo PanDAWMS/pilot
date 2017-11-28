@@ -162,15 +162,29 @@ class RunJobEvent(RunJob):
         else:
             return 'all_success'
 
+    def getStageOutDetail(self):
+        retStr = ''
+        if 'primary' in self.__stageoutStorages and self.__stageoutStorages['primary']:
+           retStr += "primary storage('%s' at '%s'): [success %s, failed %s]" % (self.__stageoutStorages['primary']['activity'],
+                                                                                 self.__stageoutStorages['primary']['endpoint'],
+                                                                                 self.__stageoutStorages['primary']['success'],
+                                                                                 self.__stageoutStorages['primary']['failed'])
+        if 'failover' in self.__stageoutStorages and self.__stageoutStorages['failover']:
+           retStr += "failover storage('%s' at '%s'): [success %s, failed %s]" % (self.__stageoutStorages['failover']['activity'],
+                                                                                  self.__stageoutStorages['failover']['endpoint'],
+                                                                                  self.__stageoutStorages['failover']['success'],
+                                                                                  self.__stageoutStorages['failover']['failed'])
+        return retStr
+
     def setFinalESStatus(self, job):
         if self.__nEventsW < 1 and self.__nStageOutFailures >= 3:
             job.subStatus = 'pilot_failed'
-            job.pilotErrorDiag = "Too many stageout failures"
+            job.pilotErrorDiag = "Too many stageout failures: %s" % self.getStageOutDetail()
             job.result[0] = "failed"
             job.result[2] = self.__error.ERR_ESRECOVERABLE
             job.jobState = "failed"
         elif not self.__eventRangeID_dictionary:
-            job.subStatus = 'pilot_failed'  # 'no_events'
+            job.subStatus = 'pilot_noevents'  # 'no_events'
             job.pilotErrorDiag = "Pilot got no events"
             job.result[0] = "failed"
             job.result[2] = self.__error.ERR_NOEVENTS
@@ -179,37 +193,37 @@ class RunJobEvent(RunJob):
             job.subStatus = 'pilot_failed'  # 'no_running_events'
             job.pilotErrorDiag = "Pilot didn't run any events"
             job.result[0] = "failed"
-            job.result[2] = self.__error.ERR_NOEVENTS
+            job.result[2] = self.__error.ERR_UNKNOWN
             job.jobState = "failed"
         elif self.__esFatalCode:
             job.subStatus = 'pilot_failed'
-            job.pilotErrorDiag = "AthenaMP fatal error happened"
+            job.pilotErrorDiag = "AthenaMP fatal error happened: %s" % self.getStageOutDetail()
             job.result[0] = "failed"
             job.result[2] = self.__esFatalCode
             job.jobState = "failed"
         elif self.__nEventsFailed:
             if self.__nEventsW == 0:
                 job.subStatus = 'pilot_failed' # all failed
-                job.pilotErrorDiag = "All events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "All events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
             elif self.__nEventsFailed < self.__nEventsW:
                 job.subStatus = 'partly_failed'
-                job.pilotErrorDiag = "Part of events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "Part of events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
             else:
                 job.subStatus = 'mostly_failed' 
-                job.pilotErrorDiag = "Most of events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "Most of events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
         else:
             job.subStatus = 'all_success'
             job.jobState = "finished"
-            job.pilotErrorDiag = "AllSuccess"
+            job.pilotErrorDiag = "AllSuccess: %s" % self.getStageOutDetail()
 
     def getESFatalCode(self):
         return self.__esFatalCode
@@ -1193,6 +1207,10 @@ class RunJobEvent(RunJob):
             job.subStatus = 'pilot_failed'
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
+
+        if pilotExitCode in [self.__error.ERR_NOEVENTS, self.__error.ERR_TOOFEWEVENTS]:
+            job.subStatus = 'pilot_noevents'
+
         tolog("Will now update local pilot TCP server")
         rt = RunJobUtilities.updatePilotServer(job, self.__pilotserver, self.__pilotport, final=True)
         if ins:
@@ -1718,7 +1736,7 @@ class RunJobEvent(RunJob):
             secret_key = None
             is_secure = None
             for protocol in protocols:
-                if 'w' in protocols[protocol].get('activities', []):
+                if 'w' in protocols[protocol].get('activities', []) or 'write_wan' in protocols[protocol].get('activities', []):
                     settings = protocols[protocol].get('settings', {})
                     access_key = settings.get('access_key', None)
                     secret_key = settings.get('secret_key', None)
@@ -1765,10 +1783,10 @@ class RunJobEvent(RunJob):
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
-                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
+                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0, 'success': 0, 'failed': 0}
                     storages['primary']['access_keys'] = access_keys
             else:
-                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
+                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0, 'success': 0, 'failed': 0}
 
 
         # resolve failover storages
@@ -1783,10 +1801,10 @@ class RunJobEvent(RunJob):
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
-                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
+                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0, 'success': 0, 'failed': 0}
                     storages['failover']['access_keys'] = access_keys
             else:
-                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
+                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0, 'success': 0, 'failed': 0}
 
         tolog("[reolve_stageout_endpoint] resolved storages: primary: %s, failover: %s" % (storages['primary']['endpoint'] if storages['primary'] else None,
                                                                                            storages['failover']['endpoint'] if storages['failover'] else None))
@@ -1826,10 +1844,12 @@ class RunJobEvent(RunJob):
             if ret_code == 0:
                 tolog("[stage_out_es] Successful to stageout to primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
                 self.__stageoutStorages['primary']['continousErrors'] = 0
+                self.__stageoutStorages['primary']['success'] += 1
                 return ret_code, ret_str, os_bucket_id
             else:
                 tolog("[stage_out_es] Failed to stageout to primary storage(%s): %s, %s" % (self.__stageoutStorages['primary']['endpoint'], ret_code, ret_str))
                 self.__stageoutStorages['primary']['continousErrors'] += 1
+                self.__stageoutStorages['primary']['failed'] += 1
         else:
             tolog("[stage_out_es] Primary storage(%s) is not available or reached 3 times countinous errors(continousErrors:%s)" %
                   (self.__stageoutStorages['primary'], self.__stageoutStorages['primary']['continousErrors']))
@@ -1844,10 +1864,12 @@ class RunJobEvent(RunJob):
             if ret_code == 0:
                 tolog("[stage_out_es] Successful to stageout to failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
                 self.__stageoutStorages['failover']['continousErrors'] = 0
+                self.__stageoutStorages['failover']['success'] += 1
                 return ret_code, ret_str, os_bucket_id
             else:
                 tolog("[stage_out_es] Failed to stageout to failover storage(%s): %s, %s" % (self.__stageoutStorages['failover']['endpoint'], ret_code, ret_str))
                 self.__stageoutStorages['failover']['continousErrors'] += 1
+                self.__stageoutStorages['failover']['failed'] += 1
         else:
             tolog("[stage_out_es] Failover storage(%s) is not available" % (self.__stageoutStorages['failover']))
 
@@ -4366,6 +4388,7 @@ if __name__ == "__main__":
             else:
                 eventRangeIdDic = runJob.getEventRangeIDDictionary()
                 if not eventRangeIdDic.keys():
+                    job.subStatus = 'pilot_noevents'
                     job.pilotErrorDiag = "Pilot got no events"
                     job.result[0] = "failed"
                     job.result[2] = error.ERR_NOEVENTS
