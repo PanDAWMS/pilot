@@ -400,6 +400,12 @@ class RunJob(object):
         # In case of transfer problems, all remaining files will be found and moved
         # to the data directory for later recovery.
 
+        try:
+            if int(job.result[1]) > 0 and (job.result[2] is None or job.result[2] == '' or int(job.result[2]) == 0):
+                job.result[2] = PilotErrors.ERR_RUNJOBEXC
+        except:
+            tolog(traceback.format_exc())
+
         tolog("********************************************************")
         tolog(" This job ended with (trf,pilot) exit code of (%d,%d)" % (job.result[1], job.result[2]))
         tolog("********************************************************")
