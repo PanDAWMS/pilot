@@ -242,15 +242,17 @@ class JobMover(object):
 
         ## for the time being until Rucio bug with geo-ip sorting is resolved
         ## do apply either simple query list_replicas() without geoip sort to resolve LAN replicas in case of directaccesstype=[None, LAN]
-        # othwewise in case of directaccesstype=WAN query geo sorted list_replicas() location data passed
+        # otherwise in case of directaccesstype=WAN mode do query geo sorted list_replicas() with location data passed
 
         bquery = {'schemes':['srm', 'root', 'davs', 'gsiftp'],
                   'dids': [dict(scope=e.scope, name=e.lfn) for e in xfiles]
                  }
 
+        allowRemoteInputs = True in set(e.allowRemoteInputs for e in xfiles)
+
         try:
             query = bquery.copy()
-            if directaccesstype == 'WAN':
+            if allowRemoteInputs:
                 location = self.detect_client_location()
                 if not location:
                     raise Exception("Failed to get client location")
@@ -298,7 +300,7 @@ class JobMover(object):
 
                 ddm_se, ddm_path = '',''
                 def_protocol = self.ddmconf[ddm].get('aprotocols', {}).get('r', [])  ## fix me later: use 'read_lan' then fallback to 'read_wan'
-                def_protocol = def_protocols[0] if def_protocols else None  ## take first entry
+                def_protocol = def_protocol[0] if def_protocol else None  ## take first entry
                 if def_protocol:
                     ddm_se, ddm_path = def_protocol[0], def_protocol[2]
 
@@ -547,7 +549,7 @@ class JobMover(object):
 
         # direct access settings
         allow_directaccess, directaccesstype = self.get_directaccess() ## resolve Site depended direct_access settings
-        self.log("direct access mode requsted by task: job.accessmode=%s" % job.accessmode)
+        self.log("direct access mode requsted by task: job.accessmode=%s" % self.job.accessmode)
         self.log("direct access mode supported by the site: allow_directaccess=%s (type=%s)" % (allow_directaccess, directaccesstype))
 
         if self.job.accessmode != 'direct': ## task forbids direct access
