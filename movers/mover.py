@@ -270,6 +270,7 @@ class JobMover(object):
         except Exception, e:
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
+        replicas = list(replicas)
         self.log("replicas received from Rucio: %s" % replicas)
 
         files_lfn = dict(((e.scope, e.lfn), e) for e in xfiles)
