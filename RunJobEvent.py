@@ -1351,7 +1351,7 @@ class RunJobEvent(RunJob):
                     if int(pledgedcpu) == -1:
                         self.__asyncOutputStager_thread_sleep_time = 600
                     else:
-                        self.__asyncOutputStager_thread_sleep_time = 3600 * 2
+                        self.__asyncOutputStager_thread_sleep_time = 3600 * 4
                 except:
                     tolog("Failed to read pledgedcpu: %s" % traceback.format_exc())
 
