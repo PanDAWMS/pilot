@@ -49,6 +49,9 @@ class JobMover(object):
     _stageout_sleeptime_min = 1*60  # seconds, min allowed sleep time in case of stageout failure
     _stageout_sleeptime_max = 5*60    # seconds, max allowed sleep time in case of stageout failure
 
+    remoteinput_allowed_schemas = ['root']
+    #remoteinput_allowed_schemas = ['root', 'gsiftp', 'dcap', 'davs'] ## extend me later if need
+
 
     def __init__(self, job, si, **kwargs):
 
@@ -185,7 +188,7 @@ class JobMover(object):
 
         return dic
 
-    def resolve_replicas(self, files, directaccesstype, analyjob=False):
+    def resolve_replicas(self, files):
         """
             populates fdat.replicas of each entry from `files` list
             fdat.replicas = [(ddmendpoint, replica, ddm_se, ddm_path)]
@@ -196,157 +199,158 @@ class JobMover(object):
 
         # build list of local ddmendpoints grouped by site
         ddms = {}
-        osddms = []
         for ddm, dat in self.ddmconf.iteritems():
-            if dat.get('type') in ['OS_ES']:
-                osddms.append(ddm)
             if dat.get('state') != 'ACTIVE': # skip DISABLED ddms
                 continue
             ddms.setdefault(dat['site'], []).append(dat)
 
+        xfiles = [] # consider only normal ddmendpoints (skip OS)
+
         for fdat in files:
-            if fdat.storageId and fdat.storageId > 0 and fdat.ddmendpoint in osddms:
-                self.log('file(%s:%s) in os ddms(%s), skip resolving replicas' % (fdat.scope, fdat.lfn, osddms))
+            ddmdat = self.ddmconf.get(fdat.ddmendpoint)
+            if not ddmdat:
+                raise Exception("Failed to resolve input ddmendpoint by name=%s sent by Panda job, please check configuration. fdat=%s" % (fdat.ddmendpoint, fdat))
+            if not ddmdat['site']:
+                raise Exception("Failed to resolve input site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
+
+            if fdat.storageId and fdat.storageId > 0 and ddmdat.type in ['OS_ES']:  ## redundant check by storageId?
+                self.log('file(%s:%s) in os ddms(%s), skip resolving replicas' % (fdat.scope, fdat.lfn, ddmdat.name))
                 # skip OS ddms, storageId -1 means normal RSE
                 #self.log("fdat.storageId: %s" % fdat.storageId)
                 #fdat.inputddms = [fdat.ddmendpoint]         ### is it used for OS?
-                pass
-            else:
-                if fdat.storageId == 0 or fdat.storageId == -1:
-                    fdat.storageId = None
-                # build and order list of local ddms
-                ddmdat = self.ddmconf.get(fdat.ddmendpoint)
-                if not ddmdat:
-                    raise Exception("Failed to resolve ddmendpoint by name=%s send by Panda job, please check configuration. fdat=%s" % (fdat.ddmendpoint, fdat))
-                if not ddmdat['site']:
-                    raise Exception("Failed to resolve site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
-                localddms = ddms.get(ddmdat['site'])
-                # sort and filter ddms (as possible input source)
-                pandaqueue = self.si.getQueueName()
-                fdat.inputddms = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {})['pr']
-                #fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+                continue
 
-        # consider only normal ddmendpoints
-        xfiles = [e for e in files if (e.storageId is None or not e.ddmendpoint in osddms)]
-        if not xfiles:
+            if fdat.storageId in [0, -1]:
+                fdat.storageId = None   ### redundant, is it required for further workflow outside the function?
+
+            # build and order list of local ddms
+            #localddms = ddms.get(ddmdat['site'])
+            # sort and filter ddms (as possible input source)
+            #fdat.inputddms = self._prepare_input_ddm(ddmdat, localddms)
+            pandaqueue = self.si.getQueueName()
+            fdat.inputddms = self.si.resolvePandaAssociatedStorages(pandaqueue).get(pandaqueue, {}).get('pr', {})
+
+            #if fdat.storageId in [-1, None] or ddmdat.type not in ['OS_ES']: ## redundant, double check -- just ported from old workflow ?
+            xfiles.append(fdat)
+
+        if not xfiles: # no files for replica look-up
             return files
 
         # load replicas from Rucio
         from rucio.client import Client
         c = Client()
 
-        dids = [dict(scope=e.scope, name=e.lfn) for e in xfiles]
-        schemes = ['srm', 'root', 'davs', 'gsiftp']
-        # Get the replica list
+        ## for the time being until Rucio bug with geo-ip sorting is resolved
+        ## do apply either simple query list_replicas() without geoip sort to resolve LAN replicas in case of directaccesstype=[None, LAN]
+        # othwewise in case of directaccesstype=WAN query geo sorted list_replicas() location data passed
+
+        bquery = {'schemes':['srm', 'root', 'davs', 'gsiftp'],
+                  'dids': [dict(scope=e.scope, name=e.lfn) for e in xfiles]
+                 }
+
         try:
-            # if directaccess WAN, allow remote replicas
-            if directaccesstype == "WAN" and self.job.accessmode == 'direct':
-                fdat.allowRemoteInputs = True
-                dic = self.detect_client_location()
-                # schemes = ['root']
-                self.log("dic=%s"%str(dic))
-                if dic != {}:
-                    try:
-                        replicas = c.list_replicas(dids, schemes=schemes, sort='geoip', client_location=dic)
-                    except Exception, e:
-                        self.log("!!WARNING!!4545!! Detected outdated list_replicas(), cannot do geoip-sorting: %s" % e)
-                        replicas = c.list_replicas(dids, schemes=schemes)
-                else:
-                    raise PilotException("Failed to get client location",
-                                         code=PilotErrors.ERR_FAILEDLFCGETREPS)
-            else:
-                replicas = c.list_replicas(dids, schemes=schemes)
-            result = []
-            for rep in replicas:
-                result.append(rep)
-            replicas = result
-            self.log("replicas received from Rucio: %s" % replicas)
+            query = bquery.copy()
+            if directaccesstype == 'WAN':
+                location = self.detect_client_location()
+                if not location:
+                    raise Exception("Failed to get client location")
+                query.update(sort='geoip', client_location=location)
+
+            try:
+                self.log('Call rucio.list_replicas() with query=%s' % query)
+                replicas = c.list_replicas(**query)
+            except TypeError, e:
+                if query == bquery:
+                    raise
+                self.log("WARNING: Detected outdated Rucio list_replicas(), cannot do geoip-sorting: %s .. fallback to old list_replicas() call" % e)
+                replicas = c.list_replicas(**bquery)
+
         except Exception, e:
             raise PilotException("Failed to get replicas from Rucio: %s" % e, code=PilotErrors.ERR_FAILEDLFCGETREPS)
 
+        self.log("replicas received from Rucio: %s" % replicas)
+
         files_lfn = dict(((e.scope, e.lfn), e) for e in xfiles)
-        self.log("files_lfn=%s"%files_lfn)
+        #self.log("files_lfn=%s" % files_lfn)
 
         for r in replicas:
             k = r['scope'], r['name']
             fdat = files_lfn.get(k)
             if not fdat: # not requested replica returned?
                 continue
+
             fdat.replicas = [] # reset replicas list
 
+            def get_preferred_replica(replicas, allowed_schemas):
+                for schema in allowed_schemas:
+                    for replica in replicas:
+                        if replica and replica.startswith('%s://' % schema):
+                            return replica
+                return None
+
+            has_remoteinput_replicas = False
+
             # local replicas
-            for ddm in fdat.inputddms:
-                if ddm not in r['rses'] and directaccesstype != "WAN": # skip not interesting rse
+            for ddm in fdat.inputddms: ## iterate over local ddms and check if replica is exist here
+
+                if ddm not in r['rses']: # no replica found for given local ddm
                     continue
-                ddm_se = self.ddmconf[ddm].get('se', '')          ## FIX ME LATER: resolve from default protocol (srm?)
-                ddm_path = self.ddmconf[ddm].get('endpoint', '')  ##
-                if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
-                    if ddm_path[-1] != '/':
-                        ddm_path += '/'
-                    ddm_path += 'rucio/'
 
-                if (directaccesstype == "WAN" or directaccesstype == "LAN"):
-                    continue
-                else:
+                ddm_se, ddm_path = '',''
+                def_protocol = self.ddmconf[ddm].get('aprotocols', {}).get('r', [])  ## fix me later: use 'read_lan' then fallback to 'read_wan'
+                def_protocol = def_protocols[0] if def_protocols else None  ## take first entry
+                if def_protocol:
+                    ddm_se, ddm_path = def_protocol[0], def_protocol[2]
+
+                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+
+                if not has_remoteinput_replicas:
+                    has_remoteinput_replicas = bool(get_preferred_replica(r['rses'][ddm], self.remoteinput_allowed_schemas))
+
+            if (not fdat.replicas or not has_remoteinput_replicas)and fdat.allowRemoteInputs:
+                self.log("No local replicas found that can be remotely read, but allowRemoteInputs is set, looking for remote inputs .. consider first/closest replica, remoteinput_allowed_schemas=%s" % self.remoteinput_allowed_schemas)
+                #self.log('rses=%s' % r['rses'])
+                for ddm, replicas in r['rses'].iteritems():
+                    replica = get_preferred_replica(r['rses'][ddm], self.remoteinput_allowed_schemas)
+                    ddm_se, ddm_path = '', ''
+
+                    # remoteinput supported replica (root) replica has been found
                     fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+                    break # ignore other remote replicas/sites
 
-            # if directaccess WAN, allow remote replicas
-            if directaccesstype == "WAN" and not analyjob:
-                fdat.allowRemoteInputs = True
-
-                # Assume the replicas to be geo-sorted, i.e. take the first root replica
-                #pfns = self.get_pfns(r)
-                #self.log("pfns=%s" % pfns)
-
-                # Get 'random' entry
-                #turl = self.get_turl(pfns)
-                #self.log("turl=%s" % turl)
-
-            if not fdat.replicas and fdat.allowRemoteInputs:
-                self.log("No local replicas and allowRemoteInputs is set, looking for remote inputs")
-                self.log('rses=%s'%r['rses'])
-                for ddm in r['rses']:
-                    ddm_se = self.ddmconf[ddm].get('se', '')
-                    ddm_path = self.ddmconf[ddm].get('endpoint', '')
-                    self.log('se=%s'%ddm_se)
-                    if ddm_path and not (ddm_path.endswith('/rucio') or ddm_path.endswith('/rucio/')):
-                        if ddm_path[-1] != '/':
-                            ddm_path += '/'
-                        ddm_path += 'rucio/'
-
-                    # the root replica has been found
-                    fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
-                    break
+            # verify filesize and checksum values
 
             if fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
-            if fdat.filesize is None or fdat.filesize == 'NULL' or fdat.filesize == 0:
+            if fdat.filesize in [None, 'NULL', '', 0]:
                 self.log("WARNING: filesize is not defined, assigning info got from Rucio to it.")
                 fdat.filesize = r['bytes']
             cc_ad = 'ad:%s' % r['adler32']
             cc_md = 'md:%s' % r['md5']
             if fdat.checksum not in [cc_ad, cc_md]:
                 self.log("WARNING: checksum value of input file=%s mismatched with info got from Rucio replica:  job.indata.checksum=%s, replica.checksum=%s, fdat=%s" % (fdat.lfn, fdat.filesize, (cc_ad, cc_md), fdat))
-            if fdat.checksum is None or fdat.checksum == 'NULL':
+            if fdat.checksum in [None, 'NULL']:
                 if r['adler32']:
                     fdat.checksum = cc_ad
                 elif r['md5']:
                     fdat.checksum = cc_md
 
-        self.log('fdat.replicas=%s'%fdat.replicas)
+        #self.log('files=%s' % files)
 
-        self.log('files=%s'%files)
         return files
 
-    def get_directaccess(self, analyjob=False):
+
+    def get_directaccess(self):
         """
-            Check if direct access I/O is allowed. Also return the directaccess type (WAN or LAN)
+            Check if direct access I/O is allowed by Site. It actually exposes direct_access_lan/wan schedconfig settings
+            Also return the directaccess type (WAN or LAN).
             quick workaround: should be properly implemented in SiteInformation
+            :return: (is_directaccess, directaccesstype)
         """
 
         try:
             from FileHandling import getDirectAccess
-            return getDirectAccess(analyjob=analyjob)
+            return getDirectAccess()
         except Exception, e:
             self.log("mover.is_directaccess(): Failed to resolve direct access settings: exception=%s" % e)
             return False, None
@@ -489,6 +493,7 @@ class JobMover(object):
 
     def stagein_real(self, files, activity='pr', copytools=None, analyjob=False):
         """
+            :param: analyjob -- not used, to be cleaned
             :return: (transferred_files, failed_transfers)
         """
 
@@ -535,23 +540,20 @@ class JobMover(object):
 
         self.log("stage-in: resolved protocols=%s" % protocols)
 
-
         remain_files = [e for e in files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
 
         nfiles = len(remain_files)
         nprotocols = len(protocols)
 
         # direct access settings
-        allow_directaccess, directaccesstype = self.get_directaccess(analyjob=analyjob)
-        if self.job.accessmode == 'copy':
-            allow_directaccess = False
-        elif self.job.accessmode == 'direct':
-            if allow_directaccess:
-                self.log("Direct access mode requested by task - allowed by the site (type = %s)" % directaccesstype)
-            else:
-                self.log("Direct access mode requested by task - but not allowed by the site (type = %s)" % directaccesstype)
+        allow_directaccess, directaccesstype = self.get_directaccess() ## resolve Site depended direct_access settings
+        self.log("direct access mode requsted by task: job.accessmode=%s" % job.accessmode)
+        self.log("direct access mode supported by the site: allow_directaccess=%s (type=%s)" % (allow_directaccess, directaccesstype))
 
-        self.log("direct access settings: job.accessmode=%s, allow_direct_access=%s" % (self.job.accessmode, allow_directaccess))
+        if self.job.accessmode != 'direct': ## task forbids direct access
+            allow_directaccess = False
+
+        self.log("final direct access settings: job.accessmode=%s => allow_directaccess=%s" % (self.job.accessmode, allow_directaccess))
 
         sitemover_objects = {}
         is_replicas_resolved = False
@@ -562,6 +564,9 @@ class JobMover(object):
 
             is_directaccess = allow_directaccess and fdata.is_directaccess(ensure_replica=False) #fdata.turl is not defined at this point
             self.log("check direct access: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s" % (allow_directaccess, fdata.is_directaccess(ensure_replica=False), is_directaccess))
+
+            if is_directaccess and directaccesstype == 'WAN':  ## is it the same for ES workflow ?? -- test and verify/FIXME LATER
+                fdata.allowRemoteInputs = True
 
             bad_copytools = True
 
@@ -583,11 +588,11 @@ class JobMover(object):
                         sitemover.setup()
                     if dat.get('resolve_scheme'):
                         dat['scheme'] = sitemover.schemes
-                        self.log("is_directaccess=%s"%str(is_directaccess))
+                        self.log("is_directaccess=%s" % is_directaccess)
                         self.log("self.job.usePrefetcher=%s"%str(self.job.usePrefetcher))
                         if is_directaccess or self.job.usePrefetcher:
-                            if dat['scheme'] and dat['scheme'][0] != 'root':
-                                dat['scheme'] = ['root'] + dat['scheme']
+                            if dat['scheme'] and dat['scheme'][0] != self.remoteinput_allowed_schemas[0]:  ## ensure that root:// is coming first in allowed schemas required for further resolve_replica()
+                                dat['scheme'] = self.remoteinput_allowed_schemas + dat['scheme'] ## add supported schema for direct access
                             self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
 
                 except Exception, e:
@@ -600,7 +605,7 @@ class JobMover(object):
 
                 if sitemover.require_replicas and not is_replicas_resolved:
                     self.log("mover resolving replicas")
-                    self.resolve_replicas(files, directaccesstype, analyjob=analyjob) ## do populate fspec.replicas for each entry in files
+                    self.resolve_replicas(files) ## do populate fspec.replicas for each entry in files
                     is_replicas_resolved = True
 
                 self.log("Copy command [stage-in]: %s, sitemover=%s" % (copytool, sitemover))
