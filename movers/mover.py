@@ -315,6 +315,9 @@ class JobMover(object):
                 #self.log('rses=%s' % r['rses'])
                 for ddm, replicas in r['rses'].iteritems():
                     replica = get_preferred_replica(r['rses'][ddm], self.remoteinput_allowed_schemas)
+                    if not replica:
+                        continue
+
                     ddm_se, ddm_path = '', ''
 
                     # remoteinput supported replica (root) replica has been found
