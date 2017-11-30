@@ -121,6 +121,9 @@ class Job:
         self.subError = None               # subError of the job
         self.noExecStrCnv = None           # True if the jobPars contain the full payload setup
 
+        #lock to avoid state changes when updating panda server.
+        self.updatingPandaServer = False
+
         # zipped event outputs to a file, for event service
         self.outputZipName = None
         self.outputZipEventRangesName = None
