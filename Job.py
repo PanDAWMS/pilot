@@ -339,7 +339,7 @@ class Job:
             else:
                 self.usePrefetcher = False
             pUtil.tolog("usePrefetcher = %s" % str(self.usePrefetcher))
-       
+
         # Event number ranges relative to in-file position
         if data.has_key('inFilePosEvtNum'):
             if data.get('inFilePosEvtNum', '').lower() == "true":
@@ -533,7 +533,6 @@ class Job:
         self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true' or self.eventService
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
-
         self.accessmode = ""
         if self.transferType == 'direct': # enable direct access mode
             self.accessmode = 'direct'
@@ -677,13 +676,20 @@ class Job:
             finfo = FileSpec(**idat)
             ref_dat.append(finfo)
 
+        # Set by default direct access mode enabled for Analy jobs but disabled for Prod jobs
+        # isAnalysisJob function could require the instance being finally constructed,
+        # that's why default value of accessmode is put here at the end
+        if not self.accessmode:
+            self.accessmode = 'direct' if self.isAnalysisJob() else 'copy'
+
+
     def removeZipMapString(self, jobParameters):
         """ Retrieve the zipmap string from the jobParameters """
         # This function is needed to save the zipmap string for later use. The zipmap must be removed
         # from the jobParameters before the payload can be executed, but the zipmap can only be
-        # properly populated until after the payload has finished since the final output file list will 
-        # not be known until then. The pilot extracts the final output file list from the jobReport - 
-        # this also means that zipmaps will only be supported for production jobs since only these produce 
+        # properly populated until after the payload has finished since the final output file list will
+        # not be known until then. The pilot extracts the final output file list from the jobReport -
+        # this also means that zipmaps will only be supported for production jobs since only these produce
         # the jobReport. Zipmaps are of interested for spillover jobs.
 
         # Note that updateQueuedataFromJobParameters() might have messed up the jobParameters by adding
@@ -708,7 +714,7 @@ class Job:
     def populateZipMap(self, outFiles, zipmapString):
         """ Populate the zip_map dictionary """
         # The function returns a populated zip_map dictionary using the previously extracted
-        # zipmapString from the jobParameters. The outFiles list is also needed since wildcards 
+        # zipmapString from the jobParameters. The outFiles list is also needed since wildcards
         # might be present in the ZIP_MAP
 
         zip_map = {} # FORMAT: { <archive name1>:[content_file1, ..], .. }

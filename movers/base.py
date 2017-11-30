@@ -238,7 +238,7 @@ class BaseSiteMover(object):
                 self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
 
                 for r in replicas:
-                    if r.startswith(ddm_se): # manually form pfn based on protocol.se
+                    if ddm_se and r.startswith(ddm_se): # manually form pfn based on protocol.se
                         r_filename = r.replace(ddm_se, '', 1).replace(ddm_path, '', 1) # resolve replica filename
                         # quick hack: if hosted replica ddmendpoint and input protocol ddmendpoint mismatched => consider replica ddmendpoint.path
                         r_path = protocol.get('path')
