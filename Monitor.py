@@ -618,7 +618,14 @@ class Monitor:
                     pUtil.tolog("no stdout_path: %s" % (e))
 
                 # update the panda server
-                ret, retNode = pUtil.updatePandaServer(self.__env['jobDic'][k][1], stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
+                try:
+                    self.__env['jobDic'][k][1].updatingPandaServer = True
+                    ret, retNode = pUtil.updatePandaServer(self.__env['jobDic'][k][1], stdout_tail = self.__env['stdout_tail'], stdout_path = self.__env['stdout_path'])
+                    self.__env['jobDic'][k][1].updatingPandaServer = False
+                except  Exception, e:
+                    self.__env['jobDic'][k][1].updatingPandaServer = False
+                    raise e
+
                 if ret == 0:
                     pUtil.tolog("Successfully updated panda server at %s" % pUtil.timeStamp())
                 else:
