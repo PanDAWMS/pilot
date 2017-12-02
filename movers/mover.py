@@ -213,8 +213,8 @@ class JobMover(object):
             if not ddmdat['site']:
                 raise Exception("Failed to resolve input site name of ddmendpoint=%s. please check ddm declaration: ddmconf=%s ... fdat=%s" % (fdat.ddmendpoint, ddmconf, fdat))
 
-            if fdat.storageId and fdat.storageId > 0 and ddmdat.type in ['OS_ES']:  ## redundant check by storageId?
-                self.log('file(%s:%s) in os ddms(%s), skip resolving replicas' % (fdat.scope, fdat.lfn, ddmdat.name))
+            if fdat.storageId and fdat.storageId > 0 and ddmdat.get('type') in ['OS_ES']:  ## redundant check by storageId?
+                self.log('file(%s:%s) in os ddms(%s), skip resolving replicas' % (fdat.scope, fdat.lfn, fdat.ddmendpoint))
                 # skip OS ddms, storageId -1 means normal RSE
                 #self.log("fdat.storageId: %s" % fdat.storageId)
                 #fdat.inputddms = [fdat.ddmendpoint]         ### is it used for OS?
