@@ -505,7 +505,9 @@ class JobMover(object):
 
         pandaqueue = self.si.getQueueName() # FIX ME LATER
         protocols = self.protocols.setdefault(activity, self.si.resolvePandaProtocols(pandaqueue, activity)[pandaqueue])
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools)[pandaqueue]
+
+        overwrite = dict([k,v] for k,v in self.job.overwriteAGISData.iteritems() if k in ['copytools', 'acopytools'])
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activity, copytools, masterdata={pandaqueue:overwrite})[pandaqueue]
 
         self.log("stage-in: pq.aprotocols=%s, pq.copytools=%s" % (protocols, copytools))
 
@@ -1001,7 +1003,8 @@ class JobMover(object):
         if copytools:
             self.log("Mover.stageout() [new implementation] [%s]: default copytools=%s" % (activity, copytools))
 
-        copytools = self.si.resolvePandaCopytools(pandaqueue, activities, copytools)[pandaqueue]
+        overwrite = dict([k,v] for k,v in self.job.overwriteAGISData.iteritems() if k in ['copytools', 'acopytools'])
+        copytools = self.si.resolvePandaCopytools(pandaqueue, activities, copytools, masterdata={pandaqueue:overwrite})[pandaqueue]
 
         self.log("Mover.stageout() [new implementation] started for activity=%s, order of activities=%s, files=%s, protocols=%s, copytools=%s" % (activity, activities, files, protocols, copytools))
 
