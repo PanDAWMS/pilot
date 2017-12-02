@@ -686,7 +686,7 @@ class Job:
 
         try:
             import ast
-            self.overwriteAGISData = self.parseJobPars(self.jobPars, {'--overwriteAGISdata': ast.literal_eval}).get('--overwriteAGISdata', {})
+            self.overwriteAGISData = self.parseJobPars(self.jobPars, {'--overwriteAGISdata': lambda x: ast.literal_eval(x) if x else {}}).get('--overwriteAGISdata', {})
         except Exception, e:
             pUtil.tolog("INFO: Job.parseJobPars() failed... skipped, error=%s" % e)
 
@@ -710,7 +710,7 @@ class Job:
         except ValueError, e:
             pUtil.tolog("Unparsable job arguments. Shlex exception: " + e.message, label='WARNING')
             return {}
-
+        print 'args=', args
         opts, curopt = {}, None
         for arg in args:
             if arg.startswith('-'):
