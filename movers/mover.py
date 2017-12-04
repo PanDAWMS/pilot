@@ -566,6 +566,10 @@ class JobMover(object):
         sitemover_objects = {}
         is_replicas_resolved = False
 
+        if allow_directaccess:
+            # sort files to get candidates for remote_io coming first in order to exclude them from checking of available space for stage-in
+            remain_files = sorted(remain_files, key=lambda x: x.is_directaccess(ensure_replica=False), reverse=True)
+
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
