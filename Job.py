@@ -723,7 +723,8 @@ class Job:
                     curopt = arg
                 else:
                     opts[curopt] = None
-                    curopt = None
+                    pargs.append([curopt, None])
+                    curopt = arg
             else:
                 if curopt is None: # no open option, ignore
                     pargs.append(arg)
@@ -731,6 +732,8 @@ class Job:
                     opts[curopt] = arg
                     pargs.append([curopt, arg])
                     curopt = None
+        if curopt:
+            pargs.append([curopt, None])
 
         ret = {}
         for opt,fcast in options.iteritems():
@@ -749,6 +752,8 @@ class Job:
             for arg in pargs:
                 if isinstance(arg, (tuple, list)): ## parsed option
                     if arg[0] not in options:  # exclude considered options
+                        if arg[1] is None:
+                            arg.pop()
                         final_args.extend(arg)
                 else:
                     final_args.append(arg)
