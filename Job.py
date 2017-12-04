@@ -174,6 +174,8 @@ class Job:
         # structured data of output ES files (similar to outData)
         self.stagedOutESFiles = []
 
+        self.overwriteAGISData = {} # Job specific queue data parametes
+
     def displayJob(self):
         """ dump job specifics """
 
@@ -684,6 +686,78 @@ class Job:
         # that's why default value of accessmode is put here at the end
         if not self.accessmode:
             self.accessmode = 'direct' if self.isAnalysisJob() else 'copy'
+
+        try:
+            import ast
+
+            options, self.jobPars = self.parseJobPars(self.jobPars, {'--overwriteAGISdata': lambda x: ast.literal_eval(x) if x else {}}, remove=True)
+
+            self.overwriteAGISData = options.get('--overwriteAGISdata', {})
+        except Exception, e:
+            pUtil.tolog("INFO: Job.parseJobPars() failed... skipped, error=%s" % e)
+
+        pUtil.tolog("job.overwriteAGISData=%s" % self.overwriteAGISData)
+        pUtil.tolog("cleaned job.jobPars=%s" % self.jobPars)
+
+
+    @classmethod
+    def parseJobPars(self, data, options, remove=False):
+        """
+            Extract options values from command line param arguments
+            :param data: jobParameters
+            :param options: dict of option names to be considered: (name, type), type is a cast function to be applied with result value
+            :param remove: boolean, if True then exclude specified options from returned raw jobParameters data
+            :return: tuple: (dict of extracted options, raw string of jobParameters)
+        """
+
+        pUtil.tolog("INFO: parseJobPars(): do extract options=%s from data=%s" % (options.keys(), data))
+
+        import shlex, pipes
+        try:
+            args = shlex.split(data)
+        except ValueError, e:
+            pUtil.tolog("Unparsable job arguments. Shlex exception: " + e.message, label='WARNING')
+            return {}, data
+
+        opts, curopt, pargs = {}, None, []
+        for arg in args:
+            if arg.startswith('-'):
+                if curopt is None:
+                    curopt = arg
+                else:
+                    opts[curopt] = None
+                    curopt = None
+            else:
+                if curopt is None: # no open option, ignore
+                    pargs.append(arg)
+                else:
+                    opts[curopt] = arg
+                    pargs.append([curopt, arg])
+                    curopt = None
+
+        ret = {}
+        for opt,fcast in options.iteritems():
+            val = opts.get(opt)
+            try:
+                val = fcast(val) if callable(fcast) else val
+            except Exception, e:
+                pUtil.tolog("Warning: failed to extract value for option=%s from data=%s: cast function=%s failed, exception=%s .. skipped" % (opt, val, fcast, e))
+                continue
+            ret[opt] = val
+
+        ## serialize parameters back to string
+        rawdata = data
+        if remove:
+            final_args = []
+            for arg in pargs:
+                if isinstance(arg, (tuple, list)): ## parsed option
+                    if arg[0] not in options:  # exclude considered options
+                        final_args.extend(arg)
+                else:
+                    final_args.append(arg)
+            rawdata = " ".join(pipes.quote(e) for e in final_args)
+
+        return ret, rawdata
 
 
     def removeZipMapString(self, jobParameters):

@@ -2085,7 +2085,7 @@ class SiteInformation(object):
         return ret
 
 
-    def resolvePandaCopytools(self, pandaqueues, activity, defval=[]):
+    def resolvePandaCopytools(self, pandaqueues, activity, defval=[], masterdata={}):
         """
             Resolve supported copytools by given pandaqueues
             Check first settings for requested activity (pr, pw, pl, pls), then defval values,
@@ -2093,9 +2093,9 @@ class SiteInformation(object):
             Return ordered list of accepted copytools
             :param activity: activity of prioritized list of activities to resolve data
             :param defval: default copytools values which will be used if no copytools defined for requested activity
+            :param masterdata: custom job specific data (overwritten by job) schedconfig data
             :return: dict('pandaqueue':[(copytool, {settings}), ('copytool_name', {'setup':''}), ])
         """
-
 
         if isinstance(pandaqueues, (str, unicode)):
             pandaqueues = [pandaqueues]
@@ -2108,11 +2108,13 @@ class SiteInformation(object):
 
         ret = {}
         for pandaqueue in set(pandaqueues):
-            copytools = r.get(pandaqueue, {}).get('copytools', {})
-            cptools = []
-            acopytools = None
+            copytools = masterdata.get(pandaqueue, {}).get('copytools', {}) or r.get(pandaqueue, {}).get('copytools', {})
+            pq_acopytools = r.get(pandaqueue, {}).get('acopytools', {})
+            if 'acopytools' in masterdata.get(pandaqueue, {}):
+                pq_acopytools = masterdata.get(pandaqueue, {}).get('acopytools', {})
+            cptools, acopytools = [], None
             for a in activity:
-                acopytools = r.get(pandaqueue, {}).get('acopytools', {}).get(a, [])
+                acopytools = pq_acopytools.get(a, [])
                 if acopytools:
                     break
             if acopytools:
@@ -2121,7 +2123,7 @@ class SiteInformation(object):
                 cptools = defval[:]
             else:
                 explicit_copytools = set()
-                for v in r.get(pandaqueue, {}).get('acopytools', {}).itervalues():
+                for v in pq_acopytools.itervalues():
                     explicit_copytools.update(v or [])
 
                 cptools = [(cp,v) for cp,v in copytools.iteritems() if cp not in explicit_copytools]
