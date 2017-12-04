@@ -23,6 +23,15 @@ class mvSiteMover(BaseSiteMover):
         super(mvSiteMover, self).__init__(*args, **kwargs)
         self.init_dir = os.environ['HOME']
 
+    def check_availablespace(self, maxinputsize, files):
+        """
+            Verify that enough local space is available to stage in and run the job
+            :raise: PilotException in case of not enough space
+            Not applicable for given Mover
+        """
+        pass
+
+
     def createOutputList(self, fspec, dest):
 
         if fspec.turl.startswith('s3://'):
@@ -52,7 +61,7 @@ class mvSiteMover(BaseSiteMover):
     def getSURL(self, se, se_path, scope, lfn, job=None, pathConvention=None, ddmEndpoint=None):
         """
         Override from base because it throws an exception for paths without
-        '/rucio' so we need this to do OS uploads 
+        '/rucio' so we need this to do OS uploads
         """
 
         ddmType = self.ddmconf.get(ddmEndpoint, {}).get('type')
@@ -84,7 +93,7 @@ class mvSiteMover(BaseSiteMover):
                 # the expected behavior actions:
                 # rucio download valid1:EVNT.01416937._000001.pool.root.1
                 # mv valid1/EVNT.01416937._000001.pool.root.1 ./EVNT.09355665._094116.pool.root.1
-                
+
                 self.log('pp: pre-load files for mv_sitemover: download locally stageIn the file: scope=%s file=%s' % (fspec.scope, fspec.lfn))
 
                 cmd = 'rucio download %s:%s' % (fspec.scope, fspec.lfn)
@@ -95,7 +104,7 @@ class mvSiteMover(BaseSiteMover):
                 output = c.communicate()[0]
                 if c.returncode:
                     raise Exception(output)
-                
+
                 fileRucioLocation='%s/%s' % (fspec.scope, fspec.lfn)  # the place where Rucio downloads file
                 self.log('pp: move from %s to %s' % (fileRucioLocation, fileExpectedLocation))
                 try:
@@ -103,7 +112,7 @@ class mvSiteMover(BaseSiteMover):
                 except OSError, e:
                     raise PilotException('stageIn failed when rename the file from rucio location: %s' % str(e))
         # block preload input file END
-        
+
         src = os.path.join(self.init_dir, fspec.lfn)
         self.log('Creating link from %s to %s' % (fspec.lfn, src))
         try:

@@ -155,6 +155,7 @@ class BaseSiteMover(object):
     def check_availablespace(self, maxinputsize, files):
         """
             Verify that enough local space is available to stage in and run the job
+            :raise: PilotException in case of not enough space
         """
 
         if not self.shouldVerifyStageIn():
