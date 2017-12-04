@@ -709,6 +709,9 @@ class Job:
 
         pUtil.tolog("INFO: parseJobPars(): do extract options=%s from data=%s" % (options.keys(), data))
 
+        if not options:
+            return {}, data
+
         import shlex, pipes
         try:
             args = shlex.split(data)
