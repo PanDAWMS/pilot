@@ -117,9 +117,13 @@ class Job:
         self.pandaProxySecretKey = None    # pandaproxy secret key
         self.external_stageout_time = None # External stageout time(time after athenaMP finishes)
         self.usePrefetcher = False            # ESS v1
+        self.inFilePosEvtNum = False       # Use event range numbers relative to in-file position
         self.subStatus = None              # subStatus of the job
         self.subError = None               # subError of the job
         self.noExecStrCnv = None           # True if the jobPars contain the full payload setup
+
+        #lock to avoid state changes when updating panda server.
+        self.updatingPandaServer = False
 
         # zipped event outputs to a file, for event service
         self.outputZipName = None
@@ -169,6 +173,8 @@ class Job:
 
         # structured data of output ES files (similar to outData)
         self.stagedOutESFiles = []
+
+        self.overwriteAGISData = {} # Job specific queue data parametes
 
     def displayJob(self):
         """ dump job specifics """
@@ -338,6 +344,14 @@ class Job:
             else:
                 self.usePrefetcher = False
             pUtil.tolog("usePrefetcher = %s" % str(self.usePrefetcher))
+
+        # Event number ranges relative to in-file position
+        if data.has_key('inFilePosEvtNum'):
+            if data.get('inFilePosEvtNum', '').lower() == "true":
+                self.inFilePosEvtNum = True
+            else:
+                self.inFilePosEvtNum = False
+            pUtil.tolog("inFilePosEvtNum = %s" % str(self.inFilePosEvtNum))
 
         # Event Service Merge variables
         if data.has_key('eventServiceMerge'):
@@ -524,7 +538,6 @@ class Job:
         self.putLogToOS = str(data.get('putLogToOS')).lower() == 'true' or self.eventService
 
         # for accessmode testing: self.jobPars += " --accessmode=direct"
-
         self.accessmode = ""
         if self.transferType == 'direct': # enable direct access mode
             self.accessmode = 'direct'
@@ -668,13 +681,100 @@ class Job:
             finfo = FileSpec(**idat)
             ref_dat.append(finfo)
 
+        # Set by default direct access mode enabled for Analy jobs but disabled for Prod jobs
+        # isAnalysisJob function could require the instance being finally constructed,
+        # that's why default value of accessmode is put here at the end
+        if not self.accessmode:
+            self.accessmode = 'direct' if self.isAnalysisJob() else 'copy'
+
+        try:
+            import ast
+
+            options, self.jobPars = self.parseJobPars(self.jobPars, {'--overwriteAGISdata': lambda x: ast.literal_eval(x) if x else {}}, remove=True)
+
+            self.overwriteAGISData = options.get('--overwriteAGISdata', {})
+        except Exception, e:
+            pUtil.tolog("INFO: Job.parseJobPars() failed... skipped, error=%s" % e)
+
+        pUtil.tolog("job.overwriteAGISData=%s" % self.overwriteAGISData)
+        pUtil.tolog("cleaned job.jobPars=%s" % self.jobPars)
+
+
+    @classmethod
+    def parseJobPars(self, data, options, remove=False):
+        """
+            Extract options values from command line param arguments
+            :param data: jobParameters
+            :param options: dict of option names to be considered: (name, type), type is a cast function to be applied with result value
+            :param remove: boolean, if True then exclude specified options from returned raw jobParameters data
+            :return: tuple: (dict of extracted options, raw string of jobParameters)
+        """
+
+        pUtil.tolog("INFO: parseJobPars(): do extract options=%s from data=%s" % (options.keys(), data))
+
+        if not options:
+            return {}, data
+
+        import shlex, pipes
+        try:
+            args = shlex.split(data)
+        except ValueError, e:
+            pUtil.tolog("Unparsable job arguments. Shlex exception: " + e.message, label='WARNING')
+            return {}, data
+
+        opts, curopt, pargs = {}, None, []
+        for arg in args:
+            if arg.startswith('-'):
+                if curopt is None:
+                    curopt = arg
+                else:
+                    opts[curopt] = None
+                    pargs.append([curopt, None])
+                    curopt = arg
+            else:
+                if curopt is None: # no open option, ignore
+                    pargs.append(arg)
+                else:
+                    opts[curopt] = arg
+                    pargs.append([curopt, arg])
+                    curopt = None
+        if curopt:
+            pargs.append([curopt, None])
+
+        ret = {}
+        for opt,fcast in options.iteritems():
+            val = opts.get(opt)
+            try:
+                val = fcast(val) if callable(fcast) else val
+            except Exception, e:
+                pUtil.tolog("Warning: failed to extract value for option=%s from data=%s: cast function=%s failed, exception=%s .. skipped" % (opt, val, fcast, e))
+                continue
+            ret[opt] = val
+
+        ## serialize parameters back to string
+        rawdata = data
+        if remove:
+            final_args = []
+            for arg in pargs:
+                if isinstance(arg, (tuple, list)): ## parsed option
+                    if arg[0] not in options:  # exclude considered options
+                        if arg[1] is None:
+                            arg.pop()
+                        final_args.extend(arg)
+                else:
+                    final_args.append(arg)
+            rawdata = " ".join(pipes.quote(e) for e in final_args)
+
+        return ret, rawdata
+
+
     def removeZipMapString(self, jobParameters):
         """ Retrieve the zipmap string from the jobParameters """
         # This function is needed to save the zipmap string for later use. The zipmap must be removed
         # from the jobParameters before the payload can be executed, but the zipmap can only be
-        # properly populated until after the payload has finished since the final output file list will 
-        # not be known until then. The pilot extracts the final output file list from the jobReport - 
-        # this also means that zipmaps will only be supported for production jobs since only these produce 
+        # properly populated until after the payload has finished since the final output file list will
+        # not be known until then. The pilot extracts the final output file list from the jobReport -
+        # this also means that zipmaps will only be supported for production jobs since only these produce
         # the jobReport. Zipmaps are of interested for spillover jobs.
 
         # Note that updateQueuedataFromJobParameters() might have messed up the jobParameters by adding
@@ -699,7 +799,7 @@ class Job:
     def populateZipMap(self, outFiles, zipmapString):
         """ Populate the zip_map dictionary """
         # The function returns a populated zip_map dictionary using the previously extracted
-        # zipmapString from the jobParameters. The outFiles list is also needed since wildcards 
+        # zipmapString from the jobParameters. The outFiles list is also needed since wildcards
         # might be present in the ZIP_MAP
 
         zip_map = {} # FORMAT: { <archive name1>:[content_file1, ..], .. }

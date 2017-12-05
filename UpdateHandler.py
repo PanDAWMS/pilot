@@ -35,6 +35,14 @@ class UpdateHandler(BaseRequestHandler):
             for k in self.__env['jobDic'].keys():
                 if str(self.__env['jobDic'][k][1].jobId) == str(jobinfo["jobid"]): # job pid matches
                     found_job = True
+
+                    # wait no more than 30 seconds if it's updating panda server.
+                    # otherwise if state changed to finished/failed when it's updating panda server, an error will happen
+                    if jobinfo["status"] in ['failed', 'finished']:
+                        startWait = time.time()
+                        while self.__env['jobDic'][k][1].updatingPandaServer and (time.time() - startWait) < 30:
+                            time.sleep(1)
+                        
 #                if self.__env['jobDic'][k][2] == int(jobinfo["pgrp"]) and self.__env['jobDic'][k][1].jobId == int(jobinfo["jobid"]): # job pid matches
                     # protect with try statement in case the pilot server goes down (jobinfo will be corrupted)
                     try:

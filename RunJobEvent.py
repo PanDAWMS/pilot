@@ -105,6 +105,7 @@ class RunJobEvent(RunJob):
     __updated_lfn = ""                           # Updated LFN sent from the Prefetcher
     __useTokenExtractor = False                  # Should the TE be used?
     __usePrefetcher = False                      # Should the Prefetcher be user
+    __inFilePosEvtNum = False                    # Use event number ranges relative to in-file position
     __pandaserver = ""                   # Full PanDA server url incl. port and sub dirs
 
     # ES zip
@@ -161,15 +162,29 @@ class RunJobEvent(RunJob):
         else:
             return 'all_success'
 
+    def getStageOutDetail(self):
+        retStr = ''
+        if 'primary' in self.__stageoutStorages and self.__stageoutStorages['primary']:
+           retStr += "primary storage('%s' at '%s'): [success %s, failed %s]" % (self.__stageoutStorages['primary']['activity'],
+                                                                                 self.__stageoutStorages['primary']['endpoint'],
+                                                                                 self.__stageoutStorages['primary']['success'],
+                                                                                 self.__stageoutStorages['primary']['failed'])
+        if 'failover' in self.__stageoutStorages and self.__stageoutStorages['failover']:
+           retStr += "failover storage('%s' at '%s'): [success %s, failed %s]" % (self.__stageoutStorages['failover']['activity'],
+                                                                                  self.__stageoutStorages['failover']['endpoint'],
+                                                                                  self.__stageoutStorages['failover']['success'],
+                                                                                  self.__stageoutStorages['failover']['failed'])
+        return retStr
+
     def setFinalESStatus(self, job):
         if self.__nEventsW < 1 and self.__nStageOutFailures >= 3:
             job.subStatus = 'pilot_failed'
-            job.pilotErrorDiag = "Too many stageout failures"
+            job.pilotErrorDiag = "Too many stageout failures: %s" % self.getStageOutDetail()
             job.result[0] = "failed"
             job.result[2] = self.__error.ERR_ESRECOVERABLE
             job.jobState = "failed"
         elif not self.__eventRangeID_dictionary:
-            job.subStatus = 'pilot_failed'  # 'no_events'
+            job.subStatus = 'pilot_noevents'  # 'no_events'
             job.pilotErrorDiag = "Pilot got no events"
             job.result[0] = "failed"
             job.result[2] = self.__error.ERR_NOEVENTS
@@ -178,37 +193,37 @@ class RunJobEvent(RunJob):
             job.subStatus = 'pilot_failed'  # 'no_running_events'
             job.pilotErrorDiag = "Pilot didn't run any events"
             job.result[0] = "failed"
-            job.result[2] = self.__error.ERR_NOEVENTS
+            job.result[2] = self.__error.ERR_UNKNOWN
             job.jobState = "failed"
         elif self.__esFatalCode:
             job.subStatus = 'pilot_failed'
-            job.pilotErrorDiag = "AthenaMP fatal error happened"
+            job.pilotErrorDiag = "AthenaMP fatal error happened: %s" % self.getStageOutDetail()
             job.result[0] = "failed"
             job.result[2] = self.__esFatalCode
             job.jobState = "failed"
         elif self.__nEventsFailed:
             if self.__nEventsW == 0:
                 job.subStatus = 'pilot_failed' # all failed
-                job.pilotErrorDiag = "All events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "All events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
             elif self.__nEventsFailed < self.__nEventsW:
                 job.subStatus = 'partly_failed'
-                job.pilotErrorDiag = "Part of events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "Part of events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
             else:
                 job.subStatus = 'mostly_failed' 
-                job.pilotErrorDiag = "Most of events failed(stageout failure: %s, other failure: %s)" % (self.__nEventsFailedStagedOut, self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "Most of events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
         else:
             job.subStatus = 'all_success'
             job.jobState = "finished"
-            job.pilotErrorDiag = "AllSuccess"
+            job.pilotErrorDiag = "AllSuccess: %s" % self.getStageOutDetail()
 
     def getESFatalCode(self):
         return self.__esFatalCode
@@ -836,6 +851,16 @@ class RunJobEvent(RunJob):
 
         self.__usePrefetcher = usePrefetcher
 
+    def getInFilePosEvtNum(self):
+        """ Should the event range numbers relative to in-file position be used? """
+
+        return self.__inFilePosEvtNum
+
+    def setInFilePosEvtNum(self, inFilePosEvtNum):
+        """ Set the __inFilePosEvtNum variable to a boolean value """
+
+        self.__inFilePosEvtNum = inFilePosEvtNum
+
     def getPanDAServer(self):
         """ Getter for __pandaserver """
 
@@ -869,14 +894,14 @@ class RunJobEvent(RunJob):
         """ Add the pfn's to the event ranges """
         # If an event range is file related, we need to add the pfn to the event range
 
-        for eventRange in eventRanges:
-            if 'inFilePosEvtNum' in eventRange and (eventRange['inFilePosEvtNum'] == True or str(eventRange['inFilePosEvtNum']).lower() == 'true'):
+        if self.getInFilePosEvtNum():
+            for eventRange in eventRanges:
                 key = '%s:%s' % (eventRange['scope'], eventRange['LFN'])
                 if key in self.__input_files:
                     eventRange['PFN'] = self.__input_files[key]
                 else:
                     eventRange['PFN'] = eventRange['LFN']
-        return eventRanges
+       	return eventRanges
 
     def addPFNToEventRange(self, eventRange):
         """ Add the pfn to an event range """
@@ -1182,6 +1207,10 @@ class RunJobEvent(RunJob):
             job.subStatus = 'pilot_failed'
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
+
+        if pilotExitCode in [self.__error.ERR_NOEVENTS, self.__error.ERR_TOOFEWEVENTS]:
+            job.subStatus = 'pilot_noevents'
+
         tolog("Will now update local pilot TCP server")
         rt = RunJobUtilities.updatePilotServer(job, self.__pilotserver, self.__pilotport, final=True)
         if ins:
@@ -1333,7 +1362,7 @@ class RunJobEvent(RunJob):
                     if int(pledgedcpu) == -1:
                         self.__asyncOutputStager_thread_sleep_time = 600
                     else:
-                        self.__asyncOutputStager_thread_sleep_time = 3600 * 2
+                        self.__asyncOutputStager_thread_sleep_time = 3600 * 4
                 except:
                     tolog("Failed to read pledgedcpu: %s" % traceback.format_exc())
 
@@ -1707,7 +1736,7 @@ class RunJobEvent(RunJob):
             secret_key = None
             is_secure = None
             for protocol in protocols:
-                if 'w' in protocols[protocol].get('activities', []):
+                if 'w' in protocols[protocol].get('activities', []) or 'write_wan' in protocols[protocol].get('activities', []):
                     settings = protocols[protocol].get('settings', {})
                     access_key = settings.get('access_key', None)
                     secret_key = settings.get('secret_key', None)
@@ -1754,10 +1783,10 @@ class RunJobEvent(RunJob):
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
-                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
+                    storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0, 'success': 0, 'failed': 0}
                     storages['primary']['access_keys'] = access_keys
             else:
-                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
+                storages['primary'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0, 'success': 0, 'failed': 0}
 
 
         # resolve failover storages
@@ -1772,10 +1801,10 @@ class RunJobEvent(RunJob):
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
                 else:
-                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
+                    storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0, 'success': 0, 'failed': 0}
                     storages['failover']['access_keys'] = access_keys
             else:
-                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0}
+                storages['failover'] = {'endpoint': endpoint, 'storageId': storageId, 'activity': activity, 'continousErrors': 0, 'success': 0, 'failed': 0}
 
         tolog("[reolve_stageout_endpoint] resolved storages: primary: %s, failover: %s" % (storages['primary']['endpoint'] if storages['primary'] else None,
                                                                                            storages['failover']['endpoint'] if storages['failover'] else None))
@@ -1815,10 +1844,12 @@ class RunJobEvent(RunJob):
             if ret_code == 0:
                 tolog("[stage_out_es] Successful to stageout to primary storage: %s" % (self.__stageoutStorages['primary']['endpoint']))
                 self.__stageoutStorages['primary']['continousErrors'] = 0
+                self.__stageoutStorages['primary']['success'] += 1
                 return ret_code, ret_str, os_bucket_id
             else:
                 tolog("[stage_out_es] Failed to stageout to primary storage(%s): %s, %s" % (self.__stageoutStorages['primary']['endpoint'], ret_code, ret_str))
                 self.__stageoutStorages['primary']['continousErrors'] += 1
+                self.__stageoutStorages['primary']['failed'] += 1
         else:
             tolog("[stage_out_es] Primary storage(%s) is not available or reached 3 times countinous errors(continousErrors:%s)" %
                   (self.__stageoutStorages['primary'], self.__stageoutStorages['primary']['continousErrors']))
@@ -1833,10 +1864,12 @@ class RunJobEvent(RunJob):
             if ret_code == 0:
                 tolog("[stage_out_es] Successful to stageout to failover storage: %s" % (self.__stageoutStorages['failover']['endpoint']))
                 self.__stageoutStorages['failover']['continousErrors'] = 0
+                self.__stageoutStorages['failover']['success'] += 1
                 return ret_code, ret_str, os_bucket_id
             else:
                 tolog("[stage_out_es] Failed to stageout to failover storage(%s): %s, %s" % (self.__stageoutStorages['failover']['endpoint'], ret_code, ret_str))
                 self.__stageoutStorages['failover']['continousErrors'] += 1
+                self.__stageoutStorages['failover']['failed'] += 1
         else:
             tolog("[stage_out_es] Failover storage(%s) is not available" % (self.__stageoutStorages['failover']))
 
@@ -3503,6 +3536,10 @@ if __name__ == "__main__":
         else:
             tolog("!!WARNING!!1111!! The message server for Prefetcher could not be created, cannot use Prefetcher")
 
+        runJob.setInFilePosEvtNum(job.inFilePosEvtNum)
+        if runJob.getInFilePosEvtNum():
+            tolog("Event number ranges relative to in-file position will be used")
+
         # Setup starts here ................................................................................
 
         # Update the job state file
@@ -3734,11 +3771,24 @@ if __name__ == "__main__":
             input_file = ""
             infiles = input_files.split(",")
             for infile in infiles:
-                if job.inFiles[0] in infile:
-                    input_file = infile
-                    break
+                for inFileLfn in job.inFiles:
+                    if inFileLfn in infile:
+                        input_file += infile + " "
+                        break
+                else:
+                    pilotErrorDiag = "Did not find turl for lfn=%s in fileState file" % (inFileLfn)
+                    tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+
+                    # Set error code
+                    job.result[0] = "failed"
+                    job.result[2] = error.ERR_ESRECOVERABLE
+                    runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
+
+            if input_file.endswith(" "):
+                input_file = input_file[:-1]
+
             if input_file == "":
-                pilotErrorDiag = "Did not find turl for lfn=%s in fileState file" % (job.inFiles[0])
+                pilotErrorDiag = "Did not find turl for any lfn in fileState file"
                 tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
 
                 # Set error code
@@ -4338,6 +4388,7 @@ if __name__ == "__main__":
             else:
                 eventRangeIdDic = runJob.getEventRangeIDDictionary()
                 if not eventRangeIdDic.keys():
+                    job.subStatus = 'pilot_noevents'
                     job.pilotErrorDiag = "Pilot got no events"
                     job.result[0] = "failed"
                     job.result[2] = error.ERR_NOEVENTS
