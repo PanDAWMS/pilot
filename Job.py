@@ -1194,15 +1194,19 @@ class FileSpec(object):
             self.checksum = checksum
 
     def is_directaccess(self, ensure_replica=True):
+        """
+            Check if given file can be used for direct access mode by Job transformation script
+            :param ensure_replica: boolean, if True then check by allowed schemas of file replica turl will be considered as well
+            :return: boolean
+        """
 
-        from SiteMover import SiteMover
-        # is_rootfile = '.root' in self.lfn
-        sm = SiteMover()
-        is_rootfile = sm.isRootFileName(self.lfn)
+        # check by filename pattern
+        filename = self.lfn.lower()
 
+        is_rootfile = True
         exclude_pattern = ['.tar.gz', '.lib.tgz', '.raw.']
         for e in exclude_pattern:
-            if e in self.lfn:
+            if e in filename:
                 is_rootfile = False
                 break
 
