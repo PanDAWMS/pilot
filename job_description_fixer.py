@@ -27,8 +27,8 @@ def snake_to_camel(snake_str):
     """
     Changes snake_case to firstLowCamelCase, used by server.
 
-    :param name: name to change
-    :return: name in snake_case
+    :param snake_str: name to change
+    :return: name in camelCase
     """
     components = snake_str.split('_')
     # We capitalize the first letter of each component except the first one
@@ -639,6 +639,7 @@ def cli_setup():
     log.info("Log level %d" % log.getEffectiveLevel())
 
     return args
+
 
 if __name__ == "__main__":
     env = cli_setup()

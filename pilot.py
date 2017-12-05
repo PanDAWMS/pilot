@@ -201,7 +201,7 @@ class Pilot:
     @staticmethod
     def time_iso8601(t=time.localtime(), timezone=time.timezone):
         """
-        :param time(t): time to format down. Default to now.
+        :param t: time to format down. Default to now.
         :param timezone: timezone of requested time. Default to local timezone.
         :return str: ISO-8601 compliant date/time string, timezone included
         """
