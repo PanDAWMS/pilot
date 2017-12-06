@@ -237,6 +237,19 @@ def get_output_files(description):
     return fix_log(description, files)
 
 
+def one_or_set(array):
+    if len(array) < 1:
+        return join(array)
+
+    zero = array[0]
+
+    for i in array:
+        if i != zero:
+            return join(array)
+
+    return stringify_weird(zero)
+
+
 class JobDescription(object):
     __holder = None
     __key_aliases = {
@@ -263,32 +276,34 @@ class JobDescription(object):
         'id': 'job_id'
     }
 
-    __input_file_keys = {
-        'inFiles': 'file_name',
-        "ddmEndPointIn": '',
-        "destinationSE": '',
-        "dispatchDBlockToken": '',
-        "realDatasetsIn": '',
-        "prodDBlocks": '',
-        "fsize": '',
-        "dispatchDblock": '',
-        'prodDBlockToken': '',
-        "GUID": '',
-        "checksum": '',
-        "scopeIn": ''
+    __input_file_keys = {   # corresponding fields in input_files
+        'inFiles': '',
+        "ddmEndPointIn": 'ddm_endpoint',
+        "destinationSE": 'storage_element',
+        "dispatchDBlockToken": 'dispatch_dblock_token',
+        "realDatasetsIn": 'dataset',
+        "prodDBlocks": 'dblock',
+        "fsize": 'size',
+        "dispatchDblock": 'dispatch_dblock',
+        'prodDBlockToken': 'dblock_token',
+        "GUID": 'guid',
+        "checksum": 'checksum',
+        "scopeIn": 'scope'
     }
-    __output_file_keys = {
+    __may_be_united = ['guid', 'scope', 'dataset']  # can be sent as one for all files, if is the same
+
+    __output_file_keys = {   # corresponding fields in output_files
         'outFiles': '',
-        'ddmEndPointOut': '',
-        'fileDestinationSE': '',
-        'dispatchDBlockTokenForOut': '',
-        'prodDBlockTokenForOut': '',
-        'realDatasets': '',
-        'destinationDblock': '',
-        'destinationDBlockToken': '',
-        'scopeOut': '',
-        'logGUID': '',
-        'scopeLog': ''
+        'ddmEndPointOut': 'ddm_endpoint',
+        'fileDestinationSE': 'storage_element',
+        'dispatchDBlockTokenForOut': 'dispatch_dblock_token',
+        'prodDBlockTokenForOut': 'dblock_token',
+        'realDatasets': 'dataset',
+        'destinationDblock': 'dblock',
+        'destinationDBlockToken': 'destination_dblock_token',
+        'scopeOut': 'scope',
+        'logGUID': 'guid',
+        'scopeLog': 'scope'
     }
 
     def __init__(self):
@@ -296,12 +311,46 @@ class JobDescription(object):
 
         self.__key_back_aliases_from_forward = self.__key_back_aliases.copy()
         self.__key_reverse_aliases = {}
+        self.__key_aliases_snake = {}
         self.input_files = {}
         self.output_files = {}
 
         for key in self.__key_aliases:
             alias = self.__key_aliases[key]
             self.__key_back_aliases_from_forward[alias] = key
+            self.__key_aliases_snake[camel_to_snake(key)] = alias
+
+    def get_input_file_prop(self, key):
+        corresponding_key = self.__input_file_keys[key]
+        ret = []
+
+        for f in self.input_files:
+            ret.append(f if corresponding_key == '' else self.input_files[f][corresponding_key])
+
+        if corresponding_key in self.__may_be_united:
+            return one_or_set(ret)
+
+        return join(ret)
+
+    def get_output_file_prop(self, key):
+        log_file = self.log_file
+
+        if key == 'logGUID':
+            return stringify_weird(self.output_files[log_file]['guid'])
+        if key == 'scopeLog':
+            return stringify_weird(self.output_files[log_file]['scope'])
+
+        corresponding_key = self.__output_file_keys[key]
+        ret = []
+
+        for f in self.output_files:
+            if key != 'scopeOut' or f != log_file:
+                ret.append(f if corresponding_key == '' else self.output_files[f][corresponding_key])
+
+        if corresponding_key in self.__may_be_united:
+            return one_or_set(ret)
+
+        return join(ret)
 
     def load(self, new_desc):
         if isinstance(new_desc, basestring):
@@ -327,7 +376,8 @@ class JobDescription(object):
 
                     if key != old_key:
                         self.__key_back_aliases_from_forward[key] = old_key
-                        self.__key_reverse_aliases[old_key] = key
+
+                    self.__key_reverse_aliases[old_key] = key
 
                     fixed[key] = parse_value(value)
 
@@ -341,6 +391,15 @@ class JobDescription(object):
     def to_json(self, decompose=False, **kwargs):
         if decompose:
             prep = {}
+
+            for k in self.__key_reverse_aliases:
+                prep[k] = stringify_weird(self.__holder[self.__key_reverse_aliases[k]])
+
+            for k in self.__output_file_keys:
+                prep[k] = self.get_output_file_prop(k)
+            for k in self.__input_file_keys:
+                prep[k] = self.get_input_file_prop(k)
+
         else:
             prep = self.__holder.copy()
             prep['input_files'] = self.input_files
@@ -360,6 +419,16 @@ class JobDescription(object):
             if self.__holder is not None:
                 if key in self.__holder:
                     return self.__holder[key]
+
+                if key in self.__input_file_keys:
+                    return self.get_input_file_prop(key)
+                if key in self.__output_file_keys:
+                    return self.get_output_file_prop(key)
+
+                snake_key = camel_to_snake(key)
+                if snake_key in self.__key_aliases_snake:
+                    return stringify_weird(self.__holder[self.__key_aliases_snake[snake_key]])
+
                 if key in self.__soft_key_aliases:
                     return self.__getattr__(self.__soft_key_aliases[key])
             raise
@@ -378,6 +447,28 @@ class JobDescription(object):
                 if key in self.__holder:
                     self.__holder[key] = value
                     return
+
+                if key in self.__input_file_keys:
+                    err = "Key JobDescription.%s is read-only\n" % key
+                    if key == 'inFiles':
+                        err += "Use JobDescription.input_files to manipulate input files"
+                    else:
+                        err += "Use JobDescription.input_files[][%s] to set up this parameter in files description" % self.__input_file_keys[key]
+                    raise AttributeError(err)
+
+                if key in self.__output_file_keys:
+                    err = "Key JobDescription.%s is read-only\n" % key
+                    if key == 'outFiles':
+                        err += "Use JobDescription.output_files to manipulate output files"
+                    else:
+                        err += "Use JobDescription.output_files[][%s] to set up this parameter in files description" % self.__output_file_keys[key]
+                    raise AttributeError(err)
+
+                snake_key = camel_to_snake(key)
+                if snake_key in self.__key_aliases_snake:
+                    log.warning("Better to use %s to access and manipulate this value" % self.__key_aliases_snake[snake_key])
+                    self.__holder[self.__key_aliases_snake[snake_key]] = parse_value(value)
+
                 elif key in self.__soft_key_aliases:
                     return self.__setattr__(self.__soft_key_aliases[key], value)
             return object.__setattr__(self, key, value)
@@ -394,7 +485,13 @@ if __name__ == "__main__":
 
     jd.load(contents)
 
-    print(jd.id)
-    print(jd.command)
+    log.debug(jd.id)
+    log.debug(jd.command)
+    log.debug(jd.PandaID)
+    log.debug(jd.scopeOut)
+    log.debug(jd.scopeLog)
+    log.debug(jd.fileDestinationSE)
+    log.debug(jd.inFiles)
+    log.debug(json.dumps(jd.output_files, indent=4, sort_keys=True))
 
-    print jd.to_json(indent=4, sort_keys=True)
+    log.debug(jd.to_json(True, indent=4, sort_keys=True))
