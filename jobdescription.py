@@ -392,8 +392,13 @@ class JobDescription(object):
         if decompose:
             prep = {}
 
-            for k in self.__key_reverse_aliases:
-                prep[k] = stringify_weird(self.__holder[self.__key_reverse_aliases[k]])
+            for k in self.__holder:
+                if k not in ['input_files', 'output_files']:
+                    if k in self.__key_back_aliases_from_forward:
+                        rev = self.__key_back_aliases_from_forward[k]
+                    else:
+                        rev = snake_to_camel(k)
+                    prep[rev] = stringify_weird(self.__holder[k])
 
             for k in self.__output_file_keys:
                 prep[k] = self.get_output_file_prop(k)
