@@ -306,6 +306,12 @@ class JobDescription(object):
         'scopeLog': 'scope'
     }
 
+    __key_back_aliases_from_forward = None
+    __key_reverse_aliases = None
+    __key_aliases_snake = None
+    input_files = None
+    output_files = None
+
     def __init__(self):
         super(JobDescription, self).__init__()
 
@@ -412,6 +418,57 @@ class JobDescription(object):
 
         return json.dumps(prep, **kwargs)
 
+    def get_description_parameter(self, key):
+        if self.__holder is not None:
+            if key in self.__holder:
+                return self.__holder[key]
+
+            if key in self.__input_file_keys:
+                return self.get_input_file_prop(key)
+            if key in self.__output_file_keys:
+                return self.get_output_file_prop(key)
+
+            snake_key = camel_to_snake(key)
+            if snake_key in self.__key_aliases_snake:
+                return stringify_weird(self.__holder[self.__key_aliases_snake[snake_key]])
+
+            if key in self.__soft_key_aliases:
+                return self.get_description_parameter(self.__soft_key_aliases[key])
+
+        raise AttributeError("Description parameter not found")
+
+    def set_description_parameter(self, key, value):
+        if self.__holder is not None:
+            if key in self.__holder:
+                self.__holder[key] = value
+                return True
+
+            if key in self.__input_file_keys:
+                err = "Key JobDescription.%s is read-only\n" % key
+                if key == 'inFiles':
+                    err += "Use JobDescription.input_files to manipulate input files"
+                else:
+                    err += "Use JobDescription.input_files[][%s] to set up this parameter in files description" % self.__input_file_keys[key]
+                raise AttributeError(err)
+
+            if key in self.__output_file_keys:
+                err = "Key JobDescription.%s is read-only\n" % key
+                if key == 'outFiles':
+                    err += "Use JobDescription.output_files to manipulate output files"
+                else:
+                    err += "Use JobDescription.output_files[][%s] to set up this parameter in files description" % self.__output_file_keys[key]
+                raise AttributeError(err)
+
+            snake_key = camel_to_snake(key)
+            if snake_key in self.__key_aliases_snake:
+                log.warning("Better to use %s to access and manipulate this value" % self.__key_aliases_snake[snake_key])
+                self.__holder[self.__key_aliases_snake[snake_key]] = parse_value(value)
+
+            if key in self.__soft_key_aliases:
+                return self.set_description_parameter(self.__soft_key_aliases[key], value)
+
+        return False
+
     def __getattr__(self, key):
         """
         Reflection of description values into Job instance properties if they are not shadowed.
@@ -421,22 +478,7 @@ class JobDescription(object):
         try:
             return object.__getattribute__(self, key)
         except AttributeError:
-            if self.__holder is not None:
-                if key in self.__holder:
-                    return self.__holder[key]
-
-                if key in self.__input_file_keys:
-                    return self.get_input_file_prop(key)
-                if key in self.__output_file_keys:
-                    return self.get_output_file_prop(key)
-
-                snake_key = camel_to_snake(key)
-                if snake_key in self.__key_aliases_snake:
-                    return stringify_weird(self.__holder[self.__key_aliases_snake[snake_key]])
-
-                if key in self.__soft_key_aliases:
-                    return self.__getattr__(self.__soft_key_aliases[key])
-            raise
+            return self.get_description_parameter(key)
 
     def __setattr__(self, key, value):
         """
@@ -448,35 +490,8 @@ class JobDescription(object):
             object.__getattribute__(self, key)
             return object.__setattr__(self, key, value)
         except AttributeError:
-            if self.__holder is not None:
-                if key in self.__holder:
-                    self.__holder[key] = value
-                    return
-
-                if key in self.__input_file_keys:
-                    err = "Key JobDescription.%s is read-only\n" % key
-                    if key == 'inFiles':
-                        err += "Use JobDescription.input_files to manipulate input files"
-                    else:
-                        err += "Use JobDescription.input_files[][%s] to set up this parameter in files description" % self.__input_file_keys[key]
-                    raise AttributeError(err)
-
-                if key in self.__output_file_keys:
-                    err = "Key JobDescription.%s is read-only\n" % key
-                    if key == 'outFiles':
-                        err += "Use JobDescription.output_files to manipulate output files"
-                    else:
-                        err += "Use JobDescription.output_files[][%s] to set up this parameter in files description" % self.__output_file_keys[key]
-                    raise AttributeError(err)
-
-                snake_key = camel_to_snake(key)
-                if snake_key in self.__key_aliases_snake:
-                    log.warning("Better to use %s to access and manipulate this value" % self.__key_aliases_snake[snake_key])
-                    self.__holder[self.__key_aliases_snake[snake_key]] = parse_value(value)
-
-                elif key in self.__soft_key_aliases:
-                    return self.__setattr__(self.__soft_key_aliases[key], value)
-            return object.__setattr__(self, key, value)
+            if not self.set_description_parameter(key, value):
+                return object.__setattr__(self, key, value)
 
 
 if __name__ == "__main__":

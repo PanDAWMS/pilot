@@ -59,7 +59,7 @@ class Job(Utility, JobDescription):
         log_file                Job dedicated log file, into which the logs _are_ written. Shadowing log_file from the
                                 description, because that file is not a log file, but an archive containing it.
                                 Moreover, log_file archive may contain not only log file.
-                                :Shadowing property:
+                                :Shadows description prop:
         log_archive             Detected archive extension. Mostly ".tgz"
         log                     Logger, used by class members.
         log_handler             File handler of real log file for logging. Added to root logger to catch outer calls.
@@ -91,6 +91,7 @@ class Job(Utility, JobDescription):
         :return:
         """
         super(Job, self).__init__()
+        JobDescription.__init__(self)
 
         self.log = logging.getLogger('pilot.jobmanager')
         self.pilot = _pilot
@@ -173,7 +174,7 @@ class Job(Utility, JobDescription):
         Sets up logger handler for specified job log file. Beforehand it extracts job log file's real name and it's
         archive extension.
         """
-        log_basename = self.__holder["log_file"]
+        log_basename = self.get_description_parameter('log_file')
 
         log_file = ''
         log_archive = ''
@@ -355,17 +356,8 @@ class Job(Utility, JobDescription):
         self.state = 'stageout'
         self.rucio_info()
         for f in self.output_files:
-            if os.path.isfile(f) and self.__holder['log_file'] != f:
-                if self.pilot.args.simulate_rucio:
-                    self.log.info("Simulated uploading " + f + " to scope " + self.output_files[f]['scope'] +
-                                  " and SE " + self.output_files[f]['storage_element'])
-                else:
-                    c, o, e = self.call(['rucio', 'upload', '--rse', self.output_files[f]['storage_element'], '--scope',
-                                         self.output_files[f]['scope'], f])
-            else:
-                self.log.warn("Can not upload " + f + ", file does not exist.")
-        self.prepare_log()
-        with self.__holder['log_file'] as f:
+            if self.get_description_parameter('log_file') == f:
+                continue  # log file will be sent afterwards
             if os.path.isfile(f):
                 if self.pilot.args.simulate_rucio:
                     self.log.info("Simulated uploading " + f + " to scope " + self.output_files[f]['scope'] +
@@ -375,6 +367,18 @@ class Job(Utility, JobDescription):
                                          self.output_files[f]['scope'], f])
             else:
                 self.log.warn("Can not upload " + f + ", file does not exist.")
+        self.prepare_log()
+
+        f = self.get_description_parameter('log_file')
+        if os.path.isfile(f):
+            if self.pilot.args.simulate_rucio:
+                self.log.info("Simulated uploading " + f + " to scope " + self.output_files[f]['scope'] +
+                              " and SE " + self.output_files[f]['storage_element'])
+            else:
+                c, o, e = self.call(['rucio', 'upload', '--rse', self.output_files[f]['storage_element'], '--scope',
+                                     self.output_files[f]['scope'], f])
+        else:
+            self.log.warn("Can not upload " + f + ", file does not exist.")
 
     def payload_run(self):
         """
