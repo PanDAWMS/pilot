@@ -103,6 +103,50 @@ File Changes
 
 M RunJobEvent.py (9)
 
+  https://github.com/PanDAWMS/pilot/pull/177
+
+Commit Summary
+
+using read_lan to replace r activity for ddm
+update es error report
+
+File Changes
+
+M RunJobEvent.py (49)
+M movers/mover.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/178
+
+Commit Summary
+
+fix pilotErrorCode when payload fails
+
+File Changes
+
+M RunJob.py (6)
+
+  https://github.com/PanDAWMS/pilot/pull/180
+
+Commit Summary
+
+fix pilot bug which updated final state two times
+
+File Changes
+
+M Job.py (3)
+M Monitor.py (9)
+M UpdateHandler.py (8)
+
+  https://github.com/PanDAWMS/pilot/pull/181
+
+Commit Summary
+
+fix
+
+File Changes
+
+M movers/mover.py (4)
+
 Updates from Nicolo Magini
 
   https://github.com/PanDAWMS/pilot/pull/169
@@ -133,6 +177,109 @@ M RunJob.py (2)
 M RunJobEvent.py (2)
 M movers/mover.py (2)
 
+  https://github.com/PanDAWMS/pilot/pull/176
+
+Commit Summary
+
+Pass multiple input files to prefetcher command line
+Change inFilePosEvtNum to job parameter (not an event range parameter)
+
+File Changes
+
+M Job.py (9)
+M RunJobEvent.py (42)
+
+Updates from Alexey Anisenkov
+
+  https://github.com/PanDAWMS/pilot/pull/179
+
+Base Sitemovers workflow updates:
+
+implemented proper direct_access handling both for ANALY and PROD jobs over LAN and WAN in sitemovers
+set by default direct access mode enabled for Analy jobs but disabled for Prod jobs (in Job class)
+isolated remoteinput allowed schemes into JobMover.remoteinput_allowed_schemas; for the moment 'root' is only considered as allowed schema.. but can be easily extended with davs, gsiftp, etc..
+Note: currently, the getNewJob() function in pilot.py modifies direct_access_lan and direct_access_wan queuedata settings based on Job parameters (e.g. transferType, is Analy) which is duplicating and confusing and actually should not be handled there but moved instead to Job constructor Job.setJobDef (it should be enough just disable 2lines of queuedata modification below)
+
+As a side effect resetting direct_access_lan/wan settings by getNewJob will ignore default direct access settings set in Job.setJobDef.
+
+https://github.com/PanDAWMS/pilot/blob/main-dev/pilot.py#L2340
+
+ec = env['si'].replaceQueuedataField("direct_access_lan", "False")
+ec = env['si'].replaceQueuedataField("direct_access_wan", "False")
+
+Commit Summary
+
+base sitemovers workflow updates:
+typo fixes
+cosmetic fix
+
+File Changes
+
+M Job.py (18)
+M movers/base.py (2)
+M movers/mover.py (228)
+
+  https://github.com/PanDAWMS/pilot/pull/182
+
+Updates:
+
+implemented base functionality to parse and overwrite data passed via jobPars settings
+introduced --overwriteAGISdata arg option to overwrite queuedata coming from AGIS
+added copytools and acopytools entries to overwriteAGISdata, update affected stagein/out functions
+The format of overwriteAGISdata command line option in JobParameters is a string representation of python structures (need to be overwritten)
+
+e.g.
+
+jobPars = '
+--overwriteAGISdata "{\'allowfax\':False,\'copytools\':{\'rucio\':{\'setup\':\'fakesetup.sh\'}, \'acopytools\':{\'pr\':[\'rucio\']}}"
+'
+to simply overwrite queuedata both for stage-in and stage-out (e.g. by HC jobs) and force use of Rucio sitemover following settings can be passed:
+
+--overwriteAGISdata "{'copytools':{'rucio':{'setup':''}, 'acopytools':{}}"
+
+Commit Summary
+
+- implement base functionality to overwrite AGIS queuedata passed via jobPars settings
+cosmetic fix: exclude None values from being parsed by overwrite AGIS queue data
+
+File Changes
+
+M Job.py (56)
+M SiteInformation.py (16)
+M movers/mover.py (7)
+
+  https://github.com/PanDAWMS/pilot/pull/183
+
+Commit Summary
+
+bugfix of job.parseJobPars() function
+cosmetic
+
+File Changes
+
+M Job.py (10)
+
+  https://github.com/PanDAWMS/pilot/pull/184
+
+stage-in updates:
+
+first process files which can be potentially used for direct access to exclude them from available space checks
+exclude available space checks during stage-in for mv and storm site movers
+clean up
+
+Commit Summary
+
+exclude available space checks during stage-in for mv and storm sitemovers
+stagein logic updates: first process files which can be potentially used for direct access to exclude them from available space checks
+cleanup of FileSpec.is_directaccess
+
+File Changes
+
+M Job.py (14)
+M movers/base.py (1)
+M movers/mover.py (4)
+M movers/mv_sitemover.py (17)
+M movers/storm_sitemover.py (8)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

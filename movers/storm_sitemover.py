@@ -30,6 +30,14 @@ class stormSiteMover(BaseSiteMover):
         super(stormSiteMover, self).__init__(*args, **kwargs)
         self.log('storm sitemover version: %s' % self.version)
 
+    def check_availablespace(self, maxinputsize, files):
+        """
+            Verify that enough local space is available to stage in and run the job
+            :raise: PilotException in case of not enough space
+            Not applicable for given Mover
+        """
+        pass
+
     def stageIn(self, source, destination, fspec):
         """
         Query HTTP for etag, then symlink to the pilot working directory.
