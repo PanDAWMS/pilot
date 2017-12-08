@@ -112,9 +112,9 @@ class Job(Utility, JobDescription):
 
         return key, value
 
-    def prepare_command_params(self):
+    def prepare_script_params(self):
         """
-        Splits command parameters and extracts queuedata modifications if present.
+        Splits script parameters and extracts queuedata modifications if present.
 
         Queuedata modification principles:
             Extraction is done from one of the parameter strings:
@@ -143,9 +143,9 @@ class Job(Utility, JobDescription):
 
             If the next parameter (case 2) is --overwriteQueuedata, it is parsed all the same.
         """
-        if isinstance(self.command_parameters, list):
+        if isinstance(self.script_parameters, list):
             return
-        params = shlex.split(str(self.command_parameters), True, True)
+        params = shlex.split(str(self.script_parameters), True, True)
         overwriting = False
         new_params = []
         for param in params:
@@ -167,7 +167,7 @@ class Job(Utility, JobDescription):
                     new_params.append(param)
 
         self.log.debug("Prepared parameters: %s" % " ".join(pipes.quote(x) for x in new_params))
-        self.command_parameters = new_params
+        self.script_parameters = new_params
 
     def init_logging(self):
         """
@@ -221,7 +221,7 @@ class Job(Utility, JobDescription):
         Initializes description induced configurations: log handlers, queuedata modifications, etc.
         """
         self.init_logging()
-        self.prepare_command_params()
+        self.prepare_script_params()
 
     @property
     def state(self):
@@ -385,8 +385,8 @@ class Job(Utility, JobDescription):
         Runs payload.
         """
         self.state = 'running'
-        args = copy.deepcopy(self.command_parameters)
-        args.insert(0, self.command)
+        args = copy.deepcopy(self.script_parameters)
+        args.insert(0, self.script)
 
         self.log.info("Starting job cmd: %s" % " ".join(pipes.quote(x) for x in args))
 

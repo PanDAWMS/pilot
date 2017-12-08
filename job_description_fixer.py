@@ -77,8 +77,8 @@ forward key modifications
 """
 key_fix = {
     'PandaID': 'job_id',  # it is job id, not PanDA
-    'transformation': 'command',  # making it more convenient
-    'jobPars': 'command_parameters',  # -.-
+    'transformation': 'script',  # making it more convenient
+    'jobPars': 'script_parameters',  # -.-
     'coreCount': 'number_of_cores',
     'prodUserID': 'user_dn',
     'prodSourceLabel': 'label',  # We don't have any other labels in there. And this is The Label, or just label
@@ -131,8 +131,8 @@ key_unfix = {
     'task_id': 'taskID',  # all ID's are to be placed here, because snake case lacks of all-caps abbrev info
     'jobset_id': 'jobsetID',
     'job_definition_id': 'jobDefinitionID',
-    'command': 'transformation',
-    'command_parameters': 'jobPars',
+    'script': 'transformation',
+    'script_parameters': 'jobPars',
     'cores_number': 'coreCount',
     'label': 'prodSourceLabel',
     'home_package': 'homepackage',

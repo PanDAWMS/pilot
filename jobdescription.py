@@ -2,6 +2,8 @@ import re
 import logging
 import json
 import numbers
+import traceback
+import threading
 
 log = logging.getLogger(__name__)
 
@@ -254,8 +256,8 @@ class JobDescription(object):
     __holder = None
     __key_aliases = {
         'PandaID': 'job_id',  # it is job id, not PanDA
-        'transformation': 'command',  # making it more convenient
-        'jobPars': 'command_parameters',  # -.-
+        'transformation': 'script',  # making it more convenient
+        'jobPars': 'script_parameters',  # -.-
         'coreCount': 'number_of_cores',
         'prodUserID': 'user_dn',
         'prodSourceLabel': 'label',  # We don't have any other labels in there. And this is The Label, or just label
@@ -273,7 +275,9 @@ class JobDescription(object):
         'status_code': 'StatusCode',  # uppercase starting names also should be here
     }
     __soft_key_aliases = {
-        'id': 'job_id'
+        'id': 'job_id',
+        'command': 'script',
+        'command_parameters': 'script_parameters'
     }
 
     __input_file_keys = {   # corresponding fields in input_files
@@ -424,12 +428,21 @@ class JobDescription(object):
                 return self.__holder[key]
 
             if key in self.__input_file_keys:
+                log.warning(("Old key JobDescription.%s is used. Better to use JobDescription.input_files[][%s] to"
+                             " access and manipulate this value.\n" % (key, self.__input_file_keys[key])) +
+                            self.get_traceback())
                 return self.get_input_file_prop(key)
             if key in self.__output_file_keys:
+                log.warning(("Old key JobDescription.%s is used. Better to use JobDescription.output_files[][%s] to"
+                             " access and manipulate this value.\n" % (key, self.__output_file_keys[key])) +
+                            self.get_traceback())
                 return self.get_output_file_prop(key)
 
             snake_key = camel_to_snake(key)
             if snake_key in self.__key_aliases_snake:
+                log.warning(("Old key JobDescription.%s is used. Better to use JobDescription.%s to access and "
+                             "manipulate this value.\n" % (key, self.__key_aliases_snake[snake_key])) +
+                            self.get_traceback())
                 return stringify_weird(self.__holder[self.__key_aliases_snake[snake_key]])
 
             if key in self.__soft_key_aliases:
@@ -448,7 +461,8 @@ class JobDescription(object):
                 if key == 'inFiles':
                     err += "Use JobDescription.input_files to manipulate input files"
                 else:
-                    err += "Use JobDescription.input_files[][%s] to set up this parameter in files description" % self.__input_file_keys[key]
+                    err += "Use JobDescription.input_files[][%s] to set up this parameter in files description" %\
+                           self.__input_file_keys[key]
                 raise AttributeError(err)
 
             if key in self.__output_file_keys:
@@ -456,18 +470,36 @@ class JobDescription(object):
                 if key == 'outFiles':
                     err += "Use JobDescription.output_files to manipulate output files"
                 else:
-                    err += "Use JobDescription.output_files[][%s] to set up this parameter in files description" % self.__output_file_keys[key]
+                    err += "Use JobDescription.output_files[][%s] to set up this parameter in files description" %\
+                           self.__output_file_keys[key]
                 raise AttributeError(err)
 
             snake_key = camel_to_snake(key)
             if snake_key in self.__key_aliases_snake:
-                log.warning("Better to use %s to access and manipulate this value" % self.__key_aliases_snake[snake_key])
+                log.warning(("Old key JobDescription.%s is used. Better to use JobDescription.%s to access and"
+                             "manipulate this value.\n" % (key, self.__key_aliases_snake[snake_key])) +
+                            self.get_traceback())
                 self.__holder[self.__key_aliases_snake[snake_key]] = parse_value(value)
 
             if key in self.__soft_key_aliases:
                 return self.set_description_parameter(self.__soft_key_aliases[key], value)
 
         return False
+
+    def get_traceback(self):
+        tb = list(reversed(traceback.extract_stack()))
+
+        tb_str = '\n'
+        for I in enumerate(tb):
+            if I[0] < 3:
+                continue  # we don't need inner scopes of this and subsequent calls
+            i = I[1]
+            tb_str += '{file}:{line} (in {module}): {call}\n'.format(file=i[0],
+                                                                     line=i[1],
+                                                                     module=i[2],
+                                                                     call=i[3])
+        thread = threading.currentThread()
+        return 'Traceback: (latest call first)' + tb_str + 'Thread: %s(%d)' % (thread.getName(), thread.ident)
 
     def __getattr__(self, key):
         """
