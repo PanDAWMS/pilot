@@ -79,7 +79,7 @@ key_fix = {
     'PandaID': 'job_id',  # it is job id, not PanDA
     'transformation': 'command',  # making it more convenient
     'jobPars': 'command_parameters',  # -.-
-    'coreCount': 'cores_number',
+    'coreCount': 'number_of_cores',
     'prodUserID': 'user_dn',
     'prodSourceLabel': 'label',  # We don't have any other labels in there. And this is The Label, or just label
     'homepackage': 'home_package',  # lowercase, all of a sudden
