@@ -1,5 +1,5 @@
 [flake8]
 show-source = true
-max-line-length = 160
+max-line-length = 120
 select=A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
-max-complexity = 15
+max-complexity = 10
