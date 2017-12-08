@@ -163,7 +163,7 @@ class RunJobEvent(RunJob):
             return 'all_success'
 
     def getStageOutDetail(self):
-        retStr = ''
+        retStr = 'Stageout summary:'
         if 'primary' in self.__stageoutStorages and self.__stageoutStorages['primary']:
            retStr += "primary storage('%s' at '%s'): [success %s, failed %s]" % (self.__stageoutStorages['primary']['activity'],
                                                                                  self.__stageoutStorages['primary']['endpoint'],
@@ -179,7 +179,7 @@ class RunJobEvent(RunJob):
     def setFinalESStatus(self, job):
         if self.__nEventsW < 1 and self.__nStageOutFailures >= 3:
             job.subStatus = 'pilot_failed'
-            job.pilotErrorDiag = "Too many stageout failures: %s" % self.getStageOutDetail()
+            job.pilotErrorDiag = "Too many stageout failures. (%s)" % self.getStageOutDetail()
             job.result[0] = "failed"
             job.result[2] = self.__error.ERR_ESRECOVERABLE
             job.jobState = "failed"
@@ -197,33 +197,33 @@ class RunJobEvent(RunJob):
             job.jobState = "failed"
         elif self.__esFatalCode:
             job.subStatus = 'pilot_failed'
-            job.pilotErrorDiag = "AthenaMP fatal error happened: %s" % self.getStageOutDetail()
+            job.pilotErrorDiag = "AthenaMP fatal error happened. (%s)" % self.getStageOutDetail()
             job.result[0] = "failed"
             job.result[2] = self.__esFatalCode
             job.jobState = "failed"
         elif self.__nEventsFailed:
             if self.__nEventsW == 0:
                 job.subStatus = 'pilot_failed' # all failed
-                job.pilotErrorDiag = "All events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "All events failed. (%s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
             elif self.__nEventsFailed < self.__nEventsW:
                 job.subStatus = 'partly_failed'
-                job.pilotErrorDiag = "Part of events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "Part of events failed. (%s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
             else:
                 job.subStatus = 'mostly_failed' 
-                job.pilotErrorDiag = "Most of events failed(stageout failure: %s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
+                job.pilotErrorDiag = "Most of events failed. (%s, other failure: %s)" % (self.getStageOutDetail(), self.__nEventsFailed - self.__nEventsFailedStagedOut)
                 job.result[0] = "failed"
                 job.result[2] = self.__error.ERR_ESRECOVERABLE
                 job.jobState = "failed"
         else:
             job.subStatus = 'all_success'
             job.jobState = "finished"
-            job.pilotErrorDiag = "AllSuccess: %s" % self.getStageOutDetail()
+            job.pilotErrorDiag = "AllSuccess. (%s)" % self.getStageOutDetail()
 
     def getESFatalCode(self):
         return self.__esFatalCode
