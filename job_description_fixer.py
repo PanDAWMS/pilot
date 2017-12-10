@@ -27,8 +27,8 @@ def snake_to_camel(snake_str):
     """
     Changes snake_case to firstLowCamelCase, used by server.
 
-    :param name: name to change
-    :return: name in snake_case
+    :param snake_str: name to change
+    :return: name in camelCase
     """
     components = snake_str.split('_')
     # We capitalize the first letter of each component except the first one
@@ -77,9 +77,9 @@ forward key modifications
 """
 key_fix = {
     'PandaID': 'job_id',  # it is job id, not PanDA
-    'transformation': 'command',  # making it more convenient
-    'jobPars': 'command_parameters',  # -.-
-    'coreCount': 'cores_number',
+    'transformation': 'script',  # making it more convenient
+    'jobPars': 'script_parameters',  # -.-
+    'coreCount': 'number_of_cores',
     'prodUserID': 'user_dn',
     'prodSourceLabel': 'label',  # We don't have any other labels in there. And this is The Label, or just label
     'homepackage': 'home_package',  # lowercase, all of a sudden
@@ -131,8 +131,8 @@ key_unfix = {
     'task_id': 'taskID',  # all ID's are to be placed here, because snake case lacks of all-caps abbrev info
     'jobset_id': 'jobsetID',
     'job_definition_id': 'jobDefinitionID',
-    'command': 'transformation',
-    'command_parameters': 'jobPars',
+    'script': 'transformation',
+    'script_parameters': 'jobPars',
     'cores_number': 'coreCount',
     'label': 'prodSourceLabel',
     'home_package': 'homepackage',
@@ -639,6 +639,7 @@ def cli_setup():
     log.info("Log level %d" % log.getEffectiveLevel())
 
     return args
+
 
 if __name__ == "__main__":
     env = cli_setup()

@@ -6,6 +6,7 @@ import pipes
 import logging
 import copy
 from utility import Utility, touch
+from jobdescription import JobDescription
 
 # TODO: Switch from external Rucio calls to internal ones. (Should consult with Mario)
 # Before: fix platform dependencies in Rucio
@@ -39,7 +40,7 @@ class LoggingContext(object):
             self.handler.setLevel(self.old_level)
 
 
-class Job(Utility):
+class Job(Utility, JobDescription):
     """
     This class holds a job and helps with it.
     Class presents also an interface to job description. Each field in it is mirrored to this class if there is no other
@@ -53,13 +54,12 @@ class Job(Utility):
         id                      Alias to job_id
         state                   Job last state
         pilot                   Link to Pilot class instance
-        description             Job description
         error_code              Job payload exit code
         no_update               Flag, specifying whether we will update server
-        log_file                Job dedicated log file, into which the logs _are_ written. Shadowing log_file from
+        log_file                Job dedicated log file, into which the logs _are_ written. Shadowing log_file from the
                                 description, because that file is not a log file, but an archive containing it.
-                                Moreover, log_file from description may contain not only log file.
-                                :Shadowing property:
+                                Moreover, log_file archive may contain not only log file.
+                                :Shadows description prop:
         log_archive             Detected archive extension. Mostly ".tgz"
         log                     Logger, used by class members.
         log_handler             File handler of real log file for logging. Added to root logger to catch outer calls.
@@ -71,7 +71,6 @@ class Job(Utility):
                                 :Static:
     """
     pilot = None
-    description = None
     error_code = None
     no_update = False
     log_file = 'stub.job.log'
@@ -82,9 +81,6 @@ class Job(Utility):
     log_formatter = None
 
     __state = "sent"
-    __description_aliases = {
-        'id': 'job_id'
-    }
     __acceptable_log_wrappers = ["tar", "tgz", "gz", "gzip", "tbz2", "bz2", "bzip2"]
 
     def __init__(self, _pilot, _desc):
@@ -94,48 +90,15 @@ class Job(Utility):
         :param _desc: Description object.
         :return:
         """
-        Utility.__init__(self)
+        super(Job, self).__init__()
+        JobDescription.__init__(self)
+
         self.log = logging.getLogger('pilot.jobmanager')
         self.pilot = _pilot
         if _pilot.args.no_job_update:
             self.no_update = True
-        self.description = _desc
-        _pilot.logger.debug(json.dumps(self.description, indent=4, sort_keys=True))
+        self.load(_desc)
         self.parse_description()
-
-    def __getattr__(self, item):
-        """
-        Reflection of description values into Job instance properties if they are not shadowed.
-        If there is no own property with corresponding name, the value of Description is used.
-        Params and return described in __getattr__ interface.
-        """
-        try:
-            return object.__getattribute__(self, item)
-        except AttributeError:
-            if self.description is not None:
-                if item in self.__description_aliases:
-                    return self.description[self.__description_aliases[item]]
-                if item in self.description:
-                    return self.description[item]
-            raise
-
-    def __setattr__(self, key, value):
-        """
-        Reflection of description values into Job instance properties if they are not shadowed.
-        If there is no own property with corresponding name, the value of Description is set.
-        Params and return described in __setattr__ interface.
-        """
-        try:
-            object.__getattribute__(self, key)
-            object.__setattr__(self, key, value)
-        except AttributeError:
-            if self.description is not None:
-                if key in self.__description_aliases:
-                    self.description[self.__description_aliases[key]] = value
-                elif self.description is not None and key in self.description:
-                    self.description[key] = value
-                return
-            object.__setattr__(self, key, value)
 
     def get_key_value_for_queuedata(self, parameter):
         m = parameter.split('=', 1)
@@ -149,9 +112,9 @@ class Job(Utility):
 
         return key, value
 
-    def prepare_command_params(self):
+    def prepare_script_params(self):
         """
-        Splits command parameters and extracts queuedata modifications if present.
+        Splits script parameters and extracts queuedata modifications if present.
 
         Queuedata modification principles:
             Extraction is done from one of the parameter strings:
@@ -180,9 +143,9 @@ class Job(Utility):
 
             If the next parameter (case 2) is --overwriteQueuedata, it is parsed all the same.
         """
-        if isinstance(self.command_parameters, list):
+        if isinstance(self.script_parameters, list):
             return
-        params = shlex.split(str(self.command_parameters), True, True)
+        params = shlex.split(str(self.script_parameters), True, True)
         overwriting = False
         new_params = []
         for param in params:
@@ -204,14 +167,14 @@ class Job(Utility):
                     new_params.append(param)
 
         self.log.debug("Prepared parameters: %s" % " ".join(pipes.quote(x) for x in new_params))
-        self.command_parameters = new_params
+        self.script_parameters = new_params
 
     def init_logging(self):
         """
         Sets up logger handler for specified job log file. Beforehand it extracts job log file's real name and it's
         archive extension.
         """
-        log_basename = self.description["log_file"]
+        log_basename = self.get_description_parameter('log_file')
 
         log_file = ''
         log_archive = ''
@@ -258,7 +221,7 @@ class Job(Utility):
         Initializes description induced configurations: log handlers, queuedata modifications, etc.
         """
         self.init_logging()
-        self.prepare_command_params()
+        self.prepare_script_params()
 
     @property
     def state(self):
@@ -393,17 +356,8 @@ class Job(Utility):
         self.state = 'stageout'
         self.rucio_info()
         for f in self.output_files:
-            if os.path.isfile(f) and self.description['log_file'] != f:
-                if self.pilot.args.simulate_rucio:
-                    self.log.info("Simulated uploading " + f + " to scope " + self.output_files[f]['scope'] +
-                                  " and SE " + self.output_files[f]['storage_element'])
-                else:
-                    c, o, e = self.call(['rucio', 'upload', '--rse', self.output_files[f]['storage_element'], '--scope',
-                                         self.output_files[f]['scope'], f])
-            else:
-                self.log.warn("Can not upload " + f + ", file does not exist.")
-        self.prepare_log()
-        with self.description['log_file'] as f:
+            if self.get_description_parameter('log_file') == f:
+                continue  # log file will be sent afterwards
             if os.path.isfile(f):
                 if self.pilot.args.simulate_rucio:
                     self.log.info("Simulated uploading " + f + " to scope " + self.output_files[f]['scope'] +
@@ -413,14 +367,26 @@ class Job(Utility):
                                          self.output_files[f]['scope'], f])
             else:
                 self.log.warn("Can not upload " + f + ", file does not exist.")
+        self.prepare_log()
+
+        f = self.get_description_parameter('log_file')
+        if os.path.isfile(f):
+            if self.pilot.args.simulate_rucio:
+                self.log.info("Simulated uploading " + f + " to scope " + self.output_files[f]['scope'] +
+                              " and SE " + self.output_files[f]['storage_element'])
+            else:
+                c, o, e = self.call(['rucio', 'upload', '--rse', self.output_files[f]['storage_element'], '--scope',
+                                     self.output_files[f]['scope'], f])
+        else:
+            self.log.warn("Can not upload " + f + ", file does not exist.")
 
     def payload_run(self):
         """
         Runs payload.
         """
         self.state = 'running'
-        args = copy.deepcopy(self.command_parameters)
-        args.insert(0, self.command)
+        args = copy.deepcopy(self.script_parameters)
+        args.insert(0, self.script)
 
         self.log.info("Starting job cmd: %s" % " ".join(pipes.quote(x) for x in args))
 

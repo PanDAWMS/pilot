@@ -1,0 +1,14 @@
+language:
+  - python
+python:
+  - 2.7
+install:
+  - pip install 'unittest2'
+  - pip install 'flake8<3.0.0'
+  - pip install 'pep8-naming'
+  - pip install 'flake8-blind-except'
+  - pip install 'pycodestyle'
+before_script:
+  - flake8 *.py
+script:
+  -  unit2 -v
