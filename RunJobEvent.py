@@ -1797,7 +1797,7 @@ class RunJobEvent(RunJob):
         tolog("[reolve_stageout_endpoint] found associated storages with activity(%s): endpoint: %s, storageId: %s" % (activity, endpoint, storageId))
         if not (endpoint is None or storageId is None or storageId == -1 or self.is_blacklisted(endpoint)):
             storage_type = ddmconf.get(endpoint, {}).get('type', {})
-            if storage_type and storage_type in ['OS_ES', 'OS_LOGS'] and (not self.__job or self.__job and self.__job.pandaProxySecretKey):
+            if storage_type and storage_type in ['OS_ES', 'OS_LOGS']:
                 ret_code, access_keys = self.resolve_os_access_keys(ddmconf, endpoint)
                 if ret_code:
                     tolog("[reolve_stageout_endpoint] Failed to resolve os access keys for endpoint: %s, %s" % (endpoint, access_keys))
