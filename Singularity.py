@@ -69,7 +69,7 @@ def getGridImageForSingularity(platform, experiment):
     image = arch_and_os + ".img"
     tolog("Constructed image name %s from %s" % (image, platform))
 
-    path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/images/singularity")
+    path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/containers/images/singularity")
     return os.path.join(path, image)
 
 def getContainerName(user="pilot"):

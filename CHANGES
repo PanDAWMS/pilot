@@ -286,7 +286,7 @@ M movers/storm_sitemover.py (8)
 72.1:
 
 General changes:
-..
+- Updated base path to containers (atlas.cern.ch/repo/containers/images/singularity) in getGridImageForSingularity() (Singularity)
 
 Updates from Wen Guan:
 
