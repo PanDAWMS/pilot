@@ -62,7 +62,7 @@ def getGridImageForSingularity(platform, experiment):
     """ Return the full path to the singularity grid image """
 
     if not platform or platform == "":
-        platform = "x86_64-slc6"
+        platform = "x86_64-centos6"
         tolog("!!WARNING!!3333!! Using default platform=%s (cmtconfig not set)" % (platform))
 
     arch_and_os = extractPlatformAndOS(platform)
