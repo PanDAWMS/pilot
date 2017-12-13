@@ -310,8 +310,8 @@ class JobMover(object):
                 if not has_remoteinput_replicas:
                     has_remoteinput_replicas = bool(get_preferred_replica(r['rses'][ddm], self.remoteinput_allowed_schemas))
 
-            if (not fdat.replicas or not has_remoteinput_replicas)and fdat.allowRemoteInputs:
-                self.log("No local replicas found that can be remotely read, but allowRemoteInputs is set, looking for remote inputs .. consider first/closest replica, remoteinput_allowed_schemas=%s" % self.remoteinput_allowed_schemas)
+            if (not fdat.replicas or not has_remoteinput_replicas) and fdat.allowRemoteInputs:
+                self.log("No local replicas found for lfn=%s that can be remotely read, but allowRemoteInputs is set, looking for remote inputs .. consider first/closest replica, remoteinput_allowed_schemas=%s" % (fdat.lfn, self.remoteinput_allowed_schemas))
                 #self.log('rses=%s' % r['rses'])
                 for ddm, replicas in r['rses'].iteritems():
                     replica = get_preferred_replica(r['rses'][ddm], self.remoteinput_allowed_schemas)
@@ -341,7 +341,7 @@ class JobMover(object):
                 elif r['md5']:
                     fdat.checksum = cc_md
 
-        #self.log('files=%s' % files)
+        self.log('Number of resolved replicas:\n' + '\n'.join(["lfn=%s: replicas=%s, allowRemoteInputs=%s, is_directaccess=%s" % (e.lfn, len(e.replicas), e.allowRemoteInputs,  e.is_directaccess(ensure_replica=False)) for e in files]))
 
         return files
 
@@ -563,22 +563,26 @@ class JobMover(object):
 
         self.log("final direct access settings: job.accessmode=%s => allow_directaccess=%s" % (self.job.accessmode, allow_directaccess))
 
-        sitemover_objects = {}
-        is_replicas_resolved = False
-
         if allow_directaccess:
             # sort files to get candidates for remote_io coming first in order to exclude them from checking of available space for stage-in
             remain_files = sorted(remain_files, key=lambda x: x.is_directaccess(ensure_replica=False), reverse=True)
+
+            # populate allowRemoteInputs for each fdata
+            for fdata in remain_files:
+                is_directaccess = allow_directaccess and fdata.is_directaccess(ensure_replica=False) #fdata.turl is not defined at this point
+                if is_directaccess and directaccesstype == 'WAN':  ## is it the same for ES workflow ?? -- test and verify/FIXME LATER
+                    fdata.allowRemoteInputs = True
+                self.log("check direct access for lfn=%s: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s, allowRemoteInputs=%s" % (fdata.lfn, allow_directaccess, fdata.is_directaccess(ensure_replica=False), is_directaccess, fdata.allowRemoteInputs))
+
+        sitemover_objects = {}
+        is_replicas_resolved = False
 
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
 
             is_directaccess = allow_directaccess and fdata.is_directaccess(ensure_replica=False) #fdata.turl is not defined at this point
-            self.log("check direct access: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s" % (allow_directaccess, fdata.is_directaccess(ensure_replica=False), is_directaccess))
-
-            if is_directaccess and directaccesstype == 'WAN':  ## is it the same for ES workflow ?? -- test and verify/FIXME LATER
-                fdata.allowRemoteInputs = True
+            #self.log("check direct access: allow_directaccess=%s, fdata.is_directaccess()=%s => is_directaccess=%s" % (allow_directaccess, fdata.is_directaccess(ensure_replica=False), is_directaccess))
 
             bad_copytools = True
 
