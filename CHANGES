@@ -311,6 +311,18 @@ File Changes
 
 M RunJobEvent.py (6)
 
+Updates from Alexey Anisenkov
+
+  https://github.com/PanDAWMS/pilot/pull/188
+
+Commit Summary
+
+bugfix of direct access logic over WAN (only first file was considered for remote read)
+
+File Changes
+
+M movers/mover.py (24)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
