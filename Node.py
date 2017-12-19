@@ -244,7 +244,7 @@ class Node:
         else:
             tolog("$JOBFEATURES not defined locally")
 
-        cmd = "hostname -i"
+        cmd = "hostname -I"
         tolog("Executing command: %s" % (cmd))
         out = commands.getoutput(cmd)
         tolog("IP number of worker node: %s" % (out))
