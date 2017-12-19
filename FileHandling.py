@@ -140,12 +140,12 @@ def readFile(filename):
 
     return contents
 
-def writeFile(filename, contents):
+def writeFile(filename, contents, mode='w'):
     """ Write the contents to filename """
 
     status = False
     try:
-        f = open(filename, 'w')
+        f = open(filename, mode)
     except IOError, e:
         tolog("!!WARNING!!2123!! Failed to open file %s: %s" % (filename, e))
     else:

@@ -2370,6 +2370,11 @@ def getNewJob(tofile=True):
         pUtil.tolog("!!WARNING!!1200!! %s" % (pilotErrorDiag), tofile=tofile)
         return None, pilotErrorDiag
 
+    # store the PandaIDs in a file (used by the wrapper)
+    fname = os.path.join(env['thisSite'].workdir, "pandaIDs.out")
+    writeFile(fname, "%s\n" % data['PandaID'], mode='a')
+    pUtil.tolog("Wrote PandaID=%s to file %s" % (data['PandaID'], fname))
+
     # create the new job
     newJob = Job.Job()
     newJob.setJobDef(data)  # fill up the fields with correct values now

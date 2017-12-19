@@ -333,6 +333,10 @@ General changes:
 If you change the command to "hostname -I" (a capital "i"), then it will print out all addresses the host has (eg both the IPv4 and IPv6 address)"
  (ATLASSiteInformation, Node)
 
+Write PandaIDs to file
+- Added mode argument to writeFile() (FileHandling)
+- Now writing PandaID to file used by the wrapper in getNewJob(). Requested by P. Love (pilot)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
