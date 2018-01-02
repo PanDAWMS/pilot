@@ -14,6 +14,7 @@ from glob import glob
 from PilotErrors import PilotErrors
 from JobState import JobState
 from processes import killProcesses, isCGROUPSSite
+from FileHandling import writeFile
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from JobLog import JobLog # import here to avoid issues seen at EELA with missing module
 import Mover as mover
