@@ -1181,7 +1181,10 @@ class SiteMover(object):
         # get the checksum
         if csumtype == "adler32":
             tolog("Executing adler32() for file: %s" % (fname))
-            fchecksum = SiteMover.adler32(fname)
+            from movers import base
+            m = base.BaseSiteMover()
+            fchecksum, _ = m.calc_file_checksum(fname)
+            #fchecksum = SiteMover.adler32(fname)
             if fchecksum == '00000001': # "%08x" % 1L
                 pilotErrorDiag = "Adler32 failed (returned 1)"
                 tolog("!!WARNING!!2999!! %s" % (pilotErrorDiag))
