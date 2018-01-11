@@ -16,6 +16,7 @@ from JobState import JobState
 from processes import killProcesses, isCGROUPSSite
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from JobLog import JobLog # import here to avoid issues seen at EELA with missing module
+from FileHandling import writeFile
 import Mover as mover
 import Site
 import Job
