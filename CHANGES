@@ -334,6 +334,10 @@ If you change the command to "hostname -I" (a capital "i"), then it will print o
  (ATLASSiteInformation, Node)
 - Updated error message for stage-in exceptions (grammar) (mover)
 
+Checksum problem:
+- Now using calc_file_checksum() from movers/base module instead of old adler32() which can give a partial result in case
+  zlib.adler32() throws an exception. Reported by R. Walker. (SiteMover)
+
 Write PandaIDs to file
 - Added mode argument to writeFile() (FileHandling)
 - Now writing PandaID to file used by the wrapper in getNewJob(). Requested by P. Love (pilot)
