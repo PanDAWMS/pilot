@@ -1720,9 +1720,15 @@ class RunJobEvent(RunJob):
             return None, None
 
     def is_blacklisted(self, endpoint):
+        ddm_blacklisting_endpoints = []
         self.__siteInfo = self.get_site_info()
         ddm_blacklisting = self.__siteInfo.resolveDDMBlacklistingConf()
-        ddm_blacklisting_endpoints = ddm_blacklisting.keys() if ddm_blacklisting else {}
+        for ddm_blacklisting_endpoint in ddm_blacklisting.keys():
+            if 'w' in ddm_blacklisting[ddm_blacklisting_endpoint] \
+                and 'mode' in ddm_blacklisting[ddm_blacklisting_endpoint]['w'] \
+                and 'OFF' in ddm_blacklisting[ddm_blacklisting_endpoint]['w']['mode']:
+                ddm_blacklisting_endpoints.append(ddm_blacklisting_endpoint)
+
         tolog("Blacklisted ddm endpoints: %s" % ddm_blacklisting_endpoints)
         if endpoint in ddm_blacklisting_endpoints:
             return True
