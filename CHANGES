@@ -332,6 +332,7 @@ General changes:
 "[hostname -i] will only list the IPv4 address on a dual stack machine.  Which can cause confusion if debugging problems.
 If you change the command to "hostname -I" (a capital "i"), then it will print out all addresses the host has (eg both the IPv4 and IPv6 address)"
  (ATLASSiteInformation, Node)
+- Updated error message for stage-in exceptions (grammar) (mover)
 
 Write PandaIDs to file
 - Added mode argument to writeFile() (FileHandling)
