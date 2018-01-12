@@ -342,6 +342,20 @@ Write PandaIDs to file
 - Added mode argument to writeFile() (FileHandling)
 - Now writing PandaID to file used by the wrapper in getNewJob(). Requested by P. Love (pilot)
 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/189
+
+Pilot now checks a site’s state on the DDM blacklist, rather than just check if the site is on the list (Requested by Wei Yang).
+
+Commit Summary
+
+fix the ddmblacklist checks
+
+File Changes
+
+M RunJobEvent.py (8)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
