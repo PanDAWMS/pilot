@@ -2373,7 +2373,7 @@ def getNewJob(tofile=True):
         return None, pilotErrorDiag
 
     # store the PandaIDs in a file (used by the wrapper)
-    fname = os.path.join(env['thisSite'].workdir, "pandaIDs.out")
+    fname = os.path.join(env['pilot_initdir'], "pandaIDs.out")
     writeFile(fname, "%s\n" % data['PandaID'], mode='a')
     pUtil.tolog("Wrote PandaID=%s to file %s" % (data['PandaID'], fname))
 
