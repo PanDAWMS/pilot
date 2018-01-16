@@ -328,10 +328,14 @@ M movers/mover.py (24)
 72.2:
 
 General changes:
+(
+Temporarily reverted due to a comment made by A. Filipcic - the -I option can cause problems on some systems. Need to be investigated further.
+
 - Changed hostname -i to hostname -I in collectMachineFeatures() and getBenchmarkCommand(). Requested by Alastair Dewhurst:
 "[hostname -i] will only list the IPv4 address on a dual stack machine.  Which can cause confusion if debugging problems.
 If you change the command to "hostname -I" (a capital "i"), then it will print out all addresses the host has (eg both the IPv4 and IPv6 address)"
  (ATLASSiteInformation, Node)
+)
 - Updated error message for stage-in exceptions (grammar) (mover)
 
 Checksum problem:

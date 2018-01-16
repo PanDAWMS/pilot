@@ -880,7 +880,7 @@ class ATLASSiteInformation(SiteInformation):
         else:
             coresOption = ""
 
-        ip = commands.getoutput("hostname -I")
+        ip = commands.getoutput("hostname -i")
         if ip != "":
             ipOption = "--public_ip=%s" % (ip)
         else:
