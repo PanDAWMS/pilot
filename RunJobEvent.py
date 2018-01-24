@@ -4055,6 +4055,7 @@ if __name__ == "__main__":
                     runJob.setAthenaMPIsReady(False)
 
                     # Wait until AthenaMP is ready to receive another event range
+                    w = 0
                     while not runJob.isAthenaMPReady():
                         # calculate cpu time
                         if time_to_calculate_cuptime < time.time() - 2 * 60:
@@ -4076,6 +4077,7 @@ if __name__ == "__main__":
                         if i%10 == 0:
                             tolog("Event range loop iteration #%d" % (i))
                         i += 1
+                        w += 1
                         time.sleep(nap)
 
                         # Is AthenaMP still running?
@@ -4085,7 +4087,14 @@ if __name__ == "__main__":
 
                         if runJob.isAthenaMPReady():
                             tolog("AthenaMP is ready for new event range")
+                            w = 0
                             break
+                        if w * nap > max_wait * 60:
+                            tolog("AthanaMP has been stuck for %s minutes, will kill AthenaMP" % max_wait)
+                            athenaMPProcess.kill()
+                            job.pilotErrorDiag = "AthenaMP has been stuck for %s minutes" % max_wait
+                            job.result[0] = "failed"
+                            job.result[2] = error.ERR_ESATHENAMPDIED
 
                         # Make sure that the utility subprocess is still running
                         if utility_subprocess:
