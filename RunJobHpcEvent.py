@@ -1132,7 +1132,7 @@ class RunJobHpcEvent(RunJob):
             file.close()
         if hpcManager.isLocalProcess():
             self.__hpcStatue = 'closed'
-            self.updateAllJobsState('finished', self.__hpcStatue)
+            self.updateAllJobsState('transferring', self.__hpcStatue)
 
         hpcManager.setPandaJobStateFile(self.__jobStateFile)
         #self.__stageout_threads = defRes['stageout_threads']
