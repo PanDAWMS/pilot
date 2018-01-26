@@ -8,13 +8,12 @@ import re
 import atexit
 import sys
 import signal
-import cgi
 from glob import glob
 
 from PilotErrors import PilotErrors
 from JobState import JobState
 from processes import killProcesses, isCGROUPSSite
-from FileHandling import writeFile
+from FileHandling import writeJSON
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from JobLog import JobLog # import here to avoid issues seen at EELA with missing module
 from FileHandling import writeFile
@@ -2152,11 +2151,60 @@ def dumpEnv():
     with open(os.path.join(env['thisSite'].workdir, 'env.json'), 'w') as outputFile:
         dump(localEnv, outputFile)
 
+def get_job_request_file_name():
+    """
+    Return the name of the job request file as defined in the pilot config file.
+
+    :return: job request file name.
+    """
+
+    return join(env['pilot_initdir'], "worker_requestjob.json")
+
+def remove_job_request_file():
+    """
+    Remove an old job request file when it is no longer needed.
+
+    :return:
+    """
+
+    path = get_job_request_file_name()
+    try:
+        os.remove(path)
+    except IOError as e:
+        if os.path.exists(path):
+            pUtil.tolog('failed to remove %s: %s' % (path, e))
+        else:
+            pass
+    else:
+        pUtil.tolog('removed %s' % path)
+
+def request_new_jobs(nJobs=1):
+    """
+    Inform Harvester that the pilot is ready to process new jobs by creating a job request file with the desired
+    number of jobs.
+
+    :param nJobs: Number of jobs. Default is 1 since on grids and clouds the pilot does not know how many jobs it can
+    process before it runs out of time.
+    :return:
+    """
+
+    path = get_job_request_file_name()
+    dictionary = {'nJobs': nJobs}
+
+    # write it to file
+    try:
+        dummy = writeJSON(path, dictionary)
+    except Exception as e:
+        pUtil.tolog('!!WARNING!!1212!! Exception caught: %s' % e)
+
 def getNewJob(tofile=True):
     """ Get a new job definition from the jobdispatcher or from file """
 
     pilotErrorDiag = ""
     StatusCode = ''
+
+    if env['harvester']:
+        request_new_jobs()
 
     # determine which disk space to send to dispatcher (only used by dispatcher so no need to send actual available space)
     _maxinputsize = pUtil.getMaxInputSize(MB=True)
@@ -2178,7 +2226,8 @@ def getNewJob(tofile=True):
     shouldCreateTimeStampFile = False
     if not env['jobRequestFlag']:
         # read job from file
-        pUtil.tolog("Looking for a primary job (reading from file)", tofile=tofile)
+        if not env['harvester']:
+            pUtil.tolog("Looking for a primary job (reading from file)", tofile=tofile)
         _pandaJobDataFileName = os.path.join(env['pilot_initdir'], env['pandaJobDataFileName'])
         if os.path.isfile(_pandaJobDataFileName):
             try:
@@ -2206,7 +2255,8 @@ def getNewJob(tofile=True):
                 f.close()
 
                 # parse response message
-                dataList = cgi.parse_qsl(response, keep_blank_values=True)
+                from urlparse import parse_qsl
+                dataList = parse_qsl(response, keep_blank_values=True)
 
                 # convert to map
                 data = {}
@@ -2384,6 +2434,8 @@ def getNewJob(tofile=True):
     writeFile(fname, "%s\n" % data['PandaID'], mode='a')
     pUtil.tolog("Wrote PandaID=%s to file %s" % (data['PandaID'], fname))
 
+    remove_job_request_file()
+
     # create the new job
     newJob = Job.Job()
     newJob.setJobDef(data)  # fill up the fields with correct values now
@@ -2443,18 +2495,26 @@ def getJob():
     """ Download a new job from the dispatcher """
     ec = 0
     job = None
-    error = PilotErrors()
 
     # loop over getNewJob to allow for multiple attempts
     trial = 1
     t0 = time.time()
     pUtil.tolog("Pilot will attempt single job download for a maximum of %d seconds" % (env['getjobmaxtime']))
+
+    if env['harvester']:
+        delay = 1  # look for the job request file every second
+        if env['number_of_jobs'] > 0:
+            pUtil.tolog('Will ask Harvester for another job')
+    else:
+        delay = 60
+
     while int(time.time() - t0) < env['getjobmaxtime']:
         job, pilotErrorDiag = getNewJob()
         if not job:
-            if env['getjobmaxtime'] - int(time.time() - t0) > 60:
-                pUtil.tolog("[Trial %d] Could not find a job! (will try again after 60 s)" % (trial))
-                time.sleep(60)
+            if env['getjobmaxtime'] - int(time.time() - t0) > delay:
+                if not env['harvester']:
+                    pUtil.tolog("[Trial %d] Could not find a job! (will try again after 60 s)" % (trial))
+                time.sleep(delay)
                 trial += 1
             else:
                 pUtil.tolog("(less than 60 s left of the allowed %d s for job downloads, so not a good time for a nap!)" % (env['getjobmaxtime']))
@@ -2474,7 +2534,7 @@ def getJob():
 
         # only set an error code if it's the first job
         if env['number_of_jobs'] == 0:
-            ec = -1 #error.ERR_GENERALERROR
+            ec = -1
         else:
             errorText += "\nNot setting any error code since %d job(s) were already executed" % (env['number_of_jobs'])
             ec = -1 # temporary
