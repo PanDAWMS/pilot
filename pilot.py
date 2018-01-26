@@ -2173,6 +2173,7 @@ def remove_job_request_file():
     except OSError as e:
         if os.path.exists(path):
             pUtil.tolog('failed to remove %s: %s' % (path, e))
+            raise OSError(e)
         else:
             pass
     else:
@@ -2434,7 +2435,11 @@ def getNewJob(tofile=True):
     writeFile(fname, "%s\n" % data['PandaID'], mode='a')
     pUtil.tolog("Wrote PandaID=%s to file %s" % (data['PandaID'], fname))
 
-    remove_job_request_file()
+    try:
+        remove_job_request_file()
+    except OSError as e:
+        pilotErrorDiag = "Job request file could not be removed: %s" % e
+        return None, pilotErrorDiag
 
     # create the new job
     newJob = Job.Job()
