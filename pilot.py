@@ -2170,7 +2170,7 @@ def remove_job_request_file():
     path = get_job_request_file_name()
     try:
         os.remove(path)
-    except IOError as e:
+    except OSError as e:
         if os.path.exists(path):
             pUtil.tolog('failed to remove %s: %s' % (path, e))
         else:
