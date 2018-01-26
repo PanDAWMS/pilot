@@ -2158,7 +2158,7 @@ def get_job_request_file_name():
     :return: job request file name.
     """
 
-    return join(env['pilot_initdir'], "worker_requestjob.json")
+    return os.path.join(env['pilot_initdir'], "worker_requestjob.json")
 
 def remove_job_request_file():
     """
