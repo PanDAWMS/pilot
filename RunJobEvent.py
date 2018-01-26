@@ -113,7 +113,7 @@ class RunJobEvent(RunJob):
     __multipleBuckets = None
     __numBuckets = 1
     __stageoutStorages = None
-    __max_wait_for_tail_events = 30
+    __max_wait_for_one_event = 360	# 6 hours, 360 minutes
     __min_events = 1
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
@@ -655,10 +655,10 @@ class RunJobEvent(RunJob):
 
         self.__current_event_range = current_event_range
 
-    def getMaxWaitTailEvents(self):
-        """ Getter for __max_wait_for_tail_events """
+    def getMaxWaitOneEvent(self):
+        """ Getter for __max_wait_for_one_event """
 
-        return self.__max_wait_for_tail_events
+        return self.__max_wait_for_one_event
 
     def getMinEvents(self):
         """ Getter for __min_events """
@@ -1375,12 +1375,12 @@ class RunJobEvent(RunJob):
 
             tolog("Sleep time between staging out: %s" % self.__asyncOutputStager_thread_sleep_time)
 
-            if "max_wait_for_tail_events=" in catchalls:
+            if "max_wait_for_one_event=" in catchalls:
                 for catchall in catchalls.split(","):
-                    if 'max_wait_for_tail_events=' in catchall:
+                    if 'max_wait_for_one_event=' in catchall:
                         name, value = catchall.split('=')
-                        self.__max_wait_for_tail_events = int(value)
-            tolog("Max wait time for tail evnets(minutes): %s" % self.__max_wait_for_tail_events)
+                        self.__max_wait_for_one_event = int(value)
+            tolog("Max wait time for one event(minutes): %s" % self.__max_wait_for_one_event)
 
             if "min_events=" in catchalls:
                 for catchall in catchalls.split(","):
@@ -3895,7 +3895,7 @@ if __name__ == "__main__":
         tolog("Entering monitoring loop")
 
         k = 0
-        max_wait = runJob.getMaxWaitTailEvents()
+        max_wait = runJob.getMaxWaitOneEvent()
         nap = 5
         eventRangeFilesDictionary = {}
         time_to_calculate_cuptime = time.time()
