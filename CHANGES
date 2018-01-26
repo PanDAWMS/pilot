@@ -365,9 +365,11 @@ M RunJobEvent.py (8)
 72.3
 
 Support for Harvester job request file:
-Added new pilot option -S to activate Harvester mode (pilot)
-Added new variable, harvester (environment)
-getJob() updated for new harvester mode (pilot)
+- Added new pilot option -S to activate Harvester mode (pilot)
+- Added new variable, harvester (environment)
+- getJob() updated for new harvester mode (pilot)
+- Added support functions: get_job_request_file_name(), remove_job_request_file(), request_new_jobs() (pilot)
+- getNewJob() now supporting Harvester job request file (pilot)
 
 Updates from Wen Guan:
 
