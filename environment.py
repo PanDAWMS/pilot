@@ -100,6 +100,9 @@ def set_environment():
     env['copytool'] = 'gfal-copy'
     env['copytoolin'] = 'gfal-copy'
 
+    # Harvester
+    env['harvester'] = False                    # Harvester mode, True if pilot is launched by Harvester
+
     # In case the PILOT_INITDIR file has not been created yet, which means that this module is being
     # used by pilot.py, it will be created here using the current directory as init dir
     print "Current directory:", os.getcwd()
