@@ -2190,13 +2190,16 @@ def request_new_jobs(nJobs=1):
     """
 
     path = get_job_request_file_name()
-    dictionary = {'nJobs': nJobs}
 
-    # write it to file
-    try:
-        dummy = writeJSON(path, dictionary)
-    except Exception as e:
-        pUtil.tolog('!!WARNING!!1212!! Exception caught: %s' % e)
+    # skip if the file was already created
+    if not os.path.exists(path):
+        dictionary = {'nJobs': nJobs}
+
+        # write it to file
+        try:
+            dummy = writeJSON(path, dictionary)
+        except Exception as e:
+            pUtil.tolog('!!WARNING!!1212!! Exception caught: %s' % e)
 
 def getNewJob(tofile=True):
     """ Get a new job definition from the jobdispatcher or from file """
@@ -2210,9 +2213,10 @@ def getNewJob(tofile=True):
     # determine which disk space to send to dispatcher (only used by dispatcher so no need to send actual available space)
     _maxinputsize = pUtil.getMaxInputSize(MB=True)
     _disk = env['workerNode'].disk
-    pUtil.tolog("Available WN disk space: %d MB" % (_disk))
     _diskSpace = min(_disk, _maxinputsize)
-    pUtil.tolog("Sending disk space %d MB to dispatcher" % (_diskSpace))
+    if not env['harvester']:
+        pUtil.tolog("Available WN disk space: %d MB" % (_disk))
+        pUtil.tolog("Sending disk space %d MB to dispatcher" % (_diskSpace))
 
     # construct a dictionary for passing to jobDispatcher and get the prodSourceLabel
     jNode, prodSourceLabel, pilotErrorDiag = getDispatcherDictionary(_diskSpace, tofile)
@@ -2230,6 +2234,12 @@ def getNewJob(tofile=True):
         if not env['harvester']:
             pUtil.tolog("Looking for a primary job (reading from file)", tofile=tofile)
         _pandaJobDataFileName = os.path.join(env['pilot_initdir'], env['pandaJobDataFileName'])
+
+        # Job def file not available yet, wait a while
+        if not os.path.isfile(_pandaJobDataFileName) and env['harvester']:
+            time.sleep(2)
+            return None, ""
+
         if os.path.isfile(_pandaJobDataFileName):
             try:
                 f = open(_pandaJobDataFileName)
@@ -2507,7 +2517,7 @@ def getJob():
     pUtil.tolog("Pilot will attempt single job download for a maximum of %d seconds" % (env['getjobmaxtime']))
 
     if env['harvester']:
-        delay = 1  # look for the job request file every second
+        delay = 1  # look for the job request file every few seconds (there is another sleep in getNewJob() used in combination with the one below)
         if env['number_of_jobs'] > 0:
             pUtil.tolog('Will ask Harvester for another job')
     else:
@@ -2526,9 +2536,7 @@ def getJob():
                 break
         else:
             env['number_of_jobs'] += 1
-            pUtil.tolog("Increased job counter to %d" % (env['number_of_jobs']))
             os.environ["PanDA_TaskID"] = job.taskID
-            pUtil.tolog("Task ID set to: %s" % (job.taskID))
             break
 
     if not job:
@@ -2772,6 +2780,10 @@ def runMain(runpars):
         # loop until pilot has run out of time (defined by timefloor)
         env['multijob_startup'] = int(time.time())
         env['hasMultiJob'] = False
+
+        # Set Harvester mode (can also be activated via pilot option -S True)
+        if 'HARVESTER_ID' in os.environ or 'HARVESTER_WORKER_ID' in os.environ:
+            env['harvester'] = True
 
         while True:
 
