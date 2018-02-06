@@ -996,3 +996,13 @@ def getReplicaDictionaryFromXML(workdir, pfc_name="PoolFileCatalog.xml"):
 
     return replica_dictionary
 
+def touch(path):
+    """
+    Touch a file and update mtime in case the file exists.
+
+    :param path:
+    :return:
+    """
+
+    with open(path, 'a'):
+        os.utime(path, None)
