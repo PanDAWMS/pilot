@@ -2302,6 +2302,9 @@ class ATLASExperiment(Experiment):
             useDefault = False
             tolog("%s < %s" % (default_release, release))
 
+            tolog("!!WARNING!!3434!! Currently only default MemoryMonitor version (%s) is allowed" % default_release)
+            useDefault = True
+
         if useDefault:
             tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")
             cmd = default_setup
