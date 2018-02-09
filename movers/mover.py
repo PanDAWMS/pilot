@@ -49,8 +49,8 @@ class JobMover(object):
     _stageout_sleeptime_min = 1*60  # seconds, min allowed sleep time in case of stageout failure
     _stageout_sleeptime_max = 5*60    # seconds, max allowed sleep time in case of stageout failure
 
-    remoteinput_allowed_schemas = ['root']
-    #remoteinput_allowed_schemas = ['root', 'gsiftp', 'dcap', 'davs'] ## extend me later if need
+    direct_remoteinput_allowed_schemas = ['root']
+    remoteinput_allowed_schemas = ['root', 'gsiftp', 'dcap', 'davs', 'srm'] ## extend me later if need
 
 
     def __init__(self, job, si, **kwargs):
@@ -291,7 +291,7 @@ class JobMover(object):
                             return replica
                 return None
 
-            has_remoteinput_replicas = False
+            has_direct_remoteinput_replicas = False
 
             # local replicas
             for ddm in fdat.inputddms: ## iterate over local ddms and check if replica is exist here
@@ -307,11 +307,16 @@ class JobMover(object):
 
                 fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
 
-                if not has_remoteinput_replicas:
-                    has_remoteinput_replicas = bool(get_preferred_replica(r['rses'][ddm], self.remoteinput_allowed_schemas))
+                if not has_direct_remoteinput_replicas:
+                    has_direct_remoteinput_replicas = bool(get_preferred_replica(r['rses'][ddm], self.direct_remoteinput_allowed_schemas))
 
-            if (not fdat.replicas or not has_remoteinput_replicas) and fdat.allowRemoteInputs:
-                self.log("No local replicas found for lfn=%s that can be remotely read, but allowRemoteInputs is set, looking for remote inputs .. consider first/closest replica, remoteinput_allowed_schemas=%s" % (fdat.lfn, self.remoteinput_allowed_schemas))
+            if (not fdat.replicas or ( fdat.accessmode == 'direct' and not has_direct_remoteinput_replicas)) and fdat.allowRemoteInputs:
+                if fdat.accessmode == 'direct':
+                    allowed_schemas = self.direct_remoteinput_allowed_schemas
+                else:
+                    allowed_schemas = self.remoteinput_allowed_schemas
+                self.log("No local replicas found for lfn=%s or direct access is set but no local direct access files, but allowRemoteInputs is set, looking for remote inputs" % (fdat.lfn))
+                self.log("consider first/closest replica, accessmode=%s, remoteinput_allowed_schemas=%s" % (fdat.accessmode, allowed_schemas))
                 #self.log('rses=%s' % r['rses'])
                 for ddm, replicas in r['rses'].iteritems():
                     replica = get_preferred_replica(r['rses'][ddm], self.remoteinput_allowed_schemas)
@@ -322,7 +327,7 @@ class JobMover(object):
 
                     # remoteinput supported replica (root) replica has been found
                     fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
-                    break # ignore other remote replicas/sites
+                    # break # ignore other remote replicas/sites
 
             # verify filesize and checksum values
 
@@ -477,6 +482,17 @@ class JobMover(object):
             self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
             transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr', analyjob=analyjob)
 
+        remain_normal_files = [e for e in normal_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
+        allowRemoteInputs = True in set(e.allowRemoteInputs for e in remain_normal_files)
+        if remain_normal_files and allowRemoteInputs:
+            self.log("Will stagin remain normal files with remote inputs: %s, allowRemoteInputs: %s" % ([f.lfn for f in remain_normal_files], allowRemoteInputs))
+            copytools = [('rucio', {'setup': ''})]
+            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='pr_remote', copytools=copytools, analyjob=analyjob)
+            transferred_files += transferred_files_es
+            failed_transfers += failed_transfers_es
+            self.log("Failed to transfer files: %s" % failed_transfers)
+
+
         if es_local_files:
             self.log("Will stagin es local files: %s" % [f.lfn for f in es_local_files])
             self.trace_report.update(eventType='get_es')
@@ -485,9 +501,9 @@ class JobMover(object):
             failed_transfers += failed_transfers_es
             self.log("Failed to transfer files: %s" % failed_transfers)
 
-        remain_files = [e for e in es_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
-        if remain_files:
-            self.log("Will stagin remain es files: %s" % [f.lfn for f in remain_files])
+        remain_es_files = [e for e in es_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
+        if remain_es_files:
+            self.log("Will stagin remain es files: %s" % [f.lfn for f in remain_es_files])
             self.trace_report.update(eventType='get_es')
             copytools = [('objectstore', {'setup': ''})]
             transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='es_events_read', copytools=copytools, analyjob=analyjob)
@@ -632,16 +648,6 @@ class JobMover(object):
                 updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="file_state", state="not_transferred", ftype="input")
 
                 self.log("[stage-in] Prepare to get_data: [%s/%s]-protocol=%s, fspec=%s" % (protnum, nprotocols, dat, fdata))
-
-                # check if protocol and fdata.ddmendpoint belong to same site
-                #
-                if dat.get('ddm'):
-                    protocol_site = self.ddmconf.get(dat.get('ddm'), {}).get('site')
-                    replica_site = self.ddmconf.get(fdata.ddmendpoint, {}).get('site')
-
-                    if protocol_site != replica_site:
-                        self.log('INFO: cross-sites checks: protocol_site=%s and (fdata.ddmenpoint) replica_site=%s mismatched .. skip file processing for copytool=%s (protocol=%s)' % (protocol_site, replica_site, copytool, dat))
-                        continue
 
                 try:
                     r = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint))

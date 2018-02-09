@@ -625,6 +625,7 @@ class Job:
                         idat['pathConvention'] = int(idat['pathConvention'])
 
             idat['allowRemoteInputs'] = self.allowRemoteInputs
+            idat['accessmode'] = self.accessmode
             idat['cmtconfig'] = self.cmtconfig
             idat['eventService'] = self.eventService
             finfo = FileSpec(type='input', **idat)
@@ -1045,7 +1046,7 @@ class Job:
             idata = {'scope': file['scope'], 'lfn': file['lfn'], 'guid': file['guid'],
                      'dispatchDblock': self.dispatchDblock, 'dispatchDBlockToken': self.dispatchDBlockToken,
                      'dataset': self.realDatasetsIn, 'ddmendpoint': self.ddmEndPointIn,
-                     'allowRemoteInputs': allowRemoteInputs}
+                     'allowRemoteInputs': allowRemoteInputs, 'accessmode': self.accessmode}
             finfo = FileSpec(type='input', **idata)
             reqs.append(finfo)
         return reqs
@@ -1139,7 +1140,7 @@ class FileSpec(object):
                     'dispatchDblock', 'dispatchDBlockToken',
                     'guid', 'filesize', 'checksum',
                     'prodDBlock', 'prodDBlockToken',
-                    'allowRemoteInputs',
+                    'allowRemoteInputs', 'accessmode',
                     'cmtconfig' # Needed for Singularity
                     ]
 

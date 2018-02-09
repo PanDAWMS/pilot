@@ -3124,7 +3124,7 @@ class RunJobEvent(RunJob):
 
         if files:
             tolog("Will stagein files for events: %s" % files)
-            to_stagein_files = job.get_stagein_requests(files, allowRemoteInputs=True)
+            to_stagein_files = job.get_stagein_requests(files, allowRemoteInputs=self.__allow_remote_inputs)
             super(RunJobEvent, self).stageIn(self.getJob(), self.getJobSite(), to_stagein_files)
 
             staged_input_files = job.get_stagedIn_files(to_stagein_files)
