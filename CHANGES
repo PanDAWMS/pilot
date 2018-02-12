@@ -399,15 +399,18 @@ M RunJobEvent.py (18)
 
 72.4
 
-Support for Harvester kill_worker:
-- Created touch() (FileHandling)
-- Created kill_worker(), called at the end of the pilot in Harvester mode (pilot)
-
 Memory monitoring
 - Due to bugs in several late releases, only release 21.0.22 is currently used to setup MemoryMonitor, getUtilityCommand() (ATLASExperiment)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+72.5
+
+Support for Harvester kill_worker:
+- Created touch() (FileHandling)
+- Created kill_worker(), called at the end of the pilot in Harvester mode (pilot)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
 
