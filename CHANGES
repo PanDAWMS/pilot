@@ -410,6 +410,9 @@ Support for Harvester kill_worker:
 - Created touch() (FileHandling)
 - Created kill_worker(), called at the end of the pilot in Harvester mode (pilot)
 
+PFC changes:
+- Removed the logical part of the PFC XML for testing purposes, createPoolFileCatalog(). Details discussed in JIRA ticket (..). (pUtil)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
