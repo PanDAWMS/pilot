@@ -1099,7 +1099,7 @@ def createPFC4TRF(pfc_name, guidfname):
             pfc2.write('    <physical>\n')
             pfc2.write('      <pfn filetype="ROOT_All" name=\"' + fname + '\"/>\n')
             pfc2.write('    </physical>\n')
-            pfc2.write('    <logical/>\n')
+            # pfc2.write('    <logical/>\n')
             pfc2.write('  </File>\n')
             pfc2.write('\n')
         pfc2.write('</POOLFILECATALOG>')
