@@ -3875,11 +3875,11 @@ if __name__ == "__main__":
                 tolog("Got less events(%s events) than minimal requirement(%s events). will finish this job directly" % (len(first_event_ranges), runJob.getMinEvents()))
                 runJob.failJob(0, error.ERR_TOOFEWEVENTS, job, pilotErrorDiag="Got less events(%s events) than minimal requirement(%s events)" % (len(first_event_ranges), runJob.getMinEvents()))
 
-        # Get the current list of eventRangeIDs
-        currentEventRangeIDs = runJob.extractEventRangeIDs(first_event_ranges)
+            # Get the current list of eventRangeIDs
+            currentEventRangeIDs = runJob.extractEventRangeIDs(first_event_ranges)
 
-        # Store the current event range id's in the total event range id dictionary
-        runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
+            # Store the current event range id's in the total event range id dictionary
+            runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
 
         # Create and start the AthenaMP process
         t0 = os.times()
