@@ -478,18 +478,20 @@ class JobMover(object):
             else:
                 normal_files.append(fspec)
 
+        allowRemoteInputs = True in set(e.allowRemoteInputs for e in normal_files)
+        self.log("AllowRemoteInputs: %s" % allowRemoteInputs)
         if normal_files:
             self.log("Will stagin normal files: %s" % [f.lfn for f in normal_files])
-            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr', analyjob=analyjob)
+            transferred_files, failed_transfers = self.stagein_real(files=normal_files, activity='pr', analyjob=analyjob, skip_transfer_failure=allowRemoteInputs)
 
         remain_normal_files = [e for e in normal_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
-        allowRemoteInputs = True in set(e.allowRemoteInputs for e in remain_normal_files)
+        self.log("Remain normal files: %s" % (remain_normal_files))
         if remain_normal_files and allowRemoteInputs:
             self.log("Will stagin remain normal files with remote inputs: %s, allowRemoteInputs: %s" % ([f.lfn for f in remain_normal_files], allowRemoteInputs))
             copytools = [('rucio', {'setup': ''})]
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_files, activity='pr_remote', copytools=copytools, analyjob=analyjob)
-            transferred_files += transferred_files_es
-            failed_transfers += failed_transfers_es
+            transferred_files_normal, failed_transfers_normal = self.stagein_real(files=normal_files, activity='pr_remote', copytools=copytools, analyjob=analyjob)
+            transferred_files += transferred_files_normal
+            failed_transfers += failed_transfers_normal
             self.log("Failed to transfer files: %s" % failed_transfers)
 
 
@@ -513,7 +515,7 @@ class JobMover(object):
 
         return transferred_files, failed_transfers
 
-    def stagein_real(self, files, activity='pr', copytools=None, analyjob=False):
+    def stagein_real(self, files, activity='pr', copytools=None, analyjob=False, skip_transfer_failure=False):
         """
             :param: analyjob -- not used, to be cleaned
             :return: (transferred_files, failed_transfers)
@@ -831,7 +833,7 @@ class JobMover(object):
                 #    updateFileState(fdata.lfn, self.workDir, self.job.jobId, mode="transfer_mode", state="no_transfer", ftype="input")
                 #    continue
 
-            if fdata.status == 'error':
+            if fdata.status == 'error' and not skip_transfer_failure:
                 self.log('stage-in of file (%s/%s) with lfn=%s failed: code=%s .. skip transferring remaining files..' % (fnum, nfiles, fdata.lfn, fdata.status_code))
                 dumpFileStates(self.workDir, self.job.jobId, ftype="input")
                 raise PilotException("STAGEIN FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(fdata.status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=fdata.status_code, state='STAGEIN_FILE_FAILED')
