@@ -193,3 +193,4 @@ class rucioSiteMover(BaseSiteMover):
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
                 'pfn': fspec.lfn}
+
