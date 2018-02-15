@@ -412,6 +412,9 @@ Support for Harvester kill_worker:
 
 PFC changes:
 - Removed the logical part of the PFC XML for testing purposes, createPoolFileCatalog(). Details discussed in JIRA ticket (..). (pUtil)
+- (Took it back)
+- Introduced overrideLogical argument in createPoolFileCatalog(), used by get_new_data() (pUtil, Mover)
+- MUST BE TESTED WITH NORMAL HC CLOUDS JOBS AS WELL AS EVENT SERVICE JOBS WITH / WITHOUT DIRECT ACCESS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
