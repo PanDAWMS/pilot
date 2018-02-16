@@ -115,6 +115,7 @@ class RunJobEvent(RunJob):
     __stageoutStorages = None
     __max_wait_for_one_event = 360	# 6 hours, 360 minutes
     __min_events = 1
+    __allowPrefetchEvents = True
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
@@ -871,6 +872,12 @@ class RunJobEvent(RunJob):
 
         self.__pandaserver = pandaserver
 
+    def getAllowPrefetchEvents(self):
+        return self.__allowPrefetchEvents
+
+    def settAllowPrefetchEvents(self, allowPrefetchEvents):
+        self.__allowPrefetchEvents = allowPrefetchEvents
+
     def init_guid_list(self):
         """ Init guid and lfn list for staged in files"""
 
@@ -1361,10 +1368,14 @@ class RunJobEvent(RunJob):
                 try:
                     if int(pledgedcpu) == -1:
                         self.__asyncOutputStager_thread_sleep_time = 600
+                        self.__allowPrefetchEvents = False
                     else:
                         self.__asyncOutputStager_thread_sleep_time = 3600 * 4
                 except:
                     tolog("Failed to read pledgedcpu: %s" % traceback.format_exc())
+
+            if 'disable_get_events_before_ready' in catchalls:
+                self.__allowPrefetchEvents = False
 
             zip_time_gap = self.resolveConfigItem('zip_time_gap')
             if not (zip_time_gap is None or zip_time_gap == ''):
@@ -3863,7 +3874,7 @@ if __name__ == "__main__":
             job.coreCount = int(job.coreCount)
         except:
             pass
-        if not(catchalls and 'disable_get_events_before_ready' in catchalls):
+        if runJob.getAllowPrefetchEvents():
             numRanges = max(job.coreCount, runJob.getMinEvents())
             message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=numRanges, url=runJob.getPanDAServer())
             # Create a list of event ranges from the downloaded message
