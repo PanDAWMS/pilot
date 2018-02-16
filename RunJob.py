@@ -924,18 +924,15 @@ class RunJob(object):
                 thisExperiment.updateJobSetupScript(job.workdir, to_script=to_script)
 
                 # For direct access in prod jobs, we need to substitute the input file names with the corresponding TURLs
-#                try:
-#                    analysisJob = job.isAnalysisJob()
-#                    directIn = self.isDirectAccess(analysisJob, transferType=job.transferType)
-#                    if not analysisJob and directIn:
-#                        _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
-#                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles)
-#                except Exception, e:
-#                    tolog("Caught exception: %s" % e)
-                _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
-                from FileHandling import readJSON
-                d=readJSON(_fname)
-                tolog("PoolFileCatalog=%s"%str(d))
+                try:
+                    analysisJob = job.isAnalysisJob()
+                    directIn = self.isDirectAccess(analysisJob, transferType=job.transferType)
+                    if not analysisJob and directIn:
+                        _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
+                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles)
+                except Exception, e:
+                    tolog("Caught exception: %s" % e)
+
                 tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
 
 
