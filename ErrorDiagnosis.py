@@ -49,7 +49,14 @@ class ErrorDiagnosis(Diagnosis):
                 job.pilotErrorDiag = pilotErrorDiag
                 job.result[2] = ec
                 return job
-                
+
+        # handle special errors from the trf
+        if res[0] == 146:
+            job.pilotErrorDiag = "User job options not found on PanDA server"
+            job.result[2] = self.__error.ERR_NOUSERJOBOPTIONS
+            # no need to continue, as the job report will not exist
+            return job
+
         # Extract job information (e.g. number of events)
         job = self.extractJobInformation(job, runCommandList) # add more arguments as needed
 

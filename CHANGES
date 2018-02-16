@@ -416,6 +416,10 @@ PFC changes:
 - Introduced overrideLogical argument in createPoolFileCatalog(), used by get_new_data() (pUtil, Mover)
 - MUST BE TESTED WITH NORMAL HC CLOUDS JOBS AS WELL AS EVENT SERVICE JOBS WITH / WITHOUT DIRECT ACCESS
 
+Error handing for trf exit code 146, requested by R. Walker:
+- Added new error code ERR_NOUSERJOBOPTIONS: "User job options not found on PanDA server" (PilotErrors)
+ - Identifying exit code 146 in interpretPayload() (ErrorDiagnostics)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
