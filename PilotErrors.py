@@ -142,7 +142,7 @@ class PilotErrors:
     ERR_ESPREFETCHERDIED = 1243
     ERR_NORELEASEFOUND = 1244
     ERR_TOOFEWEVENTS = 1245
-    ERR_NOUSERJOBOPTIONS = 1246
+    ERR_NOUSERTARBALL = 1246
 
     # internal error codes
     ERR_DDMREG = 1
@@ -291,7 +291,7 @@ class PilotErrors:
         ERR_ESPREFETCHERDIED: "Prefetcher ended Event Service job prematurely",
         ERR_NORELEASEFOUND: "No release candidates found",
         ERR_TOOFEWEVENTS: "Too few events, less events than minimal requirement",
-        ERR_NOUSERJOBOPTIONS: "User job options not found on PanDA server",
+        ERR_NOUSERTARBALL: "User tarball cannot be downloaded from PanDA server",
 
     }
 

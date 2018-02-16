@@ -417,8 +417,9 @@ PFC changes:
 - MUST BE TESTED WITH NORMAL HC CLOUDS JOBS AS WELL AS EVENT SERVICE JOBS WITH / WITHOUT DIRECT ACCESS
 
 Error handing for trf exit code 146, requested by R. Walker:
-- Added new error code ERR_NOUSERJOBOPTIONS: "User job options not found on PanDA server" (PilotErrors)
- - Identifying exit code 146 in interpretPayload() (ErrorDiagnostics)
+- Added new error code ERR_NOUSERTARBALL=1246: "User tarball cannot be downloaded from PanDA server" (PilotErrors)
+- Created extractTarballURL(). The slightly more descriptive error diagnostics will contain the tarball source URL if known (ErrorDiagnostics)
+- Identifying exit code 146 in interpretPayload() using extractTarballURL() (ErrorDiagnostics)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
