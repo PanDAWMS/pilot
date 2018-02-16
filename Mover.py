@@ -346,8 +346,8 @@ def get_data_new(job,
         files[fspec.guid] = pfn or ''
         lfns.append(fspec.lfn)
 
-    #createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
-    createPoolFileCatalog(files, lfns, pfc_name, overrideLogical=True)
+    createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
+    #createPoolFileCatalog(files, lfns, pfc_name, overrideLogical=True)
 
     return 0, "", None, FAX_dictionary
 
