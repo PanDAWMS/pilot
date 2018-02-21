@@ -3338,6 +3338,20 @@ class RunJobEvent(RunJob):
         if prefetcher_stdout:
             prefetcher_stderr.close()
 
+
+    def stopPrefetcher(self, prefetcherProcess, prefetcher_stdout, prefetcher_stderr):
+        """ Stop Prefetcher thread and close output steams """
+
+        if prefetcherProcess:
+            prefetcherProcess.kill()
+
+        # Close stdout/err streams
+        if prefetcher_stdout:
+            prefetcher_stderr.close()
+        if prefetcher_stdout:
+            prefetcher_stderr.close()
+
+
     def checkStageOutFailures(self):
         # if there are two many stageout failures, stop
         if self.__nStageOutFailures > 0:
@@ -3979,70 +3993,89 @@ if __name__ == "__main__":
                     # Send the downloaded event ranges to the Prefetcher, who will update the message before it is sent to AthenaMP
                     if runJob.usePrefetcher():
 
-                        # Loop until Prefetcher is ready to process an event range
-                        l = 0
                         while True:
-                            if runJob.isPrefetcherReady():
-
-                                # Set the boolean to false until Prefetcher has finished updating the event range (if used)
-                                runJob.setPrefetcherHasFinished(False)
-                                runJob.setUpdatedLFN("") # forget about any previously updated LFN
-                                tolog("Sending event range to Prefetcher")
-                                runJob.sendMessage(str([event_range]), prefetcher=True)
-
-                                # need to get the updated event range back from Prefetcher
-                                tolog("Waiting for Prefetcher reply")
-                                count = 0
-                                maxCount = 60
-                                while not runJob.prefetcherHasFinished():
+                            
+                            # Set the boolean to false until Prefetcher has finished updating the event range (if used)
+                            runJob.setPrefetcherHasFinished(False)
+                            runJob.setUpdatedLFN("") # forget about any previously updated LFN
+                            
+                            prefetcherAttempts = 0
+                            maxPrefetcherAttempts = 3
+                            l = 0
+                            while prefetcherAttempts < maxPrefetcherAttempts:
+                                # Loop until Prefetcher is ready to process an event range
+                                if runJob.isPrefetcherReady():
+                                    tolog("Sending event range to Prefetcher")
+                                    runJob.sendMessage(str([event_range]), prefetcher=True)
+                                    # need to get the updated event range back from Prefetcher
+                                    tolog("Waiting for Prefetcher reply")
+                                    count = 0
+                                    maxCount = 180
+                                    while not runJob.prefetcherHasFinished():
+                                        time.sleep(1)
+                                        if count > maxCount:
+                                            tolog("Prefetcher has not replied for %d seconds - restarting it" % maxCount)
+                                            # Stop Prefetcher
+                                            runJob.stopPrefetcher(prefetcherProcess, prefetcher_stdout, prefetcher_stderr)
+                                            prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout_%s.txt" % prefetcherAttempts,
+                                                                                                                     stderrName="prefetcher_stderr_%s.txt" % prefetcherAttempts)
+                                            prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=input_file, stdout=prefetcher_stdout, stderr=prefetcher_stderr)
+                                            prefetcherAttempts += 1
+                                            runJob.setPrefetcherIsReady(False)
+                                            l = 0
+                                            break
+                                        count += 1
+                                    else:
+                                        # Prefetcher has finished, stop trying to restart it
+                                        break
+                                else:
                                     time.sleep(1)
-                                    if count > maxCount:
-                                        pilotErrorDiag = "Prefetcher has not replied for %d seconds - aborting" % (maxCount)
-                                        tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+                                    if l%10 == 0:
+                                        tolog("Prefetcher waiting loop iteration #%d" % (l))
+                                    l += 1
 
-                                        # Stop threads
-                                        runJob.stopThreads(tokenExtractorProcess, prefetcherProcess, tokenextractor_stdout, tokenextractor_stderr, prefetcher_stdout, prefetcher_stderr)
+                                    # Is Prefetcher still running?
+                                    if prefetcherProcess.poll() is not None:
+                                        job.pilotErrorDiag = "Prefetcher finished prematurely"
                                         job.result[0] = "failed"
-                                        job.result[2] = error.ERR_ESRECOVERABLE
-                                        runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
-
-                                    count += 1
-
-                                tolog("Original event_range=%s"%str(event_range))
-
-                                # Prefetcher should now have sent back the updated LFN
-                                # Update the event_range
-                                event_range['LFN'] = runJob.getUpdatedLFN()
-                                event_range['PFN'] = runJob.getUpdatedLFN()
-
-                                # Add the PFN (local file path)
-                                # event_range = runJob.addPFNToEventRange(event_range)
-
-                                # Update the positional event numbers
-                                event_range['lastEvent'] = 1 + event_range['lastEvent'] - event_range['startEvent']
-                                event_range['startEvent'] = 1
-                                tolog("Updated event_range=%s"%str(event_range))
-
-                                # Pilot can continue to send the updated event range to AthenaMP
-                                break
+                                        job.result[2] = error.ERR_ESPREFETCHERDIED
+                                        tolog("!!WARNING!!2228!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
+                                        break
                             else:
-                                time.sleep(1)
-
-                                if l%10 == 0:
-                                    tolog("Prefetcher waiting loop iteration #%d" % (l))
-                                l += 1
-
-                                # Is Prefetcher still running?
-                                if prefetcherProcess.poll() is not None:
-                                    job.pilotErrorDiag = "Prefetcher finished prematurely"
-                                    job.result[0] = "failed"
-                                    job.result[2] = error.ERR_ESPREFETCHERDIED
-                                    tolog("!!WARNING!!2228!! %s (aborting monitoring loop)" % (job.pilotErrorDiag))
-                                    break
+                                # Reached maximum Prefetcher restart attempts, abort job
+                                pilotErrorDiag = "Prefetcher has not replied after %d restarts - aborting" % (maxPrefetcherAttempts)
+                                tolog("!!WARNING!!4545!! %s" % (pilotErrorDiag))
+                                # Stop threads
+                                runJob.stopThreads(tokenExtractorProcess, prefetcherProcess, tokenextractor_stdout, tokenextractor_stderr, prefetcher_stdout, prefetcher_stderr)
+                                job.result[0] = "failed"
+                                job.result[2] = error.ERR_ESRECOVERABLE
+                                runJob.failJob(0, job.result[2], job, pilotErrorDiag=pilotErrorDiag)
 
                             if job.result[0] == "failed":
                                 tolog("Picked up an error: aborting")
                                 break
+
+                            tolog("Original event_range=%s"%str(event_range))
+                            
+                            # Prefetcher should now have sent back the updated LFN
+                            # Update the event_range
+                            event_range['LFN'] = runJob.getUpdatedLFN()
+                            event_range['PFN'] = runJob.getUpdatedLFN()
+
+                            # Add the PFN (local file path)
+                            # event_range = runJob.addPFNToEventRange(event_range)
+
+                            # Update the positional event numbers
+                            event_range['lastEvent'] = 1 + event_range['lastEvent'] - event_range['startEvent']
+                            event_range['startEvent'] = 1
+                            tolog("Updated event_range=%s"%str(event_range))
+                
+                            # Pilot can continue to send the updated event range to AthenaMP
+                            break
+
+                    if job.result[0] == "failed":
+                        tolog("Picked up an error: aborting")
+                        break
 
                     # Send the event range to AthenaMP
                     tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
