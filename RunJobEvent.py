@@ -875,7 +875,7 @@ class RunJobEvent(RunJob):
     def getAllowPrefetchEvents(self):
         return self.__allowPrefetchEvents
 
-    def settAllowPrefetchEvents(self, allowPrefetchEvents):
+    def setAllowPrefetchEvents(self, allowPrefetchEvents):
         self.__allowPrefetchEvents = allowPrefetchEvents
 
     def init_guid_list(self):
