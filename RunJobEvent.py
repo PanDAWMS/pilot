@@ -115,6 +115,7 @@ class RunJobEvent(RunJob):
     __stageoutStorages = None
     __max_wait_for_one_event = 360	# 6 hours, 360 minutes
     __min_events = 1
+    __allowPrefetchEvents = True
 
     # calculate cpu time, os.times() doesn't report correct value for preempted jobs
     __childProcs = []
@@ -871,6 +872,12 @@ class RunJobEvent(RunJob):
 
         self.__pandaserver = pandaserver
 
+    def getAllowPrefetchEvents(self):
+        return self.__allowPrefetchEvents
+
+    def setAllowPrefetchEvents(self, allowPrefetchEvents):
+        self.__allowPrefetchEvents = allowPrefetchEvents
+
     def init_guid_list(self):
         """ Init guid and lfn list for staged in files"""
 
@@ -1361,10 +1368,14 @@ class RunJobEvent(RunJob):
                 try:
                     if int(pledgedcpu) == -1:
                         self.__asyncOutputStager_thread_sleep_time = 600
+                        self.__allowPrefetchEvents = False
                     else:
                         self.__asyncOutputStager_thread_sleep_time = 3600 * 4
                 except:
                     tolog("Failed to read pledgedcpu: %s" % traceback.format_exc())
+
+            if 'disable_get_events_before_ready' in catchalls:
+                self.__allowPrefetchEvents = False
 
             zip_time_gap = self.resolveConfigItem('zip_time_gap')
             if not (zip_time_gap is None or zip_time_gap == ''):
@@ -1957,7 +1968,7 @@ class RunJobEvent(RunJob):
                 tolog("Failed to zip %s: %s, %s" % (path, ec, pilotErrorDiag))
                 return ec, pilotErrorDiag
 
-        tolog("Adding event range to zip event range file: %s %s" % (event_range_id, paths))
+        # tolog("Adding event range to zip event range file: %s %s" % (event_range_id, paths))
         handler = open(self.__job.outputZipEventRangesName, "a")
         handler.write("%s %s\n" % (event_range_id, paths))
         handler.close()
@@ -2042,7 +2053,7 @@ class RunJobEvent(RunJob):
         else:
             tolog("Adding %s to output file list" % (output_name))
             self.__output_files.append(output_name)
-            tolog("output_files = %s" % (self.__output_files))
+            # tolog("output_files = %s" % (self.__output_files))
             errorCode = None
             if ec == 0:
                 status = 'finished'
@@ -2063,7 +2074,7 @@ class RunJobEvent(RunJob):
                     eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
 
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
-                    tolog("Update event ranges: %s" % chunkEventRanges)
+                    # tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
                     self.checkSoftMessage(output)
@@ -2081,7 +2092,7 @@ class RunJobEvent(RunJob):
 
                 numEvents = len(eventRanges)
                 for chunkEventRanges in pUtil.chunks(eventRanges, 1000):
-                    tolog("Update event ranges: %s" % chunkEventRanges)
+                    # tolog("Update event ranges: %s" % chunkEventRanges)
                     transientPathConvention = self.getTransientPathConvention(pathConvention)
                     if not transientPathConvention is None:
                         event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'fsize': filesize, checksum_type: checksum, 'numEvents': numEvents, 'pathConvention': transientPathConvention}}]
@@ -2138,7 +2149,7 @@ class RunJobEvent(RunJob):
             else:
                 tolog("Adding %s to output file list" % (output_name))
                 self.__output_files.append(output_name)
-                tolog("output_files = %s" % (self.__output_files))
+                # tolog("output_files = %s" % (self.__output_files))
                 errorCode = None
                 if ec == 0:
                     status = 'finished'
@@ -2158,7 +2169,7 @@ class RunJobEvent(RunJob):
                     eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status, 'objstoreID': os_bucket_id, 'errorCode': errorCode})
 
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
-                    tolog("Update event ranges: %s" % chunkEventRanges)
+                    # tolog("Update event ranges: %s" % chunkEventRanges)
                     status, output = updateEventRanges(chunkEventRanges, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
                     self.checkSoftMessage(output)
@@ -2169,7 +2180,7 @@ class RunJobEvent(RunJob):
                     eventRanges.append({'eventRangeID': eventRangeID, 'eventStatus': status})
 
                 for chunkEventRanges in pUtil.chunks(eventRanges, 100):
-                    tolog("Update event ranges: %s" % chunkEventRanges)
+                    # tolog("Update event ranges: %s" % chunkEventRanges)
                     event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id}}]
                     status, output = updateEventRanges(event_status, jobId = self.__job.jobId, url=self.getPanDAServer(), version=1, pandaProxySecretKey=self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
@@ -2286,7 +2297,7 @@ class RunJobEvent(RunJob):
                                 tolog("Adding %s to output file list" % (paths))
                                 for fpath in paths:
                                     self.__output_files.append(fpath)
-                                tolog("output_files = %s" % (self.__output_files))
+                                # tolog("output_files = %s" % (self.__output_files))
                                 errorCode = None
                                 if ec == 0:
                                     status = 'finished'
@@ -2327,7 +2338,7 @@ class RunJobEvent(RunJob):
                     output_eventRanges = {}
                     while len(self.__stageout_queue) > 0:
                         paths = self.__stageout_queue.pop()
-                        tolog("Pop %s from stage-out queue" % (paths))
+                        #tolog("Pop %s from stage-out queue" % (paths))
 
                         # Create the output file metadata (will be sent to server)
                         tolog("Preparing to stage-out file %s" % (paths))
@@ -2344,10 +2355,10 @@ class RunJobEvent(RunJob):
                                 tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
                             else:
                                 output_eventRanges[event_range_id] = paths
-                                tolog("Adding %s to output file list" % (paths))
+                                # tolog("Adding %s to output file list" % (paths))
                                 for fpath in paths:
                                     self.__output_files.append(fpath)
-                                tolog("output_files = %s" % (self.__output_files))
+                                # tolog("output_files = %s" % (self.__output_files))
                     tolog("Files %s are zipped to %s" % (output_eventRanges, output_name))
                     self.stageOutZipFiles_new(output_name, output_eventRanges, output_eventRange_id)
                     finished_first_upload = True
@@ -2401,7 +2412,7 @@ class RunJobEvent(RunJob):
                             tolog("Adding %s to output file list" % (paths))
                             for fpath in paths:
                                 self.__output_files.append(fpath)
-                            tolog("output_files = %s" % (self.__output_files))
+                            # tolog("output_files = %s" % (self.__output_files))
                             errorCode = None
                             if ec == 0:
                                 status = 'finished'
@@ -2464,7 +2475,7 @@ class RunJobEvent(RunJob):
                                 tolog("Adding %s to output file list" % (paths))
                                 for fpath in paths:
                                     self.__output_files.append(fpath)
-                                tolog("output_files = %s" % (self.__output_files))
+                                # tolog("output_files = %s" % (self.__output_files))
                     tolog("Files %s are zipped to %s" % (output_eventRanges, output_name))
                     self.stageOutZipFiles(output_name, output_eventRanges, output_eventRange_id)
 
@@ -2520,11 +2531,11 @@ class RunJobEvent(RunJob):
                 # Interpret the message and take the appropriate action
                 if "Ready for events" in buf:
                     buf = ""
-                    tolog("AthenaMP is ready for events")
+                    #tolog("AthenaMP is ready for events")
                     self.__athenamp_is_ready = True
 
                 elif buf.startswith('/'):
-                    tolog("Received file and process info from client: %s" % (buf))
+                    # tolog("Received file and process info from client: %s" % (buf))
 
                     self.__nEvents += 1
 
@@ -2536,7 +2547,7 @@ class RunJobEvent(RunJob):
 
                         # Add the file to the stage-out queue
                         self.__stageout_queue.append(paths)
-                        tolog("File %s has been added to the stage-out queue (length = %d)" % (paths, len(self.__stageout_queue)))
+                        # tolog("File %s has been added to the stage-out queue (length = %d)" % (paths, len(self.__stageout_queue)))
 
                 elif buf.startswith('['):
                     tolog("Received an updated event range message from Prefetcher: %s" % (buf))
@@ -2612,7 +2623,7 @@ class RunJobEvent(RunJob):
 
             try:
                 # Receive a message
-                tolog("Waiting for a new message")
+                # tolog("Waiting for a new message")
                 size, buf = self.__message_server_prefetcher.receive()
                 while size == -1 and not self.__message_thread_prefetcher.stopped():
                     time.sleep(1)
@@ -3124,7 +3135,7 @@ class RunJobEvent(RunJob):
 
         if files:
             tolog("Will stagein files for events: %s" % files)
-            to_stagein_files = job.get_stagein_requests(files, allowRemoteInputs=True)
+            to_stagein_files = job.get_stagein_requests(files, allowRemoteInputs=self.__allow_remote_inputs)
             super(RunJobEvent, self).stageIn(self.getJob(), self.getJobSite(), to_stagein_files)
 
             staged_input_files = job.get_stagedIn_files(to_stagein_files)
@@ -3877,7 +3888,7 @@ if __name__ == "__main__":
             job.coreCount = int(job.coreCount)
         except:
             pass
-        if not(catchalls and 'disable_get_events_before_ready' in catchalls):
+        if runJob.getAllowPrefetchEvents():
             numRanges = max(job.coreCount, runJob.getMinEvents())
             message = downloadEventRanges(job.jobId, job.jobsetID, job.taskID, job.pandaProxySecretKey, numRanges=numRanges, url=runJob.getPanDAServer())
             # Create a list of event ranges from the downloaded message
@@ -3889,11 +3900,11 @@ if __name__ == "__main__":
                 tolog("Got less events(%s events) than minimal requirement(%s events). will finish this job directly" % (len(first_event_ranges), runJob.getMinEvents()))
                 runJob.failJob(0, error.ERR_TOOFEWEVENTS, job, pilotErrorDiag="Got less events(%s events) than minimal requirement(%s events)" % (len(first_event_ranges), runJob.getMinEvents()))
 
-        # Get the current list of eventRangeIDs
-        currentEventRangeIDs = runJob.extractEventRangeIDs(first_event_ranges)
+            # Get the current list of eventRangeIDs
+            currentEventRangeIDs = runJob.extractEventRangeIDs(first_event_ranges)
 
-        # Store the current event range id's in the total event range id dictionary
-        runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
+            # Store the current event range id's in the total event range id dictionary
+            runJob.addEventRangeIDsToDictionary(currentEventRangeIDs)
 
         # Create and start the AthenaMP process
         t0 = os.times()
@@ -3964,7 +3975,7 @@ if __name__ == "__main__":
                         break
 
                 # if event range is file related position, add pfn to it (Prefetcher aware)
-                tolog("event_ranges=%s"%str(event_ranges))
+                # tolog("event_ranges=%s"%str(event_ranges))
                 event_ranges = runJob.addPFNsToEventRanges(event_ranges)
 
                 # Update the token extractor file list and keep track of added guids to the file list (not needed for Event Index)
@@ -4078,7 +4089,7 @@ if __name__ == "__main__":
                         break
 
                     # Send the event range to AthenaMP
-                    tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
+                    # tolog("Sending a new event range to AthenaMP (id=%s)" % (currentEventRangeIDs[j]))
                     runJob.setSendingEventRange(True)
                     runJob.setCurrentEventRange(currentEventRangeIDs[j])
                     runJob.sendMessage(str([event_range]))
@@ -4119,7 +4130,7 @@ if __name__ == "__main__":
                             break
 
                         if runJob.isAthenaMPReady():
-                            tolog("AthenaMP is ready for new event range")
+                            # tolog("AthenaMP is ready for new event range")
                             w = 0
                             break
                         if w * nap > max_wait * 60:

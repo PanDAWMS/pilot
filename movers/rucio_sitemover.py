@@ -9,7 +9,8 @@ from .base import BaseSiteMover
 from pUtil import tolog
 from PilotErrors import PilotException
 
-from commands import getstatusoutput
+# from commands import getstatusoutput
+from TimerCommand import getstatusoutput
 from os.path import dirname
 
 import os
