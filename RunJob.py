@@ -528,7 +528,7 @@ class RunJob(object):
         """ set the fail code and exit """
 
         if docleanup:
-            self.cleanup(job, rf=rf)
+            self.cleanup(job)
 
         if job.eventServiceMerge:
             pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
