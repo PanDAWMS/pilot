@@ -359,6 +359,8 @@ class ATLASExperiment(Experiment):
         # Explicitly add the ATHENA_PROC_NUMBER (or JOB value)
         cmd = self.addAthenaProcNumber(cmd)
 
+        cmd = "export XRD_LOGLEVEL=Debug;" + cmd
+
         # Wrap the job execution command with Singularity if necessary
         from Singularity import singularityWrapper
         cmd = singularityWrapper(cmd, cmtconfig, job.workdir)
@@ -2301,6 +2303,9 @@ class ATLASExperiment(Experiment):
         else:
             useDefault = False
             tolog("%s < %s" % (default_release, release))
+
+            tolog("!!WARNING!!3434!! Currently only default MemoryMonitor version (%s) is allowed" % default_release)
+            useDefault = True
 
         if useDefault:
             tolog("Will use default (fallback) setup for MemoryMonitor since patched release number is needed for the setup, and none is available")

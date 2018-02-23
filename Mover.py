@@ -347,6 +347,7 @@ def get_data_new(job,
         lfns.append(fspec.lfn)
 
     createPoolFileCatalog(files, lfns, pfc_name, forceLogical=True)
+    #createPoolFileCatalog(files, lfns, pfc_name, overrideLogical=True)
 
     return 0, "", None, FAX_dictionary
 
@@ -1099,7 +1100,7 @@ def createPFC4TRF(pfc_name, guidfname):
             pfc2.write('    <physical>\n')
             pfc2.write('      <pfn filetype="ROOT_All" name=\"' + fname + '\"/>\n')
             pfc2.write('    </physical>\n')
-            pfc2.write('    <logical/>\n')
+            # pfc2.write('    <logical/>\n')
             pfc2.write('  </File>\n')
             pfc2.write('\n')
         pfc2.write('</POOLFILECATALOG>')

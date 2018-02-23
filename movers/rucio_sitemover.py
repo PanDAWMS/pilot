@@ -22,7 +22,6 @@ class rucioSiteMover(BaseSiteMover):
     name = 'rucio'
     schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio', 'davs']
 
-
     def __which(self, pgm):
         """
         Do not assume existing which command
@@ -87,7 +86,12 @@ class rucioSiteMover(BaseSiteMover):
         tolog('stageIn: %s' % cmd)
         s, o = getstatusoutput(cmd)
         if s:
-            raise PilotException('stageIn failed -- rucio download did not succeed: %s' % o.replace('\n', ''))
+            tolog('stageIn with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
+            # raise PilotException('stageIn with CLI failed -- rucio download did not succeed: %s' % o.replace('\n', ''))
+            try:
+                self.stageInApi(dst, fspec)
+            except Exception as error:
+                raise PilotException('stageIn with API faied:  %s' % error)
 
         # TODO: fix in rucio download to set specific outputfile
         #       https://its.cern.ch/jira/browse/RUCIO-2063
@@ -107,6 +111,24 @@ class rucioSiteMover(BaseSiteMover):
         return {'ddmendpoint': fspec.replicas[0][0] if fspec.replicas else fspec.ddmendpoint,
                 'surl': None,
                 'pfn': fspec.lfn}
+
+    def stageInApi(self, dst, fspec):
+
+        from rucio.client.downloadclient import DownloadClient
+
+        dclient = DownloadClient()
+        lfn = '%s:%s' % (fspec.scope, fspec.lfn)
+        dst_dir = dirname(dst)
+        if fspec.replicas:
+            if not fspec.allowAllInputRSEs:
+                dclient.download([lfn], fspec.replicas[0][0], dir=dst_dir)
+            else:
+                dclient.download([lfn], '', dir=dst_dir)
+        else:
+            if self.isDeterministic(fspec.ddmendpoint):
+                dclient.download([lfn], fspec.ddmendpoint, dir=dst_dir)
+            else:
+                dclient.download([lfn], fspec.ddmendpoint, pfn=fspec.turl, dir=dst_dir)
 
     def stageOut(self, src, dst, fspec):
         """
@@ -143,7 +165,35 @@ class rucioSiteMover(BaseSiteMover):
         tolog('stageOutOutput: %s' % o)
 
         if s:
-            raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
+            tolog('stageOut with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
+            try:
+                self.stageOutApi(src, fspec)
+            except Exception as error:
+                raise PilotException('stageOut with API faied:  %s' % error)
+            # raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
+
+        return {'ddmendpoint': fspec.ddmendpoint,
+                'surl': fspec.surl,
+                'pfn': fspec.lfn}
+
+    def stageOutApi(self, src, fspec):
+
+        from rucio.client.uploadclient import UploadClient
+
+        f = {}
+        f['path'] = fspec.pfn if fspec.pfn else fspec.lfn
+        f['rse'] = fspec.ddmendpoint
+        f['scope'] = fspec.scope
+        f['no_register'] = True
+
+        if fspec.storageId and int(fspec.storageId) > 0:
+            if not self.isDeterministic(fspec.ddmendpoint):
+                f['pfn'] = fspec.turl
+        elif fspec.lfn and '.root' in fspec.lfn:
+            f['guid'] = fspec.guid
+
+        uc = UploadClient()
+        uc.upload([f])
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,

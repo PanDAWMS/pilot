@@ -49,7 +49,17 @@ class ErrorDiagnosis(Diagnosis):
                 job.pilotErrorDiag = pilotErrorDiag
                 job.result[2] = ec
                 return job
-                
+
+        # handle special errors from the trf
+        if res[0] == 146:
+            # try to extract the tarball url from res[1] (should have been added in executePayload())
+            tarball_url = self.extractTarballURL(res[1])
+
+            job.pilotErrorDiag = "User tarball %s cannot be downloaded from PanDA server" % tarball_url
+            job.result[2] = self.__error.ERR_NOUSERTARBALL
+            # no need to continue, as the job report will not exist
+            return job
+
         # Extract job information (e.g. number of events)
         job = self.extractJobInformation(job, runCommandList) # add more arguments as needed
 
@@ -57,6 +67,19 @@ class ErrorDiagnosis(Diagnosis):
         job = thisExperiment.interpretPayloadStdout(job, res, getstatusoutput_was_interrupted, current_job_number, runCommandList, failureCode)
 
         return job
+
+    def extractTarballURL(self, tail):
+        """ Extract the tarball URL for missing user code if possible from stdout tail """
+
+        tarball_url = "(source unknown)"
+
+        if "https://" in tail or "http://" in tail:
+            pattern = r"(https?\:\/\/.+)"
+            found = re.findall(pattern, tail)
+            if len(found) > 0:
+                tarball_url = found[0]
+
+        return tarball_url
 
     ### WARNING: EXPERIMENT SPECIFIC, MOVE LATER
     def getJobReport(self, workDir):

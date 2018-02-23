@@ -2201,6 +2201,17 @@ def request_new_jobs(nJobs=1):
         except Exception as e:
             pUtil.tolog('!!WARNING!!1212!! Exception caught: %s' % e)
 
+def kill_worker():
+    """
+    Create (touch) a kill_worker file in the pilot launch directory.
+    This file will let Harverster know that the pilot has finished.
+
+    :return:
+    """
+
+    from FileHandling import touch
+    touch(join(env['pilot_initdir'], "kill_worker"))
+
 def getNewJob(tofile=True):
     """ Get a new job definition from the jobdispatcher or from file """
 
@@ -2939,6 +2950,10 @@ def runMain(runpars):
 
         # wait for the stdout to catch up (otherwise the full log is cut off in the batch stdout dump)
         time.sleep(10)
+
+        if env['harvester']:
+            kill_worker()
+
         pUtil.tolog("End of the pilot")
 
         # flush buffers
