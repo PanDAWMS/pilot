@@ -527,7 +527,10 @@ class RunJob(object):
     def failJob(self, transExitCode, pilotExitCode, job, ins=None, pilotErrorDiag=None, docleanup=True):
         """ set the fail code and exit """
 
-        if pilotExitCode and job.attemptNr < 4 and job.eventServiceMerge:
+        if docleanup:
+            self.cleanup(job, rf=None)
+
+        if job.eventServiceMerge:
             pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
         job.setState(["failed", transExitCode, pilotExitCode])
         if pilotErrorDiag:
@@ -536,6 +539,7 @@ class RunJob(object):
         rt = RunJobUtilities.updatePilotServer(job, self.__pilotserver, self.__pilotport, final=True)
         if ins:
             ec = pUtil.removeFiles(job.workdir, ins)
+
         if docleanup:
             self.sysExit(job)
 
@@ -1871,6 +1875,8 @@ if __name__ == "__main__":
         ed = ErrorDiagnosis()
         job = ed.interpretPayload(job, res, getstatusoutput_was_interrupted, current_job_number, runCommandList, runJob.getFailureCode())
         if job.result[1] != 0 or job.result[2] != 0:
+            if job.eventServiceMerge:
+                job.result[2] = PilotErrors.ERR_ESRECOVERABLE
             runJob.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
 
         # stage-out ........................................................................................

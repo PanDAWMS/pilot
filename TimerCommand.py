@@ -8,7 +8,7 @@
 # http://www.apache.org/licenses/LICENSE-2.0
 #
 # Authors:
-# - Wen Guan, <wguan@cern.ch>, 2014
+# - Wen Guan, <wguan@cern.ch>, 2014-2018
 
 import os
 import signal
@@ -58,6 +58,12 @@ class TimerCommand(object):
             if not self.stdout:
                 self.stdout = ''
             self.stdout += "Command time-out: %s s" % timeout
+
+        if not self.stderr:
+            self.stderr = ''
+        if not self.stdout:
+            self.stdout = ''
+        self.stdout += " Error: " + self.stderr
 
         if self.process:
             returncode = self.process.returncode
@@ -121,3 +127,9 @@ class TimerCommand(object):
                 ret = (-1, "function failed with unknow error")
                 
         return ret
+
+
+def getstatusoutput(cmd, timeout=1800):
+    timerCmd = TimerCommand(cmd)
+    status, output = timerCmd.run(timeout=timeout)
+    return status, output
