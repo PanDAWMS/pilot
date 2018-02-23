@@ -1730,11 +1730,9 @@ class ATLASExperiment(Experiment):
         if limit == None:
             limit = 48
 
-        tolog("envsetup=%s"%(envsetup))
         from SiteMover import SiteMover
         if envsetup == "":
             envsetup = SiteMover.getEnvsetup()
-        tolog("envsetup=%s"%(envsetup))
         envsetup = envsetup.strip()
 
         # add setup for arcproxy if it exists
@@ -1754,8 +1752,6 @@ class ATLASExperiment(Experiment):
                     _envsetup = envsetup
 
             _envsetup += ". %s;" % (arcproxy_setup)
-
-        tolog("envsetup=%s"%(envsetup))
 
         # first try to use arcproxy since voms-proxy-info is not working properly on SL6 (memory issues on queues with limited memory)
         # cmd = "%sarcproxy -I |grep 'AC:'|awk '{sum=$5*3600+$7*60+$9; print sum}'" % (envsetup)
