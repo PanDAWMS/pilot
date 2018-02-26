@@ -2279,7 +2279,7 @@ class ATLASExperiment(Experiment):
         # default_setup = "source %s/ATLASLocalRootBase/user/atlasLocalSetup.sh --quiet; " \
         #                 "source %s/ATLASLocalRootBase/x86_64/AtlasSetup/current/AtlasSetup/scripts/asetup.sh Athena,%s" %\
         #                 (default_swbase, default_swbase, default_release)
-        default_setup = self.getModernASetup() + " Athena," + default_release
+        default_setup = self.getModernASetup() + " Athena," + default_release + " --platform " + cmtconfig
 
         # Construct the name of the output file using the summary variable
         if summary.endswith('.json'):
