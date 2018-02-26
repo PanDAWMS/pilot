@@ -2565,7 +2565,7 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         error_code = None
-                        event_status = 'failed'
+                        event_status = 'fatal'
                         # Was the error fatal? If so, the pilot should abort
                         if "FATAL" in error_acronym:
                             tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
@@ -2581,7 +2581,6 @@ class RunJobEvent(RunJob):
                                 error_code = self.__error.ERR_TEWRONGGUID
                             elif error_acronym == "ERR_TE_FATAL":
                                 error_code = self.__error.ERR_TEFATAL
-                                event_status = 'failed'  # should be 'fatal', we only use 'failed' currently
                             else:
                                 error_code = self.__error.ERR_ESFATAL
                             self.__esFatalCode = error_code
@@ -2655,7 +2654,7 @@ class RunJobEvent(RunJob):
                         tolog("!!WARNING!!2144!! Extracted error acronym %s and error diagnostics \'%s\' for event range %s" % (error_acronym, error_diagnostics, event_range_id))
 
                         error_code = None
-                        event_status = 'failed'
+                        event_status = 'fatal'
                         # Was the error fatal? If so, the pilot should abort
                         if "FATAL" in error_acronym:
                             tolog("!!WARNING!!2146!! A FATAL error was encountered, prepare to finish")
@@ -2671,7 +2670,6 @@ class RunJobEvent(RunJob):
                                 error_code = self.__error.ERR_TEWRONGGUID
                             elif error_acronym == "ERR_TE_FATAL":
                                 error_code = self.__error.ERR_TEFATAL
-                                event_status = 'failed'  # should be 'fatal', we only use 'failed' currently
                             else:
                                 error_code = self.__error.ERR_ESFATAL
                             self.__esFatalCode = error_code
