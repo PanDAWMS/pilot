@@ -406,6 +406,9 @@ Memory monitoring
 
 72.5
 
+Memory monitor update
+- Added platform for default memory monitor setup (ATLASExperiment)
+
 Support for Harvester kill_worker:
 - Created touch() (FileHandling)
 - Created kill_worker(), called at the end of the pilot in Harvester mode (pilot)
