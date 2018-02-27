@@ -3,7 +3,7 @@
 #
 
 import os
-import commands
+import re
 from Diagnosis import Diagnosis
 from PilotErrors import PilotErrors
 from pUtil import tolog, getExperiment
