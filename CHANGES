@@ -424,6 +424,75 @@ Error handing for trf exit code 146, requested by R. Walker:
 - Created extractTarballURL(). The slightly more descriptive error diagnostics will contain the tarball source URL if known (ErrorDiagnostics)
 - Identifying exit code 146 in interpretPayload() using extractTarballURL() (ErrorDiagnostics)
 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/192
+
+fix bug caused by disabling prefetching events
+fix pilot err code for es merge jobs to be retried
+add functions to support remote stagein
+
+Commit Summary
+
+enable remote stagein
+fix pilot err code for es merge jobs to be retried
+fix bug caused by disabling prefetching events
+fix bugs in remote stagein
+disable prefetch events on opportunistic queues by default
+add timeout to rucio upload
+comment es logs: too many logs
+fix wrong name type
+
+File Changes
+
+M Job.py (5)
+M RunJob.py (8)
+M RunJobEvent.py (10)
+M movers/mover.py (56)
+
+  https://github.com/PanDAWMS/pilot/pull/195
+
+Commit Summary
+
+fix
+
+File Changes
+
+M RunJob.py (2)
+
+  https://github.com/PanDAWMS/pilot/pull/196
+
+Commit Summary
+
+fix
+fix
+report fatal event status when there are AthenaMP errors
+
+File Changes
+
+M RunJobEvent.py (6)
+
+Updates from Tobias Wegner and Tomas Javurek:
+
+  https://github.com/PanDAWMS/pilot/pull/193
+
+Commit Summary
+
+using new rucio upload/download api
+
+File Changes
+
+M movers/rucio_sitemover.py (56)
+
+Updates from Nicolo Magini:
+
+  https://github.com/PanDAWMS/pilot/pull/194
+Commit Summary
+Add restart mechanism to Prefetcher and increase timeout to 180 s
+File Changes
+M RunJobEvent.py (143)
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
