@@ -48,7 +48,7 @@ def usage():
         -l <wrapperflag> -i <pilotreleaseflag> -o <countrygroup> -v <workingGroup> -A <allowOtherCountry>
         -B <allowSingleUser> -C <timefloor> -D <useCoPilot> -E <stageoutretry> -F <experiment> -G <getJobMaxTime>
         -H <cache> -I <schedconfigURL> -N <yodaNodes> -Q <yodaQueue> -M <use_newmover> -O <panda_proxy_url>
-        -P <panda_proxy_port> -R <resourceType> -S <harvesterMode> -T <maxtime>
+        -P <panda_proxy_port> -R <resourceType> -S <harvesterMode> -T <maxtime> -K <taskID>
     where:
                <sitename> is the name of the site that this job is landed,like BNL_ATLAS_1
                <workdir> is the pathname to the work directory of this job on the site
@@ -91,6 +91,7 @@ def usage():
                <maxtime> The maximum time that the pilot can run, in minutes.
                <resourceType> MCORE, SCORE
                <harvesterMode> True if Harvester is launching the pilot, False otherwise
+               <taskID> taskID, will only download jobs from this task.
     """
     #  <testlevel> 0: no test, 1: simulate put error, 2: ...
     print usage.__doc__
@@ -125,7 +126,7 @@ def argParser(argv):
 
     try:
         # warning: option o and k have diffierent meaning for pilot and runJob
-        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:M:N:O:P:Q:R:S:T:')
+        opts, args = getopt.getopt(argv, 'a:b:c:d:e:f:g:h:i:j:k:l:m:n:o:p:q:r:s:t:u:v:w:x:y:z:A:B:C:D:E:F:G:H:I:M:N:O:P:Q:R:S:T:K:')
     except getopt.GetoptError:
         print "Invalid arguments and options!"
         usage()
@@ -366,6 +367,14 @@ def argParser(argv):
                 env['harvester'] = False
             else:
                 env['harvester'] = True
+
+        elif o == "-K":
+            try:
+                _taskID = int(a)
+            except ValueError:
+                print "taskID is not an integer:", a
+            else:
+                env['taskID'] = _taskID
 
         else:
             print "Unknown option: %s (ignoring)" % o
