@@ -359,7 +359,7 @@ class ATLASExperiment(Experiment):
         # Explicitly add the ATHENA_PROC_NUMBER (or JOB value)
         cmd = self.addAthenaProcNumber(cmd)
 
-        cmd = "export XRD_LOGLEVEL=Debug;" + cmd
+        # cmd = "export XRD_LOGLEVEL=Debug;" + cmd
 
         # Wrap the job execution command with Singularity if necessary
         from Singularity import singularityWrapper
