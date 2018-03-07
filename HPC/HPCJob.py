@@ -5,7 +5,6 @@ import os
 import sys
 import time
 import traceback
-from mpi4py import MPI
 logger = logging.getLogger(__name__)
 
 def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEventOutputs=True):
@@ -17,6 +16,7 @@ def main(globalWorkDir, localWorkDir, nonMPIMode=False, outputDir=None, dumpEven
         mpisize = 1
     else:
         try:
+            from mpi4py import MPI
             comm = MPI.COMM_WORLD
             mpirank = comm.Get_rank()
             mpisize = comm.Get_size()
@@ -118,13 +118,15 @@ Commands:
         rank = main(args.globalWorkingDir, args.localWorkingDir, args.nonMPIMode, args.outputDir, args.dumpEventOutputs)
         logger.info( "Rank %s: HPCJob-Yoda success" % rank )
         if rank == 0:
-            # this causes all MPI ranks to exit, uncleanly
-            MPI.COMM_WORLD.Abort(-1)
+            if not args.nonMPIMode:
+                # this causes all MPI ranks to exit, uncleanly
+                MPI.COMM_WORLD.Abort(-1)
             sys.exit(0)
     except Exception as e:
         logger.exception("Rank " + rank + ": HPCJob-Yoda failed, exiting all ranks.")
         if rank == 0:
             # this causes all MPI ranks to exit, uncleanly
-            MPI.COMM_WORLD.Abort(-1)
+            if not args.nonMPIMode:
+                MPI.COMM_WORLD.Abort(-1)
             sys.exit(-1)
     #os._exit(0)
