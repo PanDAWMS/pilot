@@ -53,7 +53,7 @@ class TimerCommand(object):
                         os.kill(int(self.process.pid), signal.SIGKILL)
                     except:
                         pass
-                    thread.join()
+                    thread.join(2)
 
             if not self.stdout:
                 self.stdout = ''
