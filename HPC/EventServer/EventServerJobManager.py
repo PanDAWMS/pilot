@@ -48,10 +48,18 @@ class EventServerJobManager():
         def stopped(self):
             return self._stop.isSet()
 
+        def __del__(self):
+            if self.__messageSrv:
+                del self.__messageSrv
+                self.__messageSrv = None
+
         def run(self):
             try:
                 while True:
                     if self.stopped():
+                        if self.__messageSrv:
+                            del self.__messageSrv
+                            self.__messageSrv = None
                         break
                     size, buf = self.__messageSrv.try_recv_raw()
                     if size == -1:
@@ -60,7 +68,9 @@ class EventServerJobManager():
                         self.__messageQ.put(buf)
             except:
                 self.__log.debug("Exception: Message Thread failed: %s" % traceback.format_exc())
-
+                if self.__messageSrv:
+                    del self.__messageSrv
+                    self.__messageSrv = None
 
     class HelperThread(threading.Thread):
         def __init__(self, logger, helperFunc, **kwds):
@@ -681,13 +691,13 @@ class EventServerJobManager():
         try:
             if self.__athenaMPProcess and self.__athenaMPProcess.poll() is None:
                 self.__log.debug("Rank %s: Killing AthenaMP process" % self.__rank)
-                os.killpg(self.__athenaMPProcess.pid, signal.SIGTERM)
+                os.kill(self.__athenaMPProcess.pid, signal.SIGTERM)
         except:
             self.__log.debug("Rank %s: Failed to kill AthenaMP process: %s" % (self.__rank, str(traceback.format_exc())))
         try:
             if self.__TokenExtractorProcess and self.__TokenExtractorProcess.poll() is None:
                 self.__log.debug("Rank %s: Killing TokenExtractor process" % self.__rank)
-                os.killpg(self.__TokenExtractorProcess.pid, signal.SIGTERM)
+                os.kill(self.__TokenExtractorProcess.pid, signal.SIGTERM)
         except:
             self.__log.debug("Rank %s: Failed to kill TokenExtractor Process process: %s" % (self.__rank, str(traceback.format_exc())))
 
@@ -713,7 +723,7 @@ class EventServerJobManager():
             self.__messageInQueue.put("Stop_Message_Process")
             time.sleep(2)
             if not self.isDead():
-                os.killpg(self.__child_pid, signal.SIGTERM)
+                os.kill(self.__child_pid, signal.SIGTERM)
         except:
             self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
 
@@ -731,7 +741,7 @@ class EventServerJobManager():
         try:
             self.__messageInQueue.put("Stop_Message_Process")
             if not self.isDead():
-                os.killpg(self.__child_pid, signal.SIGTERM)
+                os.kill(self.__child_pid, signal.SIGTERM)
         except:
             self.__log.debug("Rank %s: Failed to kill child process: %s" % (self.__rank, str(traceback.format_exc())))
 
