@@ -1788,7 +1788,12 @@ class ATLASExperiment(Experiment):
                 return 0, pilotErrorDiag
 
         if limit:
-            cmd = "%sgrid-proxy-info -exists -valid %s:00" % (envsetup, str(limit))
+            # next clause had problems: grid-proxy-info -exists -valid 0.166666666667:00
+            #cmd = "%sgrid-proxy-info -exists -valid %s:00" % (envsetup, str(limit))
+            # more accurate calculation of HH:MM
+            limit_hours=int(limit*60)/60
+            limit_minutes=int(limit*60+.999)-limit_hours*60
+            cmd = "%sgrid-proxy-info -exists -valid %d:%02d" % (envsetup, limit_hours, limit_minutes)
         else:
             cmd = "%sgrid-proxy-info -exists -valid 24:00" % (envsetup)
         tolog("Executing command: %s" % (cmd))
