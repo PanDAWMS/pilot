@@ -487,11 +487,46 @@ M movers/rucio_sitemover.py (56)
 Updates from Nicolo Magini:
 
   https://github.com/PanDAWMS/pilot/pull/194
+
 Commit Summary
+
 Add restart mechanism to Prefetcher and increase timeout to 180 s
+
 File Changes
+
 M RunJobEvent.py (143)
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+72.6
+
+Memory monitoring
+- Corrected cmtconfig used with default memory monitor setup, in getUtilityCommand() (ATLASExperiment)
+
+Updates from Wen Guan:
+
+1. add pilot argument to download jobs from one task, good for pilot debug.
+2. avoid Yoda to import mpi4py in nonMPI mode
+3. update Timercommand to make it be able to return if the subprocess stuck.
+4. In Yoda, avoid sending SIGTERM to process group.
+
+You can view, comment on, or merge this pull request online at:
+
+  https://github.com/PanDAWMS/pilot/pull/198
+
+Commit Summary
+
+option to only download jobs from one task
+avoid import mpi4py in nonMPI mode
+update timercommand
+avoid sending SIGTERM to process group
+
+File Changes
+
+M HPC/EventServer/EventServerJobManager.py (20)
+M HPC/HPCJob.py (10)
+M TimerCommand.py (2)
+M pilot.py (13)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
