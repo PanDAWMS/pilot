@@ -255,7 +255,7 @@ class gfalcopySiteMover(BaseSiteMover):
         
         # do not rely on gfal-ls internal time out
         timeout = self.getTimeOut(0)
-        cmd = "gfal-ls -l -t %d %s| awk '{print $5}'" % (timeout, filename)
+        cmd = "gfal-ls -l -t %d %s" % (timeout, filename)
         self.log("getRemoteFileSize: execute command: %s" % cmd )
         
         timer = TimerCommand(cmd)
@@ -279,6 +279,6 @@ class gfalcopySiteMover(BaseSiteMover):
         if rcode:
             raise PilotException("Failed to get remote file size: cmd execution error")
 
-        size = int(output)
+        size = int(output.split()[4]) # output="-rwxr-xr-x   0 0     0        333920 Mar  4 20:12 davs://data-bridge.cern.ch/..."
         self.log("getRemoteFileSize: success: file=%s size=%d " % (file, size))
         return size
