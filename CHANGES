@@ -530,6 +530,33 @@ M pilot.py (13)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+72.7
+
+PoolFileCatalog simplification
+- Removal of LFN from PFC - TODO
+
+Updates from Alexander Bogdanchikov
+
+  https://github.com/PanDAWMS/pilot/pull/197
+
+a) gfal_sitemover: support of dynafed+cloud ddmendpont was added.
+The definition of such ddmendpoints (is_mkdir=True and se_flavour == "WEBDAV") may be the matter of change.
+
+b) more accurate time HH:MM calculation for command "grid-proxy-info -exists -valid HH:MM"
+previous version failed on short time limits.
+
+Commit Summary
+
+more accurate calculation of the time limit in HH:MM format
+mutiple changes in gfal_sitemover to support ES workflow with Dynafed+cloud storage
+
+File Changes
+
+M ATLASExperiment.py (7)
+M movers/gfalcopy_sitemover.py (101)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
