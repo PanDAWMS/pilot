@@ -535,6 +535,8 @@ M pilot.py (13)
 PoolFileCatalog simplification
 - Removal of LFN from PFC - TODO
 - USING DOMAIN='LAN' WITH LIST_REPLICAS()
+- Removed useless overrideLogical from PFC creation (pUtil)
+- Removed forceLogical option in PFC creation calls (Mover)
 
 Updates from Alexander Bogdanchikov
 
