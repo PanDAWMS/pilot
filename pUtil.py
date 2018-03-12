@@ -1146,7 +1146,7 @@ def removeFiles(dir, _fileList):
 
     return ec
 
-def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml", forceLogical=False:
+def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml", forceLogical=False):
     """
     Create the PoolFileCatalog.xml
     file_dictionary = { guid1 : sfn1, ... }
