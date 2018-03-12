@@ -844,7 +844,9 @@ def getFileInfoFromXML(thisfile):
     """ Get the PFN from the XML """
 
     pfn = thisfile.getElementsByTagName("pfn")[0].getAttribute("name")
-    lfn = thisfile.getElementsByTagName("lfn")[0].getAttribute("name")
+    # lfn will not be present in XML any longer, get it from the PFN - possible problem with LFN file name extensions
+    # lfn = thisfile.getElementsByTagName("lfn")[0].getAttribute("name")
+    lfn = os.path.basename(pfn)
     guid = thisfile.getAttribute("ID")
 
     return lfn, pfn, guid
