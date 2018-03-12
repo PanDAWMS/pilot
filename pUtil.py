@@ -1146,13 +1146,12 @@ def removeFiles(dir, _fileList):
 
     return ec
 
-def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml", forceLogical=False, overrideLogical=False):
+def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml", forceLogical=False:
     """
     Create the PoolFileCatalog.xml
     file_dictionary = { guid1 : sfn1, ... }
     Adapted from R. Walker's code
-    Note: the logical tag can cause problems in some cases (for the payload). overrideLogical should be set to True in
-    this case (get_data_new() usage). It overrides any forceLogical=True.
+    Note: the logical tag can cause problems in some cases (for the payload).
     """
 
     outxml = ''
@@ -1190,30 +1189,27 @@ def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml",
             physical.appendChild(pfn)
 
             # forceLogical is set for TURL based PFCs. In this case, the LFN must not contain any legacy __DQ2-parts
-            if not overrideLogical:
-                if forceLogical:
-                    logical = doc.createElement('logical')
-                    logical.setAttribute('name', os.path.basename(sfn))
-                    _file.appendChild(logical)
+            if forceLogical:
+                logical = doc.createElement('logical')
+                logical.setAttribute('name', os.path.basename(sfn))
+                _file.appendChild(logical)
 
-                    # remove any legacy __DQ2 substring from the LFN if necessary
-                    _lfn = getLFN(sfn, lfns) #os.path.basename(sfn)
-                    if "__DQ2" in _lfn:
-                        _lfn = stripDQ2FromLFN(_lfn)
+                # remove any legacy __DQ2 substring from the LFN if necessary
+                _lfn = getLFN(sfn, lfns) #os.path.basename(sfn)
+                if "__DQ2" in _lfn:
+                    _lfn = stripDQ2FromLFN(_lfn)
 
-                    # remove any rucio :-separator if present
-                    if ":" in _lfn:
-                        _lfn = _lfn.split(":")[1]
+                # remove any rucio :-separator if present
+                if ":" in _lfn:
+                    _lfn = _lfn.split(":")[1]
 
-                    pfc_text += '  <File ID="%s">\n    <physical>\n      <pfn filetype="%s" name="%s"/>\n    </physical>\n    <logical>\n      <lfn name="%s"/>\n    </logical>\n  </File>\n' % (guid, ftype, sfn, _lfn)
+                pfc_text += '  <File ID="%s">\n    <physical>\n      <pfn filetype="%s" name="%s"/>\n    </physical>\n    <logical>\n      <lfn name="%s"/>\n    </logical>\n  </File>\n' % (guid, ftype, sfn, _lfn)
 
-                else:
-                    logical = doc.createElement('logical')
-                    _file.appendChild(logical)
-                    pfc_text += '  <File ID="%s">\n    <physical>\n      <pfn filetype="%s" name="%s"/>\n    </physical>\n    <logical/>\n  </File>\n' %\
-                                (guid, ftype, sfn)
             else:
-                tolog("Logical XML tag will not be written")
+                logical = doc.createElement('logical')
+                _file.appendChild(logical)
+                pfc_text += '  <File ID="%s">\n    <physical>\n      <pfn filetype="%s" name="%s"/>\n    </physical>\n    <logical/>\n  </File>\n' %\
+                            (guid, ftype, sfn)
 
         pfc_text += '</POOLFILECATALOG>\n'
         # tolog(str(doc.toxml()))
