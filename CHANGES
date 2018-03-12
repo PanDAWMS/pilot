@@ -534,6 +534,7 @@ M pilot.py (13)
 
 PoolFileCatalog simplification
 - Removal of LFN from PFC - TODO
+- USING DOMAIN='LAN' WITH LIST_REPLICAS()
 
 Updates from Alexander Bogdanchikov
 
