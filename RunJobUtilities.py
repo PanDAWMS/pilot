@@ -715,7 +715,8 @@ def addFullPathsAsInput(jobPars, full_paths_dictionary):
                     for lfn in input_files.split(','):
                         if lfn in full_paths_dictionary.keys():
                             full_path = full_paths_dictionary[lfn]['pfn']
-                            jobPars = jobPars.replace(lfn, full_path)
+                            if full_path not in jobPars:
+                                jobPars = jobPars.replace(lfn, full_path)
                         else:
                             tolog("!!WARNING!!3435!! Did not find LFN=%s" % lfn)
                 else:
