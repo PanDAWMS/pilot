@@ -989,8 +989,9 @@ def getReplicaDictionaryFromXML(workdir, pfc_name="PoolFileCatalog.xml"):
     xmldoc = minidom.parse(pfcFile)
     fileList = xmldoc.getElementsByTagName("File")
     for thisfile in fileList:
-        lfn = str(thisfile.getElementsByTagName("lfn")[0].getAttribute("name"))
+        #lfn = str(thisfile.getElementsByTagName("lfn")[0].getAttribute("name"))
         pfn = str(thisfile.getElementsByTagName("pfn")[0].getAttribute("name"))
+        lfn = os.path.basename(pfn)
         replica_dictionary[lfn] = {}
         replica_dictionary[lfn]['pfn'] = pfn
 
