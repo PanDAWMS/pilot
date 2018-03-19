@@ -649,7 +649,7 @@ class Experiment(object):
             tolog("Executing command: %s" % (cmd))
             if stdout and stderr:
                 # use stdout/stdout file objects to redirect the stdout/stderr streams
-                process = Popen(cmd, shell=True, stdout=stdout, stderr=stderr)
+                process = Popen(cmd, shell=True, stdout=stdout, stderr=stderr, preexec_fn=os.setsid)
             else:
                 process = Popen(cmd, shell=True)
         except Exception, e:
