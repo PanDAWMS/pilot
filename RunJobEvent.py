@@ -3334,9 +3334,11 @@ class RunJobEvent(RunJob):
             self.stopMessageThreadPrefetcher()
             self.joinMessageThreadPrefetcher()
         if tokenExtractorProcess:
-            tokenExtractorProcess.kill()
+            # tokenExtractorProcess.kill()
+            os.killpg(os.getpgid(tokenExtractorProcess.pid), signal.SIGTERM)
         if prefetcherProcess:
-            prefetcherProcess.kill()
+            # prefetcherProcess.kill()
+            os.killpg(os.getpgid(prefetcherProcess.pid), signal.SIGTERM)
 
         # Close stdout/err streams
         if tokenextractor_stdout:
@@ -3353,7 +3355,8 @@ class RunJobEvent(RunJob):
         """ Stop Prefetcher thread and close output steams """
 
         if prefetcherProcess:
-            prefetcherProcess.kill()
+            os.killpg(os.getpgid(prefetcherProcess.pid), signal.SIGTERM)
+            # prefetcherProcess.kill()
 
         # Close stdout/err streams
         if prefetcher_stdout:
@@ -4139,7 +4142,9 @@ if __name__ == "__main__":
                             break
                         if w * nap > max_wait * 60:
                             tolog("AthanaMP has been stuck for %s minutes, will kill AthenaMP" % max_wait)
-                            athenaMPProcess.kill()
+                            # athenaMPProcess.kill()
+                            os.killpg(os.getpgid(athenaMPProcess.pid), signal.SIGTERM)
+
                             job.pilotErrorDiag = "AthenaMP has been stuck for %s minutes" % max_wait
                             job.result[0] = "failed"
                             job.result[2] = error.ERR_ESATHENAMPDIED
@@ -4242,7 +4247,9 @@ if __name__ == "__main__":
         kill = False
         tolog("Will now wait for AthenaMP to finish")
         if runJob.shouldBeKilled():
-            athenaMPProcess.kill()
+            # athenaMPProcess.kill()
+            os.killpg(os.getpgid(athenaMPProcess.pid), signal.SIGTERM)
+
             tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
             job.pilotErrorDiag = "Pilot was instructed by server to kill AthenaMP"
             job.result[0] = "failed"
@@ -4256,12 +4263,16 @@ if __name__ == "__main__":
                 if i > max_wait:
                     # Stop AthenaMP
                     tolog("Waited long enough - Stopping AthenaMP process")
-                    athenaMPProcess.kill()
+                    # athenaMPProcess.kill()
+                    os.killpg(os.getpgid(athenaMPProcess.pid), signal.SIGTERM)
+
                     tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
                     kill = True
                     break
                 if runJob.shouldBeKilled():
-                    athenaMPProcess.kill()
+                    # athenaMPProcess.kill()
+                    os.killpg(os.getpgid(athenaMPProcess.pid), signal.SIGTERM)
+
                     tolog("(Kill signal SIGTERM sent to AthenaMP - jobReport might get lost)")
                     job.pilotErrorDiag = "Pilot was instructed by server to kill AthenaMP"
                     job.result[0] = "failed"
@@ -4376,7 +4387,8 @@ if __name__ == "__main__":
 
         if prefetcherProcess:
             tolog("Killing Prefetcher process")
-            prefetcherProcess.kill()
+            # prefetcherProcess.kill()
+            os.killpg(os.getpgid(prefetcherProcess.pid), signal.SIGTERM)
 
         tolog("Stopping stage-out thread")
         runJob.stopAsyncOutputStagerThread()

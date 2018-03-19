@@ -537,6 +537,10 @@ PoolFileCatalog simplification
 - Removed forceLogical option in PFC creation calls (Mover)
 - Now extracting LFN from PFN in getFileInfoFromXML() (Mover)
 
+Subprocess killing
+- Added session id to Popen() to allow for killing of entire process group should it be necessary, in getSubprocess() (Experiment)
+- Changed proc.kill() to os.killpg(os.getpgid(proc.pid), signal.SIGTERM) for process group kill, for all relevant processes (RunJobEvent)
+
 Updates from Alexander Bogdanchikov
 
   https://github.com/PanDAWMS/pilot/pull/197
@@ -556,6 +560,38 @@ File Changes
 
 M ATLASExperiment.py (7)
 M movers/gfalcopy_sitemover.py (101)
+
+Updates from Nicolo Magini:
+
+  https://github.com/PanDAWMS/pilot/pull/199
+
+Commit Summary
+
+RunJobUtilities.addFullPathsAsInput : do not replace the same LFN
+
+File Changes
+
+M RunJobUtilities.py (3)
+
+  https://github.com/PanDAWMS/pilot/pull/200
+
+Commit Summary
+
+Now extracting LFN from PFN in getReplicaDictionaryFromXML()
+
+File Changes
+
+M FileHandling.py (3)
+
+  https://github.com/PanDAWMS/pilot/pull/201
+
+Commit Summary
+
+Use different message server after Prefetcher restart
+
+File Changes
+
+M RunJobEvent.py (10)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
