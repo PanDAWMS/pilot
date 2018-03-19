@@ -532,6 +532,14 @@ M pilot.py (13)
 
 72.7 - HOTFIX
 
+Comment from Cedric Serfon:
+
+Lancaster reported that Rucio was trying to access some files that were
+never wrote in their storage element :
+https://ggus.eu/index.php?mode=ticket_info&ticket_id=133991 . After
+investigation the problem is related to a bug in the rucio mover
+stage-out : the upload fails but it is interpreted as a success.
+
 Updates from Mario Lassnig:
 
   https://github.com/PanDAWMS/pilot/pull/205
