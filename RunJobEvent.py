@@ -18,6 +18,7 @@ import atexit
 import signal
 import commands
 import traceback
+import uuid
 from optparse import OptionParser
 from json import loads, dump
 from shutil import copy2
@@ -4026,8 +4027,13 @@ if __name__ == "__main__":
                                             tolog("Prefetcher has not replied for %d seconds - restarting it" % maxCount)
                                             # Stop Prefetcher
                                             runJob.stopPrefetcher(prefetcherProcess, prefetcher_stdout, prefetcher_stderr)
-                                            prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout_%s.txt" % prefetcherAttempts,
-                                                                                                                     stderrName="prefetcher_stderr_%s.txt" % prefetcherAttempts)
+                                            # Create new message server for new Prefetcher
+                                            prefetcherUuid = uuid.uuid4()
+                                            runJob.setYamplChannelNamePrefetcher("EventService_Prefetcher-%s" % (prefetcherUuid))
+                                            runJob.createMessageServer(prefetcher=True)
+                                            # Start new Prefetcher process
+                                            prefetcher_stdout, prefetcher_stderr = runJob.getStdoutStderrFileObjects(stdoutName="prefetcher_stdout_%s.txt" % prefetcherUuid,
+                                                                                                                     stderrName="prefetcher_stderr_%s.txt" % prefetcherUuid)
                                             prefetcherProcess = runJob.getPrefetcherProcess(thisExperiment, setupString, input_file=input_file, stdout=prefetcher_stdout, stderr=prefetcher_stderr)
                                             prefetcherAttempts += 1
                                             runJob.setPrefetcherIsReady(False)
