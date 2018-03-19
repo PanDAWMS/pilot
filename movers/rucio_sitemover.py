@@ -1,7 +1,7 @@
 """
   Rucio SiteMover
 
-  :author: Mario Lassnig <mario.lassnig@cern.ch>, 2015-2017
+  :author: Mario Lassnig <mario.lassnig@cern.ch>, 2015-2018
 """
 
 from .base import BaseSiteMover
@@ -165,12 +165,7 @@ class rucioSiteMover(BaseSiteMover):
         tolog('stageOutOutput: %s' % o)
 
         if s:
-            tolog('stageOut with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
-            try:
-                self.stageOutApi(src, fspec)
-            except Exception as error:
-                raise PilotException('stageOut with API faied:  %s' % error)
-            # raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
+            raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
