@@ -561,6 +561,9 @@ PoolFileCatalog simplification
 - Removed forceLogical option in PFC creation calls (Mover)
 - Now extracting LFN from PFN in getFileInfoFromXML() (Mover)
 
+MemoryMonitor setup
+- Added missing platform info for Nordugrid MemoryMonitor setup, getUtilityCommand() (NordugridATLASExperiment)
+
 Subprocess killing
 - Added session id to Popen() to allow for killing of entire process group should it be necessary, in getSubprocess() (Experiment)
 - Changed proc.kill() to os.killpg(os.getpgid(proc.pid), signal.SIGTERM) for process group kill, for all relevant processes (RunJobEvent)
