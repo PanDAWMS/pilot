@@ -315,9 +315,10 @@ class NordugridATLASExperiment(ATLASExperiment):
         default_release = "21.0.22" #"21.0.18" #"21.0.17" #"20.7.5" #"20.1.5"
         # default_patch_release = "20.7.5.8" #"20.1.5.2" #"20.1.4.1"
         # default_cmtconfig = "x86_64-slc6-gcc49-opt"
+        default_cmtconfig = "x86_64-slc6-gcc62-opt"
         # default_swbase = "%s/atlas.cern.ch/repo/sw/software" % (self.getCVMFSPath())
         default_swbase = "%s/atlas.cern.ch/repo" % (self.getCVMFSPath())
-        default_setup = self.getModernASetup() + " Athena," + default_release
+        default_setup = self.getModernASetup() + " Athena," + default_release + " --platform " + default_cmtconfig
 
         tolog("Will use default (fallback) setup for MemoryMonitor")
         cmd = default_setup
