@@ -568,6 +568,9 @@ Subprocess killing
 - Added session id to Popen() to allow for killing of entire process group should it be necessary, in getSubprocess() (Experiment)
 - Changed proc.kill() to os.killpg(os.getpgid(proc.pid), signal.SIGTERM) for process group kill, for all relevant processes (RunJobEvent)
 
+Containers
+- Now using x86_64-centos6.img for SLC6 platforms, in getGridImageForSingularity() (Singularity)
+
 Updates from Alexander Bogdanchikov
 
   https://github.com/PanDAWMS/pilot/pull/197

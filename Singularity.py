@@ -65,8 +65,11 @@ def getGridImageForSingularity(platform, experiment):
         platform = "x86_64-centos6"
         tolog("!!WARNING!!3333!! Using default platform=%s (cmtconfig not set)" % (platform))
 
-    arch_and_os = extractPlatformAndOS(platform)
-    image = arch_and_os + ".img"
+    if "slc6" in platform:
+        image = 'x86_64-centos6.img'
+    else:
+        arch_and_os = extractPlatformAndOS(platform)
+        image = arch_and_os + ".img"
     tolog("Constructed image name %s from %s" % (image, platform))
 
     path = os.path.join(getFileSystemRootPath(experiment), "atlas.cern.ch/repo/containers/images/singularity")
