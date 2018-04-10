@@ -219,6 +219,8 @@ class Monitor:
                         if self.__env['jobDic'][k][1].inFiles:
                             if len(self.__env['jobDic'][k][1].inFiles) > 0:
                                 ec = pUtil.removeFiles(self.__env['jobDic'][k][1].workdir, self.__env['jobDic'][k][1].inFiles)
+                                # remeasure the size of the workdir at this point since the value is stored below
+                                size = getDirSize(workDir)
                     else:
                         pUtil.tolog("Size of work directory %s: %d B (within %d B limit)" % (workDir, size, maxwdirsize))
 
