@@ -942,9 +942,10 @@ class RunJobHpcEvent(RunJob):
             runCommandList_0 = " ".join(command_list_new)
 
 
-            runCommandList_0 += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (poolFileCatalog)
+            #runCommandList_0 += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (poolFileCatalog)
         else:
-            runCommandList_0 += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (poolFileCatalogTempName)
+            #runCommandList_0 += " '--postExec' 'svcMgr.PoolSvc.ReadCatalog += [\"xmlcatalog_file:%s\"]'" % (poolFileCatalogTempName)
+            pass
 
         # should not have --DBRelease and UserFrontier.py in HPC
         if not os.environ.has_key('Nordugrid_pilot'):
