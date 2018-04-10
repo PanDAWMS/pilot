@@ -203,6 +203,9 @@ class Monitor:
                                          (workDir, size, maxwdirsize)
                         pUtil.tolog("!!FAILED!!1999!! %s" % (pilotErrorDiag))
 
+                        cmd = 'ls -altrR %s' % workDir
+                        pUtil.tolog("%s: %s" % (cmd + '\n', commands.getoutput(cmd)))
+
                         # kill the job
                         pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                         killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
