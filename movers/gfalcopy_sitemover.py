@@ -22,12 +22,12 @@ class gfalcopySiteMover(BaseSiteMover):
     checksum_type = "adler32"
     checksum_command = "gfal-sum"
     # rm_command and ls_command : look at the code
-    
+
     schemes = ['srm', 'gsiftp', 'https', 'davs'] # list of supported schemes for transfers
 
     gfal_prop_grid = '-D "SRM PLUGIN:TURL_PROTOCOLS=gsiftp"'
     gfal_prop_dynacloud = ''
-    
+
     def detectDynafedCloud(self, ddmendpoint):
         """
             Determine whether the storage is a cloud with dynafed frontend.
@@ -36,10 +36,10 @@ class gfalcopySiteMover(BaseSiteMover):
         ddmConf = self.ddmconf.get(ddmendpoint, {})
         is_mkdir = bool ( ddmConf.get("is_mkdir") ) # "true" or "false" -> True or False
         webdav_se_flavour = ( ddmConf.get("se_flavour") == "WEBDAV")
-        isDynafedCloud = is_mkdir and webdav_se_flavour 
+        isDynafedCloud = is_mkdir and webdav_se_flavour
         self.log("gfalcopy_sitemover:  %s is defined as Dynafed with cloud backend: %s" % (ddmendpoint, isDynafedCloud) )
         return isDynafedCloud
-    
+
     def _stagefile(self, cmd, source, destination, filesize, is_stagein):
         """
             Stage the file (stagein or stageout respect to is_stagein value)
@@ -140,7 +140,7 @@ class gfalcopySiteMover(BaseSiteMover):
             rcode, output = -1, str(e)
 
         dt = datetime.now() - t0
-        
+
         self.log("Command execution time: %s" % dt)
         self.log("is_timeout=%s, rcode=%s, output=%s" % (is_timeout, rcode, output))
 
@@ -159,14 +159,14 @@ class gfalcopySiteMover(BaseSiteMover):
             :raise: PilotException in case of controlled error
         """
         self.log("gfalcopy_sitemover: stageOutFile() arguments: src=%s, dst=%s fspec=%s" % (source, destination, fspec) )
-        # we need to store the value of isDynafedCloud it in the private variable in order to use it later in getRemoteFileChecksum()  , as 
-        # getRemoteFileChecksum() without fspec will be called after stageOutFile from the base.stageOut()  
+        # we need to store the value of isDynafedCloud it in the private variable in order to use it later in getRemoteFileChecksum()  , as
+        # getRemoteFileChecksum() without fspec will be called after stageOutFile from the base.stageOut()
         self._isDynafedCloud = self.detectDynafedCloud(fspec.ddmendpoint)
         gfal_prop = self.gfal_prop_dynacloud if  self._isDynafedCloud else self.gfal_prop_grid
-        
+
         # in ES workflow only fspec.pfn is correct, but it may be not set for normal workflow
         src = fspec.pfn if fspec.pfn else source
-        
+
         # resolve token value from fspec.ddmendpoint
         token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
         if not token:
@@ -180,7 +180,7 @@ class gfalcopySiteMover(BaseSiteMover):
         if src_checksum and not self._isDynafedCloud:
             checksum_opt = '-K %s:%s' % (src_checksum_type, src_checksum)
 
-        
+
         srcUrl = "file://%s" % os.path.abspath(src) # may be omitted, gfal-utils understand local file paths
         cmd = '%s --verbose %s -p -f -t %s %s -S %s %s %s' % (self.copy_command, checksum_opt, timeout, gfal_prop, token, srcUrl, destination)
 
@@ -203,7 +203,7 @@ class gfalcopySiteMover(BaseSiteMover):
         gfal_prop = self.gfal_prop_dynacloud if  self._isDynafedCloud else self.gfal_prop_grid
 
         dst = fspec.pfn if fspec.pfn else destination
-      
+
         timeout = self.getTimeOut(fspec.filesize)
 
         src_checksum, src_checksum_type = fspec.get_checksum()
@@ -231,11 +231,11 @@ class gfalcopySiteMover(BaseSiteMover):
         # Anyway gfal-utils commands do not support total file sum check for cloud storages.
         # Transfer check: the most newest versions of gfal (since 2.15.0, nov 2017), can send transfer data md5 in http which leads to verification in the cloud.
         # Maybe it can be implemented later when sites will have new gfal version.
-        
+
         # avoid checksum checking for dynafed+cloud:
         if self._isDynafedCloud:
             return None, None
-        
+
         if self.checksum_type not in ['adler32']:
             raise Exception("getRemoteFileChecksum(): internal error: unsupported checksum_type=%s .. " % self.checksum_type)
 
@@ -252,12 +252,12 @@ class gfalcopySiteMover(BaseSiteMover):
             :return: length of file
             :raise: an exception in case of errors
         """
-        
+
         # do not rely on gfal-ls internal time out
         timeout = self.getTimeOut(0)
         cmd = "gfal-ls -l -t %d %s" % (timeout, filename)
         self.log("getRemoteFileSize: execute command: %s" % cmd )
-        
+
         timer = TimerCommand(cmd)
         t0 = datetime.now()
         is_timeout = False
@@ -274,10 +274,10 @@ class gfalcopySiteMover(BaseSiteMover):
         self.log("is_timeout=%s, rcode=%s, output=%s" % (is_timeout, rcode, output))
 
         if is_timeout:
-            raise PilotException("Failed to get remote file size: timeout")
+            raise PilotException("Failed to get remote file size: timeout", code=PilotErrors.ERR_COMMANDTIMEOUT)
 
         if rcode:
-            raise PilotException("Failed to get remote file size: cmd execution error")
+            raise PilotException("Failed to get remote file size: cmd execution error", code=PilotErrors.ERR_NOFILEVERIFICATION)
 
         size = int(output.split()[4]) # output="-rwxr-xr-x   0 0     0        333920 Mar  4 20:12 davs://data-bridge.cern.ch/..."
         self.log("getRemoteFileSize: success: file=%s size=%d " % (file, size))

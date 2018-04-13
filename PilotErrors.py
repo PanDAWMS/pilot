@@ -375,7 +375,7 @@ class PilotErrors:
 
 class PilotException(Exception):
 
-    def __init__(self, message, code=PilotErrors.ERR_GENERALERROR, state='', *args):
+    def __init__(self, message, code=PilotErrors.ERR_UNKNOWN, state='', *args):
         self.code = code
         self.state = state
         self.message = message

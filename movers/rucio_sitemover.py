@@ -7,7 +7,7 @@
 from .base import BaseSiteMover
 
 from pUtil import tolog
-from PilotErrors import PilotException
+from PilotErrors import PilotErrors, PilotException
 
 # from commands import getstatusoutput
 from TimerCommand import getstatusoutput
@@ -91,7 +91,7 @@ class rucioSiteMover(BaseSiteMover):
             try:
                 self.stageInApi(dst, fspec)
             except Exception as error:
-                raise PilotException('stageIn with API faied:  %s' % error)
+                raise PilotException('stageIn with API faied:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED)
 
         # TODO: fix in rucio download to set specific outputfile
         #       https://its.cern.ch/jira/browse/RUCIO-2063
@@ -103,7 +103,7 @@ class rucioSiteMover(BaseSiteMover):
         tolog('stageInOutput: %s' % o)
 
         if s:
-            raise PilotException('stageIn failed -- could not move downloaded file to destination: %s' % o.replace('\n', ''))
+            raise PilotException('stageIn failed -- could not move downloaded file to destination: %s' % o.replace('\n', ''), code=PilotErrors.ERR_STAGEOUTFAILED)
 
         if not fspec.replicas:
             fspec.filesize = os.path.getsize(dst)
@@ -165,7 +165,7 @@ class rucioSiteMover(BaseSiteMover):
         tolog('stageOutOutput: %s' % o)
 
         if s:
-            raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
+            raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''), code=PilotErrors.ERR_STAGEOUTFAILED)
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
