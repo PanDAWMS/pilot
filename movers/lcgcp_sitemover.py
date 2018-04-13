@@ -148,7 +148,7 @@ class lcgcpSiteMover(BaseSiteMover):
 
         token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
         if not token:
-            raise PilotException("stageOutFile: Failed to resolve token value for ddmendpoint=%s: source=%s, destination=%s, fspec=%s .. unknown ddmendpoint" % (fspec.ddmendpoint, source, destination, fspec))
+            raise PilotException("stageOutFile: Failed to resolve token value for ddmendpoint=%s: source=%s, destination=%s, fspec=%s .. unknown ddmendpoint" % (fspec.ddmendpoint, source, destination, fspec), code=PilotErrors.ERR_STAGEOUTFAILED, state='UNKNOWN_DDMENDPOINT')
         filesize = os.path.getsize(source)
         timeout = self.getTimeOut(filesize)
         cmd = '%s --verbose --vo atlas -b -U srmv2 --connect-timeout=300 --srm-timeout=%s --sendreceive-timeout=%s -S %s %s %s' % (self.copy_command, timeout, timeout, token, source, destination)

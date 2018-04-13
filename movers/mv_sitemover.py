@@ -6,7 +6,7 @@
 
 from .base import BaseSiteMover
 
-from PilotErrors import PilotException
+from PilotErrors import PilotErrors, PilotException
 
 import os, re, shutil
 
@@ -110,7 +110,7 @@ class mvSiteMover(BaseSiteMover):
                 try:
                     os.rename(fileRucioLocation, fileExpectedLocation)
                 except OSError, e:
-                    raise PilotException('stageIn failed when rename the file from rucio location: %s' % str(e))
+                    raise PilotException('stageIn failed when rename the file from rucio location: %s' % str(e), code=PilotErrors.ERR_STAGEINFAILED)
         # block preload input file END
 
         src = os.path.join(self.init_dir, fspec.lfn)
@@ -118,10 +118,10 @@ class mvSiteMover(BaseSiteMover):
         try:
             os.symlink(src, fspec.lfn)
         except OSError as e:
-            raise PilotException('stageIn failed: %s' % str(e))
+            raise PilotException('stageIn failed: %s' % str(e), code=PilotErrors.ERR_STAGEINFAILED)
 
         if not os.path.exists(fspec.lfn):
-            raise PilotException('stageIn failed: symlink points to non-existent file')
+            raise PilotException('stageIn failed: symlink points to non-existent file', code=PilotErrors.ERR_STAGEINFAILED)
 
         self.log('Symlink successful')
         checksum, checksum_type = fspec.get_checksum()
@@ -151,7 +151,7 @@ class mvSiteMover(BaseSiteMover):
             if fspec.activity != 'pls':
                 shutil.move(src, dest)
         except IOError as e:
-            raise PilotException('stageOut failed: %s' % str(e))
+            raise PilotException('stageOut failed: %s' % str(e), code=PilotErrors.ERR_STAGEOUTFAILED)
 
         self.log('Copy successful')
 

@@ -96,7 +96,7 @@ class lsmSiteMover(BaseSiteMover):
         # resolve token value from fspec.ddmendpoint
         token = self.ddmconf.get(fspec.ddmendpoint, {}).get('token')
         if not token:
-            raise PilotException("stageOutFile: Failed to resolve token value for ddmendpoint=%s: source=%s, destination=%s, fspec=%s .. unknown ddmendpoint" % (fspec.ddmendpoint, source, destination, fspec))
+            raise PilotException("stageOutFile: Failed to resolve token value for ddmendpoint=%s: source=%s, destination=%s, fspec=%s .. unknown ddmendpoint" % (fspec.ddmendpoint, source, destination, fspec), code=PilotErrors.ERR_STAGEOUTFAILED, state='UNKNOWN_DDMENDPOINT')
         filesize = os.path.getsize(source)
 
         checksum = fspec.get_checksum()

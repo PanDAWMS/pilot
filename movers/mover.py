@@ -837,7 +837,8 @@ class JobMover(object):
             if fdata.status == 'error' and not skip_transfer_failure:
                 self.log('stage-in of file (%s/%s) with lfn=%s failed: code=%s .. skip transferring remaining files..' % (fnum, nfiles, fdata.lfn, fdata.status_code))
                 dumpFileStates(self.workDir, self.job.jobId, ftype="input")
-                raise PilotException("STAGEIN FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(fdata.status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=fdata.status_code, state='STAGEIN_FILE_FAILED')
+                status_code = fdata.status_code if fdata.status_code != PilotErrors.ERR_UNKNOWN else PilotErrors.ERR_STAGEINFAILED
+                raise PilotException("STAGEIN FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=status_code, state='STAGEIN_FILE_FAILED')
 
             if bad_copytools:
                 raise PilotException("STAGEIN FAILED: bad copytools: no supported copytools", code=PilotErrors.ERR_NOSTORAGE, state='STAGEIN_BAD_COPYTOOLS')
@@ -1269,7 +1270,8 @@ class JobMover(object):
             if fdata.status == 'error' and not skip_transfer_failure:
                 self.log('[stage-out] [%s] failed to transfer file (%s/%s) with lfn=%s: code=%s .. skip transferring of remaining data..' % (activity, fnum, nfiles, fdata.lfn, fdata.status_code))
                 dumpFileStates(self.workDir, self.job.jobId, ftype="output")
-                raise PilotException("STAGEOUT FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(fdata.status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=fdata.status_code, state='STAGEOUT_FILE_FAILED')
+                status_code = fdata.status_code if fdata.status_code != PilotErrors.ERR_UNKNOWN else PilotErrors.ERR_STAGEOUTFAILED
+                raise PilotException("STAGEOUT FAILED: %s: lfn=%s, error=%s" % (PilotErrors.getErrorStr(status_code), fdata.lfn, getattr(fdata, 'status_message', '')), code=status_code, state='STAGEOUT_FILE_FAILED')
 
             if bad_copytools:
                 raise PilotException("STAGEOUT FAILED: bad copytools: no supported copytools", code=PilotErrors.ERR_NOSTORAGE, state='STAGEOUT_BAD_COPYTOOLS')
@@ -1335,7 +1337,7 @@ class JobMover(object):
         if not ddmendpoints:
             raise PilotException("Failed to put files: Output ddmendpoint list is not set", code=PilotErrors.ERR_NOSTORAGE)
         if not files:
-            raise PilotException("Failed to put files: empty file list to be transferred")
+            raise PilotException("Failed to put files: empty file list to be transferred", code=PilotErrors.ERR_STAGEOUTFAILED)
 
         missing_ddms = set(ddmendpoints) - set(self.ddmconf)
 
