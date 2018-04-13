@@ -115,20 +115,6 @@ class rucioSiteMover(BaseSiteMover):
     def stageInApi(self, dst, fspec):
 
         from rucio.client.downloadclient import DownloadClient
-<<<<<<< HEAD
-=======
-        from rucio.client.replicaclient import ReplicaClient
-        dclient = DownloadClient()
-        rclient = ReplicaClient()
-
-        def get_rse(scope, name):
-            replicas = rclient.list_replicas([{'scope': scope, 'name': name}])
-            for r in replicas:
-                for rs in r['states'].keys():
-                    if r['states'][rs] == 'AVAILABLE':
-                        return rs
-            return None
->>>>>>> adding exception when there is no available replica
 
         dclient = DownloadClient()
         lfn = '%s:%s' % (fspec.scope, fspec.lfn)
@@ -137,15 +123,7 @@ class rucioSiteMover(BaseSiteMover):
             if not fspec.allowAllInputRSEs:
                 dclient.download([lfn], fspec.replicas[0][0], dir=dst_dir)
             else:
-<<<<<<< HEAD
                 dclient.download([lfn], '', dir=dst_dir)
-=======
-                rse = get_rse(fspec.scope, fspec.name)
-                if not rse: 
-                    raise PilotException('stageIn failed -- no replica available')
-                else:
-                    dclient.download([lfn], rse, dir=dirname(dst))
->>>>>>> adding exception when there is no available replica
         else:
             if self.isDeterministic(fspec.ddmendpoint):
                 dclient.download([lfn], fspec.ddmendpoint, dir=dst_dir)
@@ -187,13 +165,7 @@ class rucioSiteMover(BaseSiteMover):
         tolog('stageOutOutput: %s' % o)
 
         if s:
-            tolog('stageOut with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
-
-            try:
-                self.stageOutApi(src, fspec)
-            except Exception as error:
-                raise PilotException('stageOut with API faied:  %s' % error)
-            # raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
+            raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
