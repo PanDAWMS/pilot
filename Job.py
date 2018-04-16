@@ -834,7 +834,7 @@ class Job:
                         else:
                             zip_map[archive].append(file_name)
             else:
-                tolog("!!WARNING!!2323!! Unexpected archive:file entry: %s" % (entry))
+                pUtil.tolog("!!WARNING!!2323!! Unexpected archive:file entry: %s" % (entry))
 
         return zip_map
 
@@ -843,6 +843,7 @@ class Job:
 
         for archive in zip_map.keys():
             content_files = zip_map[archive]
+            pUtil.tolog('Processing files from archive %s: %s' % (archive, str(content_files)))
 
             # Find the corresponding destinationDblock, destinationDBlockToken, scopeOut for the content_files
             # so we can use them for the archive itself
@@ -857,7 +858,7 @@ class Job:
                 archiveDestinationDBlockToken = destinationDBlockToken[i]
                 archiveScopeOut = scopeOut[i]
             else:
-                tolog("!!WARNING!!3434!! Did not find zip content file among output files")
+                pUtil.tolog("!!WARNING!!3434!! Did not find zip content file among output files")
                 archiveDestinationDblock = "UNKNOWN"
                 archiveDestinationDBlockToken = "UNKNOWN"
                 archiveScopeOut = "UNKNOWN"

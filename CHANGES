@@ -648,6 +648,22 @@ File Changes
 
 M RunJobHpcEvent.py (5)
 
+Updates from Tomas Javurek:
+
+  https://github.com/PanDAWMS/pilot/pull/210
+
+Commit Summary
+
+testing of rucio API downloader prototype
+adding exception when there is no available replica
+rucio sitemover upload api back in game
+f git
+rucio sitemover upload api back in game
+
+File Changes
+
+M movers/rucio_sitemover.py (9)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
