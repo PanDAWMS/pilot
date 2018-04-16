@@ -838,7 +838,38 @@ class Job:
 
         return zip_map
 
-    def addArchivesToOutput(self, zip_map, outFiles, destinationDblock, destinationDBlockToken, scopeOut):
+    def addArchivesToOutput(self, zip_map, inFiles, outFiles, dispatchDblock, destinationDblock, dispatchDBlockToken, destinationDBlockToken, scopeIn, scopeOut):
+        """ Add the zip archives to the output file lists """
+
+        for archive in zip_map.keys():
+            content_files = zip_map[archive]
+            pUtil.tolog('Processing files from archive %s: %s' % (archive, str(content_files)))
+
+            # Find the corresponding destinationDblock, destinationDBlockToken, scopeOut for the content_files
+            # so we can use them for the archive itself
+            found = False
+            for inFile in inFiles:
+                if content_files[0] == inFile: # assume same info for all input files in this archive, use first file
+                    found = True
+                    break
+            if found:
+                archiveDestinationDblock = dispatchDblock[0]
+                archiveDestinationDBlockToken = dispatchDBlockToken[0]
+                archiveScopeOut = scopeIn[0]
+            else:
+                pUtil.tolog("!!WARNING!!3434!! Did not find zip content file among output files")
+                archiveDestinationDblock = "UNKNOWN"
+                archiveDestinationDBlockToken = "UNKNOWN"
+                archiveScopeOut = "UNKNOWN"
+
+            outFiles.append(archive)
+            destinationDblock.append(archiveDestinationDblock)
+            destinationDBlockToken.append(archiveDestinationDBlockToken)
+            scopeOut.append(archiveScopeOut)
+
+        return outFiles, destinationDblock, destinationDBlockToken, scopeOut
+
+    def addArchivesToOutputOld(self, zip_map, outFiles, destinationDblock, destinationDBlockToken, scopeOut):
         """ Add the zip archives to the output file lists """
 
         for archive in zip_map.keys():

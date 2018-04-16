@@ -1893,7 +1893,16 @@ if __name__ == "__main__":
         zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString, job.workdir)
         if zip_map:
             # Add the zip archives to the output file lists
-            job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
+            job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map,
+                                                                                                                    job.inFiles,
+                                                                                                                    job.outFiles,
+                                                                                                                    job.dispatchDblock,
+                                                                                                                    job.destinationDblock,
+                                                                                                                    job.dispatchDBlockToken,
+                                                                                                                    job.destinationDBlockToken,
+                                                                                                                    job.scopeIn,
+                                                                                                                    job.scopeOut)
+            #job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
 
         # if payload leaves the input files, delete them explicitly
         if ins:
