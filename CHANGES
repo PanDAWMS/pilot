@@ -631,6 +631,9 @@ Size of workdir reporting
 - Remeasuring the size of the workdir in __checkWorkDir() to fix a bad log message and also to avoid sending a wrong value to the job metrics.
   Requested by R. Walker. (Monitor)
 
+Zipmapping
+- Moved removal of input files to after archive creation (RunJob)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/206

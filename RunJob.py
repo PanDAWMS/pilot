@@ -1867,9 +1867,9 @@ if __name__ == "__main__":
         # execute the payload
         res, job, getstatusoutput_was_interrupted, current_job_number = runJob.executePayload(thisExperiment, runCommandList, job)
 
-        # if payload leaves the input files, delete them explicitly
-        if ins:
-            ec = pUtil.removeFiles(job.workdir, ins)
+#        # if payload leaves the input files, delete them explicitly
+#        if ins:
+#            ec = pUtil.removeFiles(job.workdir, ins)
 
         # payload error handling
         ed = ErrorDiagnosis()
@@ -1893,6 +1893,10 @@ if __name__ == "__main__":
         if zip_map:
             # Add the zip archives to the output file lists
             job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
+
+        # if payload leaves the input files, delete them explicitly
+        if ins:
+            ec = pUtil.removeFiles(job.workdir, ins)
 
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
