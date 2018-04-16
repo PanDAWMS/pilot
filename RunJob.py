@@ -1587,7 +1587,7 @@ class RunJob(object):
             for archive in zip_map.keys():
                 tolog("Creating zip archive %s for files %s" % (archive, zip_map[archive]))
                 fname = os.path.join(workdir, archive)
-                zf = zipfile.ZipFile(fname, mode='w', compression=zipfile.ZIP_STORED) # zero compression
+                zf = zipfile.ZipFile(fname, mode='w', compression=zipfile.ZIP_STORED, allowZip64=True) # zero compression
                 for content_file in zip_map[archive]:
                     try:
                         tolog("Adding %s to archive .." % (content_file))
