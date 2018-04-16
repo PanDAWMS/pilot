@@ -1599,7 +1599,8 @@ class RunJob(object):
                 if zf:
                     zf.close()
             os.chdir(cwd)
-            archive_names = zip_map.keys()
+            if zip_map:
+                archive_names = zip_map.keys()
 
         return zip_map, archive_names
 
