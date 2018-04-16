@@ -634,6 +634,7 @@ Size of workdir reporting
 Zipmapping
 - Moved removal of input files to after archive creation (RunJob)
 - Added allowZip64=True to zipfile.ZipFile() in createArchives() (RunJob)
+- Updated addArchivesToOutput() to use input files (Job)
 
 Updates from Wen Guan:
 
