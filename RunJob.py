@@ -1587,7 +1587,7 @@ class RunJob(object):
             for archive in zip_map.keys():
                 tolog("Creating zip archive %s for files %s" % (archive, zip_map[archive]))
                 fname = os.path.join(workdir, archive)
-                zf = zipfile.ZipFile(fname, mode='w', compression=zipfile.ZIP_STORED) # zero compression
+                zf = zipfile.ZipFile(fname, mode='w', compression=zipfile.ZIP_STORED, allowZip64=True) # zero compression
                 for content_file in zip_map[archive]:
                     try:
                         tolog("Adding %s to archive .." % (content_file))
@@ -1599,7 +1599,8 @@ class RunJob(object):
                 if zf:
                     zf.close()
             os.chdir(cwd)
-            archive_names = zip_map.keys()
+            if zip_map:
+                archive_names = zip_map.keys()
 
         return zip_map, archive_names
 
@@ -1867,9 +1868,9 @@ if __name__ == "__main__":
         # execute the payload
         res, job, getstatusoutput_was_interrupted, current_job_number = runJob.executePayload(thisExperiment, runCommandList, job)
 
-        # if payload leaves the input files, delete them explicitly
-        if ins:
-            ec = pUtil.removeFiles(job.workdir, ins)
+#        # if payload leaves the input files, delete them explicitly
+#        if ins:
+#            ec = pUtil.removeFiles(job.workdir, ins)
 
         # payload error handling
         ed = ErrorDiagnosis()
@@ -1893,6 +1894,10 @@ if __name__ == "__main__":
         if zip_map:
             # Add the zip archives to the output file lists
             job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
+
+        # if payload leaves the input files, delete them explicitly
+        if ins:
+            ec = pUtil.removeFiles(job.workdir, ins)
 
         # verify and prepare and the output files for transfer
         ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
