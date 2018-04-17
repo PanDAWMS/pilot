@@ -635,6 +635,7 @@ Zipmapping
 - Moved removal of input files to after archive creation (RunJob)
 - Added allowZip64=True to zipfile.ZipFile() in createArchives() (RunJob)
 - Updated addArchivesToOutput() to use input files (Job)
+- Avoiding adding archive to outFiles if it is already listed as an output file, in addArchivesToOutput() (Job)
 
 Updates from Wen Guan:
 
