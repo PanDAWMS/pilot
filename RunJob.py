@@ -1913,7 +1913,7 @@ if __name__ == "__main__":
         tolog("outsDict=%s"%str(outsDict))
 
         # if payload leaves the input files, delete them explicitly
-        if ins:
+        if ins and not zip_map:
             ec = pUtil.removeFiles(job.workdir, ins)
 
         # update the current file states
@@ -1948,6 +1948,8 @@ if __name__ == "__main__":
                 job, outs, outputFileInfo = runJob.cleanupForZip(zip_map, archive_names, job, outs, outputFileInfo, datasetDict)
                 tolog('Zip map cleanup pass #2')
                 job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = removeInputFromOutputLists(job.inFiles, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
+                tolog('Zip map cleanup pass #3')
+                ec = pUtil.removeFiles(job.workdir, ins)
 
         # move output files from workdir to local DDM area
         finalUpdateDone = False
