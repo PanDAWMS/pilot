@@ -838,8 +838,32 @@ class Job:
 
         return zip_map
 
+    def removeInputFromOutputLists(self, inFiles, outFiles, destinationDblock, destinationDBlockToken, scopeOut):
+        """
+        The zipped input files should be removed from the output lists since they are only needed there to create metadata.
+        """
+
+        for outFile in outFiles:
+            if outFile in inFiles:
+                i = outFiles.index(outFile)
+                dummy = outFiles.pop(i)
+                dummy = destinationDblock.pop(i)
+                dummy = destinationDBlockToken.pop(i)
+                dummy = scopeOut.pop(i)
+
+        return outFiles, destinationDblock, destinationDBlockToken, scopeOut
+
     def addArchivesToOutput(self, zip_map, inFiles, outFiles, dispatchDblock, destinationDblock, dispatchDBlockToken, destinationDBlockToken, scopeIn, scopeOut):
         """ Add the zip archives to the output file lists """
+
+        # add all input files to output lists (so that metadata will be create - must be removed again before stage-out)
+        i = 0
+        for inFile in inFiles:
+            outFiles.append(inFile)
+            destinationDblock.append(dispatchDblock[i])
+            destinationDBlockToken.append(dispatchDBlockToken[i])
+            scopeOut.append(scopeIn[i])
+            i += 1
 
         for archive in zip_map.keys():
             # do not add the archive if it is already listed as an output file

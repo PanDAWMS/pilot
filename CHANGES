@@ -638,6 +638,8 @@ Zipmapping
 - Avoiding adding archive to outFiles if it is already listed as an output file, in addArchivesToOutput() (Job)
 - Executing a dummy sleep command instead of Archive_tf in executePayload() (RunJob)
 - Patched for missing metadata in updatePandaServer() for archive job (PandaServerClient)
+- Added all input files to output lists in addArchivesToOutput() (Job)
+- Created removeInputFromOutputLists() (Job)
 
 Updates from Wen Guan:
 

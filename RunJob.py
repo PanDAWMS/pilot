@@ -1944,7 +1944,10 @@ if __name__ == "__main__":
 
             # in case the output files have been zipped, it is now safe to remove them and update the outFiles list
             if zip_map:
+                tolog('Zip map cleanup pass #1')
                 job, outs, outputFileInfo = runJob.cleanupForZip(zip_map, archive_names, job, outs, outputFileInfo, datasetDict)
+                tolog('Zip map cleanup pass #2')
+                job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = removeInputFromOutputLists(self, inFiles, outFiles, destinationDblock, destinationDBlockToken, scopeOut)
 
         # move output files from workdir to local DDM area
         finalUpdateDone = False
