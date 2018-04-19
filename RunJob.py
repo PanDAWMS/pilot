@@ -1960,7 +1960,7 @@ if __name__ == "__main__":
                 tolog('Zip map cleanup pass #1')
                 job, outs, outputFileInfo = runJob.cleanupForZip(zip_map, archive_names, job, outs, outputFileInfo, datasetDict)
                 tolog('Zip map cleanup pass #2')
-                job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = removeInputFromOutputLists(job.inFiles, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
+                job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.removeInputFromOutputLists(job.inFiles, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
                 tolog('Zip map cleanup pass #3')
                 ec = pUtil.removeFiles(job.workdir, ins)
 
