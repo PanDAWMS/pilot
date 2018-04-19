@@ -1909,7 +1909,11 @@ if __name__ == "__main__":
             ec = pUtil.removeFiles(job.workdir, ins)
 
         # verify and prepare and the output files for transfer
-        ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
+        if zip_map:
+            archive = True
+        else:
+            archive = False
+        ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir, archive=archive)
         if ec:
             # missing output file (only error code from prepareOutFiles)
             runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)

@@ -355,7 +355,7 @@ def prepareInFiles(inFiles, filesizeIn, checksumIn):
 
     return ins, fIn, cIn
 
-def prepareOutFiles(outFiles, logFile, workdir, fullpath=False):
+def prepareOutFiles(outFiles, logFile, workdir, fullpath=False, archive=False):
     """ verify and prepare the output files for transfer """
 
     # fullpath = True means that the file in outFiles already has a full path, adding it to workdir is then not needed
@@ -367,7 +367,7 @@ def prepareOutFiles(outFiles, logFile, workdir, fullpath=False):
     from SiteMover import SiteMover
     for outf in outFiles:
         if outf and outf != 'NULL': # non-empty string and not NULL
-            if (not os.path.isfile("%s/%s" % (workdir, outf)) and not fullpath) or (not os.path.isfile(outf) and fullpath):
+            if (not os.path.isfile("%s/%s" % (workdir, outf)) and not fullpath) or (not os.path.isfile(outf) and fullpath and not archive):
                 pilotErrorDiag = "Expected output file %s does not exist" % (outf)
                 tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
                 error = PilotErrors()

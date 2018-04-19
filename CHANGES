@@ -640,6 +640,7 @@ Zipmapping
 - Patched for missing metadata in updatePandaServer() for archive job (PandaServerClient)
 - Added all input files to output lists in addArchivesToOutput() (Job)
 - Created removeInputFromOutputLists() (Job)
+- Patched prepareOutFiles() for archive (RunJob, RunJobUtilities)
 
 Updates from Wen Guan:
 
