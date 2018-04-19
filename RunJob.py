@@ -1904,21 +1904,17 @@ if __name__ == "__main__":
                                                                                                                     job.scopeOut)
             #job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map, job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut)
 
-        # if payload leaves the input files, delete them explicitly
-        if ins:
-            ec = pUtil.removeFiles(job.workdir, ins)
-
         # verify and prepare and the output files for transfer
-        if zip_map:
-            archive = True
-        else:
-            archive = False
-        ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir, archive=archive)
+        ec, pilotErrorDiag, outs, outsDict = RunJobUtilities.prepareOutFiles(job.outFiles, job.logFile, job.workdir)
         if ec:
             # missing output file (only error code from prepareOutFiles)
             runJob.failJob(job.result[1], ec, job, pilotErrorDiag=pilotErrorDiag)
         tolog("outs=%s"%str(outs))
         tolog("outsDict=%s"%str(outsDict))
+
+        # if payload leaves the input files, delete them explicitly
+        if ins:
+            ec = pUtil.removeFiles(job.workdir, ins)
 
         # update the current file states
         updateFileStates(outs, runJob.getParentWorkDir(), job.jobId, mode="file_state", state="created")
