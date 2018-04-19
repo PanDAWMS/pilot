@@ -875,8 +875,8 @@ class PandaServerClient:
         # jobAtlasRelease = getAtlasRelease(job.release)
         # if payloadXMLProblem and job.trf.split(",")[-1] not in trf_exclusions and jobAtlasRelease[-1] not in release_exclusions:
         if payloadXMLProblem:
-            if job.trf == 'Archive_tf.py':
-                tolog("Metadata does not exist because the job is an archive job")
+            if job.trf == 'Archive_tf.py' or job.trf == 'Dummy_tf.py':
+                tolog("Metadata does not exist because the job is an archive/dummy job")
             else:
                 tolog("!!FAILED!!1300!! %s" % (pilotErrorDiag))
                 job.result[0] = "failed"
