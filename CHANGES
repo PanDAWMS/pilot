@@ -642,6 +642,7 @@ Zipmapping
 - Created removeInputFromOutputLists() (Job)
 - Patched prepareOutFiles() for archive (RunJob, RunJobUtilities)
 - Created isArchive() and updated getDatasetDict() (RunJob, pUtil)
+- Added Dummy_tf to trf exception list in updatePandaServer() (PandaServerClient)
 
 Updates from Wen Guan:
 
