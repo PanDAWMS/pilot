@@ -875,15 +875,18 @@ class PandaServerClient:
         # jobAtlasRelease = getAtlasRelease(job.release)
         # if payloadXMLProblem and job.trf.split(",")[-1] not in trf_exclusions and jobAtlasRelease[-1] not in release_exclusions:
         if payloadXMLProblem:
-            tolog("!!FAILED!!1300!! %s" % (pilotErrorDiag))
-            job.result[0] = "failed"
-            job.result[2] = self.__error.ERR_NOPAYLOADMETADATA
-            if node.has_key('pilotLog'):
-                node['pilotLog'] += "!!FAILED!!1300!! %s" % (pilotErrorDiag)
+            if job.trf == 'Archive_tf.py':
+                tolog("Metadata does not exist because the job is an archive job")
             else:
-                node['pilotLog'] = "!!FAILED!!1300!! %s" % (pilotErrorDiag)
-            node['pilotErrorCode'] = job.result[2]
-            node['state'] = job.result[0]
+                tolog("!!FAILED!!1300!! %s" % (pilotErrorDiag))
+                job.result[0] = "failed"
+                job.result[2] = self.__error.ERR_NOPAYLOADMETADATA
+                if node.has_key('pilotLog'):
+                    node['pilotLog'] += "!!FAILED!!1300!! %s" % (pilotErrorDiag)
+                else:
+                    node['pilotLog'] = "!!FAILED!!1300!! %s" % (pilotErrorDiag)
+                node['pilotErrorCode'] = job.result[2]
+                node['state'] = job.result[0]
 
         # for backward compatibility
         try:
