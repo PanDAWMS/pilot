@@ -939,6 +939,10 @@ class RunJob(object):
 
                 tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
 
+                # Hack to replace Archive_tf
+                if job.trf == 'Archive_tf.py':
+                    cmd = 'sleep 10'
+                    tolog('Will execute a dummy sleep command instead of %s' % job.trf)
 
                 # Start the subprocess
                 main_subprocess = self.getSubprocess(thisExperiment, cmd, stdout=file_stdout, stderr=file_stderr)
@@ -1867,10 +1871,6 @@ if __name__ == "__main__":
 
         # execute the payload
         res, job, getstatusoutput_was_interrupted, current_job_number = runJob.executePayload(thisExperiment, runCommandList, job)
-
-#        # if payload leaves the input files, delete them explicitly
-#        if ins:
-#            ec = pUtil.removeFiles(job.workdir, ins)
 
         # payload error handling
         ed = ErrorDiagnosis()
