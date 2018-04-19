@@ -941,7 +941,7 @@ class RunJob(object):
 
                 # Hack to replace Archive_tf
                 if job.trf == 'Archive_tf.py':
-                    cmd = 'sleep 10'
+                    cmd = 'sleep 1'
                     tolog('Will execute a dummy sleep command instead of %s' % job.trf)
 
                 # Start the subprocess
