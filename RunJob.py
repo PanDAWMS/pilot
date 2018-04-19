@@ -1180,6 +1180,18 @@ class RunJob(object):
 
         return ec, job, outputFileInfo
 
+    def isArchive(self, trf):
+        """
+        Is the trf an archive trf?
+        """
+
+        if trf == "Archive_tf.py":
+            archive = True
+        else:
+            archive = False
+
+        return archive
+
     def getDatasets(self, job):
         """ get the datasets for the output files """
 
@@ -1191,7 +1203,8 @@ class RunJob(object):
 
         # create the dataset dictionary
         # (if None, the dsname above will be used for all output files)
-        datasetDict = getDatasetDict(job.outFiles, job.destinationDblock, job.logFile, job.logDblock)
+        archive = self.isArchive(job.trf)
+        datasetDict = getDatasetDict(job.outFiles, job.destinationDblock, job.logFile, job.logDblock, archive=archive)
         if datasetDict:
             tolog("Dataset dictionary has been verified")
         else:

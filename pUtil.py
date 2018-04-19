@@ -2683,7 +2683,7 @@ def dumpOrderedItems(l):
         else:
             tolog("%d. %s" % (_i, item))
 
-def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
+def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock, archive=False):
     """ Create a dataset dictionary """
 
     datasetDict = None
@@ -2702,9 +2702,11 @@ def getDatasetDict(outputFiles, destinationDblock, logFile, logFileDblock):
         for _list in _l:
             for _entry in _list:
                 if _entry == "NULL" or _entry == "" or _entry == " " or _entry == None:
-                    tolog("!!WARNING!!2999!! Found non-valid entry in list: %s" % str(_list))
-                    ok = False
-                    break
+                    # ignore if archive
+                    if not archive:
+                        tolog("!!WARNING!!2999!! Found non-valid entry in list: %s" % str(_list))
+                        ok = False
+                        break
 
         if ok:
             # build the dictionary

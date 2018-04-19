@@ -641,6 +641,7 @@ Zipmapping
 - Added all input files to output lists in addArchivesToOutput() (Job)
 - Created removeInputFromOutputLists() (Job)
 - Patched prepareOutFiles() for archive (RunJob, RunJobUtilities)
+- Created isArchive() and updated getDatasetDict() (RunJob, pUtil)
 
 Updates from Wen Guan:
 
