@@ -940,7 +940,7 @@ class RunJob(object):
                 tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
 
                 # Hack to replace Archive_tf
-                if job.trf == 'Archive_tf.py':
+                if job.trf == 'Archive_tf.py' or job.trf == 'Dummy_tf.py':
                     cmd = 'sleep 1'
                     tolog('Will execute a dummy sleep command instead of %s' % job.trf)
 
