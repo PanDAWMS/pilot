@@ -644,6 +644,9 @@ Zipmapping
 - Created isArchive() and updated getDatasetDict() (RunJob, pUtil)
 - Added Dummy_tf to trf exception list in updatePandaServer() (PandaServerClient)
 
+Harvester
+- Corrected join -> os.path.join in kill_worker() (pilot)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/206

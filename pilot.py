@@ -2219,7 +2219,7 @@ def kill_worker():
     """
 
     from FileHandling import touch
-    touch(join(env['pilot_initdir'], "kill_worker"))
+    touch(os.path.join(env['pilot_initdir'], "kill_worker"))
 
 def getNewJob(tofile=True):
     """ Get a new job definition from the jobdispatcher or from file """
