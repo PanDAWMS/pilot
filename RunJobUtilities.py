@@ -367,8 +367,9 @@ def prepareOutFiles(outFiles, logFile, workdir, fullpath=False):
     from SiteMover import SiteMover
     for outf in outFiles:
         if outf and outf != 'NULL': # non-empty string and not NULL
-            if (not os.path.isfile("%s/%s" % (workdir, outf)) and not fullpath) or (not os.path.isfile(outf) and fullpath):
-                pilotErrorDiag = "Expected output file %s does not exist" % (outf)
+            path = os.path.join(workdir, outf)
+            if (not os.path.isfile(path) and not fullpath) or (not os.path.isfile(outf) and fullpath):
+                pilotErrorDiag = "Expected output file %s does not exist" % (path)
                 tolog("!!FAILED!!3000!! %s" % (pilotErrorDiag))
                 error = PilotErrors()
                 ec = error.ERR_MISSINGOUTPUTFILE
