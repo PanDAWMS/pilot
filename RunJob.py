@@ -1180,19 +1180,19 @@ class RunJob(object):
 
         return ec, job, outputFileInfo
 
-    def isArchive(self, trf):
+    def isArchive(self, zipmap):
         """
-        Is the trf an archive trf?
+        Is the archive zipmap populated?
         """
 
-        if trf == "Archive_tf.py":
+        if zipmap:
             archive = True
         else:
             archive = False
 
         return archive
 
-    def getDatasets(self, job):
+    def getDatasets(self, job, zipmap=None):
         """ get the datasets for the output files """
 
         # get the default dataset
@@ -1203,7 +1203,7 @@ class RunJob(object):
 
         # create the dataset dictionary
         # (if None, the dsname above will be used for all output files)
-        archive = self.isArchive(job.trf)
+        archive = self.isArchive(zipmap)
         datasetDict = getDatasetDict(job.outFiles, job.destinationDblock, job.logFile, job.logDblock, archive=archive)
         if datasetDict:
             tolog("Dataset dictionary has been verified")
@@ -1937,7 +1937,7 @@ if __name__ == "__main__":
         outputFileInfo = {}
         if outs or (job.logFile and job.logFile != ''):
             # get the datasets for the output files
-            dsname, datasetDict = runJob.getDatasets(job)
+            dsname, datasetDict = runJob.getDatasets(job, zipmap=zip_map)
 
             tolog("datasetDict=%s"%str(datasetDict))
 
