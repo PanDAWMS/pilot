@@ -985,9 +985,7 @@ def getOutputFileInfo(outputFiles, checksum_cmd, skiplog=False, logFile=""):
         if filename == logFile and skiplog:
             ec = -1
         else:
-            tolog("Importing SiteMover")
             from SiteMover import SiteMover
-            tolog("Imported SiteMover, calling getLocalFileInfo")
             ec, pilotErrorDiag, _fsize, _checksum = SiteMover.getLocalFileInfo(filename, csumtype=checksum_cmd)
             tolog("Adding %s,%s for file %s using %s" % (_fsize, _checksum, filename, checksum_cmd))
         if ec == 0:
