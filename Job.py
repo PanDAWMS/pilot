@@ -838,7 +838,7 @@ class Job:
 
         return zip_map
 
-    def removeInputFromOutputLists(self, inFiles, outFiles, destinationDblock, destinationDBlockToken, scopeOut):
+    def removeInputFromOutputLists(self, inFiles, outFiles, destinationDblock, destinationDBlockToken, scopeOut, out):
         """
         The zipped input files should be removed from the output lists since they are only needed there to create metadata.
         """
@@ -850,8 +850,14 @@ class Job:
                 dummy = destinationDblock.pop(i)
                 dummy = destinationDBlockToken.pop(i)
                 dummy = scopeOut.pop(i)
+                # also remove the file from the outs list
 
-        return outFiles, destinationDblock, destinationDBlockToken, scopeOut
+                i = out.index(outFile)
+                dummy = out.pop(i)
+
+                # ignore outputFileInfo and datasetDict since they are not used in the new movers / just a lookup dictionary
+
+        return outFiles, destinationDblock, destinationDBlockToken, scopeOut, out
 
     def addArchivesToOutput(self, zip_map, inFiles, outFiles, dispatchDblock, destinationDblock, dispatchDBlockToken, destinationDBlockToken, scopeIn, scopeOut):
         """ Add the zip archives to the output file lists """
