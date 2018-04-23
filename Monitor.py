@@ -735,14 +735,8 @@ class Monitor:
                                     "mem." in _file or
                                     "DBRelease-" in _file):
                                 _files.append(_file)
-    #                        else:
-    #                            pUtil.tolog("Ignored file: %s" % (_file))
                         if _files != []:
                             pUtil.tolog("Found %d files that were recently updated (e.g. file %s)" % (len(_files), _files[0]))
-    #                        s = ""
-    #                        for _file in _files:
-    #                            s += _file + ", "
-    #                        pUtil.tolog(s)
                             # get the current system time
                             self.__env['lastTimeFilesWereModified'][k] = int(time.time())
                         else:
