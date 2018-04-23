@@ -843,7 +843,7 @@ class Job:
         The zipped input files should be removed from the output lists since they are only needed there to create metadata.
         """
 
-        for outFile in outFiles:
+        for outFile in list(outFiles):  # make a copy of the original list with list(outFiles)
             if outFile in inFiles:
                 pUtil.tolog("Removing file %s from lists" % outFile)
                 i = outFiles.index(outFile)
