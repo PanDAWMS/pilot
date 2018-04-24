@@ -940,9 +940,9 @@ class RunJob(object):
                 tolog("Executing job command %d/%d" % (current_job_number, number_of_jobs))
 
                 # Hack to replace Archive_tf
-                if job.trf == 'Archive_tf.py' or job.trf == 'Dummy_tf.py':
-                    cmd = 'sleep 1'
-                    tolog('Will execute a dummy sleep command instead of %s' % job.trf)
+                # if job.trf == 'Archive_tf.py' or job.trf == 'Dummy_tf.py':
+                #     cmd = 'sleep 1'
+                #     tolog('Will execute a dummy sleep command instead of %s' % job.trf)
 
                 # Start the subprocess
                 main_subprocess = self.getSubprocess(thisExperiment, cmd, stdout=file_stdout, stderr=file_stderr)
@@ -1903,7 +1903,8 @@ if __name__ == "__main__":
         job, fromJSON = runJob.handleAdditionalOutFiles(job, analysisJob)
 
         # should any output be zipped? if so, the zipmapString was previously set (otherwise the returned variables are set to None)
-        zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString, job.workdir)
+        # zip_map, archive_names = runJob.createArchives(job.outFiles, zipmapString, job.workdir)
+        zip_map = None
         if zip_map:
             # Add the zip archives to the output file lists
             job.outFiles, job.destinationDblock, job.destinationDBlockToken, job.scopeOut = job.addArchivesToOutput(zip_map,
@@ -1956,7 +1957,8 @@ if __name__ == "__main__":
             tolog("outputFileInfo=%s"%str(outputFileInfo))
 
             # in case the output files have been zipped, it is now safe to remove them and update the outFiles list
-            if zip_map:
+            # should only be executed if Archive_rf is skipped and pilot does all zipping
+            if zip_map and False:
                 tolog('Zip map cleanup pass #1 (skipped)')
                 # job, outs, outputFileInfo = runJob.cleanupForZip(zip_map, archive_names, job, outs, outputFileInfo, datasetDict)
                 tolog('Zip map cleanup pass #2')
