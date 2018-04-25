@@ -676,6 +676,19 @@ File Changes
 
 M movers/rucio_sitemover.py (9)
 
+Updates from A. Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/211
+
+Commit Summary
+
+raise proper Pilot error code in case of lsm stage-in failures due to checksum verification issues
+
+File Changes
+
+M movers/base.py (9)
+M movers/lsm_sitemover.py (6)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
