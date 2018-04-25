@@ -618,6 +618,15 @@ class BaseSiteMover(object):
             ret['rcode'] = PilotErrors.ERR_CHKSUMNOTSUP
             ret['state'] = 'CHKSUM_NOTSUP'
             ret['error'] = output
+        elif "does not match the checksum" in output:
+            if 'adler32' in output:
+                state = 'AD_MISMATCH'
+                rcode = PilotErrors.ERR_GETADMISMATCH
+            else:
+                state = 'MD5_MISMATCH'
+                rcode = PilotErrors.ERR_GETMD5MISMATCH
+            ret['rcode'] = rcode
+            ret['state'] = state
 
         return ret
 

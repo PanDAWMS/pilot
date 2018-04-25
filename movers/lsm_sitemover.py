@@ -68,7 +68,11 @@ class lsmSiteMover(BaseSiteMover):
 
         if rcode:
             self.log('WARNING: [is_stagein=%s] Stage file command (%s) failed: Status=%s Output=%s' % (is_stagein, cmd, rcode, output.replace("\n"," ")))
-            error = self.resolveStageErrorFromOutput(output, source, is_stagein=is_stagein)
+
+            if rcode == 205: # lsm-get 205 error (Expected adler32 checksum does not match the checksum of file)
+                error = {'rcode':PilotErrors.ERR_GETADMISMATCH, 'state':'AD_MISMATCH', 'error':output}
+            else:
+                error = self.resolveStageErrorFromOutput(output, source, is_stagein=is_stagein)
 
             rcode = error.get('rcode')
             if not rcode:
