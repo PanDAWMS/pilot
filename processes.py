@@ -4,7 +4,7 @@ import signal
 import time
 import re
 import pUtil
-from subprocess import Popen, PIPE
+import subprocess
 
 def findProcessesInGroup(cpids, pid):
     """ recursively search for the children processes belonging to pid and return their pids
@@ -66,7 +66,6 @@ def getProcessCommands(euid, pids):
 
 
 def printProcessTree():
-    import subprocess
     pl = subprocess.Popen(['ps', '--forest', '-ef'], stdout=subprocess.PIPE).communicate()[0]
     pUtil.tolog(pl)
 
