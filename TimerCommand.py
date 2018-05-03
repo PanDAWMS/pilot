@@ -63,7 +63,8 @@ class TimerCommand(object):
             self.stderr = ''
         if not self.stdout:
             self.stdout = ''
-        self.stdout += " Error: " + self.stderr
+        if self.stderr and self.stderr != '':
+            self.stdout += " Error: " + self.stderr
 
         if self.process:
             returncode = self.process.returncode
