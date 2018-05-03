@@ -256,7 +256,7 @@ def getMaxMemoryUsageFromCGroups():
             else:
                 pUtil.tolog("!!WARNING!!2211!! Invalid format: %s (expected ..:memory:[path])" % (out))
     else:
-        pUtil.tolog("Path %s does not exist (not a CGROUPS site)")
+        pUtil.tolog("Path %s does not exist (not a CGROUPS site)" % path)
 
     return max_memory
 

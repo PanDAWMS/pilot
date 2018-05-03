@@ -699,6 +699,7 @@ QMUL metadata fix
 Processes
 - Some minor cleanup; removed unused printProcessTree() + import of subprocess (processes)
 - Corrected log message for SIGKILL in killProcesses() (processes)
+- Added missing variable in log message in getMaxMemoryUsageFromCGroups() (processes)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
