@@ -696,6 +696,9 @@ M movers/lsm_sitemover.py (6)
 QMUL metadata fix
 - Only adding the stderr to stdout when stderr is non-empty (to revent messed up metadata in storm mover), in run() (TimedCommand)
 
+Processes
+- Some minor cleanup; removed unused printProcessTree() + import of subprocess (processes)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
