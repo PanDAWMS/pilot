@@ -694,7 +694,7 @@ M movers/lsm_sitemover.py (6)
 72.10 - HOTFIX
 
 QMUL metadata fix
-- Only adding the stderr to stdout when stderr is non-empty (to revent messed up metadata in storm mover), in run() (TimedCommand)
+- Only adding the stderr to stdout when stderr is non-empty (to prevent messed up metadata in storm mover), in run() (TimedCommand)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
