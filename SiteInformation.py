@@ -406,7 +406,7 @@ class SiteInformation(object):
 
         return 0, thisSite, _jobrec
 
-    def extractContainerImage(jobParameters):
+    def extractContainerImage(self, jobParameters):
         """ Extract the container image from the job parameters and remove it """
         # Note : --containerimage is a Pilot 2 feature and full support for it will only be implemented in Pilot 2
         # This function only removes the string from job parameters
@@ -542,6 +542,10 @@ class SiteInformation(object):
         tolog("called updateQueuedataFromJobParameters with: %s" % (jobParameters))
 
         self.transferTypeFix = ""
+
+        # remove any --containerimage XYZ option since that will only be supported by Pilot 2
+        if "--containerimage" in jobParameters:
+            jobParameters = self.extractContainerImage(jobParameters)
 
         # extract and remove queuedata overwrite command from job parameters (the old way)
         if "--overwriteQueuedata={" in jobParameters:
