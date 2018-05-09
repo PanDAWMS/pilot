@@ -705,6 +705,9 @@ Processes
 - Corrected log message for SIGKILL in killProcesses() (processes)
 - Added missing variable in log message in getMaxMemoryUsageFromCGroups() (processes)
 
+Containers
+- Added removeContainerImage() which removes any --containerimage XYZ options from job parameters (feature only supported in Pilot 2) (SiteInformation)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
