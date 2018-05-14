@@ -9,7 +9,6 @@ from .base import BaseSiteMover
 from pUtil import tolog
 from PilotErrors import PilotErrors, PilotException
 
-# from commands import getstatusoutput
 from TimerCommand import getstatusoutput
 from os.path import dirname
 
@@ -59,26 +58,26 @@ class rucioSiteMover(BaseSiteMover):
 
         if fspec.replicas:
             if not fspec.allowAllInputRSEs:
-                cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
-                                                                  fspec.replicas[0][0],
-                                                                  fspec.scope,
-                                                                  fspec.lfn)
+                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                                     fspec.replicas[0][0],
+                                                                     fspec.scope,
+                                                                     fspec.lfn)
             else:
-                cmd = 'rucio download --dir %s %s:%s' % (dirname(dst),
-                                                         fspec.scope,
-                                                         fspec.lfn)
+                cmd = 'rucio -v download --dir %s %s:%s' % (dirname(dst),
+                                                            fspec.scope,
+                                                            fspec.lfn)
         else:
             if self.isDeterministic(fspec.ddmendpoint):
-                cmd = 'rucio download --dir %s --rse %s %s:%s' % (dirname(dst),
-                                                                  fspec.ddmendpoint,
-                                                                  fspec.scope,
-                                                                  fspec.lfn)
+                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                                     fspec.ddmendpoint,
+                                                                     fspec.scope,
+                                                                     fspec.lfn)
             else:
-                cmd = 'rucio download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
-                                                                           fspec.ddmendpoint,
-                                                                           fspec.turl,
-                                                                           fspec.scope,
-                                                                           fspec.lfn)
+                cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
+                                                                              fspec.ddmendpoint,
+                                                                              fspec.turl,
+                                                                              fspec.scope,
+                                                                              fspec.lfn)
         # Prepend the command with singularity if necessary
         from Singularity import singularityWrapper
         cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
@@ -87,14 +86,12 @@ class rucioSiteMover(BaseSiteMover):
         s, o = getstatusoutput(cmd)
         if s:
             tolog('stageIn with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
-            # raise PilotException('stageIn with CLI failed -- rucio download did not succeed: %s' % o.replace('\n', ''))
             try:
                 self.stageInApi(dst, fspec)
             except Exception as error:
                 raise PilotException('stageIn with API faied:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED)
 
         # TODO: fix in rucio download to set specific outputfile
-        #       https://its.cern.ch/jira/browse/RUCIO-2063
         cmd = 'mv %s %s' % (dirname(dst) + '/%s/%s' % (fspec.scope,
                                                        fspec.lfn),
                             dst)
@@ -142,19 +139,19 @@ class rucioSiteMover(BaseSiteMover):
 
         if fspec.storageId and int(fspec.storageId) > 0:
             if self.isDeterministic(fspec.ddmendpoint):
-                cmd = 'rucio upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
-                                                                             fspec.scope,
-                                                                             fspec.pfn if fspec.pfn else fspec.lfn)
+                cmd = 'rucio -v upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
+                                                                                fspec.scope,
+                                                                                fspec.pfn if fspec.pfn else fspec.lfn)
             else:
-                cmd = 'rucio upload --no-register --rse %s --scope %s --pfn %s %s' % (fspec.ddmendpoint,
-                                                                                      fspec.scope,
-                                                                                      fspec.turl,
-                                                                                      fspec.pfn if fspec.pfn else fspec.lfn)
+                cmd = 'rucio -v upload --no-register --rse %s --scope %s --pfn %s %s' % (fspec.ddmendpoint,
+                                                                                         fspec.scope,
+                                                                                         fspec.turl,
+                                                                                         fspec.pfn if fspec.pfn else fspec.lfn)
         else:
             guid = ' --guid %s' % fspec.guid if fspec.lfn and '.root' in fspec.lfn else ''
-            cmd = 'rucio upload%s --no-register --rse %s --scope %s %s' % (guid, fspec.ddmendpoint,
-                                                                           fspec.scope,
-                                                                           fspec.pfn if fspec.pfn else fspec.lfn)
+            cmd = 'rucio -v upload%s --no-register --rse %s --scope %s %s' % (guid, fspec.ddmendpoint,
+                                                                              fspec.scope,
+                                                                              fspec.pfn if fspec.pfn else fspec.lfn)
 
         # Prepend the command with singularity if necessary
         from Singularity import singularityWrapper
@@ -171,7 +168,6 @@ class rucioSiteMover(BaseSiteMover):
                 self.stageOutApi(src, fspec)
             except Exception as error:
                 raise PilotException('stageOut with API faied:  %s' % error)
-            # raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
@@ -199,4 +195,3 @@ class rucioSiteMover(BaseSiteMover):
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
                 'pfn': fspec.lfn}
-
