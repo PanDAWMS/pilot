@@ -109,6 +109,10 @@ class Job:
         self.dbData = ""                   # dbData extracted from jobReport.json, to be used in jobMetrice
         self.putLogToOS = False            # Job def instruction to ask pilot to transfer log to OS
 
+        # timing info (for on-the-fly cpu consumption calculation)
+        self.t0 = None
+        self.t1 = None
+
         #  event service data
         self.eventService = False          # True for event service jobs
         self.eventServiceMerge = False     # True for event service merge jobs
