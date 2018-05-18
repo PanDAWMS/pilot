@@ -97,7 +97,7 @@ class rucioSiteMover(BaseSiteMover):
                             dst)
         tolog('stageInCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)
-        tolog('stageInOutput: %s' % o)
+        tolog('stageInOutput: s=%s o=%s' % (s, o))
 
         if s:
             raise PilotException('stageIn failed -- could not move downloaded file to destination: %s' % o.replace('\n', ''), code=PilotErrors.ERR_STAGEOUTFAILED)
@@ -159,15 +159,15 @@ class rucioSiteMover(BaseSiteMover):
 
         tolog('stageOutCmd: %s' % cmd)
         s, o = getstatusoutput(cmd)
-        tolog('stageOutOutput: %s' % o)
+        tolog('stageOutOutput: s=%s o=%s' % (s, o))
 
         if s:
-            tolog('stageOut with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
-
-            try:
-                self.stageOutApi(src, fspec)
-            except Exception as error:
-                raise PilotException('stageOut with API faied:  %s' % error)
+            raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
+            #tolog('stageOut with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
+            #try:
+            #    self.stageOutApi(src, fspec)
+            #except Exception as error:
+            #    raise PilotException('stageOut with API faied:  %s' % error)
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
