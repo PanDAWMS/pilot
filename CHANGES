@@ -704,6 +704,9 @@ Rucio copytool update (from M. Lassnig):
 - Removed troublesome API fallback (rucio_sitemover)
 - Added -v option for more verbose output (rucio_sitemover)
 
+Google testing (from M. Lassnig):
+- Added https protocol to schemas used in replica resolution algorithm (mover)
+
 Bug fix:
 - Changed logger.warning -> pUtil.tolog in detect_client_location(), reported by Javier Sanchez Martinez (pilot)
 
