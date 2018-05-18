@@ -1008,7 +1008,7 @@ def touch(path):
     with open(path, 'a'):
         os.utime(path, None)
 
-def convert_ostime_txt_to_tuple(workdir):
+def convertOsTimeTxt2Tuple(workdir):
     """ Read os.times() from a txt file and convert it back to a proper os.times() tuple again """
     # This function is used to calculate the cpu consumption time. The t0_times.txt file is created just before the
     # payload is executed in

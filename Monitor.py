@@ -23,7 +23,7 @@ from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
-from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize
+from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize, convertOsTimeTxt2Tuple
 
 import inspect
 
