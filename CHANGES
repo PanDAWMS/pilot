@@ -713,7 +713,8 @@ Bugs
 
 Timing info
 - Added t0, t1 to Job class (Job)
-- Added preliminary version of convert_ostime_txt_to_tuple() (pUtil)
+- Added convert_ostime_txt_to_tuple() (pUtil)
+- Writing t0 to file in executePayload() (RunJob)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

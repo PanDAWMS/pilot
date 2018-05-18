@@ -13,7 +13,6 @@
 import os, sys, commands, time
 import traceback
 import atexit, signal
-import stat
 from optparse import OptionParser
 from json import loads
 
@@ -27,7 +26,7 @@ from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from shutil import copy2
-from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems, getDirectAccess
+from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems, getDirectAccess, writeFile
 from EventRanges import downloadEventRanges
 
 # remove logguid, debuglevel - not needed
@@ -898,7 +897,12 @@ class RunJob(object):
 
         # Run the payload process, which could take days to finish
         t0 = os.times()
-        tolog("t0 = %s" % str(t0))
+        path = os.path.join(job.workdir, 't0_times.txt')
+        if writeFile(path, str(t0)):
+            tolog("Wrote %s to file %s" % (str(t0), path))
+        else:
+            tolog("!!WARNING!!3344!! Failed to write t0 to file, will not be able to calculate CPU consumption time on the fly")
+
         res_tuple = (0, 'Undefined')
 
         multi_trf = self.isMultiTrf(runCommandList)
@@ -1034,7 +1038,6 @@ class RunJob(object):
                     break
 
         t1 = os.times()
-        tolog("t1 = %s" % str(t1))
         t = map(lambda x, y:x-y, t1, t0) # get the time consumed
         job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
         tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))

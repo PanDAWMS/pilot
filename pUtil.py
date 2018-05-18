@@ -4714,26 +4714,33 @@ def updateInputFileWithTURLs(jobPars, LFN_to_TURL_dictionary):
     else:
         tolog("!!WARNING!!2343!! Found no @input filename in jobPars: %s" % (jobPars))
 
-def convert_ostime_txt_to_tuple():
+def convert_ostime_txt_to_tuple(workdir):
+    """ Read os.times() from a txt file and convert it back to a proper os.times() tuple again """
+    # This function is used to calculate the cpu consumption time. The t0_times.txt file is created just before the
+    # payload is executed in
 
     times = []
     failed = False
-    for t in open('t0_times.txt').read().split():
-        # remove any initial (, trailing ) or ,
-        a=t.strip('(').strip(')').strip(',')
-        try:
-            times.append(float(a))
-        except ValueError as e:
-            tolog("!!WARNING!!1212!! Exception caught: offending value=%s (cannot convert to float)" % (e))
-            failed = True
-            break
+    path = os.path.join(workdir, 't0_times.txt')
+    with open(path, 'r') as f:
+        for t in f.read().split():
+            # remove any initial (, trailing ) or ,
+            a = t.strip('(').strip(')').strip(',')
+            try:
+                times.append(float(a))
+            except ValueError as e:
+                tolog("!!WARNING!!1212!! Exception caught: offending value=%s (cannot convert to float)" % (e))
+                failed = True
+                break
 
-    if not failed:
-        # consistency check
-        if len(times) == 5:
-            return tuple(times)
+        if not failed:
+            # consistency check
+            if len(times) == 5:
+                return tuple(times)
+            else:
+                tolog("!!WARNING!!1222!! os.times() tuple has wrong length (not 5): %s" % str(times))
         else:
-            tolog("!!WARNING!!1222!! os.times() tuple has wrong length (not 5): %s" % str(times))
-    else:
-        tolog("!!WARNING!!1222!! Failed to convert os.times() txt file to tuple - CPU consumption meausurement cannot be done")
-        return None
+            tolog("!!WARNING!!1222!! Failed to convert os.times() txt file to tuple - CPU consumption meausurement cannot be done")
+            return None
+
+    return None
