@@ -608,6 +608,8 @@ class Monitor:
                 continue
             self.__env['jobDic'][k][1].lastState = self.__env['jobDic'][k][1].currentState
 
+            # update the CPU consumption time
+            t0 =
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp != "finished" and tmp != "failed" and tmp != "holding":
 
