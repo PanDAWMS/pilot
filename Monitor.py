@@ -23,7 +23,7 @@ from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
-from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize, convertOsTimeTxt2Tuple
+from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize, getOsTimesTuple
 
 import inspect
 
@@ -609,7 +609,13 @@ class Monitor:
             self.__env['jobDic'][k][1].lastState = self.__env['jobDic'][k][1].currentState
 
             # update the CPU consumption time
-            t0 =
+            t0 = getOsTimesTuple(self.__env['jobDic'][k][1].workdir)
+            if t0:
+                t1 = os.times()
+                t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
+                self.__env['jobDic'][k][1].cpuConsumptionUnit, self.__env['jobDic'][k][1].cpuConsumptionTime, self.__env['jobDic'][k][1].cpuConversionFactor = pUtil.setTimeConsumed(t)
+                pUtil.tolog("Job CPU usage: %s" % (job.cpuConsumptionTime))
+
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp != "finished" and tmp != "failed" and tmp != "holding":
 
