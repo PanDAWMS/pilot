@@ -595,7 +595,7 @@ class Monitor:
         return job
 
     def __updateJobs(self, onlyUpdateStateChangedJobs=False):
-        """ Make final server update for all ended jobs"""
+        """ Send a heartbeat """
 
         # get the stdout tails
         stdout_dictionary = pUtil.getStdoutDictionary(self.__env['jobDic'])
