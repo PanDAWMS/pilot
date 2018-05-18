@@ -2652,7 +2652,7 @@ def detect_client_location(site):
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
     except Exception as e:
-        logger.warning('socket() failed to lookup local IP')
+        pUtil.tolog('socket() failed to lookup local IP')
 
     return {'ip': ip,
             'fqdn': socket.getfqdn(),
