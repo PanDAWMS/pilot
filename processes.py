@@ -182,6 +182,9 @@ def killOrphans():
         pUtil.tolog("BOINC job, not looking for orphan processes")
         return
 
+    if 'PILOT_NOKILL' in os.environ:
+        return
+
     pUtil.tolog("Searching for orphan processes")
     cmd = "ps -o pid,ppid,args -u %s" % (commands.getoutput("whoami"))
 

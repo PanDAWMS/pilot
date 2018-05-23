@@ -698,6 +698,27 @@ QMUL metadata fix
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+72.11 - HOTFIX
+
+Rucio copytool update (from M. Lassnig):
+- Removed troublesome API fallback (rucio_sitemover)
+- Added -v option for more verbose output (rucio_sitemover)
+
+Google testing (from M. Lassnig):
+- Added https protocol to schemas used in replica resolution algorithm (mover)
+
+Bug fix:
+- Changed logger.warning -> pUtil.tolog in detect_client_location(), reported by Javier Sanchez Martinez (pilot)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+72.12
+
+SPECIAL NORDUGRID VERSION with support for PILOT_NOKILL env variable
+- If PILOT_NOKILL is defined, the pilot aborts killOrphans() early (processes)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 73.0
 
 Processes
@@ -716,20 +737,6 @@ Timing info
 - Added getOsTimesTuple() (FileHandling)
 - Writing t0 to file in executePayload() (RunJob)
 - Setting CPU consumption time in __updateJobs() (i.e. just before heartbeat update) (Monitor)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-72.11 - HOTFIX
-
-Rucio copytool update (from M. Lassnig):
-- Removed troublesome API fallback (rucio_sitemover)
-- Added -v option for more verbose output (rucio_sitemover)
-
-Google testing (from M. Lassnig):
-- Added https protocol to schemas used in replica resolution algorithm (mover)
-
-Bug fix:
-- Changed logger.warning -> pUtil.tolog in detect_client_location(), reported by Javier Sanchez Martinez (pilot)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
