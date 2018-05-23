@@ -68,10 +68,9 @@ class rucioSiteMover(BaseSiteMover):
                                                             fspec.lfn)
         else:
             if self.isDeterministic(fspec.ddmendpoint):
-                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
-                                                                     fspec.ddmendpoint,
-                                                                     fspec.scope,
-                                                                     fspec.lfn)
+                cmd = 'rucio -v download --dir %s %s:%s' % (dirname(dst),
+                                                            fspec.scope,
+                                                            fspec.lfn)
             else:
                 cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
                                                                               fspec.ddmendpoint,
