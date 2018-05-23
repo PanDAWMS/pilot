@@ -413,11 +413,6 @@ class RunJobArgo(RunJobHPC):
                 tolog("ARGO Job failed: res = %s" % (str(res_tuple)))
     
         t1 = os.times()
-        # CPU consumption metrics 
-        # t = map(lambda x, y:x-y, t1, t0) # get the time consumed
-        # job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
-        # tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
-        # tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
         job.timeExe = int(round(t1[4] - t0[4]))
         
         tolog("Original exit code: %s" % (res_tuple[0]))

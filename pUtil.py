@@ -620,19 +620,6 @@ def removePyModules(_dir):
                 except:
                     pass
 
-def setTimeConsumed(t_tuple):
-    """ set the system+user time spent by the job """
-
-    # The cpuConsumptionTime is the system+user time while wall time is encoded in pilotTiming, third number.
-    # Previously the cpuConsumptionTime was "corrected" with a scaling factor but this was deemed outdated and is now set to 1.
-
-    t_tot = reduce(lambda x, y:x+y, t_tuple[2:3])
-    conversionFactor = 1.0
-    cpuCU = "s" # "kSI2kseconds"
-    cpuCT = int(t_tot*conversionFactor)
-
-    return cpuCU, cpuCT, conversionFactor
-
 def timeStamp():
     """ return ISO-8601 compliant date/time format """
 
