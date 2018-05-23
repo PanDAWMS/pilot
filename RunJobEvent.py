@@ -42,6 +42,7 @@ from pUtil import tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict,
 from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes, getReplicaDictionaryFromXML
 from EventRanges import downloadEventRanges, updateEventRange, updateEventRanges
 from movers.base import BaseSiteMover
+from processes import get_cpu_consumption_time
 
 try:
     from PilotYamplServer import PilotYamplServer as MessageServer
@@ -4300,12 +4301,16 @@ if __name__ == "__main__":
 
         t1 = os.times()
         tolog("t1 = %s" % str(t1))
-        t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
+
         # Try to get the cpu time from the jobReport
         job.cpuConsumptionUnit, cpuConsumptionTime, job.cpuConversionFactor = getCPUTimes(job.workdir)
         if cpuConsumptionTime == 0:
             tolog("!!WARNING!!3434!! Falling back to less accurate os.times() measurement of CPU time")
-            job.cpuConsumptionUnit, cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
+            cpuconsumptiontime = get_cpu_consumption_time(t0)
+            job.cpuConsumptionTime = int(cpuconsumptiontime)
+            job.cpuConsumptionUnit = 's'
+            job.cpuConversionFactor = 1.0
+
         if cpuConsumptionTime > 0:
             # if payload is killed, cpu time returned from os.times() will not be correct.
             job.cpuConsumptionTime = cpuConsumptionTime

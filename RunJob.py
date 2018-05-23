@@ -28,6 +28,7 @@ from PilotErrors import PilotErrors
 from shutil import copy2
 from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems, getDirectAccess, writeFile
 from EventRanges import downloadEventRanges
+from processes import get_cpu_consumption_time
 
 # remove logguid, debuglevel - not needed
 # relabelled -h, queuename to -b (debuglevel not used)
@@ -1038,8 +1039,11 @@ class RunJob(object):
                     break
 
         t1 = os.times()
-        t = map(lambda x, y:x-y, t1, t0) # get the time consumed
-        job.cpuConsumptionUnit, job.cpuConsumptionTime, job.cpuConversionFactor = pUtil.setTimeConsumed(t)
+        cpuconsumptiontime = get_cpu_consumption_time(t0)
+        job.cpuConsumptionTime = int(cpuconsumptiontime)
+        job.cpuConsumptionUnit = 's'
+        job.cpuConversionFactor = 1.0
+
         tolog("Job CPU usage: %s %s" % (job.cpuConsumptionTime, job.cpuConsumptionUnit))
         tolog("Job CPU conversion factor: %1.10f" % (job.cpuConversionFactor))
         job.timeExe = int(round(t1[4] - t0[4]))
