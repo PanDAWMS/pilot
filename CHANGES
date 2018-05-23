@@ -729,9 +729,6 @@ Processes
 Containers
 - Added removeContainerImage() which removes any --containerimage XYZ options from job parameters (feature only supported in Pilot 2) (SiteInformation)
 
-Bugs
-- Changed logger.warning -> pUtil.tolog in detect_client_location(), reported by Javier Sanchez Martinez (pilot)
-
 Timing info
 - Added t0, t1 to Job class (Job)
 - Added getOsTimesTuple() (FileHandling)
