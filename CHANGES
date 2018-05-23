@@ -730,7 +730,7 @@ Containers
 - Added removeContainerImage() which removes any --containerimage XYZ options from job parameters (feature only supported in Pilot 2) (SiteInformation)
 
 Timing info
-- Added t0, t1 to Job class (Job)
+- Added t0 to Job class (Job)
 - Added getOsTimesTuple() (FileHandling)
 - Writing t0 to file in executePayload() (RunJob)
 - Setting CPU consumption time in __updateJobs() (i.e. just before heartbeat update) (Monitor)
