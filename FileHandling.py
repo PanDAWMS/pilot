@@ -893,7 +893,7 @@ def getCPUTimes(workDir):
     # Note: this is used with Event Service jobs
 
     # Input:  workDir (location of jobReport.json)
-    # Output: cpuCU (unit), totalCPUTime, conversionFactor (output consistent with pUtil::setTimeConsumed())
+    # Output: cpuCU (unit), totalCPUTime, conversionFactor
 
     totalCPUTime = 0L
 
