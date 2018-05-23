@@ -111,7 +111,6 @@ class Job:
 
         # timing info (for on-the-fly cpu consumption calculation)
         self.t0 = None
-        self.t1 = None
 
         #  event service data
         self.eventService = False          # True for event service jobs
