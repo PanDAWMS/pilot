@@ -16,7 +16,7 @@ from shutil import copy, copy2
 from random import shuffle
 from glob import glob
 from JobRecovery import JobRecovery
-from processes import killProcesses, checkProcesses, killOrphans, getMaxMemoryUsageFromCGroups, isCGROUPSSite
+from processes import killProcesses, checkProcesses, killOrphans, getMaxMemoryUsageFromCGroups, get_instant_cpu_consumption_time
 from PilotErrors import PilotErrors
 from FileStateClient import createFileStates, dumpFileStates, getFileState
 from WatchDog import WatchDog
@@ -611,10 +611,11 @@ class Monitor:
             # update the CPU consumption time
             t0 = getOsTimesTuple(self.__env['jobDic'][k][1].workdir)
             if t0:
-                t1 = os.times()
-                t = map(lambda x, y: x - y, t1, t0)  # get the time consumed
-                self.__env['jobDic'][k][1].cpuConsumptionUnit, self.__env['jobDic'][k][1].cpuConsumptionTime, self.__env['jobDic'][k][1].cpuConversionFactor = pUtil.setTimeConsumed(t)
-                pUtil.tolog("Job CPU usage: %s" % (job.cpuConsumptionTime))
+                cpuconsumptiontime = get_instant_cpu_consumption_time(self.__env['jobDic']["prod"][0])
+                self.__env['jobDic'][k][1].cpuConsumptionTime = int(cpuconsumptiontime)
+                self.__env['jobDic'][k][1].cpuConsumptionUnit = 's'
+                self.__env['jobDic'][k][1].cpuConversionFactor = 1.0
+                pUtil.tolog("Job CPU usage: %d" % (job.cpuConsumptionTime))
 
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp != "finished" and tmp != "failed" and tmp != "holding":

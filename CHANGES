@@ -734,6 +734,7 @@ Timing info
 - Added getOsTimesTuple() (FileHandling)
 - Writing t0 to file in executePayload() (RunJob)
 - Setting CPU consumption time in __updateJobs() (i.e. just before heartbeat update) (Monitor)
+- Using get_instant_cpu_consumption_time() in __updateJobs() for checking CPU consumption on the fly (Monitor)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
