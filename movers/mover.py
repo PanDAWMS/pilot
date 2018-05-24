@@ -335,7 +335,7 @@ class JobMover(object):
             if fdat.filesize in [None, 'NULL', '', 0]:
                 self.log("WARNING: filesize is not defined, assigning info got from Rucio to it.")
                 fdat.filesize = r['bytes']
-            else fdat.filesize != r['bytes']:
+            elif fdat.filesize != r['bytes']:
                 self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
 
             cc_ad = 'ad:%s' % r['adler32']
@@ -346,7 +346,7 @@ class JobMover(object):
                     fdat.checksum = cc_ad
                 elif r['md5']:
                     fdat.checksum = cc_md
-            else fdat.checksum not in [cc_ad, cc_md]:
+            elif fdat.checksum not in [cc_ad, cc_md]:
                 self.log("WARNING: checksum value of input file=%s mismatched with info got from Rucio replica:  job.indata.checksum=%s, replica.checksum=%s, fdat=%s" % (fdat.lfn, fdat.checksum, (cc_ad, cc_md), fdat))
 
         self.log('Number of resolved replicas:\n' + '\n'.join(["lfn=%s: replicas=%s, allowRemoteInputs=%s, is_directaccess=%s" % (e.lfn, len(e.replicas), e.allowRemoteInputs,  e.is_directaccess(ensure_replica=False)) for e in files]))
