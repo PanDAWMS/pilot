@@ -1016,6 +1016,10 @@ def getOsTimesTuple(workdir):
     times = []
     failed = False
     path = os.path.join(workdir, 't0_times.txt')
+    if not os.path.exists(path):
+        tolog("!!WARNING!!1222!! t0_times.txt doesn't exist.")
+        return None
+
     with open(path, 'r') as f:
         for t in f.read().split():
             # remove any initial (, trailing ) or ,
