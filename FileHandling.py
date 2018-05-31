@@ -1016,25 +1016,28 @@ def getOsTimesTuple(workdir):
     times = []
     failed = False
     path = os.path.join(workdir, 't0_times.txt')
-    with open(path, 'r') as f:
-        for t in f.read().split():
-            # remove any initial (, trailing ) or ,
-            a = t.strip('(').strip(')').strip(',')
-            try:
-                times.append(float(a))
-            except ValueError as e:
-                tolog("!!WARNING!!1212!! Exception caught: offending value=%s (cannot convert to float)" % (e))
-                failed = True
-                break
+    if os.path.exists(path):
+        with open(path, 'r') as f:
+            for t in f.read().split():
+                # remove any initial (, trailing ) or ,
+                a = t.strip('(').strip(')').strip(',')
+                try:
+                    times.append(float(a))
+                except ValueError as e:
+                    tolog("!!WARNING!!1212!! Exception caught: offending value=%s (cannot convert to float)" % (e))
+                    failed = True
+                    break
 
-        if not failed:
-            # consistency check
-            if len(times) == 5:
-                return tuple(times)
+            if not failed:
+                # consistency check
+                if len(times) == 5:
+                    return tuple(times)
+                else:
+                    tolog("!!WARNING!!1222!! os.times() tuple has wrong length (not 5): %s" % str(times))
             else:
-                tolog("!!WARNING!!1222!! os.times() tuple has wrong length (not 5): %s" % str(times))
-        else:
-            tolog("!!WARNING!!1222!! Failed to convert os.times() txt file to tuple - CPU consumption meausurement cannot be done")
-            return None
+                tolog("!!WARNING!!1222!! Failed to convert os.times() txt file to tuple - CPU consumption meausurement cannot be done")
+                return None
+    else:
+        tolog("t0 file does not exist - probably the payload was not executed")
 
     return None
