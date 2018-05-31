@@ -3911,7 +3911,12 @@ if __name__ == "__main__":
 
         # Create and start the AthenaMP process
         t0 = os.times()
-        tolog("t0 = %s" % str(t0))
+        path = os.path.join(job.workdir, 't0_times.txt')
+        if writeFile(path, str(t0)):
+            tolog("Wrote %s to file %s" % (str(t0), path))
+        else:
+            tolog("!!WARNING!!3344!! Failed to write t0 to file, will not be able to calculate CPU consumption time on the fly")
+
         athenaMPProcess = runJob.getSubprocess(thisExperiment, runCommandList[0], stdout=athenamp_stdout, stderr=athenamp_stderr)
 
         # Start the utility if required
