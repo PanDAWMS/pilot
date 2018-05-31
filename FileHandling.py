@@ -1016,6 +1016,7 @@ def getOsTimesTuple(workdir):
     times = []
     failed = False
     path = os.path.join(workdir, 't0_times.txt')
+
     if os.path.exists(path):
         with open(path, 'r') as f:
             for t in f.read().split():

@@ -311,7 +311,7 @@ class JobMover(object):
                 if not has_direct_remoteinput_replicas:
                     has_direct_remoteinput_replicas = bool(get_preferred_replica(r['rses'][ddm], self.direct_remoteinput_allowed_schemas))
 
-            if (not fdat.replicas or ( fdat.accessmode == 'direct' and not has_direct_remoteinput_replicas)) and fdat.allowRemoteInputs:
+            if ((not fdat.replicas or ( fdat.accessmode == 'direct' and not has_direct_remoteinput_replicas)) and fdat.allowRemoteInputs) or fdat.storageId > 0:
                 if fdat.accessmode == 'direct':
                     allowed_schemas = self.direct_remoteinput_allowed_schemas
                 else:
@@ -332,20 +332,22 @@ class JobMover(object):
 
             # verify filesize and checksum values
 
-            if fdat.filesize != r['bytes']:
-                self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
             if fdat.filesize in [None, 'NULL', '', 0]:
                 self.log("WARNING: filesize is not defined, assigning info got from Rucio to it.")
                 fdat.filesize = r['bytes']
+            elif fdat.filesize != r['bytes']:
+                self.log("WARNING: filesize value of input file=%s mismatched with info got from Rucio replica:  job.indata.filesize=%s, replica.filesize=%s, fdat=%s" % (fdat.lfn, fdat.filesize, r['bytes'], fdat))
+
             cc_ad = 'ad:%s' % r['adler32']
             cc_md = 'md:%s' % r['md5']
-            if fdat.checksum not in [cc_ad, cc_md]:
-                self.log("WARNING: checksum value of input file=%s mismatched with info got from Rucio replica:  job.indata.checksum=%s, replica.checksum=%s, fdat=%s" % (fdat.lfn, fdat.filesize, (cc_ad, cc_md), fdat))
-            if fdat.checksum in [None, 'NULL']:
+            if fdat.checksum in [None, 'NULL', '']:
+                self.log("WARNING: checksum is not defined, assigning info got from Rucio to it.")
                 if r['adler32']:
                     fdat.checksum = cc_ad
                 elif r['md5']:
                     fdat.checksum = cc_md
+            elif fdat.checksum not in [cc_ad, cc_md]:
+                self.log("WARNING: checksum value of input file=%s mismatched with info got from Rucio replica:  job.indata.checksum=%s, replica.checksum=%s, fdat=%s" % (fdat.lfn, fdat.checksum, (cc_ad, cc_md), fdat))
 
         self.log('Number of resolved replicas:\n' + '\n'.join(["lfn=%s: replicas=%s, allowRemoteInputs=%s, is_directaccess=%s" % (e.lfn, len(e.replicas), e.allowRemoteInputs,  e.is_directaccess(ensure_replica=False)) for e in files]))
 
