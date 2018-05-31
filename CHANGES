@@ -738,6 +738,9 @@ Timing info
 - Updated code to use get_cpu_consumption_time() instead of setTimeConsumed() (RunJob*)
 - Removed unused setTimeConsumed() (pUtil)
 
+Google related fix
+- Added https:// protocol to allowed_replica_schemas in is_directaccess() (Job)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
