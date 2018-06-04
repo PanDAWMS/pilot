@@ -610,6 +610,7 @@ class Monitor:
 
             # update the CPU consumption time
             t0 = getOsTimesTuple(self.__env['jobDic'][k][1].workdir)
+            pUtil.tolog('updateJobs: t0 = %s' % str(t0))
             if t0:
                 cpuconsumptiontime = get_instant_cpu_consumption_time(self.__env['jobDic']["prod"][0])
                 self.__env['jobDic'][k][1].cpuConsumptionTime = int(cpuconsumptiontime)

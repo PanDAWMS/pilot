@@ -272,6 +272,8 @@ class ATLASExperiment(Experiment):
 
             cmd = cmd.replace(';;', ';')
 
+            cmd += ';sleep 3600'
+
         else: # Generic, non-ATLAS specific jobs, or at least a job with undefined swRelease
 
             tolog("Generic job")
