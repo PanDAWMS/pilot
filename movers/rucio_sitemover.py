@@ -84,6 +84,7 @@ class rucioSiteMover(BaseSiteMover):
 
         tolog('stageIn: %s' % cmd)
         s, o = getstatusoutput(cmd)
+        tolog('stageInOutput: s=%s o=%s' % (s, o))
         if s:
             tolog('stageIn with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
             try:

@@ -742,6 +742,9 @@ Timing info
 Google related fix
 - Added https:// protocol to allowed_replica_schemas in is_directaccess() (Job)
 
+LAPP debugging
+- Added command output to log (detailed rucio output), in stageIn() (rucio_sitemover)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
