@@ -615,7 +615,7 @@ class Monitor:
                 self.__env['jobDic'][k][1].cpuConsumptionTime = int(cpuconsumptiontime)
                 self.__env['jobDic'][k][1].cpuConsumptionUnit = 's'
                 self.__env['jobDic'][k][1].cpuConversionFactor = 1.0
-                pUtil.tolog("Job CPU usage: %d" % (job.cpuConsumptionTime))
+                pUtil.tolog("Job CPU usage: %d" % (self.__env['jobDic'][k][1].cpuConsumptionTime))
 
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp != "finished" and tmp != "failed" and tmp != "holding":
