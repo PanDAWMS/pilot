@@ -1198,6 +1198,11 @@ def createPoolFileCatalog(file_dictionary, lfns, pfc_name="PoolFileCatalog.xml",
 
         pfc_text += '</POOLFILECATALOG>\n'
         # tolog(str(doc.toxml()))
+
+        # add escape character for & (needed for google turls)
+        if '&' in pfc_text:
+            pfc_text = pfc_text.replace('&',  '&#038;')
+
         tolog(pfc_text)
 
         try:
