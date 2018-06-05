@@ -299,6 +299,8 @@ def get_cpu_consumption_time(t0):
     t1 = os.times()
     user_time = t1[2] - t0[2]
     system_time = t1[3] - t0[3]
+    pUtil('user time=%d' % user_time)
+    pUtil('system time=%d' % system_time)
 
     return user_time + system_time
 
@@ -333,6 +335,8 @@ def get_instant_cpu_consumption_time(pid):
     if utime and stime and cutime and cstime:
         # sum up all the user+system times for both the main process (pid) and the child processes
         cpu_consumption_time = utime + stime + cutime + cstime
+        pUtil('. user time=%d' % utime)
+        pUtil('. system time=%d' % stime)
     else:
         cpu_consumption_time = 0.0
 
