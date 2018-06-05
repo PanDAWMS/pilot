@@ -299,8 +299,8 @@ def get_cpu_consumption_time(t0):
     t1 = os.times()
     user_time = t1[2] - t0[2]
     system_time = t1[3] - t0[3]
-    pUtil('user time=%d' % user_time)
-    pUtil('system time=%d' % system_time)
+    pUtil.tolog('user time=%d' % user_time)
+    pUtil.tolog('system time=%d' % system_time)
 
     return user_time + system_time
 
