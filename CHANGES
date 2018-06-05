@@ -741,6 +741,7 @@ Timing info
 
 Google related fix
 - Added https:// protocol to allowed_replica_schemas in is_directaccess() (Job)
+- Added escape character for & (needed for google turls); replace with &#038; (happens in google turls) in createPoolFileCatalog() (pUtil)
 
 LAPP debugging
 - Added command output to log (detailed rucio output), in stageIn() (rucio_sitemover)
