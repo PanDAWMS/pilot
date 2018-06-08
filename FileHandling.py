@@ -1,6 +1,7 @@
 # This module contains functions related to file handling.
 
 import os
+import uuid
 
 from pUtil import tolog, convert, readpar
 
@@ -1008,6 +1009,7 @@ def touch(path):
     with open(path, 'a'):
         os.utime(path, None)
 
+
 def getOsTimesTuple(workdir):
     """ Read os.times() from a txt file and convert it back to a proper os.times() tuple again """
     # This function is used to calculate the cpu consumption time. The t0_times.txt file is created just before the
@@ -1042,3 +1044,4 @@ def getOsTimesTuple(workdir):
         tolog("t0 file does not exist - probably the payload was not executed")
 
     return None
+
