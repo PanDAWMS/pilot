@@ -598,6 +598,9 @@ class JobMover(object):
         sitemover_objects = {}
         is_replicas_resolved = False
 
+        # remember the original tracing choise
+        useTracingService = self.useTracingService
+
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
@@ -613,6 +616,13 @@ class JobMover(object):
                     break
 
                 copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
+
+                # switch off tracing if copytool=rucio, as this is handled internally by rucio
+                if copytool == 'rucio':
+                    self.useTracingService = False
+                else:
+                    # re-activate tracing in case rucio is not used for staging
+                    self.useTracingService = useTracingService
 
                 try:
                     sitemover = sitemover_objects.get(copytool)
