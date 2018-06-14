@@ -1579,7 +1579,6 @@ class JobMover(object):
         """
 
         if not self.useTracingService:
-            self.log("Experiment is not using Tracing service. skip sending tracing report")
             return False
 
         # remove any escape characters that might be present in the stateReason field
