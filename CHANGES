@@ -741,6 +741,7 @@ Timing info
 
 Tracing
 - Removed any present escape characters in the stateReason field in sendTrace() (mover)
+- Switched off sending tracing report if rucio copytool is used (and back on if necessary), in stagein_real(), stageout() (mover)
 
 Google related fix
 - Added https:// protocol to allowed_replica_schemas in is_directaccess() (Job)
