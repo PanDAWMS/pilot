@@ -1562,6 +1562,10 @@ class JobMover(object):
             self.log("Experiment is not using Tracing service. skip sending tracing report")
             return False
 
+        # remove any escape characters that might be present in the stateReason field
+        stateReason = report.get('stateReason', '')
+        report.update(stateReason=stateReason.replace('\\', ''))
+
         url = 'https://rucio-lb-prod.cern.ch/traces/'
 
         self.log("Tracing server: %s" % url)
