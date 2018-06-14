@@ -1567,8 +1567,6 @@ class JobMover(object):
         report.update(stateReason=stateReason.replace('\\', ''))
 
         url = 'https://rucio-lb-prod.cern.ch/traces/'
-
-        self.log("Tracing server: %s" % url)
         self.log("Sending tracing report: %s" % report)
 
         try:
