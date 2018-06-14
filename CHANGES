@@ -739,6 +739,10 @@ Timing info
 - Removed unused setTimeConsumed() (pUtil)
 - Creating t0_times.txt file also in RunJobEvent (RunJobEvent)
 
+Tracing
+- Removed any present escape characters in the stateReason field in sendTrace() (mover)
+- Switched off sending tracing report if rucio copytool is used (and back on if necessary), in stagein_real(), stageout() (mover)
+
 Google related fix
 - Added https:// protocol to allowed_replica_schemas in is_directaccess() (Job)
 - Added escape character for & (needed for google turls); replace with &#038; (happens in google turls) in createPoolFileCatalog() (pUtil)

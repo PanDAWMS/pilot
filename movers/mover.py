@@ -598,6 +598,9 @@ class JobMover(object):
         sitemover_objects = {}
         is_replicas_resolved = False
 
+        # remember the original tracing choise
+        useTracingService = self.useTracingService
+
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-in) %s/%s file: lfn=%s' % (fnum, nfiles, fdata.lfn))
@@ -613,6 +616,13 @@ class JobMover(object):
                     break
 
                 copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
+
+                # switch off tracing if copytool=rucio, as this is handled internally by rucio
+                if copytool == 'rucio':
+                    self.useTracingService = False
+                else:
+                    # re-activate tracing in case rucio is not used for staging
+                    self.useTracingService = useTracingService
 
                 try:
                     sitemover = sitemover_objects.get(copytool)
@@ -1120,6 +1130,9 @@ class JobMover(object):
         remain_files = [e for e in ddmfiles.get(ddmendpoint) if e.status not in ['transferred']]
         nfiles = len(remain_files)
 
+        # remember the original tracing choise
+        useTracingService = self.useTracingService
+
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-out) %s/%s file: lfn=%s, fspec.ddmendpoint=%s, activity=%s' % (fnum, nfiles, fdata.lfn, fdata.ddmendpoint, activity))
@@ -1143,6 +1156,13 @@ class JobMover(object):
                         break
 
                     copytool, copysetup = cpsettings.get('copytool'), cpsettings.get('copysetup')
+
+                    # switch off tracing if copytool=rucio, as this is handled internally by rucio
+                    if copytool == 'rucio':
+                        self.useTracingService = False
+                    else:
+                        # re-activate tracing in case rucio is not used for staging
+                        self.useTracingService = useTracingService
 
                     try:
                         sitemover = sitemover_objects.get(copytool)
@@ -1559,12 +1579,13 @@ class JobMover(object):
         """
 
         if not self.useTracingService:
-            self.log("Experiment is not using Tracing service. skip sending tracing report")
             return False
 
-        url = 'https://rucio-lb-prod.cern.ch/traces/'
+        # remove any escape characters that might be present in the stateReason field
+        stateReason = report.get('stateReason', '')
+        report.update(stateReason=stateReason.replace('\\', ''))
 
-        self.log("Tracing server: %s" % url)
+        url = 'https://rucio-lb-prod.cern.ch/traces/'
         self.log("Sending tracing report: %s" % report)
 
         try:
