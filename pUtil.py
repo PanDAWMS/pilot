@@ -2126,7 +2126,7 @@ def toPandaLogger(data):
         return 0, data, response
 
     except:
-        _type, value, traceback = sys.exc_info()
+        _type, value, _traceback = sys.exc_info()
         tolog("ERROR : %s %s" % ( _type, traceback.format_exc()))
         return EC_Failed, None, None
 
@@ -2231,7 +2231,7 @@ def toServer(baseURL, cmd, data, path, experiment):
         else:
             return status, None, None
     except:
-        _type, value, traceback = sys.exc_info()
+        _type, value, _traceback = sys.exc_info()
         tolog("ERROR %s : %s %s" % (cmd, _type, traceback.format_exc()))
         return EC_Failed, None, None
 
@@ -3288,9 +3288,6 @@ def safe_call(func, *args):
 
         exc, msg, tb = sys.exc_info()
         traceback.print_tb(tb)
-#        tb = traceback.format_tb(sys.last_traceback)
-#        for line in tb:
-#            tolog(line)
     else:
         status = True
 
