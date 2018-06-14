@@ -1130,6 +1130,9 @@ class JobMover(object):
         remain_files = [e for e in ddmfiles.get(ddmendpoint) if e.status not in ['transferred']]
         nfiles = len(remain_files)
 
+        # remember the original tracing choise
+        useTracingService = self.useTracingService
+
         for fnum, fdata in enumerate(remain_files, 1):
 
             self.log('INFO: prepare to transfer (stage-out) %s/%s file: lfn=%s, fspec.ddmendpoint=%s, activity=%s' % (fnum, nfiles, fdata.lfn, fdata.ddmendpoint, activity))
@@ -1153,6 +1156,13 @@ class JobMover(object):
                         break
 
                     copytool, copysetup = cpsettings.get('copytool'), cpsettings.get('copysetup')
+
+                    # switch off tracing if copytool=rucio, as this is handled internally by rucio
+                    if copytool == 'rucio':
+                        self.useTracingService = False
+                    else:
+                        # re-activate tracing in case rucio is not used for staging
+                        self.useTracingService = useTracingService
 
                     try:
                         sitemover = sitemover_objects.get(copytool)
