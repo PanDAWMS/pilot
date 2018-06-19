@@ -750,6 +750,58 @@ Google related fix
 LAPP debugging
 - Added command output to log (detailed rucio output), in stageIn() (rucio_sitemover)
 
+Updates from Nicolo Magini:
+
+  https://github.com/PanDAWMS/pilot/pull/216
+
+Commit Summary
+
+Use killpg instead of kill to timeout also all child processes
+
+File Changes
+
+M TimerCommand.py (6)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/215
+
+Commit Summary
+
+allow esmerge to select closest inputs
+
+File Changes
+
+M movers/rucio_sitemover.py (7)
+
+1. on line 314, to allow remote replicas if fdata.storageId is defined (only for esmerge jobs the storageId is defined).
+Normally if there is no replication rule, es unmerge files will only be stored at one place. This modification will not
+change anything. If es unmerge fiels are replicated to somewhere else, this update will allow esmerge job to read from
+all available places (currently this situation will only happen on NERSC es jobs).
+2. fix the checksum and filesize warning messages(it only changes the log messages).
+
+b8e5d35 allow esmerge to read from different place if unmerge file is replaced
+
+1. file.replicas is None but we still try to stagein. It's not normal jobs(for normal jobs if file.replicas is None,
+the job will fail with no replicas.). It can only happen for ES merge jobs.
+2. isDeterministic is True. It means it's not objectstore. Currently it's only NERSC_DATADISK. Doug wants to move the
+es outputs from NERSC_DATADISK to somewhere else and then the esmerge job can stagein from that place(currently es
+merge job can run at CERN or somewhere, and remotely stagein from NERSC_DATADISK).
+
+Mario: This will allow to pull in data from anywhere in the world
+
+Updates from Mario Lassnig:
+
+  https://github.com/PanDAWMS/pilot/pull/214
+
+Commit Summary
+
+allow https URLs for Google SE
+
+File Changes
+
+M movers/mover.py (2)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
