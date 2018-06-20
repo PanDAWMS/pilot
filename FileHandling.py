@@ -691,7 +691,7 @@ def getDirSize(d):
 
     # E.g., size_str = "900\t/scratch-local/nilsson/pilot3z"
     try:
-       # Remove tab and path, and convert to int (and B)
+        # Remove tab and path, and convert to int (and B)
         size = int(size_str.split("\t")[0])*1024
     except Exception, e:
         tolog("!!WARNING!!4343!! Failed to convert to int: %s" % (e))
