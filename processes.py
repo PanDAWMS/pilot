@@ -344,3 +344,16 @@ def get_instant_cpu_consumption_time(pid):
         cpu_consumption_time = 0.0
 
     return cpu_consumption_time
+
+def get_current_cpu_consumption_time(pid):
+    # get all the child processes                                                                                                                               
+    children = []
+    findProcessesInGroup(children, pid)
+
+    cpuconsumptiontime = 0
+    for _pid in children:
+        _cpuconsumptiontime = get_instant_cpu_consumption_time(_pid)
+        if _cpuconsumptiontime:
+            cpuconsumptiontime += _cpuconsumptiontime
+
+    return cpuconsumptiontime

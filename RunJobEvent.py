@@ -39,7 +39,7 @@ from StoppableThread import StoppableThread
 from pUtil import tolog, isAnalysisJob, readpar, createLockFile, getDatasetDict,\
      tailPilotErrorDiag, getExperiment, getEventService,\
      getSiteInformation, getGUID
-from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes, getReplicaDictionaryFromXML
+from FileHandling import getExtension, addToOSTransferDictionary, getCPUTimes, getReplicaDictionaryFromXML, writeFile
 from EventRanges import downloadEventRanges, updateEventRange, updateEventRanges
 from movers.base import BaseSiteMover
 from processes import get_cpu_consumption_time
@@ -3918,6 +3918,11 @@ if __name__ == "__main__":
             tolog("!!WARNING!!3344!! Failed to write t0 to file, will not be able to calculate CPU consumption time on the fly")
 
         athenaMPProcess = runJob.getSubprocess(thisExperiment, runCommandList[0], stdout=athenamp_stdout, stderr=athenamp_stderr)
+
+        if athenaMPProcess:
+             path = os.path.join(job.workdir, 'cpid.txt')
+             if writeFile(path, str(athenaMPProcess.pid)):
+                 tolog("Wrote cpid=%s to file %s" % (athenaMPProcess.pid, path))
 
         # Start the utility if required
         utility_subprocess = runJob.getUtilitySubprocess(thisExperiment, runCommandList[0], athenaMPProcess.pid, job)

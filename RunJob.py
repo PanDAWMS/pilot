@@ -953,6 +953,10 @@ class RunJob(object):
                 main_subprocess = self.getSubprocess(thisExperiment, cmd, stdout=file_stdout, stderr=file_stderr)
 
                 if main_subprocess:
+
+                    path = os.path.join(job.workdir, 'cpid.txt')
+                    if writeFile(path, str(main_subprocess.pid)):
+                        tolog("Wrote cpid=%s to file %s" % (main_subprocess.pid, path))
                     time.sleep(2)
 
                     # Start the utility if required

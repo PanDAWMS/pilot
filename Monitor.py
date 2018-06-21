@@ -16,14 +16,14 @@ from shutil import copy, copy2
 from random import shuffle
 from glob import glob
 from JobRecovery import JobRecovery
-from processes import killProcesses, checkProcesses, killOrphans, getMaxMemoryUsageFromCGroups, get_instant_cpu_consumption_time
+from processes import killProcesses, checkProcesses, killOrphans, getMaxMemoryUsageFromCGroups, get_current_cpu_consumption_time, findProcessesInGroup
 from PilotErrors import PilotErrors
 from FileStateClient import createFileStates, dumpFileStates, getFileState
 from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
-from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize, getOsTimesTuple
+from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize, getOsTimesTuple, writeFile, readFile
 
 import inspect
 
@@ -611,11 +611,21 @@ class Monitor:
             # update the CPU consumption time
             t0 = getOsTimesTuple(self.__env['jobDic'][k][1].workdir)
             if t0 and self.__env['jobDic'][k][1].currentState == 'running':
-                cpuconsumptiontime = get_instant_cpu_consumption_time(self.__env['jobDic']["prod"][0])
-                self.__env['jobDic'][k][1].cpuConsumptionTime = int(cpuconsumptiontime)
-                self.__env['jobDic'][k][1].cpuConsumptionUnit = 's'
-                self.__env['jobDic'][k][1].cpuConversionFactor = 1.0
-                pUtil.tolog("Job CPU usage: %d" % (self.__env['jobDic'][k][1].cpuConsumptionTime))
+                path = os.path.join(self.__env['jobDic'][k][1].workdir, 'cpid.txt')
+                cpid = readFile(path)
+                if cpid:
+                    try:
+                        _cpid = int(cpid)
+                    except Exception as e:
+                        pUtil.tolog('failed to convert %s to int: %s' % (cpid, e))
+                    else:
+                        cpuconsumptiontime = get_current_cpu_consumption_time(_cpid)
+                        #cpuconsumptiontime = get_instant_cpu_consumption_time(_cpid)
+                        #cpuconsumptiontime = get_instant_cpu_consumption_time(self.__env['jobDic']["prod"][0])
+                        self.__env['jobDic'][k][1].cpuConsumptionTime = int(cpuconsumptiontime)
+                        self.__env['jobDic'][k][1].cpuConsumptionUnit = 's'
+                        self.__env['jobDic'][k][1].cpuConversionFactor = 1.0
+                        pUtil.tolog("Job CPU usage: %d" % (self.__env['jobDic'][k][1].cpuConsumptionTime))
 
             tmp = self.__env['jobDic'][k][1].result[0]
             if tmp != "finished" and tmp != "failed" and tmp != "holding":
@@ -1453,6 +1463,10 @@ class Monitor:
                 self.__env['jobDic']["prod"][2] = os.getpgrp()
                 self.__env['jobDic']["prod"][1].result[0] = "running"
 
+                #path = os.path.join(self.__env['jobDic']["prod"][1].workdir, 'cpid.txt')
+                #if writeFile(path, str(os.getpid())):
+                #    pUtil.tolog("Wrote cpid=%s to file %s (pid_1=%d)" % (str(os.getpid()), path, pid_1))
+
                 pUtil.tolog("Parent process %s has set job state: %s" % (pid_1, self.__env['jobDic']["prod"][1].result[0]))
 
                 # do not set self.__jobDic["prod"][1].currentState = "running" here (the state is at this point only needed for the server)
@@ -1465,7 +1479,8 @@ class Monitor:
                 if self.__env['jobDic']["prod"][1].eventService and (pUtil.readpar('catchall') and "HPC" not in pUtil.readpar('catchall')):
                     self.__env['update_freq_server'] =  10 * 60
             else: # child job
-                pUtil.tolog("Starting child process in dir: %s" % self.__env['jobDic']["prod"][1].workdir)
+
+                pUtil.tolog("Starting child process (pid=%d) in dir: %s" % (os.getpid(), self.__env['jobDic']["prod"][1].workdir))
 
                 # Decide which subprocess is to be launched (using info stored in the job object)
                 subprocessName = thisExperiment.getSubprocessName(self.__env['jobDic']["prod"][1].eventService)
@@ -1509,6 +1524,28 @@ class Monitor:
 
                 pUtil.tolog("--- Main pilot monitoring loop (job id %s, state:%s (%s), iteration %d)"
                             % (self.__env['job'].jobId, self.__env['job'].currentState, self.__env['jobDic']["prod"][1].result[0], iteration))
+
+                # update the CPU consumption time
+                t0 = getOsTimesTuple(self.__env['jobDic'][k][1].workdir)
+                if t0 and self.__env['jobDic'][k][1].currentState == 'running':
+                    path = os.path.join(self.__env['jobDic'][k][1].workdir, 'cpid.txt')
+                    cpid = readFile(path)
+                    if cpid:
+                        try:
+                            _cpid = int(cpid)
+                        except Exception as e:
+                            pUtil.tolog('failed to convert %s to int: %s' % (cpid, e))
+                        else:
+                            pUtil.tolog('getting instant CPU consumption time for pid=%d' % _cpid)
+                            cpuconsumptiontime = get_current_cpu_consumption_time(_cpid)
+                            # cpuconsumptiontime = get_instant_cpu_consumption_time(self.__env['jobDic']["prod"][0])
+                            self.__env['jobDic'][k][1].cpuConsumptionTime = int(cpuconsumptiontime)
+                            self.__env['jobDic'][k][1].cpuConsumptionUnit = 's'
+                            self.__env['jobDic'][k][1].cpuConversionFactor = 1.0
+                            pUtil.tolog("Job CPU usage: %d" % (self.__env['jobDic'][k][1].cpuConsumptionTime))
+                    else:
+                        pUtil.tolog('CPU consumption time cannot be calculated since child pid is not known')
+
                 self.__check_memory_usage()
                 self.__check_remaining_space()
                 if self.__env['proxycheckFlag']:
