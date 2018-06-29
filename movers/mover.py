@@ -697,7 +697,9 @@ class JobMover(object):
                             self.log('INFO: cross-sites checks: protocol_site=%s and replica_site=%s mismatched but remote inputs is allowed.. keep processing for copytool=%s' % (protocol_site, replica_site, copytool))
 
                 # fill trace details
-                self.trace_report.update(localSite=fdata.ddmendpoint, remoteSite=fdata.ddmendpoint)
+                localSite = os.environ.get('DQ2_LOCAL_SITE_ID', None)
+                localSite = localSite if localSite else fdata.ddmendpoint
+                self.trace_report.update(localSite=localSite, remoteSite=fdata.ddmendpoint)
                 self.trace_report.update(filename=fdata.lfn, guid=fdata.guid.replace('-', ''))
                 self.trace_report.update(scope=fdata.scope, dataset=fdata.prodDBlock)
 
@@ -1198,7 +1200,9 @@ class JobMover(object):
                     self.log("Copy command [stage-out][%s]: %s, sitemover=%s" % (activity, copytool, sitemover))
                     self.log("Copy setup   [stage-out][%s]: %s" % (activity, copysetup))
 
-                    self.trace_report.update(protocol=copytool, localSite=ddmendpoint, remoteSite=ddmendpoint)
+                    localSite = os.environ.get('DQ2_LOCAL_SITE_ID', None)
+                    localSite = localSite if localSite else ddmendpoint
+                    self.trace_report.update(protocol=copytool, localSite=localSite, remoteSite=ddmendpoint)
 
                     # validate se value?
                     se, se_path = dat.get('se', ''), dat.get('path', '')
@@ -1440,7 +1444,9 @@ class JobMover(object):
         surl_prot = surl_prot[0] # take first
         self.log("[do_put_files] SURL protocol to be used: %s" % surl_prot)
 
-        self.trace_report.update(localSite=ddmendpoint, remoteSite=ddmendpoint)
+        localSite = os.environ.get('DQ2_LOCAL_SITE_ID', None)
+        localSite = localSite if localSite else ddmendpoint
+        self.trace_report.update(localSite=localSite, remoteSite=ddmendpoint)
 
         transferred_files, failed_transfers = [], []
 
