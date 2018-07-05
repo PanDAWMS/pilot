@@ -77,6 +77,15 @@ merge job can run at CERN or somewhere, and remotely stagein from NERSC_DATADISK
 
 Mario: This will allow to pull in data from anywhere in the world
 
+  https://github.com/PanDAWMS/pilot/pull/217
+
+Commit Summary
+
+fix localSite
+File Changes
+
+M movers/mover.py (12)
+
 Updates from Mario Lassnig:
 
   https://github.com/PanDAWMS/pilot/pull/214
