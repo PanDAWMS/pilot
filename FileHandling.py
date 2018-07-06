@@ -1,7 +1,7 @@
 # This module contains functions related to file handling.
 
 import os
-import uuid
+from commands import getoutput
 
 from pUtil import tolog, convert, readpar
 
@@ -159,37 +159,6 @@ def writeFile(filename, contents, mode='w'):
         f.close()
 
     return status
-
-def tail(f, lines=10):
-    """ Get the n last lines from file f """
-
-    if lines == 0:
-        return ""
-
-    BUFSIZ = 1024
-    f.seek(0, 2)
-    bytes = f.tell()
-    size = lines + 1
-    block = -1
-    data = []
-    while size > 0 and bytes > 0:
-        if bytes - BUFSIZ > 0:
-            # Seek back one whole BUFSIZ
-            f.seek(block * BUFSIZ, 2)
-            # read BUFFER
-            data.insert(0, f.read(BUFSIZ))
-        else:
-            # file too small, start from begining
-            f.seek(0,0)
-            # only read what was not read
-            data.insert(0, f.read(bytes))
-        linesFound = data[0].count('\n')
-        size -= linesFound
-        bytes -= BUFSIZ
-        block -= 1
-
-    tail_list = ''.join(data).splitlines()[-lines:]
-    return '\n'.join(tail_list)
 
 def getTracingReportFilename():
     """ Return the name of the tracing report JSON file """
@@ -1009,7 +978,6 @@ def touch(path):
     with open(path, 'a'):
         os.utime(path, None)
 
-
 def getOsTimesTuple(workdir):
     """ Read os.times() from a txt file and convert it back to a proper os.times() tuple again """
     # This function is used to calculate the cpu consumption time. The t0_times.txt file is created just before the
@@ -1045,3 +1013,19 @@ def getOsTimesTuple(workdir):
 
     return None
 
+def get_files(pattern="*.log"):
+
+    files = []
+    stdout = getoutput("find . -name %s" % pattern)
+    if stdout:
+        # remove last \n if present
+        if stdout.endswith('\n'):
+            stdout = stdout[:-1]
+        files = stdout.split('\n')
+
+    print files
+    return files
+
+def tail(filename, lines=10):
+
+    return getoutput('tail -%d %s' % (lines, filename))
