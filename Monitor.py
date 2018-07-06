@@ -23,7 +23,7 @@ from WatchDog import WatchDog
 from PilotTCPServer import PilotTCPServer
 from UpdateHandler import UpdateHandler
 from RunJobFactory import RunJobFactory
-from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize, getOsTimesTuple, writeFile, readFile
+from FileHandling import updatePilotErrorReport, getDirSize, storeWorkDirSize, getOsTimesTuple, readFile, get_files, tail
 
 import inspect
 
@@ -632,14 +632,18 @@ class Monitor:
 
                 # get the tail if possible
                 try:
-                    self.__env['stdout_tail'] = stdout_dictionary[self.__env['jobDic'][k][1].jobId]
+                    # find the latest updated log file
+                    list_of_files = get_files()
+                    latest_file = max(list_of_files, key=os.path.getctime)
+                    pUtil.tolog('tail of file %s will be added to heartbeat' % latest_file)
+                    # now get the tail of the found log file
+                    _tail = tail(latest_file)
+                    self.__env['stdout_tail'] = _tail  # stdout_dictionary[self.__env['jobDic'][k][1].jobId]
                     index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
                     self.__env['stdout_path'] = stdout_dictionary[index]
-                    pUtil.tolog("stdout_path=%s at index=%s" % (self.__env['stdout_path'], index))
                 except Exception, e:
                     self.__env['stdout_tail'] = "(stdout tail not available)"
                     self.__env['stdout_path'] = ""
-                    pUtil.tolog("no stdout_path: %s" % (e))
 
                 # update the panda server
                 try:

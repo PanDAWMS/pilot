@@ -1023,7 +1023,6 @@ def get_files(pattern="*.log"):
             stdout = stdout[:-1]
         files = stdout.split('\n')
 
-    print files
     return files
 
 def tail(filename, lines=10):
