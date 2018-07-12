@@ -631,19 +631,20 @@ class Monitor:
             if tmp != "finished" and tmp != "failed" and tmp != "holding":
 
                 # get the tail if possible
-                try:
-                    # find the latest updated log file
-                    list_of_files = get_files()
-                    latest_file = max(list_of_files, key=os.path.getctime)
-                    pUtil.tolog('tail of file %s will be added to heartbeat' % latest_file)
-                    # now get the tail of the found log file
-                    _tail = tail(latest_file)
-                    self.__env['stdout_tail'] = _tail  # stdout_dictionary[self.__env['jobDic'][k][1].jobId]
-                    index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
-                    self.__env['stdout_path'] = stdout_dictionary[index]
-                except Exception, e:
-                    self.__env['stdout_tail'] = "(stdout tail not available)"
-                    self.__env['stdout_path'] = ""
+                if self.__env['jobDic'][k][1].debug:
+                    try:
+                        # find the latest updated log file
+                        list_of_files = get_files()
+                        latest_file = max(list_of_files, key=os.path.getctime)
+                        pUtil.tolog('tail of file %s will be added to heartbeat' % latest_file)
+                        # now get the tail of the found log file
+                        _tail = tail(latest_file)
+                        self.__env['stdout_tail'] = _tail  # stdout_dictionary[self.__env['jobDic'][k][1].jobId]
+                        index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
+                        self.__env['stdout_path'] = stdout_dictionary[index]
+                    except Exception, e:
+                        self.__env['stdout_tail'] = "(stdout tail not available)"
+                        self.__env['stdout_path'] = ""
 
                 # update the panda server
                 try:
