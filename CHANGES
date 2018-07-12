@@ -104,7 +104,7 @@ M movers/mover.py (2)
 
 Log tailing (requested by R. Walker)
 - Created get_files(), removed old implementation of tail(), added a new version of tail() [FileHandling]
-- Now adding the tail of the latest found log file in the payload workdir, in __updateJobs() [Monitor]
+- Now adding the tail of the latest found log file in the payload workdir (debug mode), in __updateJobs() [Monitor]
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
