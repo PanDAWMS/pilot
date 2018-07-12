@@ -456,7 +456,7 @@ class Job:
             # use default
             pass
 
-        self.debug = data.get('debug', 'False')
+        self.debug = True # data.get('debug', 'False')
         self.prodSourceLabel = data.get('prodSourceLabel', '')
 
         # PN tmp

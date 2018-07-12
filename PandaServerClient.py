@@ -758,7 +758,7 @@ class PandaServerClient:
         node['xml'] = self.getXML(job, site.sitename, site.workdir, xmlstr=xmlstr, jr=jr)
 
         # stdout tail in case job.debug == 'true'
-        if job.debug.lower() == "true" and stdout_tail != "":
+        if job.debug and stdout_tail != "":
             # protection for potentially large tails
             stdout_tail = stdout_tail[-2048:]
             node['stdout'] = stdout_tail
@@ -792,7 +792,7 @@ class PandaServerClient:
             else:
                 tolog("stdout_path not set")
         else:
-            if job.debug.lower() != "true":
+            if not job.debug:
                 tolog("Stdout tail will not be sent (debug=False)")
             elif stdout_tail == "":
                 tolog("Stdout tail will not be sent (no stdout tail)")

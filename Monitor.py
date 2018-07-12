@@ -693,14 +693,14 @@ class Monitor:
                     pUtil.tolog("Pilot received a command to turn on debug mode from the server")
                     self.__env['update_freq_server'] = 5*60
                     pUtil.tolog("Server update frequency lowered to %d s" % (self.__env['update_freq_server']))
-                    self.__env['jobDic'][k][1].debug = "True"
+                    self.__env['jobDic'][k][1].debug = True
 
                 # did we receive a command to turn off debug mode?
                 if "debugoff" in self.__env['jobDic'][k][1].action.lower():
                     pUtil.tolog("Pilot received a command to turn off debug mode from the server")
                     self.__env['update_freq_server'] = 30*60
                     pUtil.tolog("Server update frequency increased to %d s" % (self.__env['update_freq_server']))
-                    self.__env['jobDic'][k][1].debug = "False"
+                    self.__env['jobDic'][k][1].debug = False
 
 
     def __loopingJobKiller(self):

@@ -3812,7 +3812,7 @@ def getStdoutDictionary(jobDic):
         jobId = jobDic[k][1].jobId
 
         # abort if not debug mode, but save an empty entry in the dictionary
-        if jobDic[k][1].debug.lower() != "true":
+        if not jobDic[k][1].debug:
             stdout_dictionary[jobId] = ""
             continue
 
