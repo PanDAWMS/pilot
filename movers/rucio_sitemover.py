@@ -56,34 +56,34 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
-                                                                      fspec.ddmendpoint,
-                                                                      fspec.turl,
-                                                                      fspec.scope,
-                                                                      fspec.lfn)
+#        cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
+#                                                                      fspec.ddmendpoint,
+#                                                                      fspec.turl,
+#                                                                      fspec.scope,
+#                                                                      fspec.lfn)
 
-        #        if fspec.replicas:
-#            if not fspec.allowAllInputRSEs:
-#                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
-#                                                                     fspec.replicas[0][0],
-#                                                                     fspec.scope,
-#                                                                     fspec.lfn)
-#            else:
-#                cmd = 'rucio -v download --dir %s %s:%s' % (dirname(dst),
-#                                                            fspec.scope,
-#                                                            fspec.lfn)
-#        else:
-#            if self.isDeterministic(fspec.ddmendpoint):
-#                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
-#                                                                     fspec.ddmendpoint,
-#                                                                     fspec.scope,
-#                                                                     fspec.lfn)
-#            else:
-#                cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
-#                                                                              fspec.ddmendpoint,
-#                                                                              fspec.turl,
-#                                                                              fspec.scope,
-#                                                                              fspec.lfn)
+        if fspec.replicas:
+            if not fspec.allowAllInputRSEs:
+                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                                     fspec.replicas[0][0],
+                                                                     fspec.scope,
+                                                                     fspec.lfn)
+            else:
+                cmd = 'rucio -v download --dir %s %s:%s' % (dirname(dst),
+                                                            fspec.scope,
+                                                            fspec.lfn)
+        else:
+            if self.isDeterministic(fspec.ddmendpoint):
+                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
+                                                                     fspec.ddmendpoint,
+                                                                     fspec.scope,
+                                                                     fspec.lfn)
+            else:
+                cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
+                                                                              fspec.ddmendpoint,
+                                                                              fspec.turl,
+                                                                              fspec.scope,
+                                                                              fspec.lfn)
         # Prepend the command with singularity if necessary
         from Singularity import singularityWrapper
         cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))

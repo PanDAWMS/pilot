@@ -111,7 +111,10 @@ Log tailing (requested by R. Walker)
 73.2
 
 list_replicas()
-- Specifying --pfn in rucio download, stageIn(), which will prevent list_replicas() from being used on server side (rucio_sitemover)
+- OUTCOMMENTED: Specifying --pfn in rucio download, stageIn(), which will prevent list_replicas() from being used on server side (rucio_sitemover)
+
+Backslash issue at TRIUMF
+- Removed singularity wrapper from stageInFile() and stageOutFile() (gfalcoy_sitemover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
