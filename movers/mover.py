@@ -576,7 +576,7 @@ class JobMover(object):
 
         # direct access settings
         allow_directaccess, directaccesstype = self.get_directaccess() ## resolve Site depended direct_access settings
-        self.log("direct access mode requsted by task: job.accessmode=%s" % self.job.accessmode)
+        self.log("direct access mode requested by task: job.accessmode=%s" % self.job.accessmode)
         self.log("direct access mode supported by the site: allow_directaccess=%s (type=%s)" % (allow_directaccess, directaccesstype))
 
         if self.job.accessmode != 'direct': ## task forbids direct access
