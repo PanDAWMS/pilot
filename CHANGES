@@ -113,6 +113,10 @@ Log tailing (requested by R. Walker)
 list_replicas()
 - Specifying --pfn in rucio download, stageIn(), which will prevent list_replicas() from being used on server side (rucio_sitemover)
 
+Overwritten "Payload exceeded max allowed memory" fix
+- Now setting ERR_PAYLOADEXCEEDMAXMEM if MEMORYEXCEEDED file detected at the end of interpretPayloadStdout() to prevent
+  signal error from being set instead. Requested by R. Walker (ATLASExperiment)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:

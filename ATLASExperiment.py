@@ -1439,6 +1439,13 @@ class ATLASExperiment(Experiment):
             else:
                 job.pilotErrorDiag = "Payload failed due to unknown reason (check payload stdout)"
                 job.result[2] = error.ERR_UNKNOWN
+
+            # Any errors due to signals can be ignored if the job was killed because of out of memory
+            if os.path.exists(os.path.join(job.workdir, "MEMORYEXCEEDED")):
+                tolog("Ignoring any previously detected errors (like signals) since MEMORYEXCEEDED file was found")
+                job.pilotErrorDiag = "Payload exceeded maximum allowed memory"
+                job.result[2] = error.ERR_PAYLOADEXCEEDMAXMEM
+
             tolog("!!FAILED!!3000!! %s" % (job.pilotErrorDiag))
 
         # set the trf diag error
