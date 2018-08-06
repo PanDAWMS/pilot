@@ -185,8 +185,8 @@ class gfalcopySiteMover(BaseSiteMover):
         cmd = '%s --verbose %s -p -f -t %s %s -S %s %s %s' % (self.copy_command, checksum_opt, timeout, gfal_prop, token, srcUrl, destination)
 
         # Prepend the command with singularity if necessary
-        #from Singularity import singularityWrapper
-        #cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(src))
+        from Singularity import singularityWrapper
+        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(src))
 
         return self._stagefile(cmd, src, destination, filesize, is_stagein=False)
 
@@ -215,8 +215,8 @@ class gfalcopySiteMover(BaseSiteMover):
         cmd = '%s --verbose %s -f -t %s %s %s %s' % (self.copy_command, checksum_opt, timeout, gfal_prop, source, dstUrl)
 
         # Prepend the command with singularity if necessary
-        #from Singularity import singularityWrapper
-        #cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(destination))
+        from Singularity import singularityWrapper
+        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(destination))
 
         return self._stagefile(cmd, source, destination, fspec.filesize, is_stagein=True)
 
