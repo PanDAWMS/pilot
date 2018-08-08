@@ -62,28 +62,6 @@ class rucioSiteMover(BaseSiteMover):
                                                                       fspec.scope,
                                                                       fspec.lfn)
 
-#        if fspec.replicas:
-#            if not fspec.allowAllInputRSEs:
-#                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
-#                                                                     fspec.replicas[0][0],
-#                                                                     fspec.scope,
-#                                                                     fspec.lfn)
-#            else:
-#                cmd = 'rucio -v download --dir %s %s:%s' % (dirname(dst),
-#                                                            fspec.scope,
-#                                                            fspec.lfn)
-#        else:
-#            if self.isDeterministic(fspec.ddmendpoint):
-#                cmd = 'rucio -v download --dir %s --rse %s %s:%s' % (dirname(dst),
-#                                                                     fspec.ddmendpoint,
-#                                                                     fspec.scope,
-#                                                                     fspec.lfn)
-#            else:
-#                cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
-#                                                                              fspec.ddmendpoint,
-#                                                                              fspec.turl,
-#                                                                              fspec.scope,
-#                                                                              fspec.lfn)
         # Prepend the command with singularity if necessary
         from Singularity import singularityWrapper
         cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
@@ -120,19 +98,27 @@ class rucioSiteMover(BaseSiteMover):
 
         from rucio.client.downloadclient import DownloadClient
 
-        dclient = DownloadClient()
-        lfn = '%s:%s' % (fspec.scope, fspec.lfn)
-        dst_dir = dirname(dst)
-        if fspec.replicas:
-            if not fspec.allowAllInputRSEs:
-                dclient.download([lfn], fspec.replicas[0][0], dir=dst_dir)
-            else:
-                dclient.download([lfn], '', dir=dst_dir)
+        f = {}
+        f['scope'] = fspec.scope
+        f['name'] = fspec.lfn
+        f['did'] = '%s:%s' % (fspec.scope, fspec.lfn)
+        f['rse'] = fspec.ddmendpoint
+        f['base_dir'] = dirname(dst)
+        if fspec.turl:
+            f['pfn'] = fspec.turl
+
+        result = []
+        download_client = DownloadClient()
+        if fspec.turl:
+            result = download_client.download_pfns([f], 1)
         else:
-            if self.isDeterministic(fspec.ddmendpoint):
-                dclient.download([lfn], fspec.ddmendpoint, dir=dst_dir)
-            else:
-                dclient.download([lfn], fspec.ddmendpoint, pfn=fspec.turl, dir=dst_dir)
+            result = download_client.download_dids([f])
+
+        clientState = 'FAILED'
+        if result:
+            clientState = result[0].get('clientState', 'FAILED') 
+        return clientState
+        
 
     def stageOut(self, src, dst, fspec):
         """
