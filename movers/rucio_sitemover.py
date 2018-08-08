@@ -101,10 +101,11 @@ class rucioSiteMover(BaseSiteMover):
         f = {}
         f['scope'] = fspec.scope
         f['name'] = fspec.lfn
-        f['did'] = '%s:%s' % (fspec.scope, fscpec.lfn)
+        f['did'] = '%s:%s' % (fspec.scope, fspec.lfn)
         f['rse'] = fspec.ddmendpoint
+        f['base_dir'] = dst
         if fspec.turl:
-            f['pfn'] = fscpec.turl
+            f['pfn'] = fspec.turl
 
         result = []
         download_client = DownloadClient()
