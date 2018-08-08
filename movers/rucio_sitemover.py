@@ -103,7 +103,7 @@ class rucioSiteMover(BaseSiteMover):
         f['name'] = fspec.lfn
         f['did'] = '%s:%s' % (fspec.scope, fspec.lfn)
         f['rse'] = fspec.ddmendpoint
-        f['base_dir'] = dst
+        f['base_dir'] = dirname(dst)
         if fspec.turl:
             f['pfn'] = fspec.turl
 
