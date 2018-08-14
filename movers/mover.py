@@ -302,7 +302,7 @@ class JobMover(object):
             # local replicas
             for ddm in fdat.inputddms: ## iterate over local ddms and check if replica is exist here
 
-                #pfns = r.get('rses', {}).get(ddm)  ## use me when Rucio server-size sort fix will be deployed
+                #pfns = r.get('rses', {}).get(ddm)  ## use me when Rucio server-side sort fix will be deployed
                 pfns = ordered_replicas.get(ddm)    ## quick workaround, use mannually sorted data
 
                 if not pfns: # no replica found for given local ddm
@@ -328,7 +328,7 @@ class JobMover(object):
                 self.log("consider first/closest replica, accessmode=%s, remoteinput_allowed_schemas=%s" % (fdat.accessmode, allowed_schemas))
 
                 for ddm, pfns in r['rses'].iteritems():
-                    pfns = ordered_replicas.get(ddm) or [] ## quick workaround, use manually sorted data, REMOVE ME when Rucio server-size sort fix will be deployed
+                    pfns = ordered_replicas.get(ddm) or [] ## quick workaround, use manually sorted data, REMOVE ME when Rucio server-side sort fix will be deployed
 
                     replica = get_preferred_replica(pfns, self.remoteinput_allowed_schemas)
                     if not replica:
