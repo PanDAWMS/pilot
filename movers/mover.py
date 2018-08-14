@@ -327,17 +327,17 @@ class JobMover(object):
                 self.log("No local replicas found for lfn=%s or direct access is set but no local direct access files, but allowRemoteInputs is set, looking for remote inputs" % (fdat.lfn))
                 self.log("consider first/closest replica, accessmode=%s, remoteinput_allowed_schemas=%s" % (fdat.accessmode, allowed_schemas))
 
-                for ddm, pnfs in r['rses'].iteritems():
+                for ddm, pfns in r['rses'].iteritems():
                     pfns = ordered_replicas.get(ddm) or [] ## quick workaround, use manually sorted data, REMOVE ME when Rucio server-size sort fix will be deployed
 
-                    replica = get_preferred_replica(pnfs, self.remoteinput_allowed_schemas)
+                    replica = get_preferred_replica(pfns, self.remoteinput_allowed_schemas)
                     if not replica:
                         continue
 
                     ddm_se, ddm_path = '', ''
 
                     # remoteinput supported replica (root) replica has been found
-                    fdat.replicas.append((ddm, pnfs, ddm_se, ddm_path))
+                    fdat.replicas.append((ddm, pfns, ddm_se, ddm_path))
                     # break # ignore other remote replicas/sites
 
             # verify filesize and checksum values
