@@ -259,7 +259,7 @@ class BaseSiteMover(object):
         def get_preferred_replica(replicas, allowed_schemas):
             for sval in allowed_schemas:
                 for r in replicas:
-                    if r and r.startswith('%s://' % schema):
+                    if r and r.startswith('%s://' % sval):
                         return r
             return None
 
