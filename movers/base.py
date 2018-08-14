@@ -256,24 +256,25 @@ class BaseSiteMover(object):
                 if replica:
                     break
 
+        def get_preferred_replica(replicas, allowed_schemas):
+            for sval in allowed_schemas:
+                for r in replicas:
+                    if r and r.startswith('%s://' % schema):
+                        return r
+            return None
+
         if not replica: # resolve replica from Rucio: use exact pfn from Rucio replicas
-            for sval in scheme:
-                for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
-                    if not replicas: # ignore ddms with no replicas
-                        continue
-                    surl = replicas[0] # assume srm protocol is first entry
-                    self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
-                    for r in replicas:
-                        if r.startswith("%s://" % sval):
-                            replica = r
-                            break
-                    if replica:
-                        break
+            for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
+                if not replicas: # ignore ddms with no replicas
+                    continue
+                replica = get_preferred_replica(replicas, scheme)
                 if replica:
+                    surl = get_preferred_replica(replicas, ['srm']) or replicas[0] # prefer SRM protocol for surl -- to be verified
+                    self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))
                     break
 
         if not replica: # replica not found
-            error = 'Failed to find replica for input file, protocol=%s, fspec=%s' % (protocol, fspec)
+            error = 'Failed to find replica for input file, protocol=%s, fspec=%s, allowed schemas=%s' % (protocol, fspec, scheme)
             self.log("resolve_replica: %s" % error)
             raise PilotException(error, code=PilotErrors.ERR_REPNOTFOUND)
 

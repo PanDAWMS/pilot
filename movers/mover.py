@@ -285,6 +285,11 @@ class JobMover(object):
 
             fdat.replicas = [] # reset replicas list
 
+            # manually sort replicas by priority value .. can be removed once Rucio server-side fix will be delivered
+            ordered_replicas = {}
+            for pfn, xdat in sorted(r.get('pfns', {}).iteritems(), key=lambda x: x[1]['priority']):
+                ordered_replicas.setdefault(xdat.get('rse'), []).append(pfn)
+
             def get_preferred_replica(replicas, allowed_schemas):
                 for schema in allowed_schemas:
                     for replica in replicas:
@@ -297,7 +302,10 @@ class JobMover(object):
             # local replicas
             for ddm in fdat.inputddms: ## iterate over local ddms and check if replica is exist here
 
-                if ddm not in r['rses']: # no replica found for given local ddm
+                #pfns = r.get('rses', {}).get(ddm)  ## use me when Rucio server-size sort fix will be deployed
+                pfns = ordered_replicas.get(ddm)    ## quick workaround, use mannually sorted data
+
+                if not pfns: # no replica found for given local ddm
                     continue
 
                 ddm_se, ddm_path = '',''
@@ -306,7 +314,7 @@ class JobMover(object):
                 if def_protocol:
                     ddm_se, ddm_path = def_protocol[0], def_protocol[2]
 
-                fdat.replicas.append((ddm, r['rses'][ddm], ddm_se, ddm_path))
+                fdat.replicas.append((ddm, pfns, ddm_se, ddm_path))
 
                 if not has_direct_remoteinput_replicas:
                     has_direct_remoteinput_replicas = bool(get_preferred_replica(r['rses'][ddm], self.direct_remoteinput_allowed_schemas))
