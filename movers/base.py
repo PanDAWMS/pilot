@@ -257,10 +257,10 @@ class BaseSiteMover(object):
                     break
 
         def get_preferred_replica(replicas, allowed_schemas):
-            for sval in allowed_schemas:
-                for r in replicas:
-                    if r and r.startswith('%s://' % sval):
-                        return r
+            for r in replicas:
+                for sval in allowed_schemas:
+                        if r and r.startswith('%s://' % sval):
+                            return r
             return None
 
         if not replica: # resolve replica from Rucio: use exact pfn from Rucio replicas
