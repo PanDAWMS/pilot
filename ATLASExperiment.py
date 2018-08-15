@@ -608,6 +608,7 @@ class ATLASExperiment(Experiment):
                     "saga",
                     "radical",
                     "movers",
+                    "_joproxy15",
                     "ckpt*"]
 
         # remove core and pool.root files from AthenaMP sub directories

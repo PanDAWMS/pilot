@@ -119,6 +119,33 @@ Overwritten "Payload exceeded max allowed memory" fix
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+73.3
+
+Large log files
+- It was reported in JIRA ticket https://its.cern.ch/jira/browse/ADCSUPPORT-5078 that once again log files are too big, this time due to new sub directory _joproxy15
+- Added _joproxy15 to list of redundant directories in removeRedundantFiles() (ATLASExperiment)
+
+Updates from A. Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/220
+
+* movers stage-in: manually sort replicas according to priority values exposed by Rucio
+* fixes applied to mover.py file can be reverted once Rucio server-side patch will be delivered
+
+Commit Summary
+
+movers: fixed logic to properly consider priority of replica protocols for stage-in
+typo fix
+fix
+cosmetic
+File Changes
+
+M movers/base.py (27)
+M movers/mover.py (12)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 TODO:
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
