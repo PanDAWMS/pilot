@@ -311,7 +311,7 @@ class JobMover(object):
                 if not has_direct_remoteinput_replicas:
                     has_direct_remoteinput_replicas = bool(get_preferred_replica(r['rses'][ddm], self.direct_remoteinput_allowed_schemas))
 
-            if ((not fdat.replicas or ( fdat.accessmode == 'direct' and not has_direct_remoteinput_replicas)) and fdat.allowRemoteInputs) or fdat.storageId > 0:
+            if ((not fdat.replicas or ( fdat.accessmode == 'direct' and not has_direct_remoteinput_replicas)) and fdat.allowRemoteInputs) or (not fdat.replicas and fdat.storageId >= 0):
                 if fdat.accessmode == 'direct':
                     allowed_schemas = self.direct_remoteinput_allowed_schemas
                 else:
@@ -499,12 +499,15 @@ class JobMover(object):
 
 
         if es_local_files:
-            self.log("Will stagin es local files: %s" % [f.lfn for f in es_local_files])
-            self.trace_report.update(eventType='get_es')
-            transferred_files_es, failed_transfers_es = self.stagein_real(files=es_local_files, activity='pr', analyjob=analyjob)
-            transferred_files += transferred_files_es
-            failed_transfers += failed_transfers_es
-            self.log("Failed to transfer files: %s" % failed_transfers)
+            try:
+                self.log("Will stagin es local files: %s" % [f.lfn for f in es_local_files])
+                self.trace_report.update(eventType='get_es')
+                transferred_files_es, failed_transfers_es = self.stagein_real(files=es_local_files, activity='pr', analyjob=analyjob)
+                transferred_files += transferred_files_es
+                failed_transfers += failed_transfers_es
+                self.log("Failed to transfer files: %s" % failed_transfers)
+            except Exception, e:
+                self.log("Failed to stagein eventservice local files: %s" % traceback.format_exc())
 
         remain_es_files = [e for e in es_files if e.status not in ['remote_io', 'transferred', 'no_transfer']]
         if remain_es_files:
