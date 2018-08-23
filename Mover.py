@@ -1113,60 +1113,6 @@ def createPFC4TRF(pfc_name, guidfname):
         tolog("Created PFC for trf/runAthena: %s" % (pfc_name))
         dumpFile(pfc_name, topilotlog=True)
 
-def getTURLFileInfoDic(output, shortGuidList, useShortTURLs, sitename):
-    """ interpret the lcg-getturls stdout and return the TURL file dictionary """
-
-    error = PilotErrors()
-    turlFileInfoDic = {}
-    ec = 0
-    pilotErrorDiag = ""
-
-    # verify that the output does not contain any failures
-    if "Invalid argument" in output or "Failed" in output:
-        pilotErrorDiag = "lcg-getturls failed: %s" % output[-100:]
-        ec = error.ERR_LCGGETTURLS
-    else:
-        # create a list from the command output
-        shortTURLList = output.split('\n')
-
-        # create the short list
-        if useShortTURLs:
-            _shortTURLList = []
-            #site_exclusion_list = ['ANALY_TW-FTT_TEST']
-            from SiteMover import SiteMover
-            s = SiteMover()
-            for t in range(0, len(shortTURLList)):
-                turl = shortTURLList[t]
-                # only use rfio on the sites that supports it
-                #if not sitename in site_exclusion_list:
-                #    turl = _turl.replace(s.stripPath(_turl), 'rfio:')
-                #tolog("DPM site: Updated %s to %s" % (_turl, turl))
-                if turl != "":
-                    _shortTURLList.append(turl)
-            shortTURLList = _shortTURLList
-
-        i = 0
-        for guid in shortGuidList:
-            # update PFN if necessary (e.g. for TRIUMF, SFU, LYON) and add it to the dictionary
-            turlFileInfoDic[guid] = updatePFN(shortTURLList[i])
-            i += 1
-
-    return ec, pilotErrorDiag, turlFileInfoDic
-
-def getDefaultStorage(pfn):
-    """ extract default storage from the pfn """
-
-    defaultSE = ""
-
-    # parse
-    match = re.findall('^[^:]+://([^:/]+)',pfn)
-    if len(match) != 1:
-        tolog("!!WARNING!!2990!! Could not parse default storage from %s" % (pfn))
-    else:
-        defaultSE = match[0]
-
-    return defaultSE
-
 def getMatchingLFN(_lfn, lfns):
     """ Return the proper LFN knowing only the preliminary LFN """
     # Note: the preliminary LFN may contain substrings added to the actual LFN
@@ -1545,78 +1491,6 @@ def convertSURLtoTURL(surl, scope, dataset, token, computingSite, sourceSite, ol
     tolog("Converted SURL: %s to TURL: %s" % (surl, turl))
 
     return turl
-
-def updatePFN(pfn):
-    """ update the PFN if necessary (e.g. for TRIUMF, SFU, LYON) """
-    # based on /afs/cern.ch/sw/ganga/install/5.5.4/python/GangaAtlas/Lib/Athena/ganga-stage-in-out-dq2.py
-
-    _pfn = pfn
-
-    # get the default SE
-    defaultSE = getDefaultStorage(pfn)
-    tolog("Got default SE: %s" % (defaultSE))
-
-    # get the used protocol
-#    if 'ccsrm.in2p3.fr' in defaultSE or 'srm.triumf.ca' in defaultSE:
-    if 'ccsrm.in2p3.fr' in defaultSE or 'triumf.ca' in defaultSE:
-        usedProtocol = 'dcap'
-    else:
-        # get the protocol
-        match = re.search('^(\S*)://.*', pfn)
-        if match:
-            usedProtocol = match.group(1)
-        else:
-            tolog("!!WARNING!!2990!! Protocol could not be extracted from PFN (cannot not update PFN)")
-            return pfn
-
-    tolog("Got protocol: %s" % (usedProtocol))
-
-    # correct PFN for the exceptional sites
-    if usedProtocol == "dcap":
-        # correct the protocol
-        pfn = re.sub('srm://', 'dcap://', pfn)
-
-        # Hack for ccin2p3
-        pfn = re.sub('ccsrm', 'ccdcapatlas', pfn)
-
-        # Hack for TRIUMF
-#        if 'srm.triumf.ca' in defaultSE:
-        if 'triumf.ca' in defaultSE:
-            pfn = re.sub('/atlas/dq2/','//pnfs/triumf.ca/data/atlas/dq2/',pfn)
-            pfn = re.sub('/atlas/users/','//pnfs/triumf.ca/data/atlas/users/',pfn)
-            pfn = re.sub('22125/atlas/','22125//pnfs/triumf.ca/data/atlas/',pfn)
-
-        # Hack for SFU
-        if 'wormhole.westgrid.ca' in defaultSE:
-            pfn = re.sub('/atlas/dq2/','//pnfs/sfu.ca/data/atlas/dq2/',pfn)
-            pfn = re.sub('/atlas/users/','//pnfs/sfu.ca/data/atlas/users/',pfn)
-            pfn = re.sub('22125/atlas/','22125//pnfs/sfu.ca/data/atlas/',pfn)
-
-    elif usedProtocol in ["root", "Xrootd"]:
-        # correct the protocol
-        pfn = re.sub('srm://','root://',pfn)
-
-        # Hack for ccin2p3
-        pfn = re.sub('ccsrm','ccxroot',pfn)
-        pfn = re.sub('ccdcamli01','ccxroot',pfn)
-        pfn = re.sub(':1094',':1094/',pfn)
-
-    elif usedProtocol == "gsidcap":
-        pfn = re.sub('srm://','gfal:gsidcap://',pfn)
-        pfn = re.sub('22128/pnfs','22128//pnfs',pfn)
-        pfn = re.sub('gfal:gfal:','gfal:',pfn)
-
-    # remove any file attributes (e.g. "?svcClass=atlasStripInput&castorVersion=2")
-    #if "?svcClass" in pfn:
-    #    pfn = pfn[:pfn.find("?svcClass")]
-    #    tolog("Updated pfn=%s" % pfn)
-
-    if _pfn != pfn:
-        tolog("Updated PFN from %s to %s" % (_pfn, pfn))
-    else:
-        tolog("No need to update PFN (not exceptional site)")
-
-    return pfn
 
 def getThinFileInfoDic(fileInfoDic):
     """ create a thinner file dictionary to be used with the TURL PFC """
