@@ -652,6 +652,7 @@ class JobMover(object):
                         dat['scheme'] = sitemover.schemes
                         self.log("is_directaccess=%s" % is_directaccess)
                         self.log("self.job.usePrefetcher=%s"%str(self.job.usePrefetcher))
+                        dat.pop('primary_scheme', None)
                         if is_directaccess or self.job.usePrefetcher:
                             if dat['scheme'] and dat['scheme'][0] != self.remoteinput_allowed_schemas[0]:  ## ensure that root:// is coming first in allowed schemas required for further resolve_replica()
                                 dat['scheme'] = self.remoteinput_allowed_schemas + dat['scheme'] ## add supported schema for direct access
