@@ -656,7 +656,7 @@ class JobMover(object):
                             if dat['scheme'] and dat['scheme'][0] != self.remoteinput_allowed_schemas[0]:  ## ensure that root:// is coming first in allowed schemas required for further resolve_replica()
                                 dat['scheme'] = self.remoteinput_allowed_schemas + dat['scheme'] ## add supported schema for direct access
                             self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
-                            dat['primary_scheme'] = self.direct_input_allowed_schemas  ## will be user to look up first replicas allowed to direct access mode
+                            dat['primary_scheme'] = self.direct_input_allowed_schemas  ## will be used to look up first the replicas allowed for direct access mode
 
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
