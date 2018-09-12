@@ -267,7 +267,11 @@ class BaseSiteMover(object):
             for ddmendpoint, replicas, ddm_se, ddm_path in fspec.replicas:
                 if not replicas: # ignore ddms with no replicas
                     continue
-                replica = get_preferred_replica(replicas, scheme)
+                pschema = protocol.get('primary_scheme')
+                if pschema:  ## look up first primary schemas if requested
+                    replica = get_preferred_replica(replicas, pschema)
+                if not replica:
+                    replica = get_preferred_replica(replicas, scheme)
                 if replica:
                     surl = get_preferred_replica(replicas, ['srm']) or replicas[0] # prefer SRM protocol for surl -- to be verified
                     self.log("[stage-in] surl (srm replica) from Rucio: pfn=%s, ddmendpoint=%s, ddm.se=%s, ddm.se_path=%s" % (surl, ddmendpoint, ddm_se, ddm_path))

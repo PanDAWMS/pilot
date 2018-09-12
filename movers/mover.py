@@ -49,7 +49,9 @@ class JobMover(object):
     _stageout_sleeptime_min = 1*60  # seconds, min allowed sleep time in case of stageout failure
     _stageout_sleeptime_max = 5*60    # seconds, max allowed sleep time in case of stageout failure
 
-    direct_remoteinput_allowed_schemas = ['root']
+    direct_remoteinput_allowed_schemas = ['root']  ## list of allowed schemas to be used for direct acccess mode from REMOTE replicas
+    direct_input_allowed_schemas = ['root', 'dcache', 'dcap', 'file', 'https']  ## list of allowed schemas to be used for direct acccess mode from local replicas
+
     remoteinput_allowed_schemas = ['root', 'gsiftp', 'dcap', 'davs', 'srm'] ## extend me later if need
 
 
@@ -319,7 +321,7 @@ class JobMover(object):
                 if not has_direct_remoteinput_replicas:
                     has_direct_remoteinput_replicas = bool(get_preferred_replica(pfns, self.direct_remoteinput_allowed_schemas))
 
-            if ((not fdat.replicas or ( fdat.accessmode == 'direct' and not has_direct_remoteinput_replicas)) and fdat.allowRemoteInputs) or (not fdat.replicas and fdat.storageId >= 0):
+            if ((not fdat.replicas or (fdat.accessmode == 'direct' and not has_direct_remoteinput_replicas)) and fdat.allowRemoteInputs) or (not fdat.replicas and fdat.storageId >= 0):
                 if fdat.accessmode == 'direct':
                     allowed_schemas = self.direct_remoteinput_allowed_schemas
                 else:
@@ -650,10 +652,12 @@ class JobMover(object):
                         dat['scheme'] = sitemover.schemes
                         self.log("is_directaccess=%s" % is_directaccess)
                         self.log("self.job.usePrefetcher=%s"%str(self.job.usePrefetcher))
+                        dat.pop('primary_scheme', None)
                         if is_directaccess or self.job.usePrefetcher:
                             if dat['scheme'] and dat['scheme'][0] != self.remoteinput_allowed_schemas[0]:  ## ensure that root:// is coming first in allowed schemas required for further resolve_replica()
                                 dat['scheme'] = self.remoteinput_allowed_schemas + dat['scheme'] ## add supported schema for direct access
                             self.log("INFO: prepare direct access mode: force to extend accepted protocol schemes to use direct access, schemes=%s" % dat['scheme'])
+                            dat['primary_scheme'] = self.direct_input_allowed_schemas  ## will be used to look up first the replicas allowed for direct access mode
 
                 except Exception, e:
                     self.log('WARNING: Failed to get SiteMover: %s .. skipped .. try to check next available protocol, current protocol details=%s' % (e, dat))
