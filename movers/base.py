@@ -345,7 +345,7 @@ class BaseSiteMover(object):
             self.log("verify StageIn: caught exception while getting remote file=%s checksum: %s .. skipped" % (source, e))
 
         try:
-            if dst_checksum and dst_checksum_type: # verify against source
+            if dst_checksum and dst_checksum_type and src_checksum and src_checksum_type: # verify against source(currently src_checksum is empty when merging es files from NorduGrid)
 
                 is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
 
