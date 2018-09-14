@@ -87,7 +87,7 @@ class rucioSiteMover(BaseSiteMover):
         if s:
             raise PilotException('stageIn failed -- could not move downloaded file to destination: %s' % o.replace('\n', ''), code=PilotErrors.ERR_STAGEOUTFAILED)
 
-        if not fspec.replicas:
+        if not fspec.replicas and not fspec.filesize:
             fspec.filesize = os.path.getsize(dst)
 
         return {'ddmendpoint': fspec.replicas[0][0] if fspec.replicas else fspec.ddmendpoint,
