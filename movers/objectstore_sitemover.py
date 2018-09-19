@@ -7,19 +7,18 @@
 from .rucio_sitemover import rucioSiteMover
 
 from pUtil import tolog
-from PilotErrors import PilotException
+from PilotErrors import PilotException, PilotErrors
 
-from commands import getstatusoutput
 import os
-import hashlib
+
 
 class objectstoreSiteMover(rucioSiteMover):
     """ SiteMover that uses rucio sitemover for both get and put functionality """
 
     name = 'objectstore'
-    schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio'] # list of supported schemes for transfers
+    schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio']  # list of supported schemes for transfers
 
-    require_replicas = True       ## if objectstoreID is set, mover.resolve_replicas() will skip the file
+    require_replicas = True       # if objectstoreID is set, mover.resolve_replicas() will skip the file
 
     def __init__(self, *args, **kwargs):
         super(objectstoreSiteMover, self).__init__(*args, **kwargs)
@@ -36,8 +35,8 @@ class objectstoreSiteMover(rucioSiteMover):
             job instance is passing here for possible JOB specific processing ?? FIX ME LATER
         """
 
-        ### quick fix: this actually should be reported back from Rucio upload in stageOut()
-        ### surl is currently (required?) being reported back to Panda in XML
+        # quick fix: this actually should be reported back from Rucio upload in stageOut()
+        # surl is currently (required?) being reported back to Panda in XML
 
         tolog("getSURL: pathConvention: %s, taskId: %s, ddmEndpoint: %s" % (pathConvention, taskId, ddmEndpoint))
         if pathConvention and pathConvention >= 1000:
@@ -53,7 +52,7 @@ class objectstoreSiteMover(rucioSiteMover):
         if not (ddmType and ddmType in ['OS_ES']):
             return self.getSURLRucio(se, se_path, scope, lfn)
         else:
-            if pathConvention == None:
+            if pathConvention is None:
                 surl = se + os.path.join(se_path, lfn)
             else:
                 # If pathConvention is not None, it means multiple buckets are used.
@@ -114,3 +113,11 @@ class objectstoreSiteMover(rucioSiteMover):
                         surl = self.getSURL(proto[0], proto[2], fspec.scope, fspec.lfn, pathConvention=fspec.pathConvention, taskId=fspec.taskId, ddmEndpoint=fspec.ddmendpoint)
                         return {'ddmendpoint': fspec.ddmendpoint, 'surl': surl, 'pfn': surl}
         return {}
+
+    def shouldVerifyStageIn(self):
+        """
+            Should the get operation perform any file size/checksum verifications?
+            can be customized for specific movers
+        """
+
+        return True

@@ -46,7 +46,15 @@ class rucioSiteMover(BaseSiteMover):
         tolog('which gfal2: %s' % o)
         tolog('which gfal-copy: %s' % self.__which('gfal-copy'))
 
-    def stageIn(self, turl, dst, fspec):
+    def shouldVerifyStageIn(self):
+        """
+            Should the get operation perform any file size/checksum verifications?
+            can be customized for specific movers
+        """
+
+        return False
+
+    def stageInFile(self, turl, dst, fspec):
         """
         Use the rucio download command to stage in the file.
 
@@ -87,12 +95,10 @@ class rucioSiteMover(BaseSiteMover):
         if s:
             raise PilotException('stageIn failed -- could not move downloaded file to destination: %s' % o.replace('\n', ''), code=PilotErrors.ERR_STAGEOUTFAILED)
 
-        if not fspec.replicas:
+        if not fspec.replicas and not fspec.filesize:
             fspec.filesize = os.path.getsize(dst)
 
-        return {'ddmendpoint': fspec.replicas[0][0] if fspec.replicas else fspec.ddmendpoint,
-                'surl': None,
-                'pfn': fspec.lfn}
+        return None, None
 
     def stageInApi(self, dst, fspec):
 

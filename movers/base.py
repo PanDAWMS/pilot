@@ -345,7 +345,7 @@ class BaseSiteMover(object):
             self.log("verify StageIn: caught exception while getting remote file=%s checksum: %s .. skipped" % (source, e))
 
         try:
-            if dst_checksum and dst_checksum_type: # verify against source
+            if dst_checksum and dst_checksum_type and src_checksum and src_checksum_type: # verify against source(currently src_checksum is empty when merging es files from NorduGrid)
 
                 is_verified = src_checksum and src_checksum_type and dst_checksum == src_checksum and dst_checksum_type == src_checksum_type
 
@@ -378,7 +378,7 @@ class BaseSiteMover(object):
 
                 self.log("verifying stagein done. [by checksum] [%s]" % source)
                 self.trace_report.update(clientState="DONE")
-                return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':dst_fsize}
+                return {'checksum': dst_checksum, 'checksum_type': dst_checksum_type, 'filesize': dst_fsize}
 
         except PilotException:
             raise
@@ -389,10 +389,16 @@ class BaseSiteMover(object):
         try:
             if not src_fsize:
                 src_fsize = self.getRemoteFileSize(source)
-            is_verified = src_fsize and src_fsize == dst_fsize
 
             self.log("Remote filesize [%s]: %s" % (os.path.dirname(destination), src_fsize))
             self.log("Local  filesize [%s]: %s" % (os.path.dirname(destination), dst_fsize))
+
+            if not src_fsize:
+                warn = "Source size is unknown, will pass(mark it as successful)"
+                self.log(warn)
+                return {'checksum': dst_checksum, 'checksum_type': dst_checksum_type, 'filesize': dst_fsize}
+
+            is_verified = src_fsize and src_fsize == dst_fsize
             self.log("filesize is_verified = %s" % is_verified)
 
             if not is_verified:
