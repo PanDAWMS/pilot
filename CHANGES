@@ -150,6 +150,10 @@ M movers/mover.py (12)
 Code cleanup
 - Removed deprecated functions: getTURLFileInfoDic(), updatePFN(), getDefaultStorage() (Mover)
 
+Process kills
+- Switched to using killpg() instead of kill -9 in killOrphans(), as suggested by P. McGuigan while
+  debugging left processes after looping job kill (processes)
+
 Updates from W. Guan:
 
   https://github.com/PanDAWMS/pilot/pull/221
