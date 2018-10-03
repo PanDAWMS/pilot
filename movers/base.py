@@ -322,7 +322,7 @@ class BaseSiteMover(object):
         src_fsize = fspec.filesize
 
         if not self.shouldVerifyStageIn():
-            self.log("skipped stage-in verification for lfn=%" % fspec.lfn)
+            self.log("skipped stage-in verification for lfn=%s" % fspec.lfn)
             return {'checksum': dst_checksum, 'checksum_type':dst_checksum_type, 'filesize':src_fsize}
 
         src_checksum, src_checksum_type = fspec.get_checksum()

@@ -154,6 +154,9 @@ Process kills
 - Switched to using killpg() instead of kill -9 in killOrphans(), as suggested by P. McGuigan while
   debugging left processes after looping job kill (processes)
 
+Log message fix
+- Corrected % -> %s in log message in stageIn() (base)
+
 Updates from W. Guan:
 
   https://github.com/PanDAWMS/pilot/pull/221
