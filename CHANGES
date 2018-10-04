@@ -169,6 +169,32 @@ File Changes
 
 M movers/mover.py (17)
 
+  https://github.com/PanDAWMS/pilot/pull/224
+
+Commit Summary
+
+verify objectstore stagein
+
+File Changes
+
+M movers/base.py (12)
+M movers/objectstore_sitemover.py (23)
+M movers/rucio_sitemover.py (16)
+
+Updates from A. Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/222
+
+Commit Summary
+
+movers: resolve_replica logic updated to look up fist protocol allowed for direct access mode for files requested direct read
+cosmetic
+
+File Changes
+
+M movers/base.py (6)
+M movers/mover.py (7)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
