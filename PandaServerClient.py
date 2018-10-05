@@ -758,7 +758,7 @@ class PandaServerClient:
         node['xml'] = self.getXML(job, site.sitename, site.workdir, xmlstr=xmlstr, jr=jr)
 
         # stdout tail in case job.debug == 'true'
-        if job.debug and stdout_tail != "":
+        if job.debug and stdout_tail and stdout_tail != "":
             # protection for potentially large tails
             stdout_tail = stdout_tail[-2048:]
             node['stdout'] = stdout_tail
