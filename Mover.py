@@ -99,6 +99,26 @@ def getProperDatasetNames(realDatasetsIn, prodDBlocks, inFiles):
     return dsname, dsdict, rucio_dataset_dictionary
 
 
+def getRSE(ddmEndPoints, fileid=0):
+    """
+    Return the ddmEndPoint corresponding to the fileid number.
+    :param ddmEndPoints: list of ordered ddm endpoints (ddmEndPointIn or ddmEndPointOut)
+    :return: rse (strings)
+    """
+
+    try:
+        rse = ddmEndPoints[fileid]
+    except Exception, e:
+        tolog("Failed to get RSE for fileid=%d from ddmEndPoints=%s: %s" % (fileid, str(ddmEndPoints), e))
+        rse = "unknown"
+
+    if rse == "":
+        tolog("!!WARNING!!1212!! RSE for fileid=%d could not be extracted from ddmEndPoints=%s: empty RSE (reset to unknown)" % (fileid, str(ddmEndPoints)))
+        rse = "unknown"
+
+    return rse
+
+
 # new mover implementation
 def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_transfer=False, workDir=None):
     """
@@ -128,7 +148,8 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
     if job.isAnalysisJob():
         eventType += "_a"
 
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
+    rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType)
     mover.trace_report.init(job)
     error = None
     try:
@@ -206,7 +227,8 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None)
 
     eventType = "put_es"
 
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
+    rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType)
     mover.trace_report.init(job)
     error = None
     storageId = None
@@ -287,7 +309,8 @@ def get_data_new(job,
     if job.isAnalysisJob():
         eventType += "_a"
 
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=jobSite.sitename, remoteSite=jobSite.sitename, dataset="", eventType=eventType)
+    rse = getRSE(job.ddmEndPointIn)  # at this point, get the RSE for the first file in the list, fileid=0
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType)
     mover.trace_report.init(job)
     error = None
     try:
@@ -2966,7 +2989,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
         if not xfiles:
             tolog('files list to transfer is empty .. nothing to do.. skip and continue')
             continue
-        mover.trace_report = TraceReport(localSite=sitename, remoteSite=sitename, dataset=pdsname, eventType=eventType)
+        rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
+        mover.trace_report = TraceReport(localSite=rse, remoteSite=rse, dataset=pdsname, eventType=eventType)
         mover.trace_report.init(job)
 
         output = func(xfiles) #

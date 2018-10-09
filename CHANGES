@@ -199,8 +199,9 @@ M movers/mover.py (7)
 
 73.5
 
-Bug fix:
+Bug fixes:
 - Now making sure that stdout_tail is not None before trying to use it in updatePandaServer() (PandaServerClient)
+- Stopped setting PQ as default local/remoteSite in Rucio traces Created getRSE(ddmEndPoints) (Mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
