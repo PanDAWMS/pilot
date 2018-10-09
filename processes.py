@@ -208,13 +208,16 @@ def killOrphans():
                 if args.endswith('bash'):
                     pUtil.tolog("Will not kill bash process")
                 else:
-                    os.killpg(pid, signal.SIGKILL)
-                    #cmd = 'kill -9 %s' % (pid)
-                    #ec, rs = commands.getstatusoutput(cmd)
-                    #if ec != 0:
-                    #    pUtil.tolog("!!WARNING!!2999!! %s" % (rs))
-                    #else:
-                    #    pUtil.tolog("Killed orphaned process %s (%s)" % (pid, args))
+                    try:
+                        os.killpg(int(pid), signal.SIGKILL)
+                    except Exception as e:
+                        pUtil.tolog("!!WARNING!!2323!! Failed to send SIGKILL: %s" % e)
+                        cmd = 'kill -9 %s' % (pid)
+                        ec, rs = commands.getstatusoutput(cmd)
+                        if ec != 0:
+                            pUtil.tolog("!!WARNING!!2999!! %s" % (rs))
+                        else:
+                            pUtil.tolog("Killed orphaned process %s (%s)" % (pid, args))
                     pUtil.tolog("Killed orphaned process group %s (%s)" % (pid, args))
 
     if count == 0:

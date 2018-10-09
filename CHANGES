@@ -202,6 +202,7 @@ M movers/mover.py (7)
 Bug fixes:
 - Now making sure that stdout_tail is not None before trying to use it in updatePandaServer() (PandaServerClient)
 - Stopped setting PQ as default local/remoteSite in Rucio traces Created getRSE(ddmEndPoints) (Mover)
+- Added missing string to int conversion in os.killpg() call for orphaned processes (processes)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
