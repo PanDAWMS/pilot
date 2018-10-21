@@ -64,11 +64,28 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
+        trace_str_pattern = "%s%s%s%s%s%s%s"
+        trace_str = ''
+        trace_str = trace_str_pattern % (" --trace_appid \"%s\"" %  self.trace_report['appid'] if self.trace_report['appid'] is not None else '',
+                                         " --trace_dataset \"%s\"" % self.trace_report['dataset'] if self.trace_report['dataset'] is not None else '',
+                                         " --trace_datasetscope \"%s\"" % self.trace_report['scope'] if self.trace_report['scope'] is not None else '',
+                                         " --trace_eventtype \"get_sm%s\"" % self.trace_report['eventType'] if self.trace_report['eventType'] else '',
+                                         " --trace_pq \"%s\"" % self.trace_report['pq'] if self.trace_report['pq'] is not None else '',
+                                         " --trace_taskid \"%s\"" % self.trace_report['taskid'] if self.trace_report['taskid'] is not None else '',
+                                         " --trace_usrdn \"%s\"" % self.trace_report['usrdn'] if self.trace_report['usrdn'] is not None else '' )
+
+        cmd = 'rucio -v download %s --dir %s --rse %s --pfn %s %s:%s' % (trace_str,
+                                                                      dirname(dst),
                                                                       fspec.ddmendpoint,
                                                                       fspec.turl,
                                                                       fspec.scope,
                                                                       fspec.lfn)
+
+#        cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
+#                                                                      fspec.ddmendpoint,
+#                                                                      fspec.turl,
+#                                                                      fspec.scope,
+#                                                                      fspec.lfn)
 
         # Prepend the command with singularity if necessary
         from Singularity import singularityWrapper
