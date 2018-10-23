@@ -20,6 +20,7 @@ class rucioSiteMover(BaseSiteMover):
 
     name = 'rucio'
     schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio', 'davs']
+    tracing = False
 
     def __which(self, pgm):
         """
@@ -63,7 +64,7 @@ class rucioSiteMover(BaseSiteMover):
         :param fspec: dictionary containing destination replicas, scope, lfn
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
-
+        
         num_retries = 2
         success = False
         try_counter = 0
@@ -104,7 +105,7 @@ class rucioSiteMover(BaseSiteMover):
 
         # traces are switched off
         if hasattr(download_client, 'tracing'):
-            download_client.tracing = False
+            download_client.tracing = self.tracing
 
         # file specifications before the actual download
         f = {}
@@ -117,17 +118,20 @@ class rucioSiteMover(BaseSiteMover):
             f['pfn'] = fspec.turl
 
         # proceed with the download
+        trace_pattern = {}
+        if self.trace_report:
+            trace_pattern = self.trace_report
         result = []
         if fspec.turl:
-            result = download_client.download_pfns([f], 1)
+            result = download_client.download_pfns([f], 1, trace_custom_fields=trace_pattern)
         else:
-            result = download_client.download_dids([f])
+            result = download_client.download_dids([f], trace_custom_fields=trace_pattern)
 
         clientState = 'FAILED'
         if result:
             clientState = result[0].get('clientState', 'FAILED') 
-        return clientState
-        
+
+        return clientState 
 
     def stageOut(self, src, dst, fspec):
         """
@@ -167,7 +171,7 @@ class rucioSiteMover(BaseSiteMover):
 
         # traces are turned off
         if hasattr(upload_client, 'tracing'):
-            upload_client.tracing = False
+            upload_client.tracing = self.tracing
 
         # file specifications before the upload
         f = {}
