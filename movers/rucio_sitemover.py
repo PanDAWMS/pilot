@@ -64,7 +64,7 @@ class rucioSiteMover(BaseSiteMover):
         :param fspec: dictionary containing destination replicas, scope, lfn
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
-        
+
         num_retries = 2
         success = False
         try_counter = 0
