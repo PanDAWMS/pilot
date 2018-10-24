@@ -633,11 +633,11 @@ class JobMover(object):
                 copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
                 # switch off tracing if copytool=rucio, as this is handled internally by rucio
-                #if copytool == 'rucio':
-                #    self.useTracingService = False
-                #else:
-                #    # re-activate tracing in case rucio is not used for staging
-                #    self.useTracingService = useTracingService
+                if copytool == 'rucio':
+                    self.useTracingService = False
+                else:
+                    # re-activate tracing in case rucio is not used for staging
+                    self.useTracingService = useTracingService
 
                 try:
                     sitemover = sitemover_objects.get(copytool)
