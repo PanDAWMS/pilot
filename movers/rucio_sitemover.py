@@ -16,10 +16,11 @@ import os
 
 
 class rucioSiteMover(BaseSiteMover):
-    """ SiteMover that uses rucio CLI for both get and put functionality """
+    """ SiteMover that uses rucio python API for both get and put functionality """
 
     name = 'rucio'
     schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio', 'davs']
+    tracing = False
 
     def __which(self, pgm):
         """
@@ -64,42 +65,21 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        trace_str_pattern = "%s%s%s%s%s%s%s"
-        trace_str = ''
-        trace_str = trace_str_pattern % (" --trace_appid \"%s\"" %  self.trace_report['appid'] if self.trace_report['appid'] is not None else '',
-                                         " --trace_dataset \"%s\"" % self.trace_report['dataset'] if self.trace_report['dataset'] is not None else '',
-                                         " --trace_datasetscope \"%s\"" % self.trace_report['scope'] if self.trace_report['scope'] is not None else '',
-                                         " --trace_eventtype \"get_sm%s\"" % self.trace_report['eventType'] if self.trace_report['eventType'] else '',
-                                         " --trace_pq \"%s\"" % self.trace_report['pq'] if self.trace_report['pq'] is not None else '',
-                                         " --trace_taskid \"%s\"" % self.trace_report['taskid'] if self.trace_report['taskid'] is not None else '',
-                                         " --trace_usrdn \"%s\"" % self.trace_report['usrdn'] if self.trace_report['usrdn'] is not None else '' )
-
-        cmd = 'rucio -v download %s --dir %s --rse %s --pfn %s %s:%s' % (trace_str,
-                                                                      dirname(dst),
-                                                                      fspec.ddmendpoint,
-                                                                      fspec.turl,
-                                                                      fspec.scope,
-                                                                      fspec.lfn)
-
-#        cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
-#                                                                      fspec.ddmendpoint,
-#                                                                      fspec.turl,
-#                                                                      fspec.scope,
-#                                                                      fspec.lfn)
-
-        # Prepend the command with singularity if necessary
-        from Singularity import singularityWrapper
-        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
-
-        tolog('stageIn: %s' % cmd)
-        s, o = getstatusoutput(cmd)
-        tolog('stageInOutput: s=%s o=%s' % (s, o))
-        if s:
-            tolog('stageIn with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
+        num_retries = 2
+        success = False
+        try_counter = 0
+        error_msg = None
+        while not success and try_counter != num_retries: 
+            try_counter += 1
+            tolog('StageIn, attempt %s/%s' % (str(try_counter), str(num_retries)))
             try:
-                self.stageInApi(dst, fspec)
+                self._stageInApi(dst, fspec)
+                success = True
             except Exception as error:
-                raise PilotException('stageIn with API faied:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED)
+                error_msg = error
+
+        if error_msg and not success:
+            raise PilotException('stageIn with API faied:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED) 
 
         # TODO: fix in rucio download to set specific outputfile
         cmd = 'mv %s %s' % (dirname(dst) + '/%s/%s' % (fspec.scope,
@@ -117,10 +97,17 @@ class rucioSiteMover(BaseSiteMover):
 
         return None, None
 
-    def stageInApi(self, dst, fspec):
+    def _stageInApi(self, dst, fspec):
 
+        # init. download client
         from rucio.client.downloadclient import DownloadClient
+        download_client = DownloadClient()
 
+        # traces are switched off
+        if hasattr(download_client, 'tracing'):
+            download_client.tracing = self.tracing
+
+        # file specifications before the actual download
         f = {}
         f['scope'] = fspec.scope
         f['name'] = fspec.lfn
@@ -130,18 +117,21 @@ class rucioSiteMover(BaseSiteMover):
         if fspec.turl:
             f['pfn'] = fspec.turl
 
+        # proceed with the download
+        trace_pattern = {}
+        if self.trace_report:
+            trace_pattern = self.trace_report
         result = []
-        download_client = DownloadClient()
         if fspec.turl:
-            result = download_client.download_pfns([f], 1)
+            result = download_client.download_pfns([f], 1, trace_custom_fields=trace_pattern)
         else:
-            result = download_client.download_dids([f])
+            result = download_client.download_dids([f], trace_custom_fields=trace_pattern)
 
         clientState = 'FAILED'
         if result:
             clientState = result[0].get('clientState', 'FAILED') 
-        return clientState
-        
+
+        return clientState 
 
     def stageOut(self, src, dst, fspec):
         """
@@ -153,46 +143,37 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        if fspec.storageId and int(fspec.storageId) > 0:
-            if self.isDeterministic(fspec.ddmendpoint):
-                cmd = 'rucio -v upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
-                                                                                fspec.scope,
-                                                                                fspec.pfn if fspec.pfn else fspec.lfn)
-            else:
-                cmd = 'rucio -v upload --no-register --rse %s --scope %s --pfn %s %s' % (fspec.ddmendpoint,
-                                                                                         fspec.scope,
-                                                                                         fspec.turl,
-                                                                                         fspec.pfn if fspec.pfn else fspec.lfn)
-        else:
-            guid = ' --guid %s' % fspec.guid if fspec.lfn and '.root' in fspec.lfn else ''
-            cmd = 'rucio -v upload%s --no-register --rse %s --scope %s %s' % (guid, fspec.ddmendpoint,
-                                                                              fspec.scope,
-                                                                              fspec.pfn if fspec.pfn else fspec.lfn)
+        num_retries = 2
+        success = False
+        try_counter = 0
+        error_msg = None
+        while not success and try_counter != num_retries: 
+            try_counter += 1
+            tolog('StageOut, attempt %s/%s' % (str(try_counter), str(num_retries)))
+            try:
+                self._stageOutApi(src, fspec)
+                success = True
+            except Exception as error:
+                error_msg = error
 
-        # Prepend the command with singularity if necessary
-        from Singularity import singularityWrapper
-        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(src))
-
-        tolog('stageOutCmd: %s' % cmd)
-        s, o = getstatusoutput(cmd)
-        tolog('stageOutOutput: s=%s o=%s' % (s, o))
-
-        if s:
-            raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
-            #tolog('stageOut with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
-            #try:
-            #    self.stageOutApi(src, fspec)
-            #except Exception as error:
-            #    raise PilotException('stageOut with API faied:  %s' % error)
+        if error_msg and not success:
+            raise PilotException('stageOut with API faied:  %s' % error_msg)
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
                 'pfn': fspec.lfn}
 
-    def stageOutApi(self, src, fspec):
+    def _stageOutApi(self, src, fspec):
 
+        # init. the uploadclient
         from rucio.client.uploadclient import UploadClient
+        upload_client = UploadClient()
 
+        # traces are turned off
+        if hasattr(upload_client, 'tracing'):
+            upload_client.tracing = self.tracing
+
+        # file specifications before the upload
         f = {}
         f['path'] = fspec.pfn if fspec.pfn else fspec.lfn
         f['rse'] = fspec.ddmendpoint
@@ -205,8 +186,8 @@ class rucioSiteMover(BaseSiteMover):
         elif fspec.lfn and '.root' in fspec.lfn:
             f['guid'] = fspec.guid
 
-        uc = UploadClient()
-        uc.upload([f])
+        # proceed with the upload
+        upload_client.upload([f])
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
