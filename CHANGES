@@ -214,6 +214,9 @@ New error code
 - ERR_BADXML = 1247, "Badly formed XML" - set if the PoolFileCatalog.xml contains illegal characters, as happened
   in recent user job (RunJob)
 
+Replicas
+- Now always setting geoip in list_replicas() call, resolve_replicas() (mover)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
