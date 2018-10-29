@@ -217,6 +217,18 @@ New error code
 Replicas
 - Now always setting geoip in list_replicas() call, resolve_replicas() (mover)
 
+Updates from Tomas Javurek:
+
+  https://github.com/PanDAWMS/pilot/pull/227
+
+Commit Summary
+
+ruciomover: api only from now on, traces off
+
+File Changes
+
+M movers/rucio_sitemover.py (100)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
