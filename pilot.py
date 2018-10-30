@@ -1992,6 +1992,8 @@ def getProdSourceLabel():
                 prodSourceLabel = "rcm_test"
             elif env['pilot_version_tag'] == 'RCMA': # RC Mover for ANALY site: temporary fix
                 prodSourceLabel = "rcm_test"
+        elif env['pilot_version_tag'] == 'ALRB':
+            prodSourceLabel = "rc_alrb"
         elif env['pilot_version_tag'] == "DDM":
             prodSourceLabel = "ddm"
 

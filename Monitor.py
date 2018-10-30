@@ -332,8 +332,21 @@ class Monitor:
                     if maxPSS_int != -1:
                         maxRSS = pUtil.readpar('maxrss') # string
                         if maxRSS:
+                            # correction for SCORE jobs on UCORE queues
                             try:
-                                maxRSS_int = 2*int(maxRSS)*1024 # Convert to int and kB
+                                ATHENA_PROC_NUMBER_JOB = int(os.environ.get('ATHENA_PROC_NUMBER_JOB'), None)
+                                if ATHENA_PROC_NUMBER_JOB:
+                                    if ATHENA_PROC_NUMBER_JOB == 1:
+                                        scale = int(pUtil.readpar('corecount'))
+                                    else:
+                                        scale = 1
+                                else:
+                                    scale = 1
+                            except Exception as e:
+                                pUtil.tolog('exception caught: %s' % e)
+                                scale = 1
+                            try:
+                                maxRSS_int = 2*int(maxRSS/scale)*1024 # Convert to int and kB
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:

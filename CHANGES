@@ -221,6 +221,12 @@ Log file creation, requested by R. Walker:
 - Added HAHM_ggf_ZZd_4l_mZd15 to removeRedundantFiles() (ATLASExperiment)
 - Added --one-file-system to the tar command in createLogFile() (JobLog)
 
+UCORE scaling correction, requested by R. Walker:
+- Now dividing memory limit 2*maxRSS with schedconfig.corecount for SCORE jobs, in __check_memory_usage() (Monitor)
+
+Support for new prodSourceLabel, requested by A. da Silva et al:
+- Added -i ALRB and prodSourceLabel=rc_alrb to getProdSourceLabel() (pilot)
+
 Updates from Tomas Javurek:
 
   https://github.com/PanDAWMS/pilot/pull/227
