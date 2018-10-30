@@ -356,7 +356,7 @@ class Monitor:
                                         else:
                                             pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d kB (2*maxRSS=%d kB)" % (maxPSS_int, maxRSS_int))
                                     else:
-                                        pUtil.tolog("!!WARNING!!9903!! Unpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
+                                        pUtil.tolog("!!WARNING!!9903!! Unexpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
                         else:
                             if maxRSS == 0 or maxRSS == "0":
                                 pUtil.tolog("schedconfig.maxrss set to 0 (no memory checks will be done)")
