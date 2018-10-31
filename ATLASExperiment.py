@@ -1577,7 +1577,7 @@ class ATLASExperiment(Experiment):
 
         ec = 0
         pilotErrorDiag = ""
-        tolog("pre verifyNCoresSettings")
+
         # Make sure that ATHENA_PROC_NUMBER has a proper value for the current job
         if job.prodSourceLabel != "install":
             ec, pilotErrorDiag = self.verifyNCoresSettings(job.coreCount)

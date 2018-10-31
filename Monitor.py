@@ -332,21 +332,14 @@ class Monitor:
                     if maxPSS_int != -1:
                         maxRSS = pUtil.readpar('maxrss') # string
                         if maxRSS:
-                            # correction for SCORE jobs on UCORE queues
+                            # correction for SCORE/4CORE/nCORE jobs on UCORE queues
                             try:
-                                ATHENA_PROC_NUMBER_JOB = int(os.environ.get('ATHENA_PROC_NUMBER_JOB'), None)
-                                if ATHENA_PROC_NUMBER_JOB:
-                                    if ATHENA_PROC_NUMBER_JOB == 1:
-                                        scale = int(pUtil.readpar('corecount'))
-                                    else:
-                                        scale = 1
-                                else:
-                                    scale = 1
+                                scale = self.__env['jobDic'][k][1].coreCount / float(pUtil.readpar('corecount'))
                             except Exception as e:
-                                pUtil.tolog('exception caught: %s' % e)
+                                pUtil.tolog('!!WARNING!!9910!! Exception caught: %s' % e)
                                 scale = 1
                             try:
-                                maxRSS_int = 2*int(maxRSS/scale)*1024 # Convert to int and kB
+                                maxRSS_int = 2 * int(maxRSS * scale) * 1024  # Convert to int and kB
                             except Exception, e:
                                 pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
                             else:
@@ -367,7 +360,7 @@ class Monitor:
                                             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
                                             self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
-                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d kB (2*maxRSS=%d kB)" % (maxPSS_int, maxRSS_int))
+                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d kB (2*maxRSS=%d kB, scale=%d)" % (maxPSS_int, maxRSS_int, scale))
                                     else:
                                         pUtil.tolog("!!WARNING!!9903!! Unexpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
                         else:
