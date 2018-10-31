@@ -330,18 +330,18 @@ class Monitor:
 
                     # Only proceed if values are set
                     if maxPSS_int != -1:
-                        maxRSS = pUtil.readpar('maxrss') # string
+                        maxRSS = pUtil.readpar('maxrss')  # string
                         if maxRSS:
                             # correction for SCORE/4CORE/nCORE jobs on UCORE queues
                             try:
-                                scale = self.__env['jobDic'][k][1].coreCount / float(pUtil.readpar('corecount'))
+                                scale = float(self.__env['jobDic'][k][1].coreCount) / float(pUtil.readpar('corecount'))
                             except Exception as e:
                                 pUtil.tolog('!!WARNING!!9910!! Exception caught: %s' % e)
                                 scale = 1
                             try:
                                 maxRSS_int = 2 * int(maxRSS * scale) * 1024  # Convert to int and kB
                             except Exception, e:
-                                pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % (e))
+                                pUtil.tolog("!!WARNING!!9900!! Unexpected value for maxRSS: %s" % e)
                             else:
                                 # Compare the maxRSS with the maxPSS from memory monitor
                                 if maxRSS_int > 0:
