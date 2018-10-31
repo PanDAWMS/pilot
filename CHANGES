@@ -222,12 +222,12 @@ Log file creation, requested by R. Walker:
 - Added --one-file-system to the tar command in createLogFile() (JobLog)
 
 UCORE scaling correction, requested by R. Walker:
-- Now dividing memory limit 2*maxRSS with schedconfig.corecount for SCORE jobs, in __check_memory_usage() (Monitor)
+- Now scaling memory limit 2*maxRSS with job.coreCount/schedconfig.corecount, in __check_memory_usage() (Monitor)
 
 Support for new prodSourceLabel, requested by A. da Silva et al:
 - Added -i ALRB and prodSourceLabel=rc_alrb to getProdSourceLabel() (pilot)
 
-Updates from Tomas Javurek:
+Updates from Tomas Javurek: (reverted)
 
   https://github.com/PanDAWMS/pilot/pull/227
 
@@ -238,6 +238,10 @@ ruciomover: api only from now on, traces off
 File Changes
 
 M movers/rucio_sitemover.py (100)
+
+Updates from P. Svirin:
+
+..
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
