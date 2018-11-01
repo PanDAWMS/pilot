@@ -241,7 +241,17 @@ M movers/rucio_sitemover.py (100)
 
 Updates from P. Svirin:
 
-..
+  https://github.com/PanDAWMS/pilot/pull/226
+
+Commit Summary
+
+Added RUCIO tracing
+
+File Changes
+
+M movers/mover.py (10)
+M movers/rucio_sitemover.py (19)
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
