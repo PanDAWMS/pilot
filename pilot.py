@@ -185,7 +185,7 @@ def argParser(argv):
             env['queuename'] = a
 
         elif o == "-i":
-            if a == "PR" or (a and a.startswith("RC")):
+            if a == "PR" or (a and a.startswith("RC")) or (a and a.startswith("ALRB")):
                 env['pilot_version_tag'] = a
             else:
                 print "Unknown pilot version tag: %s" % (a)
@@ -2148,7 +2148,7 @@ def backupDispatcherResponse(response, tofile):
 def dumpEnv():
     localEnv = {}
     localEnv['uflag'] = env['uflag']
-    localEnv['pilot_version_tag'] = env ['pilot_version_tag']
+    localEnv['pilot_version_tag'] = env['pilot_version_tag']
     localEnv['workingGroup'] = env['workingGroup']
     localEnv['countryGroup'] = env['countryGroup']
     localEnv['allowOtherCountry'] = env['allowOtherCountry']
