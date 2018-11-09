@@ -177,7 +177,7 @@ class rucioSiteMover(BaseSiteMover):
         f = {}
         f['path'] = fspec.pfn if fspec.pfn else fspec.lfn
         f['rse'] = fspec.ddmendpoint
-        f['scope'] = fspec.scope
+        f['did_scope'] = fspec.scope
         f['no_register'] = True
 
         if fspec.storageId and int(fspec.storageId) > 0:
@@ -187,7 +187,11 @@ class rucioSiteMover(BaseSiteMover):
             f['guid'] = fspec.guid
 
         # proceed with the upload
-        upload_client.upload([f])
+        tolog('_stageOutApi: %s' % str(f))
+        try:
+            upload_client.upload([f])
+        except Exception as err:
+            tolog('_stageOutApi: upload failed - %s' % err)
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
