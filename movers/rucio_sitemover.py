@@ -188,10 +188,7 @@ class rucioSiteMover(BaseSiteMover):
 
         # proceed with the upload
         tolog('_stageOutApi: %s' % str(f))
-        try:
-            upload_client.upload([f])
-        except Exception as err:
-            tolog('_stageOutApi: upload failed - %s' % err)
+        upload_client.upload([f])
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
