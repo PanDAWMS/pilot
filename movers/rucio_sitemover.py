@@ -11,8 +11,30 @@ from PilotErrors import PilotErrors, PilotException
 
 from TimerCommand import getstatusoutput
 from os.path import dirname
-
+from StringIO import StringIO
+import logging
 import os
+
+class Logger():
+    """
+    logging handler tha allows to read logger from Rucio
+    """
+
+    def __init__(self):
+        self.stream = StringIO()
+        self.handler = logging.StreamHandler(self.stream)
+        self.log = logging.getLogger('logger')
+        self.log.setLevel(logging.DEBUG)
+        for handler in self.log.handlers:
+            self.log.removeHandler(handler)
+        self.log.addHandler(self.handler)
+    def fetch(self):
+        self.handler.flush()
+        return self.stream.getvalue()
+
+    def kill(self):
+        self.log.removeHandler(self.handler)
+        self.handler.close()
 
 
 class rucioSiteMover(BaseSiteMover):
@@ -168,6 +190,8 @@ class rucioSiteMover(BaseSiteMover):
         # init. the uploadclient
         from rucio.client.uploadclient import UploadClient
         upload_client = UploadClient()
+        logger = Logger()
+        upload_client.logger = logger.log
 
         # traces are turned off
         if hasattr(upload_client, 'tracing'):
@@ -180,6 +204,9 @@ class rucioSiteMover(BaseSiteMover):
         f['did_scope'] = fspec.scope
         f['no_register'] = True
 
+        if fspec.filesize:
+            f['transfer_timeout'] = max(600, fspec.filesize*600/(100*1000*1000)) # 10 min for 100 MB file
+
         if fspec.storageId and int(fspec.storageId) > 0:
             if not self.isDeterministic(fspec.ddmendpoint):
                 f['pfn'] = fspec.turl
@@ -189,6 +216,16 @@ class rucioSiteMover(BaseSiteMover):
         # proceed with the upload
         tolog('_stageOutApi: %s' % str(f))
         upload_client.upload([f])
+
+        # propagating rucio logger to pilot logger
+        log_str = ''
+        try:
+            log_str = logger.fetch()
+        except Exception as e:
+            log_str =  e
+        for msg in log_str.split('\n'):
+            tolog('Rucio uploadclient: %s' % str(msg))
+        logger.kill()
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
