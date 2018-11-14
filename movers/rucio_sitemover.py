@@ -77,6 +77,19 @@ class rucioSiteMover(BaseSiteMover):
 
         return False
 
+    def VerifyStageOut(self, dst, fspec):
+        """
+        Checks that the uploaded file is physically at the destination.
+
+        :param dst:   destination rse
+        :param fspec: file specifications
+        """
+        from rucio.rse import rsemanager as rsemgr
+        rse_settings = rsemgr.get_rse_info(dst)
+        uploaded_file = {'name':fspec.lfn, 'scope':fspec.scope}
+        tolog('Checking file: %s' % str(fspec.lfn))
+        return rsemgr.exists(rse_settings, [uploaded_file])
+
     def stageInFile(self, turl, dst, fspec):
         """
         Use the rucio download command to stage in the file.
@@ -193,6 +206,14 @@ class rucioSiteMover(BaseSiteMover):
                 success = True
             except Exception as error:
                 error_msg = error
+
+        #physical check after upload
+        if success:
+            try:
+                file_exists = self.VerifyStageOut(fspec.ddmendpoint, fspec)
+                tolog('File exists at the storage: %s' % str(file_exists))
+            except Exception as e:
+                tolog('File existence verification failed with: %s' % str(e))
 
         if error_msg and not success:
             raise PilotException('stageOut with API faied:  %s' % error_msg)
