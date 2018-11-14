@@ -11,8 +11,30 @@ from PilotErrors import PilotErrors, PilotException
 
 from TimerCommand import getstatusoutput
 from os.path import dirname
-
+from StringIO import StringIO
+import logging
 import os
+
+class Logger():
+    """
+    logging handler tha allows to read logger from Rucio
+    """
+
+    def __init__(self):
+        self.stream = StringIO()
+        self.handler = logging.StreamHandler(self.stream)
+        self.log = logging.getLogger('logger')
+        self.log.setLevel(logging.DEBUG)
+        for handler in self.log.handlers:
+            self.log.removeHandler(handler)
+        self.log.addHandler(self.handler)
+    def fetch(self):
+        self.handler.flush()
+        return self.stream.getvalue()
+
+    def kill(self):
+        self.log.removeHandler(self.handler)
+        self.handler.close()
 
 
 class rucioSiteMover(BaseSiteMover):
@@ -120,16 +142,24 @@ class rucioSiteMover(BaseSiteMover):
     def stageInApi(self, dst, fspec):
 
         from rucio.client.downloadclient import DownloadClient
+        download_client = DownloadClient()
+        logger = Logger()
+        download_client.logger = logger.log
 
         f = {}
-        f['scope'] = fspec.scope
-        f['name'] = fspec.lfn
+        f['did_scope'] = fspec.scope
+        f['did_name'] = fspec.lfn
         f['did'] = '%s:%s' % (fspec.scope, fspec.lfn)
         f['rse'] = fspec.ddmendpoint
         f['base_dir'] = dirname(dst)
         if fspec.turl:
             f['pfn'] = fspec.turl
 
+        # proceed with the download
+        tolog('_stageInApi: %s' % str(f))
+        trace_pattern = {}
+        if self.trace_report:
+            trace_pattern = self.trace_report
         result = []
         download_client = DownloadClient()
         if fspec.turl:
@@ -140,8 +170,21 @@ class rucioSiteMover(BaseSiteMover):
         clientState = 'FAILED'
         if result:
             clientState = result[0].get('clientState', 'FAILED') 
-        return clientState
-        
+
+        # propagating rucio logger to pilot logger
+        log_str = ''
+        try:
+            log_str = logger.fetch()
+        except Exception as e:
+            log_str =  e
+        for msg in log_str.split('\n'):
+            tolog('Rucio uploadclient: %s' % str(msg))
+        try:
+            logger.kill()
+        except:
+            tolog('Rucio logger was not closed properly.')
+
+        return clientState 
 
     def stageOut(self, src, dst, fspec):
         """
@@ -192,12 +235,22 @@ class rucioSiteMover(BaseSiteMover):
     def stageOutApi(self, src, fspec):
 
         from rucio.client.uploadclient import UploadClient
+        upload_client = UploadClient()
+        logger = Logger()
+        upload_client.logger = logger.log
+
+        # traces are turned off
+        if hasattr(upload_client, 'tracing'):
+            upload_client.tracing = self.tracing
 
         f = {}
         f['path'] = fspec.pfn if fspec.pfn else fspec.lfn
         f['rse'] = fspec.ddmendpoint
-        f['scope'] = fspec.scope
+        f['did_scope'] = fspec.scope
         f['no_register'] = True
+
+        if fspec.filesize:
+            f['transfer_timeout'] = max(600, fspec.filesize*600/(100*1000*1000)) # 10 min for 100 MB file
 
         if fspec.storageId and int(fspec.storageId) > 0:
             if not self.isDeterministic(fspec.ddmendpoint):
@@ -205,8 +258,22 @@ class rucioSiteMover(BaseSiteMover):
         elif fspec.lfn and '.root' in fspec.lfn:
             f['guid'] = fspec.guid
 
-        uc = UploadClient()
-        uc.upload([f])
+        # process the upload
+        tolog('_stageOutApi: %s' % str(f))
+        upload_client.upload([f])
+
+        # propagating rucio logger to pilot logger
+        log_str = ''
+        try:
+            log_str = logger.fetch()
+        except Exception as e:
+            log_str =  e
+        for msg in log_str.split('\n'):
+            tolog('Rucio uploadclient: %s' % str(msg))
+        try:
+            logger.kill()
+        except:
+            tolog('Rucio logger was not closed properly.')
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
