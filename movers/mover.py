@@ -254,12 +254,11 @@ class JobMover(object):
 
         try:
             query = bquery.copy()
-            if allowRemoteInputs:
-                location = self.detect_client_location()
-                if not location:
-                    raise Exception("Failed to get client location")
-                query.update(sort='geoip', client_location=location)
-                # query.update(sort='geoip', client_location=location, domain='lan') # remove lan again after testing
+            #if allowRemoteInputs:
+            location = self.detect_client_location()
+            if not location:
+                raise Exception("Failed to get client location")
+            query.update(sort='geoip', client_location=location)
 
             try:
                 self.log('Call rucio.list_replicas() with query=%s' % query)
@@ -633,11 +632,11 @@ class JobMover(object):
                 copytool, copysetup = dat.get('copytool'), dat.get('copysetup')
 
                 # switch off tracing if copytool=rucio, as this is handled internally by rucio
-                #if copytool == 'rucio':
-                #    self.useTracingService = False
-                #else:
-                #    # re-activate tracing in case rucio is not used for staging
-                #    self.useTracingService = useTracingService
+                if copytool == 'rucio':
+                    self.useTracingService = False
+                else:
+                    # re-activate tracing in case rucio is not used for staging
+                    self.useTracingService = useTracingService
 
                 try:
                     sitemover = sitemover_objects.get(copytool)

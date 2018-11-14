@@ -1258,7 +1258,7 @@ class JobLog:
             # to return an error code when we don't want it to, e.g. in evgen jobs that have broken soft links
             # the pilot should remove the broken links before though. later, the pilot should fail if the log file
             # is too big
-            cmd = "pwd;tar cvf %s %s --dereference; echo $?" % (tarballNM, job.newDirNM)
+            cmd = "pwd;tar cvf %s %s --dereference --one-file-system; echo $?" % (tarballNM, job.newDirNM)
             exitcode, output = timedCommand(cmd, timeout=timeout)
             if exitcode != 0:
                 tolog("!!WARNING!!4343!! Log file creation failed: %d, %s" % (exitcode, output))

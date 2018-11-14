@@ -1961,7 +1961,15 @@ if __name__ == "__main__":
                 runJob.moveTrfMetadata(job.workdir, job.jobId)
 
             # create the metadata for the output + log files
-            ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
+            ec = 0
+            try:
+                ec, job, outputFileInfo = runJob.createFileMetadata(list(outs), job, outsDict, dsname, datasetDict, jobSite.sitename, analysisJob=analysisJob, fromJSON=fromJSON)
+            except Exception as e:
+                job.pilotErrorDiag = "Exception caught: %s" % e
+                tolog(job.pilotErrorDiag)
+                ec = error.ERR_BADXML
+                job.result[0] = "Badly formed XML (PoolFileCatalog.xml could not be parsed)"
+                job.result[2] = ec
             if ec:
                 runJob.failJob(0, ec, job, pilotErrorDiag=job.pilotErrorDiag)
 

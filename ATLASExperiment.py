@@ -609,7 +609,8 @@ class ATLASExperiment(Experiment):
                     "radical",
                     "movers",
                     "_joproxy15",
-                    "ckpt*"]
+                    "ckpt*",
+                    "HAHM_*"]
 
         # remove core and pool.root files from AthenaMP sub directories
         try:
@@ -1576,7 +1577,7 @@ class ATLASExperiment(Experiment):
 
         ec = 0
         pilotErrorDiag = ""
-        tolog("pre verifyNCoresSettings")
+
         # Make sure that ATHENA_PROC_NUMBER has a proper value for the current job
         if job.prodSourceLabel != "install":
             ec, pilotErrorDiag = self.verifyNCoresSettings(job.coreCount)

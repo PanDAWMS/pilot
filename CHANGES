@@ -208,6 +208,53 @@ Bug fixes:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+73.6
+
+New error code
+- ERR_BADXML = 1247, "Badly formed XML" - set if the PoolFileCatalog.xml contains illegal characters, as happened
+  in recent user job (RunJob)
+
+Replicas
+- Now always setting geoip in list_replicas() call, resolve_replicas() (mover)
+
+Log file creation, requested by R. Walker:
+- Added HAHM_* to removeRedundantFiles() (ATLASExperiment)
+- Added --one-file-system to the tar command in createLogFile() (JobLog)
+
+UCORE scaling correction, requested by R. Walker:
+- Now scaling memory limit 2*maxRSS with job.coreCount/schedconfig.corecount, in __check_memory_usage() (Monitor)
+
+Support for new prodSourceLabel, requested by A. da Silva et al:
+- Added -i ALRB and prodSourceLabel=rc_alrb to getProdSourceLabel() (pilot)
+
+Updates from Tomas Javurek: (reverted)
+
+  https://github.com/PanDAWMS/pilot/pull/227
+
+Commit Summary
+
+ruciomover: api only from now on, traces off
+
+File Changes
+
+M movers/rucio_sitemover.py (100)
+
+Updates from P. Svirin:
+
+  https://github.com/PanDAWMS/pilot/pull/226
+
+Commit Summary
+
+Added RUCIO tracing
+
+File Changes
+
+M movers/mover.py (10)
+M movers/rucio_sitemover.py (19)
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
