@@ -124,6 +124,8 @@ class rucioSiteMover(BaseSiteMover):
         # init. download client
         from rucio.client.downloadclient import DownloadClient
         download_client = DownloadClient()
+        logger = Logger()
+        download_client.logger = logger.log
 
         # traces are switched off
         if hasattr(download_client, 'tracing'):
@@ -131,8 +133,8 @@ class rucioSiteMover(BaseSiteMover):
 
         # file specifications before the actual download
         f = {}
-        f['scope'] = fspec.scope
-        f['name'] = fspec.lfn
+        f['did_scope'] = fspec.scope
+        f['did_name'] = fspec.lfn
         f['did'] = '%s:%s' % (fspec.scope, fspec.lfn)
         f['rse'] = fspec.ddmendpoint
         f['base_dir'] = dirname(dst)
@@ -140,6 +142,7 @@ class rucioSiteMover(BaseSiteMover):
             f['pfn'] = fspec.turl
 
         # proceed with the download
+        tolog('_stageInApi: %s' % str(f))
         trace_pattern = {}
         if self.trace_report:
             trace_pattern = self.trace_report
@@ -152,6 +155,19 @@ class rucioSiteMover(BaseSiteMover):
         clientState = 'FAILED'
         if result:
             clientState = result[0].get('clientState', 'FAILED') 
+
+        # propagating rucio logger to pilot logger
+        log_str = ''
+        try:
+            log_str = logger.fetch()
+        except Exception as e:
+            log_str =  e
+        for msg in log_str.split('\n'):
+            tolog('Rucio uploadclient: %s' % str(msg))
+        try:
+            logger.kill()
+        except:
+            tolog('Rucio logger was not closed properly.')
 
         return clientState 
 
@@ -213,7 +229,7 @@ class rucioSiteMover(BaseSiteMover):
         elif fspec.lfn and '.root' in fspec.lfn:
             f['guid'] = fspec.guid
 
-        # proceed with the upload
+        # process the upload
         tolog('_stageOutApi: %s' % str(f))
         upload_client.upload([f])
 
@@ -225,7 +241,10 @@ class rucioSiteMover(BaseSiteMover):
             log_str =  e
         for msg in log_str.split('\n'):
             tolog('Rucio uploadclient: %s' % str(msg))
-        logger.kill()
+        try:
+            logger.kill()
+        except:
+            tolog('Rucio logger was not closed properly.')
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
