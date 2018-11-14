@@ -142,7 +142,7 @@ class rucioSiteMover(BaseSiteMover):
             f['pfn'] = fspec.turl
 
         # proceed with the download
-        tolog('_stageInApi: %s' % str(f))
+        tolog('_stageInApi file: %s' % str(f))
         trace_pattern = {}
         if self.trace_report:
             trace_pattern = self.trace_report
