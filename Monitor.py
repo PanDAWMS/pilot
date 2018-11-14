@@ -334,7 +334,10 @@ class Monitor:
                         if maxRSS:
                             # correction for SCORE/4CORE/nCORE jobs on UCORE queues
                             try:
+                                pUtil.tolog('job.coreCount=%f' % float(self.__env['jobDic'][k][1].coreCount))
+                                pUtil.tolog('schedconfig.corecount=%f' % float(pUtil.readpar('corecount')))
                                 scale = float(self.__env['jobDic'][k][1].coreCount) / float(pUtil.readpar('corecount'))
+                                pUtil.tolog('scale=%f' % scale)
                             except Exception as e:
                                 pUtil.tolog('!!WARNING!!9910!! Exception caught: %s' % e)
                                 scale = 1
@@ -360,7 +363,7 @@ class Monitor:
                                             self.__env['jobDic'][k][1].result[2] = self.__error.ERR_PAYLOADEXCEEDMAXMEM
                                             self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
                                         else:
-                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d kB (2*maxRSS=%d kB, scale=%d)" % (maxPSS_int, maxRSS_int, scale))
+                                            pUtil.tolog("Max memory (maxPSS) used by the payload is within the allowed limit: %d kB (2*maxRSS=%d kB, scale=%f)" % (maxPSS_int, maxRSS_int, scale))
                                     else:
                                         pUtil.tolog("!!WARNING!!9903!! Unexpected MemoryMonitor maxPSS value: %d" % (maxPSS_int))
                         else:
