@@ -17,7 +17,7 @@ import os
 
 class Logger():
     """
-    logging handler tha allows to read logger from Rucio
+    logging handler that allows to read logger from Rucio
     """
 
     def __init__(self):
@@ -176,7 +176,7 @@ class rucioSiteMover(BaseSiteMover):
         except Exception as e:
             log_str =  e
         for msg in log_str.split('\n'):
-            tolog('Rucio uploadclient: %s' % str(msg))
+            tolog('Rucio downloadclient: %s' % str(msg))
         try:
             logger.kill()
         except:
