@@ -153,6 +153,8 @@ class rucioSiteMover(BaseSiteMover):
         f['base_dir'] = dirname(dst)
         if fspec.turl:
             f['pfn'] = fspec.turl
+        if fspec.filesize:
+            f['transfer_timeout'] = max(600, fspec.filesize*600/(100*1000*1000)) # 10 min for 100 MB file
 
         # proceed with the download
         tolog('_stageInApi file: %s' % str(f))
