@@ -17,7 +17,7 @@ import os
 
 class Logger():
     """
-    logging handler tha allows to read logger from Rucio
+    logging handler that allows to read logger from Rucio
     """
 
     def __init__(self):
@@ -38,10 +38,11 @@ class Logger():
 
 
 class rucioSiteMover(BaseSiteMover):
-    """ SiteMover that uses rucio CLI for both get and put functionality """
+    """ SiteMover that uses rucio python API for both get and put functionality """
 
     name = 'rucio'
     schemes = ['srm', 'gsiftp', 'root', 'https', 's3', 's3+rucio', 'davs']
+    tracing = False
 
     def __which(self, pgm):
         """
@@ -76,6 +77,19 @@ class rucioSiteMover(BaseSiteMover):
 
         return False
 
+    def VerifyStageOut(self, dst, fspec):
+        """
+        Checks that the uploaded file is physically at the destination.
+
+        :param dst:   destination rse
+        :param fspec: file specifications
+        """
+        from rucio.rse import rsemanager as rsemgr
+        rse_settings = rsemgr.get_rse_info(dst)
+        uploaded_file = {'name':fspec.lfn, 'scope':fspec.scope}
+        tolog('Checking file: %s' % str(fspec.lfn))
+        return rsemgr.exists(rse_settings, [uploaded_file])
+
     def stageInFile(self, turl, dst, fspec):
         """
         Use the rucio download command to stage in the file.
@@ -86,42 +100,21 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        trace_str_pattern = "%s%s%s%s%s%s%s"
-        trace_str = ''
-        trace_str = trace_str_pattern % (" --trace_appid \"%s\"" %  self.trace_report['appid'] if self.trace_report['appid'] is not None else '',
-                                         " --trace_dataset \"%s\"" % self.trace_report['dataset'] if self.trace_report['dataset'] is not None else '',
-                                         " --trace_datasetscope \"%s\"" % self.trace_report['scope'] if self.trace_report['scope'] is not None else '',
-                                         " --trace_eventtype \"get_sm%s\"" % self.trace_report['eventType'] if self.trace_report['eventType'] else '',
-                                         " --trace_pq \"%s\"" % self.trace_report['pq'] if self.trace_report['pq'] is not None else '',
-                                         " --trace_taskid \"%s\"" % self.trace_report['taskid'] if self.trace_report['taskid'] is not None else '',
-                                         " --trace_usrdn \"%s\"" % self.trace_report['usrdn'] if self.trace_report['usrdn'] is not None else '' )
-
-        cmd = 'rucio -v download %s --dir %s --rse %s --pfn %s %s:%s' % (trace_str,
-                                                                      dirname(dst),
-                                                                      fspec.ddmendpoint,
-                                                                      fspec.turl,
-                                                                      fspec.scope,
-                                                                      fspec.lfn)
-
-#        cmd = 'rucio -v download --dir %s --rse %s --pfn %s %s:%s' % (dirname(dst),
-#                                                                      fspec.ddmendpoint,
-#                                                                      fspec.turl,
-#                                                                      fspec.scope,
-#                                                                      fspec.lfn)
-
-        # Prepend the command with singularity if necessary
-        from Singularity import singularityWrapper
-        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(dst))
-
-        tolog('stageIn: %s' % cmd)
-        s, o = getstatusoutput(cmd)
-        tolog('stageInOutput: s=%s o=%s' % (s, o))
-        if s:
-            tolog('stageIn with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
+        num_retries = 2
+        success = False
+        try_counter = 0
+        error_msg = None
+        while not success and try_counter != num_retries: 
+            try_counter += 1
+            tolog('StageIn, attempt %s/%s' % (str(try_counter), str(num_retries)))
             try:
-                self.stageInApi(dst, fspec)
+                self._stageInApi(dst, fspec)
+                success = True
             except Exception as error:
-                raise PilotException('stageIn with API failed:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED)
+                error_msg = error
+
+        if error_msg and not success:
+            raise PilotException('stageIn with API faied:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED) 
 
         # TODO: fix in rucio download to set specific outputfile
         cmd = 'mv %s %s' % (dirname(dst) + '/%s/%s' % (fspec.scope,
@@ -139,13 +132,19 @@ class rucioSiteMover(BaseSiteMover):
 
         return None, None
 
-    def stageInApi(self, dst, fspec):
+    def _stageInApi(self, dst, fspec):
 
+        # init. download client
         from rucio.client.downloadclient import DownloadClient
         download_client = DownloadClient()
         logger = Logger()
         download_client.logger = logger.log
 
+        # traces are switched off
+        if hasattr(download_client, 'tracing'):
+            download_client.tracing = self.tracing
+
+        # file specifications before the actual download
         f = {}
         f['did_scope'] = fspec.scope
         f['did_name'] = fspec.lfn
@@ -154,18 +153,19 @@ class rucioSiteMover(BaseSiteMover):
         f['base_dir'] = dirname(dst)
         if fspec.turl:
             f['pfn'] = fspec.turl
+        if fspec.filesize:
+            f['transfer_timeout'] = max(600, fspec.filesize*600/(100*1000*1000)) # 10 min for 100 MB file
 
         # proceed with the download
-        tolog('_stageInApi: %s' % str(f))
+        tolog('_stageInApi file: %s' % str(f))
         trace_pattern = {}
         if self.trace_report:
             trace_pattern = self.trace_report
         result = []
-        download_client = DownloadClient()
         if fspec.turl:
-            result = download_client.download_pfns([f], 1)
+            result = download_client.download_pfns([f], 1, trace_custom_fields=trace_pattern)
         else:
-            result = download_client.download_dids([f])
+            result = download_client.download_dids([f], trace_custom_fields=trace_pattern)
 
         clientState = 'FAILED'
         if result:
@@ -178,7 +178,7 @@ class rucioSiteMover(BaseSiteMover):
         except Exception as e:
             log_str =  e
         for msg in log_str.split('\n'):
-            tolog('Rucio uploadclient: %s' % str(msg))
+            tolog('Rucio downloadclient: %s' % str(msg))
         try:
             logger.kill()
         except:
@@ -196,44 +196,37 @@ class rucioSiteMover(BaseSiteMover):
         :return:      destination file details (ddmendpoint, surl, pfn)
         """
 
-        if fspec.storageId and int(fspec.storageId) > 0:
-            if self.isDeterministic(fspec.ddmendpoint):
-                cmd = 'rucio -v upload --no-register --rse %s --scope %s %s' % (fspec.ddmendpoint,
-                                                                                fspec.scope,
-                                                                                fspec.pfn if fspec.pfn else fspec.lfn)
-            else:
-                cmd = 'rucio -v upload --no-register --rse %s --scope %s --pfn %s %s' % (fspec.ddmendpoint,
-                                                                                         fspec.scope,
-                                                                                         fspec.turl,
-                                                                                         fspec.pfn if fspec.pfn else fspec.lfn)
-        else:
-            guid = ' --guid %s' % fspec.guid if fspec.lfn and '.root' in fspec.lfn else ''
-            cmd = 'rucio -v upload%s --no-register --rse %s --scope %s %s' % (guid, fspec.ddmendpoint,
-                                                                              fspec.scope,
-                                                                              fspec.pfn if fspec.pfn else fspec.lfn)
+        num_retries = 2
+        success = False
+        try_counter = 0
+        error_msg = None
+        while not success and try_counter != num_retries: 
+            try_counter += 1
+            tolog('StageOut, attempt %s/%s' % (str(try_counter), str(num_retries)))
+            try:
+                self._stageOutApi(src, fspec)
+                success = True
+            except Exception as error:
+                error_msg = error
 
-        # Prepend the command with singularity if necessary
-        from Singularity import singularityWrapper
-        cmd = singularityWrapper(cmd, fspec.cmtconfig, dirname(src))
+        #physical check after upload
+        if success:
+            try:
+                file_exists = self.VerifyStageOut(fspec.ddmendpoint, fspec)
+                tolog('File exists at the storage: %s' % str(file_exists))
+            except Exception as e:
+                tolog('File existence verification failed with: %s' % str(e))
 
-        tolog('stageOutCmd: %s' % cmd)
-        s, o = getstatusoutput(cmd)
-        tolog('stageOutOutput: s=%s o=%s' % (s, o))
-
-        if s:
-            raise PilotException('stageOut failed -- rucio upload did not succeed: %s' % o.replace('\n', ''))
-            #tolog('stageOut with CLI failed! Trying API. Error: %s' % o.replace('\n', ''))
-            #try:
-            #    self.stageOutApi(src, fspec)
-            #except Exception as error:
-            #    raise PilotException('stageOut with API faied:  %s' % error)
+        if error_msg and not success:
+            raise PilotException('stageOut with API faied:  %s' % error_msg)
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
                 'pfn': fspec.lfn}
 
-    def stageOutApi(self, src, fspec):
+    def _stageOutApi(self, src, fspec):
 
+        # init. the uploadclient
         from rucio.client.uploadclient import UploadClient
         upload_client = UploadClient()
         logger = Logger()
@@ -243,6 +236,7 @@ class rucioSiteMover(BaseSiteMover):
         if hasattr(upload_client, 'tracing'):
             upload_client.tracing = self.tracing
 
+        # file specifications before the upload
         f = {}
         f['path'] = fspec.pfn if fspec.pfn else fspec.lfn
         f['rse'] = fspec.ddmendpoint
