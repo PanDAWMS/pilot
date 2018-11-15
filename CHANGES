@@ -257,6 +257,9 @@ M movers/rucio_sitemover.py (19)
 
 73.7:
 
+Rucio mover:
+- Replaced rucio mover with version from Tomas's github repo
+
 Updates from Tomas Javurek:
 
 https://github.com/PanDAWMS/pilot/pull/229/
