@@ -266,6 +266,25 @@ https://github.com/PanDAWMS/pilot/pull/229/
 
 [missing comments; ask Tomas]
 
+Updates from Frank Berghaus:
+
+Test jobs running against the Dynafed at CERN attempting to benchmark its performance failed because the pilot does not allow dav for direct access. We would like to proceed with these test, also for benchmarking WebDAV against XRootD in general. For this we would like to allow direct access with davs.
+
+From the ROOT perspective both WebDAV and HTTP are implemented by TDavixFile. Both protocols should be allowed for direct access on LAN.
+
+You can view, comment on, or merge this pull request online at:
+
+  https://github.com/PanDAWMS/pilot/pull/232
+
+Commit Summary
+
+Allow direct access on WebDAV for local access
+
+File Changes
+
+M Job.py (2)
+M movers/mover.py (2)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
