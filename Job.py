@@ -1294,7 +1294,7 @@ class FileSpec(object):
 
         if ensure_replica:
 
-            allowed_replica_schemas = ['root://', 'dcache://', 'dcap://', 'file://', 'https://']
+            allowed_replica_schemas = ['root://', 'davs://', 'dcache://', 'dcap://', 'file://', 'https://']
 
             if self.turl:
                 if True not in set([self.turl.startswith(e) for e in allowed_replica_schemas]):
