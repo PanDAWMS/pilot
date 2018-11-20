@@ -50,7 +50,7 @@ class JobMover(object):
     _stageout_sleeptime_max = 5*60    # seconds, max allowed sleep time in case of stageout failure
 
     direct_remoteinput_allowed_schemas = ['root']  ## list of allowed schemas to be used for direct acccess mode from REMOTE replicas
-    direct_input_allowed_schemas = ['root', 'dcache', 'dcap', 'file', 'https']  ## list of allowed schemas to be used for direct acccess mode from local replicas
+    direct_input_allowed_schemas = ['root', 'davs', 'dcache', 'dcap', 'file', 'https']  ## list of allowed schemas to be used for direct acccess mode from local replicas
 
     remoteinput_allowed_schemas = ['root', 'gsiftp', 'dcap', 'davs', 'srm'] ## extend me later if need
 
