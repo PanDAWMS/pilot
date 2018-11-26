@@ -99,7 +99,7 @@ class objectstoreSiteMover(rucioSiteMover):
                                 'pfn': surl}
             else:
                 if ddm.get('aprotocols'):
-                    ordered_protos = sorted(ddm.get('aprotocols').get('r', []).iteritems(), key=lambda x: x[1])
+                    ordered_protos = sorted(ddm.get('aprotocols').get('r', []), key=lambda x: x[1])
                     tolog("ordered protocols: %s" % str(ordered_protos))
                     if ordered_protos:
                         proto = ordered_protos[fspec.retries % len(ordered_protos)]
