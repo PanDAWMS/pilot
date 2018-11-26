@@ -214,11 +214,13 @@ class rucioSiteMover(BaseSiteMover):
             try:
                 file_exists = self.VerifyStageOut(fspec.ddmendpoint, fspec)
                 tolog('File exists at the storage: %s' % str(file_exists))
+                if not file_exists:
+                    raise PilotException('stageOut: Physical check after upload failed.')
             except Exception as e:
                 tolog('File existence verification failed with: %s' % str(e))
 
         if error_msg and not success:
-            raise PilotException('stageOut with API faied:  %s' % error_msg)
+            raise PilotException('stageOut with API failed:  %s' % error_msg)
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
