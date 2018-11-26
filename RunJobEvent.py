@@ -132,6 +132,8 @@ class RunJobEvent(RunJob):
     __nStageOutSuccessAfterFailure = 0
     __isLastStageOutFailed = False
 
+    __eventrangesToBeUpdated = []
+
     # error fatal code
     __esFatalCode = None
     __isKilled = False
@@ -2102,6 +2104,9 @@ class RunJobEvent(RunJob):
                         event_status = [{'eventRanges': chunkEventRanges, 'zipFile': {'lfn': os.path.basename(output_name), 'objstoreID': os_bucket_id, 'fsize': filesize, checksum_type: checksum, 'numEvents': numEvents}}]
                     status, output = updateEventRanges(event_status, url=self.getPanDAServer(), version=1, jobId = self.__job.jobId, pandaProxySecretKey = self.__job.pandaProxySecretKey)
                     tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                    if str(status) != '0':
+                        tolog("Failed to update event ranges, keep it to re-update later")
+                        self.__eventrangesToBeUpdated.append(event_status)
                     self.checkSoftMessage(output)
                 self.__nStageOutSuccessAfterFailure += 1
                 if self.__nStageOutSuccessAfterFailure > 10:
@@ -2250,6 +2255,21 @@ class RunJobEvent(RunJob):
 
         self.__asyncOutputStager_thread.join()
 
+    def updateRemainingEventRanges(self):
+        try:
+            eventrangesToBeUpdated = self.__eventrangesToBeUpdated
+            self.__eventrangesToBeUpdated = []
+            for i in range(len(eventrangesToBeUpdated)):
+                event_ranges_status = eventrangesToBeUpdated.pop(0)
+                status, output = updateEventRanges(event_ranges_status, url=self.getPanDAServer(), version=1, jobId = self.__job.jobId, pandaProxySecretKey = self.__job.pandaProxySecretKey)
+                tolog("Update Event ranges status: %s, output: %s" % (status, output))
+                if str(status) != '0':
+                    tolog("Failed to update event ranges, keep it to re-update later")
+                    self.__eventrangesToBeUpdated.append(event_status)
+                self.checkSoftMessage(output)
+        except:
+            tolog("!!WARNING!!2222!! Failed to updateRemainingEventRanges: %s" % (traceback.format_exc()))
+
     def asynchronousOutputStager_new(self):
         """ Transfer output files to stage-out area asynchronously """
 
@@ -2259,6 +2279,7 @@ class RunJobEvent(RunJob):
         finished_first_upload = False
         first_observe_iskilled = None
         run_time = time.time()
+        update_event_ranges_time = time.time()
         tolog("Asynchronous output stager thread initiated")
         while not self.__asyncOutputStager_thread.stopped():
           try:
@@ -2270,6 +2291,11 @@ class RunJobEvent(RunJob):
                 sleep_time = 5 * 60
                 if first_observe_iskilled is None:
                     first_observe_iskilled = True
+
+            if self.__eventrangesToBeUpdated and time.time() > update_event_ranges_time + 1800:
+                update_event_ranges_time = time.time()
+                self.updateRemainingEventRanges()
+
             if len(self.__stageout_queue) > 0 and (time.time() > run_time + sleep_time or first_observe_iskilled):
                 tolog('Sleeped time: %s, is killed: %s' % (sleep_time, self.__isKilled))
                 if first_observe_iskilled:
@@ -2368,6 +2394,7 @@ class RunJobEvent(RunJob):
             time.sleep(1)
           except:
                tolog("!!WARNING!!2222!! Caught exception: %s" % (traceback.format_exc()))
+        self.updateRemainingEventRanges()
         tolog("Asynchronous output stager thread has been stopped")
 
     @mover.use_newmover(asynchronousOutputStager_new)
