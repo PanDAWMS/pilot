@@ -17,7 +17,8 @@ class TraceReport(dict):
 
         defs = {
                 'eventType': '',   # sitemover
-                'eventVersion': 'pilot3', # pilot version
+                'eventVersion': 'pilot',
+                'client': None,
                 'protocol': None,          # set by specific sitemover
                 'clientState': 'INIT_REPORT',
                 'localSite': '', # localsite

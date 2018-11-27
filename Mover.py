@@ -299,6 +299,7 @@ def get_data_new(job,
 
     from movers import JobMover
     from movers.trace_report import TraceReport
+    from pUtil import getPilotVersion
 
     si = getSiteInformation(job.experiment)
     si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
@@ -310,7 +311,7 @@ def get_data_new(job,
         eventType += "_a"
 
     rse = getRSE(job.ddmEndPointIn)  # at this point, get the RSE for the first file in the list, fileid=0
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, client=getPilotVersion(pinitdir))
     mover.trace_report.init(job)
     error = None
     try:
