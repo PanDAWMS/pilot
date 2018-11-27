@@ -20,13 +20,13 @@ from json import loads
 import Site, pUtil, Job, Node, RunJobUtilities
 import Mover as mover
 from pUtil import tolog, readpar, createLockFile, getDatasetDict, getSiteInformation,\
-     tailPilotErrorDiag, getCmtconfig, getExperiment, getGUID
+     tailPilotErrorDiag, getCmtconfig, getExperiment, getGUID, getWriteToInputFilenames
 from JobRecovery import JobRecovery
 from FileStateClient import updateFileStates, dumpFileStates
 from ErrorDiagnosis import ErrorDiagnosis # import here to avoid issues seen at BU with missing module
 from PilotErrors import PilotErrors
 from shutil import copy2
-from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems, getDirectAccess, writeFile
+from FileHandling import tail, getExtension, extractOutputFiles, getDestinationDBlockItems, getDirectAccess, writeFile, readFile
 from EventRanges import downloadEventRanges
 from processes import get_cpu_consumption_time
 
@@ -840,20 +840,41 @@ class RunJob(object):
 
         return directIn
 
-    def replaceLFNsWithTURLs(self, cmd, fname, inFiles):
+    def replaceLFNsWithTURLs(self, cmd, fname, inFiles, writetofile=""):
         """
         Replace all LFNs with full TURLs.
         This function is used with direct access. Athena requires a full TURL instead of LFN.
         """
 
+        turl_dictionary = {}  # { LFN: TURL, ..}
         if os.path.exists(fname):
             file_info_dictionary = mover.getFileInfoDictionaryFromXML(fname)
             for inputFile in inFiles:
                 if inputFile in cmd:
                     turl = file_info_dictionary[inputFile][0]
+                    turl_dictionary[inputFile] = turl
                     if turl.startswith('root://') and turl not in cmd:
                         cmd = cmd.replace(inputFile, turl)
                         tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+
+            # replace the LFNs with TURLs in the writeToFile input file list (if it exists)
+            if writetofile and turl_dictionary:
+                filenames = getWriteToInputFilenames(writetofile)
+                for fname in filenames:
+                    new_lines = []
+                    f = readFile(fname)
+                    for line in f.split('\n'):
+                        if line in turl_dictionary:
+                            turl = turl_dictionary[line]
+                            new_lines.append(turl)
+                        else:
+                            if line:
+                                new_lines.append(line)
+
+                    lines = '\n'.join(new_lines)
+                    if lines:
+                        writeFile(fname, lines)
+
         else:
             tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % fname)
 
@@ -937,8 +958,11 @@ class RunJob(object):
                     analysisJob = job.isAnalysisJob()
                     directIn = self.isDirectAccess(analysisJob, transferType=job.transferType)
                     if not analysisJob and directIn:
+                        # replace the LFNs with TURLs in the job command
+                        # (and update the writeToFile input file list if it exists)
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
-                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles)
+                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles, writetofile=job.writetofile)
+
                 except Exception, e:
                     tolog("Caught exception: %s" % e)
 

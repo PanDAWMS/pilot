@@ -108,6 +108,7 @@ class Job:
         self.dbTime = ""                   # dbTime extracted from jobReport.json, to be used in jobMetrics
         self.dbData = ""                   # dbData extracted from jobReport.json, to be used in jobMetrice
         self.putLogToOS = False            # Job def instruction to ask pilot to transfer log to OS
+        self.writetofile = ""              # path to input file list written to file
 
         # timing info (for on-the-fly cpu consumption calculation)
         self.t0 = None
@@ -367,8 +368,8 @@ class Job:
         # Event Service merge job
         if self.workdir and data.has_key('writeToFile'): #data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
             #if data.has_key('writeToFile'):
-            writeToFile = data['writeToFile']
-            esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(writeToFile)
+            self.writetofile = data['writeToFile']
+            esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(self.writetofile)
             #pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
             #pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
             if esFileDictionary != {}:

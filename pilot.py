@@ -2304,7 +2304,7 @@ def getNewJob(tofile=True):
 
                 try:
                     if env['experiment']:
-                        data = pUtil.updateDispatcherData4ES(data=data, experiment=env['experiment'], path="")
+                        data = pUtil.updateDispatcherData4ES(data=data, experiment=env['experiment'], path=env['pilot_initdir'])
                 except:
                     import traceback
                     pUtil.tolog("!!WARNING!!1200!! Failed to updateDispatcherData4ES: %s" % traceback.format_exc())

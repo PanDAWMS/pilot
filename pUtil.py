@@ -2330,7 +2330,7 @@ def writeToInputFile(path, esFileDictionary, orderedFnameList, eventservice=True
     fnames = {}
     i = 0
     for fname in esFileDictionary.keys():
-        _path = os.path.join(path, fname.replace('.pool.root.', '.txt.'))
+        _path = os.path.join(path, fname.replace('.pool.root.', '.txt.'))  # not necessary?
         try:
             f = open(_path, "w")
         except IOError, e:
@@ -2351,6 +2351,26 @@ def writeToInputFile(path, esFileDictionary, orderedFnameList, eventservice=True
         i += 1
 
     return ec, fnames
+
+def getWriteToInputFilenames(writeToFile):
+    """
+    Extract the writeToFile file name(s).
+    writeToFile='tmpin_mc16_13TeV.345935.PhPy8EG_A14_ttbarMET100_200_hdamp258p75_nonallhad.merge.AOD.e6620_e5984_s3126_r10724_r10726_tid15760866_00:AOD.15760866._000002.pool.root.1'
+    -> return 'tmpin_mc16_13TeV.345935.PhPy8EG_A14_ttbarMET100_200_hdamp258p75_nonallhad.merge.AOD.e6620_e5984_s3126_r10724_r10726_tid15760866_00'
+
+    :param writeToFile:
+    :return:
+    """
+
+    filenames = []
+    entries = writeToFile.split('^')
+    for entry in entries:
+        if ':' in entry:
+            name = entry.split(":")[0]
+            _name = name.replace('.pool.root.', '.txt.')  # not necessary?
+            filenames.append(_name)
+
+    return filenames
 
 def updateESGUIDs(guids):
     """ Update the NULL valued ES guids """
@@ -2422,6 +2442,13 @@ def updateDispatcherData4ES(data, experiment, path):
                 if name_000 in data['jobPars']:
                     tolog("%s in jobPars, replace it with %s" % (name_000, new_name))
                     data['jobPars'] = data['jobPars'].replace(name_000, new_name)
+
+            if data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
+                eventservice = True
+            else:
+                eventservice = False
+            if not eventservice:  # note: for ES there is a different workflow; see Job.py (writeToFile)
+                ec, fnames = writeToInputFile(path, esFileDictionary, orderedFnameList, eventservice)
 
             # Remove the autoconf
             if "--autoConfiguration=everything " in data['jobPars']:
