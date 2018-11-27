@@ -206,7 +206,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
     return 0, "", fields, "", len(transferred_files), 0
 
 # new mover implementation
-def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None):
+def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None, pinitdir=""):
     """
         Do jobmover.stageout_outfiles or jobmover.stageout_logfiles (if log_transfer=True)
         or jobmover.stageout_logfiles_os (if special_log_transfer=True)
@@ -229,7 +229,8 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None)
     eventType = "put_es"
 
     rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType)
+    client = getClientVersionString(pinitdir)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, client=client)
     mover.trace_report.init(job)
     error = None
     storageId = None
@@ -3006,7 +3007,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
             tolog('files list to transfer is empty .. nothing to do.. skip and continue')
             continue
         rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
-        mover.trace_report = TraceReport(localSite=rse, remoteSite=rse, dataset=pdsname, eventType=eventType)
+        client = getClientVersionString(pinitdir)
+        mover.trace_report = TraceReport(localSite=rse, remoteSite=rse, dataset=pdsname, eventType=eventType, client=client)
         mover.trace_report.init(job)
 
         output = func(xfiles) #
