@@ -271,6 +271,18 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None)
     return 0, "", storageId
 
 
+def getClientVersionString(pinitdir):
+    """
+
+    :param pinitdir:
+    :return:
+    """
+
+    pilot_version = getPilotVersion(pinitdir)
+    rucio_version = os.environ.get('ATLAS_LOCAL_RUCIOCLIENTS_VERSION', '')
+
+    return pilot_version + '+' + rucio_version
+
 # new mover implementation:
 # keep the list of input arguments as is for smooth migration
 def get_data_new(job,
@@ -311,7 +323,9 @@ def get_data_new(job,
         eventType += "_a"
 
     rse = getRSE(job.ddmEndPointIn)  # at this point, get the RSE for the first file in the list, fileid=0
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, client=getPilotVersion(pinitdir))
+
+    client = getClientVersionString(pinitdir)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, client=client)
     mover.trace_report.init(job)
     error = None
     try:
