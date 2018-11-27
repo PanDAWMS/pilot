@@ -150,7 +150,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
 
     rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
     client = getClientVersionString(pinitdir)
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, client=client)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, eventVersion=client)
     mover.trace_report.init(job)
     error = None
     try:
@@ -230,7 +230,7 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None,
 
     rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
     client = getClientVersionString(pinitdir)
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, client=client)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, eventVersion=client)
     mover.trace_report.init(job)
     error = None
     storageId = None
@@ -327,7 +327,7 @@ def get_data_new(job,
     rse = getRSE(job.ddmEndPointIn)  # at this point, get the RSE for the first file in the list, fileid=0
 
     client = getClientVersionString(pinitdir)
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, client=client)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, eventVersion=client)
     mover.trace_report.init(job)
     error = None
     try:
@@ -3008,7 +3008,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
             continue
         rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
         client = getClientVersionString(pinitdir)
-        mover.trace_report = TraceReport(localSite=rse, remoteSite=rse, dataset=pdsname, eventType=eventType, client=client)
+        mover.trace_report = TraceReport(localSite=rse, remoteSite=rse, dataset=pdsname, eventType=eventType, eventVersion=client)
         mover.trace_report.init(job)
 
         output = func(xfiles) #
