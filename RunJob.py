@@ -1250,7 +1250,7 @@ class RunJob(object):
 
         try:
             t0 = os.times()
-            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry, log_transfer=False)
+            rc, job.pilotErrorDiag, rf, _dummy, job.filesNormalStageOut, job.filesAltStageOut = mover.put_data_new(job, jobSite, stageoutTries=self.__stageoutretry, log_transfer=False, pinitdir=self.__pilot_initdir)
             t1 = os.times()
 
             job.timeStageOut = int(round(t1[4] - t0[4]))

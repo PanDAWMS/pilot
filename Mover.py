@@ -2947,7 +2947,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
             import copy
             job = copy.deepcopy(job)
             job.workdir = recoveryWorkDir
-        return put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=recoveryWorkDir) + (-1,) # os_bucket_id=-1
+        return put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=recoveryWorkDir, pinitdir=pinitdir) + (-1,) # os_bucket_id=-1
 
 
     # -----
