@@ -259,6 +259,10 @@ M movers/rucio_sitemover.py (19)
 
 Rucio mover:
 - Replaced rucio mover with version from Tomas's github repo
+- Removed code that prevents tracing from being used when rucio copytool is used (Mover)
+
+writeToFile:
+- Now updating LFNs to TURLs in writeToFile input file list in direct access mode (RunJob)
 
 Updates from Tomas Javurek:
 

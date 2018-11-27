@@ -109,7 +109,7 @@ class Job:
         self.dbData = ""                   # dbData extracted from jobReport.json, to be used in jobMetrice
         self.putLogToOS = False            # Job def instruction to ask pilot to transfer log to OS
         self.writetofile = ""              # path to input file list written to file
-
+        #self.writetofile = 'tmpin_mc16_13TeV.345935.PhPy8EG_A14_ttbarMET100_200_hdamp258p75_nonallhad.merge.AOD.e6620_e5984_s3126_r10724_r10726_tid15760866_00:HITS.06828093._000096.pool.root.1'
         # timing info (for on-the-fly cpu consumption calculation)
         self.t0 = None
 
@@ -365,7 +365,9 @@ class Job:
                 self.eventServiceMerge = False
             pUtil.tolog("eventServiceMerge = %s" % str(self.eventServiceMerge))
 
-        # Event Service merge job
+        # Event Service merge job and jobs that require input file lists
+        #data['writeToFile'] = 'tmpin_mc16_13TeV.345935.PhPy8EG_A14_ttbarMET100_200_hdamp258p75_nonallhad.merge.AOD.e6620_e5984_s3126_r10724_r10726_tid15760866_00:HITS.06828093._000096.pool.root.1'
+        #data['jobPars'] += ' --inputAODFile=@tmpin_mc16_13TeV.345935.PhPy8EG_A14_ttbarMET100_200_hdamp258p75_nonallhad.merge.AOD.e6620_e5984_s3126_r10724_r10726_tid15760866_00'
         if self.workdir and data.has_key('writeToFile'): #data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
             #if data.has_key('writeToFile'):
             self.writetofile = data['writeToFile']
