@@ -13,7 +13,7 @@ from timed_command import timed_command
 
 from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems,\
      hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, headPilotErrorDiag, getCopysetup,\
-     getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile, updateInputFileWithTURLs
+     getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile, updateInputFileWithTURLs, getPilotVersion
 from FileHandling import getExtension, getTracingReportFilename, readJSON, getHashedBucketEndpoint, getDirectAccess, useDirectAccessWAN
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
