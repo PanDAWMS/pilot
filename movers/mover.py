@@ -728,6 +728,8 @@ class JobMover(object):
                     self.trace_report.update(url=fdata.turl, clientState='FOUND_ROOT', stateReason='direct_access')
                     self.sendTrace(self.trace_report)
                     continue
+                else:
+                    self.log('Direct access will not be user for lfn=%s since fdata.is_directaccess()=%s, is_directaccess=%s' % (fdata.lfn, fdata.is_directaccess(), is_directaccess))
 
                 # check prefetcher (the turl must be saved for prefetcher to use)
                 # note: for files to be prefetched, there's no entry for the file_state, so the updateFileState needs
