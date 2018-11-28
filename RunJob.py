@@ -840,7 +840,7 @@ class RunJob(object):
 
         return directIn
 
-    def replaceLFNsWithTURLs(self, cmd, fname, inFiles, writetofile=""):
+    def replaceLFNsWithTURLs(self, cmd, fname, inFiles, workdir, writetofile=""):
         """
         Replace all LFNs with full TURLs.
         This function is used with direct access. Athena requires a full TURL instead of LFN.
@@ -870,19 +870,24 @@ class RunJob(object):
                 tolog("filenames=%s" % filenames)
                 for fname in filenames:
                     new_lines = []
-                    f = readFile(fname)
-                    for line in f.split('\n'):
-                        if line in turl_dictionary:
-                            turl = turl_dictionary[line]
-                            new_lines.append(turl)
-                        else:
-                            if line:
-                                new_lines.append(line)
+                    path = os.path.join(workdir, fname)
+                    if os.path.exists(path):
+                        f = readFile(path)
+                        tolog("readFile=%s" % f)
+                        for line in f.split('\n'):
+                            if line in turl_dictionary:
+                                turl = turl_dictionary[line]
+                                new_lines.append(turl)
+                            else:
+                                if line:
+                                    new_lines.append(line)
 
-                    lines = '\n'.join(new_lines)
-                    if lines:
-                        writeFile(fname, lines)
-
+                        lines = '\n'.join(new_lines)
+                        if lines:
+                            writeFile(path, lines)
+                            tolog("lines=%s" % lines)
+                    else:
+                        tolog("!!WARNING!!4546!! File does not exist: %s" % path)
         else:
             tolog("!!WARNING!!4545!! Could not find file: %s (cannot locate TURLs for direct access)" % fname)
 
@@ -971,7 +976,7 @@ class RunJob(object):
                         # replace the LFNs with TURLs in the job command
                         # (and update the writeToFile input file list if it exists)
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
-                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles, writetofile=job.writetofile)
+                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles, self.__pilot_initdir, writetofile=job.writetofile)
 
                 except Exception, e:
                     tolog("Caught exception: %s" % e)
