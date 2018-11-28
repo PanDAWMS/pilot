@@ -875,8 +875,9 @@ class RunJob(object):
                         f = readFile(path)
                         tolog("readFile=%s" % f)
                         for line in f.split('\n'):
-                            if line in turl_dictionary:
-                                turl = turl_dictionary[line]
+                            fname = os.path.basename(line)
+                            if fname in turl_dictionary:
+                                turl = turl_dictionary[fname]
                                 new_lines.append(turl)
                             else:
                                 if line:
@@ -976,7 +977,7 @@ class RunJob(object):
                         # replace the LFNs with TURLs in the job command
                         # (and update the writeToFile input file list if it exists)
                         _fname = os.path.join(job.workdir, "PoolFileCatalog.xml")
-                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles, self.__pilot_initdir, writetofile=job.writetofile)
+                        cmd = self.replaceLFNsWithTURLs(cmd, _fname, job.inFiles, job.workdir, writetofile=job.writetofile)
 
                 except Exception, e:
                     tolog("Caught exception: %s" % e)
