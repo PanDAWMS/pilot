@@ -376,7 +376,7 @@ class Job:
                 else:
                     eventservice = False
                 ec, fnames = pUtil.writeToInputFile(self.workdir, esFileDictionary, orderedFnameList, eventservice)
-                if ec == 0 and eventservice:
+                if ec == 0:
                     data['jobPars'] = pUtil.updateJobPars(data['jobPars'], fnames)
 
         # Yoda job status and accounting info
