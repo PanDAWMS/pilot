@@ -846,20 +846,28 @@ class RunJob(object):
         This function is used with direct access. Athena requires a full TURL instead of LFN.
         """
 
+        tolog("inside replaceLFNsWithTURLs()")
         turl_dictionary = {}  # { LFN: TURL, ..}
         if os.path.exists(fname):
             file_info_dictionary = mover.getFileInfoDictionaryFromXML(fname)
+            tolog("file_info_dictionary=%s" % file_info_dictionary)
             for inputFile in inFiles:
-                if inputFile in cmd:
+                if inputFile in file_info_dictionary:
                     turl = file_info_dictionary[inputFile][0]
                     turl_dictionary[inputFile] = turl
-                    if turl.startswith('root://') and turl not in cmd:
-                        cmd = cmd.replace(inputFile, turl)
-                        tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+                    if inputFile in cmd:
+                        if turl.startswith('root://') and turl not in cmd:
+                            cmd = cmd.replace(inputFile, turl)
+                            tolog("Replaced '%s' with '%s' in the run command" % (inputFile, turl))
+                else:
+                    tolog("!!WARNING!!3434!! inputFile=%s not in dictionary=%s" % (inputFile, file_info_dictionary))
 
+            tolog("writetofile=%s" % writetofile)
+            tolog("turl_dictionary=%s" % turl_dictionary)
             # replace the LFNs with TURLs in the writeToFile input file list (if it exists)
             if writetofile and turl_dictionary:
                 filenames = getWriteToInputFilenames(writetofile)
+                tolog("filenames=%s" % filenames)
                 for fname in filenames:
                     new_lines = []
                     f = readFile(fname)
@@ -957,6 +965,8 @@ class RunJob(object):
                 try:
                     analysisJob = job.isAnalysisJob()
                     directIn = self.isDirectAccess(analysisJob, transferType=job.transferType)
+                    tolog("analysisJob=%s" % analysisJob)
+                    tolog("directIn=%s" % directIn)
                     if not analysisJob and directIn:
                         # replace the LFNs with TURLs in the job command
                         # (and update the writeToFile input file list if it exists)

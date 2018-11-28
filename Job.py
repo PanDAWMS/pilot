@@ -371,6 +371,7 @@ class Job:
         if self.workdir and data.has_key('writeToFile'): #data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
             #if data.has_key('writeToFile'):
             self.writetofile = data['writeToFile']
+            pUtil.tolog("self.writetofile=%s" % self.writetofile)
             esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(self.writetofile)
             #pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
             #pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
