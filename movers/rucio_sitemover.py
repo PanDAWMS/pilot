@@ -154,7 +154,7 @@ class rucioSiteMover(BaseSiteMover):
         if fspec.turl:
             f['pfn'] = fspec.turl
         if fspec.filesize:
-            f['transfer_timeout'] = max(600, fspec.filesize*600/(100*1000*1000)) # 10 min for 100 MB file
+            f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
 
         # proceed with the download
         tolog('_stageInApi file: %s' % str(f))
@@ -214,11 +214,13 @@ class rucioSiteMover(BaseSiteMover):
             try:
                 file_exists = self.VerifyStageOut(fspec.ddmendpoint, fspec)
                 tolog('File exists at the storage: %s' % str(file_exists))
+                if not file_exists:
+                    raise PilotException('stageOut: Physical check after upload failed.')
             except Exception as e:
                 tolog('File existence verification failed with: %s' % str(e))
 
         if error_msg and not success:
-            raise PilotException('stageOut with API faied:  %s' % error_msg)
+            raise PilotException('stageOut with API failed:  %s' % error_msg)
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
@@ -244,7 +246,7 @@ class rucioSiteMover(BaseSiteMover):
         f['no_register'] = True
 
         if fspec.filesize:
-            f['transfer_timeout'] = max(600, fspec.filesize*600/(100*1000*1000)) # 10 min for 100 MB file
+            f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
 
         if fspec.storageId and int(fspec.storageId) > 0:
             if not self.isDeterministic(fspec.ddmendpoint):
