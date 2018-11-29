@@ -13,7 +13,7 @@ from timed_command import timed_command
 
 from pUtil import createPoolFileCatalog, tolog, addToSkipped, removeDuplicates, dumpOrderedItems,\
      hasBeenTransferred, getLFN, makeTransRegReport, readpar, getMaxInputSize, headPilotErrorDiag, getCopysetup,\
-     getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile, updateInputFileWithTURLs
+     getCopyprefixLists, getExperiment, getSiteInformation, stripDQ2FromLFN, extractPattern, dumpFile, updateInputFileWithTURLs, getPilotVersion
 from FileHandling import getExtension, getTracingReportFilename, readJSON, getHashedBucketEndpoint, getDirectAccess, useDirectAccessWAN
 from FileStateClient import updateFileState, dumpFileStates
 from RunJobUtilities import updateCopysetups
@@ -120,7 +120,7 @@ def getRSE(ddmEndPoints, fileid=0):
 
 
 # new mover implementation
-def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_transfer=False, workDir=None):
+def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_transfer=False, workDir=None, pinitdir=""):
     """
         Do jobmover.stageout_outfiles or jobmover.stageout_logfiles (if log_transfer=True)
         or jobmover.stageout_logfiles_os (if special_log_transfer=True)
@@ -149,7 +149,8 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
         eventType += "_a"
 
     rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType)
+    client = getClientVersionString(pinitdir)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, eventVersion=client)
     mover.trace_report.init(job)
     error = None
     try:
@@ -205,7 +206,7 @@ def put_data_new(job, jobSite, stageoutTries, log_transfer=False, special_log_tr
     return 0, "", fields, "", len(transferred_files), 0
 
 # new mover implementation
-def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None):
+def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None, pinitdir=""):
     """
         Do jobmover.stageout_outfiles or jobmover.stageout_logfiles (if log_transfer=True)
         or jobmover.stageout_logfiles_os (if special_log_transfer=True)
@@ -228,7 +229,8 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None)
     eventType = "put_es"
 
     rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType)
+    client = getClientVersionString(pinitdir)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, eventVersion=client)
     mover.trace_report.init(job)
     error = None
     storageId = None
@@ -271,6 +273,18 @@ def put_data_es(job, jobSite, stageoutTries, files, workDir=None, activity=None)
     return 0, "", storageId
 
 
+def getClientVersionString(pinitdir):
+    """
+
+    :param pinitdir:
+    :return:
+    """
+
+    pilot_version = getPilotVersion(pinitdir)
+    rucio_version = os.environ.get('ATLAS_LOCAL_RUCIOCLIENTS_VERSION', '')
+
+    return pilot_version + '+' + rucio_version
+
 # new mover implementation:
 # keep the list of input arguments as is for smooth migration
 def get_data_new(job,
@@ -299,6 +313,7 @@ def get_data_new(job,
 
     from movers import JobMover
     from movers.trace_report import TraceReport
+    from pUtil import getPilotVersion
 
     si = getSiteInformation(job.experiment)
     si.setQueueName(jobSite.computingElement) # WARNING: SiteInformation is singleton: may be used in other functions! FIX me later
@@ -310,7 +325,9 @@ def get_data_new(job,
         eventType += "_a"
 
     rse = getRSE(job.ddmEndPointIn)  # at this point, get the RSE for the first file in the list, fileid=0
-    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType)
+
+    client = getClientVersionString(pinitdir)
+    mover.trace_report = TraceReport(pq=jobSite.sitename, localSite=rse, remoteSite=rse, dataset="", eventType=eventType, eventVersion=client)
     mover.trace_report.init(job)
     error = None
     try:
@@ -2931,7 +2948,7 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
             import copy
             job = copy.deepcopy(job)
             job.workdir = recoveryWorkDir
-        return put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=recoveryWorkDir) + (-1,) # os_bucket_id=-1
+        return put_data_new(job, jobSite, stageoutTries, log_transfer, workDir=recoveryWorkDir, pinitdir=pinitdir) + (-1,) # os_bucket_id=-1
 
 
     # -----
@@ -2990,7 +3007,8 @@ def mover_put_data_new(outputpoolfcstring,      ## pfc XML content with output f
             tolog('files list to transfer is empty .. nothing to do.. skip and continue')
             continue
         rse = getRSE(job.ddmEndPointOut)  # at this point, get the RSE for the first file in the list, fileid=0
-        mover.trace_report = TraceReport(localSite=rse, remoteSite=rse, dataset=pdsname, eventType=eventType)
+        client = getClientVersionString(pinitdir)
+        mover.trace_report = TraceReport(localSite=rse, remoteSite=rse, dataset=pdsname, eventType=eventType, eventVersion=client)
         mover.trace_report.init(job)
 
         output = func(xfiles) #

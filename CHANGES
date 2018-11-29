@@ -208,6 +208,89 @@ Bug fixes:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+73.6
+
+New error code
+- ERR_BADXML = 1247, "Badly formed XML" - set if the PoolFileCatalog.xml contains illegal characters, as happened
+  in recent user job (RunJob)
+
+Replicas
+- Now always setting geoip in list_replicas() call, resolve_replicas() (mover)
+
+Log file creation, requested by R. Walker:
+- Added HAHM_* to removeRedundantFiles() (ATLASExperiment)
+- Added --one-file-system to the tar command in createLogFile() (JobLog)
+
+UCORE scaling correction, requested by R. Walker:
+- Now scaling memory limit 2*maxRSS with job.coreCount/schedconfig.corecount, in __check_memory_usage() (Monitor)
+
+Support for new prodSourceLabel, requested by A. da Silva et al:
+- Added -i ALRB and prodSourceLabel=rc_alrb to getProdSourceLabel() (pilot)
+
+Updates from Tomas Javurek: (reverted)
+
+  https://github.com/PanDAWMS/pilot/pull/227
+
+Commit Summary
+
+ruciomover: api only from now on, traces off
+
+File Changes
+
+M movers/rucio_sitemover.py (100)
+
+Updates from P. Svirin:
+
+  https://github.com/PanDAWMS/pilot/pull/226
+
+Commit Summary
+
+Added RUCIO tracing
+
+File Changes
+
+M movers/mover.py (10)
+M movers/rucio_sitemover.py (19)
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+73.7:
+
+Rucio mover:
+- Replaced rucio mover with version from Tomas's github repo
+- Removed code that prevents tracing from being used when rucio copytool is used (Mover)
+
+writeToFile:
+- Now updating LFNs to TURLs in writeToFile input file list in direct access mode (RunJob)
+
+Updates from Tomas Javurek:
+
+https://github.com/PanDAWMS/pilot/pull/229/
+
+[missing comments; ask Tomas]
+
+Updates from Frank Berghaus:
+
+Test jobs running against the Dynafed at CERN attempting to benchmark its performance failed because the pilot does not allow dav for direct access. We would like to proceed with these test, also for benchmarking WebDAV against XRootD in general. For this we would like to allow direct access with davs.
+
+From the ROOT perspective both WebDAV and HTTP are implemented by TDavixFile. Both protocols should be allowed for direct access on LAN.
+
+You can view, comment on, or merge this pull request online at:
+
+  https://github.com/PanDAWMS/pilot/pull/232
+
+Commit Summary
+
+Allow direct access on WebDAV for local access
+
+File Changes
+
+M Job.py (2)
+M movers/mover.py (2)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())

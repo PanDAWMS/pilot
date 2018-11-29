@@ -1942,7 +1942,7 @@ class RunJobEvent(RunJob):
             files.append(finfo)
             job.addStageOutESFiles(finfo)
 
-        ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=2, files=files, workDir=None, activity=storage['activity'])
+        ret_code, ret_str, os_bucket_id = mover.put_data_es(job, jobSite=self.getJobSite(), stageoutTries=2, files=files, workDir=None, activity=storage['activity'], pinitdir=self.__pilot_initdir)
         if os_bucket_id is None or os_bucket_id == 0:
             os_bucket_id = -1
         return ret_code, ret_str, os_bucket_id

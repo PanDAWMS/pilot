@@ -108,6 +108,7 @@ class Job:
         self.dbTime = ""                   # dbTime extracted from jobReport.json, to be used in jobMetrics
         self.dbData = ""                   # dbData extracted from jobReport.json, to be used in jobMetrice
         self.putLogToOS = False            # Job def instruction to ask pilot to transfer log to OS
+        self.writetofile = ""              # path to input file list written to file
 
         # timing info (for on-the-fly cpu consumption calculation)
         self.t0 = None
@@ -364,13 +365,11 @@ class Job:
                 self.eventServiceMerge = False
             pUtil.tolog("eventServiceMerge = %s" % str(self.eventServiceMerge))
 
-        # Event Service merge job
+        # Event Service merge job and jobs that require input file lists
         if self.workdir and data.has_key('writeToFile'): #data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
             #if data.has_key('writeToFile'):
-            writeToFile = data['writeToFile']
-            esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(writeToFile)
-            #pUtil.tolog("esFileDictionary=%s" % (esFileDictionary))
-            #pUtil.tolog("orderedFnameList=%s" % (orderedFnameList))
+            self.writetofile = data['writeToFile']
+            esFileDictionary, orderedFnameList = pUtil.createESFileDictionary(self.writetofile)
             if esFileDictionary != {}:
                 if data.has_key('eventServiceMerge') and data['eventServiceMerge'].lower() == "true":
                     eventservice = True
@@ -1294,7 +1293,7 @@ class FileSpec(object):
 
         if ensure_replica:
 
-            allowed_replica_schemas = ['root://', 'dcache://', 'dcap://', 'file://', 'https://']
+            allowed_replica_schemas = ['root://', 'davs://', 'dcache://', 'dcap://', 'file://', 'https://']
 
             if self.turl:
                 if True not in set([self.turl.startswith(e) for e in allowed_replica_schemas]):

@@ -140,7 +140,7 @@ class JobLog:
                 t0 = os.times()
                 ### fix job.workdir since log files are located outside job dir
                 job.workdir = site.workdir ### quick hack: FIX ME LATER
-                rc, pilotErrorDiag, rf, _dummy, filesNormalStageOut, filesAltStageOut = mover.put_data_new(job, site, stageoutTries=self.__env['stageoutretry'], log_transfer=False, special_log_transfer=True, workDir=site.workdir)
+                rc, pilotErrorDiag, rf, _dummy, filesNormalStageOut, filesAltStageOut = mover.put_data_new(job, site, stageoutTries=self.__env['stageoutretry'], log_transfer=False, special_log_transfer=True, workDir=site.workdir, pinitdir=self.__env['pilot_initdir'])
 
                 #job.filesNormalStageOut += filesNormalStageOut
                 #job.filesAltStageOut += filesAltStageOut
@@ -180,7 +180,7 @@ class JobLog:
             t0 = os.times()
             ### fix job.workdir since log files are located outside job dir
             job.workdir = site.workdir ### quick hack: FIX ME LATER
-            rc, pilotErrorDiag, rf, _dummy, filesNormalStageOut, filesAltStageOut = mover.put_data_new(job, site, stageoutTries=self.__env['stageoutretry'], log_transfer=True, workDir=site.workdir)
+            rc, pilotErrorDiag, rf, _dummy, filesNormalStageOut, filesAltStageOut = mover.put_data_new(job, site, stageoutTries=self.__env['stageoutretry'], log_transfer=True, workDir=site.workdir, pinitdir=self.__env['pilot_initdir'])
 
             job.filesNormalStageOut += filesNormalStageOut
             job.filesAltStageOut += filesAltStageOut
@@ -1258,7 +1258,7 @@ class JobLog:
             # to return an error code when we don't want it to, e.g. in evgen jobs that have broken soft links
             # the pilot should remove the broken links before though. later, the pilot should fail if the log file
             # is too big
-            cmd = "pwd;tar cvf %s %s --dereference; echo $?" % (tarballNM, job.newDirNM)
+            cmd = "pwd;tar cvf %s %s --dereference --one-file-system; echo $?" % (tarballNM, job.newDirNM)
             exitcode, output = timedCommand(cmd, timeout=timeout)
             if exitcode != 0:
                 tolog("!!WARNING!!4343!! Log file creation failed: %d, %s" % (exitcode, output))
