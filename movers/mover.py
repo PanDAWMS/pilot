@@ -793,7 +793,7 @@ class JobMover(object):
                     fdata.retries = _attempt - 1
                     if _attempt > 1: # if not first stage-in attempt, try to use different ddm protocols
                         try:
-                            new_replica = sitemover.resolve_replica(fdata, dat, ddm=self.ddmconf.get(fdata.ddmendpoint))
+                            new_replica = sitemover.resolve_replica(fdata, dat)
                         except Exception, e:
                             self.log("Failed to resolve new replica for attempts=%s, error=%s" % (_attempt, e))
                             new_replica = None

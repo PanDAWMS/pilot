@@ -83,6 +83,8 @@ class objectstoreSiteMover(rucioSiteMover):
         """
         Overridden method -- unused
         """
+        if not ddm:
+            ddm = self.ddmconf.get(fspec.ddmendpoint)
         # tolog("To resolve replica for file (%s) protocol (%s) ddm (%s)" % (fspec, protocol, ddm))
         if ddm and fspec.storageId and fspec.storageId > 0:
             if fspec.pathConvention and fspec.pathConvention >= 1000:
