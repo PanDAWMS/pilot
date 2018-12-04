@@ -289,6 +289,24 @@ File Changes
 M Job.py (2)
 M movers/mover.py (2)
 
+Updates from Wen Guan:
+
+You can view, comment on, or merge this pull request online at:
+
+  https://github.com/PanDAWMS/pilot/pull/233
+
+Commit Summary
+
+switch to use different ddm protocols based on retries
+fix issues caused by failing update eventranges
+
+File Changes
+
+M Job.py (3)
+M RunJobEvent.py (27)
+M movers/mover.py (14)
+M movers/objectstore_sitemover.py (15)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
