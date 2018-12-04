@@ -83,6 +83,8 @@ class objectstoreSiteMover(rucioSiteMover):
         """
         Overridden method -- unused
         """
+        if not ddm:
+            ddm = self.ddmconf.get(fspec.ddmendpoint)
         # tolog("To resolve replica for file (%s) protocol (%s) ddm (%s)" % (fspec, protocol, ddm))
         if ddm and fspec.storageId and fspec.storageId > 0:
             if fspec.pathConvention and fspec.pathConvention >= 1000:
@@ -99,17 +101,10 @@ class objectstoreSiteMover(rucioSiteMover):
                                 'pfn': surl}
             else:
                 if ddm.get('aprotocols'):
-                    min = None
-                    proto = None
-                    for prot in ddm.get('aprotocols').get('r', []):
-                        if prot[0]:
-                            if min is None:
-                                min = prot[1]
-                                proto = prot
-                            elif prot[1] < min:
-                                min = prot[1]
-                                proto = prot
-                    if proto:
+                    ordered_protos = sorted(ddm.get('aprotocols').get('r', []), key=lambda x: x[1])
+                    tolog("ordered protocols: %s" % str(ordered_protos))
+                    if ordered_protos:
+                        proto = ordered_protos[fspec.retries % len(ordered_protos)]
                         surl = self.getSURL(proto[0], proto[2], fspec.scope, fspec.lfn, pathConvention=fspec.pathConvention, taskId=fspec.taskId, ddmEndpoint=fspec.ddmendpoint)
                         return {'ddmendpoint': fspec.ddmendpoint, 'surl': surl, 'pfn': surl}
         return {}

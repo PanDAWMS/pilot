@@ -792,6 +792,20 @@ class JobMover(object):
 
                     self.log("Get attempt %s/%s for file (%s/%s) with lfn=%s .. sitemover=%s" % (_attempt, self.stageinretry, fnum, nfiles, fdata.lfn, sitemover))
 
+                    fdata.retries = _attempt - 1
+                    if _attempt > 1: # if not first stage-in attempt, try to use different ddm protocols
+                        try:
+                            new_replica = sitemover.resolve_replica(fdata, dat)
+                        except Exception, e:
+                            self.log("Failed to resolve new replica for attempts=%s, error=%s" % (_attempt, e))
+                            new_replica = None
+
+                        if new_replica and new_replica.get('ddmendpoint') == fdata.ddmendpoint:
+                            if new_replica.get('surl'):
+                                fdata.surl = new_replica['surl'] # TO BE CLARIFIED if it's still used and need
+                            if new_replica.get('pfn'):
+                                fdata.turl = new_replica['pfn']
+
                     try:
                         result = sitemover.get_data(fdata)
                         fdata.status = 'transferred' # mark as successful

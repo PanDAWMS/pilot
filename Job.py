@@ -1226,7 +1226,7 @@ class FileSpec(object):
 
     _os_keys = ['eventRangeId', 'storageId', 'eventService', 'allowAllInputRSEs', 'pandaProxySecretKey', 'jobId', 'osPrivateKey', 'osPublicKey', 'pathConvention', 'taskId']
 
-    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code']
+    _local_keys = ['type', 'status', 'replicas', 'surl', 'turl', 'mtime', 'status_code', 'retries']
 
     def __init__(self, **kwargs):
 
@@ -1235,6 +1235,7 @@ class FileSpec(object):
             setattr(self, k, kwargs.get(k, getattr(self, k, None)))
 
         self.filesize = int(getattr(self, 'filesize', 0) or 0)
+        self.retries = 0
         if self.eventService is None:
             self.eventService = False
         self.allowAllInputRSEs = False
