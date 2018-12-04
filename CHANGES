@@ -270,6 +270,11 @@ https://github.com/PanDAWMS/pilot/pull/229/
 
 [missing comments; ask Tomas]
 
+Comments added by Paul:
+1) Again using Rucio API for file transfers
+2) Now verifying that the replica is present at the destination
+3) Now using transfer time-out based on file size
+
 Updates from Frank Berghaus:
 
 Test jobs running against the Dynafed at CERN attempting to benchmark its performance failed because the pilot does not allow dav for direct access. We would like to proceed with these test, also for benchmarking WebDAV against XRootD in general. For this we would like to allow direct access with davs.
