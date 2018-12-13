@@ -225,7 +225,9 @@ class rucioSiteMover(BaseSiteMover):
                 if not file_exists:
                     raise PilotException('stageOut: Physical check after upload failed.')
             except Exception as e:
-                tolog('File existence verification failed with: %s' % str(e))
+                msg = 'stageOut: File existence verification failed with: %s' % e
+                tolog(msg)
+                raise PilotException(msg)
 
         if error_msg and not success:
             raise PilotException('stageOut with API failed:  %s' % error_msg)
@@ -242,7 +244,7 @@ class rucioSiteMover(BaseSiteMover):
         logger = Logger()
         upload_client.logger = logger.log
 
-        # traces are turned off
+        # File existence verification faileds are turned off
         if hasattr(upload_client, 'tracing'):
             upload_client.tracing = self.tracing
 
