@@ -116,3 +116,11 @@ class objectstoreSiteMover(rucioSiteMover):
         """
 
         return True
+
+    def shouldVerifyStageOut(self):
+        """
+            Should the get operation perform any file size/checksum verifications?
+            can be customized for specific movers
+        """
+
+        return False
