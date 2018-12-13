@@ -186,6 +186,14 @@ class rucioSiteMover(BaseSiteMover):
 
         return clientState 
 
+    def shouldVerifyStageOut(self):
+        """
+            Should the get operation perform any file size/checksum verifications?
+            can be customized for specific movers
+        """
+
+        return True
+
     def stageOut(self, src, dst, fspec):
         """
         Use the rucio upload command to stage out the file.
@@ -210,7 +218,7 @@ class rucioSiteMover(BaseSiteMover):
                 error_msg = error
 
         #physical check after upload
-        if success:
+        if success and self.shouldVerifyStageOut():
             try:
                 file_exists = self.VerifyStageOut(fspec.ddmendpoint, fspec)
                 tolog('File exists at the storage: %s' % str(file_exists))
