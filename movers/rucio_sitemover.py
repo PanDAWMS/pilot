@@ -114,7 +114,7 @@ class rucioSiteMover(BaseSiteMover):
                 error_msg = error
 
         if error_msg and not success:
-            raise PilotException('stageIn with API faied:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED) 
+            raise PilotException('stageIn with API failed:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED)
 
         # TODO: fix in rucio download to set specific outputfile
         cmd = 'mv %s %s' % (dirname(dst) + '/%s/%s' % (fspec.scope,
