@@ -153,8 +153,8 @@ class rucioSiteMover(BaseSiteMover):
         f['base_dir'] = dirname(dst)
         if fspec.turl:
             f['pfn'] = fspec.turl
-        if fspec.filesize:
-            f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
+        #if fspec.filesize:
+        #    f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
 
         # proceed with the download
         tolog('_stageInApi file: %s' % str(f))
@@ -245,8 +245,8 @@ class rucioSiteMover(BaseSiteMover):
         f['did_scope'] = fspec.scope
         f['no_register'] = True
 
-        if fspec.filesize:
-            f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
+        #if fspec.filesize:
+        #    f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
 
         if fspec.storageId and int(fspec.storageId) > 0:
             if not self.isDeterministic(fspec.ddmendpoint):
