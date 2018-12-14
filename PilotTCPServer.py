@@ -15,6 +15,9 @@ class PilotTCPServer(threading.Thread):
         while n < 20: # try 20 times before giving up, which means run 20 pilots on one machine simultaneously :)
             n += 1
             self.port = random.randrange(1, 800, 1) + 8888
+            # avoid known port used for local monitoring (req. by A. de Salvo)
+            if self.port == 9256:
+                self.port += 1
             try:
                 self.srv = TCPServer(('localhost',self.port), handler)
             except socket.error, e:

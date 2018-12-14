@@ -331,6 +331,9 @@ stage-out was reported as successful (rucio_sitemover)
 
 73.10:
 
+Local monitoring
+- Avoid port 9256 in TCP server code since it is used for local monitoring (Requested by A. de Salvo) (PilotTCPServer)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/237
@@ -343,6 +346,18 @@ File Changes
 
 M movers/objectstore_sitemover.py (8)
 M movers/rucio_sitemover.py (10)
+
+Updates from Tomas Javurek:
+
+  https://github.com/PanDAWMS/pilot/pull/238
+
+Commit Summary
+
+switching off timeouts since they appear to cause a problem for the Rucio API
+
+File Changes
+
+M movers/rucio_sitemover.py (8)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
