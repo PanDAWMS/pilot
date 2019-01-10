@@ -1910,6 +1910,7 @@ if __name__ == "__main__":
                 if count >= max_count:
                     benchmark_subprocess.send_signal(signal.SIGUSR1)
                     tolog("Terminated the benchmark since it ran for longer than %d s" % (max_count*_sleep))
+                    break
                 else:
                     count += 1
 
