@@ -15,26 +15,10 @@ from StringIO import StringIO
 import logging
 import os
 
-class Logger():
-    """
-    logging handler that allows to read logger from Rucio
-    """
+class PilotLogHandler(logging.Handler):
 
-    def __init__(self):
-        self.stream = StringIO()
-        self.handler = logging.StreamHandler(self.stream)
-        self.log = logging.getLogger('logger')
-        self.log.setLevel(logging.DEBUG)
-        for handler in self.log.handlers:
-            self.log.removeHandler(handler)
-        self.log.addHandler(self.handler)
-    def fetch(self):
-        self.handler.flush()
-        return self.stream.getvalue()
-
-    def kill(self):
-        self.log.removeHandler(self.handler)
-        self.handler.close()
+    def emit(self, record):
+        self.tolog(self.format(record))
 
 
 class rucioSiteMover(BaseSiteMover):
@@ -136,9 +120,10 @@ class rucioSiteMover(BaseSiteMover):
 
         # init. download client
         from rucio.client.downloadclient import DownloadClient
-        download_client = DownloadClient()
-        logger = Logger()
-        download_client.logger = logger.log
+
+        rucio_logger = logging.getLogger('rucio_mover')
+        rucio_logger.addHandler(PilotLogHandler())
+        download_client = DownloadClient(logger=rucio_logger)
 
         # traces are switched off
         if hasattr(download_client, 'tracing'):
@@ -170,19 +155,6 @@ class rucioSiteMover(BaseSiteMover):
         clientState = 'FAILED'
         if result:
             clientState = result[0].get('clientState', 'FAILED') 
-
-        # propagating rucio logger to pilot logger
-        log_str = ''
-        try:
-            log_str = logger.fetch()
-        except Exception as e:
-            log_str =  e
-        for msg in log_str.split('\n'):
-            tolog('Rucio downloadclient: %s' % str(msg))
-        try:
-            logger.kill()
-        except:
-            tolog('Rucio logger was not closed properly.')
 
         return clientState 
 
