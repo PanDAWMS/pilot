@@ -127,6 +127,10 @@ class rucioSiteMover(BaseSiteMover):
 
     def _stageInApi(self, dst, fspec):
 
+        # rucio logger init.
+        rucio_logger = logging.getLogger('rucio_mover')
+        download_client = DownloadClient(logger=rucio_logger)
+
         # traces are switched off
         if hasattr(download_client, 'tracing'):
             download_client.tracing = self.tracing
@@ -201,6 +205,10 @@ class rucioSiteMover(BaseSiteMover):
                 'pfn': fspec.lfn}
 
     def _stageOutApi(self, src, fspec):
+
+        # rucio logger init.
+        rucio_logger = logging.getLogger('rucio_mover')
+        upload_client = UploadClient(logger=rucio_logger)
 
         # traces are turned off
         if hasattr(upload_client, 'tracing'):
