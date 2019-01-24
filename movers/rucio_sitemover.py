@@ -27,8 +27,7 @@ class PilotLogHandler(logging.Handler):
 rucio_logger = logging.getLogger('rucio_mover')
 rucio_logger.setLevel(logging.DEBUG)
 rucio_logger.addHandler(PilotLogHandler())
-download_client = DownloadClient(logger=rucio_logger)
-upload_client = UploadClient(logger=rucio_logger)
+
 
 class rucioSiteMover(BaseSiteMover):
     """ SiteMover that uses rucio python API for both get and put functionality """
