@@ -11,15 +11,24 @@ from PilotErrors import PilotErrors, PilotException
 
 from TimerCommand import getstatusoutput
 from os.path import dirname
-from StringIO import StringIO
 import logging
 import os
+from rucio.client.downloadclient import DownloadClient
+from rucio.client.uploadclient import UploadClient
 
+
+# logger handler to emit the rucio logger with tolog() method
 class PilotLogHandler(logging.Handler):
 
     def emit(self, record):
-        self.tolog(self.format(record))
+        tolog(self.format(record))
 
+# propagation of logger from rucio to pilot
+rucio_logger = logging.getLogger('rucio_mover')
+rucio_logger.setLevel(logging.DEBUG)
+rucio_logger.addHandler(PilotLogHandler())
+download_client = DownloadClient(logger=rucio_logger)
+upload_client = UploadClient(logger=rucio_logger)
 
 class rucioSiteMover(BaseSiteMover):
     """ SiteMover that uses rucio python API for both get and put functionality """
@@ -118,13 +127,6 @@ class rucioSiteMover(BaseSiteMover):
 
     def _stageInApi(self, dst, fspec):
 
-        # init. download client
-        from rucio.client.downloadclient import DownloadClient
-
-        rucio_logger = logging.getLogger('rucio_mover')
-        rucio_logger.addHandler(PilotLogHandler())
-        download_client = DownloadClient(logger=rucio_logger)
-
         # traces are switched off
         if hasattr(download_client, 'tracing'):
             download_client.tracing = self.tracing
@@ -200,12 +202,6 @@ class rucioSiteMover(BaseSiteMover):
 
     def _stageOutApi(self, src, fspec):
 
-        # init. the uploadclient
-        from rucio.client.uploadclient import UploadClient
-        upload_client = UploadClient()
-        logger = Logger()
-        upload_client.logger = logger.log
-
         # traces are turned off
         if hasattr(upload_client, 'tracing'):
             upload_client.tracing = self.tracing
@@ -229,19 +225,6 @@ class rucioSiteMover(BaseSiteMover):
         # process the upload
         tolog('_stageOutApi: %s' % str(f))
         upload_client.upload([f])
-
-        # propagating rucio logger to pilot logger
-        log_str = ''
-        try:
-            log_str = logger.fetch()
-        except Exception as e:
-            log_str =  e
-        for msg in log_str.split('\n'):
-            tolog('Rucio uploadclient: %s' % str(msg))
-        try:
-            logger.kill()
-        except:
-            tolog('Rucio logger was not closed properly.')
 
         return {'ddmendpoint': fspec.ddmendpoint,
                 'surl': fspec.surl,
