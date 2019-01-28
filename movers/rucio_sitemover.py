@@ -114,7 +114,7 @@ class rucioSiteMover(BaseSiteMover):
                 error_msg = error
 
         if error_msg and not success:
-            raise PilotException('stageIn with API faied:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED) 
+            raise PilotException('stageIn with API failed:  %s' % error, code=PilotErrors.ERR_STAGEINFAILED)
 
         # TODO: fix in rucio download to set specific outputfile
         cmd = 'mv %s %s' % (dirname(dst) + '/%s/%s' % (fspec.scope,
@@ -153,8 +153,8 @@ class rucioSiteMover(BaseSiteMover):
         f['base_dir'] = dirname(dst)
         if fspec.turl:
             f['pfn'] = fspec.turl
-        if fspec.filesize:
-            f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
+        #if fspec.filesize:
+        #    f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
 
         # proceed with the download
         tolog('_stageInApi file: %s' % str(f))
@@ -225,7 +225,9 @@ class rucioSiteMover(BaseSiteMover):
                 if not file_exists:
                     raise PilotException('stageOut: Physical check after upload failed.')
             except Exception as e:
-                tolog('File existence verification failed with: %s' % str(e))
+                msg = 'stageOut: File existence verification failed with: %s' % e
+                tolog(msg)
+                raise PilotException(msg)
 
         if error_msg and not success:
             raise PilotException('stageOut with API failed:  %s' % error_msg)
@@ -242,7 +244,7 @@ class rucioSiteMover(BaseSiteMover):
         logger = Logger()
         upload_client.logger = logger.log
 
-        # traces are turned off
+        # File existence verification faileds are turned off
         if hasattr(upload_client, 'tracing'):
             upload_client.tracing = self.tracing
 
@@ -253,8 +255,8 @@ class rucioSiteMover(BaseSiteMover):
         f['did_scope'] = fspec.scope
         f['no_register'] = True
 
-        if fspec.filesize:
-            f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
+        #if fspec.filesize:
+        #    f['transfer_timeout'] = self.getTimeOut(fspec.filesize) # too harsh, max 3 hours
 
         if fspec.storageId and int(fspec.storageId) > 0:
             if not self.isDeterministic(fspec.ddmendpoint):

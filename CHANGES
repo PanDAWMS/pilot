@@ -322,6 +322,53 @@ Davs in direct access
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+73.9:
+
+Patch for an unhandled exception in rucio mover stageOut() function leading to a false-positive situation where a failed
+stage-out was reported as successful (rucio_sitemover)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+73.10:
+
+Local monitoring
+- Avoid port 9256 in TCP server code since it is used for local monitoring (Requested by A. de Salvo) (PilotTCPServer)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/237
+
+Commit Summary
+
+disable verify for objectstore stageout
+
+File Changes
+
+M movers/objectstore_sitemover.py (8)
+M movers/rucio_sitemover.py (10)
+
+Updates from Tomas Javurek:
+
+  https://github.com/PanDAWMS/pilot/pull/238
+
+Commit Summary
+
+switching off timeouts since they appear to cause a problem for the Rucio API
+
+File Changes
+
+M movers/rucio_sitemover.py (8)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+73.11:
+
+Benchmarking bug fix
+- Added missing break after benchmark termination. Previously benchmark command could not be terminated if they ran
+  for longer than the allowed time (RunJob)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
