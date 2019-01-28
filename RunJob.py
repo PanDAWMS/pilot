@@ -69,6 +69,8 @@ class RunJob(object):
     __yodaNodes = None
     __yodaQueue = None
 
+    __corruptedFiles = []
+
     # Getter and setter methods
 
     def getExperiment(self):
@@ -531,6 +533,10 @@ class RunJob(object):
             self.cleanup(job, rf=None)
 
         if job.eventServiceMerge:
+            if self.__corruptedFiles:
+                job.corruptedFiles = ','.join([e['lfn'] for e in self.__corruptedFiles])
+                job.result[2] = self.__corruptedFiles[0]['status_code']
+        else:
             pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
         job.setState(["failed", transExitCode, pilotExitCode])
         if pilotErrorDiag:
@@ -652,6 +658,12 @@ class RunJob(object):
         job.result[2], job.pilotErrorDiag, _dummy, FAX_dictionary = mover.get_data_new(job, jobSite, stageinTries=self.__stageinretry, proxycheck=False, workDir=self.__pworkdir, pfc_name=pfc_name, files=files)
 
         t1 = os.times()
+
+        # record failed stagein files
+        for e in job.inData:
+            if e.status == 'error':
+                failed_file = {'lfn': e.lfn, 'status': e.status, 'status_code': e.status_code, 'status_message': e.status_message}
+                self.__corruptedFiles.append(failed_file)
 
         job.timeStageIn = int(round(t1[4] - t0[4]))
 
@@ -1941,7 +1953,11 @@ if __name__ == "__main__":
         job = ed.interpretPayload(job, res, getstatusoutput_was_interrupted, current_job_number, runCommandList, runJob.getFailureCode())
         if job.result[1] != 0 or job.result[2] != 0:
             if job.eventServiceMerge:
-                job.result[2] = PilotErrors.ERR_ESRECOVERABLE
+                if self.__corruptedFiles:
+                    job.corruptedFiles = ','.join([e['lfn'] for e in self.__corruptedFiles])
+                    job.result[2] = self.__corruptedFiles[0]['status_code']
+                else:
+                    job.result[2] = PilotErrors.ERR_ESRECOVERABLE
             runJob.failJob(job.result[1], job.result[2], job, pilotErrorDiag=job.pilotErrorDiag)
 
         # stage-out ........................................................................................
