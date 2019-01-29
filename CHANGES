@@ -399,6 +399,8 @@ Updates from Tomas Javurek
 
   https://github.com/PanDAWMS/pilot/pull/239
 
+This change was requested by Ivan and Rod. I implemented logger in silly way before, when every exception, that a log from rucio wasn't propagated. With this change, it should be streamed directly.
+
 Commit Summary
 
 rucio mover: proper logger handler in place of flushing
