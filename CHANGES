@@ -395,6 +395,21 @@ M RunJob.py (18)
 M RunJobUtilities.py (4)
 M UpdateHandler.py (4)
 
+Updates from Tomas Javurek
+
+  https://github.com/PanDAWMS/pilot/pull/239
+
+Commit Summary
+
+rucio mover: proper logger handler in place of flushing
+rucio mover: proper logger handler in place of flushing, II
+rucio mover: proper logger handler in place of flushing, III
+rucio mover: proper logger handler in place of flushing, IV
+
+File Changes
+
+M movers/rucio_sitemover.py (72)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
