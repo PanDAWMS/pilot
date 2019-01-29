@@ -378,6 +378,25 @@ Checksum verification update
 - Copied get_metadata_from_xml() from Pilot 2 (pUtil)
 - stageout() now populates fspec object with checksum value from XML (mover)
 
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/240
+
+Commit Summary
+
+report corrupted es files
+Merge branch 'main-dev' of ssh://github.com/PanDAWMS/pilot into main-dev
+
+File Changes
+
+M Job.py (3)
+M PandaServerClient.py (4)
+M RunJob.py (18)
+M RunJobUtilities.py (4)
+M UpdateHandler.py (4)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TODO:
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())
