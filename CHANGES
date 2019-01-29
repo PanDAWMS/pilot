@@ -369,6 +369,15 @@ Benchmarking bug fix
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+73.12:
+
+Checksum verification update
+- For stage-out checksum verification the pilot now uses checksum value from XML which is calculated right after the
+  payload finishes rather than the value recalculated after the stage-out has finished. This optimization will discover
+  any file corruptions that happen between end of payload execution and end of stage-out.
+- Copied get_metadata_from_xml() from Pilot 2 (pUtil)
+- stageout() now populates fspec object with checksum value from XML (mover)
+
 TODO:
 
 todo: remove the explicit usages of schedconfig.lfchost and replace with an experiment specific method (getFileCatalog())

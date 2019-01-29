@@ -14,7 +14,7 @@ from .trace_report import TraceReport
 from FileStateClient import updateFileState, dumpFileStates
 from PilotErrors import PilotException, PilotErrors
 
-from pUtil import tolog, readpar
+from pUtil import tolog, readpar, get_metadata_from_xml
 
 import sys
 import os
@@ -1072,6 +1072,9 @@ class JobMover(object):
 
         self.log("Mover.stageout() [new implementation] started for activity=%s, order of activities=%s, files=%s, protocols=%s, copytools=%s" % (activity, activities, files, protocols, copytools))
 
+        # add the local checksum since it has already been calculated and is stored in the metadata-<jobId>.xml file
+        xml_dictionary = get_metadata_from_xml(self.job.workdir, 'metadata-%s.xml' % self.job.jobId)
+
         # check if file exists before actual processing
         # populate filesize if need
 
@@ -1084,6 +1087,12 @@ class JobMover(object):
             fspec.filesize = os.path.getsize(pfn)
             fspec.activity = activity
 
+            try:
+                fspec.checksum = xml_dictionary.get(fspec.lfn).get('adler32')
+            except Exception as e:
+                self.log('failed to read local checksum from metadata file: %s' % e)
+            else:
+                self.log('set checksum from xml for %s: %s' % (fspec.lfn, fspec.checksum))
         totalsize = reduce(lambda x, y: x + y.filesize, files, 0)
 
         transferred_files, failed_transfers = [],[]

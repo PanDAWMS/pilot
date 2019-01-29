@@ -7,6 +7,7 @@ import traceback
 from xml.dom import minidom
 from xml.dom.minidom import Document
 from xml.dom.minidom import parse, parseString
+from xml.etree import ElementTree
 
 # Initialize the configuration singleton
 import environment
@@ -3099,6 +3100,72 @@ def putMetadata(workdir, jobId, strXML):
         status = True
 
     return status
+
+def get_metadata_from_xml(workdir, filename="metadata.xml"):
+    """
+    Parse the payload metadata.xml file.
+
+    Example of metadata.xml:
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE POOLFILECATALOG SYSTEM 'InMemory'>
+    <POOLFILECATALOG>
+      <File ID="D2A6D6F4-ADB2-B140-9C2E-D2D5C099B342">
+        <logical>
+          <lfn name="RDO_011a43ba-7c98-488d-8741-08da579c5de7.root"/>
+        </logical>
+        <metadata att_name="geometryVersion" att_value="ATLAS-R2-2015-03-01-00"/>
+        <metadata att_name="conditionsTag" att_value="OFLCOND-RUN12-SDR-19"/>
+        <metadata att_name="size" att_value="3250143"/>
+        <metadata att_name="events" att_value="3"/>
+        <metadata att_name="beamType" att_value="collisions"/>
+        <metadata att_name="fileType" att_value="RDO"/>
+      </File>
+    </POOLFILECATALOG>
+
+    which gives the following dictionary:
+
+    {'RDO_011a43ba-7c98-488d-8741-08da579c5de7.root': {'conditionsTag': 'OFLCOND-RUN12-SDR-19',
+    'beamType': 'collisions', 'fileType': 'RDO', 'geometryVersion': 'ATLAS-R2-2015-03-01-00', 'events': '3',
+    'size': '3250143'}}
+
+    :param workdir: payload work directory (string).
+    :param filename: metadata file name (string).
+    :return: metadata dictionary.
+    """
+
+    # metadata_dictionary = { lfn: { att_name1: att_value1, .. }, ..}
+    metadata_dictionary = {}
+    path = os.path.join(workdir, filename)
+    if not os.path.exists(path):
+        logger.warning('file does not exist: %s' % path)
+        return metadata_dictionary
+
+    tree = ElementTree.parse(path)
+    root = tree.getroot()
+    # root.tag = POOLFILECATALOG
+
+    for child in root:
+        # child.tag = 'File', child.attrib = {'ID': '4ACC5018-2EA3-B441-BC11-0C0992847FD1'}
+        lfn = ""
+        for grandchild in child:
+            # grandchild.tag = 'logical', grandchild.attrib = {}
+            if grandchild.tag == 'logical':
+                for greatgrandchild in grandchild:
+                    # greatgrandchild.tag = lfn
+                    # greatgrandchild.attrib = lfn {'name': 'RDO_011a43ba-7c98-488d-8741-08da579c5de7.root'}
+                    lfn = greatgrandchild.attrib.get('name')
+                    metadata_dictionary[lfn] = {}
+            elif grandchild.tag == 'metadata':
+                # grandchild.attrib = {'att_name': 'events', 'att_value': '3'}
+                name = grandchild.attrib.get('att_name')
+                value = grandchild.attrib.get('att_value')
+                metadata_dictionary[lfn][name] = value
+            else:
+                # unknown metadata entry
+                pass
+
+    return metadata_dictionary
 
 def getMetadata(workdir, jobId, athena=False, altpath=""):
     """ read metadata from file """
