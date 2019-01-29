@@ -159,6 +159,9 @@ class Job:
         # yoda accounting info
         self.yodaJobMetrics = None
 
+        # corrupted files
+        self.corruptedFiles = None
+
         self.refreshNow = False
 
         # walltime counting for various steps

@@ -322,6 +322,10 @@ class PandaServerClient:
         # build the jobMetrics
         node['jobMetrics'] = self.getJobMetrics(job, site, workerNode)
 
+        # corrupted files
+        if job.corruptedFiles:
+            node['corruptedFiles'] = job.corruptedFiles
+
         # for hpc status
         if job.hpcStatus:
             node['jobSubStatus'] = job.hpcStatus

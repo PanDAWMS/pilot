@@ -158,6 +158,10 @@ class UpdateHandler(BaseRequestHandler):
                             pUtil.tolog("Got output_fields=%s" % str(self.__env['jobDic'][k][1].output_fields))
                             pUtil.tolog("Converted from output_fields=%s" % str(jobinfo["output_fields"]))
 
+                        # corrupted files
+                        if jobinfo.has_key("corruptedFiles"):
+                            self.__env['jobDic'][k][1].corruptedFiles = jobinfo["corruptedFiles"]
+
                         # hpc status
                         if jobinfo.has_key("mode"):
                             self.__env['jobDic'][k][1].mode = jobinfo['mode']

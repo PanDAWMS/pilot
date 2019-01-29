@@ -99,6 +99,10 @@ def updateJobInfo(job, server, port, logfile=None, final=False, latereg=False):
     if job.HPCJobId:
         msgdic['HPCJobId'] = job.HPCJobId
 
+    # corrupted files
+    if job.corruptedFiles:
+        msgdic['corruptedFiles'] = job.corruptedFiles
+
     if job.outputZipName and job.outputZipBucketID:
         msgdic['outputZipName'] = job.outputZipName
         msgdic['outputZipBucketID'] = job.outputZipBucketID
