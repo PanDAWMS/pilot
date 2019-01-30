@@ -1088,7 +1088,7 @@ class JobMover(object):
             fspec.activity = activity
 
             try:
-                fspec.checksum = xml_dictionary.get(fspec.lfn).get('adler32')
+                fspec.checksum = "ad:%s" % xml_dictionary.get(fspec.lfn).get('adler32')
             except Exception as e:
                 self.log('failed to read local checksum from metadata file: %s' % e)
             else:
