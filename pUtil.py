@@ -3138,7 +3138,7 @@ def get_metadata_from_xml(workdir, filename="metadata.xml"):
     metadata_dictionary = {}
     path = os.path.join(workdir, filename)
     if not os.path.exists(path):
-        logger.warning('file does not exist: %s' % path)
+        tolog('!!WARNING!!1212!! File does not exist: %s' % path)
         return metadata_dictionary
 
     tree = ElementTree.parse(path)
