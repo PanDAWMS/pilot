@@ -13,9 +13,6 @@ from TimerCommand import getstatusoutput
 from os.path import dirname
 import logging
 import os
-from rucio.client.downloadclient import DownloadClient
-from rucio.client.uploadclient import UploadClient
-
 
 # logger handler to emit the rucio logger with tolog() method
 class PilotLogHandler(logging.Handler):
@@ -126,6 +123,8 @@ class rucioSiteMover(BaseSiteMover):
 
     def _stageInApi(self, dst, fspec):
 
+        from rucio.client.downloadclient import DownloadClient
+
         # rucio logger init.
         rucio_logger = logging.getLogger('rucio_mover')
         download_client = DownloadClient(logger=rucio_logger)
@@ -214,6 +213,8 @@ class rucioSiteMover(BaseSiteMover):
                 'pfn': fspec.lfn}
 
     def _stageOutApi(self, src, fspec):
+
+        from rucio.client.uploadclient import UploadClient
 
         # rucio logger init.
         rucio_logger = logging.getLogger('rucio_mover')
