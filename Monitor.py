@@ -649,7 +649,7 @@ class Monitor:
                         latest_file = max(list_of_files, key=os.path.getctime)
                         pUtil.tolog('tail of file %s will be added to heartbeat' % latest_file)
                         # now get the tail of the found log file
-                        _tail = tail(latest_file)
+                        _tail = latest_file + "\n" + tail(latest_file)
                         self.__env['stdout_tail'] = _tail  # stdout_dictionary[self.__env['jobDic'][k][1].jobId]
                         index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
                         self.__env['stdout_path'] = stdout_dictionary[index]
