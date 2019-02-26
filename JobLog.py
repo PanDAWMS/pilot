@@ -1054,7 +1054,7 @@ class JobLog:
                 dumpFileStates(site.workdir, job.jobId)
 
                 # create the final metadata.xml
-                if not jr and job.result[0] != "failed":
+                if not jr: # and job.result[0] != "failed":
                     strXML = self.createMetadataForOutput(site.workdir, job.logFile, job.jobId, job.newDirNM, job.outputFilesXML)
 
                 # create metadata later (in updatePandaServer) for the log at least, if it doesn't exist already

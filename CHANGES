@@ -419,6 +419,25 @@ M movers/rucio_sitemover.py (72)
 Nordugrid patch
 - Moved back offending rucio imports from module header to where they are used (rucio_sitemover)
 
+XML update:
+- Always calling createMetadataForOutput() in postJobTask(), not only in non-failed jobs as before, to get a set strXML (JobLog)
+
+Updates from Wen Guan:
+
+  https://github.com/PanDAWMS/pilot/pull/241
+
+Commit Summary
+
+fix bug in corruptedfiles
+
+File Changes
+
+M RunJob.py (16)
+Patch Links:
+
+https://github.com/PanDAWMS/pilot/pull/241.patch
+https://github.com/PanDAWMS/pilot/pull/241.diff
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:

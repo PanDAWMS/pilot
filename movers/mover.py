@@ -1074,6 +1074,7 @@ class JobMover(object):
 
         # add the local checksum since it has already been calculated and is stored in the metadata-<jobId>.xml file
         xml_dictionary = get_metadata_from_xml(self.job.workdir, 'metadata-%s.xml' % self.job.jobId)
+        self.log('xml_dictionary = %s' % str(xml_dictionary))
 
         # check if file exists before actual processing
         # populate filesize if need
@@ -1234,7 +1235,7 @@ class JobMover(object):
                                 should_skip = False
                                 break
                         if should_skip:
-                            self.log("[stage-out] [%s] protocol=%s of ddmendpoint=%s is skipped since copytool=%s does not support it, accepted schemes=%s" % (activity, dat['se'], ddmendpoint, copytool, dat['scheme']))
+                            self.log("[stage-out] [%s] protocol=%s of ddmendpoint=%s is skipped since copytool=%s is not in the list of allowed (local) destinations, accepted schemes=%s" % (activity, dat['se'], ddmendpoint, copytool, dat['scheme']))
 
                             continue
 
