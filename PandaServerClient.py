@@ -797,6 +797,7 @@ class PandaServerClient:
             else:
                 tolog("stdout_path not set")
         else:
+            tolog('job.debug=%s' % str(job.debug))
             if not job.debug:
                 tolog("Stdout tail will not be sent (debug=False)")
             elif stdout_tail == "":
