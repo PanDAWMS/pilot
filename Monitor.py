@@ -643,7 +643,9 @@ class Monitor:
                 if self.__env['jobDic'][k][1].debug:
                     try:
                         # find the latest updated log file
-                        list_of_files = get_files()
+                        list_of_files = get_files(pattern="*.log")
+                        if not list_of_files:  # some TRFs produce logs with different naming scheme
+                            list_of_files = get_files(pattern="log.*")
                         latest_file = max(list_of_files, key=os.path.getctime)
                         pUtil.tolog('tail of file %s will be added to heartbeat' % latest_file)
                         # now get the tail of the found log file
@@ -652,6 +654,7 @@ class Monitor:
                         index = "path-%s" % (self.__env['jobDic'][k][1].jobId)
                         self.__env['stdout_path'] = stdout_dictionary[index]
                     except Exception, e:
+                        pUtil.tolog("!!WARNING!!4545!! Failed to get stdout tail: %s" % e)
                         self.__env['stdout_tail'] = "(stdout tail not available)"
                         self.__env['stdout_path'] = ""
 

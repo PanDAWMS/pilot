@@ -419,6 +419,9 @@ M movers/rucio_sitemover.py (72)
 Nordugrid patch
 - Moved back offending rucio imports from module header to where they are used (rucio_sitemover)
 
+Debug update
+- Now calling get_files with different file name pattern in case TRF produced logs with name log.* instead of *.log, __updateJobs() (Monitor)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
