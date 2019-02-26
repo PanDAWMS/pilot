@@ -421,6 +421,7 @@ Nordugrid patch
 
 Debug update
 - Now calling get_files with different file name pattern in case TRF produced logs with name log.* instead of *.log, __updateJobs() (Monitor)
+- Corrected 'False' -> False for debug variable (Job)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
