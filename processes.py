@@ -16,10 +16,14 @@ def findProcessesInGroup(cpids, pid):
     lines = psout.split("\n")
     if lines != ['']:
         for i in range(0, len(lines)):
-            thispid = int(lines[i].split()[0])
-            thisppid = int(lines[i].split()[1])
-            if thisppid == pid:
-                findProcessesInGroup(cpids, thispid)
+            try:
+                thispid = int(lines[i].split()[0])
+                thisppid = int(lines[i].split()[1])
+            except Exception as e:
+                pUtil.tolog('exception caught: %s (lines[1]=%s)' % (e, lines[1]))
+            else:
+                if thisppid == pid:
+                    findProcessesInGroup(cpids, thispid)
 
 def isZombie(pid):
     """ Return True if pid is a zombie process """

@@ -422,6 +422,9 @@ Nordugrid patch
 XML update:
 - Always calling createMetadataForOutput() in postJobTask(), not only in non-failed jobs as before, to get a set strXML (JobLog)
 
+Exception handling:
+- Added exception handling to findProcessesInGroup() to avoid crash when ps command has failed (-> invalid literal for int())
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/241
