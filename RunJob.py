@@ -536,8 +536,8 @@ class RunJob(object):
             if self.corruptedFiles:
                 job.corruptedFiles = ','.join([e['lfn'] for e in self.corruptedFiles])
                 job.result[2] = self.corruptedFiles[0]['status_code']
-        else:
-            pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
+            else:
+                pilotExitCode = PilotErrors.ERR_ESRECOVERABLE
         job.setState(["failed", transExitCode, pilotExitCode])
         if pilotErrorDiag:
             job.pilotErrorDiag = pilotErrorDiag
