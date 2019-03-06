@@ -425,6 +425,10 @@ XML update:
 Exception handling:
 - Added exception handling to findProcessesInGroup() to avoid crash when ps command has failed (-> invalid literal for int())
 
+Debug update
+- Now calling get_files with different file name pattern in case TRF produced logs with name log.* instead of *.log, __updateJobs() (Monitor)
+- Corrected 'False' -> False for debug variable (Job)
+
 Updates from Wen Guan:
 
   https://github.com/PanDAWMS/pilot/pull/241
@@ -440,10 +444,6 @@ Patch Links:
 
 https://github.com/PanDAWMS/pilot/pull/241.patch
 https://github.com/PanDAWMS/pilot/pull/241.diff
-
-Debug update
-- Now calling get_files with different file name pattern in case TRF produced logs with name log.* instead of *.log, __updateJobs() (Monitor)
-- Corrected 'False' -> False for debug variable (Job)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
