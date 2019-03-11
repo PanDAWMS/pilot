@@ -2526,7 +2526,7 @@ class RunJobEvent(RunJob):
                 tolog("Waiting for a new message")
                 size, buf = self.__message_server_payload.receive()
                 while size == -1 and not self.__message_thread_payload.stopped():
-                    time.sleep(1)
+                    time.sleep(0.1)
                     size, buf = self.__message_server_payload.receive()
                 tolog("Received new message from Payload: %s" % (buf))
 
@@ -2637,7 +2637,7 @@ class RunJobEvent(RunJob):
                     tolog("Pilot received message:%s" % buf)
             except Exception, e:
                 tolog("Caught exception:%s" % e)
-            time.sleep(1)
+            time.sleep(0.1)
 
         tolog("Payload listener has finished")
 
@@ -3961,7 +3961,7 @@ if __name__ == "__main__":
 
         k = 0
         max_wait = runJob.getMaxWaitOneEvent()
-        nap = 5
+        nap = 0.1
         eventRangeFilesDictionary = {}
         time_to_calculate_cuptime = time.time()
         while True:
@@ -4163,8 +4163,8 @@ if __name__ == "__main__":
                             break
 
                         # Take a nap
-                        if i%10 == 0:
-                            tolog("Event range loop iteration #%d" % (i))
+                        if i%600 == 0:
+                            tolog("Event range loop iteration #%d" % (i/600))
                         i += 1
                         w += 1
                         time.sleep(nap)
@@ -4243,10 +4243,10 @@ if __name__ == "__main__":
                     tolog("Aborting AthenaMP waiting loop")
                     break
 
-                time.sleep(6)
+                time.sleep(0.1)
 
-                if k%10 == 0:
-                    tolog("AthenaMP waiting loop iteration #%d" % (k))
+                if k%600 == 0:
+                    tolog("AthenaMP waiting loop iteration #%d" % (k/600))
                 k += 1
 
                 # Is AthenaMP still running?
