@@ -2875,8 +2875,8 @@ def runMain(runpars):
             else:
                 pUtil.tolog("Pilot is not running in a virtual machine")
 
-            loc = detect_client_location(env['thisSite'].sitename)
-            pUtil.tolog("Location dictionary = %s" % str(loc))
+            #loc = detect_client_location(env['thisSite'].sitename)
+            #pUtil.tolog("Location dictionary = %s" % str(loc))
 
             # do we have enough local disk space to run the job?
             # (skip this test for ND true pilots - job will be failed in Monitor::monitor_job() instead)
