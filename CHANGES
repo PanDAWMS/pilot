@@ -450,7 +450,7 @@ https://github.com/PanDAWMS/pilot/pull/241.diff
 73.14
 
 IPv6
-- New version of Rucio function detect_client_location() that is IPv6 compatible has been added (pilot)
+- New version of Rucio function detect_client_location() that is IPv6 compatible (pilot)
 - Deprecated detect_client_location() in pilot, updated duplicated function in mover code (pilot, mover)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
