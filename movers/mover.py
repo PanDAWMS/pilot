@@ -201,33 +201,6 @@ class JobMover(object):
                 'fqdn': socket.getfqdn(),
                 'site': site}
 
-    def detect_client_location_old(self):
-        """
-        Open a UDP socket to a machine on the internet, to get the local IP address
-        of the requesting client.
-        Try to determine the sitename automatically from common environment variables,
-        in this order: SITE_NAME, ATLAS_SITE_NAME, OSG_SITE_NAME. If none of these exist
-        use the fixed string 'ROAMING'.
-        Note: this is a modified Rucio function.
-
-        :return: ip, fqdn, site dictionary
-        """
-
-        site = readpar('gocname')
-        dic = {}
-        try:
-            import socket
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            ip = s.getsockname()[0]
-            dic = {'ip': ip,
-                   'fqdn': socket.getfqdn(),
-                   'site': site}
-        except Exception as e:
-            self.log('socket() failed to lookup local IP')
-
-        return dic
-
     def resolve_replicas(self, files):
         """
             populates fdat.replicas of each entry from `files` list
