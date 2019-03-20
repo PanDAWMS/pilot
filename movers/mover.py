@@ -189,11 +189,6 @@ class JobMover(object):
         except Exception:
             pass
 
-        #    site = os.environ.get('SITE_NAME',
-        #                          os.environ.get('ATLAS_SITE_NAME',
-        #                                         os.environ.get('OSG_SITE_NAME',
-        #                                                        'ROAMING')))
-
         return {'ip': ip,
                 'ip6': ip6,
                 'fqdn': socket.getfqdn(),
