@@ -14,7 +14,7 @@ from .trace_report import TraceReport
 from FileStateClient import updateFileState, dumpFileStates
 from PilotErrors import PilotException, PilotErrors
 
-from pUtil import tolog, readpar, get_metadata_from_xml
+from pUtil import tolog, get_metadata_from_xml
 
 import sys
 import os
@@ -167,12 +167,10 @@ class JobMover(object):
         """
         Open a UDP socket to a machine on the internet, to get the local IPv4 and IPv6
         addresses of the requesting client.
-        Try to determine the sitename automatically from common environment variables,
-        in this order: SITE_NAME, ATLAS_SITE_NAME, OSG_SITE_NAME. If none of these exist
-        use the fixed string 'ROAMING'.
+        resolve sitename from PanDA Schedconfig (ATLAS_SITE_NAME)
         """
 
-        site = readpar('gocname')
+        site = self.si.readpar('gstat')  ## ATLAS Site name
 
         ip = '0.0.0.0'
         try:
