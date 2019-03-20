@@ -460,6 +460,19 @@ IPv6
 IPv6
 - Some cleanup related to the detect_client_location() function (pilot, mover)
 
+Updates from Alexey Anisenkov:
+
+  https://github.com/PanDAWMS/pilot/pull/244
+
+Commit Summary
+
+detect_location: pass ATLASSite name as site value for client location to Rucio.resolve_replica()
+
+File Changes
+
+M movers/mover.py (8)
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
