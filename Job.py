@@ -436,6 +436,10 @@ class Job:
 
         if data.has_key('cmtConfig'):
             self.cmtconfig = str(data['cmtConfig'])
+
+            # discard any encoded container information
+            if "@" in self.cmtconfig:
+                self.cmtconfig = self.cmtconfig.split("@")[0]
         else:
             # use default
             pass
