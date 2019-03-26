@@ -458,7 +458,7 @@ IPv6
 73.15
 
 User defined containers
-- Discarding any @-syntax in cmtconfig if present (used for user defined containers; ALRB_USER_PLATFORM encoded in cmtconfig)
+- Discarding any @-syntax in cmtconfig if present (used for user defined containers; ALRB_USER_PLATFORM encoded in cmtconfig) (Job)
 
 IPv6
 - Some cleanup related to the detect_client_location() function (pilot, mover)
