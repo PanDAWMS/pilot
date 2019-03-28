@@ -1,6 +1,7 @@
 # This module contains functions related to file handling.
 
 import os
+from time import time
 from commands import getoutput
 
 from pUtil import tolog, convert, readpar
@@ -1028,3 +1029,14 @@ def get_files(pattern="*.log"):
 def tail(filename, lines=10):
 
     return getoutput('tail -%d %s' % (lines, filename))
+
+def find_latest_modified_file(list_of_files):
+
+    latest_file = max(list_of_files, key=os.path.getctime)
+    try:
+        mtime = int(os.path.getmtime(latest_file))
+    except Exception as e:
+        tolog("!!WARNING!!2323!! Int conversion failed for mod time: %s (will use time.time() value instead)" % e)
+        mtime = int(time())
+
+    return latest_file, mtime
