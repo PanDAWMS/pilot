@@ -773,8 +773,11 @@ class Monitor:
                                 _files.append(_file)
                         if _files != []:
                             pUtil.tolog("Found %d files that were recently updated (e.g. file %s)" % (len(_files), _files[0]))
-                            # get the current system time
-                            self.__env['lastTimeFilesWereModified'][k] = int(time.time())
+
+                            # now get the mod times for these file, and identify the most recently update file
+
+                            # set lastTimeFilesWereModified to the mod time of the most recently updated file
+                            self.__env['lastTimeFilesWereModified'][k] = int(time.time())  # currently wrong
                         else:
                             pUtil.tolog("WARNING: found no recently updated files!")
                     else:
