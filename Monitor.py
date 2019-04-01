@@ -776,9 +776,10 @@ class Monitor:
 
                             # now get the mod times for these file, and identify the most recently update file
                             latest_modified_file, mtime = find_latest_modified_file(files)
-                            pUtil.tolog("File %s is the most recently updated file (at time=%d)" % (latest_modified_file, mtime))
-                            # set lastTimeFilesWereModified to the mod time of the most recently updated file
-                            self.__env['lastTimeFilesWereModified'][k] = mtime
+                            if mtime:
+                                pUtil.tolog("File %s is the most recently updated file (at time=%d)" % (latest_modified_file, mtime))
+                                # set lastTimeFilesWereModified to the mod time of the most recently updated file
+                                self.__env['lastTimeFilesWereModified'][k] = mtime
                         else:
                             pUtil.tolog("WARNING: found no recently updated files!")
                     else:

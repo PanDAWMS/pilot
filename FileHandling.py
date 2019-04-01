@@ -1036,7 +1036,7 @@ def find_latest_modified_file(list_of_files):
     try:
         mtime = int(os.path.getmtime(latest_file))
     except Exception as e:
-        tolog("!!WARNING!!2323!! Int conversion failed for mod time: %s (will use time.time() value instead)" % e)
-        mtime = int(time())
+        tolog("!!WARNING!!2323!! Int conversion failed for mod time: %s" % e)
+        mtime = None
 
     return latest_file, mtime
