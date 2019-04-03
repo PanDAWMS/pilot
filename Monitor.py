@@ -1729,10 +1729,10 @@ class Monitor:
                                 self.__env['jobDic'][k][1].result[2] = error.ERR_PILOTEXC
                             if self.__env['jobDic'][k][1].pilotErrorDiag == "":
                                 self.__env['jobDic'][k][1].pilotErrorDiag = pilotErrorDiag
-                            if globalSite:
-                                pUtil.postJobTask(self.__env['jobDic'][k][1], globalSite, globalWorkNode,
-                                                  self.__env['experiment'], jr=False)
-                                self.__env['logTransferred'] = True
+                            #if globalSite:
+                            #    pUtil.postJobTask(self.__env['jobDic'][k][1], globalSite, globalWorkNode,
+                            #                      self.__env['experiment'], jr=False)
+                            #    self.__env['logTransferred'] = True
                             pUtil.tolog("Killing process: %d from line %d" % (self.__env['jobDic'][k][0], lineno()))
                             pUtil.createLockFile(True, self.__env['jobDic'][k][1].workdir, lockfile="JOBWILLBEKILLED")
                             killProcesses(self.__env['jobDic'][k][0], self.__env['jobDic'][k][1].pgrp)
@@ -1743,21 +1743,24 @@ class Monitor:
                         # collect all the zombie processes
                         self.__wdog.collectZombieJob(tn=10)
                     else:
-                        pUtil.tolog("Cleanup using globalJob")
-                        globalJob.result[0] = "failed"
-                        globalJob.currentState = globalJob.result[0]
-                        globalJob.result[2] = error.ERR_PILOTEXC
-                        globalJob.pilotErrorDiag = pilotErrorDiag
-                        if globalSite:
-                            pUtil.postJobTask(globalJob, globalSite, globalWorkNode, self.__env['experiment'], jr=False)
+                        pass
+                        #pUtil.tolog("Cleanup using globalJob")
+                        #globalJob.result[0] = "failed"
+                        #globalJob.currentState = globalJob.result[0]
+                        #globalJob.result[2] = error.ERR_PILOTEXC
+                        #globalJob.pilotErrorDiag = pilotErrorDiag
+                        #if globalSite:
+                        #    pUtil.postJobTask(globalJob, globalSite, globalWorkNode, self.__env['experiment'], jr=False)
                 else:
-                    if globalSite:
-                        pUtil.tolog("Do a fast cleanup since server was not updated after job was downloaded (no log)")
-                        pUtil.fastCleanup(globalSite.workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
+                    pass
+                    #if globalSite:
+                    #    pUtil.tolog("Do a fast cleanup since server was not updated after job was downloaded (no log)")
+                    #    pUtil.fastCleanup(globalSite.workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
             else:
-                if globalSite:
-                    pUtil.tolog("Do a fast cleanup since job was not downloaded (no log)")
-                    pUtil.fastCleanup(globalSite.workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
+                pass
+                #if globalSite:
+                #    pUtil.tolog("Do a fast cleanup since job was not downloaded (no log)")
+                #    pUtil.fastCleanup(globalSite.workdir, self.__env['pilot_initdir'], self.__env['rmwkdir'])
             self.__env['return'] = error.ERR_PILOTEXC
             return
 

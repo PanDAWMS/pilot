@@ -485,6 +485,9 @@ Looping job update:
   time (Monitor)
 - NOTE: update get_time_for_last_touch() in Pilot 2 as well
 
+Unset variables bug fix
+- Removed usages of globalJob and globalSite in monitor_job(), discovered by P. Svirin (Monitor)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
