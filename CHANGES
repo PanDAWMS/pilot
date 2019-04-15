@@ -488,6 +488,10 @@ Looping job update:
 Unset variables bug fix
 - Removed usages of globalJob and globalSite in monitor_job(), discovered by P. Svirin (Monitor)
 
+Wrong architecture
+- Added new error code 1248, ERR_WRONGARCHITECTURE: "Job built on wrong architecture" (PilotErrors)
+- Refactored interpretPayloadStdout(); created isSQLiteLockingProblem(), isBuiltOnWrongArchitecture() (ATLASExperiment)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:
