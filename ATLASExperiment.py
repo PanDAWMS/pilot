@@ -1456,7 +1456,7 @@ class ATLASExperiment(Experiment):
         job.result[1] = transExitCode
         return job
 
-    def isSQLiteLockingProblem(self, filename, job=job):
+    def isSQLiteLockingProblem(self, filename, job=None):
         """
         Scan for NFS/SQLite locking problems.
         Note: the function updates the job object.
@@ -1472,14 +1472,14 @@ class ATLASExperiment(Experiment):
         e1 = "prepare 5 database is locked"
         e2 = "Error SQLiteStatement"
         _out = commands.getoutput('grep "%s" %s | grep "%s"' % (e1, filename, e2))
-        if 'sqlite' in _out:
+        if 'sqlite' in _out and job:
             job.pilotErrorDiag = "NFS/SQLite locking problems: %s" % _out
             job.result[2] = error.ERR_NFSSQLITE
             failed = True
 
         return failed
 
-    def isBuiltOnWrongArchitecture(self, transExitCode, filename, job=job):
+    def isBuiltOnWrongArchitecture(self, transExitCode, filename, job=None):
         """
         Detect if the job was built on the wrong architecture.
 
@@ -1495,13 +1495,17 @@ class ATLASExperiment(Experiment):
         if transExitCode == 221:
             tolog("Exit code 221 detected, will scan payload stdout for GLIBC errors")
             e1 = "cling::DynamicLibraryManager::loadLibrary():"
-            e2 = "grep GLIBC"
+            e2 = "GLIBC"
             e3 = "not found"
             _out = commands.getoutput('grep "%s" %s | grep "%s" | grep "%s"' % (e1, filename, e2, e3))
-            if 'sqlite' in _out:
+            if _out and job:
                 job.pilotErrorDiag = "Architecture problem detected: %s" % _out
                 job.result[2] = error.ERR_WRONGARCHITECTURE
-                failed = True
+            else:
+                job.pilotErrorDiag = "General runGen failure"
+                job.result[2] = error.ERR_RUNGENFAILURE
+            failed = True
+
         tolog("isBuiltOnWrongArchitecture=%s" % str(failed))
 
         return failed

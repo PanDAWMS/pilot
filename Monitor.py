@@ -190,6 +190,10 @@ class Monitor:
         # get the limit of the workdir
         maxwdirsize = self.__getMaxAllowedWorkDirSize()
 
+        # add grace margin of 10%
+        maxwdirsize = int(maxwdirsize * 1.10)
+        pUtil.tolog('Added a 10% grace margin to maxwdir: %d B' % maxwdirsize)
+
         # after multitasking was removed from the pilot, there is actually only one job
         for k in self.__env['jobDic'].keys():
             # get size of workDir

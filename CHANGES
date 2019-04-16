@@ -490,7 +490,12 @@ Unset variables bug fix
 
 Wrong architecture
 - Added new error code 1248, ERR_WRONGARCHITECTURE: "Job built on wrong architecture" (PilotErrors)
+- Added new error code 1249, ERR_RUNGENFAILURE: "RunGen failure (consult log file)" (PilotErrors)
 - Refactored interpretPayloadStdout(); created isSQLiteLockingProblem(), isBuiltOnWrongArchitecture() (ATLASExperiment)
+
+maxwdir
+- Added a 10% grace margin to size checks against maxwdir, __checkWorkDir() (Monitor)
+- Discussed in JIRA ticket https://its.cern.ch/jira/browse/ATLASPANDA-482
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

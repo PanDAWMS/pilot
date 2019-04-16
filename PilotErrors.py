@@ -145,6 +145,7 @@ class PilotErrors:
     ERR_NOUSERTARBALL = 1246
     ERR_BADXML = 1247
     ERR_WRONGARCHITECTURE = 1248
+    ERR_RUNGENFAILURE = 1249
 
     # internal error codes
     ERR_DDMREG = 1
@@ -296,6 +297,7 @@ class PilotErrors:
         ERR_NOUSERTARBALL: "User tarball cannot be downloaded from PanDA server",
         ERR_BADXML: "Badly formed XML",
         ERR_WRONGARCHITECTURE: "Job built on wrong architecture",
+        ERR_RUNGENFAILURE: "RunGen failure (consult log file)",
 
     }
 
