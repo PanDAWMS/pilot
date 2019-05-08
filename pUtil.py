@@ -691,8 +691,8 @@ def getJobStatus(jobId, pshttpurl, psport, path):
                 status = "unknown"
                 attemptNr = -1
                 StatusCode = 20
-        except Exception,e:
-            tolog("Could not interpret job status from dispatcher: %s, %s" % (response, e))
+        except Exception, e:
+            tolog("Could not interpret job status from dispatcher: %s" % (e))
             status = 'unknown'
             attemptNr = -1
             StatusCode = -1

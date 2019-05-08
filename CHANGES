@@ -485,17 +485,20 @@ Looping job update:
   time (Monitor)
 - NOTE: update get_time_for_last_touch() in Pilot 2 as well
 
-Unset variables bug fix
+Unset variables bug fix:
 - Removed usages of globalJob and globalSite in monitor_job(), discovered by P. Svirin (Monitor)
 
-Wrong architecture
+Wrong architecture:
 - Added new error code 1248, ERR_WRONGARCHITECTURE: "Job built on wrong architecture" (PilotErrors)
 - Added new error code 1249, ERR_RUNGENFAILURE: "RunGen failure (consult log file)" (PilotErrors)
 - Refactored interpretPayloadStdout(); created isSQLiteLockingProblem(), isBuiltOnWrongArchitecture() (ATLASExperiment)
 
-maxwdir
+maxwdir:
 - Added a 10% grace margin to size checks against maxwdir, __checkWorkDir() (Monitor)
 - Discussed in JIRA ticket https://its.cern.ch/jira/browse/ATLASPANDA-482
+
+getJobStatus:
+- Fixed undefined variable in exception handling in getJobStatus() (pUtil)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
