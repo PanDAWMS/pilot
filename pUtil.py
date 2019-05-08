@@ -4402,6 +4402,7 @@ def shellExitCode(exitCode):
         error.ERR_MKDIRWORKDIR   : [66, "Could not create directory"],
         error.ERR_NOSUCHFILE     : [67, "No such file or directory"],
         error.ERR_NOVOMSPROXY    : [68, "Voms proxy not valid"],
+        error.ERR_NOPROXY        : [68, "Voms proxy not valid"],
         error.ERR_NOLOCALSPACE   : [69, "No space left on local disk"],
         error.ERR_PILOTEXC       : [70, "Exception caught by pilot"],
         error.ERR_QUEUEDATA      : [71, "Pilot could not download queuedata"],
