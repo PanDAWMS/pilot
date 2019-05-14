@@ -1048,10 +1048,4 @@ def find_latest_modified_file(list_of_files):
 def verified_files(file_list):
 
     # return a list of files that actually exist
-
-    _verified_files = []
-    for fname in file_list:
-        if os.path.exists(fname):
-            _verified_files.append(fname)
-
-    return _verified_files
+    return [f for f in file_list if os.path.exists(f)]
