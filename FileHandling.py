@@ -1024,13 +1024,17 @@ def get_files(pattern="*.log"):
             stdout = stdout[:-1]
         files = stdout.split('\n')
 
-    return files
+    # make sure all files exist
+    return verified_files(files)
 
 def tail(filename, lines=10):
 
     return getoutput('tail -%d %s' % (lines, filename))
 
 def find_latest_modified_file(list_of_files):
+
+    # make sure all files exist
+    list_of_files = verified_files(list_of_files)
 
     latest_file = max(list_of_files, key=os.path.getctime)
     try:
@@ -1040,3 +1044,14 @@ def find_latest_modified_file(list_of_files):
         mtime = None
 
     return latest_file, mtime
+
+def verified_files(file_list):
+
+    # return a list of files that actually exist
+
+    _verified_files = []
+    for fname in file_list:
+        if os.path.exists(fname):
+            _verified_files.append(fname)
+
+    return _verified_files

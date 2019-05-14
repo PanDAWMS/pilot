@@ -778,8 +778,14 @@ class Monitor:
                         if _files != []:
                             pUtil.tolog("Found %d files that were recently updated" % len(_files))
 
-                            # now get the mod times for these file, and identify the most recently update file
-                            latest_modified_file, mtime = find_latest_modified_file(files)
+                            # now get the mod times for these files, and identify the most recently update file
+                            # try protection against file system problems
+                            try:
+                                latest_modified_file, mtime = find_latest_modified_file(_files)
+                            except Exception as e:
+                                pUtil.tolog("!!WARNING!!2332!! Exception caught (file system problem?): %s" % e)
+                                mtime = None
+
                             if mtime:
                                 pUtil.tolog("File %s is the most recently updated file (at time=%d)" % (latest_modified_file, mtime))
                                 # set lastTimeFilesWereModified to the mod time of the most recently updated file
