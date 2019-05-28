@@ -1036,7 +1036,7 @@ def find_latest_modified_file(list_of_files):
     # make sure all files exist
     list_of_files = verified_files(list_of_files)
 
-    latest_file = max(list_of_files, key=os.path.getctime)
+    latest_file = max(list_of_files, key=os.path.getmtime)
     try:
         mtime = int(os.path.getmtime(latest_file))
     except Exception as e:

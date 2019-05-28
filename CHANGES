@@ -518,6 +518,10 @@ Exceptions in looping job killer
 Job log
 - Added merged_lhef* and Process to redundant files list, to be removed before job log is created (ATLASExperiment)
 
+Looping job killer
+- Changed from getctime() to getmtime() in find_latest_modified_file() (FileHandling)
+- Same change in __updateJobs() where the function is used to find the latest updated log file (Monitor)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TODO:

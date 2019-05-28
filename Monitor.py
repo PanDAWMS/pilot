@@ -650,7 +650,7 @@ class Monitor:
                         list_of_files = get_files(pattern="*.log")
                         if not list_of_files:  # some TRFs produce logs with different naming scheme
                             list_of_files = get_files(pattern="log.*")
-                        latest_file = max(list_of_files, key=os.path.getctime)
+                        latest_file = max(list_of_files, key=os.path.getmtime)
                         pUtil.tolog('tail of file %s will be added to heartbeat' % latest_file)
                         # now get the tail of the found log file
                         _tail = latest_file + "\n" + tail(latest_file)
