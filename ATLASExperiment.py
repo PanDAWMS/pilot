@@ -612,7 +612,7 @@ class ATLASExperiment(Experiment):
                     "ckpt*",
                     "HAHM_*",
                     "Process",
-                    "merged_lhef*"]
+                    "merged_lhef._0.events-new"]
 
         # remove core and pool.root files from AthenaMP sub directories
         try:
